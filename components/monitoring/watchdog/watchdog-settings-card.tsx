@@ -806,8 +806,6 @@ export function WatchdogSettingsCard({
               disabled={!form.isDirty || form.isSaving}
               onClick={handleSave}
               label={t("watchdog.save_button")}
-              savingLabel={t("watchdog.save_saving")}
-              savedLabel={t("watchdog.save_saved_flash")}
             />
           </div>
         </div>

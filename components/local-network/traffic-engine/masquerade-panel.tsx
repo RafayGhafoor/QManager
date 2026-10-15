@@ -156,8 +156,6 @@ export function MasqueradePanel({
                 disabled={!sniDirty || !!sniError}
                 onClick={handleSaveSni}
                 label={t("traffic_engine.tile_apply")}
-                savingLabel={t("actions.saving", { ns: "common" })}
-                savedLabel={t("actions.saved", { ns: "common" })}
               />
             )}
           </div>

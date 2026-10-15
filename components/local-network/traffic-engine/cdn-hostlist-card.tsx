@@ -462,8 +462,6 @@ export function CdnHostlistCard() {
             disabled={!isDirty}
             onClick={handleSave}
             label={t("actions.save", { ns: "common" })}
-            savingLabel={t("actions.saving", { ns: "common" })}
-            savedLabel={t("actions.saved", { ns: "common" })}
           />
           <div className="flex-1" />
           <AlertDialog>

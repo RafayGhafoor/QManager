@@ -574,8 +574,6 @@ export function AlertsSettingsCard({
               disabled={!form.isDirty || form.isSaving}
               onClick={handleSave}
               label={t("alerts.save_button")}
-              savingLabel={t("alerts.save_saving")}
-              savedLabel={t("alerts.save_saved_flash")}
             />
           </div>
         </div>

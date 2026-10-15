@@ -300,7 +300,6 @@ const LanConfigCard = () => {
                   saved={false}
                   disabled={!canApply}
                   label={t("lan_config.action_apply")}
-                  savingLabel={tCommon("state.applying")}
                 />
               </form>
             </motion.div>
