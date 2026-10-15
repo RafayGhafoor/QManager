@@ -1,6 +1,6 @@
 # Connection Quality Settings
 
-The Connection Quality settings page (System Settings → Connection Quality) controls two things: how aggressively the ping daemon probes for internet reachability (Connection Sensitivity / ping profile), and at what latency/loss levels QManager fires a Network Event notification (quality thresholds). Both settings live in `/etc/config/quecmanager` and take effect without a reboot.
+The Connection Quality settings page (Monitoring → Connection Quality) controls two things: how aggressively the ping daemon probes for internet reachability (Connection Sensitivity / ping profile), and at what latency/loss levels QManager fires a Network Event notification (quality thresholds). Both settings live in `/etc/config/quecmanager` and take effect without a reboot.
 
 **Responsibility boundary (important):** The Connection Sensitivity card owns ONLY the probe interval (profile name + custom targets). It does NOT own fail thresholds or recovery — those belong to the Connection Watchdog. The Connection Watchdog is the sole writer of `quecmanager.ping_profile.interval_override`; when an override is active, the Sensitivity card shows an informational Alert explaining that the watchdog controls the interval. The profile Tabs remain interactive (not disabled) — the selected profile becomes the fallback once the override is cleared.
 
@@ -8,7 +8,7 @@ The Connection Quality settings page (System Settings → Connection Quality) co
 
 | Item | Value |
 |---|---|
-| Page route | `/system-settings/connection-quality` |
+| Page route | `/monitoring/connection-quality` |
 | Ping profile CGI | `GET/POST /cgi-bin/quecmanager/system/ping_profile.sh` |
 | Quality thresholds CGI | `GET/POST /cgi-bin/quecmanager/system/quality_thresholds.sh` |
 | UCI package | `quecmanager` (not `qmanager`) |
@@ -339,10 +339,10 @@ Both `/tmp/qmanager_ping.json` (written by `qmanager_ping`) and `/tmp/qmanager_s
 
 | File | Purpose |
 |---|---|
-| `app/system-settings/connection-quality/page.tsx` | Route entry point |
-| `components/system-settings/connection-quality/connection-quality.tsx` | Page shell: heading + 2-col card grid |
-| `components/system-settings/connection-quality/connectivity-sensitivity-card.tsx` | Ping profile selector + probe target inputs + IPv6 reachability indicator |
-| `components/system-settings/connection-quality/quality-thresholds-card.tsx` | Latency/loss preset selectors |
+| `app/monitoring/connection-quality/page.tsx` | Route entry point (the old `/system-settings/connection-quality` is a client-side redirect stub) |
+| `components/monitoring/connection-quality/connection-quality.tsx` | Page shell: heading + 2-col card grid |
+| `components/monitoring/connection-quality/connectivity-sensitivity-card.tsx` | Ping profile selector + probe target inputs + IPv6 reachability indicator |
+| `components/monitoring/connection-quality/quality-thresholds-card.tsx` | Latency/loss preset selectors |
 | `hooks/use-ping-profile.ts` | Fetch + save ping profile |
 | `hooks/use-quality-thresholds.ts` | Fetch + save quality thresholds |
 | `components/ui/meta-panel.tsx` | `MetaPanel` / `MetaPair` — info grid used for preset preview |

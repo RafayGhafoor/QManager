@@ -43,13 +43,15 @@ app/                            # Next.js App Router
 │   ├── custom-profiles/        # SIM profile management
 │   └── sms/                    # SMS management
 ├── local-network/              # Network settings
-│   ├── page.tsx                # Ethernet status hub
-│   ├── ethernet/               # Ethernet link speed
+│   ├── page.tsx                # Redirect stub to /local-network/ethernet
+│   ├── ethernet/               # Ethernet status + link speed
 │   ├── ttl-settings/           # TTL/HL + MTU
 │   ├── ip-passthrough/         # IP passthrough
 │   └── custom-dns/             # DNS settings
 ├── monitoring/                 # Monitoring & alerts
-│   ├── page.tsx                # Network events hub
+│   ├── page.tsx                # Redirect stub to /monitoring/events
+│   ├── connection-quality/     # Ping profile + quality thresholds
+│   ├── events/                 # Network events
 │   ├── latency/                # Latency monitoring
 │   ├── alerts/                 # Centralized SMS + email connection alerts
 │   ├── watchdog/               # Watchdog settings
@@ -109,13 +111,15 @@ constants/                      # Static configuration data
 | `/cellular/custom-profiles` | CustomProfile | SIM profile CRUD + apply |
 | `/cellular/custom-profiles/connection-scenarios` | ConnectionScenario | Preset templates |
 | `/cellular/sms` | SMS | SMS inbox/send |
-| `/local-network` | EthernetStatus | Ethernet hub |
-| `/local-network/ethernet` | EthernetSettings | Link speed/duplex |
+| `/local-network` | (redirect) | Client-side redirect to `/local-network/ethernet` |
+| `/local-network/ethernet` | EthernetStatus | Ethernet link status and speed |
 | `/local-network/ttl-settings` | TTLSettings | IPv4 TTL / IPv6 HL |
 | `/local-network/mtu` | MTUSettings | MTU configuration |
 | `/local-network/ip-passthrough` | IPPassthrough | IP passthrough mode |
 | `/local-network/custom-dns` | CustomDNS | DNS override |
-| `/monitoring` | NetworkEvents | Event log hub |
+| `/monitoring` | (redirect) | Client-side redirect to `/monitoring/events` |
+| `/monitoring/events` | NetworkEvents | Event log |
+| `/monitoring/connection-quality` | ConnectionQuality | Ping profile + quality thresholds |
 | `/monitoring/latency` | LatencyMonitoring | Real-time + history charts |
 | `/monitoring/alerts` | Alerts | Centralized SMS + email connection alerts (routing matrix + capability, readiness status, merged log) |
 | `/monitoring/watchdog` | Watchdog | Connection health |
@@ -456,7 +460,7 @@ The sidebar (`app-sidebar.tsx`) defines the full navigation structure:
 | **Footer** (unlabelled) | About Device, Support, Donate |
 | **User menu** | Change Password, Theme, Animations, Reboot Device, Logout |
 
-`NavSection` renders every group and `NavMenu` draws one sliding `.nav-indicator` pill per group. A sub-row can set `exact: true` so only an exact route match marks it active (Network Events, whose route is still `/monitoring`). The sidebar glyphs are Material Symbols; the user-menu action items are lucide.
+`NavSection` renders every group and `NavMenu` draws one sliding `.nav-indicator` pill per group. A sub-row is active on its own route prefix. Network Events and Ethernet Status sit on `/monitoring/events` and `/local-network/ethernet` so no sub-row prefix-matches its siblings. The old `/system-settings/connection-quality`, `/monitoring` and `/local-network` routes are client-side redirect stubs (static export cannot do server redirects). The sidebar glyphs are Material Symbols; the user-menu action items are lucide.
 
 ---
 
