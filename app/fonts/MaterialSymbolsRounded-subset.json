@@ -43,6 +43,7 @@
     "graphic_eq",
     "help",
     "home",
+    "hub",
     "info",
     "layers",
     "light_mode",
@@ -119,6 +120,6 @@
     "wifi_tethering_off",
     "work"
   ],
-  "bytes": 42772,
-  "sha256": "e042a449bcb1c99520025e4c8cdabfabe47550f0d7157624689fb2654ba39d4a"
+  "bytes": 43684,
+  "sha256": "50a29a86f8e3ec5de47da39ac2bd253401f18e6ceed28cb3e66fd5586a6e600c"
 }

@@ -88,6 +88,9 @@ export const MATERIAL_SYMBOL_NAMES = [
   "graphic_eq",
   "help",
   "home",
+  // NetBird's sidebar row. Tailscale already wears vpn_lock; a mesh of nodes
+  // is what NetBird is.
+  "hub",
   "info",
   "layers",
   "light_mode",

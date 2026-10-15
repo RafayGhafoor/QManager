@@ -2,12 +2,11 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { ChevronsUpDown, ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import QManagerLogo from "@/public/qmanager-logo.svg";
+import QManagerMark from "@/public/qmanager-mark.svg";
 import OpenWrtLogo from "@/public/openwrt.svg";
-import { authFetch } from "@/lib/auth-fetch";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
 import {
   Collapsible,
   CollapsibleContent,
@@ -22,23 +21,13 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 
+// Sidebar header. The canon header is the Tonal Q mark plus the product name
+// (PRODUCT.md makes the mark the source of the colour system). The target keeps
+// one thing the canon has no equivalent for: a disclosure to LuCI, the advanced
+// OpenWrt UI that ships on the same device.
 export function AppSwitcher() {
   const { t } = useTranslation("sidebar");
   const [open, setOpen] = React.useState(false);
-
-  // Subtitle is the live device hostname (falls back to "Admin" until loaded).
-  const [hostname, setHostname] = React.useState("Admin");
-
-  React.useEffect(() => {
-    authFetch("/cgi-bin/quecmanager/system/settings.sh")
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.success && json.settings?.hostname) {
-          setHostname(json.settings.hostname);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   return (
     <SidebarMenu>
@@ -49,27 +38,27 @@ export function AppSwitcher() {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg">
-                <Image
-                  src={QManagerLogo}
-                  alt=""
-                  className="size-full"
-                  priority
-                />
+              <Image
+                src={QManagerMark}
+                alt=""
+                aria-hidden="true"
+                className="size-[1.875rem] shrink-0"
+                priority
+              />
+              <div className="grid flex-1 text-left leading-tight">
+                <span className="truncate text-sm font-semibold">QManager</span>
               </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">QManager</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {hostname}
-                </span>
-              </div>
-              <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
+              <MaterialSymbol
+                name="unfold_more"
+                size={18}
+                className="text-sidebar-foreground/60 ml-auto"
+              />
             </SidebarMenuButton>
           </CollapsibleTrigger>
 
           <CollapsibleContent>
             <SidebarMenuSub>
-              {/* LuCI — opens the advanced OpenWRT UI in a new tab */}
+              {/* LuCI: opens the advanced OpenWrt UI in a new tab */}
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton asChild>
                   <a
@@ -83,11 +72,13 @@ export function AppSwitcher() {
                       className="size-4 shrink-0"
                     />
                     <span>{t("items.luci")}</span>
-                    <span className="ml-auto inline-flex">
-                      <ExternalLink
-                        className="size-3.5 text-muted-foreground"
-                        aria-label={t("switcher.opens_new_tab")}
-                      />
+                    <MaterialSymbol
+                      name="open_in_new"
+                      size={16}
+                      className="text-muted-foreground ml-auto"
+                    />
+                    <span className="sr-only">
+                      {t("switcher.opens_new_tab")}
                     </span>
                   </a>
                 </SidebarMenuSubButton>

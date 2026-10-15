@@ -12,6 +12,7 @@
     "antenna_statistics": "Antenna Statistics",
     "antenna_alignment": "Antenna Alignment",
     "sms_center": "SMS Center",
+    "sms_forwarding": "SMS Forwarding",
     "custom_profiles": "Custom Profiles",
     "connection_scenarios": "Connection Scenarios",
     "band_locking": "Band Locking",
@@ -50,10 +51,21 @@
     "about_device": "About Device",
     "support": "Support",
     "donate": "Donate to the Project",
-    "languages": "Languages",
-    "forwarding": "Forwarding"
+    "languages": "Languages"
   },
   "switcher": {
     "opens_new_tab": "Opens in a new tab"
+  },
+  "user": {
+    "signed_in": "Signed in"
+  },
+  "actions": {
+    "toggle_section": "Toggle {{section}} section"
+  },
+  "status": {
+    "watchdog_acting": "acting",
+    "watchdog_acting_detail": "Watchdog is recovering the connection (tier {{tier}}).",
+    "watchdog_settling": "settling",
+    "watchdog_settling_detail": "Watchdog is verifying the connection held after a recovery."
   }
 }

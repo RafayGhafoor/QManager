@@ -721,6 +721,35 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Sidebar nav indicator (Motion Study spec 3 — "the single most Material-
+   feeling change in the sidebar"). The active pill slides between rows rather
+   than appearing. Implemented as a view-transition-free FLIP: the indicator is
+   one absolutely-positioned element per nav group whose transform is driven
+   from React, so only transform/opacity animate and nothing is load-bearing —
+   if the transition never runs, the pill is still in the right place.
+--------------------------------------------------------------------------- */
+.nav-indicator {
+  transition:
+    transform var(--duration-standard) var(--ease-standard),
+    height var(--duration-standard) var(--ease-standard),
+    opacity var(--duration-quick) ease-out;
+}
+
+/* First paint must not slide the pill in from y=0 — it should already be under
+   the active row. This class is removed one frame after mount. */
+.nav-indicator[data-settling="true"] {
+  transition: none;
+}
+
+:root {
+  @variant motion-reduce {
+    & .nav-indicator {
+      transition: opacity var(--duration-quick) ease-out;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
    Ambient loops (DESIGN.md > Motion). These two are the ONLY continuous
    animations sanctioned in the product, and both are gated on something being
    genuinely live — the One-Loop Rule. Both are written on the ambient token

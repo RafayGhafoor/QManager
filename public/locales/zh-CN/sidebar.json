@@ -12,6 +12,7 @@
     "antenna_statistics": "天线统计",
     "antenna_alignment": "天线对准",
     "sms_center": "短信中心",
+    "sms_forwarding": "短信转发",
     "custom_profiles": "自定义配置",
     "connection_scenarios": "连接场景",
     "band_locking": "频段锁定",
@@ -50,10 +51,21 @@
     "about_device": "关于设备",
     "support": "支持",
     "donate": "捐赠项目",
-    "languages": "语言",
-    "forwarding": "转发"
+    "languages": "语言"
   },
   "switcher": {
     "opens_new_tab": "在新标签页中打开"
+  },
+  "user": {
+    "signed_in": "已登录"
+  },
+  "actions": {
+    "toggle_section": "展开/收起 {{section}} 分区"
+  },
+  "status": {
+    "watchdog_acting": "处理中",
+    "watchdog_acting_detail": "看门狗正在恢复连接（第 {{tier}} 级）。",
+    "watchdog_settling": "观察中",
+    "watchdog_settling_detail": "看门狗正在确认恢复后连接是否稳定。"
   }
 }
