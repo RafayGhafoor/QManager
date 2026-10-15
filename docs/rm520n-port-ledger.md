@@ -109,10 +109,10 @@ Statuses here are from a grep-level survey. Every row still needs its own Phase 
 
 | ID | Fix | Status | Source | Target evidence |
 |---|---|---|---|---|
-| B1.1 | Anchor the MPDN rule and time-advance parsers on the reply prefix so qcmd's echoed `AT+…` line can't match | TODO | `63468c3c` | `parse_at.sh:747`, `:761`, `:1070` |
-| B1.2 | IP passthrough: read NAT/USB/DNS from the reply line only | TODO | `ae2fb928` | `parse_at.sh` ~`:1089` |
-| B1.3 | `debug_poller_at.sh` calls `qcmd`, not the poller-only `qcmd_exec` | TODO | `4e3acdab` | `scripts/debug_poller_at.sh:43`, `:74` |
-| B1.4 | Daemon library-source guards: under BusyBox ash, `. lib 2>/dev/null \|\| {stubs}` aborts instead of running the stubs | TODO | `6daf6dbd` | `qcmd:23` plus 10+ daemons in `scripts/usr/bin/` (matches the memory note "BusyBox dot-source aborts on missing file") |
+| B1.1 | Anchor the MPDN rule and time-advance parsers on the reply prefix so qcmd's echoed `AT+…` line can't match | DONE `a7618aa7` | `63468c3c` | `parse_at.sh:747`, `:761`, `:1070` |
+| B1.2 | IP passthrough: read NAT/USB/DNS from the reply line only | DONE `a7618aa7` | `ae2fb928` | `parse_at.sh` ~`:1089`. Already comma-anchored here, but a set-form echo still matched and the value fell back to the default |
+| B1.3 | `debug_poller_at.sh` calls `qcmd`, not the poller-only `qcmd_exec` | DONE `b6b22f2c` | `4e3acdab` | `scripts/debug_poller_at.sh:43`, `:74` |
+| B1.4 | Daemon library-source guards: under BusyBox ash, `. lib 2>/dev/null \|\| {stubs}` aborts instead of running the stubs | DONE `5e4bab2c` | `6daf6dbd` | `qcmd:23` plus 10+ daemons in `scripts/usr/bin/` (matches the memory note "BusyBox dot-source aborts on missing file"). 28 sites incl. the poller (`#!/bin/sh` here). Bare `. lib 2>/dev/null` lines without `||`, and the lib/CGI `|| {}` sites, are left for a follow-up |
 | B1.5 | SMS lock-timeout mislabelled as an AT failure | TODO | `2c468f3e` | `cellular/sms.sh` ~`:90` |
 | B1.6 | jq `//` treating `false` as absent | TODO | `11b75e46` | Audit `network/dns.sh` and other `// default` reads of booleans |
 | B1.7 | Watchdog/poller AT-failure fail-open sweep | TODO | `00966dcc` `b4d87efe` | Verify |
@@ -170,6 +170,7 @@ Entware bootstrap and `S80lighttpd`/opkg handling, SDX55/RG501Q platform detecti
 
 | Date | Decision | By |
 |---|---|---|
+| 2026-10-15 | B1.1 and B1.2 shipped as one commit (both edit the same parse_at.sh parsers) | Opus |
 | 2026-10-15 | Retire the WS live-traffic monitor (websocat :8838 + `bridge_traffic_monitor_rm551`); the dashboard Live Traffic row goes with it, with no replacement | User |
 | 2026-10-15 | websocat opkg package removed on upgrade (nothing else depends on it) | User (approved plan) |
 | 2026-10-15 | Ledger opened; source sync cursor `2ebfada1` | Opus |
