@@ -74,7 +74,7 @@ SRC_DEPS="$INSTALL_DIR/dependencies"
 # applets at compile time, so we can't assume BusyBox `timeout` is present.
 # qcmd wraps atcli_smd11 with `timeout` as a last-ditch safety net, and the
 # installer's run_capture_timeout helper uses it too. Cheap guarantee.
-REQUIRED_PACKAGES="jq curl coreutils-timeout websocat ethtool"
+REQUIRED_PACKAGES="jq curl coreutils-timeout ethtool"
 OPTIONAL_PACKAGES="msmtp ookla-speedtest"
 # Removed before install to avoid /dev/smd11 conflicts and sms_tool collision
 CONFLICT_PACKAGES="sms-tool socat-at-bridge socat"
@@ -82,7 +82,7 @@ CONFLICT_PACKAGES="sms-tool socat-at-bridge socat"
 # UCI-gated services — only enabled if a prior install had them enabled.
 # Everything else is enabled unconditionally. This is the ONLY hardcoded
 # service list in this script.
-UCI_GATED_SERVICES="qmanager_tower_failover qmanager_watchcat qmanager_bandwidth qmanager_dpi qmanager_vpn_zone qmanager_sms_forward"
+UCI_GATED_SERVICES="qmanager_tower_failover qmanager_watchcat qmanager_dpi qmanager_vpn_zone qmanager_sms_forward"
 
 # Expected modem firmware signature (after normalization: upper + alnum only)
 REQUIRED_FIRMWARE="RM551EGL"
@@ -592,6 +592,52 @@ remove_conflicts() {
         die "Conflicting packages must be removed before install can continue. Remove manually with: opkg remove sms-tool socat-at-bridge socat"
     fi
 
+    return 0
+}
+
+# Retire the WebSocket live-traffic bandwidth monitor (websocat + the
+# bridge_traffic_monitor_rm551 binary, removed in this version). Runs
+# unconditionally from main() — Software Update invokes install.sh with
+# --skip-packages, so this must not live inside install_packages. The service
+# is stopped + disabled through its init.d first because procd respawns both
+# instances if they are only killall'd. Idempotent; silent on fresh installs.
+retire_bandwidth_monitor() {
+    local retired=0
+
+    if [ -f "$INITD_DIR/qmanager_bandwidth" ]; then
+        "$INITD_DIR/qmanager_bandwidth" stop >/dev/null 2>&1 || true
+        "$INITD_DIR/qmanager_bandwidth" disable >/dev/null 2>&1 || true
+        rm -f "$INITD_DIR/qmanager_bandwidth"
+        retired=1
+    fi
+    rm -f /etc/rc.d/*qmanager_bandwidth* 2>/dev/null || true
+
+    killall websocat >/dev/null 2>&1 || true
+    killall bridge_traffic_monitor_rm551 >/dev/null 2>&1 || true
+
+    if uci -q delete quecmanager.bridge_monitor 2>/dev/null; then
+        uci -q commit quecmanager 2>/dev/null || true
+        retired=1
+    fi
+
+    if [ -f "$BIN_DIR/bridge_traffic_monitor_rm551" ] || [ -f "$BIN_DIR/qmanager_bandwidth_genconf" ]; then
+        retired=1
+    fi
+    rm -f "$BIN_DIR/qmanager_bandwidth_genconf" "$BIN_DIR"/bridge_traffic_monitor_* 2>/dev/null || true
+    rm -f /etc/quecmanager/settings/bridge_traffic_monitor.conf \
+          /tmp/quecmanager/bridge_traffic_monitor \
+          /tmp/quecmanager/bridge_traffic_monitor.pid 2>/dev/null || true
+    rm -rf /etc/qmanager/bandwidth_certs 2>/dev/null || true
+
+    if opkg list-installed 2>/dev/null | awk '{print $1}' | grep -qx websocat; then
+        if opkg remove websocat >>"$LOG_FILE" 2>&1; then
+            info "Removed package: websocat"
+        else
+            warn "Could not remove websocat package (harmless; nothing uses it now)"
+        fi
+    fi
+
+    [ "$retired" = "1" ] && info "Retired legacy bandwidth monitor (qmanager_bandwidth)"
     return 0
 }
 
@@ -1812,6 +1858,9 @@ main() {
     # sms_tool binary regardless of whether we're installing opkg packages.
     # --skip-packages must not leave conflicts in place.
     remove_conflicts
+
+    # Must run before stop_services and regardless of --skip-packages (OTA path).
+    retire_bandwidth_monitor
 
     if [ "$DO_PACKAGES" = "1" ]; then
         install_packages

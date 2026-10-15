@@ -13,7 +13,8 @@
 # What it removes:
 #   - All init.d qmanager* services (stops, disables, deletes)
 #   - All qmanager_* daemons + qcmd + atcli_smd11 + sms_tool + nfqws
-#     + bridge_traffic_monitor_*
+#     + legacy cleanup of the retired WebSocket bandwidth monitor
+#       (bridge_traffic_monitor_rm551 binary, websocat process) on older devices
 #   - /usr/lib/qmanager/ (entire tree)
 #   - /www/cgi-bin/quecmanager/ (entire tree)
 #   - /www/* (except cgi-bin, luci-static, index.html.old)
