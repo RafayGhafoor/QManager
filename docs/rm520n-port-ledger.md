@@ -32,14 +32,14 @@ The single source of truth for bringing the RM520N fork's new UI/UX canon and it
 
 | ID | Item | Status | Notes |
 |---|---|---|---|
-| W1 | Live recon: is the monitor enabled on the test modem? Check for a running websocat or bridge process, the UCI `quecmanager.bridge_monitor` section, the rc.d symlink, `/etc/quecmanager/settings/bridge_traffic_monitor.conf`, and any hand-made 8838 firewall rule | TODO | Read-only |
-| W2 | Backend removal: `scripts/etc/init.d/qmanager_bandwidth`, `scripts/usr/bin/qmanager_bandwidth_genconf`, `scripts/usr/bin/bridge_traffic_monitor_rm551` (plus its `.gitattributes:10` entry), and CGI `monitoring/bandwidth.sh` | TODO | |
-| W3 | Upgrade cleanup in `install.sh`: stop the service before deletion; `uci delete quecmanager.bridge_monitor` and commit (same style as the WoL removal near `install.sh:1517`); remove the generated conf and `/tmp/quecmanager/bridge_traffic_monitor{,.pid}`; drop `websocat` from REQUIRED_PACKAGES (`:77`) and `qmanager_bandwidth` from UCI_GATED_SERVICES (`:85`); `opkg remove websocat` when only we installed it | TODO | The existing stale-init prune (`:1530`) and stale-binary prune (`:1519`) already catch the init script and the binary |
-| W4 | `uninstall.sh`: keep the kill and removal lines for legacy devices; update the header comment | TODO | |
-| W5 | `at_cmd/fetch_data.sh:56` still emits a zeroed `traffic` object. Remove it if no consumer reads it (`API-REFERENCE.md:104` already says there is none) | TODO | Check consumers first |
-| W6 | Frontend removal: `hooks/use-bandwidth-monitor.ts`, `hooks/use-bandwidth-settings.ts`, `types/bandwidth-monitor.ts`, `components/system-settings/bandwidth-monitor/`, `app/system-settings/bandwidth-monitor/`, the sidebar entry (`app-sidebar.tsx:78`), and `LiveTrafficRow` in `components/dashboard/device-metrics.tsx` | TODO | The row has no fallback, so the dashboard simply loses it. Re-balance the Device Metrics card |
-| W7 | i18n: delete `system-settings.bandwidth_monitor.*`, `dashboard.metrics.live_traffic*` and `sidebar.bandwidth_monitor` in all 5 locales (en, zh-CN, zh-TW, it, id) | TODO | Run the parity checker afterwards |
-| W8 | Docs: retire `docs/features/bandwidth-monitor.md`; update the CLAUDE.md and `docs/features/README.md` rows, API-REFERENCE, BACKEND, FRONTEND, the READMEs (en/id/default), the Stream Violet and Throughput-Direction rules in DESIGN.md, PRODUCT.md:56, and RELEASE_NOTE | TODO | Also update the memory note "Poller traffic fallback removed" |
+| W1 | Live recon: is the monitor enabled on the test modem? Check for a running websocat or bridge process, the UCI `quecmanager.bridge_monitor` section, the rc.d symlink, `/etc/quecmanager/settings/bridge_traffic_monitor.conf`, and any hand-made 8838 firewall rule | DONE | Read-only |
+| W2 | Backend removal: `scripts/etc/init.d/qmanager_bandwidth`, `scripts/usr/bin/qmanager_bandwidth_genconf`, `scripts/usr/bin/bridge_traffic_monitor_rm551` (plus its `.gitattributes:10` entry), and CGI `monitoring/bandwidth.sh` | DONE | |
+| W3 | Upgrade cleanup in `install.sh`: stop the service before deletion; `uci delete quecmanager.bridge_monitor` and commit (same style as the WoL removal near `install.sh:1517`); remove the generated conf and `/tmp/quecmanager/bridge_traffic_monitor{,.pid}`; drop `websocat` from REQUIRED_PACKAGES (`:77`) and `qmanager_bandwidth` from UCI_GATED_SERVICES (`:85`); `opkg remove websocat` when only we installed it | DONE | The existing stale-init prune (`:1530`) and stale-binary prune (`:1519`) already catch the init script and the binary Correction: `opkg remove websocat` runs in an unconditional `retire_bandwidth_monitor()` step called from `main()`, not in `install_packages`, because Software Update runs `install.sh --skip-packages`. |
+| W4 | `uninstall.sh`: keep the kill and removal lines for legacy devices; update the header comment | DONE | |
+| W5 | `at_cmd/fetch_data.sh:56` still emits a zeroed `traffic` object. Remove it if no consumer reads it (`API-REFERENCE.md:104` already says there is none) | DONE | Check consumers first Done: the trailing comma left in the fallback JSON was removed too. |
+| W6 | Frontend removal: `hooks/use-bandwidth-monitor.ts`, `hooks/use-bandwidth-settings.ts`, `types/bandwidth-monitor.ts`, `components/system-settings/bandwidth-monitor/`, `app/system-settings/bandwidth-monitor/`, the sidebar entry (`app-sidebar.tsx:78`), and `LiveTrafficRow` in `components/dashboard/device-metrics.tsx` | DONE | The row has no fallback, so the dashboard simply loses it. Re-balance the Device Metrics card |
+| W7 | i18n: delete `system-settings.bandwidth_monitor.*`, `dashboard.metrics.live_traffic*` and `sidebar.bandwidth_monitor` in all 5 locales (en, zh-CN, zh-TW, it, id) | DONE | Run the parity checker afterwards |
+| W8 | Docs: retire `docs/features/bandwidth-monitor.md`; update the CLAUDE.md and `docs/features/README.md` rows, API-REFERENCE, BACKEND, FRONTEND, the READMEs (en/id/default), the Stream Violet and Throughput-Direction rules in DESIGN.md, PRODUCT.md:56, and RELEASE_NOTE | DONE | Also update the memory note "Poller traffic fallback removed" |
 
 ---
 
@@ -171,6 +171,7 @@ Entware bootstrap and `S80lighttpd`/opkg handling, SDX55/RG501Q platform detecti
 | Date | Decision | By |
 |---|---|---|
 | 2026-10-15 | Retire the WS live-traffic monitor (websocat :8838 + `bridge_traffic_monitor_rm551`); the dashboard Live Traffic row goes with it, with no replacement | User |
+| 2026-10-15 | websocat opkg package removed on upgrade (nothing else depends on it) | User (approved plan) |
 | 2026-10-15 | Ledger opened; source sync cursor `2ebfada1` | Opus |
 
 ## Findings

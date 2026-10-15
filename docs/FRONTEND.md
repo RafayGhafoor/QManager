@@ -262,7 +262,6 @@ All TypeScript interfaces are in `types/`. The main data contract is `modem-stat
 | File | Primary Types | Used By |
 |------|--------------|---------|
 | `modem-status.ts` | `ModemStatus`, `LteStatus`, `NrStatus`, `NetworkStatus`, `DeviceStatus`, `ConnectivityStatus`, `WatchcatStatus`, `SignalPerAntenna`, `NetworkEvent`, `PingHistoryEntry`, `SignalHistoryEntry` | Dashboard, monitoring |
-| `bandwidth-monitor.ts` | `BandwidthSettings`, `BandwidthStatus`, `BandwidthDependencies`, `BandwidthMessage`, `BandwidthInterfaceData`, `BandwidthChartPoint` | Dashboard Live Traffic row, Bandwidth Monitor settings page |
 | `cellular-settings.ts` | `CellularSettings`, `CellularSettingsPayload` | Cellular settings page |
 | `apn-settings.ts` | `APNProfile`, `APNSettings`, `APNSavePayload` | APN management |
 | `mbn-settings.ts` | `MBNProfile`, `MBNSettings` | MBN configuration |

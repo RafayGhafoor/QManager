@@ -101,7 +101,7 @@ Destroys all sessions (forces re-login).
 
 Main polling endpoint. Returns the cached modem status JSON (built by `qmanager_poller`).
 
-> ℹ️ NOTE: The response does **not** contain a `traffic` object. Live network traffic (rx/tx speeds) is served only by the opt-in WebSocket bandwidth monitor on port 8838, not by the poller cache. When the monitor is off, the dashboard shows a prompt to enable it. See [`docs/features/bandwidth-monitor.md`](../features/bandwidth-monitor.md).
+> ℹ️ NOTE: The response does **not** contain a `traffic` object. Live network traffic (rx/tx speeds) is not collected by the poller or the cache; the former WebSocket bandwidth monitor was retired (see [`docs/features/bandwidth-monitor.md`](features/bandwidth-monitor.md)).
 
 **Response:** Full `ModemStatus` object (see `types/modem-status.ts`)
 
@@ -1058,45 +1058,6 @@ Response:
 }
 ```
 Merges both channels' NDJSON logs, tags each entry with `channel: "sms"|"email"`, sorts by timestamp, returns newest-first, capped at 100. `recipient` mirrors the stored form (SMS: raw digits, no leading `+`).
-
-### GET/POST `/monitoring/bandwidth.sh`
-
-Read and save bandwidth monitor settings. See [`docs/features/bandwidth-monitor.md`](../features/bandwidth-monitor.md) for the full contract.
-
-**GET Response:**
-```json
-{
-  "success": true,
-  "settings": {
-    "enabled": false,
-    "refresh_rate_ms": 1000,
-    "ws_port": 8838,
-    "interfaces": "br-lan,eth0,rmnet_data0,rmnet_data1,rmnet_ipa0"
-  },
-  "status": {
-    "websocat_running": false,
-    "monitor_running": false
-  },
-  "dependencies": {
-    "websocat_installed": true
-  }
-}
-```
-
-**POST (`save_settings`):**
-```json
-{
-  "action": "save_settings",
-  "enabled": true,
-  "refresh_rate_ms": 1000,
-  "ws_port": 8838,
-  "interfaces": "br-lan,eth0,rmnet_data0,rmnet_data1,rmnet_ipa0"
-}
-```
-
-All fields are optional except `action`. Enabling the monitor starts `init.d/qmanager_bandwidth` and its two procd instances (`websocat` + `bridge_traffic_monitor_rm551`). Disabling stops and disables the service.
-
-**Response:** `{ "success": true }`
 
 ---
 

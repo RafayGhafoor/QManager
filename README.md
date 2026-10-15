@@ -36,7 +36,6 @@
 - **Live Signal Dashboard** — Real-time RSRP, RSRQ, SINR with per-antenna values (4x4 MIMO) and 30-minute historical charts
 - **Network Events** — Automatic detection of band changes, cell handoffs, carrier aggregation changes, and connectivity events
 - **Latency Monitoring** — Real-time ping with 24-hour history, jitter, packet loss, and aggregated views (hourly/12h/daily)
-- **Bandwidth Monitor** — Live throughput tracking via WebSocket with real-time area charts on the dashboard
 - **Traffic Statistics** — Live throughput (Mbps) and cumulative data usage
 
 ### Cellular Configuration
@@ -177,7 +176,6 @@ Use `QMANAGER_TAG="v0.1.14" sh /tmp/qmanager-installer.sh` to pin a specific ver
 | **Styling** | Tailwind CSS v4, OKLCH colors, Euclid Circular B + Manrope |
 | **Components** | shadcn/ui (42+ components), Recharts, React Hook Form + Zod |
 | **Backend** | POSIX shell scripts (OpenWRT/BusyBox), CGI endpoints |
-| **Real-time** | WebSocket (bandwidth monitor via websocat) |
 | **AT Commands** | `qcmd` wrapper for Quectel modem serial communication |
 | **Package Manager** | Bun |
 
@@ -203,7 +201,6 @@ The frontend is a statically-exported Next.js app served from the device. The ba
 - **Poller daemon** queries the modem via AT commands every 2–30s (3 tiers) and writes a JSON cache file
 - **CGI endpoints** (58 scripts) read the cache for GET requests, execute AT commands for POST requests
 - **React hooks** (38 custom hooks) poll the CGI layer and provide loading/error/staleness states
-- **WebSocket** provides real-time bandwidth data directly to the dashboard
 
 See [full documentation](docs/README.md) for architecture details, API reference, and development guides.
 
@@ -257,7 +254,7 @@ QManager/
 │   │                           #   video optimizer, traffic masquerade
 │   ├── monitoring/             # Network events, latency, email alerts, watchdog,
 │   │                           #   SMS alerts, Tailscale, logs, software updates
-│   ├── system-settings/        # System config, bandwidth monitor, AT terminal
+│   ├── system-settings/        # System config, AT terminal
 │   └── (login, setup, reboot, about-device, support)
 ├── components/                 # React components (~185 files)
 │   ├── ui/                     # shadcn/ui primitives (42+ components)
@@ -305,7 +302,6 @@ QManager runs 11 init.d services on the device:
 |---------|---------|
 | `qmanager` | Main poller daemon — tiered AT polling, JSON cache, event detection |
 | `qmanager_watchcat` | Connection watchdog — 4-tier auto-recovery state machine |
-| `qmanager_bandwidth` | Live bandwidth monitor — WebSocket + traffic binary |
 | `qmanager_dpi` | DPI service — nfqws in video optimizer or traffic masquerade mode |
 | `qmanager_tower_failover` | Tower failover — restores lock after cell loss |
 | `qmanager_eth_link` | Ethernet link speed — applies saved speed/duplex settings |

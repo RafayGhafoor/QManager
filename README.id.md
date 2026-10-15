@@ -24,7 +24,6 @@
 - **Dashboard Sinyal Langsung** — RSRP, RSRQ, SINR secara real-time dengan nilai per-antena (4x4 MIMO) dan grafik historis 30 menit
 - **Event Jaringan** — Deteksi otomatis perubahan band, handoff sel, perubahan carrier aggregation, dan event konektivitas
 - **Pemantauan Latensi** — Ping real-time dengan riwayat 24 jam, jitter, packet loss, dan tampilan agregat (per jam/12j/harian)
-- **Monitor Bandwidth** — Pelacakan throughput langsung via WebSocket dengan grafik area real-time di dashboard
 - **Statistik Trafik** — Throughput langsung (Mbps) dan total penggunaan data kumulatif
 
 ### Konfigurasi Seluler
@@ -165,7 +164,6 @@ Gunakan `QMANAGER_TAG="v0.1.14" sh /tmp/qmanager-installer.sh` untuk menentukan 
 | **Styling** | Tailwind CSS v4, warna OKLCH, Euclid Circular B + Manrope |
 | **Komponen** | shadcn/ui (42+ komponen), Recharts, React Hook Form + Zod |
 | **Backend** | Script shell POSIX (OpenWRT/BusyBox), endpoint CGI |
-| **Real-time** | WebSocket (monitor bandwidth via websocat) |
 | **Perintah AT** | Wrapper `qcmd` untuk komunikasi serial modem Quectel |
 | **Package Manager** | Bun |
 
@@ -191,7 +189,6 @@ Frontend adalah aplikasi Next.js yang diekspor secara statis dan dilayani dari p
 - **Daemon poller** menanyai modem via perintah AT setiap 2–30 detik (3 tingkat) dan menulis file cache JSON
 - **Endpoint CGI** (58 script) membaca cache untuk permintaan GET, mengeksekusi perintah AT untuk permintaan POST
 - **React hooks** (38 hook kustom) melakukan polling lapisan CGI dan menyediakan status loading/error/kedaluwarsa
-- **WebSocket** menyediakan data bandwidth real-time langsung ke dashboard
 
 Lihat [dokumentasi lengkap](docs/README.md) untuk detail arsitektur, referensi API, dan panduan pengembangan.
 
@@ -245,7 +242,7 @@ QManager/
 │   │                           #   video optimizer, traffic masquerade
 │   ├── monitoring/             # Event jaringan, latensi, notifikasi email, watchdog,
 │   │                           #   notifikasi SMS, Tailscale, log, pembaruan perangkat lunak
-│   ├── system-settings/        # Konfigurasi sistem, monitor bandwidth, AT terminal
+│   ├── system-settings/        # Konfigurasi sistem, AT terminal
 │   └── (login, setup, reboot, about-device, support)
 ├── components/                 # Komponen React (~185 file)
 │   ├── ui/                     # Primitif shadcn/ui (42+ komponen)
@@ -293,7 +290,6 @@ QManager menjalankan 11 layanan init.d di perangkat:
 |---------|--------|
 | `qmanager` | Daemon poller utama — polling AT bertingkat, cache JSON, deteksi event |
 | `qmanager_watchcat` | Watchdog koneksi — mesin status auto-recovery 4 tingkat |
-| `qmanager_bandwidth` | Monitor bandwidth langsung — WebSocket + biner trafik |
 | `qmanager_dpi` | Layanan DPI — nfqws dalam mode video optimizer atau traffic masquerade |
 | `qmanager_tower_failover` | Failover tower — memulihkan kunci setelah kehilangan sel |
 | `qmanager_eth_link` | Kecepatan link Ethernet — menerapkan pengaturan kecepatan/duplex yang tersimpan |

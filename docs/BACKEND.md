@@ -358,7 +358,7 @@ The core daemon — runs forever, polls the modem at tiered intervals.
 
 **Force-Tier-2 flag (`/tmp/qmanager_force_tier2`):** CGI scripts that trigger a modem re-registration event (SIM slot switch in `cellular/settings.sh`, band lock in `bands/lock.sh`) touch this file after a 2-second settle delay. In `poll_cycle`, after the `LONG_FLAG` early-return, the poller checks for the flag: when present it consumes it (`rm -f`) and immediately executes `poll_tier2` + `read_sim_state` + `refresh_sim_identity`, collapsing the stale window for SIM-identity fields from ~30 seconds to ~4 seconds. `refresh_sim_identity` issues `AT+CIMI;+QCCID` and updates `boot_imsi`/`boot_iccid` — no profile or swap side effects. The flag check deliberately sits after `LONG_FLAG` so an in-progress cell scan does not consume and discard it. Producers MUST NOT write `/tmp/qmanager_status.json` — `write_cache` in the poller is the sole atomic writer.
 
-> ℹ️ NOTE: Live network traffic (rx/tx bytes per second) is **not** collected by the poller and is **not** present in `/tmp/qmanager_status.json`. It is served exclusively by the opt-in WebSocket bandwidth monitor (`bridge_traffic_monitor_rm551` + `websocat:8838`, managed by `init.d/qmanager_bandwidth`). The feature is off by default (UCI `quecmanager.bridge_monitor.enabled=0`). When disabled, the dashboard Live Traffic row shows a prompt to enable it rather than showing zeros. See [`docs/features/bandwidth-monitor.md`](features/bandwidth-monitor.md).
+> ℹ️ NOTE: Live network traffic (rx/tx bytes per second) is **not** collected by the poller and is **not** present in `/tmp/qmanager_status.json`. The former opt-in WebSocket bandwidth monitor that served it was retired on 2026-10-15; nothing replaces it. See [`docs/features/bandwidth-monitor.md`](features/bandwidth-monitor.md).
 
 ### qmanager_ping (Ping Daemon)
 
@@ -540,7 +540,6 @@ result=$(qcmd 'AT+QENG="servingcell"')
 | `qmanager_tower_failover` | non-procd | 99 | `qmanager_tower_failover` | Tower failover watchdog |
 | `qmanager_low_power_check` | non-procd | 99 | `qmanager_low_power_check` | Boot-time low power window check (one-shot, double-fork) |
 | `qmanager_dpi` | procd | 99 | `nfqws` (x2) | DPI evasion: Video Optimizer (queue 200) + Traffic Masquerade (queue 201), each UCI-gated |
-| `qmanager_bandwidth` | procd | 99 | `websocat` + `bridge_traffic_monitor_rm551` | Live bandwidth monitor (UCI-gated, default off). Starts only when `quecmanager.bridge_monitor.enabled=1` |
 
 Non-procd services use the double-fork pattern for daemonization:
 ```sh
@@ -781,10 +780,6 @@ All auth endpoints set `_SKIP_AUTH=1`.
 | `quecmanager.video_optimizer.interface` | interface name | WAN interface (default `rmnet_data0`) |
 | `quecmanager.traffic_masquerade.enabled` | `0`, `1` | Traffic Masquerade on/off |
 | `quecmanager.traffic_masquerade.sni_domain` | domain name | Spoofed SNI domain (default `speedtest.net`) |
-| `quecmanager.bridge_monitor.enabled` | `0`, `1` | Bandwidth monitor on/off (default `0`) |
-| `quecmanager.bridge_monitor.ws_port` | port number | WebSocket port for `websocat` (default `8838`) |
-| `quecmanager.bridge_monitor.refresh_rate_ms` | milliseconds | Poll interval for the monitor binary (default `1000`) |
-| `quecmanager.bridge_monitor.interfaces` | comma-separated list | Interfaces to monitor (default `br-lan,eth0,rmnet_data0,rmnet_data1,rmnet_ipa0`) |
 | `system.@system[0].timezone` | POSIX TZ string | System timezone |
 | `system.@system[0].zonename` | IANA zone name | System timezone display name |
 

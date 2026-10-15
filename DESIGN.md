@@ -210,7 +210,6 @@ The five colors below are **functional**: each one signals a specific operationa
 - **Caution Amber** (`oklch(0.75 0.18 75)` light / `oklch(0.80 0.16 75)` dark): warning state. Pending reboot banners, partial-success, SIM mismatch, degraded signal. Paired with `TriangleAlertIcon`.
 - **Telemetry Blue** (`oklch(0.62 0.19 255)` light / `oklch(0.68 0.17 255)` dark): informational state. Connection events, neutral notices, banners that report rather than alarm.
 - **Fault Red** (`oklch(0.577 0.245 27.325)` light / `oklch(0.704 0.191 22.216)` dark): destructive or failed state. Reboot dialogs, factory restore, profile-failed, watchdog-tripped. Paired with `XCircleIcon` or `AlertCircleIcon`.
-- **Stream Violet** (`oklch(0.627 0.265 303.9)`, Tailwind `purple-500`): the egress half of the **throughput-direction pair** (see Named Rules). Used *only* on the upload-direction arrow of live-traffic readouts, never as a generic accent and never as a status color. Its job is to be ~45° of hue away from Telemetry Blue so download and upload read apart at a glance.
 
 ### Neutral
 - **Pearl White** (`oklch(1 0 0)`): light-theme background and card surface. The only place pure white appears.
@@ -232,8 +231,6 @@ The five colors below are **functional**: each one signals a specific operationa
 
 **The One-Accent Rule.** QManager has a single action accent: Signal Indigo. There is no second brand color, no identity palette, and no decorative color layer. The `--secondary` token is a quiet functional control surface — a lighter, desaturated shade of the primary — not a brand color. Any attempt to introduce a second accent or identity color violates the Restrained principle.
 
-**The Throughput-Direction Pair.** Live traffic encodes *direction* with a fixed two-color pair: **download/ingress is Telemetry Blue** (`text-info`), **upload/egress is Stream Violet** (`text-purple-500`). They are deliberately ~45° apart in hue so the two arrows never collapse into "two shades of blue" — using `text-primary` (Signal Indigo, only 9° off Telemetry Blue) for upload is the specific mistake this rule exists to prevent. The pair is reserved for throughput readouts (the dashboard Live Traffic row, the bandwidth monitor); it is not a general status convention and Stream Violet appears nowhere else.
-
 **The OKLCH-Only Rule.** No hex literals. No `#000`, no `#fff`. Every neutral is tinted toward the indigo brand hue (chroma 0.005-0.01 minimum). New colors enter the system in OKLCH form; conversion is the author's job, not the consumer's.
 
 ## 3. Typography
@@ -251,7 +248,7 @@ The five colors below are **functional**: each one signals a specific operationa
 - **Title** (Manrope 600, 1rem / 16px, line-height 1, letter-spacing normal): `CardTitle` default. Tight `leading-none` so titles align cleanly with adjacent metadata.
 - **Body** (Manrope 400, 0.875rem / 14px, line-height 1.5): default UI text, descriptions, paragraph copy. Line length capped at 65-75ch in long-form content.
 - **Label** (Manrope 500, 0.75rem / 12px, line-height 1, letter-spacing 0.01em): badges, table headers, button text, form labels.
-- **Numeric** (Manrope 600, 1.875rem / 30px, line-height 1, letter-spacing -0.02em, `font-feature-settings: "tnum"`): the big numbers on the signal dashboard, antenna alignment meter, bandwidth panel. **Always tabular-numbers** so values don't jitter as they update.
+- **Numeric** (Manrope 600, 1.875rem / 30px, line-height 1, letter-spacing -0.02em, `font-feature-settings: "tnum"`): the big numbers on the signal dashboard, antenna alignment meter. **Always tabular-numbers** so values don't jitter as they update.
 - **Mono** (JetBrains Mono 400 / 500 / 700, ~0.78rem / 12.5px, line-height 1.55): the AT terminal command and output stream, raw-AT-response / log viewers, and inline `<code>` for AT command strings. **This surface only.** A disambiguated (slashed) zero and fixed advance width keep verbatim device output legible and column-aligned.
 
 ### Named Rules
