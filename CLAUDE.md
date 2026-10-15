@@ -6,7 +6,7 @@ See `docs/ARCHITECTURE.md`, `docs/BACKEND.md`, `docs/FRONTEND.md`, `docs/API-REF
 
 ## Change Workflow
 
-Every code-change request in this repo follows a tier-routed, 6-phase flow. Opus orchestrates; the specialist agents do the work. The user holds the approval gate. This flow is the project default for code changes and supersedes the generic brainstorming / writing-plans / verification skills; test-driven development still applies inside Phase 4 wherever tests exist.
+Every code-change request in this repo follows a tier-routed, 6-phase flow. Opus orchestrates; the specialist agents do the work. The user holds the approval gate. This flow is the project default for code changes and supersedes the generic brainstorming / writing-plans / verification skills; test-driven development still applies inside Phase 4 wherever tests exist. **Only invoke `superpowers:brainstorming` when the user explicitly asks for it** — never auto-trigger it for feature work.
 
 **Signal each phase transition** with a header so the user always knows where we are: `**[Phase 1 — Triage]**`, `**[Phase 2 — Plan]**`, `**[Phase 3 — Approval]**`, `**[Phase 4 — Execute]**`, `**[Phase 5 — Validation]**`, `**[Phase 6 — Docs & Close]**`.
 
@@ -33,9 +33,9 @@ Bug fixes match the tier of the *fix*, not the bug — and always get a Phase 1 
 
 ### Agent Roster
 
-All agents are defined in `.claude/agents/`. Models are pinned per agent — the orchestrator does not choose them.
+All agents are defined in `.claude/agents/`. Models are pinned per agent — the orchestrator does not choose them. Any extra read-only recon (`Explore` / `general-purpose` sweeps) is also dispatched with `model: haiku` at medium effort.
 
-- **Recon gate (Phase 1, read-only, Opus):** `modem-investigator` — traces the full stack statically and probes the live modem read-only via Posh-SSH; returns an evidence report and can halt work before code is written.
+- **Recon gate (Phase 1, read-only, Haiku 5.5 / medium effort):** `modem-investigator` — traces the full stack statically and probes the live modem read-only via Posh-SSH; returns an evidence report and can halt work before code is written.
 - **Builders (Phases 2 & 4, Opus):** `backend-writer` (BusyBox `/bin/sh` backend — CGI, daemons, libs, init.d, AT/`qcmd` flows, UCI, apply pipelines, locks), `ui-builder` (Next.js / shadcn / Tailwind frontend; may delegate craft to the Impeccable skill).
 - **Validator (Phase 5, Sonnet):** `validator` — static BusyBox/CRLF/`jq` audit **and** scoped on-device verification. The closing gate before any backend change is done.
 - **Closer (Phase 6, Sonnet):** `docs-writer`.
@@ -68,18 +68,7 @@ User can short-circuit by saying "just do it" / "skip the plan" / "tier 0 it" �
 
 ### Orchestration Mode ("orchestrate")
 
-When the user says **"orchestrate"** (e.g. "orchestrate this", "orchestrate a team for…"), run the 6-phase flow above as a **multi-agent team**, not a solo pass. This is the default team-execution mode of the same flow — tiers, gates, and the user approval gate all still apply. Default shape:
-
-- **Opus is the head architect, not a worker.** Opus plans, briefs teammates, synthesizes their evidence, holds the approval gate, and makes the calls. The legwork (recon, builds, validation, docs) goes to teammates. Opus still does its own targeted reads to *judge* teammate reports rather than rubber-stamp them.
-- **Teammates are Sonnet, spawned liberally and in parallel.** Each gets a **self-contained brief** (file paths, schemas, the live evidence, the relevant CLAUDE.md/DESIGN.md sections inlined) — they don't see the orchestrator's conversation. Set `model: sonnet` on the Agent call. Use the project agents (`modem-investigator`, `backend-writer`, `ui-builder`, `validator`, `docs-writer`) plus `Explore`/`general-purpose` for recon.
-- **One teammate is always a dedicated devil's advocate.** Its job is to attack the leading hypotheses, surface what the team is underweighting, and stop the team from "fixing" accurate telemetry or chasing a phantom. Mandatory for any investigation.
-- **Phase 1 recon fans out.** Run several read-only agents at once on different leads (live `modem-investigator` probing, static `Explore`, a delta/compare angle, the devil's advocate). When new evidence lands mid-flight, **redirect a running teammate with `SendMessage`** instead of re-spawning. If a backgrounded teammate goes idle without delivering its written report, ping it for the report.
-- **Synthesize, then gate.** Fold all reports into ONE plan and use **`AskUserQuestion`** at the Phase 3 approval gate and for any real scoping decision (which fixes, build order, live-confirm-first). Don't start Phase 4 builders until the user approves.
-- **Worktree Discipline applies (see above).** `EnterWorktree` right after the approval gate so the whole team commits onto the run's own branch; `isolation: "worktree"` per builder only when their file sets overlap; ask-at-close merge via `AskUserQuestion`, then `ExitWorktree`.
-- **Execute → validate → docs, with a task board.** Builders run bottom-up (parallel where files are independent), `validator` gates every backend/shell change on-device, `docs-writer` closes. Track the whole thing with `TaskCreate`/`TaskUpdate` (owners + blockers) so the user can follow progress.
-- **Respect standing prefs inside the team.** UI craft is done by Opus via the Impeccable skill, not dispatched to `ui-builder` for the build (`ui-builder`/`Explore` may still recon the surfaces). Sonnet teammates do the rest.
-
-The same Skip Phrases still apply — "just do it" drops orchestration back to a solo direct pass.
+When the user says **"orchestrate"**, run the same 6-phase flow above with Opus delegating naturally — no separate orchestration skill (the custom `orchestrate` skill was retired 2026-10-15 for token cost). Opus plans, briefs agents with self-contained prompts, judges their reports with its own targeted reads, and holds the approval gate (`AskUserQuestion`). Recon runs on Haiku 5.5 (medium); parallelize only independent pieces. Worktree Discipline applies. The flow always ends with `validator` (and `docs-writer` for Tier 2+). UI craft stays with Opus via the Impeccable skill.
 
 ## Design Context
 
