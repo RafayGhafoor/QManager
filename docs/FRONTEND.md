@@ -64,12 +64,8 @@ components/
 ├── app-layout.tsx              # Main layout (sidebar + breadcrumbs)
 ├── app-sidebar.tsx             # Navigation sidebar
 ├── theme-provider.tsx          # next-themes wrapper
-├── nav-main.tsx                # Home navigation
-├── nav-cellular.tsx            # Cellular nav section
-├── nav-localNetwork.tsx        # Local network nav section
-├── nav-monitoring.tsx          # Monitoring nav section
-├── nav-secondary.tsx           # Secondary nav (About, Support, Donate)
-├── nav-system.tsx              # System nav section
+├── nav-menu.tsx                # Sidebar group wrapper + sliding .nav-indicator pill
+├── nav-section.tsx             # Single nav-group implementation (Material glyphs, sub-rows, status pill)
 ├── nav-user.tsx                # User menu (change password, theme, reboot, logout)
 ├── donate-dialog.tsx           # GitHub Sponsors / GCash donation dialog
 ├── auth/                       # Login form, setup form
@@ -454,11 +450,13 @@ The sidebar (`app-sidebar.tsx`) defines the full navigation structure:
 |---------|-------|
 | **Main** | Home (Dashboard) |
 | **Cellular** | Cellular Info, SMS, Custom Profiles (+ Connection Scenarios), Band Locking (+ Tower, Frequency), Cell Scanner (+ Neighbor, Calculator), Settings (+ APN, Network Priority, IMEI, FPLMN) |
-| **Local Network** | Ethernet Status, IP Passthrough, Custom DNS, TTL & MTU Settings |
-| **Monitoring** | Network Events (+ Latency), Alerts, Tailscale, Watchdog, Logs |
-| **System** | System Settings |
-| **Secondary** | About Device, Support, Donate |
-| **Footer** | User menu (Change Password, Toggle Theme, Reboot Device, Logout) |
+| **Local Network** | Ethernet Status, Traffic Engine, Settings (TTL & MTU, Custom DNS) |
+| **Monitoring** | Connection Quality (+ Latency Monitor, Network Events), Alerts, Watchdog (live "acting" / "settling" pill), Tailscale, NetBird |
+| **System** | System Settings (+ Logs, Languages, Configuration Backup, Adaptive Polling) |
+| **Footer** (unlabelled) | About Device, Support, Donate |
+| **User menu** | Change Password, Theme, Animations, Reboot Device, Logout |
+
+`NavSection` renders every group and `NavMenu` draws one sliding `.nav-indicator` pill per group. A sub-row can set `exact: true` so only an exact route match marks it active (Network Events, whose route is still `/monitoring`). The sidebar glyphs are Material Symbols; the user-menu action items are lucide.
 
 ---
 
