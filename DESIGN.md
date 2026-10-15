@@ -2,9 +2,8 @@
 name: QManager
 description: Web GUI for Quectel cellular modems running OpenWRT (RM551E, RM520N and RM500Q class). An instrument console — colour on the data, not on the furniture — running on the modem it manages.
 colors:
-  # Keys mirror the names that resolve in app/globals.css, which is NORMATIVE once
-  # ledger row U1.2 lands it; until then this block is the spec the CSS is written to
-  # (see Migration Deltas).
+  # Keys mirror the names that resolve in app/globals.css, which is NORMATIVE
+  # (ported in ledger row U1.2). Retune a value there and here in the same change.
   # Where the Material vocabulary and shadcn's collide, the shipped name wins:
   # Carrier Violet is `lte-*` (not `secondary-*`); shadcn's own --secondary is a
   # NEUTRAL in this codebase.
@@ -243,7 +242,7 @@ Both themes are first-class and each is authored. Dark is a near-black instrumen
 
 | Layer | Canon says | Target code today | Closes with |
 | --- | --- | --- | --- |
-| Tokens | Role triads (`-container`, `on-*`, `-on-surface`), `surface-container-*`, role radii, `--shadow-whisper`, `--card-sheen`, `--quality-N`, `--tag-X`, direction and spatial roles, `--duration-*` / `--ease-*`, `--chart-nr` / `--chart-lte` | `app/globals.css` is 238 lines of shadcn-style tokens with a single `--radius: 0.65rem` chain and the old chart ramp; none of the canon token families exist | **U1.2** (keep the legacy `--radius` chain live, as the fork does) |
+| Tokens | Role triads (`-container`, `on-*`, `-on-surface`), `surface-container-*`, role radii, `--shadow-whisper`, `--card-sheen`, `--quality-N`, `--tag-X`, direction and spatial roles, `--duration-*` / `--ease-*`, `--chart-nr` / `--chart-lte` | Closed by **U1.2** (2026-10-15): every canon token family is in `app/globals.css`, and the legacy `--radius` chain stays live. Still open: `--font-sans` points at Manrope until U1.3, and no component consumes the new families yet (U2.x, U4.x) | **U1.2** done; consumers via U2/U4 |
 | Fonts | Rethink Sans variable, vendored JetBrains Mono, Material Symbols Rounded subset, all under `app/fonts/` via `next/font/local` | `app/layout.tsx` loads Manrope and JetBrains Mono through `next/font/google`, so a cold build fetches Google Fonts; no Rethink Sans, no icon font | **U1.3** (confirm the faces load offline from the modem) |
 | Primitives | `card-foot.tsx`, `segmented-field.tsx`, `tag.tsx`, `material-symbol.tsx` + names module, `banner.tsx` (8 roles), `tonal-banner.tsx`, `metric-bar.tsx`, `tick-group.tsx`, `ticking-value.tsx`, `swap-label.tsx`; pill `Button` (36px, 44px coarse, `size="action"`); `Card` at `rounded-card` with `border-0` and `card-sheen`; field primitives on `fieldVariants` (10px, 42px, `host` prop); `HintIcon` on the final Popover contract | None of the new files exist. `button.tsx` is `rounded-md` with `h-9`; `card.tsx` is `rounded-xl border shadow-sm`; `dialog.tsx` is `rounded-lg` on `duration-200`; `input.tsx` / `select.tsx` / `textarea.tsx` are pre-canon; `hint-icon.tsx` is built on `Tooltip`, which never opens on tap (6 files use `HintIcon`); `save-button.tsx` and `meta-panel.tsx` exist but predate the canon | **U2.1** names most of these. `tag.tsx` and the restyle of `button` / `card` / `dialog` / `input` / `select` / `textarea` / `hint-icon` / `save-button` are **not itemised in U2.1** and need adding to it |
 | Motion | `lib/motion.ts` on `quick` 360 / `standard` 600 / `emphasized` 800 ms, two stagger steps, `EASE_*` curves; the Animations preference (`data-motion`, `useMotionReduced()`, `MotionProvider`); no spring, no raw duration | `lib/motion.ts` (128 lines) exposes `DUR` with `base` / `slow` plus one-off literals such as `0.12`; `lib/motion-presets.ts` exists; there is no Animations preference and no reduced-motion ESLint rule | **U2.2** (deletes `lib/motion-presets.ts`); see [`docs/reference/motion-preference.md`](docs/reference/motion-preference.md) |
