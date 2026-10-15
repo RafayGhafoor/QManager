@@ -60,12 +60,6 @@ export interface NavStatus {
 export interface NavSubItem {
   t_key: string;
   url: string;
-  /**
-   * Match the route exactly, never as a prefix. For a sub-row whose URL is a
-   * section index (Network Events at /monitoring), where a prefix match would
-   * mark it active on every page under that section.
-   */
-  exact?: boolean;
 }
 
 export interface NavItem {
@@ -95,8 +89,7 @@ function normalize(pathname: string) {
 }
 
 function isSubActive(pathname: string, sub: NavSubItem) {
-  if (pathname === sub.url) return true;
-  return !sub.exact && pathname.startsWith(sub.url + "/");
+  return pathname === sub.url || pathname.startsWith(sub.url + "/");
 }
 
 const STATUS_TONE: Record<NavStatus["tone"], string> = {

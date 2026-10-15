@@ -22,10 +22,9 @@ import {
 // t_key values are keys inside the "sidebar" namespace's "items" object;
 // NavSection resolves them via t(`items.${t_key}`). Labels never live here.
 //
-// Grouping follows the RM520N canon. Routes are the target's own: where the
-// canon moved a page (Connection Quality to /monitoring/connection-quality,
-// Network Events to /monitoring/events), the row points at where it lives
-// today until ledger U3.2 reconciles the routes.
+// Grouping and routes follow the RM520N canon. The old routes these pages moved
+// from (/system-settings/connection-quality, /monitoring, /local-network) keep
+// client-side redirects for bookmarks.
 
 const navMain: NavItem[] = [
   { t_key: "home", url: "/dashboard", icon: "home" },
@@ -101,7 +100,7 @@ const navCellular: NavItem[] = [
 const navLocalNetwork: NavItem[] = [
   {
     t_key: "ethernet_status",
-    url: "/local-network",
+    url: "/local-network/ethernet",
     icon: "settings_ethernet",
   },
   {
@@ -159,13 +158,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     () => [
       {
         t_key: "connection_quality",
-        url: "/system-settings/connection-quality",
+        url: "/monitoring/connection-quality",
         icon: "speed",
         items: [
           { t_key: "latency_monitor", url: "/monitoring/latency" },
-          // /monitoring is the section index, so a prefix match would light
-          // this row on every Monitoring page.
-          { t_key: "network_events", url: "/monitoring", exact: true },
+          { t_key: "network_events", url: "/monitoring/events" },
         ],
       },
       { t_key: "alerts", url: "/monitoring/alerts", icon: "notifications" },

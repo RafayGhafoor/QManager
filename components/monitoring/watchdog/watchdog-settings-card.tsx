@@ -51,7 +51,7 @@ import { PING_PROFILES } from "@/types/modem-status";
 import type { WatchdogQualityThresholds } from "@/hooks/use-watchdog-settings";
 import { PROFILE_INTERVAL_SEC, type WatchdogForm } from "./use-watchdog-form";
 
-const QUALITY_SETTINGS_HREF = "/system-settings/connection-quality";
+const QUALITY_SETTINGS_HREF = "/monitoring/connection-quality";
 
 type SettingsTab = "detection" | "quality" | "recovery";
 

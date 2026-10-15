@@ -1,7 +1,7 @@
 "use client";
 
-import ConnectivitySensitivityCard from "@/components/system-settings/connection-quality/connectivity-sensitivity-card";
-import QualityThresholdsCard from "@/components/system-settings/connection-quality/quality-thresholds-card";
+import ConnectivitySensitivityCard from "@/components/monitoring/connection-quality/connectivity-sensitivity-card";
+import QualityThresholdsCard from "@/components/monitoring/connection-quality/quality-thresholds-card";
 
 const ConnectionQualitySettings = () => {
   return (
