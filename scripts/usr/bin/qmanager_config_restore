@@ -25,7 +25,12 @@ if [ -f /usr/lib/qmanager/events.sh ]; then
 else
     append_event() { :; }
 fi
-. /usr/lib/qmanager/config_backup_sections.sh
+if [ -f /usr/lib/qmanager/config_backup_sections.sh ]; then
+    . /usr/lib/qmanager/config_backup_sections.sh
+else
+    qlog_error "config_backup_sections.sh missing; cannot run"
+    exit 1
+fi
 
 JOB_ID="${1:-$(date +%s)}"
 INPUT_FILE="/tmp/qmanager_config_restore_input.json"

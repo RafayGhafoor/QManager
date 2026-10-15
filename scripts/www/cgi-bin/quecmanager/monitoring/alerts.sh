@@ -42,7 +42,9 @@ MSMTP_INSTALL_PID="/tmp/qmanager_msmtp_install.pid"
 CRASH_LOG="/etc/qmanager/crash.log"
 
 # Routing + capability library — the authority for the matrix the UI renders.
-. /usr/lib/qmanager/alert_routing.sh 2>/dev/null || {
+if [ -f /usr/lib/qmanager/alert_routing.sh ]; then
+    . /usr/lib/qmanager/alert_routing.sh
+else
     _ar_cl_sms="true"
     _ar_cl_email="false"
     _ar_cr_sms="true"
@@ -53,7 +55,7 @@ CRASH_LOG="/etc/qmanager/crash.log"
     alert_capabilities_json() {
         printf '%s' '{"connection_lost":{"sms":true,"email":false,"email_reason":"email_needs_internet"},"connection_restored":{"sms":true,"email":true},"reboot":{"sms":true,"email":true}}'
     }
-}
+fi
 
 # --- Validators (jq has NO regex on-device — validate in shell) --------------
 
@@ -385,10 +387,12 @@ MSMTPEOF
         case "$CHANNEL" in
             sms)
                 qlog_info "Sending test SMS"
-                . /usr/lib/qmanager/sms_alerts.sh 2>/dev/null || {
+                if [ -f /usr/lib/qmanager/sms_alerts.sh ]; then
+                    . /usr/lib/qmanager/sms_alerts.sh
+                else
                     cgi_error "library_missing" "SMS alerts library not found"
                     exit 0
-                }
+                fi
                 _sa_read_config
                 if [ "$_sa_enabled" != "true" ]; then
                     cgi_error "not_configured" "SMS alerts must be enabled and fully configured before sending a test"
@@ -406,10 +410,12 @@ MSMTPEOF
                 ;;
             email)
                 qlog_info "Sending test email"
-                . /usr/lib/qmanager/email_alerts.sh 2>/dev/null || {
+                if [ -f /usr/lib/qmanager/email_alerts.sh ]; then
+                    . /usr/lib/qmanager/email_alerts.sh
+                else
                     cgi_error "library_missing" "Email alerts library not found"
                     exit 0
-                }
+                fi
                 _ea_read_config
                 if [ "$_ea_enabled" != "true" ]; then
                     cgi_error "not_configured" "Email alerts must be enabled and fully configured before sending a test"

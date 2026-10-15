@@ -9,7 +9,11 @@
 . /usr/lib/qmanager/cgi_base.sh
 . /usr/lib/qmanager/cgi_auth.sh
 . /usr/lib/qmanager/config_backup_sections.sh
-. /usr/lib/qmanager/events.sh 2>/dev/null
+if [ -f /usr/lib/qmanager/events.sh ]; then
+    . /usr/lib/qmanager/events.sh
+else
+    append_event() { :; }
+fi
 EVENTS_FILE="/tmp/qmanager_events.json"
 MAX_EVENTS=50
 

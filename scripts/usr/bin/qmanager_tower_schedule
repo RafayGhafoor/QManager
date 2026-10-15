@@ -32,7 +32,12 @@ fi
 qlog_init "tower_schedule"
 
 # --- Load library ------------------------------------------------------------
-. /usr/lib/qmanager/tower_lock_mgr.sh 2>/dev/null
+if [ -f /usr/lib/qmanager/tower_lock_mgr.sh ]; then
+    . /usr/lib/qmanager/tower_lock_mgr.sh
+else
+    qlog_error "tower_lock_mgr.sh missing; cannot run"
+    exit 1
+fi
 
 # --- Validate arguments ------------------------------------------------------
 MODE="$1"

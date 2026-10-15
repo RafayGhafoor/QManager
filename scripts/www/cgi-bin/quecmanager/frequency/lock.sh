@@ -25,7 +25,12 @@ cgi_headers
 cgi_handle_options
 
 # --- Load tower lock library (for tower_read_lte_lock / tower_read_nr_lock) --
-. /usr/lib/qmanager/tower_lock_mgr.sh 2>/dev/null
+if [ -f /usr/lib/qmanager/tower_lock_mgr.sh ]; then
+    . /usr/lib/qmanager/tower_lock_mgr.sh
+else
+    cgi_error "internal_error" "tower lock library unavailable"
+    exit 0
+fi
 
 # --- Validate method ---------------------------------------------------------
 if [ "$REQUEST_METHOD" != "POST" ]; then

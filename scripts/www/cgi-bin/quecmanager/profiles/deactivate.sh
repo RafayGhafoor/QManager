@@ -32,9 +32,11 @@ cgi_handle_options
 # --- Events (for append_event) -----------------------------------------------
 EVENTS_FILE="/tmp/qmanager_events.json"
 MAX_EVENTS=50
-. /usr/lib/qmanager/events.sh 2>/dev/null || {
+if [ -f /usr/lib/qmanager/events.sh ]; then
+    . /usr/lib/qmanager/events.sh
+else
     append_event() { :; }
-}
+fi
 
 # --- Validate method ---------------------------------------------------------
 if [ "$REQUEST_METHOD" != "POST" ]; then
@@ -72,7 +74,9 @@ clear_active_profile
 
 # --- Tear down profile-scenario schedule cron --------------------------------
 # Deactivating a profile must remove any scenario cron lines it installed.
-. /usr/lib/qmanager/scenario_mgr.sh 2>/dev/null
+if [ -f /usr/lib/qmanager/scenario_mgr.sh ]; then
+    . /usr/lib/qmanager/scenario_mgr.sh
+fi
 if command -v scenario_teardown_cron >/dev/null 2>&1; then
     scenario_teardown_cron
 fi

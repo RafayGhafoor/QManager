@@ -299,9 +299,9 @@ apply_apn_to_modem() {
         # matter which context sourced apn_mgr.sh (CGI apn.sh, boot reconcile,
         # profile deactivate). parse_at.sh provides the parsers ondemand_radio.sh
         # depends on. Both guarded; absent -> APN simply updates on next page open.
-        if [ -f /usr/lib/qmanager/ondemand_radio.sh ]; then
-            . /usr/lib/qmanager/parse_at.sh 2>/dev/null
-            . /usr/lib/qmanager/ondemand_radio.sh 2>/dev/null
+        if [ -f /usr/lib/qmanager/ondemand_radio.sh ] && [ -f /usr/lib/qmanager/parse_at.sh ]; then
+            . /usr/lib/qmanager/parse_at.sh
+            . /usr/lib/qmanager/ondemand_radio.sh
             command -v ondemand_dataplane_refresh >/dev/null 2>&1 && ondemand_dataplane_refresh
         fi
     ) </dev/null >/dev/null 2>&1 &

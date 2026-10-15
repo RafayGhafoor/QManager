@@ -28,7 +28,20 @@ _PROFILE_MGR_LOADED=1
 
 # Known-SIMs / ICCID helpers. Sourced at top (idempotent via _SIM_DB_LOADED) so
 # iccid_canonicalize is always defined for auto_apply_profile's compare logic.
-. /usr/lib/qmanager/sim_db.sh 2>/dev/null
+if [ -f /usr/lib/qmanager/sim_db.sh ]; then
+    . /usr/lib/qmanager/sim_db.sh
+else
+    # Mirrors sim_db.sh's canonicalizer so ICCID compares stay consistent.
+    iccid_canonicalize() {
+        local _simdb_canon
+        _simdb_canon=$(printf '%s' "$1" | tr -d ' \r\n')
+        case "$_simdb_canon" in
+            *[Ff]) _simdb_canon=${_simdb_canon%?} ;;
+        esac
+        printf '%s' "$_simdb_canon"
+    }
+    sim_db_add() { :; }
+fi
 
 # --- Configuration -----------------------------------------------------------
 PROFILE_DIR="/etc/qmanager/profiles"
@@ -278,7 +291,9 @@ profile_save() {
     # streaming|an existing custom-*.json). scenario_is_known lives in
     # scenario_mgr.sh — lazy-source it (profile_mgr.sh callers may not have it).
     if ! command -v scenario_is_known >/dev/null 2>&1; then
-        . /usr/lib/qmanager/scenario_mgr.sh 2>/dev/null
+        if [ -f /usr/lib/qmanager/scenario_mgr.sh ]; then
+            . /usr/lib/qmanager/scenario_mgr.sh
+        fi
     fi
     if command -v scenario_is_known >/dev/null 2>&1; then
         local _scn_ref
@@ -471,6 +486,9 @@ clear_active_profile() {
 # parse pipeline as qmanager_poller (line ~414) so the stored value byte-matches
 # what the poller will read at next boot. Skips on empty read — never clobbers.
 mark_sim_acknowledged() {
+    # Top-of-file source already defined sim_db_add (real or stub); without
+    # the library there is no known-SIMs set to write, so skip.
+    [ -f /usr/lib/qmanager/sim_db.sh ] || return 0
     . /usr/lib/qmanager/sim_db.sh
     local _acked_iccid
     _acked_iccid=$(qcmd 'AT+QCCID' 2>/dev/null | grep '+QCCID:' | sed 's/+QCCID: //g' | tr -d '\r ')
@@ -487,7 +505,9 @@ mark_sim_acknowledged() {
 # The cron worker's self-heal guard is the backstop, not the primary teardown.
 _profile_teardown_scenario_cron() {
     if ! command -v scenario_teardown_cron >/dev/null 2>&1; then
-        . /usr/lib/qmanager/scenario_mgr.sh 2>/dev/null
+        if [ -f /usr/lib/qmanager/scenario_mgr.sh ]; then
+            . /usr/lib/qmanager/scenario_mgr.sh
+        fi
     fi
     command -v scenario_teardown_cron >/dev/null 2>&1 && scenario_teardown_cron
     return 0
@@ -501,7 +521,9 @@ _profile_teardown_scenario_cron() {
 # blocks the clear path.
 _profile_reset_scenario_to_default() {
     if ! command -v scenario_reset_to_default >/dev/null 2>&1; then
-        . /usr/lib/qmanager/scenario_mgr.sh 2>/dev/null
+        if [ -f /usr/lib/qmanager/scenario_mgr.sh ]; then
+            . /usr/lib/qmanager/scenario_mgr.sh
+        fi
     fi
     command -v scenario_reset_to_default >/dev/null 2>&1 && scenario_reset_to_default
     return 0
@@ -523,7 +545,8 @@ _profile_emit_event() {
     if ! command -v append_event >/dev/null 2>&1; then
         [ -z "$EVENTS_FILE" ] && EVENTS_FILE="/tmp/qmanager_events.json"
         [ -z "$MAX_EVENTS" ] && MAX_EVENTS=50
-        . /usr/lib/qmanager/events.sh 2>/dev/null || return 0
+        [ -f /usr/lib/qmanager/events.sh ] || return 0
+        . /usr/lib/qmanager/events.sh
     fi
     command -v append_event >/dev/null 2>&1 && append_event "$etype" "$msg" "$severity" 2>/dev/null
     return 0

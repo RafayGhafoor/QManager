@@ -26,8 +26,18 @@ cgi_headers
 cgi_handle_options
 
 # --- Load libraries ----------------------------------------------------------
-. /usr/lib/qmanager/scenario_mgr.sh 2>/dev/null
-. /usr/lib/qmanager/profile_mgr.sh 2>/dev/null
+if [ -f /usr/lib/qmanager/scenario_mgr.sh ]; then
+    . /usr/lib/qmanager/scenario_mgr.sh
+else
+    cgi_error "internal_error" "scenario library unavailable"
+    exit 0
+fi
+if [ -f /usr/lib/qmanager/profile_mgr.sh ]; then
+    . /usr/lib/qmanager/profile_mgr.sh
+else
+    cgi_error "internal_error" "profile library unavailable"
+    exit 0
+fi
 
 # --- Validate method ---------------------------------------------------------
 if [ "$REQUEST_METHOD" != "POST" ]; then

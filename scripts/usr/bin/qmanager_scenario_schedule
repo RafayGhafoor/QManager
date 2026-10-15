@@ -36,8 +36,18 @@ fi
 qlog_init "scenario_schedule"
 
 # --- Load libraries ----------------------------------------------------------
-. /usr/lib/qmanager/scenario_mgr.sh 2>/dev/null
-. /usr/lib/qmanager/profile_mgr.sh 2>/dev/null
+if [ -f /usr/lib/qmanager/scenario_mgr.sh ]; then
+    . /usr/lib/qmanager/scenario_mgr.sh
+else
+    qlog_error "scenario_mgr.sh missing; cannot run"
+    exit 1
+fi
+if [ -f /usr/lib/qmanager/profile_mgr.sh ]; then
+    . /usr/lib/qmanager/profile_mgr.sh
+else
+    qlog_error "profile_mgr.sh missing; cannot run"
+    exit 1
+fi
 
 # --- Validate arguments ------------------------------------------------------
 TARGET="$1"

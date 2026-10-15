@@ -29,10 +29,18 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Authentication — source cgi_auth.sh with no-op fallbacks if missing
+# Authentication — source cgi_auth.sh with fail-closed fallbacks if missing
 # ---------------------------------------------------------------------------
-. /usr/lib/qmanager/cgi_auth.sh 2>/dev/null || {
-    require_auth()          { :; }
+if [ -f /usr/lib/qmanager/cgi_auth.sh ]; then
+    . /usr/lib/qmanager/cgi_auth.sh
+else
+    # Fails closed on purpose: a missing auth library must never become a bypass.
+    require_auth() {
+        echo "Status: 500 Internal Server Error"
+        cgi_headers
+        printf '%s\n' '{"success":false,"error":"internal_error","detail":"auth library unavailable"}'
+        exit 0
+    }
     is_setup_required()     { return 1; }
     qm_get_cookie()         { :; }
     qm_set_session_cookies(){ :; }
@@ -46,7 +54,7 @@ fi
     qm_check_rate_limit()   { return 0; }
     qm_record_failed_attempt() { :; }
     qm_clear_attempts()     { :; }
-}
+fi
 
 # ---------------------------------------------------------------------------
 # HTTP Headers

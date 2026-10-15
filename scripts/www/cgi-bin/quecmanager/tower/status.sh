@@ -24,7 +24,12 @@ cgi_headers
 cgi_handle_options
 
 # --- Load library ------------------------------------------------------------
-. /usr/lib/qmanager/tower_lock_mgr.sh 2>/dev/null
+if [ -f /usr/lib/qmanager/tower_lock_mgr.sh ]; then
+    . /usr/lib/qmanager/tower_lock_mgr.sh
+else
+    cgi_error "internal_error" "tower lock library unavailable"
+    exit 0
+fi
 
 # --- Ensure config exists ----------------------------------------------------
 tower_config_init

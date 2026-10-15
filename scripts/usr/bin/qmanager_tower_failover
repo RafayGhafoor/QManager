@@ -33,7 +33,12 @@ fi
 qlog_init "tower_failover"
 
 # --- Load tower lock library -------------------------------------------------
-. /usr/lib/qmanager/tower_lock_mgr.sh 2>/dev/null
+if [ -f /usr/lib/qmanager/tower_lock_mgr.sh ]; then
+    . /usr/lib/qmanager/tower_lock_mgr.sh
+else
+    qlog_error "tower_lock_mgr.sh missing; cannot run"
+    exit 1
+fi
 
 # --- Constants ---------------------------------------------------------------
 PID_FILE="/tmp/qmanager_tower_failover.pid"

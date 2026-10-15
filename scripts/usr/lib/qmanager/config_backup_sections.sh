@@ -25,13 +25,15 @@
 _CFG_BACKUP_SECTIONS_LOADED=1
 
 # --- Logging ---
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
+if [ -f /usr/lib/qmanager/qlog.sh ]; then
+    . /usr/lib/qmanager/qlog.sh
+else
     qlog_init() { :; }
     qlog_debug() { :; }
     qlog_info() { :; }
     qlog_warn() { :; }
     qlog_error() { :; }
-}
+fi
 
 # --- Canonical apply order (safe first, IMEI/profiles last) ---
 # alert_routing sits with sms_alerts (both are trivial, safe JSON writes) so the

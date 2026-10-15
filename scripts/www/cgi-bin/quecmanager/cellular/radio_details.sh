@@ -60,14 +60,18 @@ cgi_handle_options
 # --- Dependencies ------------------------------------------------------------
 # parse_at.sh provides the parsers; ondemand_radio.sh provides the fetch +
 # cache helpers (and the t2_*/lte_ta/nr_ta variables they populate).
-. /usr/lib/qmanager/parse_at.sh 2>/dev/null || {
+if [ -f /usr/lib/qmanager/parse_at.sh ]; then
+    . /usr/lib/qmanager/parse_at.sh
+else
     cgi_error "internal_error" "parse library unavailable"
     exit 0
-}
-. /usr/lib/qmanager/ondemand_radio.sh 2>/dev/null || {
+fi
+if [ -f /usr/lib/qmanager/ondemand_radio.sh ]; then
+    . /usr/lib/qmanager/ondemand_radio.sh
+else
     cgi_error "internal_error" "radio library unavailable"
     exit 0
-}
+fi
 
 # --- Emit the current on-demand cache as the response details ----------------
 # Reads the same 12 fields ondemand_radio_fetch persists, with explicit null

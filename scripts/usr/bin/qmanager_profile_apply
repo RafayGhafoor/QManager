@@ -688,9 +688,9 @@ if [ "$apply_status" = "complete" ] || [ "$apply_status" = "partial" ]; then
     (
         sleep 2
         touch /tmp/qmanager_force_tier2
-        if [ -f /usr/lib/qmanager/ondemand_radio.sh ]; then
-            . /usr/lib/qmanager/parse_at.sh 2>/dev/null
-            . /usr/lib/qmanager/ondemand_radio.sh 2>/dev/null
+        if [ -f /usr/lib/qmanager/ondemand_radio.sh ] && [ -f /usr/lib/qmanager/parse_at.sh ]; then
+            . /usr/lib/qmanager/parse_at.sh
+            . /usr/lib/qmanager/ondemand_radio.sh
             command -v ondemand_dataplane_refresh >/dev/null 2>&1 && ondemand_dataplane_refresh
         fi
     ) </dev/null >/dev/null 2>&1 &
@@ -701,13 +701,17 @@ if [ "$apply_status" = "complete" ] || [ "$apply_status" = "partial" ]; then
     # non-reboot. If the IMEI step triggered AT+CFUN=1,1 / a system reboot, this
     # may not run — boot-time auto_apply_profile re-runs the worker and installs
     # the cron then.
-    . /usr/lib/qmanager/scenario_mgr.sh 2>/dev/null
+    if [ -f /usr/lib/qmanager/scenario_mgr.sh ]; then
+        . /usr/lib/qmanager/scenario_mgr.sh
+    fi
     if command -v scenario_install_cron >/dev/null 2>&1; then
         scenario_install_cron "$PROFILE_ID"
     fi
 elif [ "$apply_status" = "failed" ]; then
     clear_active_profile
-    . /usr/lib/qmanager/scenario_mgr.sh 2>/dev/null
+    if [ -f /usr/lib/qmanager/scenario_mgr.sh ]; then
+        . /usr/lib/qmanager/scenario_mgr.sh
+    fi
     if command -v scenario_teardown_cron >/dev/null 2>&1; then
         scenario_teardown_cron
     fi

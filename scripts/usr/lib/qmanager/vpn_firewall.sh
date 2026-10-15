@@ -38,10 +38,12 @@
 _VPN_FW_LOADED=1
 
 # Source logging if available
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
+if [ -f /usr/lib/qmanager/qlog.sh ]; then
+    . /usr/lib/qmanager/qlog.sh
+else
     qlog_info()  { :; }
     qlog_error() { :; }
-}
+fi
 
 # Tailscale CGNAT range (RFC 6598). Both Tailscale and Netbird use this range.
 VPN_CGNAT_RANGE="100.64.0.0/10"

@@ -47,9 +47,11 @@ cgi_handle_options
 # --- Events (for append_event) -----------------------------------------------
 EVENTS_FILE="/tmp/qmanager_events.json"
 MAX_EVENTS=50
-. /usr/lib/qmanager/events.sh 2>/dev/null || {
+if [ -f /usr/lib/qmanager/events.sh ]; then
+    . /usr/lib/qmanager/events.sh
+else
     append_event() { :; }
-}
+fi
 
 # --- Helper: count set bits in a dotted netmask -> CIDR prefix ---------------
 # Echoes the prefix (0-32). Echoes empty string on a malformed mask.
