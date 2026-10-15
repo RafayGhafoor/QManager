@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 // titled, muted container holding a short blurb and a row of label-over-value
 // stat cells. Purely presentational — no state, no fetching.
 //
-// Type + Manrope only (DESIGN.md): numeric values use tabular-nums so figures
+// Type + Rethink Sans only (DESIGN.md): numeric values use tabular-nums so figures
 // stay column-aligned when they change. Status glyphs follow the outline
 // status-badge idiom (semantic success/warning tokens, size-3 lucide icon),
 // never a solid fill.

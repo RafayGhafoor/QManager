@@ -84,8 +84,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* Rethink Sans lands with ledger U1.3; until then the face is Manrope. */
-  --font-sans: var(--font-manrope);
+  --font-sans: var(--font-rethink-sans);
   --font-mono: var(--font-jetbrains-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -655,6 +654,48 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Material Symbols Rounded — the shell's icon typeface (DESIGN.md >
+   Iconography). Scoped by the Icon-Boundary Rule (docs/reference/
+   icon-system.md); the component that wears it lands with ledger U2.1.
+
+   These declarations are not decoration: the font substitutes the literal text
+   "cell_tower" for one glyph via a ligature, so `font-feature-settings: 'liga'`
+   is what makes an icon an icon, and the white-space / word-wrap rules stop a
+   narrow container from breaking that ligature apart mid-name.
+--------------------------------------------------------------------------- */
+.material-symbol {
+  font-family: var(--font-material-symbols), sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  flex: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  /* The FILL axis is animatable, so the active nav row's icon thickens into
+     place with its container instead of snapping. Motion Study spec 3. */
+  transition: font-variation-settings var(--duration-standard)
+    var(--ease-standard);
+}
+
+/* Written once and applied under BOTH gates — the OS media query and an
+   explicit `data-motion="reduced"` — via the redefined variant at the top of
+   this file. `:root` is only here to give `@variant` a `&` to attach to. */
+:root {
+  @variant motion-reduce {
+    & .material-symbol {
+      transition: none;
+    }
   }
 }
 

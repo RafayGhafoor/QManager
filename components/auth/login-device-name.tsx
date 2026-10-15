@@ -21,7 +21,7 @@ import { DUR, EASE_OUT_EXPO } from "@/lib/motion";
 // the absent state renders nothing and the title block closes up around it.
 //
 // Type identity, not the AT terminal: per DESIGN.md's Machine-Voice Rule, the
-// hostname stays in Manrope. JetBrains Mono is scoped strictly to the AT
+// hostname stays in Rethink Sans. JetBrains Mono is scoped strictly to the AT
 // terminal and raw AT output; a device name on the login screen is not that.
 // =============================================================================
 

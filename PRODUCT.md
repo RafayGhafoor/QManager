@@ -52,7 +52,7 @@ Success looks like:
 - **AT is the only transport, and it is serialised.** Every AT call goes through `qcmd` under one lock, so the product cannot react to unsolicited modem events and every value is polled; a long-held lock stalls every caller. The adaptive poller trades freshness for load by tier (active, idle, deep).
 - **Scheduled work runs from cron on a device with a 1970 boot window.** Every scheduled operation must survive an untrusted clock and a crond that has to be told to reload.
 - **Static export.** No server runtime, no server components, no API routes. The backend is CGI shell scripts.
-- **Self-hosted assets only.** Fonts and icon fonts are vendored and subset at build time. An affordance that depends on a CDN is not an affordance. (The target still loads two faces from Google Fonts at build time until ledger U1.3 vendors them.)
+- **Self-hosted assets only.** Fonts and icon fonts are vendored and subset at build time. An affordance that depends on a CDN is not an affordance.
 - **Five shipped locales**: English, Simplified Chinese, Traditional Chinese, Italian, Indonesian. Every user-visible string is translated, so layouts must survive strings substantially longer than English.
 
 **Terminology.** The product uses the user's real vocabulary (dBm, MHz, EARFCN, PCI, NR5G, LTE, SA/NSA, MIMO) rather than translating it into consumer euphemism.
