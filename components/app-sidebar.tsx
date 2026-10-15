@@ -74,10 +74,6 @@ const data = {
           t_key: "adaptive_polling",
           url: "/system-settings/adaptive-polling",
         },
-        {
-          t_key: "bandwidth_monitor",
-          url: "/system-settings/bandwidth-monitor",
-        },
         { t_key: "logs", url: "/system-settings/logs" },
       ],
     },

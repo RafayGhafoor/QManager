@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -15,14 +14,11 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
   TbAlertTriangleFilled,
-  TbCircleArrowDownFilled,
-  TbCircleArrowUpFilled,
   TbInfoCircleFilled,
 } from "react-icons/tb";
 
 import type { DeviceStatus, LteStatus, NrStatus } from "@/types/modem-status";
 import {
-  formatBitsPerSec,
   formatUptime,
   calculateLteDistance,
   calculateNrDistance,
@@ -30,8 +26,6 @@ import {
   formatTemperature,
 } from "@/types/modem-status";
 import { useUnitPreferences } from "@/hooks/use-system-settings";
-import { useBandwidthSettings } from "@/hooks/use-bandwidth-settings";
-import { useBandwidthMonitor } from "@/hooks/use-bandwidth-monitor";
 import { useTranslation } from "react-i18next";
 
 interface DeviceMetricsComponentProps {
@@ -87,211 +81,6 @@ function MetricBar({
   );
 }
 
-// =============================================================================
-// LiveTrafficRow — the 5-state Live Traffic row
-// =============================================================================
-// Driven SOLELY by the opt-in WebSocket bandwidth monitor. There is NO poller
-// `.traffic` fallback. Composes:
-//   - useBandwidthSettings → is the feature enabled? is websocat installed?
-//   - useBandwidthMonitor  → live connection flags + rx/tx speeds
-// into ONE row whose left label never moves; only the trailing right-hand slot
-// changes between the five mutually-exclusive states:
-//   loading | disabled | connecting | connected | unavailable
-// =============================================================================
-
-type LiveTrafficState =
-  | "loading"
-  | "disabled"
-  | "connecting"
-  | "connected"
-  | "unavailable";
-
-// A quiet pulsing status dot shared by connecting/connected.
-function StatusDot({
-  tone,
-  reduceMotion,
-}: {
-  tone: "muted" | "success";
-  reduceMotion: boolean;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-block size-2 rounded-full",
-        tone === "success" ? "bg-success" : "bg-muted-foreground/60",
-        !reduceMotion && "animate-pulse",
-      )}
-    />
-  );
-}
-
-function LiveTrafficRow() {
-  const { t } = useTranslation("dashboard");
-  // useReducedMotion() is boolean | null until hydrated; StatusDot wants a
-  // hard boolean, so settle the null to false at the source.
-  const reduceMotion = useReducedMotion() ?? false;
-
-  // Settings: tells us whether the feature is on and whether the dependency is present.
-  const {
-    settings,
-    dependencies,
-    isLoading: settingsLoading,
-  } = useBandwidthSettings();
-
-  // Live monitor: connection flags + live speeds (bits/s).
-  const { isConnected, wsError, currentDownload, currentUpload } =
-    useBandwidthMonitor();
-
-  // Derive the single state discriminant.
-  const state: LiveTrafficState = settingsLoading
-    ? "loading"
-    : !settings?.enabled
-      ? "disabled"
-      : isConnected
-        ? "connected"
-        : wsError
-          ? "unavailable"
-          : "connecting";
-
-  const websocatMissing = dependencies?.websocat_installed === false;
-
-  let trailing: React.ReactNode;
-
-  switch (state) {
-    case "loading":
-      trailing = <Skeleton className="h-4 w-28" />;
-      break;
-
-    case "disabled":
-      // Off by config. Never a fake "0 Mbps" — tell the truth, then offer the switch.
-      trailing = websocatMissing ? (
-        // Dependency missing: a toggle won't help. Quiet hint + tooltip, no dead link.
-        <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground text-sm">
-            {t("metrics.live_traffic_unavailable")}
-          </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex"
-                aria-label={t("metrics.live_traffic_status_aria")}
-              >
-                <TbInfoCircleFilled className="size-3 text-muted-foreground" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="max-w-[16rem]">
-                {t("metrics.live_traffic_missing_dependency_tooltip")}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      ) : (
-        <div className="flex items-center gap-1.5 text-sm">
-          <span className="text-muted-foreground">
-            {t("metrics.live_traffic_off")}
-          </span>
-          <span aria-hidden="true" className="text-muted-foreground/50">
-            ·
-          </span>
-          <Link
-            href="/system-settings/bandwidth-monitor"
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
-            {t("metrics.live_traffic_turn_on")}
-          </Link>
-        </div>
-      );
-      break;
-
-    case "connecting":
-      trailing = (
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <StatusDot tone="muted" reduceMotion={reduceMotion} />
-          <span>{t("metrics.live_traffic_connecting")}</span>
-        </div>
-      );
-      break;
-
-    case "connected":
-      trailing = (
-        <div className="flex items-center gap-x-2">
-          <div className="flex items-center gap-1">
-            <TbCircleArrowDownFilled className="text-info size-5" />
-            <p className="font-semibold text-sm tabular-nums">
-              {formatBitsPerSec(currentDownload)}
-            </p>
-          </div>
-          <div className="flex items-center gap-1">
-            <TbCircleArrowUpFilled className="text-purple-500 size-5" />
-            <p className="font-semibold text-sm tabular-nums">
-              {formatBitsPerSec(currentUpload)}
-            </p>
-          </div>
-        </div>
-      );
-      break;
-
-    case "unavailable":
-      // Enabled but the live feed dropped. The hook auto-reconnects with backoff,
-      // so there is no manual retry control — the tooltip tells the honest story.
-      trailing = (
-        <div className="flex items-center gap-1.5">
-          <span className="text-muted-foreground text-sm">
-            {t("metrics.live_traffic_unavailable")}
-          </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex"
-                aria-label={t("metrics.live_traffic_status_aria")}
-              >
-                <TbAlertTriangleFilled className="size-3 text-warning" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="max-w-[16rem]">
-                {t("metrics.live_traffic_reconnecting_tooltip")}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
-      );
-      break;
-  }
-
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-1.5">
-        <p className="font-semibold text-muted-foreground text-sm">
-          {t("metrics.live_traffic")}
-        </p>
-        {state === "connected" && (
-          <Badge
-            variant="outline"
-            className="bg-success/15 text-success border-success/30 gap-1 px-1.5 py-0 text-[10px]"
-          >
-            <StatusDot tone="success" reduceMotion={reduceMotion} />
-            {t("metrics.live_traffic_live_badge")}
-          </Badge>
-        )}
-      </div>
-      {/* Cross-fade only the trailing slot when the state flips; the label never moves. */}
-      <motion.div
-        key={state}
-        initial={reduceMotion ? false : { opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        aria-live="polite"
-      >
-        {trailing}
-      </motion.div>
-    </div>
-  );
-}
-
 const DeviceMetricsComponent = ({
   deviceData,
   lteData,
@@ -333,7 +122,7 @@ const DeviceMetricsComponent = ({
         </CardHeader>
         <CardContent>
           <div className="grid gap-2">
-            {Array.from({ length: 10 }).map((_, i) => (
+            {Array.from({ length: 7 }).map((_, i) => (
               <div key={i}>
                 <Separator />
                 <div className="flex items-center justify-between py-1">
@@ -430,10 +219,6 @@ const DeviceMetricsComponent = ({
               <MetricBar value={memPct} max={100} warnAt={70} dangerAt={90} />
             )}
           </div>
-
-          {/* Live Traffic — driven solely by the opt-in WebSocket monitor */}
-          <Separator />
-          <LiveTrafficRow />
 
           {/* LTE Cell Distance */}
           <Separator />
