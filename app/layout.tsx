@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 import localFont from "next/font/local";
-import { MotionConfig } from "motion/react";
 import { ThemeProvider } from "@/components/theme-provider";
+import { MotionProvider } from "@/components/motion-provider";
+import { MotionPreferenceProvider } from "@/components/motion-preference";
+import { MOTION_BOOT_SCRIPT } from "@/lib/motion-preference";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/components/i18n/i18n-provider";
 
@@ -101,24 +103,34 @@ export default function RootLayout({
       <body
         className={`${rethinkSans.variable} ${jetbrainsMono.variable} ${materialSymbols.variable} ${rethinkSans.className} antialiased`}
       >
-        {/* reducedMotion="user" makes every motion/react animation in the app
-            honor prefers-reduced-motion automatically: transform/layout movement
-            collapses to instant while opacity is preserved, so the UI stays
-            intentional (a clean cross-fade) rather than broken. This is the
-            single global switch the motion system relies on. */}
-        <MotionConfig reducedMotion="user">
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <I18nProvider>
-              {children}
-              <Toaster />
-            </I18nProvider>
-          </ThemeProvider>
-        </MotionConfig>
+        {/* Render-blocking: stamps data-motion on <html> from localStorage
+            BEFORE anything paints, the same way next-themes avoids a theme
+            flash. Without it a user on "Reduced" would see exactly one frame of
+            the entrance animations they asked to suppress. <html> already
+            carries suppressHydrationWarning for the theme script's sake. */}
+        <script
+          dangerouslySetInnerHTML={{ __html: MOTION_BOOT_SCRIPT }}
+        />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {/* Owns the System/Full/Reduced choice; MotionProvider re-renders on it. */}
+          <MotionPreferenceProvider>
+            <MotionProvider>
+              {/* Client-only i18next provider — wraps BOTH the pre-auth (login /
+                  setup) shell and the authenticated app so every surface can call
+                  t(). Nested under MotionProvider because the root layout is a
+                  server component and the provider is "use client". */}
+              <I18nProvider>
+                {children}
+                <Toaster />
+              </I18nProvider>
+            </MotionProvider>
+          </MotionPreferenceProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

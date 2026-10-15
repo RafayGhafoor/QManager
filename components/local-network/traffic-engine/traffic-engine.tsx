@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation, Trans } from "react-i18next";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { useMotionReduced } from "@/components/motion-preference";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -118,7 +119,7 @@ export default function TrafficEngine() {
   const { t } = useTranslation("local-network");
   const router = useRouter();
   const searchParams = useSearchParams();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useMotionReduced();
 
   const vo = useVideoOptimizer();
   const masq = useTrafficMasquerade();

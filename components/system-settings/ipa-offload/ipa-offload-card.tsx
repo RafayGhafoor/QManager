@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { containerVariants, itemVariants } from "@/lib/motion";
+import { staggerRows, staggerRowItem } from "@/lib/motion";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
@@ -79,12 +79,12 @@ const IpaOffloadCard = () => {
         ) : (
           <motion.div
             className="grid gap-2"
-            variants={containerVariants}
+            variants={staggerRows}
             initial="hidden"
             animate="visible"
           >
             {/* CPU-routing warning, always present so the tradeoff is explicit */}
-            <motion.div variants={itemVariants}>
+            <motion.div variants={staggerRowItem}>
               <Alert>
                 <AlertTriangleIcon className="size-4" />
                 <AlertDescription>
@@ -95,7 +95,7 @@ const IpaOffloadCard = () => {
 
             {/* Enable toggle */}
             <motion.div
-              variants={itemVariants}
+              variants={staggerRowItem}
               className="flex items-center justify-between mt-2"
             >
               <Label
@@ -123,7 +123,7 @@ const IpaOffloadCard = () => {
             {/* Unavailable explanation: card stays visible, switch disabled */}
             {unavailable && (
               <motion.p
-                variants={itemVariants}
+                variants={staggerRowItem}
                 className="text-sm text-muted-foreground"
               >
                 {t("ipa_offload.unavailable_hint")}
@@ -132,7 +132,7 @@ const IpaOffloadCard = () => {
 
             {/* Pending-reboot honesty badge */}
             <motion.div
-              variants={itemVariants}
+              variants={staggerRowItem}
               className="flex items-center justify-between mt-2"
             >
               <p className="font-semibold text-muted-foreground text-sm">

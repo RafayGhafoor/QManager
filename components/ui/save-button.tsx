@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
+import { useMotionReduced } from "@/components/motion-preference";
 import { Loader2, CheckIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { type VariantProps } from "class-variance-authority";
-import { EASE_OUT_EXPO } from "@/lib/motion";
+import { DUR, EASE_QUICK } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 type ButtonProps = React.ComponentProps<"button"> & VariantProps<typeof buttonVariants> & { asChild?: boolean };
@@ -52,11 +53,9 @@ export function SaveButton({
   ...props
 }: SaveButtonProps) {
   const isActive = isSaving || saved;
-  const reduceMotion = useReducedMotion();
-  // Expo ease, no spring — the design system bans bounce/elastic, and the old
-  // "Saved!" spring (stiffness 400 / damping 22, ζ≈0.55) was underdamped. The
-  // curve is the shared system token so this stays in lockstep with the rest.
-  const EXPO = EASE_OUT_EXPO;
+  const reduceMotion = useMotionReduced();
+  // Label swaps ride the quick step, no spring — the design system bans
+  // bounce/elastic. U2.1b replaces this with the canon save-check pop.
 
   return (
     <Button
@@ -72,7 +71,7 @@ export function SaveButton({
             initial={{ opacity: 0, y: reduceMotion ? 0 : 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
-            transition={{ duration: reduceMotion ? 0 : 0.14, ease: EXPO }}
+            transition={{ duration: reduceMotion ? 0 : DUR.quick, ease: EASE_QUICK }}
           >
             <Loader2 className="size-3.5 animate-spin" />
             {savingLabel}
@@ -84,7 +83,7 @@ export function SaveButton({
             initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: reduceMotion ? 1 : 0.85 }}
-            transition={{ duration: reduceMotion ? 0 : 0.2, ease: EXPO }}
+            transition={{ duration: reduceMotion ? 0 : DUR.quick, ease: EASE_QUICK }}
           >
             <CheckIcon className="size-3.5" />
             {savedLabel}
@@ -95,7 +94,7 @@ export function SaveButton({
             initial={{ opacity: 0, y: reduceMotion ? 0 : 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
-            transition={{ duration: reduceMotion ? 0 : 0.14, ease: EXPO }}
+            transition={{ duration: reduceMotion ? 0 : DUR.quick, ease: EASE_QUICK }}
           >
             {label}
           </motion.span>

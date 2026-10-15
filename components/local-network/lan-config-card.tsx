@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { TriangleAlertIcon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { EASE_OUT_EXPO, DUR } from "@/lib/motion";
+import { EASE_STANDARD, DUR } from "@/lib/motion";
 
 import {
   Card,
@@ -207,7 +207,7 @@ const LanConfigCard = () => {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: DUR.base, ease: EASE_OUT_EXPO }}
+              transition={{ duration: DUR.standard, ease: EASE_STANDARD }}
             >
               <form
                 className="grid gap-6"

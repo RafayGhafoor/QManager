@@ -699,6 +699,27 @@
   }
 }
 
+/* tw-animate-css entrances and exits under Reduced: movement goes, opacity stays.
+   Unlayered, so it outranks tw-animate's layered slide and zoom utilities without !important. */
+:root {
+  @variant motion-reduce {
+    & *,
+    & *::before,
+    & *::after {
+      --tw-enter-translate-x: 0;
+      --tw-enter-translate-y: 0;
+      --tw-exit-translate-x: 0;
+      --tw-exit-translate-y: 0;
+      --tw-enter-scale: 1;
+      --tw-exit-scale: 1;
+      --tw-enter-rotate: 0;
+      --tw-exit-rotate: 0;
+      --tw-enter-blur: 0;
+      --tw-exit-blur: 0;
+    }
+  }
+}
+
 /* ---------------------------------------------------------------------------
    Ambient loops (DESIGN.md > Motion). These two are the ONLY continuous
    animations sanctioned in the product, and both are gated on something being

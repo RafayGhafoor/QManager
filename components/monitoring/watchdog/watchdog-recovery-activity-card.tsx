@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
+import { useMotionReduced } from "@/components/motion-preference";
 import { useTranslation } from "react-i18next";
 import {
   Card,
@@ -36,7 +37,7 @@ import {
   TbCircleXFilled,
 } from "react-icons/tb";
 import { cn } from "@/lib/utils";
-import { DUR, EASE_OUT_EXPO } from "@/lib/motion";
+import { DUR, EASE_STANDARD } from "@/lib/motion";
 import { useRecentActivities } from "@/hooks/use-recent-activities";
 import type { NetworkEvent, EventSeverity } from "@/types/modem-status";
 
@@ -70,7 +71,7 @@ function formatEventDateTime(timestamp: number) {
 export function WatchdogRecoveryActivityCard() {
   const { t } = useTranslation("monitoring");
   const { t: tEvents } = useTranslation("events");
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useMotionReduced();
   const [page, setPage] = useState(0);
 
   const { events, isLoading, isRefreshing, error, refresh } =
@@ -189,9 +190,9 @@ export function WatchdogRecoveryActivityCard() {
                         }
                         animate={{ opacity: 1, x: 0 }}
                         transition={{
-                          duration: DUR.base,
+                          duration: DUR.standard,
                           delay: reduceMotion ? 0 : Math.min(index * 0.04, 0.4),
-                          ease: EASE_OUT_EXPO,
+                          ease: EASE_STANDARD,
                         }}
                       >
                         {/* Event type — its own column on wide, folded into the

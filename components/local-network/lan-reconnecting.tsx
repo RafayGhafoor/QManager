@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { EASE_OUT_EXPO, DUR } from "@/lib/motion";
+import { EASE_STANDARD, EASE_QUICK, DUR } from "@/lib/motion";
 
 // =============================================================================
 // LanReconnecting — post-apply reconnect probe for the LAN address editor
@@ -185,7 +185,7 @@ export function LanReconnecting({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
-      transition={{ duration: DUR.base, ease: EASE_OUT_EXPO }}
+      transition={{ duration: DUR.standard, ease: EASE_STANDARD }}
     >
       <AnimatePresence mode="wait" initial={false}>
         {phase === "manual" ? (
@@ -195,7 +195,7 @@ export function LanReconnecting({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: DUR.fast, ease: EASE_OUT_EXPO }}
+            transition={{ duration: DUR.quick, ease: EASE_QUICK }}
           >
             <Alert variant="warning">
               <TriangleAlertIcon />
@@ -220,7 +220,7 @@ export function LanReconnecting({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: DUR.fast, ease: EASE_OUT_EXPO }}
+            transition={{ duration: DUR.quick, ease: EASE_QUICK }}
             className="flex flex-col items-center gap-5 py-2 text-center"
           >
             <div

@@ -25,7 +25,7 @@ import { MetaPanel, MetaPair } from "@/components/ui/meta-panel";
 import { usePingProfile } from "@/hooks/use-ping-profile";
 import { useModemStatus } from "@/hooks/use-modem-status";
 import { PING_PROFILES, type PingProfile } from "@/types/modem-status";
-import { staggerContainer, staggerItem } from "@/lib/motion-presets";
+import { staggerRows, staggerRowItem } from "@/lib/motion";
 
 // ─── Profile metadata (UI labels and per-preset blurbs) ────────────────────
 
@@ -322,12 +322,12 @@ export default function ConnectivitySensitivityCard() {
 
         <motion.div
           className="grid gap-3"
-          variants={staggerContainer}
+          variants={staggerRows}
           initial="hidden"
           animate="visible"
         >
           {/* ── Segmented control ────────────────────────────────────── */}
-          <motion.div variants={staggerItem}>
+          <motion.div variants={staggerRowItem}>
             <Tabs
               value={selected ?? ""}
               onValueChange={(v) => {
@@ -358,7 +358,7 @@ export default function ConnectivitySensitivityCard() {
               count as "down" and what happens next (recovery) live in the
               Connection Watchdog. */}
           {activeMeta && (
-            <motion.div variants={staggerItem}>
+            <motion.div variants={staggerRowItem}>
               <MetaPanel title={activeMeta.label} blurb={activeMeta.blurb}>
                 <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
                   <MetaPair
@@ -383,7 +383,7 @@ export default function ConnectivitySensitivityCard() {
               over the profile. Surface it honestly so the profile choice above
               doesn't look like it's being ignored. */}
           {intervalOverride != null && (
-            <motion.div variants={staggerItem}>
+            <motion.div variants={staggerRowItem}>
               <Alert>
                 <RotateCcwIcon className="size-4" />
                 <AlertTitle>Watchdog override active</AlertTitle>
@@ -403,7 +403,7 @@ export default function ConnectivitySensitivityCard() {
 
           {/* ── Probe target inputs ──────────────────────────────────── */}
           <Separator className="my-2" />
-          <motion.div variants={staggerItem} className="grid gap-3">
+          <motion.div variants={staggerRowItem} className="grid gap-3">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h4 className="text-sm font-medium">Probe Targets</h4>
@@ -516,7 +516,7 @@ export default function ConnectivitySensitivityCard() {
           {/* Appears after the card has already settled, so it runs its own
               entrance rather than inheriting the parent's finished stagger. */}
           {stuckHint && (
-            <motion.div variants={staggerItem} initial="hidden" animate="visible">
+            <motion.div variants={staggerRowItem} initial="hidden" animate="visible">
               <Alert variant="warning">
                 <AlertTriangleIcon className="size-4" />
                 <AlertTitle>Saved, but not applied yet</AlertTitle>
@@ -530,7 +530,7 @@ export default function ConnectivitySensitivityCard() {
           )}
 
           {/* ── Save button ──────────────────────────────────────────── */}
-          <motion.div variants={staggerItem} className="flex justify-end">
+          <motion.div variants={staggerRowItem} className="flex justify-end">
             <SaveButton
               onClick={handleSave}
               isSaving={isSaving}

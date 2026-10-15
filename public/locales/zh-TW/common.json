@@ -15,6 +15,12 @@
     "change_display_name": "變更顯示名稱",
     "change_password": "變更密碼"
   },
+  "motion": {
+    "label": "動畫",
+    "system": "跟隨系統",
+    "full": "完整",
+    "reduced": "減弱"
+  },
   "state": {
     "loading": "載入中…",
     "saving": "儲存中…",

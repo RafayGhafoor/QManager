@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { motion } from "motion/react";
-import { containerVariants, itemVariants } from "@/lib/motion";
+import { staggerRows, staggerRowItem } from "@/lib/motion";
 import {
   Card,
   CardContent,
@@ -199,13 +199,13 @@ export function UpdatePreferencesCard({
         <CardContent>
           <motion.div
             className="grid gap-2"
-            variants={containerVariants}
+            variants={staggerRows}
             initial="hidden"
             animate="visible"
           >
             {/* ── Pre-release toggle ──────────────────────────────── */}
             <Separator />
-            <motion.div variants={itemVariants}>
+            <motion.div variants={staggerRowItem}>
               <Field orientation="horizontal">
                 <FieldLabel htmlFor="include-prerelease">
                   {t("software_update.prerelease_label")}
@@ -221,7 +221,7 @@ export function UpdatePreferencesCard({
 
             {/* ── Automatic updates ─────────────────────────────── */}
             <Separator />
-            <motion.div variants={itemVariants}>
+            <motion.div variants={staggerRowItem}>
               <Field orientation="horizontal">
                 <FieldLabel htmlFor="auto-update">
                   {t("software_update.auto_update_label")}
@@ -239,7 +239,7 @@ export function UpdatePreferencesCard({
             {updateInfo?.auto_update_enabled && (
               <>
                 <Separator />
-                <motion.div variants={itemVariants} className="flex flex-col gap-2">
+                <motion.div variants={staggerRowItem} className="flex flex-col gap-2">
                   <p className="font-semibold text-sm">
                     {t("software_update.update_time_title")}
                   </p>
@@ -271,7 +271,7 @@ export function UpdatePreferencesCard({
 
             {/* ── Version Management ──────────────────────────────── */}
             <Separator />
-            <motion.div variants={itemVariants} className="flex flex-col gap-2">
+            <motion.div variants={staggerRowItem} className="flex flex-col gap-2">
               <p className="font-semibold text-sm">{t("software_update.version_mgmt_title")}</p>
               <div className="flex flex-col gap-2 rounded-lg border bg-muted/50 p-3">
                 <span className="text-xs text-muted-foreground">

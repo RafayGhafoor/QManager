@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useTranslation, Trans } from "react-i18next";
-import { useReducedMotion } from "motion/react";
+import { useMotionReduced } from "@/components/motion-preference";
 import {
   Card,
   CardContent,
@@ -78,7 +78,7 @@ export function AlertsSettingsCard({
   onTested,
 }: AlertsSettingsCardProps) {
   const { t } = useTranslation("monitoring");
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useMotionReduced();
   const [tab, setTab] = useState<SettingsTab>("routing");
   const [showPassword, setShowPassword] = useState(false);
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "motion/react";
-import { containerVariants, itemVariants } from "@/lib/motion";
+import { staggerRows, staggerRowItem } from "@/lib/motion";
 import { toast } from "sonner";
 
 import {
@@ -352,16 +352,16 @@ const ScheduledOperationsCard = ({
       <CardContent>
         <motion.div
           className="grid gap-2"
-          variants={containerVariants}
+          variants={staggerRows}
           initial="hidden"
           animate="visible"
         >
           {/* ─── Section A: Scheduled Reboot ─────────────────────────────── */}
-          <motion.p variants={itemVariants} className="font-semibold text-sm">{t("scheduled_operations.reboot_section_title")}</motion.p>
+          <motion.p variants={staggerRowItem} className="font-semibold text-sm">{t("scheduled_operations.reboot_section_title")}</motion.p>
           <Separator />
 
           {/* Enable toggle */}
-          <motion.div variants={itemVariants} className="flex items-center justify-between">
+          <motion.div variants={staggerRowItem} className="flex items-center justify-between">
             <p className="font-semibold text-muted-foreground text-sm">
               {t("scheduled_operations.reboot_enable_label")}
             </p>
@@ -379,7 +379,7 @@ const ScheduledOperationsCard = ({
           <Separator />
 
           {/* Reboot Time */}
-          <motion.div variants={itemVariants} className="flex items-center justify-between mt-4">
+          <motion.div variants={staggerRowItem} className="flex items-center justify-between mt-4">
             <Label className="font-semibold text-muted-foreground text-sm">
               {t("scheduled_operations.reboot_time_label")}
             </Label>
@@ -393,7 +393,7 @@ const ScheduledOperationsCard = ({
           <Separator />
 
           {/* Repeat On (reboot) */}
-          <motion.fieldset variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
+          <motion.fieldset variants={staggerRowItem} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
             <legend className="font-semibold text-muted-foreground text-sm">
               {t("scheduled_operations.reboot_repeat_label")}
             </legend>
@@ -423,7 +423,7 @@ const ScheduledOperationsCard = ({
           <Separator className="my-4" />
 
           {/* ─── Section B: Low Power Mode ───────────────────────────────── */}
-          <motion.div variants={itemVariants} className="flex items-center gap-1.5">
+          <motion.div variants={staggerRowItem} className="flex items-center gap-1.5">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -443,7 +443,7 @@ const ScheduledOperationsCard = ({
           <Separator />
 
           {/* Enable toggle */}
-          <motion.div variants={itemVariants} className="flex items-center justify-between">
+          <motion.div variants={staggerRowItem} className="flex items-center justify-between">
             <p className="font-semibold text-muted-foreground text-sm">
               {t("scheduled_operations.low_power_enable_label")}
             </p>
@@ -461,7 +461,7 @@ const ScheduledOperationsCard = ({
           <Separator />
 
           {/* Start Time */}
-          <motion.div variants={itemVariants} className="flex flex-col gap-4 mt-4">
+          <motion.div variants={staggerRowItem} className="flex flex-col gap-4 mt-4">
             <div className="flex items-center justify-between">
               <Label className="font-semibold text-muted-foreground text-sm">
                 {t("scheduled_operations.low_power_start_label")}
@@ -490,7 +490,7 @@ const ScheduledOperationsCard = ({
           <Separator />
 
           {/* Repeat On (low power) */}
-          <motion.fieldset variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
+          <motion.fieldset variants={staggerRowItem} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
             <legend className="font-semibold text-muted-foreground text-sm">
               {t("scheduled_operations.low_power_repeat_label")}
             </legend>

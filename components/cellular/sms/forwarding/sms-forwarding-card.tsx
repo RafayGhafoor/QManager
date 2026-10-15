@@ -27,7 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { AlertCircle, RefreshCcwIcon } from "lucide-react";
-import { DUR, EASE_OUT_EXPO } from "@/lib/motion";
+import { DUR, EASE_STANDARD } from "@/lib/motion";
 import {
   type SmsForwardingData,
   type UseSmsForwardingReturn,
@@ -170,7 +170,7 @@ const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
           onSubmit={handleSave}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: DUR.slow, ease: EASE_OUT_EXPO }}
+          transition={{ duration: DUR.standard, ease: EASE_STANDARD }}
         >
           <FieldSet>
             <FieldGroup>

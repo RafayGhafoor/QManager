@@ -48,7 +48,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 import type { UpdateInfo, UpdateStatus, DownloadState } from "@/hooks/use-software-update";
-import { containerVariants, itemVariants } from "@/lib/motion";
+import { staggerRows, staggerRowItem } from "@/lib/motion";
 import { StatusBadge } from "./software-update";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -196,14 +196,14 @@ export function UpdateStatusCard({
 
           <motion.div
             className="grid gap-2 min-w-0"
-            variants={containerVariants}
+            variants={staggerRows}
             initial="hidden"
             animate="visible"
           >
             {/* ── Version display ─────────────────────────────────── */}
             <Separator />
             {updateAvailable && updateInfo?.latest_version ? (
-              <motion.div variants={itemVariants} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1">
+              <motion.div variants={staggerRowItem} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1">
                 <div className="flex items-center gap-3">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -230,7 +230,7 @@ export function UpdateStatusCard({
                 )}
               </motion.div>
             ) : (
-              <motion.div variants={itemVariants} className="flex items-center justify-between">
+              <motion.div variants={staggerRowItem} className="flex items-center justify-between">
                 <p className="font-semibold text-muted-foreground text-sm">
                   {t("software_update.installed_version")}
                 </p>
@@ -249,7 +249,7 @@ export function UpdateStatusCard({
               return (
                 <>
                   <Separator />
-                  <motion.div variants={itemVariants} className="flex flex-col gap-2 min-w-0">
+                  <motion.div variants={staggerRowItem} className="flex flex-col gap-2 min-w-0">
                     <div className="flex items-center justify-between">
                       <p className="font-semibold text-sm">
                         {updateAvailable
@@ -287,7 +287,7 @@ export function UpdateStatusCard({
             {downloadState && (
               <>
                 <Separator />
-                <motion.div variants={itemVariants}>
+                <motion.div variants={staggerRowItem}>
                   {(downloadState.status === "downloading" || downloadState.status === "verifying") && (
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between">
@@ -337,7 +337,7 @@ export function UpdateStatusCard({
 
             {/* ── Footer: timestamp + action button ───────────────── */}
             <Separator />
-            <motion.div variants={itemVariants} className="flex items-center justify-between gap-2">
+            <motion.div variants={staggerRowItem} className="flex items-center justify-between gap-2">
               <span className="text-xs text-muted-foreground">
                 {lastChecked
                   ? t("software_update.last_checked", { time: formatRelativeTime(lastChecked, t) })

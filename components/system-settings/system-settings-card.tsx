@@ -55,7 +55,7 @@ import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import KnownSimsRow from "@/components/system-settings/known-sims-row";
 import SshPasswordSection from "@/components/system-settings/ssh-password/ssh-password-section";
 import { motion } from "motion/react";
-import { containerVariants, itemVariants } from "@/lib/motion";
+import { staggerRows, staggerRowItem } from "@/lib/motion";
 import { TbInfoCircleFilled } from "react-icons/tb";
 import { useTranslation } from "react-i18next";
 
@@ -305,13 +305,13 @@ function SystemSettingsForm({
 
         <motion.div
           className="grid gap-2"
-          variants={containerVariants}
+          variants={staggerRows}
           initial="hidden"
           animate="visible"
         >
           {/* ── Force Tailscale Fixes Toggle ──────────────────────── */}
           <Separator />
-          <motion.div variants={itemVariants} className="flex items-center justify-between">
+          <motion.div variants={staggerRowItem} className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -352,7 +352,7 @@ function SystemSettingsForm({
 
           {/* ── Temperature Unit ──────────────────────────────────── */}
           <Separator />
-          <motion.div variants={itemVariants} className="flex items-center justify-between">
+          <motion.div variants={staggerRowItem} className="flex items-center justify-between">
             <p className="font-semibold text-muted-foreground text-sm">
               {t("system.temperature_unit_label")}
             </p>
@@ -372,7 +372,7 @@ function SystemSettingsForm({
 
           {/* ── Distance Unit ─────────────────────────────────────── */}
           <Separator />
-          <motion.div variants={itemVariants} className="flex items-center justify-between">
+          <motion.div variants={staggerRowItem} className="flex items-center justify-between">
             <p className="font-semibold text-muted-foreground text-sm">
               {t("system.distance_unit_label")}
             </p>
@@ -392,7 +392,7 @@ function SystemSettingsForm({
 
           {/* ── Timezone ──────────────────────────────────────────── */}
           <Separator />
-          <motion.div variants={itemVariants} className="flex items-center justify-between">
+          <motion.div variants={staggerRowItem} className="flex items-center justify-between">
             <p className="font-semibold text-muted-foreground text-sm">
               {t("system.timezone_label")}
             </p>
@@ -449,7 +449,7 @@ function SystemSettingsForm({
           {/* accordion, so this card-level Save and the SSH form's own */}
           {/* Change Password button never share the bottom edge.       */}
           <Separator />
-          <motion.div variants={itemVariants} className="flex justify-end">
+          <motion.div variants={staggerRowItem} className="flex justify-end">
             <SaveButton
               onClick={handleSave}
               isSaving={isSaving}
@@ -463,7 +463,7 @@ function SystemSettingsForm({
           {/* mutation (ssh_password.sh) is independent of the Save      */}
           {/* button above — see SshPasswordSection.                    */}
           <Separator />
-          <motion.div variants={itemVariants}>
+          <motion.div variants={staggerRowItem}>
             <Accordion type="single" collapsible>
               <AccordionItem value="ssh-password" className="border-b-0">
                 <AccordionTrigger className="items-center py-2 text-muted-foreground hover:text-foreground hover:no-underline">

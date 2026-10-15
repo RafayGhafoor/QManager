@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { motion } from "motion/react";
-import { itemVariants } from "@/lib/motion";
+import { staggerRowItem } from "@/lib/motion";
 import { authFetch } from "@/lib/auth-fetch";
 import { useTranslation } from "react-i18next";
 
@@ -103,7 +103,7 @@ export default function KnownSimsRow() {
   return (
     <>
       <motion.div
-        variants={itemVariants}
+        variants={staggerRowItem}
         className="flex items-center justify-between"
       >
         <div className="flex items-center gap-1.5">

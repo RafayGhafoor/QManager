@@ -93,7 +93,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { containerVariants, itemVariants } from "@/lib/motion";
+import { staggerRows, staggerRowItem } from "@/lib/motion";
 import type { SmsData } from "@/hooks/use-sms";
 import type { SmsMessage } from "@/types/sms";
 import {
@@ -671,7 +671,7 @@ export default function SmsInboxCard({
               </TableHeader>
               <MotionTableBody
                 key={tab}
-                variants={containerVariants}
+                variants={staggerRows}
                 initial="hidden"
                 animate="visible"
               >
@@ -689,7 +689,7 @@ export default function SmsInboxCard({
                           openMessage(row.original);
                         }
                       }}
-                      variants={itemVariants}
+                      variants={staggerRowItem}
                     >
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>

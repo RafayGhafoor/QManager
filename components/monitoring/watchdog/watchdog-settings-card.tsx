@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { useReducedMotion } from "motion/react";
+import { useMotionReduced } from "@/components/motion-preference";
 import {
   Card,
   CardContent,
@@ -71,7 +71,7 @@ export function WatchdogSettingsCard({
   qualityThresholds: WatchdogQualityThresholds | null;
 }) {
   const { t } = useTranslation("monitoring");
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useMotionReduced();
   const [tab, setTab] = useState<SettingsTab>("detection");
   const masterOff = !form.isEnabled;
 

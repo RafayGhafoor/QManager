@@ -346,7 +346,6 @@ Both `/tmp/qmanager_ping.json` (written by `qmanager_ping`) and `/tmp/qmanager_s
 | `hooks/use-ping-profile.ts` | Fetch + save ping profile |
 | `hooks/use-quality-thresholds.ts` | Fetch + save quality thresholds |
 | `components/ui/meta-panel.tsx` | `MetaPanel` / `MetaPair` — info grid used for preset preview |
-| `lib/motion-presets.ts` | Re-exports `containerVariants`/`itemVariants` from `lib/motion.ts` |
 
 Types are in `types/modem-status.ts`: `PING_PROFILES`, `PingProfile`, `QUALITY_PRESETS`, `QualityPreset`, `QualityThresholdsSettings`. `QUALITY_PRESETS` is `["standard", "tolerant", "very-tolerant", "custom"]`. `QualityThresholdsSettings` has the shape `{ latency: { preset, custom_ms?: number }, loss: { preset, custom_pct?: number } }`. The save hook flattens this to flat wire keys (`latency_custom_ms`, `loss_custom_pct`) before posting. `ConnectivityStatus` has `last_family?: "ipv4" | "ipv6" | "none" | ""`.
 

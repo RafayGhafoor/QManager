@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "motion/react";
-import { containerVariants, itemVariants } from "@/lib/motion";
+import { staggerContainer, staggerItem } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { useModemStatus } from "@/hooks/use-modem-status";
@@ -52,13 +52,13 @@ const HomeComponent = () => {
         />
         <motion.div
           className="grid grid-cols-1 @3xl/main:grid-cols-2 grid-flow-row gap-4"
-          variants={containerVariants}
+          variants={staggerContainer}
           initial="hidden"
           animate="visible"
         >
           {/* SA mode: SCC card on the left */}
           {networkType === "5G-SA" && hasScc && (
-            <motion.div variants={itemVariants} className="h-full *:data-[slot=card]:h-full">
+            <motion.div variants={staggerItem} className="h-full *:data-[slot=card]:h-full">
               <SccStatusComponent carriers={carrierComponents} />
             </motion.div>
           )}
@@ -66,7 +66,7 @@ const HomeComponent = () => {
           {/* LTE PCC — shown in LTE and NSA modes; spans full width when no SCCs */}
           {networkType !== "5G-SA" && (
             <motion.div
-              variants={itemVariants}
+              variants={staggerItem}
               className={cn(
                 "h-full *:data-[slot=card]:h-full",
                 networkType === "LTE" && !hasScc && "@3xl/main:col-span-2",
@@ -82,7 +82,7 @@ const HomeComponent = () => {
           {/* NR PCC — shown in SA and NSA modes; spans full width when no SCCs */}
           {networkType !== "LTE" && (
             <motion.div
-              variants={itemVariants}
+              variants={staggerItem}
               className={cn(
                 "h-full *:data-[slot=card]:h-full",
                 networkType === "5G-SA" && !hasScc && "@3xl/main:col-span-2",
@@ -97,7 +97,7 @@ const HomeComponent = () => {
 
           {/* LTE mode: SCC card on the right */}
           {networkType === "LTE" && hasScc && (
-            <motion.div variants={itemVariants} className="h-full *:data-[slot=card]:h-full">
+            <motion.div variants={staggerItem} className="h-full *:data-[slot=card]:h-full">
               <SccStatusComponent carriers={carrierComponents} />
             </motion.div>
           )}
@@ -115,11 +115,11 @@ const HomeComponent = () => {
       <div className="col-span-full">
         <motion.div
           className="grid grid-cols-1 @3xl/main:grid-cols-2 @5xl/main:grid-cols-3 grid-flow-row gap-4"
-          variants={containerVariants}
+          variants={staggerContainer}
           initial="hidden"
           animate="visible"
         >
-          <motion.div variants={itemVariants} className="h-full *:data-[slot=card]:h-full">
+          <motion.div variants={staggerItem} className="h-full *:data-[slot=card]:h-full">
             <DeviceMetricsComponent
               deviceData={data?.device ?? null}
               lteData={data?.lte ?? null}
@@ -129,13 +129,13 @@ const HomeComponent = () => {
               isLoading={isLoading}
             />
           </motion.div>
-          <motion.div variants={itemVariants} className="h-full *:data-[slot=card]:h-full">
+          <motion.div variants={staggerItem} className="h-full *:data-[slot=card]:h-full">
             <LiveLatencyComponent
               connectivity={data?.connectivity ?? null}
               isLoading={isLoading}
             />
           </motion.div>
-          <motion.div variants={itemVariants} className="h-full *:data-[slot=card]:h-full">
+          <motion.div variants={staggerItem} className="h-full *:data-[slot=card]:h-full">
             <RecentActivitiesComponent />
           </motion.div>
         </motion.div>

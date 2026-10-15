@@ -15,6 +15,12 @@
     "change_display_name": "更改显示名称",
     "change_password": "更改密码"
   },
+  "motion": {
+    "label": "动画",
+    "system": "跟随系统",
+    "full": "完整",
+    "reduced": "减弱"
+  },
   "state": {
     "loading": "加载中…",
     "saving": "保存中…",

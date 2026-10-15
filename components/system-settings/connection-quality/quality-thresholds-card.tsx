@@ -29,7 +29,7 @@ import {
   type QualityNamedPreset,
   type QualityThresholdsSettings,
 } from "@/types/modem-status";
-import { staggerContainer, staggerItem } from "@/lib/motion-presets";
+import { staggerRows, staggerRowItem } from "@/lib/motion";
 
 // ─── Preset metadata (named presets only; `custom` is user-entered) ──────────
 
@@ -322,12 +322,12 @@ export default function QualityThresholdsCard() {
 
         <motion.div
           className="grid gap-5"
-          variants={staggerContainer}
+          variants={staggerRows}
           initial="hidden"
           animate="visible"
         >
           {/* ── Latency row ─────────────────────────────────────────── */}
-          <motion.div variants={staggerItem} className="grid gap-3">
+          <motion.div variants={staggerRowItem} className="grid gap-3">
             <span id={latencyLabelId} className="text-sm font-medium">
               Latency
             </span>
@@ -440,7 +440,7 @@ export default function QualityThresholdsCard() {
           <Separator />
 
           {/* ── Packet loss row ─────────────────────────────────────── */}
-          <motion.div variants={staggerItem} className="grid gap-3">
+          <motion.div variants={staggerRowItem} className="grid gap-3">
             <span id={lossLabelId} className="text-sm font-medium">
               Packet loss
             </span>
@@ -549,7 +549,7 @@ export default function QualityThresholdsCard() {
 
           {isDefault && (
             <motion.p
-              variants={staggerItem}
+              variants={staggerRowItem}
               className="text-muted-foreground text-xs"
             >
               Using default thresholds — pick Standard to flag smaller spikes.
@@ -557,7 +557,7 @@ export default function QualityThresholdsCard() {
           )}
 
           {/* ── Save button ──────────────────────────────────────────── */}
-          <motion.div variants={staggerItem} className="flex justify-end">
+          <motion.div variants={staggerRowItem} className="flex justify-end">
             <SaveButton
               onClick={handleSave}
               isSaving={isSaving}

@@ -15,6 +15,12 @@
     "change_display_name": "Modifica nome visualizzato",
     "change_password": "Cambia password"
   },
+  "motion": {
+    "label": "Animazioni",
+    "system": "Sistema",
+    "full": "Complete",
+    "reduced": "Ridotte"
+  },
   "state": {
     "loading": "Caricamento…",
     "saving": "Salvataggio…",

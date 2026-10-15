@@ -23,7 +23,7 @@ import {
   TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
-import { DUR, EASE_OUT_EXPO, EASE_OUT_QUART } from "@/lib/motion";
+import { DUR, EASE_STANDARD, EASE_QUICK } from "@/lib/motion";
 import { type UseSmsForwardingReturn } from "@/hooks/use-sms-forwarding";
 
 // =============================================================================
@@ -163,7 +163,7 @@ const DeliveryHealthCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
           className="grid gap-5"
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: DUR.slow, ease: EASE_OUT_EXPO }}
+          transition={{ duration: DUR.standard, ease: EASE_STANDARD }}
         >
         {/* Focal state + destination */}
         <div className="flex items-start gap-3">
@@ -242,7 +242,7 @@ const DeliveryHealthCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2, ease: EASE_OUT_QUART }}
+              transition={{ duration: DUR.quick, ease: EASE_QUICK }}
               style={{ overflow: "hidden" }}
             >
               <Alert variant="destructive">
@@ -299,7 +299,7 @@ const DeliveryHealthCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.15, ease: EASE_OUT_QUART }}
+              transition={{ duration: DUR.quick, ease: EASE_QUICK }}
               className="flex items-center gap-1.5 text-sm text-muted-foreground"
             >
               <CheckCircle2Icon className="size-3.5 text-success" />

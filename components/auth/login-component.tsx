@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useId, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { useMotionReduced } from "@/components/motion-preference";
 import {
   EyeIcon,
   EyeOffIcon,
@@ -17,7 +18,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
-import { DUR, EASE_OUT_EXPO } from "@/lib/motion";
+import { DUR, EASE_STANDARD } from "@/lib/motion";
 
 // =============================================================================
 // LoginComponent — centered brand mark, product headline, in-place recovery.
@@ -34,7 +35,7 @@ import { DUR, EASE_OUT_EXPO } from "@/lib/motion";
 export default function LoginComponent() {
   const { t } = useTranslation("common");
   const { status, login } = useLogin();
-  const shouldReduceMotion = useReducedMotion();
+  const shouldReduceMotion = useMotionReduced();
   const recoveryPanelId = useId();
 
   const [password, setPassword] = useState("");
@@ -127,7 +128,7 @@ export default function LoginComponent() {
   return (
     <motion.div
       // DESIGN.md's signed motion curve (ease-out-quart, Apple Control Center
-      // settle). useReducedMotion zeroes the duration so vestibular-sensitive
+      // settle). useMotionReduced zeroes the duration so vestibular-sensitive
       // users see the column mount in place rather than slide. animateMount
       // gates the entrance to the first visit per session.
       initial={
@@ -139,7 +140,7 @@ export default function LoginComponent() {
       transition={
         shouldReduceMotion || !animateMount
           ? { duration: 0 }
-          : { duration: DUR.slow, ease: EASE_OUT_EXPO }
+          : { duration: DUR.standard, ease: EASE_STANDARD }
       }
       className="flex flex-col gap-6"
     >
@@ -264,7 +265,7 @@ export default function LoginComponent() {
                       transition={
                         shouldReduceMotion
                           ? { duration: 0 }
-                          : { duration: DUR.slow, ease: EASE_OUT_EXPO }
+                          : { duration: DUR.standard, ease: EASE_STANDARD }
                       }
                       style={{ overflow: "hidden" }}
                     >

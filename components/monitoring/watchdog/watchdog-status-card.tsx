@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useMemo, useState } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
+import { useMotionReduced } from "@/components/motion-preference";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
@@ -39,7 +40,7 @@ import {
   ActivityIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DUR, EASE_OUT_EXPO } from "@/lib/motion";
+import { DUR, EASE_STANDARD } from "@/lib/motion";
 import { useModemStatus } from "@/hooks/use-modem-status";
 import { formatTimeAgo } from "@/types/modem-status";
 import type { WatchcatState } from "@/types/modem-status";
@@ -116,7 +117,7 @@ export function WatchdogStatusCard({
     pollInterval: 5000,
   });
   const [isReverting, setIsReverting] = useState(false);
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useMotionReduced();
 
   const stepLabel = useCallback(
     (tier: number | null | undefined) =>
@@ -346,7 +347,7 @@ export function WatchdogStatusCard({
             initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: reduceMotion ? 1 : 0.98 }}
-            transition={{ duration: reduceMotion ? 0 : DUR.base, ease: EASE_OUT_EXPO }}
+            transition={{ duration: reduceMotion ? 0 : DUR.standard, ease: EASE_STANDARD }}
           >
             <StateTile
               tone={meta.tone}

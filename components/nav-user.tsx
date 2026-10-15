@@ -10,6 +10,10 @@ import {
   Camera,
   Pencil,
   RotateCcw,
+  Settings,
+  Sparkles,
+  CircleMinus,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { logout } from "@/hooks/use-auth";
@@ -57,6 +61,32 @@ import { AnimatedThemeToggler } from "./ui/animated-theme-toggler";
 import { useTranslation } from "react-i18next";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { useMotionPreference } from "@/components/motion-preference";
+import {
+  MOTION_PREFERENCES,
+  type MotionPreference,
+} from "@/lib/motion-preference";
+
+// Animations preference, presented beside the theme row: both are appearance
+// choices that live on this device only, so they belong in the same group.
+//
+// The keys are written out as LITERALS rather than built with
+// t(`motion.${preference}`). lib/i18n/check.ts scans source text for key
+// stems, and an interpolated key is invisible to it — a missing translation
+// would then ship as the raw key string with a green check run.
+const MOTION_LABEL_KEY: Record<MotionPreference, string> = {
+  system: "motion.system",
+  full: "motion.full",
+  reduced: "motion.reduced",
+};
+
+// lucide stand-ins for the source's Material glyphs (settings / auto_awesome /
+// do_not_disturb_on): the target sidebar stays lucide until it converts whole.
+const MOTION_ICON: Record<MotionPreference, LucideIcon> = {
+  system: Settings,
+  full: Sparkles,
+  reduced: CircleMinus,
+};
 
 export function NavUser({
   user,
@@ -68,6 +98,9 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar();
   const { t } = useTranslation("common");
+  const { preference: motionPreference, setPreference: setMotionPreference } =
+    useMotionPreference();
+  const MotionIcon = MOTION_ICON[motionPreference];
 
   // --- Display name from device hostname ---
   const [displayName, setDisplayName] = useState<string>(user.name);
@@ -284,6 +317,35 @@ export function NavUser({
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <AnimatedThemeToggler />
+                </DropdownMenuItem>
+                {/* Animations sits directly under Theme: the two device-local
+                    appearance preferences read as one pair.
+
+                    Three states cycle in place rather than through a submenu,
+                    which keeps the theme row's interaction shape. The default
+                    close is suppressed so reaching Reduced from System is one
+                    open and two clicks, not two opens. The current state is
+                    shown as a trailing value because a glyph alone cannot
+                    distinguish "following the OS" from "explicitly Full". */}
+                <DropdownMenuItem
+                  onSelect={(event) => event.preventDefault()}
+                  onClick={() =>
+                    setMotionPreference(
+                      MOTION_PREFERENCES[
+                        (MOTION_PREFERENCES.indexOf(motionPreference) + 1) %
+                          MOTION_PREFERENCES.length
+                      ]
+                    )
+                  }
+                >
+                  <MotionIcon />
+                  {t("motion.label")}
+                  <span
+                    aria-live="polite"
+                    className="text-muted-foreground ml-auto text-xs"
+                  >
+                    {t(MOTION_LABEL_KEY[motionPreference])}
+                  </span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setReconnectDialogOpen(true)}

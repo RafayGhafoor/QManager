@@ -1,11 +1,12 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { useMotionReduced } from "@/components/motion-preference";
 import { useTranslation } from "react-i18next";
 
 import { useDeviceHostname } from "@/hooks/use-device-hostname";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DUR, EASE_OUT_EXPO } from "@/lib/motion";
+import { DUR, EASE_QUICK } from "@/lib/motion";
 
 // =============================================================================
 // LoginDeviceName — pre-auth device-identity line for the login title block.
@@ -28,14 +29,14 @@ import { DUR, EASE_OUT_EXPO } from "@/lib/motion";
 export function LoginDeviceName() {
   const { t } = useTranslation("common");
   const { hostname, isLoading } = useDeviceHostname();
-  const shouldReduceMotion = useReducedMotion();
+  const shouldReduceMotion = useMotionReduced();
 
   // Tokenized from lib/motion.ts so the skeleton↔name swap settles on the
   // same curve and cadence as the login column's own entrance — one
   // instrument, not two slightly different timings.
   const transition = shouldReduceMotion
     ? { duration: 0 }
-    : { duration: DUR.base, ease: EASE_OUT_EXPO };
+    : { duration: DUR.quick, ease: EASE_QUICK };
 
   return (
     // mode="wait" so the skeleton fades fully out before the resolved name (or

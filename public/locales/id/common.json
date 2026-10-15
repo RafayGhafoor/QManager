@@ -15,6 +15,12 @@
     "change_display_name": "Ubah Nama Tampilan",
     "change_password": "Ubah Kata Sandi"
   },
+  "motion": {
+    "label": "Animasi",
+    "system": "Sistem",
+    "full": "Penuh",
+    "reduced": "Dikurangi"
+  },
   "state": {
     "loading": "Memuat…",
     "saving": "Menyimpan…",

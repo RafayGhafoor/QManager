@@ -2,7 +2,8 @@
 
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
+import { useMotionReduced } from "@/components/motion-preference";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +23,7 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EASE_OUT_EXPO } from "@/lib/motion";
+import { transitionStandard } from "@/lib/motion";
 
 import type {
   ProfileApplyState,
@@ -45,8 +46,8 @@ import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 // keeps one obvious "where am I" focal point instead of four competing rows.
 // "Skipped" reads as a calm "Unchanged" (the value was already correct) and
 // resolves to a check once the whole apply completes. The fill is transform-
-// only (scaleX) on the system EXPO ease and collapses to instant under
-// prefers-reduced-motion.
+// only (scaleX) on the standard transition and collapses to instant under
+// reduced motion.
 // =============================================================================
 
 interface ApplyProgressDialogProps {
@@ -68,8 +69,6 @@ const DEFAULT_STEPS: ApplyStep[] = [
   { name: "mpdn_rule", status: "pending", detail: "" },
   { name: "imei", status: "pending", detail: "" },
 ];
-
-const EXPO = EASE_OUT_EXPO;
 
 type Tone = "info" | "success" | "warning" | "destructive";
 
@@ -178,7 +177,7 @@ export function ApplyProgressDialog({
   error,
 }: ApplyProgressDialogProps) {
   const { t } = useTranslation("cellular");
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useMotionReduced();
 
   const stepLabels = useMemo<Record<string, string>>(
     () => ({
@@ -270,9 +269,7 @@ export function ApplyProgressDialog({
               className={cn("h-full w-full origin-left rounded-full", TONE_FILL[tone])}
               initial={false}
               animate={{ scaleX: fraction }}
-              transition={
-                reduceMotion ? { duration: 0 } : { duration: 0.5, ease: EXPO }
-              }
+              transition={reduceMotion ? { duration: 0 } : transitionStandard}
             />
           </div>
         </div>

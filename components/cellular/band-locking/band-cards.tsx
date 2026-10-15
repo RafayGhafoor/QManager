@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatBandName, type BandCategory } from "@/types/band-locking";
-import { DUR, EASE_OUT_QUART } from "@/lib/motion";
+import { DUR, EASE_QUICK } from "@/lib/motion";
 
 // Representative band counts per category for the loading skeleton, taken from
 // the static hardware band universe (supported_bands_hw.env) of the supported
@@ -256,7 +256,7 @@ const BandCardsComponent = ({
                 key={i}
                 className="flex items-center space-x-2"
                 variants={{ hidden: { opacity: 0, scale: 0.88 }, visible: { opacity: 1, scale: 1 } }}
-                transition={{ duration: DUR.fast, ease: EASE_OUT_QUART }}
+                transition={{ duration: DUR.quick, ease: EASE_QUICK }}
               >
                 <Skeleton className="size-4 rounded" />
                 <Skeleton className={`h-4 ${SKELETON_LABEL_WIDTHS[i % SKELETON_LABEL_WIDTHS.length]}`} />
@@ -367,7 +367,7 @@ const BandCardsComponent = ({
               key={band}
               className="flex items-center space-x-2"
               variants={{ hidden: { opacity: 0, scale: 0.88 }, visible: { opacity: 1, scale: 1 } }}
-              transition={{ duration: DUR.fast, ease: EASE_OUT_QUART }}
+              transition={{ duration: DUR.quick, ease: EASE_QUICK }}
             >
               <Checkbox
                 id={`${bandCategory}-${band}`}

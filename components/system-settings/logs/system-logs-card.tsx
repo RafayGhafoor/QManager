@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/table";
 
 import { motion } from "motion/react";
-import { transitionBase } from "@/lib/motion";
+import { transitionStandard } from "@/lib/motion";
 
 import {
   AlertDialog,
@@ -487,7 +487,7 @@ const SystemLogsCard = () => {
             className="rounded-md border"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={transitionBase}
+            transition={transitionStandard}
           >
             <Table>
               <TableHeader>

@@ -15,6 +15,12 @@
     "change_display_name": "Change Display Name",
     "change_password": "Change Password"
   },
+  "motion": {
+    "label": "Animations",
+    "system": "System",
+    "full": "Full",
+    "reduced": "Reduced"
+  },
   "state": {
     "loading": "Loading…",
     "saving": "Saving…",

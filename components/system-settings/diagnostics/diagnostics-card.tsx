@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { containerVariants, itemVariants } from "@/lib/motion";
+import { staggerRows, staggerRowItem } from "@/lib/motion";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
@@ -42,19 +42,19 @@ const DiagnosticsCard = () => {
       <CardContent>
         <motion.div
           className="grid gap-4"
-          variants={containerVariants}
+          variants={staggerRows}
           initial="hidden"
           animate="visible"
         >
           <motion.p
-            variants={itemVariants}
+            variants={staggerRowItem}
             className="text-sm text-muted-foreground"
           >
             {t("diagnostics.body")}
           </motion.p>
 
           {stage === "error" && error && (
-            <motion.div variants={itemVariants}>
+            <motion.div variants={staggerRowItem}>
               <Alert variant="destructive">
                 <AlertTriangleIcon className="size-4" />
                 <AlertDescription>{error}</AlertDescription>
@@ -62,7 +62,7 @@ const DiagnosticsCard = () => {
             </motion.div>
           )}
 
-          <motion.div variants={itemVariants}>
+          <motion.div variants={staggerRowItem}>
             <Button
               onClick={handleCapture}
               disabled={isCapturing}

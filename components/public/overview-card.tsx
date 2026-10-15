@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
+import { useMotionReduced } from "@/components/motion-preference";
 import {
   CheckCircle2Icon,
   Loader2Icon,
@@ -115,7 +116,7 @@ function SignalBar({
   thresholds,
   reachable,
 }: SignalBarProps) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useMotionReduced();
   const quality: SignalQuality = reachable
     ? getSignalQuality(value, thresholds)
     : "none";
@@ -186,7 +187,7 @@ function BandRow({
   metric: BandMetric;
   t: TranslateFn;
 }) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useMotionReduced();
   const value = metric === "rsrp" ? band.rsrp : band.sinr;
   const thresholds = BAND_METRIC_THRESHOLDS[metric];
   const quality: SignalQuality = reachable

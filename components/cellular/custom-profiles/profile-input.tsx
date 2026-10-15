@@ -4,7 +4,8 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { useMotionReduced } from "@/components/motion-preference";
 
 import {
   Card,
@@ -95,7 +96,7 @@ const WizardPanel = ({
   dir: number;
   children: React.ReactNode;
 }) => {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useMotionReduced();
   return (
     <motion.div
       initial={reduceMotion ? false : { opacity: 0, x: dir * 12 }}
@@ -170,7 +171,7 @@ const ProfileInputComponent = ({
   const [tab, setTab] = React.useState("identity");
   const [tabDir, setTabDir] = React.useState(1);
   const [submitting, setSubmitting] = React.useState(false);
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useMotionReduced();
 
   // Route every tab change through here so the wizard panel knows which way it
   // travelled (forward from Next / a later tab, back from an earlier tab or an

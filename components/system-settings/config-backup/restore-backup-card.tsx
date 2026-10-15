@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { useMotionReduced } from "@/components/motion-preference";
 import {
   Card,
   CardContent,
@@ -211,7 +212,7 @@ const RestoreConfigBackupCard = () => {
     await tryPassword(pw);
   };
 
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = useMotionReduced();
   const motionProps = useMemo(
     () => ({
       initial: { opacity: 0, y: prefersReducedMotion ? 0 : 6 },
