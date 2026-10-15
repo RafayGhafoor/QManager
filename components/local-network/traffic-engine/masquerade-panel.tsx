@@ -119,8 +119,6 @@ export function MasqueradePanel({
           <div className="flex items-center gap-1.5">
             <HintIcon
               label={t("masquerade.aria_domain_info")}
-              variant="info"
-              size="sm"
             >
               {t("masquerade.help_domain")}
             </HintIcon>

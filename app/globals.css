@@ -725,6 +725,38 @@
     alternate;
 }
 
+/* ---------------------------------------------------------------------------
+   Banner entrance (DESIGN.md > Banner System > Motion). A 6px rise plus fade on
+   `emphasized`. Enter only: there is deliberately no exit keyframe, because a
+   banner leaving means the condition cleared and that should feel immediate.
+--------------------------------------------------------------------------- */
+@keyframes banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-banner-in {
+  animation: banner-in var(--duration-emphasized) var(--ease-emphasized);
+}
+
+/* Movement goes, opacity stays, nothing here is load-bearing. Applied under
+   both gates (the OS query and `data-motion="reduced"`) by the redefined
+   variant at the top of this file. */
+:root {
+  @variant motion-reduce {
+    & .animate-pulse-ring,
+    & .animate-banner-in {
+      animation: none;
+    }
+  }
+}
+
 
 /* ---------------------------------------------------------------------------
    Target-only (kept from the pre-canon file). The indeterminate bar backs the
@@ -744,12 +776,6 @@
 
 .animate-progress-indeterminate {
   animation: progress-indeterminate 1.5s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-pulse-ring {
-    animation: none;
-  }
 }
 
 ::view-transition-old(root),

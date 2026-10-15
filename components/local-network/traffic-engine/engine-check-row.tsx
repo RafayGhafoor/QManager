@@ -50,7 +50,7 @@ export function EngineCheckRow({
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             {hint && (
-              <HintIcon label={hintAriaLabel ?? ""} variant="info" size="sm">
+              <HintIcon label={hintAriaLabel ?? ""}>
                 {hint}
               </HintIcon>
             )}

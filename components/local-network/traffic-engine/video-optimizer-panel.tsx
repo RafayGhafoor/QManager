@@ -126,8 +126,6 @@ export function VideoOptimizerPanel({
           <div className="flex items-center gap-1.5">
             <HintIcon
               label={t("video_optimizer.aria_desync_repeats_info")}
-              variant="info"
-              size="sm"
             >
               {t("video_optimizer.help_desync_repeats")}
             </HintIcon>

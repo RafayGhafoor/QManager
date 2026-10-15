@@ -377,8 +377,6 @@ const LTELockingComponent = ({
                 <div className="flex items-center gap-1.5">
                   <HintIcon
                     label={t("cell_locking.tower_locking.lte.simple_mode.info_aria")}
-                    variant="muted"
-                    size="sm"
                   >
                     {hasOptions
                       ? t("cell_locking.tower_locking.lte.simple_mode.info_tooltip")

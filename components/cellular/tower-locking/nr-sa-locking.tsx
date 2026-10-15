@@ -316,8 +316,6 @@ const NRSALockingComponent = ({
                 <div className="flex items-center gap-1.5">
                   <HintIcon
                     label={t("cell_locking.tower_locking.nr_sa.simple_mode.info_aria")}
-                    variant="muted"
-                    size="sm"
                   >
                     {hasOptions
                       ? t("cell_locking.tower_locking.nr_sa.simple_mode.info_tooltip")
@@ -465,8 +463,7 @@ const NRSALockingComponent = ({
                           {simpleMode && scsSource === "band_default" && band && (
                             <HintIcon
                               label={t("cell_locking.tower_locking.nr_sa.simple_mode.scs_warning_aria")}
-                              variant="warning"
-                              size="sm"
+                              tone="warning"
                             >
                               {t("cell_locking.tower_locking.nr_sa.simple_mode.scs_band_default_warning", {
                                 band,
