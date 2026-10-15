@@ -4,6 +4,10 @@ v0.1.32 is in progress. This release is shaping up as a polish and correctness p
 
 ## ✅ Improvements
 
+- **Redesigned sign-in screen.** The sign-in card now leads with your modem's name, has a cleaner layout in light and dark mode, keeps the language and theme switchers in the corner, and shows a clear message if the modem can't be reached.
+- **Failed sign-ins now show how many attempts remain.** If you're locked out, a countdown shows when you can try again, and it keeps counting if you refresh the page.
+- **Repeated failed sign-ins now lock out progressively.** After five wrong passwords the form locks for 30 seconds, and each further failure after a lock expires waits longer, up to 15 minutes. A correct password or an hour without a failed attempt starts you fresh.
+- **Sign-in errors now appear in your language.** Incorrect-password and lockout messages are translated instead of always showing in English.
 - **The Live Traffic monitor has been removed.** Its readings were inaccurate and it kept a network port open on your LAN without a password. The System Settings page and the dashboard row are gone, and upgrading cleans everything up automatically, including the websocat package and port 8838.
 - **More reliable modem readings and background services.** IP Passthrough settings and timing-advance readings now always come from the modem's answer, never from the echoed command, so they can no longer show a stale or default value. Background services now fall back safely instead of quitting silently if one of their helper files is missing.
 - **5G bands are now labeled correctly in the Cell Scanner.** NR5G cells show an `N` prefix (`N41`, `N71`) instead of the LTE-style `B` prefix. LTE cells still use `B`.

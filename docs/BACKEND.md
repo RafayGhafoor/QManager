@@ -173,9 +173,12 @@ Session and password management:
 | `qm_create_session` | Create session file + set cookies |
 | `qm_validate_session` | Check if session token is valid |
 | `qm_destroy_session` | Remove session file + clear cookies |
-| `qm_check_rate_limit` | Check login attempt rate limit |
-| `qm_record_failed_attempt` | Record a failed login |
+| `qm_check_rate_limit` | Login gate: apply the progressive lockout ladder (mutating) |
+| `qm_get_rate_limit_status` | Read-only lockout status; the only call `auth/check.sh` may make |
+| `qm_record_failed_attempt` | Record a failed login and escalate the ladder |
 | `qm_clear_attempts` | Clear rate limit after successful login |
+
+The lockout ladder (30/120/300/900s, state in `/tmp/qmanager_auth_attempts.json`) is documented in [`reference/auth-rate-limiting.md`](reference/auth-rate-limiting.md).
 
 ### qlog.sh
 
@@ -587,7 +590,7 @@ esac
 
 | Script | Method | Description |
 |--------|--------|-------------|
-| `check.sh` | GET | Check setup status, rate limit |
+| `check.sh` | GET | Check setup status, session and lockout state (read-only) |
 | `login.sh` | POST | Login or first-time password setup |
 | `logout.sh` | POST | Destroy session |
 | `password.sh` | POST | Change password |

@@ -2,6 +2,8 @@
 
 Per-feature deep-dives extracted from `CLAUDE.md` to keep the always-loaded prompt small. Read these on demand when working on a specific feature.
 
+Login rate limiting (the lockout ladder behind `auth/login.sh` and `auth/check.sh`) lives in [`../reference/auth-rate-limiting.md`](../reference/auth-rate-limiting.md); it is not a feature doc.
+
 ## CGI Endpoint Reference
 
 | Feature | CGI Script | Hook | Types | Reboot? |

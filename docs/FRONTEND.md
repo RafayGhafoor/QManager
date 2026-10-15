@@ -33,7 +33,7 @@ app/                            # Next.js App Router
 ├── page.tsx                    # Redirect → /dashboard
 ├── globals.css                 # Tailwind + OKLCH theme variables
 ├── fonts/                      # Vendored Rethink Sans, JetBrains Mono, Material Symbols subset
-├── login/page.tsx              # Authentication page
+├── login/page.tsx              # Authentication page (thin wrapper around LoginComponent)
 ├── dashboard/                  # Home dashboard
 ├── cellular/                   # Cellular management
 │   ├── page.tsx                # Cellular info hub
@@ -70,7 +70,8 @@ components/
 ├── nav-section.tsx             # Single nav-group implementation (Material glyphs, sub-rows, status pill)
 ├── nav-user.tsx                # User menu (change password, theme, reboot, logout)
 ├── donate-dialog.tsx           # GitHub Sponsors / GCash donation dialog
-├── auth/                       # Login form, setup form
+├── pre-auth-type.ts            # Shared type scale for the pre-auth cards (`/` and `/login/`); type-only
+├── auth/                       # Login card (login-component, login-device-name, login-language-picker), interpolation-slot (SLOT / withSlot), setup form
 ├── cellular/                   # Cellular components (57 files)
 ├── dashboard/                  # Dashboard cards
 ├── local-network/              # Network components
@@ -94,7 +95,7 @@ constants/                      # Static configuration data
 | Route | Component | Description |
 |-------|-----------|-------------|
 | `/` | Home (`app/page.tsx`) | Public Overview splash by default; confirms a live session via `auth/check.sh` before forwarding to `/dashboard` — never trusts the `qm_logged_in` indicator cookie alone (see gotcha below) |
-| `/login` | LoginForm | Authentication (login or first-time setup) |
+| `/login` | LoginComponent | Authentication (login or first-time setup): hostname title, progressive lockout banner with a refresh-safe countdown, attempts-left copy, recovery disclosure, offline banner, corner language/theme cluster, no footer (`login-chrome.tsx` was removed in U3.3) |
 | `/dashboard` | HomeComponent | Real-time signal, traffic, device status |
 | `/cellular` | CellularInformation | Cellular info cards |
 | `/cellular/settings` | CellularSettings | Mode, roaming, AMBR settings |
@@ -143,6 +144,8 @@ RootLayout (app/layout.tsx)
          ├── Breadcrumbs (auto-generated from route)
          └── Page Content
 ```
+
+> ℹ️ NOTE: The pre-auth routes `/` and `/login/` draw their glyphs from Material Symbols (`LoginLanguagePicker`, `ModeToggle`, `TonalBanner` and the splash status glyphs), never lucide, so each stays on one icon set. Their type comes from `components/pre-auth-type.ts`. Slotted copy on the login card (`login.locked_countdown`, `login.recovery.option_reset_command`) is rendered through `components/auth/interpolation-slot.tsx`. Lockout behaviour and the `check.sh` read-only rule: [`reference/auth-rate-limiting.md`](reference/auth-rate-limiting.md).
 
 ---
 
@@ -239,7 +242,7 @@ For long-running operations that run in the background:
 
 | Hook | Purpose |
 |------|---------|
-| `useLogin` | Login page (setup detection + login/setup actions) |
+| `useLogin` | Login page (setup detection + login/setup actions). Returns `lockout` (`active`, `retryAfter`, `attemptsRemaining`) seeded from `auth/check.sh` with `cache: "no-store"`; `error` is the backend code (translated by the page), `detail` is the English fallback. See [`reference/auth-rate-limiting.md`](reference/auth-rate-limiting.md) |
 | `useAuth` | Sidebar auth (change password, logout) |
 | `useBreadcrumbs` | Auto-generates breadcrumb trail from current route |
 | `useUnitPreferences` | Cached unit preferences (temp/distance) for dashboard display |

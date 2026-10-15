@@ -24,16 +24,28 @@ All endpoints return JSON with a consistent structure:
 
 ### GET `/auth/check.sh`
 
-Check if first-time setup is required and rate limit status.
+Public (`_SKIP_AUTH=1`). Reports setup, session and login-lockout state. Read-only: it calls `qm_get_rate_limit_status` and never mutates the attempts file, so a page refresh cannot extend a lockout. See [`reference/auth-rate-limiting.md`](reference/auth-rate-limiting.md).
 
-**Response:**
+**Response (first-time setup):**
+```json
+{ "authenticated": false, "setup_required": true }
+```
+
+**Response (valid session):**
+```json
+{ "authenticated": true }
+```
+
+**Response (signed out):**
 ```json
 {
-  "setup_required": true,
+  "authenticated": false,
   "rate_limited": false,
-  "retry_after": 0
+  "retry_after": 0,
+  "attempts_remaining": 5
 }
 ```
+`rate_limited` is `true` while a lockout is active and `retry_after` is then the seconds left. `attempts_remaining` is 5 minus the failures counted at the current level, and reads 0 on an unlocked form once the ladder is engaged (the next wrong password re-locks).
 
 ### POST `/auth/login.sh`
 
@@ -46,8 +58,9 @@ Login or first-time password setup.
 
 **Setup Request (first-time):**
 ```json
-{ "password": "new_password", "confirm": "new_password" }
+{ "password": "new_password", "confirm": "new_password", "enforce_strong": true }
 ```
+Setup errors are `password_weak`, `password_mismatch` and `missing_password`. `enforce_strong` defaults to true; when false only the 5-character minimum applies.
 
 **Success Response:**
 ```json
@@ -55,15 +68,27 @@ Login or first-time password setup.
 ```
 Sets `qm_session` (HttpOnly) and `qm_logged_in=1` cookies.
 
-**Error Response:**
+**Wrong password (HTTP 200):**
 ```json
 {
   "success": false,
   "error": "invalid_password",
   "detail": "Invalid password",
-  "retry_after": 30
+  "attempts_remaining": 3
 }
 ```
+
+**Locked out (HTTP 429):** refused before the password is verified, so a correct password during a lockout is still refused.
+```json
+{
+  "success": false,
+  "error": "rate_limited",
+  "detail": "Too many failed attempts",
+  "retry_after": 30,
+  "attempts_remaining": 0
+}
+```
+Ladder: 5 free failures, then locks of 30, 120, 300 and 900 seconds (capped); one more failure after each expiry re-locks at the next rung; a success clears the state and an hour without a failure resets the level.
 
 ### POST `/auth/logout.sh`
 
