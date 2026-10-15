@@ -1,5 +1,7 @@
 # QManager Design System
 
+> ⚠️ WARNING: **Superseded on 2026-10-15.** QManager adopted the RM520N design canon wholesale (port ledger U0.1 to U0.3). `DESIGN.md` and `PRODUCT.md` at the repo root are now the only design source of truth. Everything below describes the earlier target design (Manrope, Signal Indigo, outline status badges, hybrid elevation, the uniform card grid) and is kept only as a record of what the current code still implements until the ledger rows in `DESIGN.md` > Migration Deltas land. Do not build new UI from it.
+
 This document defines the visual language, component library, theming system, and UI conventions used throughout QManager.
 
 ---

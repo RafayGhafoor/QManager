@@ -51,15 +51,15 @@ The source rebuilt its whole design system. The big sweeps landed from 07-28 to 
 
 | ID | Decision | Status | Default recommendation |
 |---|---|---|---|
-| U0.1 | Adopt the source canon wholesale (fonts, palette, role tokens, filled tonal chips, Card-Foot Apply, Material Symbols, new motion durations), or adopt it selectively? | DECIDE | **Wholesale.** Running two design languages across the forks costs more each time a page is ported. `CLAUDE.md`'s Design Context section and the target `DESIGN.md`/`PRODUCT.md` are rewritten from the source, with OpenWRT/RM551E platform wording |
-| U0.2 | Conflicts with standing target preferences: **(a)** Connection Scenarios keeps its vivid gradients (source removed them in `eb099d2f`); **(b)** settings pages keep the uniform 2-col grid (check it against the source's Full-Width Page and Symmetric-Pair rules); **(c)** quiet identity as plain muted text (check it against the source's Identity-Chip rule) | DECIDE | Keep (a) as a documented exception. Check (b) and (c) one page at a time |
-| U0.3 | Target-only surfaces that the source canon never covered: Netbird, Config Backup, Adaptive Polling, DPI Masking/Video Optimizer, Connection Scenarios. Re-author them in the new canon during U4 | DECIDE | Yes. Schedule each as its own U4 row |
+| U0.1 | Adopt the source canon wholesale (fonts, palette, role tokens, filled tonal chips, Card-Foot Apply, Material Symbols, new motion durations), or adopt it selectively? | DONE (wholesale) | **Wholesale.** Running two design languages across the forks costs more each time a page is ported. `CLAUDE.md`'s Design Context section and the target `DESIGN.md`/`PRODUCT.md` are rewritten from the source, with OpenWRT/RM551E platform wording |
+| U0.2 | Conflicts with standing target preferences: **(a)** Connection Scenarios keeps its vivid gradients (source removed them in `eb099d2f`); **(b)** settings pages keep the uniform 2-col grid (check it against the source's Full-Width Page and Symmetric-Pair rules); **(c)** quiet identity as plain muted text (check it against the source's Identity-Chip rule) | DONE (no exceptions) | User: "Just follow RM520N design". All three target preferences are dropped |
+| U0.3 | Target-only surfaces that the source canon never covered: Netbird, Config Backup, Adaptive Polling, DPI Masking/Video Optimizer, Connection Scenarios. Re-author them in the new canon during U4 | DONE (yes) | One U4.11 row each when scheduled |
 
 ### U1 — Canon and tokens
 
 | ID | Item | Status | Source refs | Notes |
 |---|---|---|---|---|
-| U1.1 | Port `DESIGN.md` + `PRODUCT.md` (with platform wording swapped), and rewrite CLAUDE.md "Design Context" | TODO | `340d78e8`, canon commits 08-30 to 10-06 | Docs-only, but it gates everything after it |
+| U1.1 | Port `DESIGN.md` + `PRODUCT.md` (with platform wording swapped), and rewrite CLAUDE.md "Design Context" | DONE (uncommitted) | `340d78e8`, canon commits 08-30 to 10-06 | Ported from source `a05c4e92`. DESIGN.md Migration Deltas is now a canon-vs-code table keyed to these rows; new `docs/reference/` color-system, icon-system, motion-preference, toast-confirmation, tailwind-prose-hazard; `ui-builder` agent brief re-pointed; `docs/DESIGN-SYSTEM.md` marked superseded |
 | U1.2 | `app/globals.css` token system: role triads (`-container`, `on-*`), `surface-container-*`, the radius scale (`--radius-{card,field,hero,inline,pill,tile}`), `--shadow-whisper`, `--card-sheen`, `--quality-*`, `--tone-*`, `--tag-*`, direction tokens, motion duration/ease tokens, chart tokens | TODO | | Keep the legacy `--radius` chain live, as the source does |
 | U1.3 | Fonts: Rethink Sans (variable), vendored JetBrains Mono, Material Symbols Rounded subset (`app/fonts/`, `app/layout.tsx`) | TODO | | Static export: confirm the fonts load offline from the modem |
 
@@ -67,7 +67,7 @@ The source rebuilt its whole design system. The big sweeps landed from 07-28 to 
 
 | ID | Item | Status | Notes |
 |---|---|---|---|
-| U2.1 | `components/ui/`: `banner.tsx` (8 roles), `tonal-banner.tsx`, `card-foot.tsx`, `segmented-field.tsx`, `material-symbol.tsx` + names, `tick-group.tsx`, `ticking-value.tsx`, `swap-label.tsx`, `metric-bar.tsx`; `badge.tsx` filled-chip variants | TODO | Map the deferred-reboot banner onto Banner role 08 |
+| U2.1 | `components/ui/`: `banner.tsx` (8 roles), `tonal-banner.tsx`, `card-foot.tsx`, `segmented-field.tsx`, `material-symbol.tsx` + names, `tick-group.tsx`, `ticking-value.tsx`, `swap-label.tsx`, `metric-bar.tsx`, `tag.tsx`; `badge.tsx` filled-chip variants; restyle `button`, `card`, `dialog`, `input`, `select`, `textarea`, `save-button`; rebuild `hint-icon` on `Popover` (it's on `Tooltip` today, which never opens on tap) | TODO | Map the deferred-reboot banner onto Banner role 08. It is dismissible today, but the canon's Dismiss-Only-Notices Rule says a standing condition has no dismiss |
 | U2.2 | Motion: source `lib/motion.ts` (quick 360 / standard 600 / emphasized 800), `lib/motion-preference.ts`, `components/motion-provider.tsx` + `motion-preference.tsx` (pre-paint attribute, `b4bf6042`); delete `lib/motion-presets.ts` | TODO | Replaces the target's "Motion reference system" memory |
 | U2.3 | Helper libs as pages need them: `carrier-aggregation.ts`, `carrier-match.ts`, `band-frequency.ts`, `event-presentation.ts`, `radio-info.ts`, `schedule-timeline.ts`, `ipv6.ts`, `clipboard.ts`; per-family `shapes.ts` files | TODO | Port them with their first consumer, not ahead of it |
 | U2.4 | Badge flip: replace the outline+tint pattern with filled tonal chips in every target call site; update `ServiceStatusBadge` | TODO | Grep `bg-(success\|warning\|destructive\|info)/15`. Use the source's wrapper approach, not find-and-replace |
@@ -171,6 +171,7 @@ Entware bootstrap and `S80lighttpd`/opkg handling, SDX55/RG501Q platform detecti
 
 | Date | Decision | By |
 |---|---|---|
+| 2026-10-15 | U0: adopt the RM520N canon wholesale with no target exceptions (Scenario gradients, the 1-card 2-col grid and plain-text identity all give way to the source rules); target-only surfaces get their own U4.11 rows | User |
 | 2026-10-15 | B1.4a: the cgi_auth.sh fallback `require_auth` fails closed instead of keeping the no-op stub, so a missing auth lib can't become a bypass | Opus |
 | 2026-10-15 | B1.1 and B1.2 shipped as one commit (both edit the same parse_at.sh parsers) | Opus |
 | 2026-10-15 | Retire the WS live-traffic monitor (websocat :8838 + `bridge_traffic_monitor_rm551`); the dashboard Live Traffic row goes with it, with no replacement | User |
@@ -181,3 +182,4 @@ Entware bootstrap and `S80lighttpd`/opkg handling, SDX55/RG501Q platform detecti
 
 - The repos are siblings, not a superset and subset. Expect two-way gaps on every surface.
 - The survey was grep-level. The "Verify" rows in B1 are leads, not confirmed bugs.
+- U1.1 port (2026-10-15) left these for later rows. The Sequenced Pipeline Dialog's determinate bar conflicts with the canon's Loader-and-Dots Rule (decide in U4.11). The canon names `public/qmanager-mark.svg`, but the target only has `qmanager-logo.svg` (U3). `README*.md` still says "Euclid Circular B + Manrope". Several `docs/features/*.md` describe the old 2-col and status-first layouts; they change when their U4 rows land.
