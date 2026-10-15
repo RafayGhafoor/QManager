@@ -740,11 +740,11 @@ parse_time_advance() {
     local raw="$1"
 
     # LTE TA: +QNWCFG: "lte_time_advance",<enabled>,<ta>
-    # The enable command echoes back as +QNWCFG: "lte_time_advance",1
-    # The query echoes back as +QNWCFG: "lte_time_advance",1,<ta>
-    # We want the line with 3+ fields (the one with the actual TA value)
+    # The enable reply is +QNWCFG: "lte_time_advance",1 (2 fields); the query
+    # reply adds <ta>. We want the reply line with 3+ fields.
+    # Anchor on the reply prefix; qcmd's echoed AT+QNWCFG line also names the key.
     local lte_ta_line
-    lte_ta_line=$(printf '%s\n' "$raw" | grep '"lte_time_advance"' | awk -F',' 'NF>=3' | head -1)
+    lte_ta_line=$(printf '%s\n' "$raw" | awk -F',' 'index($0,"+QNWCFG:")==1 && index($0,"\"lte_time_advance\"") && NF>=3 {print; exit}')
 
     if [ -n "$lte_ta_line" ]; then
         local ta_val
@@ -758,7 +758,8 @@ parse_time_advance() {
     # NR TA: +QNWCFG: "nr5g_time_advance",<enabled>,<nta>,<extra>
     # Response has 4 fields — TA value is field 3, NOT last field
     local nr_ta_line
-    nr_ta_line=$(printf '%s\n' "$raw" | grep '"nr5g_time_advance"' | awk -F',' 'NF>=3' | head -1)
+    # Anchor on the reply prefix; qcmd's echoed AT+QNWCFG line also names the key.
+    nr_ta_line=$(printf '%s\n' "$raw" | awk -F',' 'index($0,"+QNWCFG:")==1 && index($0,"\"nr5g_time_advance\"") && NF>=3 {print; exit}')
 
     if [ -n "$nr_ta_line" ]; then
         local nta_val
@@ -1062,12 +1063,14 @@ parse_policy_band() {
 # AT+QMAP="MPDN_RULE" → boot_ippt_mode ("disabled"|"eth"|"usb"), boot_ippt_mac
 parse_ippt_mpdn_rule() {
     local raw="$1"
-    local rule0 ippt_mode
+    local rule0
+    local ippt_mode
 
     boot_ippt_mode="disabled"
     boot_ippt_mac=""
 
-    rule0=$(printf '%s\n' "$raw" | grep '"MPDN_rule",0,')
+    # Anchor on the reply prefix; a set-form echo (AT+QMAP="MPDN_rule",0,...) also matches the key
+    rule0=$(printf '%s\n' "$raw" | awk 'index($0,"+QMAP:")==1 && index($0,"\"MPDN_rule\",0,") {print; exit}')
     [ -z "$rule0" ] && return 0
 
     # Field 5 = IPPT_mode; +0 avoids BusyBox gsub $N rebuild bug
@@ -1089,14 +1092,12 @@ parse_ippt_mpdn_rule() {
 # AT+QMAP="IPPT_NAT" → boot_ippt_nat ("0"|"1")
 parse_ippt_nat() {
     local raw="$1"
-    local nat_line
     local nat_val
 
     boot_ippt_nat="1"
 
-    # Trailing comma anchors the response line; the comma-less command echo never matches
-    nat_line=$(printf '%s\n' "$raw" | grep '"IPPT_NAT",')
-    nat_val=$(printf '%s' "$nat_line" | awk -F',' '{print $2+0}')
+    # Anchor on the +QMAP: reply line; a set-form echo (AT+QMAP="IPPT_NAT",N) also names the key
+    nat_val=$(printf '%s\n' "$raw" | awk -F',' 'index($0,"+QMAP:")==1 && index($0,"\"IPPT_NAT\"") {print $2+0; exit}')
     case "$nat_val" in
         0|1) boot_ippt_nat="$nat_val" ;;
     esac
@@ -1107,14 +1108,12 @@ parse_ippt_nat() {
 # AT+QCFG="usbnet" → boot_ippt_usbnet ("0"|"1"|"2"|"3")
 parse_ippt_usbnet() {
     local raw="$1"
-    local usb_line
     local usb_val
 
     boot_ippt_usbnet="1"
 
-    # Trailing comma anchors the response line; the comma-less command echo never matches
-    usb_line=$(printf '%s\n' "$raw" | grep '"usbnet",')
-    usb_val=$(printf '%s' "$usb_line" | awk -F',' '{print $2+0}')
+    # Anchor on the +QCFG: reply line; a set-form echo (AT+QCFG="usbnet",N) also names the key
+    usb_val=$(printf '%s\n' "$raw" | awk -F',' 'index($0,"+QCFG:")==1 && index($0,"\"usbnet\"") {print $2+0; exit}')
     case "$usb_val" in
         0|1|2|3) boot_ippt_usbnet="$usb_val" ;;
     esac
@@ -1125,14 +1124,12 @@ parse_ippt_usbnet() {
 # AT+QMAP="DHCPV4DNS" → boot_ippt_dhcpv4dns ("enabled"|"disabled")
 parse_ippt_dhcpv4dns() {
     local raw="$1"
-    local dns_line
     local dns_val
 
     boot_ippt_dhcpv4dns="disabled"
 
-    # Trailing comma anchors the response line; the comma-less command echo never matches
-    dns_line=$(printf '%s\n' "$raw" | grep '"DHCPV4DNS",')
-    dns_val=$(printf '%s' "$dns_line" | awk -F'"' '{print $4}')
+    # Anchor on the +QMAP: reply line; a set-form echo (AT+QMAP="DHCPV4DNS",...) also names the key
+    dns_val=$(printf '%s\n' "$raw" | awk -F'"' 'index($0,"+QMAP:")==1 && index($0,"\"DHCPV4DNS\"") {print $4; exit}')
     case "$dns_val" in
         enable) boot_ippt_dhcpv4dns="enabled" ;;
     esac
