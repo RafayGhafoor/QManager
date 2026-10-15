@@ -92,16 +92,22 @@ fi
 if ! qm_check_rate_limit; then
     echo "Status: 429 Too Many Requests"
     cgi_headers
-    jq -n --argjson retry "$RATE_LIMIT_RETRY_AFTER" \
-        '{"success":false,"error":"rate_limited","detail":"Too many failed attempts","retry_after":$retry}'
+    jq -n --argjson retry "${RATE_LIMIT_RETRY_AFTER:-0}" \
+        --argjson remaining "${RATE_LIMIT_ATTEMPTS_REMAINING:-0}" \
+        '{"success":false,"error":"rate_limited","detail":"Too many failed attempts","retry_after":$retry,"attempts_remaining":$remaining}'
     exit 0
 fi
 
 if ! qm_verify_password "$_password"; then
     qm_record_failed_attempt
+    # Read-only re-check so the response reports what remains after this
+    # failure. A failure at ladder level >= 1 has just re-locked, so this
+    # reads 0; the next request gets the 429 with retry_after.
+    qm_get_rate_limit_status
     qlog_warn "Failed login attempt"
     cgi_headers
-    cgi_error "invalid_password" "Invalid password"
+    jq -n --argjson remaining "${RATE_LIMIT_ATTEMPTS_REMAINING:-0}" \
+        '{"success":false,"error":"invalid_password","detail":"Invalid password","attempts_remaining":$remaining}'
     exit 0
 fi
 

@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,19 +26,19 @@ import type { LanguageCode } from "@/types/i18n";
 // changeLanguage flow — no auth required because the i18n preference is
 // client-side.
 //
-// Positioning is the caller's job (the login page wrapper applies
-// `fixed top-4 right-4`). Keeping this component layout-agnostic means it can
-// be reused later in /setup/ or any other pre-auth shell without changes.
+// Positioning is the caller's job (the login page places it in the top-right
+// corner cluster beside ModeToggle).
+//
+// GLYPH: Material Symbols, because the Icon-Boundary Rule covers `/` and
+// `/login/`. The boundary covers those two routes, NOT every pre-auth surface:
+// /setup/ is still a lucide route, so mounting this there would walk Material
+// across the boundary. Retarget /setup/ first, or give it a lucide sibling.
 // =============================================================================
 
 interface LoginLanguagePickerProps {
   className?: string;
-  // Defaults preserve the original ghost / icon-sm floating-button treatment so
-  // existing callers (legacy /setup/ chrome, anywhere else this gets dropped in
-  // unstyled) keep their look. The login Card overrides to outline / icon-touch
-  // so the trigger matches the ModeToggle sitting next to it in CardAction.
   variant?: "ghost" | "outline";
-  size?: "icon-sm" | "icon-touch";
+  size?: "icon-sm" | "icon";
 }
 
 export function LoginLanguagePicker({
@@ -87,15 +87,18 @@ export function LoginLanguagePicker({
           size={size}
           aria-label={t("language.switch_aria")}
           // text-foreground (not muted) for outdoor-readable contrast against
-          // a tablet glass in direct sunlight, per PRODUCT.md accessibility
-          // floor. Glyph size adapts to the button size: size-5 (20px) inside
-          // the 44px icon-touch button gives outdoor-readable shape recognition
-          // and matches the Sun/Moon glyph in ModeToggle (h-[1.2rem]);
-          // size-4 (16px) inside the 32px icon-sm button keeps the icon-to-
-          // button ratio in the ~0.5 sweet spot on the indoor login surface.
-          className={cn(variant === "ghost" && "text-foreground", className)}
+          // a tablet glass in direct sunlight.
+          className={cn(
+            variant === "ghost" && "text-foreground",
+            // Ghost at rest, tonal while its menu is open, so the trigger reads
+            // as the origin of the surface hanging beneath it.
+            "data-[state=open]:bg-surface-container",
+            className,
+          )}
         >
-          <Languages className={size === "icon-sm" ? "size-4" : "size-5"} />
+          {/* Explicit `size`: MaterialSymbol writes an inline fontSize, and
+              17px matches the ModeToggle glyph beside it at icon-sm. */}
+          <MaterialSymbol name="translate" size={size === "icon-sm" ? 17 : 19} />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={8} className="min-w-[10rem]">

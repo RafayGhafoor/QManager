@@ -4,15 +4,11 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { useMotionReduced } from "@/components/motion-preference";
-import {
-  CheckCircle2Icon,
-  Loader2Icon,
-  MinusCircleIcon,
-  TriangleAlertIcon,
-  XCircleIcon,
-  type LucideIcon,
-} from "lucide-react";
 import { SiOpenwrt } from "react-icons/si";
+import {
+  MaterialSymbol,
+  type MaterialSymbolName,
+} from "@/components/ui/material-symbol";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -69,14 +65,14 @@ function qualityVisual(
   reachable: boolean,
 ): {
   tone: Tone;
-  Icon: LucideIcon;
+  glyph: MaterialSymbolName;
 } {
   if (!reachable || quality === "none")
-    return { tone: "muted", Icon: MinusCircleIcon };
+    return { tone: "muted", glyph: "do_not_disturb_on" };
   if (quality === "excellent" || quality === "good")
-    return { tone: "success", Icon: CheckCircle2Icon };
-  if (quality === "fair") return { tone: "warning", Icon: TriangleAlertIcon };
-  return { tone: "destructive", Icon: XCircleIcon };
+    return { tone: "success", glyph: "check_circle" };
+  if (quality === "fair") return { tone: "warning", glyph: "warning" };
+  return { tone: "destructive", glyph: "cancel" };
 }
 
 // Eyebrow type style — the small uppercase label above each header / status
@@ -319,7 +315,7 @@ function StatusCell({
   label,
   value,
   tone,
-  Icon,
+  glyph,
   iconClassName,
   spin = false,
   stale = false,
@@ -328,7 +324,7 @@ function StatusCell({
   label: string;
   value: string;
   tone?: Tone;
-  Icon?: LucideIcon;
+  glyph?: MaterialSymbolName;
   // Lets a cell tint only its icon (e.g. the temperature warning triangle)
   // without recoloring the numeric value, so the digits stay neutral while
   // the icon carries the state. Falls through to the inherited text color.
@@ -352,11 +348,12 @@ function StatusCell({
           stale && "opacity-70",
         )}
       >
-        {Icon && (
-          <Icon
-            aria-hidden
+        {glyph && (
+          <MaterialSymbol
+            name={glyph}
+            size={16}
             className={cn(
-              "size-4 shrink-0",
+              "shrink-0",
               spin && "motion-safe:animate-spin",
               iconClassName,
             )}
@@ -561,7 +558,11 @@ function renderBody({
         className="text-muted-foreground flex items-center justify-center gap-2 py-8 text-sm"
         role="status"
       >
-        <Loader2Icon className="size-4 motion-safe:animate-spin" aria-hidden />
+        <MaterialSymbol
+          name="progress_activity"
+          size={16}
+          className="motion-safe:animate-spin"
+        />
         {t("overview.redirecting_setup")}
       </div>
     );
@@ -638,7 +639,7 @@ function renderBody({
   const connectionText = t(`overview.connection.${connectionLabel}`);
   const tempText = formatTemperature(data.temperature, unitPrefs?.tempUnit);
   // Thermal state shown visually, not just announced: warn/danger surface a
-  // tinted TriangleAlertIcon beside the value so a sighted tech (often beside
+  // tinted warning glyph beside the value so a sighted tech (often beside
   // a hot device in sunlight) sees the rise. The digits stay neutral; the icon
   // carries the state. warn -> amber, danger -> red, normal/unknown -> none.
   const tempTone: Tone | undefined =
@@ -659,7 +660,7 @@ function renderBody({
             variant="outline"
             className="bg-warning/15 text-warning-on-surface hover:bg-warning/20 border-warning/30"
           >
-            <TriangleAlertIcon className="size-3" aria-hidden />
+            <MaterialSymbol name="warning" size={12} />
             {t("overview.stale_indicator")}
           </Badge>
         </div>
@@ -758,7 +759,7 @@ function renderBody({
         <StatusCell
           label={t("overview.status.temperature")}
           value={tempText}
-          Icon={tempTone ? TriangleAlertIcon : undefined}
+          glyph={tempTone ? "warning" : undefined}
           iconClassName={tempTone ? TONE_CLASSES[tempTone].text : undefined}
           stale={isStale}
           numeric
@@ -840,9 +841,10 @@ function EmptyState({
   // failure or poller "unavailable" — degraded, recoverable, not failed.
   return (
     <div className="flex flex-col items-center gap-3 py-6 text-center">
-      <TriangleAlertIcon
-        className="text-warning-on-surface size-8"
-        aria-hidden
+      <MaterialSymbol
+        name="warning"
+        size={32}
+        className="text-warning-on-surface"
       />
       <div className="flex flex-col gap-1">
         <div className="text-base font-medium">{title}</div>

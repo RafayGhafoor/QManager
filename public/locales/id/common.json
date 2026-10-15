@@ -62,18 +62,26 @@
     "password_label": "Kata sandi",
     "submit": "Masuk",
     "signing_in": "Sedang masuk…",
-    "locked": "Terkunci ({{seconds}}s)",
+    "locked_countdown": "Terkunci ({{seconds}})",
     "show_password": "Tampilkan kata sandi",
     "hide_password": "Sembunyikan kata sandi",
-    "session_expired": "Sesi Anda berakhir karena perangkat tidak dapat dijangkau terlalu lama.",
+    "session_expired": "Perangkat tidak dapat dijangkau terlalu lama. Masuk lagi untuk melanjutkan.",
+    "session_expired_title": "Sesi berakhir",
     "signing_in_to": "Masuk ke {{hostname}}",
     "signing_in_as": "Masuk sebagai {{hostname}}",
     "recovery": {
       "toggle": "Tidak bisa masuk?",
       "intro": "Jika Anda kehilangan kata sandi admin, ada dua jalur pemulihan:",
-      "option_reset": "Buka sesi SSH ke perangkat dan jalankan <code>qmanager_reset_password</code> untuk menetapkan kata sandi admin baru. (Memerlukan akses SSH yang sudah diaktifkan.)",
+      "option_reset_command": "Buka sesi SSH ke perangkat dan jalankan {{command}} untuk menetapkan kata sandi admin baru. (Memerlukan akses SSH yang sudah diaktifkan.)",
       "option_backup": "Jika Anda menyimpan file .qmbackup, flash ulang firmware perangkat lalu pulihkan dari file tersebut."
-    }
+    },
+    "attempts_left_one": "Kata sandi salah. Sisa {{count}} percobaan.",
+    "attempts_left_other": "Kata sandi salah. Sisa {{count}} percobaan.",
+    "invalid_password": "Kata sandi salah.",
+    "locked_body": "Terkunci selama {{seconds}} untuk melindungi perangkat.",
+    "locked_title": "Terlalu banyak percobaan",
+    "lockout_seconds": "{{seconds}} dtk",
+    "sign_in_to_label": "Masuk ke"
   },
   "overview": {
     "title": "QManager",

@@ -62,18 +62,26 @@
     "password_label": "Password",
     "submit": "Sign in",
     "signing_in": "Signing in…",
-    "locked": "Locked ({{seconds}}s)",
+    "locked_countdown": "Locked ({{seconds}})",
     "show_password": "Show password",
     "hide_password": "Hide password",
-    "session_expired": "Your session ended because the device was unreachable for too long.",
+    "session_expired": "The device was unreachable for too long. Sign in again to continue.",
+    "session_expired_title": "Session ended",
     "signing_in_to": "Signing in to {{hostname}}",
     "signing_in_as": "Sign in as {{hostname}}",
     "recovery": {
       "toggle": "Can't sign in?",
       "intro": "If you've lost the admin password, you have two recovery paths:",
-      "option_reset": "Open an SSH session to the device and run <code>qmanager_reset_password</code> to set a new admin password. (Requires SSH access to be enabled.)",
+      "option_reset_command": "Open an SSH session to the device and run {{command}} to set a new admin password. (Requires SSH access to be enabled.)",
       "option_backup": "If you saved a .qmbackup file, re-flash the device firmware and restore from it."
-    }
+    },
+    "attempts_left_one": "Incorrect password. {{count}} attempt left.",
+    "attempts_left_other": "Incorrect password. {{count}} attempts left.",
+    "invalid_password": "Incorrect password.",
+    "locked_body": "Locked for {{seconds}} to protect the device.",
+    "locked_title": "Too many attempts",
+    "lockout_seconds": "{{seconds}}s",
+    "sign_in_to_label": "Sign in to"
   },
   "overview": {
     "title": "QManager",

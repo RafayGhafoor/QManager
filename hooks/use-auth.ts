@@ -26,8 +26,65 @@ function clearIndicatorCookie() {
 
 export type LoginStatus = "loading" | "ready" | "setup_required";
 
+/**
+ * Machine-readable failure codes from auth/login.sh. The UI branches on these
+ * and supplies its own translated copy; `detail` is the backend's English
+ * fallback, not something to render when a locale string exists.
+ */
+export type LoginError =
+  | "invalid_password"
+  | "rate_limited"
+  | "setup_required"
+  | "network"
+  | (string & {});
+
+export interface LoginResult {
+  success: boolean;
+  error?: LoginError;
+  /** Backend's English detail. Diagnostic fallback only. */
+  detail?: string;
+  /** Seconds until the lockout lifts. Present when error is "rate_limited". */
+  retry_after?: number;
+  /**
+   * Free attempts left before the lockout ladder engages. Present on both
+   * "invalid_password" and "rate_limited".
+   *
+   * This reaches 0 while the form is still USABLE: once the ladder has
+   * engaged, the backend's count stays at the maximum until a successful
+   * login or an hour of quiet. Zero means "the next wrong password re-locks",
+   * not "you cannot try", so callers must not render it as a count.
+   */
+  attempts_remaining?: number;
+}
+
+export interface LockoutState {
+  active: boolean;
+  retryAfter: number;
+  attemptsRemaining: number;
+}
+
+/**
+ * Mirrors MAX_ATTEMPTS in scripts/usr/lib/qmanager/cgi_auth.sh. Only an
+ * optimistic value before check.sh answers; every number the UI shows comes
+ * from the backend.
+ */
+const DEFAULT_MAX_ATTEMPTS = 5;
+
+const NO_LOCKOUT: LockoutState = {
+  active: false,
+  retryAfter: 0,
+  attemptsRemaining: DEFAULT_MAX_ATTEMPTS,
+};
+
+function toCount(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.floor(value))
+    : undefined;
+}
+
 export function useLogin() {
   const [status, setStatus] = useState<LoginStatus>("loading");
+  const [lockout, setLockout] = useState<LockoutState>(NO_LOCKOUT);
 
   useEffect(() => {
     // If already logged in, redirect to dashboard
@@ -36,19 +93,34 @@ export function useLogin() {
       return;
     }
 
-    // Check if first-time setup is needed
-    fetch(CHECK_ENDPOINT)
+    // Setup detection plus the live lockout state. `no-store` matters: a
+    // cached copy would show an enabled button during a lockout the server is
+    // still enforcing. Seeding from check.sh is what makes a lockout survive a
+    // page reload.
+    fetch(CHECK_ENDPOINT, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         setStatus(data.setup_required ? "setup_required" : "ready");
+        if (data.rate_limited === true) {
+          setLockout({
+            active: true,
+            retryAfter: toCount(data.retry_after) ?? 0,
+            attemptsRemaining: 0,
+          });
+        } else {
+          setLockout({
+            active: false,
+            retryAfter: 0,
+            attemptsRemaining:
+              toCount(data.attempts_remaining) ?? DEFAULT_MAX_ATTEMPTS,
+          });
+        }
       })
       .catch(() => setStatus("ready"));
   }, []);
 
   const login = useCallback(
-    async (
-      password: string
-    ): Promise<{ success: boolean; error?: string; retry_after?: number }> => {
+    async (password: string): Promise<LoginResult> => {
       try {
         const resp = await fetch(LOGIN_ENDPOINT, {
           method: "POST",
@@ -68,13 +140,37 @@ export function useLogin() {
           return { success: false, error: "setup_required" };
         }
 
+        const attemptsRemaining = toCount(data.attempts_remaining);
+
+        // Branch on the code, never on the truthiness of `retry_after`: a
+        // lockout with under a second left reports `retry_after: 0`.
+        if (data.error === "rate_limited") {
+          const retryAfter = toCount(data.retry_after) ?? 0;
+          setLockout({ active: true, retryAfter, attemptsRemaining: 0 });
+          return {
+            success: false,
+            error: "rate_limited",
+            detail: data.detail,
+            retry_after: retryAfter,
+            attempts_remaining: 0,
+          };
+        }
+
+        if (attemptsRemaining !== undefined) {
+          setLockout((prev) => ({ ...prev, attemptsRemaining }));
+        }
+
+        // The code stays in `error` and `detail` travels separately. Folding
+        // detail into error used to hand English text to resolveErrorMessage,
+        // so every locale showed the English failure.
         return {
           success: false,
-          error: data.detail || data.error || "Invalid password",
-          retry_after: data.retry_after,
+          error: data.error || "invalid_password",
+          detail: data.detail,
+          attempts_remaining: attemptsRemaining,
         };
       } catch {
-        return { success: false, error: "Connection failed" };
+        return { success: false, error: "network", detail: "Connection failed" };
       }
     },
     []
@@ -110,7 +206,7 @@ export function useLogin() {
     []
   );
 
-  return { status, login, setup };
+  return { status, login, setup, lockout };
 }
 
 // ---------------------------------------------------------------------------

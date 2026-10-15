@@ -463,7 +463,9 @@ remove_runtime_state() {
              /tmp/qmanager_config_restore.reboot_required \
              /tmp/qmanager_language_install.json \
              /tmp/qmanager_language_install_input.json \
-             /tmp/qmanager_language_install.cancel; do
+             /tmp/qmanager_language_install.cancel \
+             /tmp/qmanager_auth_attempts.json \
+             /tmp/qmanager_auth_attempts.json.tmp; do
         [ -f "$f" ] && rm -f "$f" && tmp_count=$(( tmp_count + 1 ))
     done
 
