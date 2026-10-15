@@ -9,10 +9,13 @@
 # Install location: /usr/bin/qmanager_low_power_check
 # =============================================================================
 
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
+# Guarded with -f: BusyBox ash exits when `.` cannot find its file.
+if [ -f /usr/lib/qmanager/qlog.sh ]; then
+    . /usr/lib/qmanager/qlog.sh
+else
     qlog_init() { :; }
     qlog_info() { logger -t low_power_check "$1"; }
-}
+fi
 
 qlog_init "low_power_check"
 

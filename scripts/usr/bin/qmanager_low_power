@@ -15,10 +15,13 @@ case "$1" in
     *) echo "Usage: $0 enter|exit" >&2; exit 1 ;;
 esac
 
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
+# Guarded with -f: BusyBox ash exits when `.` cannot find its file.
+if [ -f /usr/lib/qmanager/qlog.sh ]; then
+    . /usr/lib/qmanager/qlog.sh
+else
     qlog_init() { :; }
     qlog_info() { logger -t low_power "$1"; }
-}
+fi
 
 qlog_init "low_power"
 

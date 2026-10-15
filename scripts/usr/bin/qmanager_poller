@@ -291,55 +291,70 @@ log_warn()  { qlog_warn  "$1"; }
 log_error() { qlog_error "$1"; }
 
 # AT command parsers
-. /usr/lib/qmanager/parse_at.sh 2>/dev/null || {
+# Guarded with -f: BusyBox ash exits when `.` cannot find its file.
+if [ -f /usr/lib/qmanager/parse_at.sh ]; then
+    . /usr/lib/qmanager/parse_at.sh
+else
     log_error "FATAL: Failed to load parse_at.sh"
     exit 1
-}
+fi
 
 # On-demand radio cache (last-known mimo / TA / APN / WAN / DNS). Non-fatal:
 # the poller no longer FETCHES these (the radio_details.sh CGI does) — it only
 # READS the cache in write_cache(). If the lib is missing, the reader is a
 # no-op and those display fields fall back to their initialized-empty defaults.
-. /usr/lib/qmanager/ondemand_radio.sh 2>/dev/null || {
+if [ -f /usr/lib/qmanager/ondemand_radio.sh ]; then
+    . /usr/lib/qmanager/ondemand_radio.sh
+else
     qlog_warn "ondemand_radio.sh not found, on-demand radio cache disabled"
     load_ondemand_cache() { :; }
-}
+fi
 
 # Event detection
-. /usr/lib/qmanager/events.sh 2>/dev/null || {
+if [ -f /usr/lib/qmanager/events.sh ]; then
+    . /usr/lib/qmanager/events.sh
+else
     log_error "FATAL: Failed to load events.sh"
     exit 1
-}
+fi
 
 # Email alerts channel lib (optional — non-fatal if missing)
-. /usr/lib/qmanager/email_alerts.sh 2>/dev/null || {
+if [ -f /usr/lib/qmanager/email_alerts.sh ]; then
+    . /usr/lib/qmanager/email_alerts.sh
+else
     qlog_warn "email_alerts.sh not found, email alerts disabled"
     email_alerts_init() { :; }
-}
+fi
 
 # SMS alerts channel lib (optional — non-fatal if missing)
-. /usr/lib/qmanager/sms_alerts.sh 2>/dev/null || {
+if [ -f /usr/lib/qmanager/sms_alerts.sh ]; then
+    . /usr/lib/qmanager/sms_alerts.sh
+else
     qlog_warn "sms_alerts.sh not found, SMS alerts disabled"
     sms_alerts_init() { :; }
-}
+fi
 
 # Alert routing + capability matrix (optional — non-fatal if missing)
-. /usr/lib/qmanager/alert_routing.sh 2>/dev/null || {
+if [ -f /usr/lib/qmanager/alert_routing.sh ]; then
+    . /usr/lib/qmanager/alert_routing.sh
+else
     qlog_warn "alert_routing.sh not found, alert routing disabled"
     alert_routing_load() { :; }
     alert_route_enabled() { return 1; }
     alert_capable() { return 1; }
-}
+fi
 
 # Centralized alert engine — one downtime state machine for both channels
 # (optional — non-fatal if missing). Sourced last: it reads globals + functions
 # owned by the channel libs and alert_routing.sh above.
-. /usr/lib/qmanager/alert_engine.sh 2>/dev/null || {
+if [ -f /usr/lib/qmanager/alert_engine.sh ]; then
+    . /usr/lib/qmanager/alert_engine.sh
+else
     qlog_warn "alert_engine.sh not found, connection alerts disabled"
     alert_engine_check() { :; }
     alert_engine_init() { :; }
     alert_engine_reboot_detect() { :; }
-}
+fi
 
 # =============================================================================
 # HELPER: SAFE QCMD CALL

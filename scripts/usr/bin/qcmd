@@ -20,7 +20,10 @@
 # =============================================================================
 
 # --- Logging -----------------------------------------------------------------
-. /usr/lib/qmanager/qlog.sh 2>/dev/null || {
+# Guarded with -f: BusyBox ash exits when `.` cannot find its file.
+if [ -f /usr/lib/qmanager/qlog.sh ]; then
+    . /usr/lib/qmanager/qlog.sh
+else
     qlog_init() { :; }
     qlog_debug() { :; }
     qlog_info() { :; }
@@ -28,7 +31,7 @@
     qlog_error() { :; }
     qlog_at_cmd() { :; }
     qlog_lock() { :; }
-}
+fi
 qlog_init "qcmd"
 
 # --- Configuration -----------------------------------------------------------
