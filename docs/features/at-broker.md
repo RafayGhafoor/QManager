@@ -76,6 +76,13 @@ there is a single behaviour, not two:
    it connects, so a short command answers `scan_in_progress` at once instead
    of queueing behind a scan in the single-threaded broker. The executor
    checks it again when the request is served.
+   - A short command that was **already queued** when a scan started keeps
+     watching the flag while it waits (250 ms slices). Only a long command
+     raises the flag and the broker runs one request at a time, so seeing it
+     while waiting means "still queued, behind a scan": the client answers
+     `scan_in_progress` and drops the socket, and the broker skips the request
+     (`peer_gone`), so it never runs. Once reply bytes start arriving the
+     client takes the reply instead. Long commands do not watch.
 2. **`flock` on `/var/lock/qmanager.lock`.** This uses the same 100 ms grain
    and the same 5 s (short) / 10 s (long) budgets as `qcmd.sh`. It is also why
    `sms_tool`, which opens `/dev/smd11` directly under this lock, keeps working.
@@ -118,6 +125,18 @@ malformed reply) is reported as `command_failed` / `command_timeout`, never
 re-run: the broker may already have executed it, and running `COPS=2` or a
 `QCFG` write twice is worse than one honest error. AT therefore never depends
 on the daemon being up, and a command never runs twice.
+
+**A frozen broker is restarted by its clients.** 340 s
+(`CLIENT_REPLY_TIMEOUT`) is longer than any exchange can take in the broker
+(300 s long deadline + 10 s lock budget + warm-up + worst-case resync, and the
+queue budget rejects anything queued behind it at once). So a client that hits
+it knows the broker is alive but stuck, which procd never fixes because the
+process has not exited. The client logs it, runs
+`/etc/init.d/qmanager_atd restart` detached (`setsid`, so a CGI timeout
+killing the caller can't abort the restart), and still answers
+`command_timeout` without re-running. `/var/run/qmanager_atd.restart`,
+created `O_EXCL`, allows one restart per 120 s however many clients time out
+together; an older marker is replaced.
 
 **Wire format** (`proto.rs`): `REQ <nbytes> <sent_ms>\n<command>`, reply
 `OK <nbytes>\n<raw>` or `ERR <code>\n`. The broker reads the request to EOF
@@ -271,9 +290,29 @@ all fixed and re-validated on the RM551E:
   reports `modem_not_ready` and reopens. The "fd never heals" case is covered
   by the crate's socketpair tests (30 total).
 
-**Not exercised on the device:** a forced timeout and resync, and a real SSR
-against the hardened broker. There is no safe way to cause either, so they are
-covered by the crate's socketpair tests.
+**Client wait fixes and live QSCAN (2026-10-16):** the queued-short-command
+watch and the frozen-broker restart (34 crate tests). Parity 31/31 (daemon and
+fallback) and every check above re-ran clean. Then one real `AT+QSCAN=3,1`
+through the broker, behind a 3 s lock hold so a short call queued behind it:
+
+- The queued short call answered `scan_in_progress` 2.6 s after it was sent,
+  the moment the scan took the lock, and was then skipped by the broker
+  (`caller gone before its turn, not run`). Before this fix it would have
+  waited for the whole scan.
+- Short calls during the scan answered `scan_in_progress` in 10 ms.
+- 40 s into the scan the **baseband crashed** (SSR,
+  `remoteproc-mss: fatal error … nr_rx_ctl_agc.c:7563 RXCTL_IUSS`, crash #33
+  since boot; #32 at 14:46 was the same signature without a scan). The broker
+  saw `ENETRESET`, answered `modem_not_ready`, cleared the long flag and
+  recovered on the next call without a restart, same pid, no leaked fds: the
+  first live SSR against the hardened channel.
+- So the **QSCAN result format is still unconfirmed** on this modem: the scan
+  never finished. Whether QSCAN itself provokes this SSR is open (one crash in
+  one attempt; the legacy engine's only earlier attempt was killed after 2 s).
+
+**Not exercised on the device:** a forced timeout and resync, and the
+frozen-broker restart (it needs a broker stuck for 340 s while every AT call
+waits). Both are covered by the crate's tests.
 
 ## Rollback
 

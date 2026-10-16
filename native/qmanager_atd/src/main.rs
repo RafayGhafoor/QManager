@@ -26,9 +26,11 @@ use lock::LockFile;
 use log::Logger;
 use output::{json_error, json_success, shell_capture, Code};
 use std::io::{Read, Write};
+use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::time::Duration;
+use std::os::unix::process::CommandExt;
+use std::time::{Duration, Instant};
 
 const SMD_PATH: &str = "/dev/smd11";
 
@@ -249,17 +251,128 @@ fn try_broker(cmd: &str) -> Broker {
     if stream.shutdown(std::net::Shutdown::Write).is_err() {
         return Broker::Lost(Code::CommandFailed);
     }
-    let mut buf = Vec::new();
-    if let Err(e) = stream.read_to_end(&mut buf) {
-        let code = match e.kind() {
-            std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut => Code::CommandTimeout,
-            _ => Code::CommandFailed,
-        };
-        return Broker::Lost(code);
+    // A short command watches the long flag while it waits: one that was
+    // already queued when a scan started would otherwise sit behind the whole
+    // scan. Only a long command can raise the flag, and the broker runs one
+    // request at a time, so while our short command is the one executing the
+    // flag cannot appear: seeing it means we are still queued. Dropping the
+    // socket then makes the broker skip us (peer_gone), so nothing runs twice.
+    let short = !classify::is_long(cmd);
+    let watch = || short && exec::long_running();
+    match await_reply(&mut stream, Instant::now() + CLIENT_REPLY_TIMEOUT, &watch) {
+        Wait::Reply(buf) => match proto::decode_reply(&buf) {
+            Some(r) => Broker::Reply(r),
+            None => Broker::Lost(Code::CommandFailed),
+        },
+        Wait::Abandoned => Broker::Lost(Code::ScanInProgress),
+        Wait::TimedOut => {
+            restart_frozen_broker(cmd);
+            Broker::Lost(Code::CommandTimeout)
+        }
+        Wait::Failed => Broker::Lost(Code::CommandFailed),
     }
-    match proto::decode_reply(&buf) {
-        Some(r) => Broker::Reply(r),
-        None => Broker::Lost(Code::CommandFailed),
+}
+
+/// How often a waiting client re-checks the long flag.
+const WATCH_SLICE: Duration = Duration::from_millis(250);
+
+enum Wait {
+    Reply(Vec<u8>),
+    /// `give_up` turned true before the reply arrived.
+    Abandoned,
+    /// No reply by the deadline.
+    TimedOut,
+    Failed,
+}
+
+/// Reads the reply to EOF in WATCH_SLICE steps, checking `give_up` between
+/// steps, until `deadline`.
+fn await_reply(stream: &mut UnixStream, deadline: Instant, give_up: &dyn Fn() -> bool) -> Wait {
+    let mut buf = Vec::new();
+    let mut tmp = [0u8; 4096];
+    loop {
+        let left = match deadline.checked_duration_since(Instant::now()) {
+            Some(d) if !d.is_zero() => d,
+            _ => return Wait::TimedOut,
+        };
+        if stream.set_read_timeout(Some(left.min(WATCH_SLICE))).is_err() {
+            return Wait::Failed;
+        }
+        match stream.read(&mut tmp) {
+            Ok(0) => return Wait::Reply(buf),
+            Ok(n) => buf.extend_from_slice(&tmp[..n]),
+            Err(e) if matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(_) => return Wait::Failed,
+        }
+        // Only before any reply bytes: once the broker answers, take it.
+        if buf.is_empty() && give_up() {
+            return Wait::Abandoned;
+        }
+    }
+}
+
+/// Marker that serialises restarts of a frozen broker across clients.
+const RESTART_MARKER: &str = "/var/run/qmanager_atd.restart";
+/// At most one restart per this window, however many clients time out.
+const RESTART_GAP: Duration = Duration::from_secs(120);
+
+/// True if this caller won the right to restart: it created `marker` with
+/// O_EXCL, or replaced one older than `gap`. Every other caller in the window
+/// sees a fresh marker and leaves the restart to the winner.
+fn claim_restart(marker: &str, gap: Duration) -> bool {
+    let create = || {
+        std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .custom_flags(safefs::NOFOLLOW)
+            .open(marker)
+            .is_ok()
+    };
+    if create() {
+        return true;
+    }
+    let age = std::fs::symlink_metadata(marker)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.elapsed().ok());
+    match age {
+        Some(a) if a < gap => false,
+        // Old (or unreadable) marker: remove it and race for a fresh one.
+        _ => std::fs::remove_file(marker).is_ok() && create(),
+    }
+}
+
+/// The broker accepted our request but sent nothing back within the longest
+/// possible exchange: it is alive but stuck, and procd never restarts a
+/// process that has not exited. Ask the init script to restart it, detached so
+/// it outlives this client, and leave the request unanswered: it may have run.
+fn restart_frozen_broker(cmd: &str) {
+    let log = Logger::new("qcmd");
+    if !claim_restart(RESTART_MARKER, RESTART_GAP) {
+        log.warn(&format!("broker gave no reply for: {cmd}; restart already requested"));
+        return;
+    }
+    log.error(&format!(
+        "broker gave no reply in {}s for: {cmd}; restarting it",
+        CLIENT_REPLY_TIMEOUT.as_secs()
+    ));
+    let mut c = std::process::Command::new("/etc/init.d/qmanager_atd");
+    c.arg("restart")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    // New session: a CGI timeout killing our process group must not kill the
+    // restart half-way.
+    unsafe {
+        c.pre_exec(|| {
+            libc::setsid();
+            Ok(())
+        });
+    }
+    if let Err(e) = c.spawn() {
+        log.error(&format!("could not restart the broker: {e}"));
     }
 }
 
@@ -301,5 +414,75 @@ fn emit(json: bool, command: &str, reply: proto::Reply) -> i32 {
             }
             1
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+    use std::thread;
+
+    fn soon(ms: u64) -> Instant {
+        Instant::now() + Duration::from_millis(ms)
+    }
+
+    #[test]
+    fn queued_short_command_gives_up_when_a_scan_starts() {
+        let (mut client, broker) = UnixStream::pair().unwrap();
+        let scan = Arc::new(AtomicBool::new(false));
+        let s2 = scan.clone();
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(300));
+            s2.store(true, Ordering::SeqCst);
+        });
+        let t = Instant::now();
+        let w = await_reply(&mut client, soon(5000), &|| scan.load(Ordering::SeqCst));
+        assert!(matches!(w, Wait::Abandoned));
+        // Gave up within about one slice of the flag appearing.
+        assert!(t.elapsed() < Duration::from_millis(900), "{:?}", t.elapsed());
+        // Dropping the client is what the broker's peer_gone check sees.
+        drop(client);
+        let mut p = libc::pollfd { fd: broker.as_raw_fd(), events: 0, revents: 0 };
+        unsafe { libc::poll(&mut p, 1, 0) };
+        assert!(p.revents & libc::POLLHUP != 0);
+    }
+
+    #[test]
+    fn a_reply_that_has_started_is_taken_even_if_the_flag_appears() {
+        let (mut client, mut broker) = UnixStream::pair().unwrap();
+        thread::spawn(move || {
+            broker.write_all(b"OK 4\nAB").unwrap();
+            thread::sleep(Duration::from_millis(400));
+            broker.write_all(b"CD").unwrap();
+        });
+        thread::sleep(Duration::from_millis(50));
+        match await_reply(&mut client, soon(5000), &|| true) {
+            Wait::Reply(b) => assert_eq!(b, b"OK 4\nABCD"),
+            _ => panic!("expected the reply"),
+        }
+    }
+
+    #[test]
+    fn no_reply_by_the_deadline_is_a_timeout() {
+        let (mut client, _broker) = UnixStream::pair().unwrap();
+        let t = Instant::now();
+        assert!(matches!(await_reply(&mut client, soon(600), &|| false), Wait::TimedOut));
+        assert!(t.elapsed() >= Duration::from_millis(600));
+    }
+
+    #[test]
+    fn only_one_restart_per_window() {
+        let p = std::env::temp_dir().join(format!("qatd-restart-{}", std::process::id()));
+        let p = p.to_str().unwrap();
+        let _ = std::fs::remove_file(p);
+        assert!(claim_restart(p, Duration::from_secs(120)));
+        assert!(!claim_restart(p, Duration::from_secs(120)));
+        // An old marker (a restart long ago) is replaced.
+        let old = std::time::SystemTime::now() - Duration::from_secs(300);
+        std::fs::File::options().write(true).open(p).unwrap().set_modified(old).unwrap();
+        assert!(claim_restart(p, Duration::from_secs(120)));
+        let _ = std::fs::remove_file(p);
     }
 }
