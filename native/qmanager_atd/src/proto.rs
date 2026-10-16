@@ -10,8 +10,15 @@
 //! Reply OK: `OK <nbytes>\n` then nbytes of raw AT output.
 //! Reply ER: `ERR <code>\n` (nothing after).
 //!
-//! The daemon never applies JSON formatting; the client does, so the daemon
-//! stays a pure transport and formatting lives in one place (output.rs).
+//! The daemon never applies JSON formatting to AT replies; the client does,
+//! so the AT path stays a pure transport and its formatting lives in one place
+//! (output.rs).
+//!
+//! SMS request (qsms): `SMS <nbytes> <sent_ms>\n` then exactly nbytes of the
+//! client's arguments joined by NUL. argv strings cannot contain NUL, so any
+//! message text (newlines, quotes, emoji) round-trips unambiguously. Same
+//! refusal rules as REQ. Reply: `RES <0|1> <nbytes>\n<json>`, the finished
+//! JSON envelope and whether it is a success; or `ERR <code>\n` as above.
 
 use crate::output::Code;
 
@@ -20,6 +27,8 @@ pub const SOCKET_PATH: &str = "/var/run/qmanager_atd.sock";
 pub enum Reply {
     Ok(Vec<u8>),
     Err(Code),
+    /// SMS: a complete JSON envelope, and whether it reports success.
+    Res(bool, Vec<u8>),
 }
 
 /// Milliseconds on CLOCK_MONOTONIC, shared by every process on the host.
@@ -62,6 +71,39 @@ pub fn decode_request(buf: &[u8]) -> Option<Request<'_>> {
     Some(Request { cmd: std::str::from_utf8(body).ok()?, sent_ms })
 }
 
+pub fn encode_sms_request(args: &[String], sent_ms: u64) -> Vec<u8> {
+    let body = args.join("\0");
+    let mut v = format!("SMS {} {}\n", body.len(), sent_ms).into_bytes();
+    v.extend_from_slice(body.as_bytes());
+    v
+}
+
+pub struct SmsRequest {
+    pub args: Vec<String>,
+    pub sent_ms: u64,
+}
+
+/// SMS counterpart of `decode_request`, with the same exact-length rule.
+pub fn decode_sms_request(buf: &[u8]) -> Option<SmsRequest> {
+    let nl = buf.iter().position(|&b| b == b'\n')?;
+    let header = std::str::from_utf8(&buf[..nl]).ok()?;
+    let mut it = header.split(' ');
+    if it.next()? != "SMS" {
+        return None;
+    }
+    let len: usize = it.next()?.parse().ok()?;
+    let sent_ms: u64 = it.next()?.parse().ok()?;
+    if it.next().is_some() {
+        return None;
+    }
+    let body = &buf[nl + 1..];
+    if body.len() != len {
+        return None;
+    }
+    let body = std::str::from_utf8(body).ok()?;
+    Some(SmsRequest { args: body.split('\0').map(str::to_string).collect(), sent_ms })
+}
+
 pub fn encode_reply(reply: &Reply) -> Vec<u8> {
     match reply {
         Reply::Ok(raw) => {
@@ -70,6 +112,11 @@ pub fn encode_reply(reply: &Reply) -> Vec<u8> {
             v
         }
         Reply::Err(code) => format!("ERR {}\n", code.as_str()).into_bytes(),
+        Reply::Res(ok, body) => {
+            let mut v = format!("RES {} {}\n", if *ok { 0 } else { 1 }, body.len()).into_bytes();
+            v.extend_from_slice(body);
+            v
+        }
     }
 }
 
@@ -89,6 +136,16 @@ pub fn decode_reply(buf: &[u8]) -> Option<Reply> {
             }
         }
         "ERR" => Code::parse(it.next()?).map(Reply::Err),
+        "RES" => {
+            let mut f = it.next()?.split(' ');
+            let ok = match f.next()? {
+                "0" => true,
+                "1" => false,
+                _ => return None,
+            };
+            let n: usize = f.next()?.parse().ok()?;
+            (body.len() >= n).then(|| Reply::Res(ok, body[..n].to_vec()))
+        }
         _ => None,
     }
 }
@@ -134,6 +191,43 @@ mod tests {
             Reply::Err(c) => assert_eq!(c, Code::ModemBusy),
             _ => panic!("expected ERR"),
         }
+    }
+
+    #[test]
+    fn sms_request_round_trips_any_text() {
+        let args: Vec<String> = ["send", "4917", "line1\nline2 \"q\" \u{1F600} SMS 3 4\n"].iter().map(|s| s.to_string()).collect();
+        let r = encode_sms_request(&args, 9);
+        let d = decode_sms_request(&r).unwrap();
+        assert_eq!(d.args, args);
+        assert_eq!(d.sent_ms, 9);
+        // An SMS request is never mistaken for an AT one, nor the reverse.
+        assert!(decode_request(&r).is_none());
+        assert!(decode_sms_request(&encode_request("AT", 1)).is_none());
+    }
+
+    #[test]
+    fn truncated_sms_request_is_refused() {
+        let r = encode_sms_request(&["send".into(), "1".into(), "hello".into()], 1);
+        assert!(decode_sms_request(&r[..r.len() - 1]).is_none());
+        let mut padded = r.clone();
+        padded.push(b'x');
+        assert!(decode_sms_request(&padded).is_none());
+    }
+
+    #[test]
+    fn res_reply_round_trips() {
+        for ok in [true, false] {
+            let body = b"{\"success\":true,\"msg\":[]}\n".to_vec();
+            match decode_reply(&encode_reply(&Reply::Res(ok, body.clone()))).unwrap() {
+                Reply::Res(o, b) => {
+                    assert_eq!(o, ok);
+                    assert_eq!(b, body);
+                }
+                _ => panic!("expected RES"),
+            }
+        }
+        assert!(decode_reply(b"RES 2 0\n").is_none());
+        assert!(decode_reply(b"RES 0 5\nab").is_none());
     }
 
     #[test]

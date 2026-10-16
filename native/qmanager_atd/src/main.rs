@@ -8,6 +8,9 @@
 //! the transport level, fall back to running the exchange in-process (same
 //! code the daemon runs), so AT never depends on the daemon being up.
 //!
+//! Invoked as `qsms`: the SMS client (list / status / send / delete, JSON on
+//! stdout, see sms.rs), with the same socket-first, never-run-twice transport.
+//!
 //! The AT path is the same `exec::Executor` in both the daemon and the
 //! fallback, so there is one behaviour, not two.
 
@@ -17,8 +20,10 @@ mod exec;
 mod lock;
 mod log;
 mod output;
+mod pdu;
 mod proto;
 mod safefs;
+mod sms;
 
 use channel::{open_smd, Channel};
 use exec::{Executor, Outcome};
@@ -45,6 +50,12 @@ fn main() {
         .and_then(|a| a.rsplit('/').next())
         .unwrap_or("qcmd")
         .to_string();
+
+    // qsms is always a client: its arguments are message text, which may well
+    // be "-d" or "--daemon".
+    if base == "qsms" {
+        std::process::exit(run_qsms(&args[1..]));
+    }
 
     let daemon_mode = base.contains("atd")
         || args.iter().any(|a| a == "--daemon")
@@ -101,8 +112,10 @@ fn run_daemon() -> i32 {
     0
 }
 
-/// Largest request accepted. An AT command is well under 1 KB.
+/// Largest AT request accepted. An AT command is well under 1 KB.
 const MAX_REQUEST: usize = 8192;
+/// Largest SMS request: 255 parts of 67 UTF-16 units is ~51 KB of UTF-8.
+const MAX_SMS_REQUEST: usize = 64 * 1024;
 
 /// True once the client closed its end completely (not just its write half),
 /// i.e. nobody is waiting for this reply any more: the caller was killed while
@@ -160,9 +173,14 @@ fn serve(mut stream: UnixStream, ch: &mut Channel<std::fs::File>, lock: &LockFil
             Ok(n) => buf.extend_from_slice(&tmp[..n]),
             Err(e) => return refuse(&mut stream, log, &format!("incomplete read ({e})")),
         }
-        if buf.len() > MAX_REQUEST {
+        // The kind is known from the first bytes; an AT request keeps its cap.
+        let cap = if buf.starts_with(b"SMS ") { MAX_SMS_REQUEST } else { MAX_REQUEST };
+        if buf.len() > cap {
             return refuse(&mut stream, log, "oversize");
         }
+    }
+    if buf.starts_with(b"SMS ") {
+        return serve_sms(stream, &buf, ch, lock, log);
     }
     let (cmd, sent_ms) = match proto::decode_request(&buf) {
         Some(r) if !r.cmd.is_empty() => (r.cmd.to_string(), r.sent_ms),
@@ -178,6 +196,29 @@ fn serve(mut stream: UnixStream, ch: &mut Channel<std::fs::File>, lock: &LockFil
         Outcome::Err(code) => proto::Reply::Err(code),
     };
     let _ = stream.write_all(&proto::encode_reply(&reply));
+}
+
+fn serve_sms(mut stream: UnixStream, buf: &[u8], ch: &mut Channel<std::fs::File>, lock: &LockFile, log: &Logger) {
+    let req = match proto::decode_sms_request(buf) {
+        Some(r) => r,
+        None => return refuse(&mut stream, log, "malformed or truncated SMS request"),
+    };
+    // Re-validated here: the socket is the trust boundary, not the client.
+    let op = match sms::parse_args(&req.args) {
+        Ok(op) => op,
+        Err(e) => {
+            let body = sms::error_json("bad_args", Some(&e)).into_bytes();
+            let _ = stream.write_all(&proto::encode_reply(&proto::Reply::Res(false, body)));
+            return;
+        }
+    };
+    if peer_gone(&stream) {
+        log.warn(&format!("caller gone before its turn, not run: {}", op.label()));
+        return;
+    }
+    let waited = Duration::from_millis(proto::mono_ms().saturating_sub(req.sent_ms));
+    let (ok, json) = sms::run(&mut Executor { ch, lock, log }, &op, waited);
+    let _ = stream.write_all(&proto::encode_reply(&proto::Reply::Res(ok, json.into_bytes())));
 }
 
 // ---------------------------------------------------------------------------
@@ -234,6 +275,12 @@ enum Broker {
 }
 
 fn try_broker(cmd: &str) -> Broker {
+    try_broker_raw(&proto::encode_request(cmd, proto::mono_ms()), !classify::is_long(cmd), cmd)
+}
+
+/// Sends one encoded request (AT or SMS). `short` requests watch the long
+/// flag while queued; `label` is what the logs name (never message text).
+fn try_broker_raw(req: &[u8], short: bool, label: &str) -> Broker {
     let mut stream = match UnixStream::connect(proto::SOCKET_PATH) {
         Ok(s) => s,
         Err(_) => return Broker::Unreachable,
@@ -245,7 +292,7 @@ fn try_broker(cmd: &str) -> Broker {
     }
     // A failed or partial write leaves a body shorter than its header says,
     // which the broker refuses, so falling back cannot double-run it.
-    if stream.write_all(&proto::encode_request(cmd, proto::mono_ms())).is_err() {
+    if stream.write_all(req).is_err() {
         return Broker::Unreachable;
     }
     if stream.shutdown(std::net::Shutdown::Write).is_err() {
@@ -257,7 +304,6 @@ fn try_broker(cmd: &str) -> Broker {
     // request at a time, so while our short command is the one executing the
     // flag cannot appear: seeing it means we are still queued. Dropping the
     // socket then makes the broker skip us (peer_gone), so nothing runs twice.
-    let short = !classify::is_long(cmd);
     let watch = || short && exec::long_running();
     match await_reply(&mut stream, Instant::now() + CLIENT_REPLY_TIMEOUT, &watch) {
         Wait::Reply(buf) => match proto::decode_reply(&buf) {
@@ -266,7 +312,7 @@ fn try_broker(cmd: &str) -> Broker {
         },
         Wait::Abandoned => Broker::Lost(Code::ScanInProgress),
         Wait::TimedOut => {
-            restart_frozen_broker(cmd);
+            restart_frozen_broker(label);
             Broker::Lost(Code::CommandTimeout)
         }
         Wait::Failed => Broker::Lost(Code::CommandFailed),
@@ -389,10 +435,60 @@ fn run_in_process(cmd: &str) -> proto::Reply {
     }
 }
 
+// ---------------------------------------------------------------------------
+// qsms client (+ in-process fallback)
+// ---------------------------------------------------------------------------
+
+/// `qsms <op> ...`: one JSON envelope on stdout, rc 0 on success, 1 on failure.
+/// Same transport rules as qcmd: socket first, in-process only if the request
+/// never reached the broker, never run twice.
+fn run_qsms(args: &[String]) -> i32 {
+    let op = match sms::parse_args(args) {
+        Ok(op) => op,
+        Err(e) => return emit_sms(false, sms::error_json("bad_args", Some(&e))),
+    };
+    if exec::long_running() {
+        return emit_sms(false, sms::error_json(Code::ScanInProgress.as_str(), None));
+    }
+    let label = op.label();
+    let req = proto::encode_sms_request(args, proto::mono_ms());
+    let (ok, json) = match try_broker_raw(&req, true, &label) {
+        Broker::Reply(proto::Reply::Res(ok, body)) => (ok, String::from_utf8_lossy(&body).into_owned()),
+        Broker::Reply(proto::Reply::Err(code)) | Broker::Lost(code) => (false, sms::error_json(code.as_str(), None)),
+        Broker::Reply(proto::Reply::Ok(_)) => (false, sms::error_json(Code::CommandFailed.as_str(), None)),
+        Broker::Unreachable => {
+            let log = Logger::new("qsms");
+            match LockFile::open(lock::LOCK_FILE) {
+                Ok(lock) => {
+                    let mut ch = new_channel();
+                    sms::run(&mut Executor { ch: &mut ch, lock: &lock, log: &log }, &op, Duration::ZERO)
+                }
+                Err(_) => (false, sms::error_json(Code::ModemBusy.as_str(), None)),
+            }
+        }
+    };
+    emit_sms(ok, json)
+}
+
+fn emit_sms(ok: bool, json: String) -> i32 {
+    let mut out = std::io::stdout().lock();
+    let _ = out.write_all(json.as_bytes());
+    let _ = out.flush();
+    if ok {
+        0
+    } else {
+        1
+    }
+}
+
 /// print!/println! panic when stdout is closed (EPIPE; Rust ignores SIGPIPE),
 /// and with panic=abort that is a SIGABRT. Like the shell's echo, a write
 /// error is ignored and the exit code still reports the AT result.
 fn emit(json: bool, command: &str, reply: proto::Reply) -> i32 {
+    // An SMS reply to an AT request can only be a protocol mix-up.
+    if let proto::Reply::Res(..) = reply {
+        return emit(json, command, proto::Reply::Err(Code::CommandFailed));
+    }
     let mut out = std::io::stdout().lock();
     match reply {
         proto::Reply::Ok(raw) => {
@@ -414,6 +510,7 @@ fn emit(json: bool, command: &str, reply: proto::Reply) -> i32 {
             }
             1
         }
+        proto::Reply::Res(..) => 1,
     }
 }
 
