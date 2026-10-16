@@ -6,69 +6,48 @@ See `docs/ARCHITECTURE.md`, `docs/BACKEND.md`, `docs/FRONTEND.md`, `docs/API-REF
 
 ## Change Workflow
 
-Every code-change request in this repo follows a tier-routed, 6-phase flow. Opus orchestrates; the specialist agents do the work. The user holds the approval gate. This flow is the project default for code changes and supersedes the generic brainstorming / writing-plans / verification skills; test-driven development still applies inside Phase 4 wherever tests exist. **Only invoke `superpowers:brainstorming` when the user explicitly asks for it** — never auto-trigger it for feature work.
+Lean by default. The main session understands the change, writes it, and validates it. Agents are tools for heavy or parallel work, not mandatory hand-offs. This flow replaces the generic brainstorming, writing-plans and verification skills for code changes in this repo; test-driven development still applies where tests exist. **Only invoke `superpowers:brainstorming` when the user explicitly asks for it.**
 
-**Signal each phase transition** with a header so the user always knows where we are: `**[Phase 1 — Triage]**`, `**[Phase 2 — Plan]**`, `**[Phase 3 — Approval]**`, `**[Phase 4 — Execute]**`, `**[Phase 5 — Validation]**`, `**[Phase 6 — Docs & Close]**`.
+### Two sizes
 
-### The 6 Phases
+| Size | What it covers | Flow |
+|------|----------------|------|
+| **Small** | Typos, copy, single-file fixes, changes inside one layer that don't touch the risky areas below | Understand → change → validate. No plan, no approval stop. |
+| **Large** | Cross-layer features; anything touching the **installer / `init.d` / UCI schema / firewall (fw4, nftables, DPI) / OTA / the AT path (`qcmd`, `atcli`, lock files)**; anything that can reboot the modem or cut the user's connection | Understand → **short plan, then stop for the user's OK** → build → validate → docs. |
 
-1. **Triage & Recon (Opus):** Classify the request into Tier 0–4 by blast radius. For every **bug fix**, every **Tier 3+** change, and **all Tier 4** work, dispatch `modem-investigator` as a read-only Phase 1 gate — it maps the UI→hook→CGI→`qcmd`→modem flow statically and probes live state via Posh-SSH before any code is written. It returns an evidence report (file paths with line numbers, captured CGI/UCI/nft/log output, findings), never code. Synthesize its findings.
-2. **Plan (Opus orchestrates, builders pre-flight):** For Tier 2+, dispatch builder agents in parallel — `backend-writer` (CGI / daemons / libs / init.d / AT flows) and/or `ui-builder` (pages / cards / hooks / types). They return scaffolding + design notes, NOT committed code. Opus synthesizes into ONE plan: tier, agent roster, file list, build order, risks, and the validation the change will need.
-3. **Approval Gate (user):** Plan changes here are cheap; later changes are not.
-4. **Execute (builders):** Bottom-up for cross-layer work: backend (poller / CGI / lib / init.d) → `validator` gate → hook → component → docs. Parallel where files are independent; sequential where there's a data dependency. `backend-writer` always hands off to `validator` after a meaningful backend change — the static audit is non-negotiable.
-5. **Validation (`validator`, mandatory):** After every backend / shell change, run `validator`. It is a single agent that performs both the static audit (CRLF via `.claude/check-crlf.sh`, BusyBox/POSIX compliance, bashisms, `jq` null-handling, lock/trap discipline, numeric-input guards, CGI envelope, reboot/CFUN safety) **and** scoped on-device SSH verification of the deployed change. Loop failures back to Phase 4 — but after **2 failed validation rounds**, stop and surface to the user instead of looping further.
-6. **Docs & Close (`docs-writer`):** Update `docs/`, the feature-doc routing tables in `CLAUDE.md` + `docs/features/README.md`, and `RELEASE_NOTE.md` as needed. Report summary + git status.
+The user can always say "just do it" / "skip the plan" to drop a large change to the small flow.
 
-### Tier Routing
+### The steps
 
-| Tier | Scope | Flow |
-|------|-------|------|
-| 0 | Typos, comments, copy edits, version bumps | Direct edit, no agents, no plan |
-| 1 | Single existing file in one layer | Skip Phase 2–3. Implement + `validator` (if shell) + maybe docs |
-| 2 | New feature, single layer | Full flow; pre-flight is the layer's builder only |
-| 3 | Cross-layer feature (CGI + hook + component, or a poller field consumed across layers) | Full flow; `modem-investigator` runs the Phase 1 recon gate |
-| 4 | Installer / `init.d` services / UCI schema / firewall (fw4 + nftables, incl. DPI nft rules) / OTA pipeline | Full flow with `modem-investigator` as a hard Phase 1 gate, and `validator` doing on-device verification of the deployed change |
+1. **Understand.** Read the code path and the matching `docs/features/` doc. For every **bug fix** and every **large** change, also look at the **live modem** (read-only, via `mcp__modem__*`) before writing code. Past root causes repeatedly differed from the first theory. Do this directly; dispatch `modem-investigator` only for a broad sweep worth offloading.
+2. **Plan (large only).** A short plan: files, build order, risks, how it will be validated, rollback. Stop for approval; plan changes are cheap here and expensive later.
+3. **Build.** Write the code in the main session. Work bottom-up across layers: backend (poller / CGI / lib / init.d) → hook → component. Dispatch `backend-writer` / `ui-builder` only to parallelise independent file sets, never as a pre-flight round. UI craft goes through the Impeccable skill.
+4. **Validate (mandatory for any shell change).** Run the static audit (CRLF via `.claude/check-crlf.sh`, BusyBox/POSIX, bashisms, multi-var `local`, `jq` null-handling and no regex, lock/trap discipline, numeric guards, CGI envelope, reboot/CFUN safety) **and** verify the deployed change on the modem. Use the `validator` agent or do it directly. After **2 failed rounds**, stop and ask the user instead of looping. Frontend changes: `bunx tsc --noEmit` and lint for the touched files.
+5. **Docs (when behaviour, contracts or invariants changed).** Update the feature doc, the routing tables (here and in `docs/features/README.md`) and `RELEASE_NOTE.md` if the change is user-visible. Do it inline; `docs-writer` is for large doc work only.
 
-Bug fixes match the tier of the *fix*, not the bug — and always get a Phase 1 `modem-investigator` recon first, because "understand the live flow before touching it" is cheaper than a wrong fix. Pure refactors with no behavior change drop one tier (`validator` still runs for any shell change; builders don't pre-flight).
+### Hard rules
 
-### Agent Roster
+- **Validation is not optional for shell.** Static-only passes have shipped broken scripts before; do the on-device leg whenever the change is deployable.
+- **No in-flight reboot.** Anything that calls `reboot` / `AT+CFUN=1,1` defers behind a dialog and the persistent deferred-reboot banner, never in a CGI response path.
+- **Lifecycle lockstep.** A feature change keeps `install.sh`, update and uninstall in sync: file copy, UCI seed, daemon start, `/tmp` and reload-flag cleanup.
+- **Live-state writes during investigation are a stop.** If understanding a bug needs a write on the modem, say so and get the user's OK first.
+- **Agent briefs are self-contained.** A dispatched agent doesn't see this conversation: inline the paths, schemas, live evidence and relevant canon.
+- **Never auto-merge.** At the end, report the branch and git status, and ask whether to merge, keep for a PR, or discard.
 
-All agents are defined in `.claude/agents/`. Models are pinned per agent — the orchestrator does not choose them. Any extra read-only recon (`Explore` / `general-purpose` sweeps) is also dispatched with `model: haiku` at medium effort.
+### Worktrees
 
-- **Recon gate (Phase 1, read-only, Haiku 5.5 / medium effort):** `modem-investigator` — traces the full stack statically and probes the live modem read-only via Posh-SSH; returns an evidence report and can halt work before code is written.
-- **Builders (Phases 2 & 4, Opus):** `backend-writer` (BusyBox `/bin/sh` backend — CGI, daemons, libs, init.d, AT/`qcmd` flows, UCI, apply pipelines, locks), `ui-builder` (Next.js / shadcn / Tailwind frontend; may delegate craft to the Impeccable skill).
-- **Validator (Phase 5, Sonnet):** `validator` — static BusyBox/CRLF/`jq` audit **and** scoped on-device verification. The closing gate before any backend change is done.
-- **Closer (Phase 6, Sonnet):** `docs-writer`.
+Use a worktree when the work is large or another session may touch the same branch: `EnterWorktree` after the plan is approved, then reset it onto `development-home` (it branches from `origin/main` by default). A fresh worktree needs two things: copy `.env` from the main checkout (and confirm `git check-ignore .env`; never commit it), and run `bun install` only if a frontend build or `tsc` pass is needed. Small changes stay in place. Give parallel agents `isolation: "worktree"` only when their file sets overlap.
 
-### Hard Rules
+### "Orchestrate"
 
-- **Tier is decided once, up-front.** If tempted to skip the recon or the validator mid-flow, re-triage rather than skip.
-- **`validator` runs after every backend / shell change.** It is the single source of truth for BusyBox safety and on-device behavior; static-only passes have shipped broken scripts before, so let it do the on-device leg whenever the change is deployable.
-- **`modem-investigator` is read-only and fails loud.** If recon reveals the change needs a write action on live state, or surfaces a broken invariant, it halts and reports — the main thread re-routes through `backend-writer` + `validator`.
-- **`docs-writer` is the closing bracket.** If it doesn't run on Tier 2+, the change isn't done.
-- **Builders and validators don't see the orchestrator's conversation.** Each dispatch is a self-contained brief with file paths, schemas, the live evidence from `modem-investigator`, and the relevant `CLAUDE.md` / `DESIGN.md` / `PRODUCT.md` sections inlined.
-- **No in-flight reboot.** Any change that calls `reboot` / `AT+CFUN=1,1` mid-request must be deferred and surfaced via the deferred-reboot banner — `validator` rejects inline reboots in a CGI response path.
+When the user says **"orchestrate"**, run the same steps but delegate more: parallel recon (Haiku, medium effort) and parallel builders for independent pieces, with the main session planning, judging the reports with its own targeted reads, and holding the approval stop. It still ends with validation (and docs for large changes).
 
-### Worktree Discipline (Tier 2+)
+### Agents (`.claude/agents/`, models pinned per agent)
 
-Parallel branches and parallel builders must never cross-contaminate commits. Two layers of isolation, both harness-native:
-
-1. **Run-level — every Tier 2+ run gets its own worktree.** Immediately after the Phase 3 approval gate (before any builder writes a file), call `EnterWorktree` to create an isolated checkout on a fresh branch named for the change (e.g. `wt/dns-presets`). The session CWD moves there and every subsequently spawned teammate inherits it, so all commits land on that branch regardless of what other sessions do to `development-home` or any other branch. Phases 1–3 (recon/plan) stay in the main checkout — they're read-only and should see the branch the user actually asked about. Tier 0/1 edits stay in-place, no worktree.
-2. **Agent-level — isolate builders only when file sets overlap.** If two builders would touch overlapping or uncertain file sets in parallel, spawn them with `isolation: "worktree"` on the Agent call and reconcile their results into the run worktree. When file sets are provably disjoint (the normal case — backend in `scripts/`, UI in `components/`), skip it; they share the run worktree.
-
-**On entry, fix the two things a fresh worktree is missing:**
-- **`.env` is gitignored** → copy it from the main checkout into the worktree or `modem-investigator`/`validator` silently lose SSH access to the live modem. Verify `git check-ignore .env` still holds in the worktree; never commit it.
-- **`node_modules` is absent** → run `bun install` in the worktree lazily, only if the change actually needs a frontend build/lint/tsc pass; backend-only changes skip it.
-
-**Close-out (Phase 6):** after `validator` passes and `docs-writer` closes, ask the user via `AskUserQuestion` — merge back into the originating branch, keep the branch for a PR, or discard — then `ExitWorktree`. Never auto-merge.
-
-### Skip Phrases
-
-User can short-circuit by saying "just do it" / "skip the plan" / "tier 0 it" — Opus drops to direct execution. Otherwise the flow is the default.
-
-### Orchestration Mode ("orchestrate")
-
-When the user says **"orchestrate"**, run the same 6-phase flow above with Opus delegating naturally — no separate orchestration skill (the custom `orchestrate` skill was retired 2026-10-15 for token cost). Opus plans, briefs agents with self-contained prompts, judges their reports with its own targeted reads, and holds the approval gate (`AskUserQuestion`). Recon runs on Haiku 5.5 (medium); parallelize only independent pieces. Worktree Discipline applies. The flow always ends with `validator` (and `docs-writer` for Tier 2+). UI craft stays with Opus via the Impeccable skill.
+- `modem-investigator` (Haiku 5.5, medium): read-only stack trace and live-modem probe; returns evidence, never code.
+- `backend-writer` / `ui-builder` (Opus): builders for parallel or offloaded implementation.
+- `validator` (Sonnet): static BusyBox/CRLF/`jq` audit plus scoped on-device verification.
+- `docs-writer` (Sonnet): larger documentation work.
 
 ## Design Context
 
