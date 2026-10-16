@@ -673,32 +673,24 @@
         "title": "Blocco bande",
         "description": "Limita le bande LTE e NR utilizzabili dal modem."
       },
-      "scenario_override_banner": "La configurazione della banda è gestita dallo scenario <strong>{{scenario_name}}</strong>.",
       "settings_card": {
-        "title": "Impostazioni di blocco della banda",
-        "description": "Limita il modem a bande specifiche LTE e 5G. Abilita il failover per tornare a tutte le bande se le bande bloccate perdono il segnale.",
         "band_failover_label": "Failover della banda",
-        "band_failover_tooltip": "Quando abilitato, il dispositivo passerà automaticamente alle bande predefinite se le bande bloccate non sono disponibili dopo 15 secondi.",
+        "band_failover_tooltip": "Se le bande bloccate non trovano segnale entro circa 5 secondi, il modem torna a tutte le bande supportate.",
         "band_failover_info_aria": "Informazioni sul failover della banda",
-        "status_label": "Stato di failover della banda",
         "status": {
           "disabled": "Disabilitato",
-          "fallback_active": "Ripiego attivo",
-          "ready": "Pronto"
+          "ready": "Pronto",
+          "fallback": "Ripiego attivo",
+          "monitoring": "Verifica in corso"
         },
-        "active_lte_bands": "Bande LTE attive",
-        "active_lte_channels": "Canali LTE attivi",
-        "active_nr_bands": "Bande 5G attive",
-        "active_nr_channels": "Canali 5G attivi",
         "toast": {
           "failover_enabled": "Failover della banda abilitato",
-          "failover_disabled": "Failover della banda disabilitato",
-          "failover_error": "Impossibile aggiornare il failover della banda"
+          "failover_disabled": "Failover della banda disabilitato"
         }
       },
       "cards": {
         "lte": {
-          "title": "LTE Blocco del cinturino",
+          "title": "Blocco bande LTE",
           "description": "Seleziona i cinturini LTE da bloccare per il tuo dispositivo."
         },
         "nsa_nr5g": {
@@ -711,26 +703,23 @@
         },
         "nrdc_nr5g": {
           "title": "Bande NR-DC",
-          "description": "Le bande NR-DC sono gestite dal modem e non possono essere bloccate manualmente. Qui sono mostrate le bande attualmente in uso."
+          "description": "Seleziona le bande NR da bloccare per la doppia connettività NR."
         }
       },
       "card_badges": {
-        "scenario_controlled": "Scenario controllato",
-        "all_unlocked": "Tutto sbloccato",
         "bands_locked": "{{locked}} / {{total}} Bande",
-        "view_only": "Sola lettura"
+        "scenario": "Controllato dallo scenario",
+        "unrestricted": "Tutte le bande",
+        "unavailable": "Non leggibile",
+        "unknown": "Non segnalato"
       },
       "card_empty": "Nessuna banda supportata segnalata dal modem per questa categoria.",
-      "legend": {
-        "used": "Usata dalla rete o dalla SIM",
-        "unused": "Supportata dal modem"
-      },
       "card_buttons": {
         "lock_selected": "Blocca le bande selezionate",
         "select_all": "Seleziona tutto",
         "deselect_all": "Deseleziona tutto",
-        "unlock_all_aria": "Sblocca tutte le bande",
-        "swap_view": "Passa alle bande {{target}}"
+        "swap_view": "Passa alle bande {{target}}",
+        "unlock_all": "Sblocca tutte"
       },
       "card_live_region": "Applicazione del blocco del cinturino {{category_label}}…",
       "card_category_label": {
@@ -740,11 +729,78 @@
         "nrdc_nr5g": "NR-DC"
       },
       "toast": {
-        "select_one_band": "Seleziona almeno una banda da bloccare",
         "locked_success": "{{category_label}} bande bloccate con successo",
-        "lock_error": "Impossibile applicare il blocco del cinturino",
         "unlocked_success": "{{category_label}} bande sbloccate",
-        "unlock_error": "Impossibile sbloccare le bande"
+        "refresh_error": "Impossibile aggiornare la configurazione delle bande"
+      },
+      "scenario_gate_title": "Lo scenario {{scenario}} gestisce le tue bande",
+      "scenario_gate_note": "Passa allo scenario Bilanciato per bloccare le bande manualmente.",
+      "read_error_title": "Impossibile leggere la configurazione delle bande",
+      "refresh_blocked_watcher": "Attendi la fine del controllo di failover",
+      "refreshing": "Lettura della configurazione delle bande…",
+      "actions": {
+        "refresh": "Aggiorna"
+      },
+      "card": {
+        "empty_title": "Nessuna banda qui",
+        "unavailable_note": "Blocco attuale sconosciuto, modifiche sospese.",
+        "pending_one": "{{count}} modifica non salvata",
+        "pending_other": "{{count}} modifiche non salvate"
+      },
+      "legend": {
+        "selected": "Selezionata",
+        "live": "Bloccata ora",
+        "unused_group": "Non usate dalla tua rete",
+        "unused_hint_label": "Informazioni sulle bande non usate dalla tua rete",
+        "unused_hint": "Il modem supporta queste bande, ma la tua rete o SIM non le usa. Bloccare solo queste può lasciarti senza servizio."
+      },
+      "a11y": {
+        "band_live": "{{band}}, selezionata e bloccata sul modem",
+        "band_selected": "{{band}}, selezionata",
+        "band_unselected": "{{band}}, non selezionata"
+      },
+      "errors": {
+        "read_failed": "Il modem non ha restituito la configurazione delle bande. Riprova tra poco.",
+        "no_bands": "Seleziona almeno una banda da bloccare.",
+        "no_supported": "Il modem non ha ancora segnalato le bande supportate.",
+        "lock_failed": "Impossibile applicare il blocco delle bande.",
+        "failover_failed": "Impossibile aggiornare il failover della banda."
+      },
+      "status": {
+        "title": "Stato delle bande",
+        "on_air": "In uso ora",
+        "on_air_summary_one": "{{count}} portante ({{mhz}} MHz)",
+        "on_air_summary_other": "{{count}} portanti ({{mhz}} MHz)",
+        "on_air_empty_title": "Nessuna portante in uso",
+        "on_air_empty_body": "Il modem non è collegato a nessuna cella in questo momento.",
+        "tile_aria": "Portante {{tech}}, {{role}}",
+        "tech_lte": "LTE",
+        "tech_nr": "5G NR",
+        "mhz": "{{value}} MHz",
+        "earfcn": "EARFCN {{value}}",
+        "pci": "PCI {{value}}",
+        "dbm": "{{value}} dBm",
+        "rsrp": "RSRP",
+        "no_value": "–",
+        "quality": {
+          "excellent": "Segnale eccellente",
+          "good": "Segnale buono",
+          "fair": "Segnale discreto",
+          "poor": "Segnale scarso",
+          "none": "Nessuna lettura"
+        },
+        "posture": "Stato del blocco",
+        "subtitle_locked": "{{count}} categorie su {{total}} bloccate",
+        "subtitle_unrestricted": "Ogni categoria usa tutte le bande",
+        "subtitle_unknown": "Il modem non ha segnalato le sue bande",
+        "subtitle_unavailable": "Configurazione delle bande non leggibile",
+        "ratio": "{{count}} di {{total}} bande",
+        "ratio_unavailable": "Non leggibile",
+        "rail_locked": "Bloccata",
+        "rail_unrestricted": "Tutte le bande",
+        "rail_unknown": "Non segnalato",
+        "rail_unavailable": "Sconosciuto",
+        "rail_aria": "{{category}}: {{ratio}} ({{status}})"
       }
     },
     "tower_locking": {

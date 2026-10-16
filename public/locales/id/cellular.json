@@ -673,27 +673,19 @@
         "title": "Penguncian Band",
         "description": "Batasi band LTE dan NR yang dapat digunakan oleh modem."
       },
-      "scenario_override_banner": "Konfigurasi band dikelola oleh <strong>{{scenario_name}}</strong> skenario.",
       "settings_card": {
-        "title": "Pengaturan Penguncian Band",
-        "description": "Batasi modem hanya ke band LTE dan 5G tertentu. Aktifkan failover untuk kembali ke semua band jika band yang dikunci kehilangan sinyal.",
         "band_failover_label": "Band Failover",
-        "band_failover_tooltip": "Saat diaktifkan, perangkat akan otomatis beralih ke band default jika band yang dikunci tidak tersedia setelah 15 detik.",
+        "band_failover_tooltip": "Jika band yang dikunci tidak menemukan sinyal dalam sekitar 5 detik, modem kembali ke semua band yang didukung.",
         "band_failover_info_aria": "Info band failover",
-        "status_label": "Status Band Failover",
         "status": {
           "disabled": "Nonaktif",
-          "fallback_active": "Fallback Aktif",
-          "ready": "Siap"
+          "ready": "Siap",
+          "fallback": "Fallback aktif",
+          "monitoring": "Memeriksa"
         },
-        "active_lte_bands": "Band LTE Aktif",
-        "active_lte_channels": "Channel LTE Aktif",
-        "active_nr_bands": "Band 5G Aktif",
-        "active_nr_channels": "Channel 5G Aktif",
         "toast": {
           "failover_enabled": "Failover band diaktifkan",
-          "failover_disabled": "Failover band dinonaktifkan",
-          "failover_error": "Gagal memperbarui failover band"
+          "failover_disabled": "Failover band dinonaktifkan"
         }
       },
       "cards": {
@@ -711,26 +703,23 @@
         },
         "nrdc_nr5g": {
           "title": "Band NR-DC",
-          "description": "Band NR-DC dikelola oleh modem dan tidak dapat dikunci secara manual. Ini menampilkan band yang sedang digunakan."
+          "description": "Pilih band NR yang ingin dikunci untuk konektivitas ganda NR."
         }
       },
       "card_badges": {
-        "scenario_controlled": "Dikontrol oleh Skenario",
-        "all_unlocked": "Semua Tidak Dikunci",
         "bands_locked": "{{locked}} / {{total}} Band",
-        "view_only": "Hanya lihat"
+        "scenario": "Dikendalikan skenario",
+        "unrestricted": "Semua band",
+        "unavailable": "Tidak terbaca",
+        "unknown": "Tidak dilaporkan"
       },
       "card_empty": "Tidak ada band yang didukung dilaporkan oleh modem untuk kategori ini.",
-      "legend": {
-        "used": "Digunakan oleh jaringan atau SIM",
-        "unused": "Didukung modem"
-      },
       "card_buttons": {
         "lock_selected": "Kunci band terpilih",
         "select_all": "Pilih semua",
         "deselect_all": "Batalkan Pilih Semua",
-        "unlock_all_aria": "Buka kunci semua band",
-        "swap_view": "Beralih ke band {{target}}"
+        "swap_view": "Beralih ke band {{target}}",
+        "unlock_all": "Buka semua"
       },
       "card_live_region": "Menerapkan {{category_label}} kunci band…",
       "card_category_label": {
@@ -740,11 +729,78 @@
         "nrdc_nr5g": "NR-DC"
       },
       "toast": {
-        "select_one_band": "Pilih setidaknya satu band untuk dikunci",
         "locked_success": "{{category_label}} band berhasil dikunci",
-        "lock_error": "Gagal menerapkan penguncian band",
         "unlocked_success": "{{category_label}} band berhasil dibuka kuncinya",
-        "unlock_error": "Unlock band gagal"
+        "refresh_error": "Tidak dapat menyegarkan konfigurasi band"
+      },
+      "scenario_gate_title": "Skenario {{scenario}} mengelola band Anda",
+      "scenario_gate_note": "Beralih ke skenario Seimbang untuk mengunci band secara manual.",
+      "read_error_title": "Tidak dapat membaca konfigurasi band",
+      "refresh_blocked_watcher": "Tunggu hingga pemeriksaan failover selesai",
+      "refreshing": "Membaca konfigurasi band…",
+      "actions": {
+        "refresh": "Segarkan"
+      },
+      "card": {
+        "empty_title": "Tidak ada band di sini",
+        "unavailable_note": "Kunci saat ini tidak diketahui, perubahan dijeda.",
+        "pending_one": "{{count}} perubahan belum disimpan",
+        "pending_other": "{{count}} perubahan belum disimpan"
+      },
+      "legend": {
+        "selected": "Dipilih",
+        "live": "Sedang dikunci",
+        "unused_group": "Tidak digunakan jaringan Anda",
+        "unused_hint_label": "Tentang band yang tidak digunakan jaringan Anda",
+        "unused_hint": "Modem mendukung band ini, tetapi jaringan atau SIM Anda tidak menggunakannya. Mengunci hanya ke band ini dapat membuat Anda tanpa layanan."
+      },
+      "a11y": {
+        "band_live": "{{band}}, dipilih dan dikunci di modem",
+        "band_selected": "{{band}}, dipilih",
+        "band_unselected": "{{band}}, tidak dipilih"
+      },
+      "errors": {
+        "read_failed": "Modem tidak mengembalikan konfigurasi band. Coba lagi sebentar lagi.",
+        "no_bands": "Pilih setidaknya satu band untuk dikunci.",
+        "no_supported": "Modem belum melaporkan band yang didukung.",
+        "lock_failed": "Tidak dapat menerapkan penguncian band.",
+        "failover_failed": "Tidak dapat memperbarui band failover."
+      },
+      "status": {
+        "title": "Status band",
+        "on_air": "Sedang aktif",
+        "on_air_summary_one": "{{count}} carrier ({{mhz}} MHz)",
+        "on_air_summary_other": "{{count}} carrier ({{mhz}} MHz)",
+        "on_air_empty_title": "Tidak ada carrier aktif",
+        "on_air_empty_body": "Modem sedang tidak terhubung ke sel mana pun.",
+        "tile_aria": "Carrier {{tech}}, {{role}}",
+        "tech_lte": "LTE",
+        "tech_nr": "5G NR",
+        "mhz": "{{value}} MHz",
+        "earfcn": "EARFCN {{value}}",
+        "pci": "PCI {{value}}",
+        "dbm": "{{value}} dBm",
+        "rsrp": "RSRP",
+        "no_value": "–",
+        "quality": {
+          "excellent": "Sinyal sangat baik",
+          "good": "Sinyal baik",
+          "fair": "Sinyal cukup",
+          "poor": "Sinyal buruk",
+          "none": "Tidak ada bacaan"
+        },
+        "posture": "Status penguncian",
+        "subtitle_locked": "{{count}} dari {{total}} kategori dikunci",
+        "subtitle_unrestricted": "Setiap kategori memakai semua band",
+        "subtitle_unknown": "Modem belum melaporkan band-nya",
+        "subtitle_unavailable": "Konfigurasi band tidak terbaca",
+        "ratio": "{{count}} dari {{total}} band",
+        "ratio_unavailable": "Tidak terbaca",
+        "rail_locked": "Dikunci",
+        "rail_unrestricted": "Semua band",
+        "rail_unknown": "Tidak dilaporkan",
+        "rail_unavailable": "Tidak diketahui",
+        "rail_aria": "{{category}}: {{ratio}} ({{status}})"
       }
     },
     "tower_locking": {

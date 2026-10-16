@@ -673,27 +673,19 @@
         "title": "频段锁定",
         "description": "限制调制解调器可使用的 LTE 和 NR 频段。"
       },
-      "scenario_override_banner": "频段配置由 <strong>{{scenario_name}}</strong> 场景管理。",
       "settings_card": {
-        "title": "频段锁定设置",
-        "description": "将调制解调器限制到特定的 LTE 和 5G 频段。启用故障转移，以便在锁定频段失去信号时回退到全部频段。",
         "band_failover_label": "频段故障转移",
-        "band_failover_tooltip": "启用后，如果锁定的频段在 15 秒后不可用，设备将自动切换到默认频段。",
+        "band_failover_tooltip": "如果锁定的频段在约 5 秒内没有信号，调制解调器将恢复使用所有支持的频段。",
         "band_failover_info_aria": "频段故障转移说明",
-        "status_label": "频段故障转移状态",
         "status": {
           "disabled": "已禁用",
-          "fallback_active": "回退生效中",
-          "ready": "就绪"
+          "ready": "就绪",
+          "fallback": "回退生效中",
+          "monitoring": "检查中"
         },
-        "active_lte_bands": "当前 LTE 频段",
-        "active_lte_channels": "当前 LTE 信道",
-        "active_nr_bands": "当前 5G 频段",
-        "active_nr_channels": "当前 5G 信道",
         "toast": {
           "failover_enabled": "频段故障转移已启用",
-          "failover_disabled": "频段故障转移已禁用",
-          "failover_error": "更新频段故障转移失败"
+          "failover_disabled": "频段故障转移已禁用"
         }
       },
       "cards": {
@@ -711,26 +703,23 @@
         },
         "nrdc_nr5g": {
           "title": "NR-DC 频段",
-          "description": "NR-DC 频段由调制解调器管理，无法手动锁定。此处显示当前正在使用的频段。"
+          "description": "选择要为 NR 双连接锁定的 NR 频段。"
         }
       },
       "card_badges": {
-        "scenario_controlled": "场景控制",
-        "all_unlocked": "全部解锁",
         "bands_locked": "{{locked}} / {{total}} 个频段",
-        "view_only": "仅查看"
+        "scenario": "由场景控制",
+        "unrestricted": "全部频段",
+        "unavailable": "无法读取",
+        "unknown": "未报告"
       },
       "card_empty": "调制解调器未报告此类别的支持频段。",
-      "legend": {
-        "used": "网络或 SIM 卡使用",
-        "unused": "调制解调器支持"
-      },
       "card_buttons": {
         "lock_selected": "锁定所选频段",
         "select_all": "全选",
         "deselect_all": "全不选",
-        "unlock_all_aria": "解锁所有频段",
-        "swap_view": "切换到 {{target}} 频段"
+        "swap_view": "切换到 {{target}} 频段",
+        "unlock_all": "全部解锁"
       },
       "card_live_region": "正在应用 {{category_label}} 频段锁定…",
       "card_category_label": {
@@ -740,11 +729,78 @@
         "nrdc_nr5g": "NR-DC"
       },
       "toast": {
-        "select_one_band": "请至少选择一个频段进行锁定",
         "locked_success": "{{category_label}} 频段锁定成功",
-        "lock_error": "应用频段锁定失败",
         "unlocked_success": "{{category_label}} 频段已解锁",
-        "unlock_error": "解锁频段失败"
+        "refresh_error": "无法刷新频段配置"
+      },
+      "scenario_gate_title": "{{scenario}} 场景正在管理您的频段",
+      "scenario_gate_note": "切换到“均衡”场景即可手动锁定频段。",
+      "read_error_title": "无法读取频段配置",
+      "refresh_blocked_watcher": "请等待故障转移检查完成",
+      "refreshing": "正在读取频段配置…",
+      "actions": {
+        "refresh": "刷新"
+      },
+      "card": {
+        "empty_title": "此处没有频段",
+        "unavailable_note": "当前锁定状态未知，已暂停更改。",
+        "pending_one": "{{count}} 项未保存的更改",
+        "pending_other": "{{count}} 项未保存的更改"
+      },
+      "legend": {
+        "selected": "已选择",
+        "live": "当前已锁定",
+        "unused_group": "您的网络未使用",
+        "unused_hint_label": "关于您的网络未使用的频段",
+        "unused_hint": "调制解调器支持这些频段，但您的网络或 SIM 卡不使用它们。仅锁定这些频段可能导致无服务。"
+      },
+      "a11y": {
+        "band_live": "{{band}}，已选择并已在调制解调器上锁定",
+        "band_selected": "{{band}}，已选择",
+        "band_unselected": "{{band}}，未选择"
+      },
+      "errors": {
+        "read_failed": "调制解调器未返回频段配置，请稍后重试。",
+        "no_bands": "请至少选择一个频段进行锁定。",
+        "no_supported": "调制解调器尚未报告其支持的频段。",
+        "lock_failed": "无法应用频段锁定。",
+        "failover_failed": "无法更新频段故障转移。"
+      },
+      "status": {
+        "title": "频段状态",
+        "on_air": "当前在用",
+        "on_air_summary_one": "{{count}} 个载波（{{mhz}} MHz）",
+        "on_air_summary_other": "{{count}} 个载波（{{mhz}} MHz）",
+        "on_air_empty_title": "没有在用的载波",
+        "on_air_empty_body": "调制解调器当前未连接到任何小区。",
+        "tile_aria": "{{tech}} 载波，{{role}}",
+        "tech_lte": "LTE",
+        "tech_nr": "5G NR",
+        "mhz": "{{value}} MHz",
+        "earfcn": "EARFCN {{value}}",
+        "pci": "PCI {{value}}",
+        "dbm": "{{value}} dBm",
+        "rsrp": "RSRP",
+        "no_value": "–",
+        "quality": {
+          "excellent": "信号极好",
+          "good": "信号良好",
+          "fair": "信号一般",
+          "poor": "信号较差",
+          "none": "无读数"
+        },
+        "posture": "锁定状态",
+        "subtitle_locked": "{{total}} 个类别中有 {{count}} 个已锁定",
+        "subtitle_unrestricted": "所有类别均使用全部频段",
+        "subtitle_unknown": "调制解调器尚未报告其频段",
+        "subtitle_unavailable": "无法读取频段配置",
+        "ratio": "{{count}} / {{total}} 个频段",
+        "ratio_unavailable": "无法读取",
+        "rail_locked": "已锁定",
+        "rail_unrestricted": "全部频段",
+        "rail_unknown": "未报告",
+        "rail_unavailable": "未知",
+        "rail_aria": "{{category}}：{{ratio}}（{{status}}）"
       }
     },
     "tower_locking": {

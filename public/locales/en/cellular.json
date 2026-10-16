@@ -673,27 +673,19 @@
         "title": "Band Locking",
         "description": "Restrict which LTE and NR bands the modem can use."
       },
-      "scenario_override_banner": "Band configuration is managed by the <strong>{{scenario_name}}</strong> scenario.",
       "settings_card": {
-        "title": "Band Locking Settings",
-        "description": "Restrict the modem to specific LTE and 5G bands. Enable failover to fall back to all bands if locked bands lose signal.",
         "band_failover_label": "Band Failover",
-        "band_failover_tooltip": "When enabled, the device will automatically switch to the default bands if the locked bands are unavailable after 15 seconds.",
+        "band_failover_tooltip": "If the locked bands find no signal within about 5 seconds, the modem returns to all supported bands.",
         "band_failover_info_aria": "Band failover info",
-        "status_label": "Band Failover Status",
         "status": {
           "disabled": "Disabled",
-          "fallback_active": "Fallback Active",
-          "ready": "Ready"
+          "ready": "Ready",
+          "fallback": "Fallback active",
+          "monitoring": "Checking"
         },
-        "active_lte_bands": "Active LTE Bands",
-        "active_lte_channels": "Active LTE Channels",
-        "active_nr_bands": "Active 5G Bands",
-        "active_nr_channels": "Active 5G Channels",
         "toast": {
           "failover_enabled": "Band failover enabled",
-          "failover_disabled": "Band failover disabled",
-          "failover_error": "Failed to update band failover"
+          "failover_disabled": "Band failover disabled"
         }
       },
       "cards": {
@@ -711,26 +703,23 @@
         },
         "nrdc_nr5g": {
           "title": "NR-DC Bands",
-          "description": "NR-DC bands are managed by the modem and can't be locked manually. This shows the bands currently in use."
+          "description": "Select the NR bands to lock for NR dual connectivity."
         }
       },
       "card_badges": {
-        "scenario_controlled": "Scenario Controlled",
-        "all_unlocked": "All Unlocked",
         "bands_locked": "{{locked}} / {{total}} Bands",
-        "view_only": "View only"
+        "scenario": "Scenario controlled",
+        "unrestricted": "All bands",
+        "unavailable": "Not readable",
+        "unknown": "Not reported"
       },
       "card_empty": "No supported bands reported by the modem for this category.",
-      "legend": {
-        "used": "Used by network or SIM",
-        "unused": "Supported by modem"
-      },
       "card_buttons": {
         "lock_selected": "Lock Selected Bands",
         "select_all": "Select All",
         "deselect_all": "Deselect All",
-        "unlock_all_aria": "Unlock all bands",
-        "swap_view": "Switch to {{target}} bands"
+        "swap_view": "Switch to {{target}} bands",
+        "unlock_all": "Unlock all"
       },
       "card_live_region": "Applying {{category_label}} band lock…",
       "card_category_label": {
@@ -740,11 +729,78 @@
         "nrdc_nr5g": "NR-DC"
       },
       "toast": {
-        "select_one_band": "Select at least one band to lock",
         "locked_success": "{{category_label}} bands locked successfully",
-        "lock_error": "Failed to apply band lock",
         "unlocked_success": "{{category_label}} bands unlocked",
-        "unlock_error": "Failed to unlock bands"
+        "refresh_error": "Couldn't refresh the band configuration"
+      },
+      "scenario_gate_title": "The {{scenario}} scenario manages your bands",
+      "scenario_gate_note": "Switch to the Balanced scenario to lock bands by hand.",
+      "read_error_title": "Couldn't read the band configuration",
+      "refresh_blocked_watcher": "Wait for the failover check to finish",
+      "refreshing": "Reading the band configuration…",
+      "actions": {
+        "refresh": "Refresh"
+      },
+      "card": {
+        "empty_title": "No bands here",
+        "unavailable_note": "Current lock unknown, so changes are paused.",
+        "pending_one": "{{count}} unsaved change",
+        "pending_other": "{{count}} unsaved changes"
+      },
+      "legend": {
+        "selected": "Selected",
+        "live": "Currently locked",
+        "unused_group": "Not used by your network",
+        "unused_hint_label": "About bands not used by your network",
+        "unused_hint": "The modem supports these bands, but your network or SIM doesn't use them. Locking only to these can leave you without service."
+      },
+      "a11y": {
+        "band_live": "{{band}}, selected and locked on the modem",
+        "band_selected": "{{band}}, selected",
+        "band_unselected": "{{band}}, not selected"
+      },
+      "errors": {
+        "read_failed": "The modem didn't answer with its band configuration. Try again in a moment.",
+        "no_bands": "Select at least one band to lock.",
+        "no_supported": "The modem hasn't reported its supported bands yet.",
+        "lock_failed": "Couldn't apply the band lock.",
+        "failover_failed": "Couldn't update band failover."
+      },
+      "status": {
+        "title": "Band status",
+        "on_air": "On air now",
+        "on_air_summary_one": "{{count}} carrier ({{mhz}} MHz)",
+        "on_air_summary_other": "{{count}} carriers ({{mhz}} MHz)",
+        "on_air_empty_title": "No carriers on air",
+        "on_air_empty_body": "The modem isn't connected to a cell right now.",
+        "tile_aria": "{{tech}} carrier, {{role}}",
+        "tech_lte": "LTE",
+        "tech_nr": "5G NR",
+        "mhz": "{{value}} MHz",
+        "earfcn": "EARFCN {{value}}",
+        "pci": "PCI {{value}}",
+        "dbm": "{{value}} dBm",
+        "rsrp": "RSRP",
+        "no_value": "–",
+        "quality": {
+          "excellent": "Excellent signal",
+          "good": "Good signal",
+          "fair": "Fair signal",
+          "poor": "Poor signal",
+          "none": "No reading"
+        },
+        "posture": "Lock posture",
+        "subtitle_locked": "{{count}} of {{total}} categories locked",
+        "subtitle_unrestricted": "Every category uses all bands",
+        "subtitle_unknown": "The modem hasn't reported its bands",
+        "subtitle_unavailable": "Band configuration unreadable",
+        "ratio": "{{count}} of {{total}} bands",
+        "ratio_unavailable": "Not readable",
+        "rail_locked": "Locked",
+        "rail_unrestricted": "All bands",
+        "rail_unknown": "Not reported",
+        "rail_unavailable": "Unknown",
+        "rail_aria": "{{category}}: {{ratio}} ({{status}})"
       }
     },
     "tower_locking": {

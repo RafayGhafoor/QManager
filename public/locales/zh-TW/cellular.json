@@ -673,27 +673,19 @@
         "title": "頻段鎖定",
         "description": "限制調變解調器可使用的 LTE 和 NR 頻段。"
       },
-      "scenario_override_banner": "頻段設定由 <strong>{{scenario_name}}</strong> 場景管理。",
       "settings_card": {
-        "title": "頻段鎖定設定",
-        "description": "將調變解調器限制到特定的 LTE 和 5G 頻段。啟用故障轉移，以便在鎖定頻段失去訊號時回退到全部頻段。",
         "band_failover_label": "頻段故障轉移",
-        "band_failover_tooltip": "啟用後，如果鎖定的頻段在 15 秒後不可用，裝置將自動切換到預設頻段。",
+        "band_failover_tooltip": "如果鎖定的頻段在約 5 秒內沒有訊號，數據機將恢復使用所有支援的頻段。",
         "band_failover_info_aria": "頻段故障轉移說明",
-        "status_label": "頻段故障轉移狀態",
         "status": {
           "disabled": "已停用",
-          "fallback_active": "回退生效中",
-          "ready": "就緒"
+          "ready": "就緒",
+          "fallback": "回退生效中",
+          "monitoring": "檢查中"
         },
-        "active_lte_bands": "當前 LTE 頻段",
-        "active_lte_channels": "當前 LTE 通道",
-        "active_nr_bands": "當前 5G 頻段",
-        "active_nr_channels": "當前 5G 通道",
         "toast": {
           "failover_enabled": "頻段故障轉移已啟用",
-          "failover_disabled": "頻段故障轉移已停用",
-          "failover_error": "更新頻段故障轉移失敗"
+          "failover_disabled": "頻段故障轉移已停用"
         }
       },
       "cards": {
@@ -711,26 +703,23 @@
         },
         "nrdc_nr5g": {
           "title": "NR-DC 頻段",
-          "description": "NR-DC 頻段由數據機管理，無法手動鎖定。此處顯示當前正在使用的頻段。"
+          "description": "選擇要為 NR 雙連線鎖定的 NR 頻段。"
         }
       },
       "card_badges": {
-        "scenario_controlled": "場景控制",
-        "all_unlocked": "全部解鎖",
         "bands_locked": "{{locked}} / {{total}} 個頻段",
-        "view_only": "僅檢視"
+        "scenario": "由情境控制",
+        "unrestricted": "全部頻段",
+        "unavailable": "無法讀取",
+        "unknown": "未回報"
       },
       "card_empty": "調變解調器未報告此類別的支援頻段。",
-      "legend": {
-        "used": "網路或 SIM 卡使用",
-        "unused": "數據機支援"
-      },
       "card_buttons": {
         "lock_selected": "鎖定所選頻段",
         "select_all": "全選",
         "deselect_all": "全不選",
-        "unlock_all_aria": "解鎖所有頻段",
-        "swap_view": "切換到 {{target}} 頻段"
+        "swap_view": "切換到 {{target}} 頻段",
+        "unlock_all": "全部解鎖"
       },
       "card_live_region": "正在套用 {{category_label}} 頻段鎖定…",
       "card_category_label": {
@@ -740,11 +729,78 @@
         "nrdc_nr5g": "NR-DC"
       },
       "toast": {
-        "select_one_band": "請至少選擇一個頻段進行鎖定",
         "locked_success": "{{category_label}} 頻段鎖定成功",
-        "lock_error": "套用頻段鎖定失敗",
         "unlocked_success": "{{category_label}} 頻段已解鎖",
-        "unlock_error": "解鎖頻段失敗"
+        "refresh_error": "無法重新整理頻段設定"
+      },
+      "scenario_gate_title": "{{scenario}} 情境正在管理您的頻段",
+      "scenario_gate_note": "切換到「均衡」情境即可手動鎖定頻段。",
+      "read_error_title": "無法讀取頻段設定",
+      "refresh_blocked_watcher": "請等待故障轉移檢查完成",
+      "refreshing": "正在讀取頻段設定…",
+      "actions": {
+        "refresh": "重新整理"
+      },
+      "card": {
+        "empty_title": "此處沒有頻段",
+        "unavailable_note": "目前鎖定狀態未知，已暫停變更。",
+        "pending_one": "{{count}} 項未儲存的變更",
+        "pending_other": "{{count}} 項未儲存的變更"
+      },
+      "legend": {
+        "selected": "已選擇",
+        "live": "目前已鎖定",
+        "unused_group": "您的網路未使用",
+        "unused_hint_label": "關於您的網路未使用的頻段",
+        "unused_hint": "數據機支援這些頻段，但您的網路或 SIM 卡不使用它們。僅鎖定這些頻段可能導致無服務。"
+      },
+      "a11y": {
+        "band_live": "{{band}}，已選擇並已在數據機上鎖定",
+        "band_selected": "{{band}}，已選擇",
+        "band_unselected": "{{band}}，未選擇"
+      },
+      "errors": {
+        "read_failed": "數據機未回傳頻段設定，請稍後再試。",
+        "no_bands": "請至少選擇一個頻段進行鎖定。",
+        "no_supported": "數據機尚未回報其支援的頻段。",
+        "lock_failed": "無法套用頻段鎖定。",
+        "failover_failed": "無法更新頻段故障轉移。"
+      },
+      "status": {
+        "title": "頻段狀態",
+        "on_air": "目前使用中",
+        "on_air_summary_one": "{{count}} 個載波（{{mhz}} MHz）",
+        "on_air_summary_other": "{{count}} 個載波（{{mhz}} MHz）",
+        "on_air_empty_title": "沒有使用中的載波",
+        "on_air_empty_body": "數據機目前未連線到任何基地台。",
+        "tile_aria": "{{tech}} 載波，{{role}}",
+        "tech_lte": "LTE",
+        "tech_nr": "5G NR",
+        "mhz": "{{value}} MHz",
+        "earfcn": "EARFCN {{value}}",
+        "pci": "PCI {{value}}",
+        "dbm": "{{value}} dBm",
+        "rsrp": "RSRP",
+        "no_value": "–",
+        "quality": {
+          "excellent": "訊號極佳",
+          "good": "訊號良好",
+          "fair": "訊號普通",
+          "poor": "訊號不佳",
+          "none": "無讀數"
+        },
+        "posture": "鎖定狀態",
+        "subtitle_locked": "{{total}} 個類別中有 {{count}} 個已鎖定",
+        "subtitle_unrestricted": "所有類別均使用全部頻段",
+        "subtitle_unknown": "數據機尚未回報其頻段",
+        "subtitle_unavailable": "無法讀取頻段設定",
+        "ratio": "{{count}} / {{total}} 個頻段",
+        "ratio_unavailable": "無法讀取",
+        "rail_locked": "已鎖定",
+        "rail_unrestricted": "全部頻段",
+        "rail_unknown": "未回報",
+        "rail_unavailable": "未知",
+        "rail_aria": "{{category}}：{{ratio}}（{{status}}）"
       }
     },
     "tower_locking": {
