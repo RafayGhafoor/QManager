@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { authFetch } from "@/lib/auth-fetch";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
+import type { MutationResult } from "@/types/mutation-result";
 
 // =============================================================================
 // useDnsSettings — Custom DNS Fetch & Save Hook
@@ -58,10 +59,13 @@ export interface UseDnsSettingsReturn {
   /** Error message if fetch or save failed */
   error: string | null;
   /** Apply new DNS settings. Returns true on success. */
-  saveDns: (params: SaveDnsParams) => Promise<boolean>;
+  saveDns: (params: SaveDnsParams) => Promise<MutationResult>;
   /** Re-fetch DNS settings */
   refresh: () => void;
 }
+
+const SUCCEEDED: MutationResult = { ok: true, code: null, error: null };
+const UNMOUNTED: MutationResult = { ok: false, code: null, error: null };
 
 export function useDnsSettings(): UseDnsSettingsReturn {
   const { t } = useTranslation("errors");
@@ -144,7 +148,7 @@ export function useDnsSettings(): UseDnsSettingsReturn {
   // Save DNS settings
   // ---------------------------------------------------------------------------
   const saveDns = useCallback(
-    async (params: SaveDnsParams): Promise<boolean> => {
+    async (params: SaveDnsParams): Promise<MutationResult> => {
       setError(null);
       setIsSaving(true);
 
@@ -160,22 +164,22 @@ export function useDnsSettings(): UseDnsSettingsReturn {
         }
 
         const json = await resp.json();
-        if (!mountedRef.current) return false;
+        if (!mountedRef.current) return UNMOUNTED;
 
         if (!json.success) {
           setError(resolveErrorMessage(t, json.error, json.detail, "Failed to apply DNS settings"));
-          return false;
+          return { ok: false, code: json.error ?? null, error: json.detail ?? null };
         }
 
         // Silent re-fetch to update local state
         await fetchDns(true);
-        return true;
+        return SUCCEEDED;
       } catch (err) {
-        if (!mountedRef.current) return false;
+        if (!mountedRef.current) return UNMOUNTED;
         setError(
           err instanceof Error ? err.message : "Failed to apply DNS settings",
         );
-        return false;
+        return { ok: false, code: null, error: err instanceof Error ? err.message : null };
       } finally {
         if (mountedRef.current) {
           setIsSaving(false);

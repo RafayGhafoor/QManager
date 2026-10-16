@@ -2,6 +2,8 @@
 
 import { useCallback, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { CheckIcon, RefreshCcwIcon, TriangleAlertIcon } from "lucide-react";
 
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { CardFoot } from "@/components/ui/card-foot";
@@ -13,10 +15,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
-import { Field, FieldError, FieldGroup, FieldLabel, FieldSeparator, FieldSet } from "@/components/ui/field";
-import { Switch } from "@/components/ui/switch";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { SEGMENTED, SegmentedField } from "@/components/ui/segmented-field";
 import {
   Select,
   SelectContent,
@@ -25,121 +26,191 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
-import { useDnsSettings } from "@/hooks/use-dns-settings";
+import {
+  useDnsSettings,
+  type UseDnsSettingsReturn,
+} from "@/hooks/use-dns-settings";
+import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
+import { cn } from "@/lib/utils";
 import {
   CUSTOM_PROVIDER_ID,
   DNS_PROVIDERS,
   matchProvider,
 } from "./dns-providers";
+import {
+  ADDRESS_INPUT,
+  CARD_BODY,
+  CARD_DESC,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_TITLE,
+  CONDITION,
+  FAMILIES,
+  FAMILY,
+  FAMILY_TITLE,
+  INPUTS,
+  PROVIDER_TRIGGER,
+  RECEIPT,
+  SETTING_ROW,
+  SKELETON,
+} from "./shapes";
 
-// =============================================================================
-// CustomDNSCard — Custom DNS Configuration
-// =============================================================================
-// Lets users replace carrier-assigned DNS with a built-in provider preset
-// (Cloudflare, Google, Quad9, AdGuard, ControlD) or their own Custom servers,
-// across both IPv4 and IPv6. The active NIC (lan vs lan_bind4) is determined by
-// the backend based on IP passthrough state.
-// =============================================================================
+// Structural IPv6 check, mirroring the backend's gate closely enough that a
+// malformed address never reaches it. Empty is allowed (optional field).
+const IPV6 =
+  /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$/;
+const isValidIPv6 = (value: string) => !value || IPV6.test(value.trim());
 
+/** The lucide check that SegmentedField reserves on every segment. */
+const renderCheckGlyph = (className: string) => (
+  <CheckIcon size={SEGMENTED.GLYPH} className={className} aria-hidden="true" />
+);
+
+type Draft = {
+  enabled: boolean;
+  dns1: string;
+  dns2: string;
+  dns3: string;
+  dns1v6: string;
+  dns2v6: string;
+  provider: string;
+};
+
+const draftFrom = (data: NonNullable<UseDnsSettingsReturn["data"]>): Draft => ({
+  enabled: data.mode === "enabled",
+  dns1: data.dns1,
+  dns2: data.dns2,
+  dns3: data.dns3,
+  dns1v6: data.dns1v6,
+  dns2v6: data.dns2v6,
+  provider: matchProvider(
+    data.dns1,
+    data.dns2,
+    data.dns3,
+    data.dns1v6,
+    data.dns2v6,
+  ),
+});
+
+const EMPTY_DRAFT: Draft = {
+  enabled: false,
+  dns1: "",
+  dns2: "",
+  dns3: "",
+  dns1v6: "",
+  dns2v6: "",
+  provider: CUSTOM_PROVIDER_ID,
+};
+
+function CustomDnsSkeleton() {
+  return (
+    <Card className={CARD_SHELL} aria-hidden="true">
+      <CardHeader className={CARD_PAD}>
+        <Skeleton className="h-7 w-48 rounded-inline" />
+        <Skeleton className="h-5 w-72 max-w-full rounded-inline" />
+      </CardHeader>
+      <CardContent className={`${CARD_PAD} ${CARD_BODY}`}>
+        <Skeleton className={SKELETON.SETTING} />
+        <div className="flex flex-col gap-3">
+          <Skeleton className={SKELETON.LABEL} />
+          <Skeleton className={SKELETON.TRIGGER} />
+        </div>
+        <div className={RECEIPT.ROOT}>
+          {[0, 1].map((g) => (
+            <div key={g} className={RECEIPT.GROUP}>
+              <div className={RECEIPT.GROUP_TITLE}>
+                <Skeleton className={SKELETON.RECEIPT_TITLE} />
+              </div>
+              {[0, 1].map((r) => (
+                <div key={r} className={RECEIPT.ROW}>
+                  <Skeleton className={SKELETON.RECEIPT_TITLE} />
+                  <Skeleton className={SKELETON.RECEIPT_VALUE} />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+      <CardFoot
+        className={CARD_PAD}
+        liveStatus={false}
+        actions={<Skeleton className={SKELETON.ACTION} />}
+      />
+    </Card>
+  );
+}
+
+/**
+ * Custom DNS: one card that owns the whole draft (on/off, provider, five
+ * addresses across both families) and commits it from the foot. A preset
+ * shows its resolved addresses as receipt rows; Custom reveals the inputs.
+ */
 const CustomDNSCard = () => {
   const { t } = useTranslation("local-network");
-  const { data, isLoading, isSaving, error, saveDns, refresh } = useDnsSettings();
+  const { data, isLoading, isSaving, error, saveDns, refresh } =
+    useDnsSettings();
   const { saved, markSaved } = useSaveFlash();
   const formId = useId();
 
-  // --- Local form state -------------------------------------------------------
-  const [isEnabled, setIsEnabled] = useState(false);
-  const [dns1, setDns1] = useState("");
-  const [dns2, setDns2] = useState("");
-  const [dns3, setDns3] = useState("");
-  const [dns1v6, setDns1v6] = useState("");
-  const [dns2v6, setDns2v6] = useState("");
-  // Selected provider preset id, or CUSTOM_PROVIDER_ID for user-entered values.
-  const [provider, setProvider] = useState<string>(CUSTOM_PROVIDER_ID);
-
-  // Seed local form state when data arrives from the backend. Uses the
-  // render-phase derived-state pattern (React docs: "You Might Not Need an
-  // Effect") instead of useEffect, so the sync lands in the same commit rather
-  // than a second render. prevData makes it re-run only when the source object
-  // reference changes — identical semantics to the previous [data] effect.
+  const [draft, setDraft] = useState<Draft>(() =>
+    data ? draftFrom(data) : EMPTY_DRAFT,
+  );
+  // Re-seed the draft whenever a load or save replaces the data
+  // (adjust-during-render, no effect).
   const [prevData, setPrevData] = useState(data);
   if (data && data !== prevData) {
     setPrevData(data);
-    setIsEnabled(data.mode === "enabled");
-    setDns1(data.dns1);
-    setDns2(data.dns2);
-    setDns3(data.dns3);
-    setDns1v6(data.dns1v6);
-    setDns2v6(data.dns2v6);
-    // Recognise a known provider from the saved addresses; else fall to Custom.
-    setProvider(
-      matchProvider(data.dns1, data.dns2, data.dns3, data.dns1v6, data.dns2v6),
-    );
+    setDraft(draftFrom(data));
   }
 
+  const set = useCallback(
+    <K extends keyof Draft>(key: K, value: Draft[K]) =>
+      setDraft((d) => ({ ...d, [key]: value })),
+    [],
+  );
+
+  const { enabled, dns1, dns2, dns3, dns1v6, dns2v6, provider } = draft;
   const isCustom = provider === CUSTOM_PROVIDER_ID;
 
-  // Switching providers fills the form from the preset (and clears the unused
-  // tertiary IPv4 slot). Choosing "Custom" keeps whatever is currently entered
-  // so the user can tweak a preset they just selected.
   const handleProviderChange = useCallback((value: string) => {
-    setProvider(value);
-    if (value === CUSTOM_PROVIDER_ID) return;
     const preset = DNS_PROVIDERS.find((p) => p.id === value);
-    if (!preset) return;
-    setDns1(preset.ipv4[0]);
-    setDns2(preset.ipv4[1]);
-    setDns3("");
-    setDns1v6(preset.ipv6[0]);
-    setDns2v6(preset.ipv6[1]);
+    setDraft((d) =>
+      preset
+        ? {
+            ...d,
+            provider: value,
+            dns1: preset.ipv4[0],
+            dns2: preset.ipv4[1],
+            dns3: "",
+            dns1v6: preset.ipv6[0],
+            dns2v6: preset.ipv6[1],
+          }
+        : { ...d, provider: value },
+    );
   }, []);
 
-  // --- Per-address IPv6 validity (client-side fence; backend re-checks) -------
-  // Covers full, compressed (::), and zero-run forms. IPv4-mapped suffixes are
-  // intentionally out of scope — a v4 literal belongs in the IPv4 fields.
-  const isValidIPv6 = useCallback((value: string): boolean => {
-    if (!value) return true; // empty is allowed (optional field)
-    const v6 =
-      /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$/;
-    return v6.test(value.trim());
-  }, []);
-
-  const dns1v6Invalid = isEnabled && !isValidIPv6(dns1v6);
-  const dns2v6Invalid = isEnabled && !isValidIPv6(dns2v6);
+  const dns1v6Invalid = enabled && !isValidIPv6(dns1v6);
+  const dns2v6Invalid = enabled && !isValidIPv6(dns2v6);
   const hasV6Error = dns1v6Invalid || dns2v6Invalid;
-
-  // At least one address across BOTH families is required when enabling.
   const noAddresses = !dns1 && !dns2 && !dns3 && !dns1v6 && !dns2v6;
+  const blocked = enabled && (noAddresses || hasV6Error);
 
-  // --- Dirty check: save button enabled only when something changed ----------
   const isDirty = useMemo(() => {
     if (!data) return false;
     return (
-      isEnabled !== (data.mode === "enabled") ||
+      enabled !== (data.mode === "enabled") ||
       dns1 !== data.dns1 ||
       dns2 !== data.dns2 ||
       dns3 !== data.dns3 ||
       dns1v6 !== data.dns1v6 ||
       dns2v6 !== data.dns2v6
     );
-  }, [data, isEnabled, dns1, dns2, dns3, dns1v6, dns2v6]);
+  }, [data, enabled, dns1, dns2, dns3, dns1v6, dns2v6]);
 
-  // --- Handle toggle ---------------------------------------------------------
-  const handleToggle = useCallback((checked: boolean) => {
-    setIsEnabled(checked);
-  }, []);
-
-  // --- Handle save -----------------------------------------------------------
   const handleSave = useCallback(async () => {
-    if (!data) return;
-
-    // Guard: when enabling, require at least one DNS server and reject
-    // malformed IPv6 input before it reaches the backend fence.
-    if (isEnabled && (noAddresses || hasV6Error)) return;
-
-    const success = await saveDns({
-      mode: isEnabled ? "enabled" : "disabled",
+    if (!data || blocked) return;
+    const result = await saveDns({
+      mode: enabled ? "enabled" : "disabled",
       nic: data.nic,
       dns1,
       dns2,
@@ -147,280 +218,336 @@ const CustomDNSCard = () => {
       dns1v6,
       dns2v6,
     });
-
-    if (success) {
+    if (result.ok) {
       markSaved();
       toast.success(
-        isEnabled
+        enabled
           ? t("dns.toast_success_enabled")
           : t("dns.toast_success_disabled"),
       );
-    } else {
-      // saveDns returns a bare boolean; the banner above carries the reason.
-      toast.error(t("dns.toast_error_apply"));
+    } else if (result.code !== null || result.error !== null) {
+      // A null/null result means the card unmounted mid-call: nobody to tell.
+      toast.error(
+        resolveErrorMessage(
+          t,
+          result.code,
+          result.error,
+          t("dns.toast_error_apply"),
+        ),
+      );
     }
-  }, [data, isEnabled, dns1, dns2, dns3, dns1v6, dns2v6, noAddresses, hasV6Error, saveDns, markSaved, t]);
+  }, [
+    data,
+    blocked,
+    enabled,
+    dns1,
+    dns2,
+    dns3,
+    dns1v6,
+    dns2v6,
+    saveDns,
+    markSaved,
+    t,
+  ]);
 
   const handleDiscard = useCallback(() => {
-    if (!data) return;
-    setIsEnabled(data.mode === "enabled");
-    setDns1(data.dns1);
-    setDns2(data.dns2);
-    setDns3(data.dns3);
-    setDns1v6(data.dns1v6);
-    setDns2v6(data.dns2v6);
-    setProvider(
-      matchProvider(data.dns1, data.dns2, data.dns3, data.dns1v6, data.dns2v6),
-    );
+    if (data) setDraft(draftFrom(data));
   }, [data]);
 
-  // --- Render ----------------------------------------------------------------
-  return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardTitle>{t("dns.card_title")}</CardTitle>
-        <CardDescription>
-          {t("dns.card_description")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {error && !isLoading && (
-          <div className="flex items-center justify-between gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 mb-4">
-            <p className="text-sm text-destructive">{error}</p>
+  if (isLoading) return <CustomDnsSkeleton />;
+
+  const header = (
+    <CardHeader className={CARD_PAD}>
+      <CardTitle className={CARD_TITLE}>{t("dns.card_title")}</CardTitle>
+      <CardDescription className={CARD_DESC}>
+        {t("dns.card_description")}
+      </CardDescription>
+    </CardHeader>
+  );
+
+  // A read that failed and left nothing behind: the block IS the state.
+  if (!data) {
+    return (
+      <Card className={CARD_SHELL}>
+        {header}
+        <CardContent className={CARD_PAD}>
+          <div role="alert" className={CONDITION.ROOT}>
+            <span aria-hidden className={CONDITION.DISC}>
+              <TriangleAlertIcon className={CONDITION.GLYPH} />
+            </span>
+            <p className={CONDITION.TITLE}>{t("dns.error_load_title")}</p>
+            <p className={CONDITION.DESC}>
+              {error ?? t("dns.error_load_desc")}
+            </p>
             <Button
-              type="button"
               variant="ghost"
-              size="sm"
-              className="shrink-0 text-destructive hover:text-destructive"
-              onClick={refresh}
+              size="action"
+              onClick={() => refresh()}
+              className={CONDITION.ACTION}
             >
+              <RefreshCcwIcon aria-hidden="true" />
               {t("actions.retry", { ns: "common" })}
             </Button>
           </div>
-        )}
-        {isLoading ? (
-          <div className="grid gap-4">
-            <Skeleton className="h-8 w-48" />
-            <div className="grid @md/card:grid-cols-2 grid-cols-1 gap-4">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ) : (
-          <form
-            id={formId}
-            className="grid gap-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSave();
-            }}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const v4Rows = [
+    { key: t("dns.receipt_primary"), value: dns1 },
+    { key: t("dns.receipt_secondary"), value: dns2 },
+  ];
+  const v6Rows = [
+    { key: t("dns.receipt_primary"), value: dns1v6 },
+    { key: t("dns.receipt_secondary"), value: dns2v6 },
+  ];
+
+  return (
+    <Card className={CARD_SHELL}>
+      {header}
+      <CardContent className={`${CARD_PAD} ${CARD_BODY}`}>
+        <form
+          id={formId}
+          className={CARD_BODY}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleSave();
+          }}
+        >
+          <div
+            className={cn(
+              SETTING_ROW.ROOT,
+              SETTING_ROW.TRANSITION,
+              enabled ? SETTING_ROW.ON : SETTING_ROW.REST,
+            )}
           >
-            <FieldSet>
-              <FieldGroup>
-                <Field orientation="horizontal" className="w-fit">
-                  <FieldLabel htmlFor="custom-dns">{t("dns.label_enable")}</FieldLabel>
-                  <Switch
-                    id="custom-dns"
-                    checked={isEnabled}
-                    onCheckedChange={handleToggle}
-                  />
-                </Field>
+            <div className={SETTING_ROW.TEXT}>
+              <p className={SETTING_ROW.TITLE}>{t("dns.label_enable")}</p>
+              <p className={SETTING_ROW.DESC}>{t("dns.enable_description")}</p>
+            </div>
+            <SegmentedField
+              value={enabled ? "on" : "off"}
+              onValueChange={(next) => set("enabled", next === "on")}
+              ariaLabel={t("dns.label_enable")}
+              disabled={isSaving}
+              breakpoint="never"
+              glyph={renderCheckGlyph}
+              options={[
+                { value: "off", label: t("common:state.off") },
+                { value: "on", label: t("common:state.on") },
+              ]}
+            />
+          </div>
 
-                {/* Provider preset selector — the primary control */}
-                <Field>
-                  <FieldLabel htmlFor="dns-provider">{t("dns.label_provider")}</FieldLabel>
-                  <Select
-                    value={provider}
-                    onValueChange={handleProviderChange}
-                    disabled={!isEnabled}
-                  >
-                    <SelectTrigger id="dns-provider" className="@md/card:w-72">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DNS_PROVIDERS.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value={CUSTOM_PROVIDER_ID}>
-                        {t("dns.provider_custom")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-
-                {isCustom ? (
-                  <>
-                    {/* IPv4 servers */}
-                    <div className="grid gap-3">
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {t("dns.label_ipv4_section")}
-                      </p>
-                      <div className="grid @md/card:grid-cols-2 grid-cols-1 grid-flow-row gap-4">
-                        <Field>
-                          <FieldLabel htmlFor="primary-dns">
-                            {t("dns.label_primary_dns")}
-                          </FieldLabel>
-                          <Input
-                            id="primary-dns"
-                            placeholder={t("dns.placeholder_primary_dns")}
-                            value={dns1}
-                            onChange={(e) => setDns1(e.target.value)}
-                            disabled={!isEnabled}
-                          />
-                        </Field>
-
-                        <Field>
-                          <FieldLabel htmlFor="secondary-dns">
-                            {t("dns.label_secondary_dns")}
-                          </FieldLabel>
-                          <Input
-                            id="secondary-dns"
-                            placeholder={t("dns.placeholder_secondary_dns")}
-                            value={dns2}
-                            onChange={(e) => setDns2(e.target.value)}
-                            disabled={!isEnabled}
-                          />
-                        </Field>
-
-                        <Field>
-                          <FieldLabel htmlFor="tertiary-dns">
-                            {t("dns.label_tertiary_dns")}
-                            <span className="text-muted-foreground">{t("dns.label_tertiary_dns_optional_suffix")}</span>
-                          </FieldLabel>
-                          <Input
-                            id="tertiary-dns"
-                            placeholder={t("dns.placeholder_tertiary_dns")}
-                            value={dns3}
-                            onChange={(e) => setDns3(e.target.value)}
-                            disabled={!isEnabled}
-                          />
-                        </Field>
-                      </div>
-                    </div>
-
-                    <FieldSeparator />
-
-                    {/* IPv6 servers */}
-                    <div className="grid gap-3">
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {t("dns.label_ipv6_section")}
-                      </p>
-                      <div className="grid @md/card:grid-cols-2 grid-cols-1 grid-flow-row gap-4">
-                        <Field>
-                          <FieldLabel htmlFor="primary-dns6">
-                            {t("dns.label_primary_dns6")}
-                          </FieldLabel>
-                          <Input
-                            id="primary-dns6"
-                            placeholder={t("dns.placeholder_primary_dns6")}
-                            value={dns1v6}
-                            onChange={(e) => setDns1v6(e.target.value)}
-                            disabled={!isEnabled}
-                            aria-invalid={dns1v6Invalid || undefined}
-                            spellCheck={false}
-                            autoCapitalize="none"
-                          />
-                        </Field>
-
-                        <Field>
-                          <FieldLabel htmlFor="secondary-dns6">
-                            {t("dns.label_secondary_dns6")}
-                            <span className="text-muted-foreground">{t("dns.label_tertiary_dns_optional_suffix")}</span>
-                          </FieldLabel>
-                          <Input
-                            id="secondary-dns6"
-                            placeholder={t("dns.placeholder_secondary_dns6")}
-                            value={dns2v6}
-                            onChange={(e) => setDns2v6(e.target.value)}
-                            disabled={!isEnabled}
-                            aria-invalid={dns2v6Invalid || undefined}
-                            spellCheck={false}
-                            autoCapitalize="none"
-                          />
-                        </Field>
-                      </div>
-                      {hasV6Error && (
-                        <FieldError id="dns6-error">
-                          {t("dns.error_invalid_ipv6")}
-                        </FieldError>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  /* Preset selected — show the resolved addresses read-only */
-                  <div className="grid gap-3 rounded-lg border bg-muted/30 p-4">
-                    <div className="grid gap-1">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        {t("dns.label_ipv4_section")}
-                      </p>
-                      <p className="text-sm tabular-nums">
-                        {[dns1, dns2].filter(Boolean).join(", ")}
-                      </p>
-                    </div>
-                    <div className="grid gap-1">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        {t("dns.label_ipv6_section")}
-                      </p>
-                      <p className="text-sm tabular-nums break-all">
-                        {[dns1v6, dns2v6].filter(Boolean).join(", ")}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {isEnabled && noAddresses && (
-                  <FieldError id="dns-error">
-                    {t("dns.error_at_least_one")}
-                  </FieldError>
-                )}
-              </FieldGroup>
-            </FieldSet>
-          </form>
-        )}
-      </CardContent>
-      {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
-      {isLoading ? (
-        <CardFoot
-          className="px-6"
-          liveStatus={false}
-          aria-hidden="true"
-          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
-        />
-      ) : (
-        <CardFoot
-          className="px-6"
-          status={
-            isDirty ? (
-              <span className="font-medium">{t("common:state.unsaved")}</span>
-            ) : null
-          }
-          actions={
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                size="action"
-                onClick={handleDiscard}
-                disabled={!isDirty || isSaving}
+          <Field>
+            <FieldLabel htmlFor="dns-provider">
+              {t("dns.label_provider")}
+            </FieldLabel>
+            {/* Field stretches its direct children; the wrapper owns the width. */}
+            <div className={PROVIDER_TRIGGER}>
+              <Select
+                value={provider}
+                onValueChange={handleProviderChange}
+                disabled={!enabled || isSaving}
               >
-                {t("common:actions.discard")}
-              </Button>
-              <SaveButton
-                type="submit"
-                form={formId}
-                isSaving={isSaving}
-                saved={saved}
-                label={t("actions.apply", { ns: "common" })}
-                disabled={!isDirty || (isEnabled && (noAddresses || hasV6Error))}
-                size="action"
+                <SelectTrigger id="dns-provider" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DNS_PROVIDERS.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={CUSTOM_PROVIDER_ID}>
+                    {t("dns.provider_custom")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </Field>
+
+          {isCustom ? (
+            <div className={FAMILIES}>
+              <fieldset className={FAMILY} disabled={!enabled || isSaving}>
+                <legend className={cn(FAMILY_TITLE, "mb-3")}>
+                  {t("dns.label_ipv4_section")}
+                </legend>
+                <div className={INPUTS}>
+                  <Field>
+                    <FieldLabel htmlFor="primary-dns">
+                      {t("dns.label_primary_dns")}
+                    </FieldLabel>
+                    <Input
+                      id="primary-dns"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      spellCheck={false}
+                      placeholder={t("dns.placeholder_primary_dns")}
+                      value={dns1}
+                      onChange={(e) => set("dns1", e.target.value)}
+                      className={ADDRESS_INPUT}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="secondary-dns">
+                      {t("dns.label_secondary_dns")}
+                    </FieldLabel>
+                    <Input
+                      id="secondary-dns"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      spellCheck={false}
+                      placeholder={t("dns.placeholder_secondary_dns")}
+                      value={dns2}
+                      onChange={(e) => set("dns2", e.target.value)}
+                      className={ADDRESS_INPUT}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="tertiary-dns">
+                      {t("dns.label_tertiary_dns")}
+                      <span className="text-on-surface-variant font-normal">
+                        {t("dns.label_tertiary_dns_optional_suffix")}
+                      </span>
+                    </FieldLabel>
+                    <Input
+                      id="tertiary-dns"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      spellCheck={false}
+                      placeholder={t("dns.placeholder_tertiary_dns")}
+                      value={dns3}
+                      onChange={(e) => set("dns3", e.target.value)}
+                      className={ADDRESS_INPUT}
+                    />
+                  </Field>
+                </div>
+              </fieldset>
+
+              <fieldset className={FAMILY} disabled={!enabled || isSaving}>
+                <legend className={cn(FAMILY_TITLE, "mb-3")}>
+                  {t("dns.label_ipv6_section")}
+                </legend>
+                <div className={INPUTS}>
+                  <Field>
+                    <FieldLabel htmlFor="primary-dns6">
+                      {t("dns.label_primary_dns6")}
+                    </FieldLabel>
+                    <Input
+                      id="primary-dns6"
+                      autoComplete="off"
+                      spellCheck={false}
+                      autoCapitalize="none"
+                      placeholder={t("dns.placeholder_primary_dns6")}
+                      value={dns1v6}
+                      onChange={(e) => set("dns1v6", e.target.value)}
+                      aria-invalid={dns1v6Invalid || undefined}
+                      aria-describedby={hasV6Error ? "dns6-error" : undefined}
+                      className={ADDRESS_INPUT}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="secondary-dns6">
+                      {t("dns.label_secondary_dns6")}
+                      <span className="text-on-surface-variant font-normal">
+                        {t("dns.label_tertiary_dns_optional_suffix")}
+                      </span>
+                    </FieldLabel>
+                    <Input
+                      id="secondary-dns6"
+                      autoComplete="off"
+                      spellCheck={false}
+                      autoCapitalize="none"
+                      placeholder={t("dns.placeholder_secondary_dns6")}
+                      value={dns2v6}
+                      onChange={(e) => set("dns2v6", e.target.value)}
+                      aria-invalid={dns2v6Invalid || undefined}
+                      aria-describedby={hasV6Error ? "dns6-error" : undefined}
+                      className={ADDRESS_INPUT}
+                    />
+                  </Field>
+                </div>
+                {hasV6Error ? (
+                  <FieldError id="dns6-error">
+                    {t("dns.error_invalid_ipv6")}
+                  </FieldError>
+                ) : null}
+              </fieldset>
+            </div>
+          ) : (
+            // A preset: its resolved addresses, read-only, key left and value right.
+            <div className={RECEIPT.ROOT}>
+              {[
+                { title: t("dns.label_ipv4_section"), rows: v4Rows },
+                { title: t("dns.label_ipv6_section"), rows: v6Rows },
+              ].map((group) => (
+                <div key={group.title} className={RECEIPT.GROUP}>
+                  <p className={RECEIPT.GROUP_TITLE}>{group.title}</p>
+                  <dl className={RECEIPT.GROUP}>
+                    {group.rows.map((row) => (
+                      <div key={row.key} className={RECEIPT.ROW}>
+                        <dt className={RECEIPT.KEY}>{row.key}</dt>
+                        <dd className={RECEIPT.VALUE}>
+                          {row.value || t("dns.receipt_none")}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {enabled && noAddresses ? (
+            <FieldError id="dns-error">
+              {t("dns.error_at_least_one")}
+            </FieldError>
+          ) : null}
+        </form>
+      </CardContent>
+
+      {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
+      <CardFoot
+        className={CARD_PAD}
+        status={
+          // A failed refresh or save stays visible here until the next good read.
+          error ? (
+            <span className="inline-flex items-center gap-1.5 text-destructive">
+              <TriangleAlertIcon
+                className="size-3.5 shrink-0"
+                aria-hidden="true"
               />
-            </>
-          }
-        />
-      )}
+              {error}
+            </span>
+          ) : isDirty ? (
+            <span className="font-medium">{t("common:state.unsaved")}</span>
+          ) : null
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={handleDiscard}
+              disabled={!isDirty || isSaving}
+            >
+              {t("common:actions.discard")}
+            </Button>
+            <SaveButton
+              type="submit"
+              form={formId}
+              isSaving={isSaving}
+              saved={saved}
+              label={t("actions.apply", { ns: "common" })}
+              disabled={!isDirty || blocked}
+              size="action"
+            />
+          </>
+        }
+      />
     </Card>
   );
 };
