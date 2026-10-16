@@ -47,24 +47,6 @@
     "toast_disabled": "Offload hardware disabilitato. Riavvia per applicare.",
     "toast_failed": "Impossibile aggiornare l'offload hardware"
   },
-  "at_engine": {
-    "card_title": "Comandi modem",
-    "card_description": "Come QManager invia i comandi al modem.",
-    "engine_label": "Motore",
-    "engine_hint": "Veloce mantiene aperta una sola connessione al modem e risponde in pochi millisecondi. Legacy è il metodo originale, mantenuto come riserva.",
-    "option_fast": "Veloce",
-    "option_legacy": "Legacy",
-    "fast_unavailable": "Veloce non è installato su questo dispositivo.",
-    "status_label": "Stato",
-    "status_fast": "Veloce in uso",
-    "status_legacy": "Legacy in uso",
-    "status_not_applied": "Non applicato",
-    "pending": "Modifica non salvata",
-    "discard": "Annulla",
-    "toast_fast": "Motore Veloce attivo.",
-    "toast_legacy": "Motore Legacy attivo.",
-    "toast_failed": "Impossibile cambiare il motore dei comandi modem."
-  },
   "host_at": {
     "card_title": "Porte AT host",
     "card_description": "Accesso AT per un computer collegato via USB o PCIe.",

@@ -1,6 +1,6 @@
 # SMS
 
-The SMS feature exposes a read/send/delete inbox over the modem's AT channel (`/dev/smd11`). All modem access is serialized through the shared `flock`-based lock so `sms_tool` calls never race against `qcmd` or `atcli_smd11`.
+The SMS feature exposes a read/send/delete inbox over the modem's AT channel (`/dev/smd11`). All modem access is serialized through the shared `flock`-based lock so `sms_tool` calls never race against `qcmd` (the AT broker).
 
 > ℹ️ NOTE: SMS **downtime alerts** (connection-lost/restored notifications sent over SMS) are documented separately in [`docs/features/alerts.md`](alerts.md) — they're one channel in the centralized Alerts feature, which also covers email and the shared routing/capability model. This doc covers the inbox (read/send/delete) and the `sms_tool` transport library only. `sms_alerts.sh` still exists as the SMS channel's transport lib (config I/O, `sms_tool` send, retry, logging) but no longer owns downtime *detection* — that lives in `alert_engine.sh`.
 
@@ -43,7 +43,7 @@ Both CGI wrappers still explicitly pass `-d /dev/smd11` and still strip `tcgetat
 
 ## Shared Lock (`/var/lock/qmanager.lock`)
 
-All `sms_tool` calls run inside a `flock -x` on `/var/lock/qmanager.lock`, the same lock held by `qcmd` and `atcli_smd11`. This prevents concurrent `recv -j` fetches from colliding with poller or watchcat AT calls on `/dev/smd11`.
+All `sms_tool` calls run inside a `flock -x` on `/var/lock/qmanager.lock`, the same lock held by `qcmd` (the AT broker). This prevents concurrent `recv -j` fetches from colliding with poller or watchcat AT calls on `/dev/smd11`.
 
 Both wrappers use a polling fallback loop (`_sms_flock_wait` / `_sa_flock_wait`) with a 10-second timeout because BusyBox `flock` does not support `-w <timeout>`. The lock file is created as an empty file if absent before the `flock` call — `flock` on a non-existent file returns 0 immediately (no lock held), so the creation step is load-bearing.
 

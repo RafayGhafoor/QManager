@@ -28,7 +28,7 @@ RELOAD_FLAG="/tmp/qmanager_sms_forward_reload"
 FAILURES_FILE="/tmp/qmanager_sms_forward_failures.json"
 INITD="/etc/init.d/qmanager_sms_forward"
 
-# Shared AT lock (serializes sms_tool against qcmd/atcli_smd11 and other SMS).
+# Shared AT lock (serializes sms_tool against qcmd, the AT broker, and other SMS).
 _SF_LOCK_FILE="/var/lock/qmanager.lock"
 _SF_LOCK_WAIT=10
 _SF_SMS_TOOL="/usr/bin/sms_tool"

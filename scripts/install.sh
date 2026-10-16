@@ -24,7 +24,7 @@
 #     usr/bin/                  Daemons and utilities (qmanager_*, qcmd, ...)
 #     usr/lib/qmanager/         Shared shell libraries
 #     www/cgi-bin/quecmanager/  CGI API endpoints
-#   dependencies/               Bundled binaries (atcli_smd11, sms_tool, qmanager_atd)
+#   dependencies/               Bundled binaries (sms_tool, qmanager_atd)
 #   install.sh                  This script
 #
 # Usage:
@@ -72,8 +72,9 @@ SRC_DEPS="$INSTALL_DIR/dependencies"
 # Note: coreutils-timeout is required even though BusyBox ships a `timeout`
 # applet — barebone OpenWRT builds (like OEM modem firmware) often strip
 # applets at compile time, so we can't assume BusyBox `timeout` is present.
-# qcmd wraps atcli_smd11 with `timeout` as a last-ditch safety net, and the
-# installer's run_capture_timeout helper uses it too. Cheap guarantee.
+# The installer's run_capture_timeout helper relies on it to bound every AT
+# probe and smoke test, and other scripts use it as a safety cap. Cheap
+# guarantee.
 REQUIRED_PACKAGES="jq curl coreutils-timeout ethtool"
 OPTIONAL_PACKAGES="msmtp ookla-speedtest"
 # Removed before install to avoid /dev/smd11 conflicts and sms_tool collision
@@ -257,6 +258,30 @@ run_capture_timeout() {
     return "$rc"
 }
 
+# Run one AT command through a qmanager_atd binary in qcmd (client) mode, with
+# a hard timeout. The binary picks its mode from argv[0]: run under its own
+# name it starts a second broker daemon (which would take over the socket), so
+# it is always called through a temp symlink named qcmd. That works for the
+# bundled binary and for whatever older build is already installed.
+# Usage: run_atd_qcmd <seconds> <qmanager_atd path> <AT command>
+run_atd_qcmd() {
+    local seconds="$1"
+    local bin="$2"
+    local cmd="$3"
+    local dir="/tmp/qm_atd_qcmd.$$"
+    local rc=0
+
+    rm -rf "$dir"
+    mkdir -p "$dir" || return 1
+    if ! ln -s "$bin" "$dir/qcmd"; then
+        rm -rf "$dir"
+        return 1
+    fi
+    run_capture_timeout "$seconds" "$dir/qcmd" "$cmd" || rc=$?
+    rm -rf "$dir"
+    return "$rc"
+}
+
 pkg_binary() {
     case "$1" in
         ookla-speedtest)    echo "speedtest" ;;
@@ -418,18 +443,22 @@ install_tree() {
 # --- Pre-flight --------------------------------------------------------------
 
 detect_modem_firmware() {
-    local atcli="" raw="" detected="" cache
+    local atd=""
+    local raw=""
+    local detected=""
+    local cache
 
-    # Prefer an existing atcli binary, fall back to the bundled one.
-    if [ -x "$BIN_DIR/atcli_smd11" ]; then
-        atcli="$BIN_DIR/atcli_smd11"
-    elif [ -f "$SRC_DEPS/atcli_smd11" ]; then
-        chmod 755 "$SRC_DEPS/atcli_smd11" 2>/dev/null || true
-        [ -x "$SRC_DEPS/atcli_smd11" ] && atcli="$SRC_DEPS/atcli_smd11"
+    # Prefer the installed broker binary, fall back to the bundled one. Either
+    # runs as the qcmd client: through the running broker, or in-process.
+    if [ -x "$BIN_DIR/qmanager_atd" ]; then
+        atd="$BIN_DIR/qmanager_atd"
+    elif [ -f "$SRC_DEPS/qmanager_atd" ]; then
+        chmod 755 "$SRC_DEPS/qmanager_atd" 2>/dev/null || true
+        [ -x "$SRC_DEPS/qmanager_atd" ] && atd="$SRC_DEPS/qmanager_atd"
     fi
 
-    if [ -n "$atcli" ]; then
-        raw=$(run_capture_timeout 8 "$atcli" 'ATI' 2>/dev/null || true)
+    if [ -n "$atd" ]; then
+        raw=$(run_atd_qcmd 8 "$atd" 'ATI' 2>/dev/null || true)
 
         detected=$(printf '%s\n' "$raw" \
             | tr -d '\r' \
@@ -441,13 +470,14 @@ detect_modem_firmware() {
         fi
 
         if [ -z "$detected" ]; then
-            raw=$(run_capture_timeout 8 "$atcli" 'AT+GMR' 2>/dev/null || true)
+            raw=$(run_atd_qcmd 8 "$atd" 'AT+GMR' 2>/dev/null || true)
             detected=$(printf '%s\n' "$raw" | tr -d '\r' | grep -E 'RM[0-9]{3,}' | head -n1)
         fi
     fi
 
-    # Cache fallback: on upgrade, /dev/smd11 may be temporarily busy, but the
-    # poller's cache file already contains the firmware string.
+    # Cache fallback: on upgrade, the running (older) broker may refuse a
+    # request from a newer client, or /dev/smd11 may be temporarily busy, but
+    # the poller's cache file already contains the firmware string.
     if [ -z "$detected" ]; then
         for cache in /tmp/qmanager_status.json /etc/qmanager/status.json; do
             [ -f "$cache" ] || continue
@@ -1013,16 +1043,12 @@ seed_uci_defaults() {
         info "Removed retired quecmanager.call_forwarding section"
     fi
 
-    # AT engine — Rust broker by default; legacy qcmd.sh stays installed for
-    # rollback. Preserve an existing choice on upgrade.
-    if ! uci -q get quecmanager.at >/dev/null 2>&1; then
-        uci set quecmanager.at=at
-    fi
-    if ! uci -q get quecmanager.at.engine >/dev/null 2>&1; then
-        uci set quecmanager.at.engine=broker
-        info "Seeded quecmanager.at.engine=broker"
-    else
-        info "quecmanager.at.engine already set — preserving user choice"
+    # AT engine switch (removed) — the broker is the only engine now. The
+    # quecmanager.at section held nothing but the old engine choice, so drop it
+    # whole on upgrade. Harmless no-op on fresh installs.
+    if uci -q get quecmanager.at >/dev/null 2>&1; then
+        uci -q delete quecmanager.at 2>/dev/null
+        info "Removed retired quecmanager.at section (legacy AT engine)"
     fi
 
     # Host AT ports (vendor port-bridge) — on by default, matching stock firmware.
@@ -1038,12 +1064,12 @@ seed_uci_defaults() {
 
     uci commit quecmanager 2>/dev/null || warn "uci commit quecmanager failed"
 
-    # Point /usr/bin/qcmd at the configured engine (atomic symlink swap). Must
-    # run after install_backend + install_bundled_binaries and the seed above.
+    # Point /usr/bin/qcmd at qmanager_atd (atomic symlink swap). Must run after
+    # install_backend + install_bundled_binaries.
     if [ -f "$LIB_DIR/at_engine.sh" ]; then
         . "$LIB_DIR/at_engine.sh"
-        if at_engine_link; then
-            info "qcmd -> $(readlink "$BIN_DIR/qcmd" 2>/dev/null) (engine: $(at_engine_effective))"
+        if at_qcmd_link; then
+            info "qcmd -> $(readlink "$BIN_DIR/qcmd" 2>/dev/null)"
         else
             warn "Could not repoint $BIN_DIR/qcmd — AT commands may be unavailable"
         fi
@@ -1192,6 +1218,12 @@ install_backend() {
                 info "  Removed retired CGI: monitoring/$_stale"
             fi
         done
+
+        # Retired AT engine switch (the broker is the only engine now).
+        if [ -f "$CGI_DIR/system/at_engine.sh" ]; then
+            rm -f "$CGI_DIR/system/at_engine.sh"
+            info "  Removed retired CGI: system/at_engine.sh"
+        fi
     fi
 
     # --- Init.d services (flat) ---
@@ -1277,13 +1309,13 @@ install_backend() {
 }
 
 install_bundled_binaries() {
-    step "Installing bundled binaries (atcli_smd11, sms_tool, qmanager_atd)"
+    step "Installing bundled binaries (sms_tool, qmanager_atd)"
 
     [ -d "$SRC_DEPS" ] || die "Bundled dependencies not found: $SRC_DEPS"
 
     # qmanager_atd is the Rust AT broker. /usr/bin/qcmd becomes a symlink to it
-    # (or to the legacy qcmd.sh) in seed_uci_defaults, after UCI is seeded.
-    for bin in atcli_smd11 sms_tool qmanager_atd; do
+    # in seed_uci_defaults.
+    for bin in sms_tool qmanager_atd; do
         local src="$SRC_DEPS/$bin"
         local dst="$BIN_DIR/$bin"
 
@@ -1295,13 +1327,25 @@ install_bundled_binaries() {
         info "Installed $bin -> $dst"
     done
 
-    # Smoke test (warn-only — modem may not be ready yet on fresh hardware)
+    # Legacy AT engine (removed): the shell gatekeeper and the atcli binary it
+    # drove. If /usr/bin/qcmd still points at qcmd.sh it dangles until
+    # seed_uci_defaults repoints it; services are stopped meanwhile.
+    local old
+    for old in qcmd.sh atcli_smd11; do
+        if [ -e "$BIN_DIR/$old" ]; then
+            rm -f "$BIN_DIR/$old"
+            info "Removed legacy AT engine file: $old"
+        fi
+    done
+
+    # Smoke test (warn-only — modem may not be ready yet on fresh hardware).
+    # The broker is stopped here, so this exercises the in-process path.
     local smoke
-    smoke=$(run_capture_timeout 5 atcli_smd11 'AT' 2>/dev/null || true)
+    smoke=$(run_atd_qcmd 5 "$BIN_DIR/qmanager_atd" 'AT' 2>/dev/null || true)
     if printf '%s\n' "$smoke" | grep -q OK; then
-        info "atcli_smd11 smoke test passed"
+        info "qmanager_atd smoke test passed"
     else
-        warn "atcli_smd11 smoke test did not return OK — check /dev/smd11"
+        warn "qmanager_atd smoke test did not return OK — check /dev/smd11"
     fi
 }
 
@@ -1614,7 +1658,7 @@ cleanup_legacy_scripts() {
         fname="$(basename "$f")"
         [ -f "$SRC_SCRIPTS/usr/bin/$fname" ] && continue
         # Not legacy: qmanager_atd ships from dependencies/, and /usr/bin/qcmd
-        # is the engine symlink that seed_uci_defaults repoints.
+        # is the symlink to it that seed_uci_defaults (re)creates.
         case "$fname" in qmanager_atd|qcmd) continue ;; esac
         rm -f "$f"
         info "  Removed legacy daemon: $fname"
@@ -1697,7 +1741,7 @@ health_check() {
 
 # --- AT Stack Verification ---------------------------------------------------
 # Runs at the very end of install, before reboot, to confirm that the full AT
-# command pipeline (qcmd → atcli_smd11 → /dev/smd11) is working. This catches
+# command pipeline (qcmd → qmanager_atd → /dev/smd11) is working. This catches
 # the scenario where install "succeeds" but AT commands are silently broken
 # (e.g., leftover conflicting process holding /dev/smd11, wrong binary, perms).
 # Warn-only with retries — fresh hardware may need a few seconds after services
@@ -1728,7 +1772,8 @@ at_stack_check() {
     warn "qcmd ATI did not return OK after 3 attempts"
     warn "  Troubleshooting:"
     warn "    1. Check /dev/smd11 exists: ls -la /dev/smd11"
-    warn "    2. Test directly:           atcli_smd11 'AT'"
+    warn "    2. Check the qcmd link:     ls -la /usr/bin/qcmd  (-> qmanager_atd)"
+    warn "       Then test directly:    qcmd 'AT'"
     warn "    3. Check for conflicts:     opkg list-installed | grep -E 'sms-tool|socat'"
     warn "    4. Review install log:      $LOG_FILE"
     warn "  AT commands may start working once the modem finishes initializing."

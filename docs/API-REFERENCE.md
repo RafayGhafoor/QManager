@@ -477,7 +477,7 @@ Start speed test, check results, and check if speedtest binary is available.
 
 ### GET/POST `/cellular/sms.sh`
 
-SMS inbox and send functionality. Backed by `sms_tool -d /dev/smd11`, serialized against `qcmd`/`atcli_smd11` via the shared `/var/lock/qmanager.lock`. The `-d /dev/smd11` flag is belt-and-suspenders: the patched binary already defaults to `/dev/smd11` and guards termios calls via `isatty()`. See [`docs/features/sms.md`](features/sms.md) for binary patch details and the shared-lock contract.
+SMS inbox and send functionality. Backed by `sms_tool -d /dev/smd11`, serialized against `qcmd` (the AT broker) via the shared `/var/lock/qmanager.lock`. The `-d /dev/smd11` flag is belt-and-suspenders: the patched binary already defaults to `/dev/smd11` and guards termios calls via `isatty()`. See [`docs/features/sms.md`](features/sms.md) for binary patch details and the shared-lock contract.
 
 **GET Response:**
 ```json
@@ -1404,32 +1404,6 @@ Values: `"enable"` or `"disable"`.
 | `not_available` | `r8125_ioss.init` absent — SKU does not have this NIC |
 | `invalid_action` | `action` was not `"enable"` or `"disable"` |
 
-### GET/POST `/system/at_engine.sh`
-
-Read or switch which engine serves `/usr/bin/qcmd`: the Rust AT broker (`broker`, default) or the legacy shell gatekeeper (`legacy`). Both keep the identical output contract, so no caller is affected. Applies immediately (repoints the `qcmd` symlink atomically and starts or stops the broker daemon); never touches the modem and never reboots. Auth-gated. See [`docs/features/at-broker.md`](features/at-broker.md).
-
-**GET / POST Response:**
-
-```json
-{ "success": true, "engine": "broker", "effective": "broker", "broker_available": true, "broker_running": true }
-```
-
-`engine` is the saved UCI choice (`quecmanager.at.engine`); `effective` is what the `qcmd` link actually points at (`broker`, `legacy` or `unknown`). `broker_running` is true when the daemon is up; with the broker engine and the daemon down, `qcmd` still works through its in-process fallback.
-
-**POST Request:**
-
-```json
-{ "engine": "legacy" }
-```
-
-**Error Codes:**
-
-| Code | Meaning |
-|---|---|
-| `invalid_engine` | `engine` was not `"broker"` or `"legacy"` |
-| `broker_unavailable` | `engine: "broker"` requested but `/usr/bin/qmanager_atd` is not installed |
-| `apply_failed` | UCI commit or the `qcmd` link swap failed, or `at_engine.sh` is missing |
-
 ### GET/POST `/system/host_at_ports.sh`
 
 Turn the vendor `port-bridged` service on or off. It relays the USB/PCIe host AT ports into the modem's AT engine; QManager itself never uses them (its path is `/dev/smd11`). Off stops an attached host from sending AT commands and sets `/dev/smd7` to `0600`; it does **not** change QManager's own AT speed. Applies immediately and persists across reboots (re-applied at boot by `qmanager_atd`); never reboots. Auth-gated.
@@ -1456,7 +1430,7 @@ Turn the vendor `port-bridged` service on or off. It relays the USB/PCIe host AT
 |---|---|
 | `not_available` | `port-bridged` is absent on this firmware |
 | `invalid_value` | `enabled` was not a boolean |
-| `apply_failed` | UCI commit failed, or `at_engine.sh` is missing |
+| `apply_failed` | UCI commit failed, or the `at_engine.sh` library is missing |
 | `method_not_allowed` | Request was not GET or POST |
 
 ---

@@ -10,14 +10,13 @@ out-of-band, not by this repo's build. This file records how to reproduce them.
 
 Target device: **Quectel RM551E-GL** — OpenWRT 23.05, **aarch64** musl userspace
 (`/lib/ld-musl-aarch64.so.1`), AT pipe on the glink char device **`/dev/smd11`**
-(not a UART/TTY). `atcli_smd11` and `sms_tool` are older **32-bit ARM (EABI5)
-static** builds that run through the kernel's 32-bit compat layer; new binaries
-target `aarch64-unknown-linux-musl` natively.
+(not a UART/TTY). `sms_tool` is an older **32-bit ARM (EABI5) static** build
+that runs through the kernel's 32-bit compat layer; new binaries target
+`aarch64-unknown-linux-musl` natively.
 
 | Binary | Source | Notes |
 |--------|--------|-------|
 | `sms_tool` | [`obsy/sms_tool`](https://github.com/obsy/sms_tool) (Apache-2.0) | Patched — see below |
-| `atcli_smd11` | internal | AT-command client bound to `/dev/smd11` |
 | `qmanager_atd` | [`native/qmanager_atd/`](../native/qmanager_atd) (in this repo) | Rust AT broker + `qcmd` client — see below and `docs/features/at-broker.md` |
 
 ---
@@ -95,7 +94,8 @@ sms_tool -D recv -d /dev/ttyUSB0     # open() trace reappears under -D
 
 The Rust AT broker and the `qcmd` client in one static binary. Source lives in
 this repo at `native/qmanager_atd/` (std + `libc` only). `/usr/bin/qcmd` is a
-symlink to it (or to the legacy `qcmd.sh`); see `docs/features/at-broker.md`.
+symlink to it, and it is QManager's only AT path; see
+`docs/features/at-broker.md`.
 
 ### Rebuild (static aarch64 musl)
 

@@ -162,8 +162,6 @@
   "lan_save_failed": "無法儲存 LAN 設定",
   "write_failed": "將設定寫入儲存失敗",
   "wrong_schema": "備份架構版本與當前版本不匹配",
-  "invalid_engine": "請選擇快速或傳統。",
-  "broker_unavailable": "此裝置未安裝快速引擎。",
   "apply_failed": "無法套用該設定。",
   "not_available": "此裝置不支援該功能。"
 }

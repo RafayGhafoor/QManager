@@ -42,9 +42,9 @@ fn deadline_for(cmd: &str, long: bool) -> Instant {
     Instant::now() + d
 }
 
-/// Legacy qcmd writes the long flag before it waits for the lock (up to
-/// LOCK_WAIT_LONG), so a flag younger than this may belong to a caller that is
-/// still waiting, not to a dead one.
+/// Margin before a lock-free flag is treated as abandoned: a flag younger than
+/// this may belong to a caller that has only just started a long command (the
+/// retired shell qcmd also wrote it before waiting up to LOCK_WAIT_LONG).
 const STALE_FLAG_AGE: Duration = Duration::from_secs(15);
 
 /// True while a long command holds the modem (the scan_in_progress gate).
@@ -53,10 +53,9 @@ pub fn long_running() -> bool {
 }
 
 /// Removes a long flag left by a holder that died mid-command (killed broker,
-/// engine switch during a scan). Without this every short command answers
+/// broker restart during a scan). Without this every short command answers
 /// scan_in_progress until the main service restarts. Safe only when nobody
-/// holds the modem lock and the flag is old enough not to be a legacy caller
-/// still waiting for it.
+/// holds the modem lock and the flag is older than STALE_FLAG_AGE.
 pub fn clear_stale_long_flag(lock: &LockFile, log: &Logger) {
     let age = match std::fs::symlink_metadata(LONG_FLAG).and_then(|m| m.modified()) {
         Ok(t) => t.elapsed().unwrap_or(Duration::ZERO),

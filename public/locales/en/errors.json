@@ -162,8 +162,6 @@
   "lan_save_failed": "Couldn't save the LAN settings",
   "write_failed": "Failed to write configuration to storage",
   "wrong_schema": "Backup schema version does not match the current version",
-  "invalid_engine": "Choose Fast or Legacy.",
-  "broker_unavailable": "The fast engine isn't installed on this device.",
   "apply_failed": "The setting couldn't be applied.",
   "not_available": "This feature isn't available on this device."
 }

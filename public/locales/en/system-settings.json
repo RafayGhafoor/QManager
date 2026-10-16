@@ -47,24 +47,6 @@
     "toast_disabled": "Hardware offload disabled. Reboot to apply.",
     "toast_failed": "Failed to update hardware offload"
   },
-  "at_engine": {
-    "card_title": "Modem Commands",
-    "card_description": "How QManager sends commands to the modem.",
-    "engine_label": "Engine",
-    "engine_hint": "Fast keeps one connection to the modem open and answers in a few milliseconds. Legacy is the original method, kept as a fallback.",
-    "option_fast": "Fast",
-    "option_legacy": "Legacy",
-    "fast_unavailable": "Fast isn't installed on this device.",
-    "status_label": "Status",
-    "status_fast": "Fast in use",
-    "status_legacy": "Legacy in use",
-    "status_not_applied": "Not applied",
-    "pending": "Unsaved change",
-    "discard": "Discard",
-    "toast_fast": "Fast engine on.",
-    "toast_legacy": "Legacy engine on.",
-    "toast_failed": "Couldn't switch the modem command engine."
-  },
   "host_at": {
     "card_title": "Host AT Ports",
     "card_description": "AT access for a computer connected over USB or PCIe.",

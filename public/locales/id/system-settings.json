@@ -47,24 +47,6 @@
     "toast_disabled": "Hardware offload dinonaktifkan. Reboot untuk menerapkan.",
     "toast_failed": "Gagal memperbarui hardware offload"
   },
-  "at_engine": {
-    "card_title": "Perintah Modem",
-    "card_description": "Cara QManager mengirim perintah ke modem.",
-    "engine_label": "Mesin",
-    "engine_hint": "Cepat menjaga satu koneksi ke modem tetap terbuka dan merespons dalam beberapa milidetik. Lama adalah metode asli, disimpan sebagai cadangan.",
-    "option_fast": "Cepat",
-    "option_legacy": "Lama",
-    "fast_unavailable": "Cepat tidak terpasang di perangkat ini.",
-    "status_label": "Status",
-    "status_fast": "Cepat digunakan",
-    "status_legacy": "Lama digunakan",
-    "status_not_applied": "Belum diterapkan",
-    "pending": "Perubahan belum disimpan",
-    "discard": "Buang",
-    "toast_fast": "Mesin Cepat aktif.",
-    "toast_legacy": "Mesin Lama aktif.",
-    "toast_failed": "Tidak dapat mengganti mesin perintah modem."
-  },
   "host_at": {
     "card_title": "Port AT Host",
     "card_description": "Akses AT untuk komputer yang terhubung lewat USB atau PCIe.",

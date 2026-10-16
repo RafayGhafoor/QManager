@@ -13,7 +13,7 @@ Lean by default. The main session understands the change, writes it, and validat
 | Size | What it covers | Flow |
 |------|----------------|------|
 | **Small** | Typos, copy, single-file fixes, changes inside one layer that don't touch the risky areas below | Understand → change → validate. No plan, no approval stop. |
-| **Large** | Cross-layer features; anything touching the **installer / `init.d` / UCI schema / firewall (fw4, nftables, DPI) / OTA / the AT path (`qcmd`, `atcli`, lock files)**; anything that can reboot the modem or cut the user's connection | Understand → **short plan, then stop for the user's OK** → build → validate → docs. |
+| **Large** | Cross-layer features; anything touching the **installer / `init.d` / UCI schema / firewall (fw4, nftables, DPI) / OTA / the AT path (`qcmd`, `qmanager_atd`, lock files)**; anything that can reboot the modem or cut the user's connection | Understand → **short plan, then stop for the user's OK** → build → validate → docs. |
 
 The user can always say "just do it" / "skip the plan" to drop a large change to the small flow.
 
@@ -142,7 +142,7 @@ Detailed per-feature notes (apply pipelines, lock layering, contracts, gotchas, 
 | Tailscale VPN, `vpn/tailscale.sh`, official + tiny install variants, procd init.d heredoc, `set_exit_node`, marker-file contract, `migrate_tailscale_packages` | [`docs/features/tailscale-vpn.md`](docs/features/tailscale-vpn.md) |
 | Diagnostics capture, `system/diagnostics.sh`, `qmanager_debug_report` daemon, IPA offload toggle (`system/ipa_offload.sh`, `r8125_ioss.init`), armed-on-reboot, `pending_reboot_required` | [`docs/features/diagnostics.md`](docs/features/diagnostics.md) |
 | Adaptive Polling, `qmanager_poller`, `system/adaptive_polling.sh`, `quecmanager.poller.*`, `.device.poller_tier` (active/idle/deep), `/tmp/qmanager_force_tier2`, `write_cache` always-run invariant, deep=QENG-only | [`docs/features/adaptive-polling.md`](docs/features/adaptive-polling.md) |
-| AT broker / AT path: `qcmd` (now a symlink), `qmanager_atd` (Rust broker, `native/qmanager_atd/`), `qcmd.sh` (legacy engine), `at_engine.sh`, `/var/run/qmanager_atd.sock`, `quecmanager.at.engine`, host AT ports / `port-bridged` / `quecmanager.ports.host_at`, `system/at_engine.sh` + `system/host_at_ports.sh` | [`docs/features/at-broker.md`](docs/features/at-broker.md) |
+| AT broker / AT path: `qcmd` (now a symlink), `qmanager_atd` (Rust broker, `native/qmanager_atd/`), `at_engine.sh` (link + host AT port lib), `/var/run/qmanager_atd.sock`, host AT ports / `port-bridged` / `quecmanager.ports.host_at`, `system/host_at_ports.sh` | [`docs/features/at-broker.md`](docs/features/at-broker.md) |
 | IP Passthrough (IPPT), `network/ip_passthrough.sh`, `/etc/qmanager/ippt_config.json`, `parse_ippt_*` in `parse_at.sh`, Verizon profile lock, apply-then-reboot one-shot, `.device.ippt_*`, connected-device MAC picker (`network/lan_devices.sh`, `use-lan-devices.ts`) | [`docs/features/ip-passthrough.md`](docs/features/ip-passthrough.md) |
 | On-Demand Radio Details, `cellular/radio_details.sh`, `ondemand_radio.sh` lib, `/tmp/qmanager_ondemand.json`, RAT-gate hardening, `useRadioDetails`, `stale:true` fallback | [`docs/features/ondemand-radio-details.md`](docs/features/ondemand-radio-details.md) |
 | Custom DNS, `network/dns.sh`, `dhcp.lan.dns`, odhcpd RA RDNSS, `use-dns-settings.ts`, provider presets (`dns-providers.ts`, `matchProvider`), `/etc/qmanager/dns_mode`, IPv6 two-stage BusyBox gate | [`docs/features/custom-dns.md`](docs/features/custom-dns.md) |

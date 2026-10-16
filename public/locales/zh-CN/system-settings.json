@@ -47,24 +47,6 @@
     "toast_disabled": "硬件卸载已禁用。重启后生效。",
     "toast_failed": "更新硬件卸载失败"
   },
-  "at_engine": {
-    "card_title": "调制解调器命令",
-    "card_description": "QManager 向调制解调器发送命令的方式。",
-    "engine_label": "引擎",
-    "engine_hint": "快速模式与调制解调器保持一个连接，几毫秒即可响应。传统模式是原有方式，作为备用保留。",
-    "option_fast": "快速",
-    "option_legacy": "传统",
-    "fast_unavailable": "此设备未安装快速引擎。",
-    "status_label": "状态",
-    "status_fast": "正在使用快速引擎",
-    "status_legacy": "正在使用传统引擎",
-    "status_not_applied": "未生效",
-    "pending": "有未保存的更改",
-    "discard": "放弃",
-    "toast_fast": "已开启快速引擎。",
-    "toast_legacy": "已开启传统引擎。",
-    "toast_failed": "无法切换调制解调器命令引擎。"
-  },
   "host_at": {
     "card_title": "主机 AT 端口",
     "card_description": "通过 USB 或 PCIe 连接的计算机的 AT 访问权限。",

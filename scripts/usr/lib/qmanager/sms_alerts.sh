@@ -15,7 +15,7 @@
 # Config:  /etc/qmanager/sms_alerts.json
 # Log:     /tmp/qmanager_sms_log.json (NDJSON, max 100 entries)
 # Reload:  /tmp/qmanager_sms_reload
-# Lock:    /var/lock/qmanager.lock (shared with qcmd/atcli_smd11)
+# Lock:    /var/lock/qmanager.lock (shared with qcmd, the AT broker)
 # =============================================================================
 
 [ -n "$_SMS_ALERTS_LOADED" ] && return 0
@@ -29,7 +29,7 @@ _SMS_ALERTS_LOADED=1
 _SA_CONFIG="/etc/qmanager/sms_alerts.json"
 _SA_LOG_FILE="/tmp/qmanager_sms_log.json"
 _SA_RELOAD_FLAG="/tmp/qmanager_sms_reload"
-# Shared with qcmd/atcli_smd11 so sms_tool send/recv/delete/status
+# Shared with qcmd (the AT broker) so sms_tool send/recv/delete/status
 # serializes against every other process touching /dev/smd11.
 _SA_LOCK_FILE="/var/lock/qmanager.lock"
 _SA_SMS_TOOL="/usr/bin/sms_tool"

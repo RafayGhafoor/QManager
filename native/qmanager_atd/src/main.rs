@@ -3,8 +3,8 @@
 //! Invoked as `qmanager_atd` (or `--daemon`): run the broker — own /dev/smd11,
 //! serve one request per unix-socket connection, serialised by the modem lock.
 //!
-//! Invoked as `qcmd` (argv[0] basename, or `--qcmd`): behave exactly like the
-//! legacy shell qcmd. Try the broker socket first; if it is absent or errors at
+//! Invoked as `qcmd` (argv[0] basename; any name without "atd"): behave
+//! exactly like the original shell qcmd. Try the broker socket first; if it is absent or errors at
 //! the transport level, fall back to running the exchange in-process (same
 //! code the daemon runs), so AT never depends on the daemon being up.
 //!

@@ -1,12 +1,12 @@
-# AT Broker (`qmanager_atd`), the AT Engine Switch, and Host AT Ports
+# AT Broker (`qmanager_atd`) and Host AT Ports
 
-Every AT command QManager sends reaches the modem through `/usr/bin/qcmd`.
-That path is now served by a persistent Rust AT broker by default, with
-the original shell gatekeeper kept as a switchable fallback. A
-separate, unrelated-in-speed toggle turns the vendor host AT bridge on or off.
+Every AT command QManager sends reaches the modem through `/usr/bin/qcmd`,
+which is a symlink to the persistent Rust AT broker `qmanager_atd`. It is the
+only AT path: the original shell gatekeeper and its `atcli_smd11` helper were
+removed on 2026-10-16. A separate, unrelated-in-speed toggle turns the vendor
+host AT bridge on or off.
 
-**UI:** System Settings: Modem Commands card (Fast / Legacy) and
-Host AT Ports card (On / Off).
+**UI:** System Settings: Host AT Ports card (On / Off).
 **Source:** `native/qmanager_atd/` (Rust crate). The prebuilt binary is
 `dependencies/qmanager_atd`. The build recipe is in `dependencies/README.md`.
 
@@ -16,7 +16,6 @@ Host AT Ports card (On / Off).
 - [The output contract is frozen](#the-output-contract-is-frozen)
 - [How an exchange works](#how-an-exchange-works)
 - [Invariants (and why they exist)](#invariants-and-why-they-exist)
-- [Engine switch (`quecmanager.at.engine`)](#engine-switch-quecmanageratengine)
 - [Host AT ports (`quecmanager.ports.host_at`)](#host-at-ports-quecmanagerportshost_at)
 - [Lifecycle](#lifecycle)
 - [Validated on the RM551E](#validated-on-the-rm551e-2026-10-16)
@@ -27,18 +26,17 @@ Host AT Ports card (On / Off).
 | Piece | Path | Role |
 |---|---|---|
 | Rust multicall binary | `/usr/bin/qmanager_atd` | Run as `qmanager_atd` (or `--daemon`): it is the broker. Invoked through the `qcmd` name: it is the client. |
-| `qcmd` | `/usr/bin/qcmd` | A **symlink**, repointed atomically by `at_engine.sh`. It points to `qmanager_atd` (broker, the default) or to `qcmd.sh` (legacy). |
-| Legacy gatekeeper | `/usr/bin/qcmd.sh` | The original shell `qcmd`, renamed. Kept for rollback. |
+| `qcmd` | `/usr/bin/qcmd` | A **symlink** to `qmanager_atd`, always. `install.sh` creates it and `/etc/init.d/qmanager_atd` re-asserts it at every broker start (`at_qcmd_link`). |
 | Broker socket | `/var/run/qmanager_atd.sock` | `0600` root. One request per connection. |
-| Engine and port library | `/usr/lib/qmanager/at_engine.sh` | Selects the engine, swaps the link, and reconciles port-bridge state. |
+| Link and port library | `/usr/lib/qmanager/at_engine.sh` | `at_qcmd_link` (idempotent atomic repoint of `qcmd`), `at_broker_available`, `at_broker_running`, and the `host_at_*` port-bridge functions. The filename is historical. |
 | Boot service | `/etc/init.d/qmanager_atd` | procd, `START=98` (before the poller at 99), `STOP=11`. |
-| CGIs | `system/at_engine.sh`, `system/host_at_ports.sh` | Both GET and POST. See `docs/API-REFERENCE.md`. |
-| Hooks and types | `use-at-engine.ts`, `use-host-at-ports.ts`, `types/at-engine.ts` | Pessimistic: state is taken from the POST read-back, never flipped locally. |
+| CGI | `system/host_at_ports.sh` | GET and POST. See `docs/API-REFERENCE.md`. |
+| Hook and types | `use-host-at-ports.ts`, `types/at-engine.ts` (host-AT-port types only) | Pessimistic: state is taken from the POST read-back, never flipped locally. |
 
 ## The output contract is frozen
 
-The broker reproduces legacy `qcmd` exactly, because about 50 callers parse
-its output. The on-device parity suite (18 commands) checks it, and so do the
+The broker reproduces the original shell `qcmd` exactly, because about 50
+callers parse its output. The on-device parity suite (18 commands) checks it, and so do the
 crate's unit tests:
 
 - **Raw mode:** atcli's bytes with all trailing `\n` stripped, then one `\n`
@@ -65,7 +63,7 @@ crate's unit tests:
     `/etc/qmanager/long_commands.list`) set `/tmp/qmanager_long_running` and
     run an `AT` warm-up first.
   - While that flag exists, short commands fast-reject with `scan_in_progress`.
-  - The classification matches `qcmd.sh` exactly (case-sensitive substring).
+  - The classification matches the original shell `qcmd` exactly (case-sensitive substring).
 
 ## How an exchange works
 
@@ -84,16 +82,16 @@ there is a single behaviour, not two:
      (`peer_gone`), so it never runs. Once reply bytes start arriving the
      client takes the reply instead. Long commands do not watch.
 2. **`flock` on `/var/lock/qmanager.lock`.** This uses the same 100 ms grain
-   and the same 5 s (short) / 10 s (long) budgets as `qcmd.sh`. It is also why
+   and the same 5 s (short) / 10 s (long) budgets as the original shell `qcmd`. It is also why
    `sms_tool`, which opens `/dev/smd11` directly under this lock, keeps working.
    - The broker serves one request at a time, so waiting in its accept queue
      *is* waiting for the modem. Each request carries its send time
      (`CLOCK_MONOTONIC`), and the queue time is taken off the lock budget: a
-     caller never waits longer in total than `qcmd.sh` would have, and a
+     caller never waits longer in total than the original shell `qcmd` did, and a
      request already past its budget answers `modem_busy` without running.
    - A request whose caller has gone (killed by a CGI timeout or a `timeout`
      wrapper while queued, seen as `POLLHUP`) is dropped, not run, like a
-     legacy `qcmd` killed while waiting for the lock.
+     shell `qcmd` killed while waiting for the lock.
 3. **Zero-wait drain** of anything stale in the channel, such as a late reply
    or a URC. Drained bytes are logged, never returned.
 4. **Write** the command plus `\r\n`.
@@ -107,7 +105,7 @@ there is a single behaviour, not two:
 **After a timeout,** the channel is marked dirty. Before its next use the
 broker proves the channel is back in step (`AT` → `OK`), reopens it if
 necessary, and otherwise returns `modem_not_ready`. A late reply can therefore
-never leak into the next caller's output, which legacy `qcmd` could not
+never leak into the next caller's output, which the original shell `qcmd` could not
 guarantee.
 
 **After an I/O error or EOF** on the channel, the fd is closed and the
@@ -176,40 +174,24 @@ refused, not executed.
     `O_EXCL`.
   - Paths are unchanged, so other scripts keep reading them.
 - **A stale long flag is cleared at broker start.** A broker killed during a
-  scan (engine switch, `kill`) leaves `/tmp/qmanager_long_running` behind, and
+  scan (`kill`, upgrade restart) leaves `/tmp/qmanager_long_running` behind, and
   every short command would answer `scan_in_progress` until the main service
   restarts. On start the broker removes the flag only if it is at least 15 s
-  old **and** the modem lock is free: `qcmd.sh` writes the flag *before* it
-  waits (up to 10 s) for the lock, so a younger flag may belong to a live
-  legacy caller.
+  old **and** the modem lock is free. The in-process fallback client runs the
+  same `Executor`, which writes the flag right after it takes the lock, so a
+  live holder is normally caught by the lock check alone; the 15 s age floor
+  is extra margin against clearing the flag of a caller that has only just
+  started a long command.
 - **Log lines match `qlog.sh`.**
   - Format: `[YYYY-MM-DD HH:MM:SS] LEVEL [component:pid] msg`, with the same
     256 KB / 2-file rotation.
   - Static musl only honours `$TZ`, so the broker loads OpenWrt's `/etc/TZ`
     itself; without that, its lines would be stamped UTC.
 - **`/usr/bin/qcmd` is never written through.**
-  - The engine switch uses a temp symlink plus `rename(2)`, never `ln -sf`,
-    which would leave a moment with no `qcmd` at all.
-  - The legacy script is `qcmd.sh`, so `install_backend` never copies a file
-    named `qcmd` over the link.
+  - `at_qcmd_link` uses a temp symlink plus `rename(2)`, never `ln -sf`,
+    which would leave a moment with no `qcmd` at all. It is idempotent, so
+    re-asserting it at every broker start is harmless.
   - `cleanup_legacy_scripts` skips `qmanager_atd` and `qcmd` explicitly.
-
-## Engine switch (`quecmanager.at.engine`)
-
-- `broker` is the default; `legacy` is the alternative. `install.sh` seeds
-  `broker` and preserves an existing choice on upgrade.
-- **Apply** (`system/at_engine.sh` POST):
-  1. Save to UCI.
-  2. Repoint the link.
-  3. Restart the init service. Its `start_service` opens no procd instance for
-     legacy, so the daemon stops.
-- During a broker→legacy switch, callers move to `qcmd.sh` before the daemon
-  stops. Both engines serialise on the same lock in the meantime, so nothing
-  races.
-- **Boot:** `qmanager_atd` `start_service` re-runs `at_engine_link`, so the
-  link always matches UCI.
-- The service has no procd reload trigger on purpose: many CGIs commit
-  `quecmanager`.
 
 ## Host AT ports (`quecmanager.ports.host_at`)
 
@@ -243,15 +225,29 @@ uses them; its path is `/dev/smd11`.
 Every path goes through `install.sh`; the OTA updater runs it too.
 
 **`install.sh`:**
-1. `install_bundled_binaries` installs `qmanager_atd`.
-2. `seed_uci_defaults` seeds `at.engine` and `ports.host_at`, then runs
-   `at_engine_link`.
+1. `install_bundled_binaries` installs `sms_tool` and `qmanager_atd` only, and
+   removes any leftover `qcmd.sh` / `atcli_smd11`.
+2. `seed_uci_defaults` seeds `ports.host_at` (no `at.engine`). On upgrade it
+   deletes the retired `quecmanager.at` section, so a device that had chosen
+   Legacy moves to the broker. It then runs `at_qcmd_link`.
 3. `start_services` starts `qmanager_atd` before the main service.
 4. `stop_services` already stops and kills `qmanager_*`.
+5. Firmware detection and the install smoke test run the client through
+   `run_atd_qcmd`, a temporary symlink named `qcmd` pointing at
+   `qmanager_atd`. Mode comes from argv[0] only: running `qmanager_atd`
+   under its own name (with any arguments) starts a **second daemon** that
+   takes over the socket, so never invoke it that way for a command. Detection
+   keeps the status-cache fallback (an old broker still running during an
+   upgrade refuses the new client's request).
+
+`/etc/init.d/qmanager_atd` `start_service` always re-asserts the `qcmd` link,
+applies the host AT port setting, then starts the broker. It has no engine
+check. It has no procd reload trigger on purpose: many CGIs commit
+`quecmanager`.
 
 **`uninstall.sh`** restores host AT ports if needed, then removes:
 - the `qcmd` link (dangling-safe, via `-L`);
-- `qcmd.sh` and `qmanager_atd`;
+- `qmanager_atd`, plus leftover `qcmd.sh` and `atcli_smd11` from old installs;
 - the socket and init script.
 
 **`build.sh`** requires and packages `dependencies/qmanager_atd`.
@@ -259,7 +255,7 @@ Every path goes through `install.sh`; the OTA updater runs it too.
 
 ## Validated on the RM551E (2026-10-16)
 
-- **Output parity:** 18/18 against legacy `qcmd`, both in-process and through
+- **Output parity:** 18/18 against the then-shipping legacy `qcmd`, both in-process and through
   the daemon.
   - Static commands are byte-identical, including `AT+FOOBAR` → `ERROR` rc 0.
   - Live commands are framing-identical.
@@ -271,8 +267,8 @@ Every path goes through `install.sh`; the OTA updater runs it too.
 - **procd** respawns the broker after `kill -9`.
 - **Load:** the poller, watchcat and CGIs ran through the broker with zero
   AT or lock errors.
-- **Switches:** engine broker → legacy → broker and host-AT off → on
-  round-trip; invalid input is rejected.
+- **Switches:** engine broker → legacy → broker (switch since removed) and
+  host-AT off → on round-trip; invalid input is rejected.
 
 **Error-handling hardening (2026-10-16, same day):** a review found six gaps,
 all fixed and re-validated on the RM551E:
@@ -316,13 +312,15 @@ through the broker, behind a 3 s lock hold so a short call queued behind it:
   live. One SSR in two scans, matching the crash seen without a scan at 14:46,
   so there is no evidence QSCAN itself causes it.
 
+**Legacy engine removed (2026-10-16):** `qcmd.sh`, `atcli_smd11` and the
+engine switch (CGI, Modem Commands card, hook, `quecmanager.at.engine`) were
+deleted. The broker is the only AT path.
+
 **Not exercised on the device:** a forced timeout and resync, and the
 frozen-broker restart (it needs a broker stuck for 340 s while every AT call
 waits). Both are covered by the crate's tests.
 
 ## Rollback
 
-- **One setting:** Modem Commands → Legacy, or
-  `uci set quecmanager.at.engine=legacy; uci commit quecmanager; /etc/init.d/qmanager_atd restart`.
-- `atcli_smd11` and `qcmd.sh` still ship, so the legacy engine is the exact
-  pre-broker path.
+There is no runtime switch. To go back to a pre-broker AT path, revert to a
+previous release through Software Update or reinstall it.

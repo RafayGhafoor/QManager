@@ -12,8 +12,10 @@
 #
 # What it removes:
 #   - All init.d qmanager* services (stops, disables, deletes)
-#   - All qmanager_* daemons (incl. the qmanager_atd AT broker) + qcmd link + qcmd.sh + atcli_smd11 + sms_tool + nfqws
-#     + legacy cleanup of the retired WebSocket bandwidth monitor
+#   - All qmanager_* daemons (incl. the qmanager_atd AT broker) + the qcmd
+#     symlink to it + sms_tool + nfqws
+#     + legacy cleanup of the retired shell AT engine (qcmd.sh, atcli_smd11)
+#       and of the retired WebSocket bandwidth monitor
 #       (bridge_traffic_monitor_rm551 binary, websocat process) on older devices
 #   - /usr/lib/qmanager/ (entire tree)
 #   - /www/cgi-bin/quecmanager/ (entire tree)
@@ -191,7 +193,7 @@ confirm_uninstall() {
     printf "    ${DIM}${ICO_STEP}${NC}  Frontend files in %s\n" "$WWW_ROOT"
     printf "    ${DIM}${ICO_STEP}${NC}  CGI endpoints in %s\n" "$CGI_DIR"
     printf "    ${DIM}${ICO_STEP}${NC}  Libraries in %s\n" "$LIB_DIR"
-    printf "    ${DIM}${ICO_STEP}${NC}  Daemons: %s/qmanager_*, qcmd, atcli_smd11, sms_tool\n" "$BIN_DIR"
+    printf "    ${DIM}${ICO_STEP}${NC}  Daemons: %s/qmanager_*, qcmd, sms_tool\n" "$BIN_DIR"
     printf "    ${DIM}${ICO_STEP}${NC}  Init.d services: %s/qmanager*\n" "$INITD_DIR"
     printf "    ${DIM}${ICO_STEP}${NC}  Runtime state in /tmp\n"
     printf "    ${DIM}${ICO_STEP}${NC}  UCI config (quecmanager.*)\n"
@@ -288,8 +290,8 @@ remove_backend() {
     # --- Binaries in /usr/bin/ ---
     local bin_count=0
 
-    # /usr/bin/qcmd is a symlink to qmanager_atd or qcmd.sh; -L also catches a
-    # dangling link whose target is already gone.
+    # /usr/bin/qcmd is a symlink to qmanager_atd; -L also catches a dangling
+    # link whose target is already gone.
     if [ -f "$BIN_DIR/qcmd" ] || [ -L "$BIN_DIR/qcmd" ]; then
         rm -f "$BIN_DIR/qcmd"
         bin_count=$(( bin_count + 1 ))
@@ -302,6 +304,8 @@ remove_backend() {
         bin_count=$(( bin_count + 1 ))
     done
 
+    # qcmd.sh + atcli_smd11: the retired shell AT engine, left on devices that
+    # never ran a newer installer.
     for extra in qcmd.sh atcli_smd11 sms_tool bridge_traffic_monitor_rm551 nfqws; do
         if [ -f "$BIN_DIR/$extra" ]; then
             rm -f "$BIN_DIR/$extra"
@@ -634,7 +638,7 @@ What is removed:
   /www/              Frontend files (original index.html restored if backed up)
   /www/cgi-bin/      QManager CGI endpoints
   /usr/lib/qmanager/ Shared libraries
-  /usr/bin/          qcmd, atcli_smd11, sms_tool, qmanager_* daemons
+  /usr/bin/          qcmd, sms_tool, qmanager_* daemons
   /etc/init.d/       qmanager* service scripts (stopped + disabled)
   /tmp/              Runtime JSON, logs, sessions, lock/PID files
   UCI                quecmanager.* config namespace

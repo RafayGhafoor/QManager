@@ -6,7 +6,6 @@ import SystemSettingsCard from "@/components/system-settings/system-settings-car
 import ScheduledOperationsCard from "@/components/system-settings/scheduled-operations-card";
 import DiagnosticsCard from "@/components/system-settings/diagnostics/diagnostics-card";
 import IpaOffloadCard from "@/components/system-settings/ipa-offload/ipa-offload-card";
-import AtEngineCard from "@/components/system-settings/at-engine/at-engine-card";
 import HostAtPortsCard from "@/components/system-settings/at-engine/host-at-ports-card";
 
 const SystemSettings = () => {
@@ -22,7 +21,6 @@ const SystemSettings = () => {
         <SystemSettingsCard {...hookData} />
         <ScheduledOperationsCard {...hookData} />
         <IpaOffloadCard />
-        <AtEngineCard />
         <HostAtPortsCard />
         <DiagnosticsCard />
       </div>

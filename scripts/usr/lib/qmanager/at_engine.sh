@@ -1,15 +1,15 @@
 #!/bin/sh
 # =============================================================================
-# at_engine.sh — AT engine selection + host AT port (port-bridge) control
+# at_engine.sh — qcmd link + host AT port (port-bridge) control
 # =============================================================================
-# Sourced by /etc/init.d/qmanager_atd, system/at_engine.sh and
-# system/host_at_ports.sh. See docs/features/at-broker.md.
+# Sourced by /etc/init.d/qmanager_atd, system/host_at_ports.sh and install.sh.
+# See docs/features/at-broker.md.
 #
-# AT engine (UCI quecmanager.at.engine = broker | legacy, default broker):
-#   /usr/bin/qcmd is a SYMLINK. broker -> qmanager_atd (Rust client that talks
-#   to the broker socket and falls back to an in-process exchange when the
-#   daemon is down). legacy -> qcmd.sh (the original shell gatekeeper). Both
-#   keep the identical output contract, so callers never notice the switch.
+# qcmd: /usr/bin/qcmd is a SYMLINK to qmanager_atd, the Rust AT broker. The
+#   binary is multicall: run as qcmd it acts as the client, talking to the
+#   broker socket and falling back to an in-process exchange when the daemon
+#   is down, so AT keeps working without the daemon. The output contract is
+#   the one every caller has always parsed (echo + body + OK).
 #
 # Host AT ports (UCI quecmanager.ports.host_at = 1 | 0, default 1):
 #   The vendor port-bridged service relays the USB/PCIe host AT ports into the
@@ -25,20 +25,11 @@
 _AT_ENGINE_LOADED=1
 
 ATE_BROKER_BIN="/usr/bin/qmanager_atd"
-ATE_LEGACY_BIN="/usr/bin/qcmd.sh"
 ATE_LINK="/usr/bin/qcmd"
 ATE_SOCK="/var/run/qmanager_atd.sock"
 PB_INIT="/etc/init.d/port-bridged"
 
-# --- AT engine ---------------------------------------------------------------
-
-# Configured engine: "broker" (default) or "legacy".
-at_engine_get() {
-    case "$(uci -q get quecmanager.at.engine)" in
-        legacy) echo "legacy" ;;
-        *)      echo "broker" ;;
-    esac
-}
+# --- qcmd link ---------------------------------------------------------------
 
 at_broker_available() {
     [ -x "$ATE_BROKER_BIN" ]
@@ -48,17 +39,9 @@ at_broker_running() {
     [ -S "$ATE_SOCK" ] && pidof qmanager_atd >/dev/null 2>&1
 }
 
-# Engine actually in effect, read from where the link points.
-at_engine_effective() {
-    case "$(readlink "$ATE_LINK" 2>/dev/null)" in
-        *qmanager_atd) echo "broker" ;;
-        *qcmd.sh)      echo "legacy" ;;
-        *)             echo "unknown" ;;
-    esac
-}
-
 # Atomically repoint /usr/bin/qcmd. ln -sf would unlink then create, leaving a
-# moment with no qcmd at all; a temp link + rename(2) never does.
+# moment with no qcmd at all; a temp link + rename(2) never does. The rename
+# also replaces a regular file an old install left at that path.
 _ate_link_to() {
     _ate_tmp="/usr/bin/.qcmd.$$"
     rm -f "$_ate_tmp"
@@ -70,18 +53,10 @@ _ate_link_to() {
     return 0
 }
 
-# Point /usr/bin/qcmd at the configured engine. Falls back to whichever engine
-# is installed if the configured one is missing. Idempotent.
-at_engine_link() {
-    if [ "$(at_engine_get)" = "broker" ] && at_broker_available; then
-        _ate_target="qmanager_atd"
-    elif [ -f "$ATE_LEGACY_BIN" ]; then
-        _ate_target="qcmd.sh"
-    else
-        _ate_target="qmanager_atd"
-    fi
-    [ "$(readlink "$ATE_LINK" 2>/dev/null)" = "$_ate_target" ] && return 0
-    _ate_link_to "$_ate_target"
+# Point /usr/bin/qcmd at qmanager_atd. Idempotent.
+at_qcmd_link() {
+    [ -L "$ATE_LINK" ] && [ "$(readlink "$ATE_LINK" 2>/dev/null)" = "qmanager_atd" ] && return 0
+    _ate_link_to "qmanager_atd"
 }
 
 # --- Host AT ports (port-bridge) ---------------------------------------------

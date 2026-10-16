@@ -44,9 +44,9 @@ cgi_headers
 cgi_handle_options
 
 # --- Shared AT lock ----------------------------------------------------------
-# Shared with qcmd/atcli_smd11 so sms_tool calls serialize against every other
-# process touching /dev/smd11. Without this, an inbox fetch can collide with a
-# concurrent atcli_smd11 call from the poller/watchcat and either block on the
+# Shared with qcmd (the AT broker) so sms_tool calls serialize against every
+# other process touching /dev/smd11. Without this, an inbox fetch can collide
+# with a concurrent qcmd call from the poller/watchcat and either block on the
 # char device or return interleaved data.
 _SMS_LOCK_FILE="/var/lock/qmanager.lock"
 _SMS_LOCK_WAIT=10
@@ -69,7 +69,7 @@ _sms_flock_wait() {
 
 # --- sms_tool wrapper --------------------------------------------------------
 # Always talks to /dev/smd11. Wrapped in the shared /var/lock/qmanager.lock so
-# every call serializes against qcmd/atcli_smd11.
+# every call serializes against qcmd (the AT broker).
 #
 # sms_tool writes harmless tcgetattr/tcsetattr diagnostics to stderr because
 # /dev/smd11 is a char device, not a real TTY. We MUST NOT merge stderr into

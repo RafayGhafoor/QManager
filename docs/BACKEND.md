@@ -57,7 +57,7 @@ All modem communication goes through `qcmd`:
 result=$(qcmd 'AT+QENG="servingcell"')
 ```
 
-Never access the modem's AT channel directly. `qcmd` is served by the Rust AT broker (`qmanager_atd`) by default, with the legacy shell gatekeeper (`qcmd.sh`) behind a switch; both have the same output contract. See [`docs/features/at-broker.md`](features/at-broker.md).
+Never access the modem's AT channel directly. `qcmd` is served by the Rust AT broker (`qmanager_atd`), the only AT path; its output contract is the one the original shell `qcmd` had. See [`docs/features/at-broker.md`](features/at-broker.md).
 
 ### Temperature: sysfs only — never AT+QTEMP
 
@@ -285,7 +285,7 @@ SMS channel transport library (sourced by poller; downtime detection now lives i
 - Config management (`/etc/qmanager/sms_alerts.json`; recipient stored as raw digits, no leading `+`)
 - `sms_alert_emit <event> <secs>` — builds and sends via `sms_tool`; returns `2` (not ready to retry) when `_sa_is_registered()` fails rather than attempting a send
 - `_sa_is_registered()` short-circuits on `conn_internet_available=true` so the recovery branch is never blocked by stale `lte_state`/`nr_state`
-- `sms_tool send` runs under the shared `/var/lock/qmanager.lock` so it serializes against `qcmd`/`atcli_smd11`
+- `sms_tool send` runs under the shared `/var/lock/qmanager.lock` so it serializes against `qcmd` (the AT broker)
 - Test-send helper for CGI (`send_test` action)
 - Log writing to `/tmp/qmanager_sms_log.json`
 - Failures are logged via `qlog_error` (full context: `modem_reachable`, `lte_state`, `nr_state`, `conn`, and the cleaned `sms_tool` stderr). No breadcrumb file.
@@ -550,7 +550,7 @@ Manages up to two nfqws instances for DPI evasion. Each instance runs on its own
 
 ### qcmd
 
-AT command entry point. `/usr/bin/qcmd` is a symlink to `qmanager_atd` (the Rust broker client: talks to `/var/run/qmanager_atd.sock`, falls back to an in-process exchange if the daemon is down) or to `qcmd.sh` (legacy), selected by `quecmanager.at.engine`. Both take `/var/lock/qmanager.lock`, enforce per-command deadlines, and print identical output. See [`docs/features/at-broker.md`](features/at-broker.md).
+AT command entry point. `/usr/bin/qcmd` is a symlink to `qmanager_atd` (the Rust broker client: talks to `/var/run/qmanager_atd.sock`, falls back to an in-process exchange if the daemon is down) always. It takes `/var/lock/qmanager.lock`, enforce per-command deadlines, and print identical output. See [`docs/features/at-broker.md`](features/at-broker.md).
 
 ```sh
 result=$(qcmd 'AT+QENG="servingcell"')
