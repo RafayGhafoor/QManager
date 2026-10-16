@@ -688,7 +688,7 @@ The page is the RM520N fork's **compact bento with per-card saves** (ledger U4.6
 | File | Purpose |
 |---|---|
 | `hooks/use-watchdog-settings.ts` | Fetch (30 s poll) + save + SIM revert. `WatchdogSettings` folds the GET's `interval_sec` in as `probe_interval`. `saveSettings` RETURNS `WatchdogSaveResult { ok, message, field }` (the reason through `resolveErrorMessage`, CGI `reason` as detail), so toasts never read stale hook `error` state. Live state is not surfaced here. |
-| `hooks/use-modem-status.ts` | Poller snapshot (5 s on this page) for `watchcat`, `sim_failover` and `connectivity.latency_history`. Gained `receivedAtMs` (browser clock at arrival) for the grace gate. |
+| `hooks/use-modem-status.ts` | Poller snapshot (5 s on this page) for `watchcat`, `sim_failover` and `connectivity.latency_history`. Its `receivedAtMs` (browser clock at arrival) feeds the grace gate. |
 | `components/monitoring/watchdog/watchdog.tsx` | Page coordinator and the three data states: skeletons from `shapes.ts`, a destructive condition block with Retry when the settings read fails, the surface |
 | `components/monitoring/watchdog/derive.ts` | The one derived model: `derivePhase` (12 phases: the daemon's 7 states, including the target-only `ssr_hold`, plus `off` / `unknown` / `starting` / `not_running` / `auto_disabled`), `deriveBand`, `deriveStrip`, `deriveTimeline`, `useTimeAgo`, `useGraceGate` |
 | `components/monitoring/watchdog/shapes.ts` | Geometry and tone contract; skeletons import the same constants |
