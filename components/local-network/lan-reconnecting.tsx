@@ -5,8 +5,8 @@ import { ExternalLinkIcon, TriangleAlertIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { EASE_STANDARD, EASE_QUICK, DUR } from "@/lib/motion";
+import { useMotionReduced } from "@/components/motion-preference";
+import { EASE_STANDARD, EASE_QUICK, DUR, STAGGER_STEP } from "@/lib/motion";
 
 // =============================================================================
 // LanReconnecting — post-apply reconnect probe for the LAN address editor
@@ -73,6 +73,7 @@ export function LanReconnecting({
   carrierBounce,
 }: LanReconnectingProps) {
   const { t } = useTranslation("local-network");
+  const reduceMotion = useMotionReduced();
 
   // A real change bounces the carrier (modem floor +8s, gateway ~+11–18s), so we
   // grace 8s and ride the backend's 30s window. A no-op only blips for the
@@ -172,7 +173,7 @@ export function LanReconnecting({
   const addressLink = (
     <a
       href={url}
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline underline-offset-4 tabular-nums"
+      className="inline-flex items-center gap-1.5 font-mono text-[0.8125rem] font-medium underline underline-offset-4"
     >
       <ExternalLinkIcon className="size-3.5" />
       {url}
@@ -197,11 +198,23 @@ export function LanReconnecting({
             exit={{ opacity: 0 }}
             transition={{ duration: DUR.quick, ease: EASE_QUICK }}
           >
-            <Alert variant="warning">
-              <TriangleAlertIcon />
-              <AlertTitle>{t("lan_config.applied_title")}</AlertTitle>
-              <AlertDescription>
-                <p>
+            {/* Solid tonal container with its glyph on the strong fill: a 10%
+                wash collapses in dark mode and in sunlight. */}
+            <div
+              role="alert"
+              className="animate-banner-in flex items-start gap-3 rounded-field bg-warning-container p-4 text-on-warning-container"
+            >
+              <span
+                aria-hidden="true"
+                className="grid size-8 flex-none place-items-center rounded-pill bg-warning text-warning-foreground"
+              >
+                <TriangleAlertIcon className="size-4" />
+              </span>
+              <div className="flex min-w-0 flex-col gap-1.5 break-words">
+                <p className="text-sm font-semibold">
+                  {t("lan_config.applied_title")}
+                </p>
+                <p className="text-sm">
                   {t(
                     carrierBounce
                       ? "lan_config.applied_body_auto"
@@ -210,8 +223,8 @@ export function LanReconnecting({
                   )}
                 </p>
                 {addressLink}
-              </AlertDescription>
-            </Alert>
+              </div>
+            </div>
           </motion.div>
         ) : (
           // --- Active: progress ring while we grace + probe the new address -----
@@ -245,7 +258,7 @@ export function LanReconnecting({
                   cy={RING_SIZE / 2}
                   r={RING_RADIUS}
                   fill="none"
-                  className="stroke-muted/20"
+                  className="stroke-surface-container-high"
                   strokeWidth={RING_STROKE}
                 />
                 <circle
@@ -258,10 +271,11 @@ export function LanReconnecting({
                   strokeDasharray={RING_CIRCUMFERENCE}
                   strokeDashoffset={phase === "opening" ? 0 : dashOffset}
                   strokeLinecap="round"
+                  // Linear over the 1s tick it tracks: the ring is a clock, not a gesture.
                   style={{
-                    transition: "stroke-dashoffset 1s linear",
-                    filter:
-                      "drop-shadow(0 0 6px color-mix(in oklch, var(--primary) 30%, transparent))",
+                    transition: reduceMotion
+                      ? "none"
+                      : "stroke-dashoffset 1s linear",
                   }}
                 />
               </svg>
@@ -273,26 +287,31 @@ export function LanReconnecting({
                 {[0, 1, 2].map((i) => (
                   <motion.span
                     key={i}
-                    className="size-2 rounded-full bg-primary"
-                    animate={{ opacity: [0.25, 1, 0.25] }}
-                    transition={{
-                      duration: 1.05,
-                      ease: "easeInOut",
-                      repeat: Infinity,
-                      delay: i * 0.18,
-                    }}
+                    className="size-2 rounded-pill bg-primary"
+                    animate={reduceMotion ? { opacity: 1 } : { opacity: [0.25, 1, 0.25] }}
+                    transition={
+                      reduceMotion
+                        ? { duration: 0 }
+                        : {
+                            duration: DUR.emphasized,
+                            ease: EASE_STANDARD,
+                            repeat: Infinity,
+                            repeatDelay: DUR.quick,
+                            delay: i * STAGGER_STEP,
+                          }
+                    }
                   />
                 ))}
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <p className="text-[15px] font-medium text-foreground">
+              <p className="text-base font-semibold text-on-surface">
                 {phase === "opening"
                   ? t("lan_config.reconnecting_opening")
                   : t("lan_config.reconnecting_title")}
               </p>
-              <p className="mx-auto max-w-prose text-[13px] text-muted-foreground">
+              <p className="mx-auto max-w-prose text-sm text-on-surface-variant">
                 {t("lan_config.reconnecting_auto_note")}
               </p>
             </div>

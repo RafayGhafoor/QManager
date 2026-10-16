@@ -109,6 +109,14 @@ function validateHost(ip: string, prefix: number): string | null {
   return null;
 }
 
+// The canon card shell, restated per family (never imported across families).
+// The important marker is required: twMerge reads an arbitrary shadow as a colour.
+const CARD_SHELL =
+  "@container/card gap-5 rounded-card border-0 bg-card py-6 shadow-[var(--shadow-whisper)]!";
+const CARD_TITLE = "min-w-0 text-lg leading-tight";
+/** `CardDescription` hardcodes a retired ink token, so every call site re-inks it. */
+const CARD_DESC = "text-on-surface-variant text-sm";
+
 const LanConfigCard = () => {
   const { t } = useTranslation("local-network");
   const { t: tErrors } = useTranslation("errors");
@@ -169,12 +177,12 @@ const LanConfigCard = () => {
   // --- Loading skeleton -------------------------------------------------------
   if (isLoading) {
     return (
-      <Card className="@container/card">
-        <CardHeader>
-          <CardTitle>{t("lan_config.card_title")}</CardTitle>
-          <CardDescription>{t("lan_config.card_description")}</CardDescription>
+      <Card className={CARD_SHELL}>
+        <CardHeader className="px-6">
+          <CardTitle className={CARD_TITLE}>{t("lan_config.card_title")}</CardTitle>
+          <CardDescription className={CARD_DESC}>{t("lan_config.card_description")}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-6">
           <div className="grid gap-6">
             <div className="grid gap-2">
               <Skeleton className="h-3 w-24" />
@@ -200,12 +208,12 @@ const LanConfigCard = () => {
 
   // --- Unified render (reconnect countdown + normal form, crossfaded) ---------
   return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardTitle>{t("lan_config.card_title")}</CardTitle>
-        <CardDescription>{t("lan_config.card_description")}</CardDescription>
+    <Card className={CARD_SHELL}>
+      <CardHeader className="px-6">
+        <CardTitle className={CARD_TITLE}>{t("lan_config.card_title")}</CardTitle>
+        <CardDescription className={CARD_DESC}>{t("lan_config.card_description")}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-6">
         <AnimatePresence mode="wait" initial={false}>
           {applied ? (
             <LanReconnecting
@@ -247,7 +255,7 @@ const LanConfigCard = () => {
                         onChange={(e) => setIpInput(e.target.value.trim())}
                         disabled={isSaving}
                         aria-invalid={ipInput !== "" && !isValid}
-                        className="tabular-nums max-w-xs"
+                        className="max-w-xs font-mono text-[0.8125rem]"
                       />
                       <FieldDescription>
                         {ipInput !== "" && validationKey ? (
@@ -286,7 +294,7 @@ const LanConfigCard = () => {
                               value={String(p)}
                               className="tabular-nums"
                             >
-                              /{p} · {prefixToNetmask(p)}
+                              /{p} ({prefixToNetmask(p)})
                             </SelectItem>
                           ))}
                         </SelectContent>
