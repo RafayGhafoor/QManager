@@ -5,6 +5,7 @@ v0.1.32 is in progress, headlined by a much faster connection to the modem: ever
 ## ✨ New Features
 
 - **Modem commands are about 100× faster.** Each command to the modem now takes about 10 ms instead of about 1 s. Two changes add up: commands release the modem the moment they finish, and QManager now keeps one connection to the modem open instead of starting several helper programs for every command (a further 5× on its own). Pages and background services no longer queue behind each other, a modem that stops answering can no longer leave everything waiting for minutes, and a late answer can no longer show up in the wrong place. It also picks itself back up when the modem restarts, never sends the same command twice, and answers at once while a cell scan is running instead of waiting for the scan to finish.
+- **New System Health Check.** **System Settings → System Health Check** tests every part of QManager on your modem in about ten seconds, from the modem connection and background services to the firewall and your settings files, and lists anything that failed or needs attention first. It changes nothing on the device, and you can download a support bundle with your IMEI, passwords, phone numbers and email addresses removed.
 - **New Host AT Ports setting.** **System Settings → Host AT Ports** stops a computer connected over USB or PCIe from sending AT commands to the modem. It's on by default, matching stock firmware.
 
 ## ✅ Improvements

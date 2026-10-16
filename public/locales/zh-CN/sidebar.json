@@ -45,6 +45,7 @@
     "connection_quality": "连接质量",
     "adaptive_polling": "自适应轮询",
     "logs": "日志",
+    "system_health_check": "系统健康检查",
     "software_update": "软件更新",
     "at_terminal": "AT 终端",
     "luci": "LuCI",

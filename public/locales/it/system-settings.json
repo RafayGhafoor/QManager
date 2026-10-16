@@ -581,5 +581,245 @@
     "clear_dialog_clearing": "Cancellazione…",
     "toast_cleared": "SIM note cancellate",
     "toast_clear_failed": "Impossibile cancellare le SIM note"
+  },
+  "health_check": {
+    "page": {
+      "title": "Controllo integrità del sistema",
+      "description": "Verifica ogni sottosistema QManager su questo dispositivo, dal broker AT ai servizi e al firewall, poi scarica un pacchetto redatto da condividere con il supporto."
+    },
+    "actions": {
+      "run": "Esegui diagnostica",
+      "running": "Esecuzione…",
+      "download": "Scarica pacchetto",
+      "downloading": "Scaricamento…",
+      "clear": "Cancella",
+      "clearing": "Cancellazione…",
+      "retry": "Riprova"
+    },
+    "clear_dialog": {
+      "title": "Cancellare i risultati della diagnostica?",
+      "description": "Questa operazione elimina l'ultima esecuzione, tutti i file di output per singolo test e il pacchetto diagnostico scaricabile dal dispositivo. La pagina torna al suo stato vuoto.",
+      "cancel": "Annulla",
+      "confirm": "Cancella risultati"
+    },
+    "band": {
+      "head": "Ultima diagnostica",
+      "unreachable": "Il dispositivo non ha risposto",
+      "stale": "Mostra l'ultima lettura",
+      "result": {
+        "eyebrow": "Risultato",
+        "unreachable": "Non raggiungibile",
+        "none": "Non eseguita",
+        "running": "{{done}} / {{total}}",
+        "failed_one": "{{count}} errore",
+        "failed_other": "{{count}} errori",
+        "warned_one": "{{count}} avviso",
+        "warned_other": "{{count}} avvisi",
+        "passed": "Tutto superato",
+        "errored": "Esecuzione non riuscita",
+        "caption_errored": "Interrotto prima di finire",
+        "caption_unreachable": "Il dispositivo non risponde",
+        "caption_none": "Non ancora controllato",
+        "caption_running": "Avviata {{when}}",
+        "caption_finished": "Completata {{when}}",
+        "caption_warnings_one": "Completata {{when}} ({{count}} avviso)",
+        "caption_warnings_other": "Completata {{when}} ({{count}} avvisi)"
+      },
+      "checks": {
+        "eyebrow": "Controlli",
+        "value": "{{passed}} / {{total}} superati",
+        "caption_one": "{{count}} sottosistema",
+        "caption_other": "{{count}} sottosistemi",
+        "caption_skipped_one": "{{subsystems}} ({{count}} ignorato)",
+        "caption_skipped_other": "{{subsystems}} ({{count}} ignorati)",
+        "caption_none": "Ancora nessuna misurazione"
+      },
+      "bundle": {
+        "eyebrow": "Pacchetto diagnostico",
+        "value_ready": "Pronto",
+        "value_building": "Creazione…",
+        "caption_ready": "Pronto per il download",
+        "caption_building": "Creato al termine dell'esecuzione",
+        "caption_absent": "Creato dopo un'esecuzione",
+        "caption_unavailable": "Nessun pacchetto prodotto"
+      }
+    },
+    "status": {
+      "pass": "Superato",
+      "fail": "Non superato",
+      "warn": "Avviso",
+      "skip": "Ignorato",
+      "running": "In corso",
+      "pending": "In attesa"
+    },
+    "attention": {
+      "title": "Richiede attenzione",
+      "description": "Tutti i controlli che sono falliti o hanno generato un avviso nell'ultima esecuzione. Inizia da qui."
+    },
+    "all_checks": {
+      "title": "Tutti i controlli",
+      "description": "Ogni controllo eseguito dalla diagnostica, raggruppato per il sottosistema a cui appartiene."
+    },
+    "tally": {
+      "failed_one": "{{count}} errore",
+      "failed_other": "{{count}} errori",
+      "warnings_one": "{{count}} avviso",
+      "warnings_other": "{{count}} avvisi",
+      "passed_one": "{{count}} superato",
+      "passed_other": "{{count}} superati"
+    },
+    "states": {
+      "empty": {
+        "title": "Non è stata ancora eseguita alcuna diagnostica",
+        "description": "QManager analizza ogni sottosistema su questo dispositivo e raggruppa i risultati in un pacchetto diagnostico redatto che puoi inviare al supporto.",
+        "checks_one": "{{count}} controllo",
+        "checks_other": "{{count}} controlli"
+      },
+      "running": {
+        "title": "Ancora nessun errore",
+        "description": "La diagnostica sta ancora eseguendo i controlli. Tutto ciò che fallisce o genera un avviso comparirà qui."
+      },
+      "incomplete": {
+        "title": "Questa diagnostica non è stata completata",
+        "description": "Il processo si è interrotto prima che tutti i controlli riportassero un esito, quindi quelli che non ha raggiunto non hanno alcun risultato. Nulla qui dice che questo dispositivo sia integro: esegui di nuovo la diagnostica."
+      },
+      "all_clear": {
+        "title_one": "{{count}} controllo superato",
+        "title_other": "Tutti i {{count}} controlli superati",
+        "description": "Niente è fallito e nessun avviso è stato generato. Ogni sottosistema ha risposto come previsto."
+      },
+      "all_clear_skipped": {
+        "title_one": "{{count}} controllo eseguito e superato",
+        "title_other": "Tutti i {{count}} controlli eseguiti sono stati superati",
+        "description_one": "Niente è fallito e nessun avviso è stato generato. {{count}} controllo è stato ignorato, quindi questa esecuzione non dice nulla al riguardo.",
+        "description_other": "Niente è fallito e nessun avviso è stato generato. {{count}} controlli sono stati ignorati, quindi questa esecuzione non dice nulla al loro riguardo."
+      },
+      "error": {
+        "title": "Impossibile leggere la diagnostica",
+        "description": "QManager ha chiesto al dispositivo l'ultima esecuzione del controllo di integrità, ma non ha ricevuto risposta."
+      }
+    },
+    "notice": {
+      "run_error": "Il processo ha segnalato un problema durante l'esecuzione di questa diagnostica."
+    },
+    "loading": {
+      "status": "Caricamento dei risultati della diagnostica",
+      "output": "Caricamento…"
+    },
+    "output": {
+      "show": "Mostra l'output acquisito di {{label}}",
+      "hide": "Nascondi l'output acquisito di {{label}}",
+      "truncated": "Vengono mostrati solo gli ultimi 4 KB dell'output acquisito.",
+      "empty": "(nessun output acquisito)",
+      "failed": "Impossibile caricare l'output: {{error}}"
+    },
+    "time": {
+      "just_now": "Proprio adesso",
+      "seconds": "{{count}}s fa",
+      "minutes": "{{count}}m fa",
+      "hours": "{{count}}h fa",
+      "days": "{{count}}d fa"
+    },
+    "toast": {
+      "run_failed": "Impossibile avviare la diagnostica",
+      "cleared": "Risultati della diagnostica cancellati",
+      "clear_failed": "Impossibile cancellare i risultati",
+      "download_failed": "Impossibile scaricare il pacchetto diagnostico"
+    },
+    "category": {
+      "binaries": {
+        "label": "Binari e versioni",
+        "description": "Strumenti richiesti e il binario del broker AT"
+      },
+      "permissions": {
+        "label": "Filesystem e permessi",
+        "description": "Nodi di dispositivo, socket del broker, percorsi scrivibili e spazio libero"
+      },
+      "at_transport": {
+        "label": "Trasporto AT",
+        "description": "Andata e ritorno tramite qcmd e il broker qmanager_atd"
+      },
+      "sms": {
+        "label": "SIM e SMS",
+        "description": "Stato della SIM, memoria SMS e lock condiviso del modem"
+      },
+      "services": {
+        "label": "Servizi",
+        "description": "Istanze procd dei demoni QManager e del server web"
+      },
+      "network": {
+        "label": "Rete",
+        "description": "Indirizzo dati mobili, raggiungibilità, DNS, server web e firewall"
+      },
+      "configuration": {
+        "label": "Configurazione",
+        "description": "Configurazioni UCI e JSON, freschezza delle cache e versione installata"
+      }
+    },
+    "tests": {
+      "bin": {
+        "atd": "Binario del broker AT qmanager_atd",
+        "qcmd": "qcmd punta a qmanager_atd",
+        "sms_tool": "Binario sms_tool",
+        "jq": "jq",
+        "curl": "curl",
+        "openssl": "openssl",
+        "nft": "nft",
+        "ethtool": "ethtool",
+        "msmtp": "msmtp (avvisi email)",
+        "nfqws": "nfqws (Traffic Engine)",
+        "tailscale": "tailscale (opzionale)"
+      },
+      "perm": {
+        "smd11": "Canale AT /dev/smd11",
+        "atd_socket": "Socket del broker AT solo root",
+        "tmp_writable": "/tmp scrivibile",
+        "var_lock": "/var/lock scrivibile",
+        "overlay_space": "Spazio libero overlay",
+        "tmp_space": "Spazio libero /tmp"
+      },
+      "at": {
+        "echo": "Eco AT",
+        "cgmi": "Produttore AT+CGMI",
+        "cgmm": "Modello AT+CGMM",
+        "cgsn": "IMEI AT+CGSN",
+        "cfun": "Stato radio AT+CFUN?",
+        "concurrent": "Chiamate concorrenti serializzate",
+        "long_flag": "Nessun flag di comando lungo residuo"
+      },
+      "sms": {
+        "cpin": "SIM pronta (AT+CPIN?)",
+        "cpms": "La memoria SMS risponde (AT+CPMS?)",
+        "lock": "Lock del modem acquisibile"
+      },
+      "svc": {
+        "ping": "Demone ping di qmanager",
+        "poller": "Poller di qmanager",
+        "atd": "Broker qmanager_atd",
+        "uhttpd": "Server web uhttpd",
+        "watchcat": "Watchdog della connessione",
+        "tower_failover": "Demone failover della cella",
+        "dpi": "Traffic Engine (nfqws)",
+        "sms_forward": "Demone inoltro SMS",
+        "tailscale": "Tailscale (opzionale)"
+      },
+      "net": {
+        "wan_ip": "L'interfaccia dati mobili ha un IPv4",
+        "ping": "Il ping raggiunge la destinazione di prova",
+        "dns": "Il DNS risolve",
+        "reachable": "Il demone ping segnala raggiungibile",
+        "uhttpd_listen": "Server web in ascolto",
+        "fw4": "Tabella firewall fw4 caricata",
+        "dpi_chain": "Catena nft del Traffic Engine"
+      },
+      "cfg": {
+        "uci": "La configurazione UCI quecmanager è leggibile",
+        "qmanager_dir": "/etc/qmanager presente",
+        "json": "File JSON di configurazione validi",
+        "poller_fresh": "Cache del poller aggiornata",
+        "ping_fresh": "Cache del ping aggiornata",
+        "version": "Versione di QManager registrata"
+      }
+    }
   }
 }
