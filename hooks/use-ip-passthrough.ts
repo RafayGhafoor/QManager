@@ -35,6 +35,15 @@ export interface IpPassthroughApplyData {
   dns_proxy: DnsProxy;
 }
 
+/**
+ * What an apply returned. On failure `error` is the backend's reason, already
+ * resolved to user-facing copy; it is absent when the request itself failed
+ * (network, HTTP), and the caller supplies its own generic line.
+ */
+export type IpPassthroughSaveResult =
+  | { success: true }
+  | { success: false; error?: string };
+
 export interface UseIpPassthroughReturn {
   /** Current passthrough mode (null before first fetch) */
   passthroughMode: PassthroughMode | null;
@@ -54,10 +63,11 @@ export interface UseIpPassthroughReturn {
   error: string | null;
   /**
    * Apply all IP Passthrough settings. The backend will apply AT commands
-   * and immediately trigger a device reboot. Returns true if the request
-   * was accepted (reboot will follow).
+   * and immediately trigger a device reboot. Resolves `{ success: true }` when
+   * the request was accepted (reboot will follow), otherwise the resolved
+   * failure reason, so the caller can toast it without reading `error` state.
    */
-  saveSettings: (data: IpPassthroughApplyData) => Promise<boolean>;
+  saveSettings: (data: IpPassthroughApplyData) => Promise<IpPassthroughSaveResult>;
   /** Re-fetch settings */
   refresh: () => void;
 }
@@ -132,7 +142,7 @@ export function useIpPassthrough(): UseIpPassthroughReturn {
   // Apply all IP Passthrough settings (backend reboots immediately after)
   // ---------------------------------------------------------------------------
   const saveSettings = useCallback(
-    async (data: IpPassthroughApplyData): Promise<boolean> => {
+    async (data: IpPassthroughApplyData): Promise<IpPassthroughSaveResult> => {
       setError(null);
       setIsSaving(true);
 
@@ -157,20 +167,23 @@ export function useIpPassthrough(): UseIpPassthroughReturn {
         }
 
         const result: IpPassthroughSaveResponse = await resp.json();
-        if (!mountedRef.current) return false;
 
         if (!result.success) {
-          setError(resolveErrorMessage(t, result.error, result.detail, "Failed to apply settings"));
-          return false;
+          const message = resolveErrorMessage(t, result.error, result.detail, "");
+          if (mountedRef.current) {
+            setError(message || "Failed to apply settings");
+          }
+          return { success: false, error: message || undefined };
         }
 
-        return true;
+        return { success: true };
       } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(
-          err instanceof Error ? err.message : "Failed to apply settings"
-        );
-        return false;
+        if (mountedRef.current) {
+          setError(
+            err instanceof Error ? err.message : "Failed to apply settings"
+          );
+        }
+        return { success: false };
       } finally {
         if (mountedRef.current) {
           setIsSaving(false);

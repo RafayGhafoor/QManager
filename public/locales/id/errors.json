@@ -80,6 +80,7 @@
   "invalid_value": "Nilai parameter tidak valid",
   "ip_passthrough_locked_by_verizon_profile": "IP Passthrough dikelola oleh profil Verizon yang aktif — nonaktifkan profil untuk mengubah pengaturan ini",
   "ippt_nat_failed": "Konfigurasi NAT IP Passthrough gagal",
+  "dhcpv4dns_failed": "Konfigurasi proksi DNS gagal",
   "library_missing": "Library yang diperlukan tidak ditemukan",
   "limit_reached": "Batas maksimum telah tercapai",
   "list_failed": "Gagal mengambil daftar",

@@ -191,67 +191,118 @@
     "toast_error_apply": "Failed to apply MTU settings"
   },
   "ippt": {
-    "page_title": "IP Passthrough Settings (IPPT)",
-    "page_description": "Assign the modem's public IP directly to a connected device, bypassing the router's NAT layer.",
-    "card_title": "IP Passthrough Configuration",
-    "card_description": "Assign the modem's public IP directly to a downstream device, bypassing the router's NAT.",
-    "label_passthrough_mode": "IP Passthrough Mode",
-    "aria_passthrough_mode": "IP Passthrough mode",
-    "option_mode_disabled_router": "Disabled (Router Mode)",
-    "option_mode_eth": "Ethernet (ETH)",
-    "option_mode_usb": "USB Tethering",
-    "label_target_device_mac": "Target Device (MAC)",
-    "aria_target_device_mac": "Target Device MAC",
-    "placeholder_mac_router_mode": "N/A — Router Mode",
-    "option_mac_automatic": "Automatic — First Connected Device",
-    "option_mac_device": "From Connected Device…",
-    "option_mac_manual": "Enter Manually…",
-    "placeholder_mac_manual": "XX:XX:XX:XX:XX:XX",
-    "helper_mac_manual": "Enter the MAC address of the device that will receive the WAN IP.",
-    "aria_mac_device": "Target device from connected list",
-    "placeholder_mac_device": "Select a device",
-    "helper_mac_device": "Pick a device currently on the modem's LAN to receive the WAN IP.",
-    "device_scanning": "Scanning for connected devices…",
-    "device_error": "Couldn't load connected devices.",
-    "device_empty": "No connected devices found. Connect the device to the modem, then rescan.",
-    "device_rescan": "Rescan",
-    "device_enter_manually": "Enter manually",
-    "device_unknown": "Unknown device",
-    "aria_device_refresh": "Rescan connected devices",
-    "label_nat_mode": "NAT Mode (Network Address Translation)",
-    "aria_nat_mode": "NAT mode",
-    "option_nat_on": "With NAT (Recommended)",
-    "option_nat_off": "Without NAT",
-    "label_usb_mode": "USB Connection Mode",
-    "aria_usb_mode": "USB Connection Mode",
-    "option_usb_rmnet": "RMNET (QMI)",
-    "option_usb_ecm": "ECM (Universal)",
-    "option_usb_mbim": "MBIM (Windows)",
-    "option_usb_rndis": "RNDIS (Legacy)",
-    "label_dns_proxy": "DNS Proxy",
-    "aria_dns_proxy": "DNS proxy",
-    "option_dns_disabled": "Disabled (Recommended)",
-    "option_dns_enabled": "Enabled (Use Modem DNS)",
-    "error_invalid_mac": "Enter a valid MAC address (XX:XX:XX:XX:XX:XX)",
-    "toast_success_apply": "Settings applied — device is rebooting…",
-    "toast_error_apply": "Failed to save IP Passthrough settings",
-    "aria_reset": "Reset to saved values",
-    "dialog_title": "Device Will Reboot Immediately",
-    "dialog_desc_reboot_notice": "Applying these changes will save the configuration and immediately reboot the device.",
-    "dialog_desc_unreachable_warning": "Once IP Passthrough is active, the device's local gateway will no longer be reachable. Make sure you have an active Tailscale connection or another out-of-band method to access the device after reboot.",
-    "dialog_desc_persistence": "This setting persists across reboots.",
-    "button_apply_reboot": "Apply & Reboot",
-    "placeholder_mode": "Select Mode",
-    "placeholder_mac_source": "Select Target",
-    "aria_mac_source": "MAC source",
-    "aria_mac_address": "MAC address",
-    "placeholder_nat_mode": "Select NAT Mode",
-    "placeholder_usb_mode": "Choose USB Modem Protocol",
-    "placeholder_dns_proxy": "Select DNS mode",
+    "page": {
+      "title": "IP Passthrough",
+      "description": "Hand the modem's public IP straight to one connected device instead of routing for the whole LAN."
+    },
+    "header": {
+      "refresh": "Refresh"
+    },
+    "status": {
+      "label": "Last applied",
+      "mode_title": {
+        "disabled": "Router mode",
+        "eth": "Ethernet passthrough",
+        "usb": "USB passthrough"
+      },
+      "blurb": {
+        "disabled": "Modem routes for the LAN",
+        "eth": "Set to hand the WAN IP to the Ethernet device",
+        "usb": "Set to hand the WAN IP to the USB device"
+      },
+      "no_target": "No device selected",
+      "gateway": "LAN gateway",
+      "gateway_served": "Served",
+      "gateway_not_served": "Not served"
+    },
+    "card": {
+      "title": "Passthrough configuration",
+      "description": "Applying writes every setting and reboots the modem.",
+      "apply": "Apply and reboot",
+      "discard": "Discard changes",
+      "unsaved_one": "{{count}} unsaved change",
+      "unsaved_other": "{{count}} unsaved changes",
+      "mac_label": "Target MAC address",
+      "mac_placeholder": "XX:XX:XX:XX:XX:XX"
+    },
+    "groups": {
+      "passthrough": "Passthrough",
+      "network": "Network"
+    },
+    "rows": {
+      "mode": {
+        "label": "Mode"
+      },
+      "target": {
+        "label": "Target device",
+        "pick_mode": "Pick a mode first."
+      },
+      "nat": {
+        "label": "NAT",
+        "hint": "With NAT suits almost every setup.",
+        "hint_label": "About NAT"
+      },
+      "usb": {
+        "label": "USB connection"
+      },
+      "dns": {
+        "label": "DNS proxy",
+        "hint": "On, the modem answers DHCP DNS for the target device.",
+        "hint_label": "About DNS proxy"
+      }
+    },
+    "options": {
+      "mode_disabled": "Router",
+      "mode_eth": "Ethernet",
+      "mode_usb": "USB",
+      "target_automatic": "Automatic",
+      "target_device": "From LAN",
+      "target_manual": "By MAC",
+      "nat_on": "With NAT",
+      "nat_off": "Without NAT",
+      "dns_off": "Off",
+      "dns_on": "On"
+    },
+    "mode_note": {
+      "rest": "Ethernet or USB hands the WAN IP to one device, and the modem stops answering at its LAN gateway. Keep Tailscale or another way in.",
+      "to_passthrough": "Applying reboots the modem and this tab loses it. Afterwards the LAN gateway stops answering, so keep Tailscale or another way in.",
+      "to_router": "Applying reboots the modem and this tab loses it. The LAN gateway answers again after the reboot."
+    },
+    "dialog": {
+      "title": "Apply and reboot now?",
+      "body": "The settings are written and the modem reboots immediately. This page hands off to the reboot countdown and signs you out.",
+      "body_gateway": "Once passthrough is active the modem stops answering at its LAN gateway address. Make sure you have Tailscale, the passthrough device itself, or a serial console to get back in.",
+      "body_persist": "The setting persists across further reboots.",
+      "cancel": "Cancel",
+      "confirm": "Apply and reboot"
+    },
+    "toast_apply_error": "Couldn't apply the IP Passthrough settings",
+    "errors": {
+      "read_title": "Couldn't read the passthrough configuration",
+      "read_body": "Nothing has been changed. Try again, or check that the modem is answering.",
+      "retry": "Retry",
+      "card_unread": "The modem hasn't answered yet, so there is nothing to change until the first read lands.",
+      "mac_invalid": "Enter a full MAC address, six pairs of hex digits.",
+      "no_changes": "Nothing has changed yet.",
+      "device_unpicked": "Pick a connected device first."
+    },
+    "device": {
+      "label": "Target device from connected list",
+      "placeholder": "Select a device",
+      "scanning": "Scanning for connected devices…",
+      "error": "Couldn't load connected devices.",
+      "empty": "No connected devices found. Connect the device to the modem, then rescan.",
+      "retry": "Retry",
+      "rescan": "Rescan",
+      "rescan_label": "Rescan connected devices",
+      "enter_manually": "Enter manually",
+      "unknown": "Unknown device"
+    },
     "locked_by_verizon": {
       "title": "IP Passthrough is managed by your Verizon profile",
       "body": "Active profile: \"{{name}}\". To change these settings, deactivate the profile from Custom Profiles.",
-      "cta": "Open Custom Profiles"
+      "cta": "Open Custom Profiles",
+      "blocked": "Your Verizon profile manages IP Passthrough."
     }
   },
   "masquerade": {

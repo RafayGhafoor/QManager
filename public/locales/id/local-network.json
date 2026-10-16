@@ -191,67 +191,118 @@
     "toast_error_apply": "Gagal menerapkan pengaturan MTU"
   },
   "ippt": {
-    "page_title": "Pengaturan IP Passthrough (IPPT)",
-    "page_description": "Tetapkan IP publik modem langsung ke perangkat yang terhubung, melewati lapisan NAT router.",
-    "card_title": "Konfigurasi IP Passthrough",
-    "card_description": "Tetapkan IP publik modem langsung ke perangkat downstream, melewati NAT router.",
-    "label_passthrough_mode": "Mode IP Passthrough",
-    "aria_passthrough_mode": "Mode IP Passthrough",
-    "option_mode_disabled_router": "Nonaktif (Mode Router)",
-    "option_mode_eth": "Ethernet (ETH)",
-    "option_mode_usb": "USB Tethering",
-    "label_target_device_mac": "Perangkat Target (MAC)",
-    "aria_target_device_mac": "MAC Perangkat Target",
-    "placeholder_mac_router_mode": "N/A — Mode Router",
-    "option_mac_automatic": "Otomatis — Perangkat Pertama Terhubung",
-    "option_mac_manual": "Masukkan Manual…",
-    "placeholder_mac_manual": "XX:XX:XX:XX:XX:XX",
-    "helper_mac_manual": "Masukkan alamat MAC perangkat yang akan menerima WAN IP.",
-    "option_mac_device": "Dari Perangkat Terhubung…",
-    "aria_mac_device": "Perangkat target dari daftar perangkat terhubung",
-    "placeholder_mac_device": "Pilih Perangkat",
-    "helper_mac_device": "Pilih perangkat yang saat ini berada di jaringan LAN modem untuk menerima WAN IP.",
-    "device_scanning": "Memindai perangkat terhubung…",
-    "device_error": "Gagal memuat daftar perangkat terhubung.",
-    "device_empty": "Tidak ada perangkat terhubung yang ditemukan. Hubungkan perangkat ke modem, lalu pindai ulang.",
-    "device_rescan": "Pindai Ulang",
-    "device_enter_manually": "Masukkan secara manual",
-    "device_unknown": "Perangkat tidak dikenal",
-    "aria_device_refresh": "Pindai ulang perangkat terhubung",
-    "label_nat_mode": "Mode NAT (Network Address Translation)",
-    "aria_nat_mode": "Mode NAT",
-    "option_nat_on": "Dengan NAT (Disarankan)",
-    "option_nat_off": "Tanpa NAT",
-    "label_usb_mode": "Mode Koneksi USB",
-    "aria_usb_mode": "Mode Koneksi USB",
-    "option_usb_rmnet": "RMNET (QMI)",
-    "option_usb_ecm": "ECM (Universal)",
-    "option_usb_mbim": "MBIM (Windows)",
-    "option_usb_rndis": "RNDIS (Lama)",
-    "label_dns_proxy": "DNS Proxy",
-    "aria_dns_proxy": "DNS proxy",
-    "option_dns_disabled": "Nonaktif (Disarankan)",
-    "option_dns_enabled": "Aktif (Gunakan DNS Modem)",
-    "error_invalid_mac": "Masukkan alamat MAC yang valid (XX:XX:XX:XX:XX:XX)",
-    "toast_success_apply": "Pengaturan diterapkan — perangkat sedang reboot…",
-    "toast_error_apply": "Gagal menyimpan pengaturan IP Passthrough",
-    "aria_reset": "Atur ulang ke nilai tersimpan",
-    "dialog_title": "Perangkat Akan Segera Reboot",
-    "dialog_desc_reboot_notice": "Menerapkan perubahan ini akan menyimpan konfigurasi dan segera me-reboot perangkat.",
-    "dialog_desc_unreachable_warning": "Setelah IP Passthrough aktif, gateway lokal perangkat tidak akan dapat dijangkau lagi. Pastikan Anda memiliki koneksi Tailscale aktif atau metode out-of-band lain untuk mengakses perangkat setelah reboot.",
-    "dialog_desc_persistence": "Pengaturan ini dipertahankan setelah reboot.",
-    "button_apply_reboot": "Terapkan & Reboot",
-    "placeholder_mode": "Pilih Mode",
-    "placeholder_mac_source": "Pilih Target",
-    "aria_mac_source": "Sumber MAC",
-    "aria_mac_address": "Alamat MAC",
-    "placeholder_nat_mode": "Pilih Mode NAT",
-    "placeholder_usb_mode": "Pilih Protokol Modem USB",
-    "placeholder_dns_proxy": "Pilih mode DNS",
+    "page": {
+      "title": "Passthrough IP",
+      "description": "Serahkan IP publik modem langsung ke satu perangkat yang terhubung, bukan merutekan untuk seluruh LAN."
+    },
+    "header": {
+      "refresh": "Segarkan"
+    },
+    "status": {
+      "label": "Terakhir diterapkan",
+      "mode_title": {
+        "disabled": "Mode router",
+        "eth": "Passthrough Ethernet",
+        "usb": "Passthrough USB"
+      },
+      "blurb": {
+        "disabled": "Modem merutekan untuk LAN",
+        "eth": "Disetel untuk menyerahkan IP WAN ke perangkat Ethernet",
+        "usb": "Disetel untuk menyerahkan IP WAN ke perangkat USB"
+      },
+      "no_target": "Tidak ada perangkat dipilih",
+      "gateway": "Gateway LAN",
+      "gateway_served": "Dilayani",
+      "gateway_not_served": "Tidak dilayani"
+    },
+    "card": {
+      "title": "Konfigurasi passthrough",
+      "description": "Menerapkan akan menulis semua pengaturan dan me-reboot modem.",
+      "apply": "Terapkan dan reboot",
+      "discard": "Buang perubahan",
+      "unsaved_one": "{{count}} perubahan belum tersimpan",
+      "unsaved_other": "{{count}} perubahan belum tersimpan",
+      "mac_label": "Alamat MAC target",
+      "mac_placeholder": "XX:XX:XX:XX:XX:XX"
+    },
+    "groups": {
+      "passthrough": "Passthrough",
+      "network": "Jaringan"
+    },
+    "rows": {
+      "mode": {
+        "label": "Mode"
+      },
+      "target": {
+        "label": "Perangkat target",
+        "pick_mode": "Pilih mode terlebih dahulu."
+      },
+      "nat": {
+        "label": "NAT",
+        "hint": "Dengan NAT cocok untuk hampir semua pengaturan.",
+        "hint_label": "Tentang NAT"
+      },
+      "usb": {
+        "label": "Koneksi USB"
+      },
+      "dns": {
+        "label": "Proxy DNS",
+        "hint": "Aktif, modem menjawab DNS lewat DHCP untuk perangkat target.",
+        "hint_label": "Tentang proxy DNS"
+      }
+    },
+    "options": {
+      "mode_disabled": "Router",
+      "mode_eth": "Ethernet",
+      "mode_usb": "USB",
+      "target_automatic": "Otomatis",
+      "target_device": "Dari LAN",
+      "target_manual": "Lewat MAC",
+      "nat_on": "Dengan NAT",
+      "nat_off": "Tanpa NAT",
+      "dns_off": "Nonaktif",
+      "dns_on": "Aktif"
+    },
+    "mode_note": {
+      "rest": "Ethernet atau USB menyerahkan IP WAN ke satu perangkat, dan modem berhenti menjawab di gateway LAN-nya. Siapkan Tailscale atau jalan masuk lain.",
+      "to_passthrough": "Menerapkan akan me-reboot modem dan tab ini kehilangan koneksinya. Setelah itu gateway LAN berhenti menjawab, jadi siapkan Tailscale atau jalan masuk lain.",
+      "to_router": "Menerapkan akan me-reboot modem dan tab ini kehilangan koneksinya. Gateway LAN kembali menjawab setelah reboot."
+    },
+    "dialog": {
+      "title": "Terapkan dan reboot sekarang?",
+      "body": "Pengaturan ditulis dan modem langsung reboot. Halaman ini beralih ke hitung mundur reboot dan mengeluarkan Anda dari sesi.",
+      "body_gateway": "Begitu passthrough aktif, modem berhenti menjawab di alamat gateway LAN-nya. Pastikan Anda punya Tailscale, perangkat passthrough itu sendiri, atau konsol serial untuk masuk kembali.",
+      "body_persist": "Pengaturan ini bertahan pada reboot berikutnya.",
+      "cancel": "Batal",
+      "confirm": "Terapkan dan reboot"
+    },
+    "toast_apply_error": "Tidak dapat menerapkan pengaturan Passthrough IP",
+    "errors": {
+      "read_title": "Tidak dapat membaca konfigurasi passthrough",
+      "read_body": "Tidak ada yang diubah. Coba lagi, atau periksa apakah modem menjawab.",
+      "retry": "Coba lagi",
+      "card_unread": "Modem belum menjawab, jadi tidak ada yang dapat diubah sampai pembacaan pertama masuk.",
+      "mac_invalid": "Masukkan alamat MAC lengkap, enam pasang digit heksadesimal.",
+      "no_changes": "Belum ada yang berubah.",
+      "device_unpicked": "Pilih perangkat terhubung terlebih dahulu."
+    },
+    "device": {
+      "label": "Perangkat target dari daftar perangkat terhubung",
+      "placeholder": "Pilih Perangkat",
+      "scanning": "Memindai perangkat terhubung…",
+      "error": "Gagal memuat daftar perangkat terhubung.",
+      "empty": "Tidak ada perangkat terhubung yang ditemukan. Hubungkan perangkat ke modem, lalu pindai ulang.",
+      "retry": "Coba lagi",
+      "rescan": "Pindai Ulang",
+      "rescan_label": "Pindai ulang perangkat terhubung",
+      "enter_manually": "Masukkan secara manual",
+      "unknown": "Perangkat tidak dikenal"
+    },
     "locked_by_verizon": {
       "title": "IP Passthrough dikelola oleh profil Verizon Anda",
       "body": "Profil aktif: \"{{name}}\". Untuk mengubah pengaturan ini, nonaktifkan profil dari Profil Kustom.",
-      "cta": "Buka Profil Kustom"
+      "cta": "Buka Profil Kustom",
+      "blocked": "Profil Verizon Anda mengelola IP Passthrough."
     }
   },
   "masquerade": {

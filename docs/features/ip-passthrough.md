@@ -7,7 +7,7 @@ IP Passthrough bridges one LAN device directly to the modem's WAN IP, bypassing 
 | Item | Value |
 |---|---|
 | Route | `/local-network/ip-passthrough` |
-| Component | `components/local-network/ip-passthrough/ip-passthrough-card.tsx` |
+| Components | `components/local-network/ip-passthrough/`: `ip-passthrough.tsx` (shell, owns the one read), `status-strip.tsx` (Last applied strip), `ip-passthrough-card.tsx` (settings card + `CardFoot` apply), `shapes.ts` (geometry). Strip-over-card layout ported from the RM520N fork `ae2fb928` (ledger U4.4) |
 | Hook | `hooks/use-ip-passthrough.ts` |
 | Types | `types/ip-passthrough.ts` |
 | CGI | `scripts/www/cgi-bin/quecmanager/network/ip_passthrough.sh` |
@@ -199,17 +199,24 @@ This mirrors the pattern already used in `parse_ippt_mpdn_rule` (`grep '"MPDN_ru
 
 **DHCPV4DNS note:** the response value is `"enable"` or `"disable"` (no trailing `d`). The parser normalizes to `"enabled"`/`"disabled"` for the cache and GET response. The POST accepts `"enabled"`/`"disabled"` and converts back to `"enable"`/`"disable"` for the AT command.
 
+## Frontend Apply Contract
+
+- **Draft model.** The card keeps `Partial<Draft>` edits laid over the saved baseline, so a re-read re-bases the edits instead of erasing them. Each row shows a dirty dot; the `CardFoot` counts unsaved changes and holds Discard and Apply. Apply is blocked (with the reason on the button) until the first read lands, while a Verizon profile owns passthrough, while the MAC is incomplete, or when nothing changed. Apply turns destructive while Mode is dirty.
+- **Wording.** The strip is labelled "Last applied" and never "currently": the GET reads our own config file, not the modem.
+- **Success is the hand-off.** `saveSettings` resolves `{ success: true }` or `{ success: false, error? }` (the backend code already run through `resolveErrorMessage`). On success the card calls `enterRebootFlow("ip_passthrough")` (mark in flight, clear `qm_logged_in`, `/reboot/` after 2 s) and fires no success toast, per the Toast-Confirms navigation exception; the CGI's own reboot fork lands at the same time. On failure it toasts the returned reason, or a generic line when the request itself failed, and keeps the draft.
+- **LAN gateway figure.** "Served" in router mode, "Not served" with a warning glyph when passthrough is set; derived from the saved mode, not probed.
+
 ## Connected-Device MAC Picker
 
-The `target_mac` field can come from three sources in the UI, all of which resolve to the same `localMacInput` state before submit — the apply pipeline above is completely unaware which source was used:
+The `target_mac` field can come from three sources in the UI, all of which resolve to the same draft `macInput` before submit — the apply pipeline above is completely unaware which source was used:
 
 | Source | Resolved MAC |
 |---|---|
 | Automatic | `FF:FF:FF:FF:FF:FF` sentinel (first connected device, modem-side) |
-| From connected device | The MAC of whichever `LanDevice` the user picked from a live list |
-| Manual | Hand-typed, formatted to `XX:XX:XX:XX:XX:XX` as the user types |
+| From LAN | The MAC of whichever `LanDevice` the user picked from a live list |
+| By MAC | Hand-typed, formatted to `XX:XX:XX:XX:XX:XX` as the user types |
 
-This is purely additive parity with the original QuecManager project (whose `fetch_macs.sh` offered the same picker) — it does not change the apply pipeline, the config file schema, the reboot behavior, or the Verizon lock. Picking a device just fills `localMacInput`, so the existing validation (`macValid`), reset, and save logic in `ip-passthrough-card.tsx` are untouched.
+This is purely additive parity with the original QuecManager project (whose `fetch_macs.sh` offered the same picker) — it does not change the apply pipeline, the config file schema, the reboot behavior, or the Verizon lock. Picking a device just writes the draft's `macInput`, so a pick validates, dirties and applies exactly like a typed MAC. The source is a three-way `SegmentedField` (Automatic / From LAN / By MAC) that falls back to a Select below a 32rem card.
 
 ### `GET /cgi-bin/quecmanager/network/lan_devices.sh`
 
@@ -233,7 +240,7 @@ Dedup key is the lowercased MAC; a lease-sourced entry (which carries a hostname
 
 ### UI Gating
 
-`hooks/use-lan-devices.ts`'s `useLanDevices(enabled)` only scans once per enable, lazily — the IP Passthrough card gates it on `mode !== "disabled" && macSource === "device"` (`deviceScanEnabled` in `ip-passthrough-card.tsx`), so the LAN is never scanned while passthrough is off or another MAC source is selected. `refresh()` triggers a manual rescan (wired to a rescan button, plus an "enter manually" escape hatch in the empty state).
+`hooks/use-lan-devices.ts`'s `useLanDevices(enabled)` only scans once per enable, lazily. The card's `DevicePicker` mounts only while passthrough is set and "From LAN" is picked, so the LAN is never scanned while passthrough is off or another MAC source is selected; scanning, empty and failed render in the control's own lane. `refresh()` triggers a manual rescan (wired to a rescan button, plus an "enter manually" escape hatch in the empty state).
 
 ## Known Limitations
 

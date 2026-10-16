@@ -75,6 +75,7 @@
   "invalid_value": "Invalid parameter value",
   "ip_passthrough_locked_by_verizon_profile": "IP Passthrough is managed by the active Verizon profile — deactivate it to change these settings",
   "ippt_nat_failed": "IP Passthrough NAT configuration failed",
+  "dhcpv4dns_failed": "DNS proxy configuration failed",
   "library_missing": "Required library not found",
   "limit_reached": "Maximum limit has been reached",
   "list_failed": "Failed to fetch list",
