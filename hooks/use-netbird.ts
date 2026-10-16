@@ -10,8 +10,12 @@ import type { InstallResult } from "@/types/video-optimizer";
 // useNetBird — Fetch & Action Hook for NetBird VPN Management
 // =============================================================================
 // Fetches NetBird status on mount (tiered: not installed → stopped → full).
-// Provides action methods for connect, disconnect, service, boot toggle.
-// Fixed 10s polling (no adaptive auth-wait like Tailscale).
+// Provides action methods for connect, disconnect, service, boot toggle,
+// install and uninstall. Fixed 10s polling (no adaptive auth-wait).
+//
+// Every action RETURNS its outcome (`NetBirdActionResult`) instead of parking
+// the failure reason in hook state: a caller that toasts after an `await` would
+// read a stale closure of that state. The `error` field is the status READ only.
 //
 // Backend: GET/POST /cgi-bin/quecmanager/vpn/netbird.sh
 // =============================================================================
@@ -19,6 +23,9 @@ import type { InstallResult } from "@/types/video-optimizer";
 const CGI_ENDPOINT = "/cgi-bin/quecmanager/vpn/netbird.sh";
 
 const POLL_INTERVAL_MS = 10_000;
+
+/** Daemon state takes a moment to propagate after these actions. */
+const SETTLE_MS = 2000;
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -53,23 +60,40 @@ export interface NetBirdStatus {
   other_vpn_name?: string;
 }
 
+/**
+ * The outcome of one mutation. `error` is the backend's own explanation,
+ * already resolved through `resolveErrorMessage`; it is absent when the backend
+ * gave none, so the caller supplies its translated fallback.
+ */
+export interface NetBirdActionResult {
+  success: boolean;
+  error?: string;
+}
+
 export interface UseNetBirdReturn {
   status: NetBirdStatus | null;
   isLoading: boolean;
   isConnecting: boolean;
   isDisconnecting: boolean;
   isTogglingService: boolean;
+  isTogglingBoot: boolean;
   isUninstalling: boolean;
   installResult: InstallResult;
   error: string | null;
-  connect: (setupKey?: string) => Promise<boolean>;
-  disconnect: () => Promise<boolean>;
-  startService: () => Promise<boolean>;
-  stopService: () => Promise<boolean>;
-  setBootEnabled: (enabled: boolean) => Promise<boolean>;
-  uninstall: () => Promise<boolean>;
+  connect: (setupKey?: string) => Promise<NetBirdActionResult>;
+  disconnect: () => Promise<NetBirdActionResult>;
+  startService: () => Promise<NetBirdActionResult>;
+  stopService: () => Promise<NetBirdActionResult>;
+  setBootEnabled: (enabled: boolean) => Promise<NetBirdActionResult>;
+  uninstall: () => Promise<NetBirdActionResult>;
   runInstall: () => Promise<void>;
   refresh: () => void;
+}
+
+interface PostResponse {
+  success: boolean;
+  error?: string;
+  detail?: string;
 }
 
 // ─── Hook ──────────────────────────────────────────────────────────────────
@@ -81,6 +105,7 @@ export function useNetBird(): UseNetBirdReturn {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isTogglingService, setIsTogglingService] = useState(false);
+  const [isTogglingBoot, setIsTogglingBoot] = useState(false);
   const [isUninstalling, setIsUninstalling] = useState(false);
   const [installResult, setInstallResult] = useState<InstallResult>({
     success: true,
@@ -103,36 +128,46 @@ export function useNetBird(): UseNetBirdReturn {
   // ---------------------------------------------------------------------------
   // Fetch current status
   // ---------------------------------------------------------------------------
-  const fetchStatus = useCallback(async (silent = false) => {
-    if (!silent) setIsLoading(true);
-    setError(null);
+  const fetchStatus = useCallback(
+    async (silent = false) => {
+      if (!silent) setIsLoading(true);
+      setError(null);
 
-    try {
-      const resp = await authFetch(CGI_ENDPOINT);
-      if (!resp.ok) {
-        throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+      try {
+        const resp = await authFetch(CGI_ENDPOINT);
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+        }
+
+        const json = await resp.json();
+        if (!mountedRef.current) return;
+
+        if (!json.success) {
+          setError(
+            resolveErrorMessage(
+              t,
+              json.error,
+              undefined,
+              "Failed to fetch NetBird status",
+            ),
+          );
+          return;
+        }
+
+        setStatus(json);
+      } catch (err) {
+        if (!mountedRef.current) return;
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch NetBird status",
+        );
+      } finally {
+        if (mountedRef.current && !silent) {
+          setIsLoading(false);
+        }
       }
-
-      const json = await resp.json();
-      if (!mountedRef.current) return;
-
-      if (!json.success) {
-        setError(resolveErrorMessage(t, json.error, undefined, "Failed to fetch NetBird status"));
-        return;
-      }
-
-      setStatus(json);
-    } catch (err) {
-      if (!mountedRef.current) return;
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch NetBird status",
-      );
-    } finally {
-      if (mountedRef.current && !silent) {
-        setIsLoading(false);
-      }
-    }
-  }, [t]);
+    },
+    [t],
+  );
 
   // ---------------------------------------------------------------------------
   // Fixed-interval polling
@@ -154,11 +189,7 @@ export function useNetBird(): UseNetBirdReturn {
   // POST helper
   // ---------------------------------------------------------------------------
   const postAction = useCallback(
-    async (body: Record<string, unknown>): Promise<{
-      success: boolean;
-      error?: string;
-      detail?: string;
-    }> => {
+    async (body: Record<string, unknown>): Promise<PostResponse> => {
       const resp = await authFetch(CGI_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -174,151 +205,83 @@ export function useNetBird(): UseNetBirdReturn {
     [],
   );
 
+  /**
+   * One mutation: POST, optionally let the daemon settle, refetch on success,
+   * return the outcome. `setBusy` is the flag the caller owns for the call.
+   */
+  const runAction = useCallback(
+    async (
+      body: Record<string, unknown>,
+      setBusy?: (busy: boolean) => void,
+      settleMs = 0,
+    ): Promise<NetBirdActionResult> => {
+      setBusy?.(true);
+      try {
+        const json = await postAction(body);
+        if (!json.success) {
+          return {
+            success: false,
+            error:
+              resolveErrorMessage(t, json.error, json.detail, "") || undefined,
+          };
+        }
+        if (settleMs > 0) await new Promise((r) => setTimeout(r, settleMs));
+        if (mountedRef.current) await fetchStatus(true);
+        return { success: true };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : undefined,
+        };
+      } finally {
+        if (mountedRef.current) setBusy?.(false);
+      }
+    },
+    [postAction, fetchStatus, t],
+  );
+
   // ---------------------------------------------------------------------------
   // Actions
   // ---------------------------------------------------------------------------
   const connect = useCallback(
-    async (setupKey?: string): Promise<boolean> => {
-      setIsConnecting(true);
-      setError(null);
-
-      try {
-        const body: Record<string, unknown> = { action: "connect" };
-        if (setupKey) body.setup_key = setupKey;
-
-        const json = await postAction(body);
-        if (!mountedRef.current) return false;
-
-        if (!json.success) {
-          setError(resolveErrorMessage(t, json.error, json.detail, "Failed to connect"));
-          return false;
-        }
-
-        // Brief delay for daemon state to propagate before refetch
-        await new Promise((r) => setTimeout(r, 2000));
-        if (!mountedRef.current) return false;
-        await fetchStatus(true);
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(err instanceof Error ? err.message : "Failed to connect");
-        return false;
-      } finally {
-        if (mountedRef.current) setIsConnecting(false);
-      }
+    (setupKey?: string) => {
+      const body: Record<string, unknown> = { action: "connect" };
+      if (setupKey) body.setup_key = setupKey;
+      return runAction(body, setIsConnecting, SETTLE_MS);
     },
-    [postAction, fetchStatus, t],
+    [runAction],
   );
 
-  const disconnect = useCallback(async (): Promise<boolean> => {
-    setIsDisconnecting(true);
-    setError(null);
+  const disconnect = useCallback(
+    () => runAction({ action: "disconnect" }, setIsDisconnecting, SETTLE_MS),
+    [runAction],
+  );
 
-    try {
-      const json = await postAction({ action: "disconnect" });
-      if (!mountedRef.current) return false;
+  const startService = useCallback(
+    () =>
+      runAction({ action: "start_service" }, setIsTogglingService, SETTLE_MS),
+    [runAction],
+  );
 
-      if (!json.success) {
-        setError(resolveErrorMessage(t, json.error, json.detail, "Failed to disconnect"));
-        return false;
-      }
-
-      await new Promise((r) => setTimeout(r, 2000));
-      if (!mountedRef.current) return false;
-      await fetchStatus(true);
-      return true;
-    } catch (err) {
-      if (!mountedRef.current) return false;
-      setError(err instanceof Error ? err.message : "Failed to disconnect");
-      return false;
-    } finally {
-      if (mountedRef.current) setIsDisconnecting(false);
-    }
-  }, [postAction, fetchStatus, t]);
-
-  const startService = useCallback(async (): Promise<boolean> => {
-    setIsTogglingService(true);
-    setError(null);
-
-    try {
-      const json = await postAction({ action: "start_service" });
-      if (!mountedRef.current) return false;
-
-      if (!json.success) {
-        setError(resolveErrorMessage(t, json.error, json.detail, "Failed to start service"));
-        return false;
-      }
-
-      await new Promise((r) => setTimeout(r, 2000));
-      if (!mountedRef.current) return false;
-      await fetchStatus(true);
-      return true;
-    } catch (err) {
-      if (!mountedRef.current) return false;
-      setError(err instanceof Error ? err.message : "Failed to start service");
-      return false;
-    } finally {
-      if (mountedRef.current) setIsTogglingService(false);
-    }
-  }, [postAction, fetchStatus, t]);
-
-  const stopService = useCallback(async (): Promise<boolean> => {
-    setIsTogglingService(true);
-    setError(null);
-
-    try {
-      const json = await postAction({ action: "stop_service" });
-      if (!mountedRef.current) return false;
-
-      if (!json.success) {
-        setError(resolveErrorMessage(t, json.error, json.detail, "Failed to stop service"));
-        return false;
-      }
-
-      await new Promise((r) => setTimeout(r, 2000));
-      if (!mountedRef.current) return false;
-      await fetchStatus(true);
-      return true;
-    } catch (err) {
-      if (!mountedRef.current) return false;
-      setError(err instanceof Error ? err.message : "Failed to stop service");
-      return false;
-    } finally {
-      if (mountedRef.current) setIsTogglingService(false);
-    }
-  }, [postAction, fetchStatus, t]);
+  const stopService = useCallback(
+    () =>
+      runAction({ action: "stop_service" }, setIsTogglingService, SETTLE_MS),
+    [runAction],
+  );
 
   const setBootEnabled = useCallback(
-    async (enabled: boolean): Promise<boolean> => {
-      setError(null);
+    (enabled: boolean) =>
+      runAction({ action: "set_boot_enabled", enabled }, setIsTogglingBoot),
+    [runAction],
+  );
 
-      try {
-        const json = await postAction({
-          action: "set_boot_enabled",
-          enabled,
-        });
-        if (!mountedRef.current) return false;
-
-        if (!json.success) {
-          setError(resolveErrorMessage(t, json.error, json.detail, "Failed to update boot setting"));
-          return false;
-        }
-
-        await fetchStatus(true);
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(
-          err instanceof Error ? err.message : "Failed to update boot setting",
-        );
-        return false;
-      }
-    },
-    [postAction, fetchStatus, t],
+  const uninstall = useCallback(
+    () => runAction({ action: "uninstall" }, setIsUninstalling),
+    [runAction],
   );
 
   // ---------------------------------------------------------------------------
-  // Install via opkg
+  // Install via opkg, polled until terminal
   // ---------------------------------------------------------------------------
   const stopInstallPolling = useCallback(() => {
     if (installPollRef.current) {
@@ -331,8 +294,8 @@ export function useNetBird(): UseNetBirdReturn {
     try {
       const json = await postAction({ action: "install_status" });
       if (!mountedRef.current) return;
-      setInstallResult(json as unknown as InstallResult);
       const r = json as unknown as InstallResult;
+      setInstallResult(r);
       if (r.status === "complete" || r.status === "error") {
         stopInstallPolling();
         await fetchStatus(true);
@@ -343,47 +306,32 @@ export function useNetBird(): UseNetBirdReturn {
   }, [postAction, stopInstallPolling, fetchStatus]);
 
   const runInstall = useCallback(async () => {
-    setInstallResult({ success: true, status: "running", message: "Starting installation..." });
+    stopInstallPolling();
+    setInstallResult({ success: true, status: "running" });
     try {
-      await authFetch(CGI_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "install" }),
-      });
+      const json = await postAction({ action: "install" });
+      if (!mountedRef.current) return;
+      if (!json.success) {
+        // Refused up front (another VPN, already installed, ...): no
+        // background job exists to poll.
+        setInstallResult({
+          success: false,
+          status: "error",
+          message: resolveErrorMessage(t, json.error, json.detail, ""),
+        });
+        return;
+      }
       installPollRef.current = setInterval(pollInstallStatus, 2000);
     } catch (err) {
       if (mountedRef.current) {
         setInstallResult({
           success: false,
           status: "error",
-          message: err instanceof Error ? err.message : "Failed to start installation",
+          message: err instanceof Error ? err.message : "",
         });
       }
     }
-  }, [pollInstallStatus]);
-
-  const uninstall = useCallback(async (): Promise<boolean> => {
-    setIsUninstalling(true);
-    try {
-      const json = await postAction({ action: "uninstall" });
-      if (!mountedRef.current) return false;
-      if (!json.success) {
-        setError(resolveErrorMessage(t, json.error, json.detail, "Failed to uninstall"));
-        return false;
-      }
-      await fetchStatus(true);
-      return true;
-    } catch (err) {
-      if (mountedRef.current) {
-        setError(
-          err instanceof Error ? err.message : "Failed to uninstall",
-        );
-      }
-      return false;
-    } finally {
-      if (mountedRef.current) setIsUninstalling(false);
-    }
-  }, [postAction, fetchStatus, t]);
+  }, [postAction, pollInstallStatus, stopInstallPolling, t]);
 
   return {
     status,
@@ -391,6 +339,7 @@ export function useNetBird(): UseNetBirdReturn {
     isConnecting,
     isDisconnecting,
     isTogglingService,
+    isTogglingBoot,
     isUninstalling,
     installResult,
     error,
