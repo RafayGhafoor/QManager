@@ -1403,6 +1403,60 @@ Values: `"enable"` or `"disable"`.
 |---|---|
 | `not_available` | `r8125_ioss.init` absent — SKU does not have this NIC |
 | `invalid_action` | `action` was not `"enable"` or `"disable"` |
+
+### GET/POST `/system/at_engine.sh`
+
+Read or switch which engine serves `/usr/bin/qcmd`: the Rust AT broker (`broker`, default) or the legacy shell gatekeeper (`legacy`). Both keep the identical output contract, so no caller is affected. Applies immediately (repoints the `qcmd` symlink atomically and starts or stops the broker daemon); never touches the modem and never reboots. Auth-gated. See [`docs/features/at-broker.md`](features/at-broker.md).
+
+**GET / POST Response:**
+
+```json
+{ "success": true, "engine": "broker", "effective": "broker", "broker_available": true, "broker_running": true }
+```
+
+`engine` is the saved UCI choice (`quecmanager.at.engine`); `effective` is what the `qcmd` link actually points at (`broker`, `legacy` or `unknown`). `broker_running` is true when the daemon is up; with the broker engine and the daemon down, `qcmd` still works through its in-process fallback.
+
+**POST Request:**
+
+```json
+{ "engine": "legacy" }
+```
+
+**Error Codes:**
+
+| Code | Meaning |
+|---|---|
+| `invalid_engine` | `engine` was not `"broker"` or `"legacy"` |
+| `broker_unavailable` | `engine: "broker"` requested but `/usr/bin/qmanager_atd` is not installed |
+| `apply_failed` | UCI commit or the `qcmd` link swap failed, or `at_engine.sh` is missing |
+
+### GET/POST `/system/host_at_ports.sh`
+
+Turn the vendor `port-bridged` service on or off. It relays the USB/PCIe host AT ports into the modem's AT engine; QManager itself never uses them (its path is `/dev/smd11`). Off stops an attached host from sending AT commands and sets `/dev/smd7` to `0600`; it does **not** change QManager's own AT speed. Applies immediately and persists across reboots (re-applied at boot by `qmanager_atd`); never reboots. Auth-gated.
+
+**GET / POST Response:**
+
+```json
+{ "success": true, "available": true, "enabled": true, "running": true, "pcie": false }
+```
+
+`available` is false when `/etc/init.d/port-bridged` is absent (then everything else is false). `enabled` is the saved UCI choice (`quecmanager.ports.host_at`); `running` is the live bridge state; `pcie` is true when `/dev/mhi_ctrl` exists (the host's AT port is the PCIe link).
+
+**POST Request:**
+
+```json
+{ "enabled": false }
+```
+
+`enabled` must be a JSON boolean.
+
+**Error Codes:**
+
+| Code | Meaning |
+|---|---|
+| `not_available` | `port-bridged` is absent on this firmware |
+| `invalid_value` | `enabled` was not a boolean |
+| `apply_failed` | UCI commit failed, or `at_engine.sh` is missing |
 | `method_not_allowed` | Request was not GET or POST |
 
 ---

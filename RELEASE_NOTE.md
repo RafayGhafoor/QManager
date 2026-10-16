@@ -1,6 +1,12 @@
 # 🚀 QManager BETA v0.1.32 (Draft)
 
-v0.1.32 is in progress. This release is shaping up as a polish and correctness pass. Notes below are provisional and will be rewritten before release.
+v0.1.32 is in progress, headlined by a much faster connection to the modem: every command now answers in about 10 ms instead of about 1 s, which makes every page and background service more responsive. It also brings redesigned sign-in and landing pages, cleaner Network Events, and a polish and correctness pass throughout. Notes below are provisional and will be rewritten before release.
+
+## ✨ New Features
+
+- **Modem commands are about 100× faster.** Each command to the modem now takes about 10 ms instead of about 1 s. Two changes add up: commands release the modem the moment they finish, and QManager now keeps one connection to the modem open instead of starting several helper programs for every command (a further 5× on its own). Pages and background services no longer queue behind each other, a modem that stops answering can no longer leave everything waiting for minutes, and a late answer can no longer show up in the wrong place.
+- **New Modem Commands setting.** **System Settings → Modem Commands** switches back to the previous method if you ever need it. Both give identical results.
+- **New Host AT Ports setting.** **System Settings → Host AT Ports** stops a computer connected over USB or PCIe from sending AT commands to the modem. It's on by default, matching stock firmware.
 
 ## ✅ Improvements
 
@@ -11,7 +17,6 @@ v0.1.32 is in progress. This release is shaping up as a polish and correctness p
 - **Sign-in errors now appear in your language.** Incorrect-password and lockout messages are translated instead of always showing in English.
 - **The Live Traffic monitor has been removed.** Its readings were inaccurate and it kept a network port open on your LAN without a password. The System Settings page and the dashboard row are gone, and upgrading cleans everything up automatically, including the websocat package and port 8838.
 - **More reliable modem readings and background services.** IP Passthrough settings and timing-advance readings now always come from the modem's answer, never from the echoed command, so they can no longer show a stale or default value. Background services now fall back safely instead of quitting silently if one of their helper files is missing.
-- **Modem commands respond much faster.** Each command to the modem used to hold the modem busy for about a second after it had already finished, so pages and background services queued behind one another. Commands now release the modem as soon as they finish (about 50 ms instead of about 1 s each), and bursts of activity no longer pile up into "modem busy" errors.
 - **One outage, one lost and one restored entry.** Network Events no longer logs the same outage twice, and an outage the watchdog fixes on its own is now recorded and alerted like any other instead of slipping through. Slow-connection and packet-loss entries also wait until a problem has actually cleared before announcing recovery, and stay quiet right after the connection returns.
 - **Carrier aggregation no longer floods Network Events.** A carrier that blinks out for a moment is ignored. A real change is announced once it holds, and a carrier that keeps flapping shows a single "churn detected" warning, followed by a "settled" entry once it calms down. Added-and-removed band lists also read correctly now.
 - **SMS and email alerts share one wait time.** The number of minutes an outage must last before you are alerted is now a single setting used by both channels, so they can no longer disagree. Existing wait times carry over.

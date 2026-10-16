@@ -35,7 +35,7 @@ QManager is a two-tier application:
 │  │  └──────────────────────────────────────────────┘   ││
 │  │       │ reads cache      │ executes AT               ││
 │  │       ▼                  ▼                            ││
-│  │  /tmp/qmanager_    qcmd AT+...  → /dev/smd7          ││
+│  │  /tmp/qmanager_    qcmd AT+...  → /dev/smd11         ││
 │  │  status.json              (modem serial port)         ││
 │  │       ▲                                               ││
 │  │       │ writes every 2s                               ││

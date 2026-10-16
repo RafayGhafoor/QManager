@@ -8,13 +8,17 @@ out-of-band, not by this repo's build. This file records how to reproduce them.
 > When you rebuild `sms_tool`, commit the new binary together with an updated
 > `sms_tool.patch` and this README so the three stay in sync.
 
-Target device: **Quectel RM551E-GL** — OpenWRT, `armv7l`, ARM **EABI5**,
-AT pipe on the char device **`/dev/smd11`** (not a UART/TTY).
+Target device: **Quectel RM551E-GL** — OpenWRT 23.05, **aarch64** musl userspace
+(`/lib/ld-musl-aarch64.so.1`), AT pipe on the glink char device **`/dev/smd11`**
+(not a UART/TTY). `atcli_smd11` and `sms_tool` are older **32-bit ARM (EABI5)
+static** builds that run through the kernel's 32-bit compat layer; new binaries
+target `aarch64-unknown-linux-musl` natively.
 
 | Binary | Source | Notes |
 |--------|--------|-------|
 | `sms_tool` | [`obsy/sms_tool`](https://github.com/obsy/sms_tool) (Apache-2.0) | Patched — see below |
 | `atcli_smd11` | internal | AT-command client bound to `/dev/smd11` |
+| `qmanager_atd` | [`native/qmanager_atd/`](../native/qmanager_atd) (in this repo) | Rust AT broker + `qcmd` client — see below and `docs/features/at-broker.md` |
 
 ---
 
@@ -83,4 +87,43 @@ sms_tool status                      # defaults to smd11, silent, exit 0
 sms_tool recv -d /dev/smd11          # no tcgetattr/tcsetattr noise
 sms_tool recv -d /dev/ttyUSB0        # "open port failed", exit 1, NO segfault
 sms_tool -D recv -d /dev/ttyUSB0     # open() trace reappears under -D
+```
+
+---
+
+## `qmanager_atd`
+
+The Rust AT broker and the `qcmd` client in one static binary. Source lives in
+this repo at `native/qmanager_atd/` (std + `libc` only). `/usr/bin/qcmd` is a
+symlink to it (or to the legacy `qcmd.sh`); see `docs/features/at-broker.md`.
+
+### Rebuild (static aarch64 musl)
+
+Built in WSL Ubuntu (or any Linux) with rustup. musl targets ship self-contained
+CRT objects and `rust-lld`, so no cross gcc is needed; the crate's
+`.cargo/config.toml` sets `linker = "rust-lld"` and `+crt-static`.
+
+```sh
+rustup target add aarch64-unknown-linux-musl     # once
+cd native/qmanager_atd
+cargo test --release                             # host unit tests (25)
+cargo build --release --target aarch64-unknown-linux-musl
+cp target/aarch64-unknown-linux-musl/release/qmanager_atd ../../dependencies/qmanager_atd
+
+# MUST be static — verify (no INTERP segment):
+readelf -l ../../dependencies/qmanager_atd | grep -i INTERP   # -> (nothing)
+file ../../dependencies/qmanager_atd   # ELF 64-bit LSB executable, ARM aarch64, statically linked
+```
+
+Build on a Linux filesystem (e.g. copy the crate into `~/`), not across
+`/mnt/<drive>`, and commit the binary together with any source change.
+`.gitattributes` marks it `binary`; never let CRLF conversion touch it.
+
+### On-device smoke test
+
+```sh
+qcmd 'AT'                      # -> AT / OK, via the broker (or its in-process fallback)
+qcmd -j 'ATI'                  # -> {"success": true, "response": ..., "command": "ATI"}
+ls -la /usr/bin/qcmd           # -> qcmd -> qmanager_atd
+ls -la /var/run/qmanager_atd.sock   # -> srw------- root
 ```

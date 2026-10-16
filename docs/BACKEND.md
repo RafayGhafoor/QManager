@@ -57,7 +57,7 @@ All modem communication goes through `qcmd`:
 result=$(qcmd 'AT+QENG="servingcell"')
 ```
 
-Never access the modem serial port directly.
+Never access the modem's AT channel directly. `qcmd` is served by the Rust AT broker (`qmanager_atd`) by default, with the legacy shell gatekeeper (`qcmd.sh`) behind a switch; both have the same output contract. See [`docs/features/at-broker.md`](features/at-broker.md).
 
 ### Temperature: sysfs only — never AT+QTEMP
 
@@ -550,7 +550,7 @@ Manages up to two nfqws instances for DPI evasion. Each instance runs on its own
 
 ### qcmd
 
-AT command wrapper — handles modem device path, locking, and response parsing.
+AT command entry point. `/usr/bin/qcmd` is a symlink to `qmanager_atd` (the Rust broker client: talks to `/var/run/qmanager_atd.sock`, falls back to an in-process exchange if the daemon is down) or to `qcmd.sh` (legacy), selected by `quecmanager.at.engine`. Both take `/var/lock/qmanager.lock`, enforce per-command deadlines, and print identical output. See [`docs/features/at-broker.md`](features/at-broker.md).
 
 ```sh
 result=$(qcmd 'AT+QENG="servingcell"')
@@ -562,6 +562,7 @@ result=$(qcmd 'AT+QENG="servingcell"')
 
 | Service | Type | START | Daemon | Description |
 |---------|------|-------|--------|-------------|
+| `qmanager_atd` | procd | 98 | `qmanager_atd` | AT broker serving `qcmd`; reconciles the `qcmd` link and host AT ports at boot |
 | `qmanager` | procd | 99 | `qmanager_poller` + `qmanager_ping` | Main poller and ping daemon |
 | `qmanager_eth_link` | non-procd | 99 | — | Apply ethernet link speed on boot |
 | `qmanager_ttl` | non-procd | 99 | — | Apply TTL/HL rules on boot (sources `/etc/firewall.user.ttl`) |

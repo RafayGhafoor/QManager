@@ -96,7 +96,7 @@ sh /tmp/qmanager_install/uninstall.sh
 
 - OpenWRT router with:
   - Quectel modem (RM520N-GL, RM551E-GL, RM500Q, or similar)
-  - AT command access via serial port (`/dev/smd7` or similar)
+  - AT command access via the modem's internal AT channel (`/dev/smd11` on the RM551E)
   - uhttpd web server (standard on OpenWRT)
   - BusyBox standard utilities
   - `jq` package installed (`opkg install jq`)
@@ -399,7 +399,7 @@ find scripts -name "*.sh" -exec sed -i 's/\r$//' {} \;
 ps | grep qmanager_poller
 
 # Check if modem serial port is accessible
-ls -la /dev/smd7  # or /dev/ttyUSB2
+ls -la /dev/smd11  # QManager's AT channel on the RM551E
 
 # Test AT command
 qcmd 'AT+QENG="servingcell"'
