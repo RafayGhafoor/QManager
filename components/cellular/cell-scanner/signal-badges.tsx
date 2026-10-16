@@ -1,62 +1,75 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+
+import { Badge } from "@/components/ui/badge";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
+import { Tag } from "@/components/ui/tag";
+
 import {
-  SignalHighIcon,
-  SignalLowIcon,
-  SignalMediumIcon,
-  SignalZeroIcon,
-  type LucideIcon,
-} from "lucide-react";
-import { Badge, type BadgeVariant } from "@/components/ui/badge";
-import { Tag, type TagVariant } from "@/components/ui/tag";
+  BADGE_GLYPH_SIZE,
+  SIGNAL_BADGE,
+  networkIdentity,
+  signalTier,
+  type SignalTier,
+} from "./shapes";
 
-type SignalTier = "good" | "fair" | "poor" | "none";
+// =============================================================================
+// The two chips every scan row carries
+// =============================================================================
+// Both are shared by the full scan and the neighbour read, which is why the
+// thresholds, tones and glyphs live in `shapes.ts` rather than in the branches
+// below: one vocabulary for "fair" across the whole family.
+//
+// The tiers were previously inlined here as a three-branch `if` on raw dBm, with
+// no `none` case at all — so a neighbour cell reporting 0 dBm for an unmeasured
+// port rendered as "Bad", which is a verdict rather than the absence of one.
+// =============================================================================
 
-// Tiers key onto `BadgeVariant`; the bar-count glyph carries the tier, since
-// success and warning fills are 1.03:1 apart.
-const SIGNAL_BADGE: Record<SignalTier, { variant: BadgeVariant; Icon: LucideIcon }> = {
-  good: { variant: "success", Icon: SignalHighIcon },
-  fair: { variant: "warning", Icon: SignalMediumIcon },
-  poor: { variant: "destructive", Icon: SignalLowIcon },
-  none: { variant: "muted", Icon: SignalZeroIcon },
-};
-
-// Literal keys so the i18n checker can see them.
-const SIGNAL_LABEL_KEY: Record<SignalTier, string> = {
-  good: "cell_scanner.signal_badge.good",
-  fair: "cell_scanner.signal_badge.fair",
-  poor: "cell_scanner.signal_badge.bad",
-  none: "cell_scanner.signal_badge.no_data",
-};
-
-function signalTier(strength: number | null | undefined): SignalTier {
-  // 0 dBm is the scan workers' "unreported" sentinel, not a reading.
-  if (strength === null || strength === undefined || strength === 0) return "none";
-  if (strength >= -85) return "good";
-  if (strength >= -100) return "fair";
-  return "poor";
-}
-
-/** Measured signal quality: a filled status chip with a per-tier bar glyph. */
+/**
+ * Signal quality, told apart by GLYPH first and tone second.
+ *
+ * `success-container` and `warning-container` measure 1.03:1 apart — the same
+ * surface to the eye and identical under deuteranopia — so Good and Fair cannot
+ * be separated by fill. The bar count survives a colourblind reader, a greyscale
+ * print, and the modem's own low-contrast field display.
+ */
 export function SignalBadge({ strength }: { strength: number | null }) {
   const { t } = useTranslation("cellular");
   const tier = signalTier(strength);
-  const { variant, Icon } = SIGNAL_BADGE[tier];
+  const spec = SIGNAL_BADGE[tier];
+
+  // Literal key stems. `i18n:check` grades a missing key as a warning and exits
+  // 0, so an interpolated stem is a key nothing will ever report on.
+  const LABEL_KEY: Record<SignalTier, string> = {
+    good: "cell_scanner.signal.good",
+    fair: "cell_scanner.signal.fair",
+    poor: "cell_scanner.signal.poor",
+    none: "cell_scanner.signal.none",
+  };
 
   return (
-    <Badge variant={variant}>
-      <Icon className="size-3" aria-hidden="true" />
-      {t(SIGNAL_LABEL_KEY[tier])}
+    <Badge variant={spec.variant}>
+      <MaterialSymbol name={spec.glyph} size={BADGE_GLYPH_SIZE} />
+      {t(LABEL_KEY[tier])}
     </Badge>
   );
 }
 
-/** Radio identity, an outline `Tag`, never a verdict. */
-function networkIdentity(type: string): TagVariant {
-  return type.toUpperCase().startsWith("NR") ? "nr" : "lte";
-}
-
+/**
+ * Which RADIO the row belongs to. An IDENTITY tag, never a status role.
+ *
+ * This shipped as `variant="default"` — solid `bg-primary`, the brand's one
+ * acting colour — for BOTH radios at once. Identity was unreadable (LTE and NR
+ * rows looked identical), and a passive label wearing the primary fill
+ * advertised a click target it does not have.
+ *
+ * It is now an outline `Tag` rather than a filled `Badge`, which is the whole
+ * reason this file imports both forms: the row's quality verdict beside it is a
+ * filled chip with a glyph, and "NR" is not a verdict (The Two-Form Rule). The
+ * exported name is left alone on purpose — renaming it would touch four
+ * unrelated table files for no reader-visible gain.
+ */
 export function NetworkTypeBadge({ type }: { type: string }) {
   return <Tag variant={networkIdentity(type)}>{type}</Tag>;
 }
