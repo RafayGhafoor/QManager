@@ -75,6 +75,7 @@
   "invalid_value": "無效的引數值",
   "ip_passthrough_locked_by_verizon_profile": "IP 直通由當前啟用的 Verizon 配置管理 — 停用配置後方可更改此設定",
   "ippt_nat_failed": "IP 直通 NAT 設定失敗",
+  "dhcpv4dns_failed": "DNS 代理設定失敗",
   "library_missing": "找不到必需的庫",
   "limit_reached": "已達到最大限制",
   "list_failed": "取得列表失敗",

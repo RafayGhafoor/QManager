@@ -20,7 +20,8 @@ export type RebootSource =
   | "mbn"
   | "manual"
   | "software_update"
-  | "ipa_offload";
+  | "ipa_offload"
+  | "ip_passthrough";
 
 const REBOOT_CGI = "/cgi-bin/quecmanager/system/reboot.sh";
 

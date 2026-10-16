@@ -191,67 +191,118 @@
     "toast_error_apply": "Impossibile applicare le impostazioni MTU"
   },
   "ippt": {
-    "page_title": "IP Impostazioni passthrough (IPPT)",
-    "page_description": "Assegna il IP pubblico del modem direttamente a un dispositivo connesso, bypassando il livello NAT del Router.",
-    "card_title": "IP Configurazione pass-through",
-    "card_description": "Assegna il IP pubblico del modem direttamente a un dispositivo downstream, bypassando il NAT del Router.",
-    "label_passthrough_mode": "IP Modalità pass-through",
-    "aria_passthrough_mode": "IP Modalità passthrough",
-    "option_mode_disabled_router": "Disabilitato (modalità Router)",
-    "option_mode_eth": "Ethernet (ETH)",
-    "option_mode_usb": "Tethering USB",
-    "label_target_device_mac": "Dispositivo di destinazione (MAC)",
-    "aria_target_device_mac": "MAC del dispositivo di destinazione",
-    "placeholder_mac_router_mode": "N/D — Modalità Router",
-    "option_mac_automatic": "Automatico: primo dispositivo connesso",
-    "option_mac_manual": "Inserisci manualmente...",
-    "placeholder_mac_manual": "XX:XX:XX:XX:XX:XX",
-    "helper_mac_manual": "Immettere l'indirizzo MAC del dispositivo che riceverà WAN IP.",
-    "option_mac_device": "Da dispositivo connesso…",
-    "aria_mac_device": "Dispositivo di destinazione dall'elenco dei dispositivi connessi",
-    "placeholder_mac_device": "Seleziona un dispositivo",
-    "helper_mac_device": "Scegli un dispositivo attualmente connesso alla LAN del modem per ricevere l'IP WAN.",
-    "device_scanning": "Ricerca dei dispositivi connessi…",
-    "device_error": "Impossibile caricare i dispositivi connessi.",
-    "device_empty": "Nessun dispositivo connesso trovato. Collega il dispositivo al modem, quindi esegui una nuova scansione.",
-    "device_rescan": "Esegui nuova scansione",
-    "device_enter_manually": "Inserisci manualmente",
-    "device_unknown": "Dispositivo sconosciuto",
-    "aria_device_refresh": "Esegui una nuova scansione dei dispositivi connessi",
-    "label_nat_mode": "Modalità NAT (traduzione degli indirizzi di rete)",
-    "aria_nat_mode": "Modalità NAT",
-    "option_nat_on": "Con NAT (consigliato)",
-    "option_nat_off": "Senza NAT",
-    "label_usb_mode": "Modalità di connessione USB",
-    "aria_usb_mode": "Modalità di connessione USB",
-    "option_usb_rmnet": "RMNET (QMI)",
-    "option_usb_ecm": "ECM (universale)",
-    "option_usb_mbim": "MBIM (Windows)",
-    "option_usb_rndis": "RNDIS (precedente)",
-    "label_dns_proxy": "Proxy DNS",
-    "aria_dns_proxy": "proxy DNS",
-    "option_dns_disabled": "Disabilitato (consigliato)",
-    "option_dns_enabled": "Abilitato (Usa modem DNS)",
-    "error_invalid_mac": "Inserisci un indirizzo MAC valido (XX:XX:XX:XX:XX:XX)",
-    "toast_success_apply": "Impostazioni applicate: il dispositivo si sta riavviando...",
-    "toast_error_apply": "Impossibile salvare le impostazioni Passthrough IP",
-    "aria_reset": "Ripristina i valori salvati",
-    "dialog_title": "Il dispositivo si riavvierà immediatamente",
-    "dialog_desc_reboot_notice": "L'applicazione di queste modifiche salverà la configurazione e riavvierà immediatamente il dispositivo.",
-    "dialog_desc_unreachable_warning": "Una volta attivo IP Passthrough, il gateway locale del dispositivo non sarà più raggiungibile. Assicurati di avere una connessione Tailscale attiva o un altro metodo fuori banda per accedere al dispositivo dopo il riavvio.",
-    "dialog_desc_persistence": "Questa impostazione persiste dopo i riavvii.",
-    "button_apply_reboot": "Applica e riavvia",
-    "placeholder_mode": "Seleziona Modalità",
-    "placeholder_mac_source": "Seleziona Obiettivo",
-    "aria_mac_source": "Sorgente MAC",
-    "aria_mac_address": "Indirizzo MAC",
-    "placeholder_nat_mode": "Seleziona la modalità NAT",
-    "placeholder_usb_mode": "Scegli Protocollo modem USB",
-    "placeholder_dns_proxy": "Seleziona la modalità DNS",
+    "page": {
+      "title": "Passthrough IP",
+      "description": "Assegna l'IP pubblico del modem direttamente a un solo dispositivo collegato, invece di far instradare tutta la LAN dal modem."
+    },
+    "header": {
+      "refresh": "Aggiorna"
+    },
+    "status": {
+      "label": "Ultima applicazione",
+      "mode_title": {
+        "disabled": "Modalità router",
+        "eth": "Passthrough Ethernet",
+        "usb": "Passthrough USB"
+      },
+      "blurb": {
+        "disabled": "Il modem instrada per la LAN",
+        "eth": "Impostato per assegnare l'IP WAN al dispositivo Ethernet",
+        "usb": "Impostato per assegnare l'IP WAN al dispositivo USB"
+      },
+      "no_target": "Nessun dispositivo selezionato",
+      "gateway": "Gateway LAN",
+      "gateway_served": "Servito",
+      "gateway_not_served": "Non servito"
+    },
+    "card": {
+      "title": "Configurazione del passthrough",
+      "description": "Applicare scrive tutte le impostazioni e riavvia il modem.",
+      "apply": "Applica e riavvia",
+      "discard": "Scarta le modifiche",
+      "unsaved_one": "{{count}} modifica non salvata",
+      "unsaved_other": "{{count}} modifiche non salvate",
+      "mac_label": "Indirizzo MAC di destinazione",
+      "mac_placeholder": "XX:XX:XX:XX:XX:XX"
+    },
+    "groups": {
+      "passthrough": "Passthrough",
+      "network": "Rete"
+    },
+    "rows": {
+      "mode": {
+        "label": "Modalità"
+      },
+      "target": {
+        "label": "Dispositivo di destinazione",
+        "pick_mode": "Scegli prima una modalità."
+      },
+      "nat": {
+        "label": "NAT",
+        "hint": "Con NAT va bene per quasi ogni configurazione.",
+        "hint_label": "Informazioni sul NAT"
+      },
+      "usb": {
+        "label": "Connessione USB"
+      },
+      "dns": {
+        "label": "Proxy DNS",
+        "hint": "Attivo, il modem risponde al DNS via DHCP per il dispositivo di destinazione.",
+        "hint_label": "Informazioni sul proxy DNS"
+      }
+    },
+    "options": {
+      "mode_disabled": "Router",
+      "mode_eth": "Ethernet",
+      "mode_usb": "USB",
+      "target_automatic": "Automatico",
+      "target_device": "Da LAN",
+      "target_manual": "Per MAC",
+      "nat_on": "Con NAT",
+      "nat_off": "Senza NAT",
+      "dns_off": "Disattivo",
+      "dns_on": "Attivo"
+    },
+    "mode_note": {
+      "rest": "Ethernet o USB assegnano l'IP WAN a un solo dispositivo, e il modem smette di rispondere al suo gateway LAN. Tieni pronto Tailscale o un altro modo per entrare.",
+      "to_passthrough": "Applicare riavvia il modem e questa scheda lo perde. Dopo, il gateway LAN smette di rispondere, quindi tieni pronto Tailscale o un altro modo per entrare.",
+      "to_router": "Applicare riavvia il modem e questa scheda lo perde. Il gateway LAN torna a rispondere dopo il riavvio."
+    },
+    "dialog": {
+      "title": "Applicare e riavviare adesso?",
+      "body": "Le impostazioni vengono scritte e il modem si riavvia subito. Questa pagina passa il testimone al conto alla rovescia del riavvio e ti disconnette.",
+      "body_gateway": "Una volta attivo il passthrough, il modem smette di rispondere al suo indirizzo di gateway sulla LAN. Assicurati di avere Tailscale, il dispositivo in passthrough stesso o una console seriale per rientrare.",
+      "body_persist": "L'impostazione resta anche ai riavvii successivi.",
+      "cancel": "Annulla",
+      "confirm": "Applica e riavvia"
+    },
+    "toast_apply_error": "Impossibile applicare le impostazioni di Passthrough IP",
+    "errors": {
+      "read_title": "Impossibile leggere la configurazione del passthrough",
+      "read_body": "Non è stato modificato nulla. Riprova, oppure controlla che il modem stia rispondendo.",
+      "retry": "Riprova",
+      "card_unread": "Il modem non ha ancora risposto, quindi non c'è nulla da modificare finché non arriva la prima lettura.",
+      "mac_invalid": "Inserisci un indirizzo MAC completo, sei coppie di cifre esadecimali.",
+      "no_changes": "Non è ancora cambiato nulla.",
+      "device_unpicked": "Scegli prima un dispositivo connesso."
+    },
+    "device": {
+      "label": "Dispositivo di destinazione dall'elenco dei dispositivi connessi",
+      "placeholder": "Seleziona un dispositivo",
+      "scanning": "Ricerca dei dispositivi connessi…",
+      "error": "Impossibile caricare i dispositivi connessi.",
+      "empty": "Nessun dispositivo connesso trovato. Collega il dispositivo al modem, quindi esegui una nuova scansione.",
+      "retry": "Riprova",
+      "rescan": "Esegui nuova scansione",
+      "rescan_label": "Esegui una nuova scansione dei dispositivi connessi",
+      "enter_manually": "Inserisci manualmente",
+      "unknown": "Dispositivo sconosciuto"
+    },
     "locked_by_verizon": {
       "title": "Il passthrough IP è gestito dal tuo profilo Verizon",
       "body": "Profilo attivo: \"{{name}}\". Per modificare queste impostazioni, disattiva il profilo da Profili personalizzati.",
-      "cta": "Apri Profili personalizzati"
+      "cta": "Apri Profili personalizzati",
+      "blocked": "Il passthrough IP è gestito dal tuo profilo Verizon."
     }
   },
   "masquerade": {

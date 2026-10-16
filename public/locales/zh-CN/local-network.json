@@ -191,67 +191,118 @@
     "toast_error_apply": "应用 MTU 设置失败"
   },
   "ippt": {
-    "page_title": "IP 穿透设置（IPPT）",
-    "page_description": "将调制解调器的公网 IP 直接分配给已连接的设备，绕过路由器 NAT 层。",
-    "card_title": "IP 穿透配置",
-    "card_description": "将调制解调器的公网 IP 直接分配给下游设备，绕过路由器 NAT。",
-    "label_passthrough_mode": "IP 穿透模式",
-    "aria_passthrough_mode": "IP 穿透模式",
-    "option_mode_disabled_router": "禁用（路由器模式）",
-    "option_mode_eth": "以太网（ETH）",
-    "option_mode_usb": "USB 网络共享",
-    "label_target_device_mac": "目标设备（MAC）",
-    "aria_target_device_mac": "目标设备 MAC",
-    "placeholder_mac_router_mode": "不适用 — 路由器模式",
-    "option_mac_automatic": "自动 — 首个已连接设备",
-    "option_mac_manual": "手动输入…",
-    "placeholder_mac_manual": "XX:XX:XX:XX:XX:XX",
-    "helper_mac_manual": "输入将接收 WAN IP 的设备 MAC 地址。",
-    "option_mac_device": "从已连接设备中选择…",
-    "aria_mac_device": "从已连接列表中选择目标设备",
-    "placeholder_mac_device": "选择设备",
-    "helper_mac_device": "选择当前连接到调制解调器 LAN 的设备以接收 WAN IP。",
-    "device_scanning": "正在扫描已连接设备…",
-    "device_error": "无法加载已连接设备。",
-    "device_empty": "未找到已连接设备。请将设备连接到调制解调器，然后重新扫描。",
-    "device_rescan": "重新扫描",
-    "device_enter_manually": "手动输入",
-    "device_unknown": "未知设备",
-    "aria_device_refresh": "重新扫描已连接设备",
-    "label_nat_mode": "NAT 模式（网络地址转换）",
-    "aria_nat_mode": "NAT 模式",
-    "option_nat_on": "使用 NAT（推荐）",
-    "option_nat_off": "不使用 NAT",
-    "label_usb_mode": "USB 连接模式",
-    "aria_usb_mode": "USB 连接模式",
-    "option_usb_rmnet": "RMNET (QMI)",
-    "option_usb_ecm": "ECM（通用）",
-    "option_usb_mbim": "MBIM（Windows）",
-    "option_usb_rndis": "RNDIS（旧版）",
-    "label_dns_proxy": "DNS 代理",
-    "aria_dns_proxy": "DNS 代理",
-    "option_dns_disabled": "禁用（推荐）",
-    "option_dns_enabled": "启用（使用调制解调器 DNS）",
-    "error_invalid_mac": "请输入有效的 MAC 地址（XX:XX:XX:XX:XX:XX）",
-    "toast_success_apply": "设置已应用 — 设备正在重启…",
-    "toast_error_apply": "保存 IP 穿透设置失败",
-    "aria_reset": "重置为已保存的值",
-    "dialog_title": "设备将立即重启",
-    "dialog_desc_reboot_notice": "应用这些更改将保存配置并立即重启设备。",
-    "dialog_desc_unreachable_warning": "IP 穿透激活后，设备的本地网关将无法访问。请确保您有可用的 Tailscale 连接或其他带外方式，以便在重启后访问设备。",
-    "dialog_desc_persistence": "此设置在重启后仍然保留。",
-    "button_apply_reboot": "应用并重启",
-    "placeholder_mode": "选择模式",
-    "placeholder_mac_source": "选择目标",
-    "aria_mac_source": "MAC 来源",
-    "aria_mac_address": "MAC 地址",
-    "placeholder_nat_mode": "选择 NAT 模式",
-    "placeholder_usb_mode": "选择 USB 调制解调器协议",
-    "placeholder_dns_proxy": "选择 DNS 模式",
+    "page": {
+      "title": "IP 直通",
+      "description": "将调制解调器的公网 IP 直接交给一台连接设备，而不是为整个局域网做路由。"
+    },
+    "header": {
+      "refresh": "刷新"
+    },
+    "status": {
+      "label": "上次应用",
+      "mode_title": {
+        "disabled": "路由模式",
+        "eth": "以太网直通",
+        "usb": "USB 直通"
+      },
+      "blurb": {
+        "disabled": "调制解调器为局域网做路由",
+        "eth": "设置为将 WAN IP 交给以太网设备",
+        "usb": "设置为将 WAN IP 交给 USB 设备"
+      },
+      "no_target": "未选择设备",
+      "gateway": "局域网网关",
+      "gateway_served": "提供服务",
+      "gateway_not_served": "不提供服务"
+    },
+    "card": {
+      "title": "直通配置",
+      "description": "应用会写入所有设置并重启调制解调器。",
+      "apply": "应用并重启",
+      "discard": "放弃更改",
+      "unsaved_one": "{{count}} 项未保存的更改",
+      "unsaved_other": "{{count}} 项未保存的更改",
+      "mac_label": "目标 MAC 地址",
+      "mac_placeholder": "XX:XX:XX:XX:XX:XX"
+    },
+    "groups": {
+      "passthrough": "直通",
+      "network": "网络"
+    },
+    "rows": {
+      "mode": {
+        "label": "模式"
+      },
+      "target": {
+        "label": "目标设备",
+        "pick_mode": "请先选择模式。"
+      },
+      "nat": {
+        "label": "NAT 转换",
+        "hint": "几乎所有场景都适合启用 NAT。",
+        "hint_label": "关于 NAT"
+      },
+      "usb": {
+        "label": "USB 连接"
+      },
+      "dns": {
+        "label": "DNS 代理",
+        "hint": "开启后，由调制解调器为目标设备应答 DHCP DNS。",
+        "hint_label": "关于 DNS 代理"
+      }
+    },
+    "options": {
+      "mode_disabled": "路由",
+      "mode_eth": "以太网",
+      "mode_usb": "USB",
+      "target_automatic": "自动",
+      "target_device": "从局域网",
+      "target_manual": "按 MAC",
+      "nat_on": "启用 NAT",
+      "nat_off": "不启用 NAT",
+      "dns_off": "关闭",
+      "dns_on": "开启"
+    },
+    "mode_note": {
+      "rest": "以太网或 USB 会把 WAN IP 交给一台设备，调制解调器将不再在其局域网网关地址上响应。请保留 Tailscale 或其他登入方式。",
+      "to_passthrough": "应用会重启调制解调器，此标签页将与其断开。之后局域网网关不再响应，请保留 Tailscale 或其他登入方式。",
+      "to_router": "应用会重启调制解调器，此标签页将与其断开。重启后局域网网关会恢复响应。"
+    },
+    "dialog": {
+      "title": "现在应用并重启？",
+      "body": "设置会被写入，调制解调器随即重启。本页面将转到重启倒计时并让你退出登录。",
+      "body_gateway": "直通生效后，调制解调器将不再在局域网网关地址上应答。请确认你有 Tailscale、直通设备本身或串口控制台可以重新登入。",
+      "body_persist": "该设置会在后续重启后继续保持。",
+      "cancel": "取消",
+      "confirm": "应用并重启"
+    },
+    "toast_apply_error": "无法应用 IP 直通设置",
+    "errors": {
+      "read_title": "无法读取直通配置",
+      "read_body": "未做任何更改。请重试，或检查调制解调器是否在响应。",
+      "retry": "重试",
+      "card_unread": "调制解调器尚未响应，在首次读取完成前没有可更改的内容。",
+      "mac_invalid": "请输入完整的 MAC 地址，即六组十六进制数字。",
+      "no_changes": "尚未有任何更改。",
+      "device_unpicked": "请先选择一个已连接的设备。"
+    },
+    "device": {
+      "label": "从已连接列表中选择目标设备",
+      "placeholder": "选择设备",
+      "scanning": "正在扫描已连接设备…",
+      "error": "无法加载已连接设备。",
+      "empty": "未找到已连接设备。请将设备连接到调制解调器，然后重新扫描。",
+      "retry": "重试",
+      "rescan": "重新扫描",
+      "rescan_label": "重新扫描已连接设备",
+      "enter_manually": "手动输入",
+      "unknown": "未知设备"
+    },
     "locked_by_verizon": {
       "title": "IP 穿透由您的 Verizon 配置文件管理",
       "body": "活动配置文件：\"{{name}}\"。要更改这些设置，请从自定义配置文件中停用该配置文件。",
-      "cta": "打开自定义配置文件"
+      "cta": "打开自定义配置文件",
+      "blocked": "IP 直通由您的 Verizon 配置文件管理。"
     }
   },
   "masquerade": {
