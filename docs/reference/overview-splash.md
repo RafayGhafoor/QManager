@@ -20,7 +20,7 @@ The card was re-authored on the RM520N canon in ledger row U3.4 (`67a5e3b8`), po
 | Pre-auth type scale | `components/pre-auth-type.ts` (`CARD_TITLE`, eyebrow, body) |
 | Quality map | `components/cellular/signal-quality-display.ts` |
 | Supporting components | `components/public/mode-toggle.tsx`, `components/auth/login-device-name.tsx` |
-| Hooks | `hooks/use-public-overview.ts` (5s poll), `hooks/use-device-hostname.ts`, `useUnitPreferences` in `hooks/use-system-settings.ts` |
+| Hooks | `hooks/use-public-overview.ts` (5s poll), `hooks/use-device-hostname.ts`, `hooks/use-public-unit-preferences.ts` |
 | Types | `types/public-overview.ts`, `types/device-hostname.ts`; `SignalQuality`, `METRIC_RANGES`, `normalizeMetricValue` in `types/modem-status.ts` |
 | Helpers | `lib/public-overview/format.ts` (`deriveConnectionLabel`, `formatUptime`) |
 | Public CGI endpoints | `scripts/www/cgi-bin/quecmanager/public/{overview,hostname}.sh` |
@@ -157,11 +157,11 @@ A full-width Sign-in `Button` wrapping `<Link href="/login/">` (copy `overview.a
 
 | Area | Source | Target |
 |------|--------|--------|
-| Temperature units | Public `public/units.sh` plus `usePublicUnitPreferences` | Neither exists. The splash uses `useUnitPreferences` (`hooks/use-system-settings.ts`): a plain `fetch` to the authenticated `system/settings.sh`, which returns 401 when signed out, so a signed-out visitor sees **Celsius** (and km). Logged-in browsers on the same origin send cookies and get their real unit. Follow-up: ledger B3.6 |
+| Temperature units | Public `public/units.sh` (reads `/etc/qmanager/qmanager.conf` via `config.sh`) plus a temperature-only `usePublicUnitPreferences` | Ported in ledger B3.6, adapted: `units.sh` reads UCI `quecmanager.settings` and allowlists both values; the hook returns the same `{ tempUnit, distanceUnit }` shape as `useUnitPreferences` (below) |
 | LuCI | Button removed (RM520N has no LuCI) | Kept as a ghost `Button size="sm"` pill under the CTA: "LuCI" plus Material `open_in_new`, `target="_blank"`, `href="/cgi-bin/luci"` (keys `overview.actions.luci`, `luci_aria`). It replaced the `react-icons` `SiOpenwrt` brand glyph so `/` stays Material-only. LuCI has its own login, so it stays reachable before sign-in |
 | Quality model | Five-stop `SignalQuality` | Four-stop; see the warning above |
 | Hostname | Kernel hostname only | UCI first, then `/proc` (below) |
-| Backend | New `public/` endpoints | None changed in U3.4: `overview.sh` already projected the same fields |
+| Backend | New `public/` endpoints | None changed in U3.4: `overview.sh` already projected the same fields. `units.sh` added in B3.6 |
 
 ---
 
@@ -222,13 +222,19 @@ Live response (mirrored by `PublicOverviewOk` in `types/public-overview.ts`):
 
 `GET /cgi-bin/quecmanager/public/hostname.sh` returns `{ "hostname": "<string>" }`. Source order: UCI `system.@system[0].hostname` (canonical on OpenWrt), then `/proc/sys/kernel/hostname`, then an empty string. It strips CR/LF and clamps to 63 characters (RFC 1123). It always answers HTTP 200; an empty string is the "no name set" signal behind `LoginDeviceName`'s silent omission.
 
+### `units.sh`: display units
+
+`GET /cgi-bin/quecmanager/public/units.sh` returns `{ "settings": { "temp_unit": "celsius"|"fahrenheit", "distance_unit": "km"|"miles" } }`, the same keys and defaults as the authenticated `system/settings.sh` GET. Each value is allowlisted, so a hand-edited UCI value reads as the default and never reaches an unauthenticated caller; the endpoint exposes these two fields and nothing else from `quecmanager.settings` (which also holds the scheduled-reboot and low-power settings). It makes **zero writes**: unlike `system/settings.sh` it never seeds a missing section, which simply reads as celsius/km. Any method other than GET (OPTIONS aside) gets the `method_not_allowed` envelope. `usePublicUnitPreferences` (`hooks/use-public-unit-preferences.ts`) fetches it once on mount with `credentials: "omit"`, coerces each value again, and resolves to `null` on any failure, so the card falls back to celsius. No lifecycle edits: `install.sh` recopies and `uninstall.sh` removes the whole CGI tree.
+
 ---
 
 ## Why the hooks use plain `fetch` with `credentials: "omit"`
 
 `use-public-overview` and `use-device-hostname` use a plain `fetch` with `credentials: "omit"`, not `authFetch`. `authFetch` hard-redirects to `/login/` on any 401, and a signed-out visitor is unauthenticated by definition, so the first fetch would bounce them off the public page. `credentials: "omit"` also keeps the pre-auth page from sending a session cookie it does not need.
 
-> ⚠️ WARNING: `useUnitPreferences` is the exception. It is shared with the logged-in dashboard, so it keeps default same-origin credentials and a plain `fetch` (never `authFetch`): signed out it gets a 401 and falls back to celsius/km, signed in it gets the user's real units. Swapping it to `authFetch` would redirect every logged-out visitor from `/` to `/login/`.
+`use-public-unit-preferences` follows the same rule. The splash no longer uses the authenticated `useUnitPreferences` (`hooks/use-system-settings.ts`), which stays on the dashboard with default same-origin credentials and a plain `fetch`.
+
+> ⚠️ WARNING: Never swap `useUnitPreferences` to `authFetch` either: it once ran on `/`, and any display-preference read that can reach a signed-out page must not drive the 401 redirect to `/login/`.
 
 `use-public-overview` adds:
 

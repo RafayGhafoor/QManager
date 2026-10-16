@@ -120,6 +120,31 @@ Destroys all sessions (forces re-login).
 
 ---
 
+## Public (unauthenticated)
+
+These back the pre-auth `/` splash and the login screen. They set `_SKIP_AUTH=1`, so every field is visible to anyone on the LAN; adding a field needs a security review. Full contracts: [`reference/overview-splash.md`](reference/overview-splash.md).
+
+### GET `/public/overview.sh`
+
+Projected modem overview for the splash (state, connection, carriers, temperature).
+
+### GET `/public/hostname.sh`
+
+```json
+{ "hostname": "QManager" }
+```
+
+### GET `/public/units.sh`
+
+The user's display units, so a signed-out visitor sees the modem temperature in their unit.
+
+```json
+{ "settings": { "temp_unit": "celsius", "distance_unit": "km" } }
+```
+Reads UCI `quecmanager.settings.temp_unit` / `distance_unit` and allowlists each value (`celsius|fahrenheit`, `km|miles`); anything else, or a missing section, reads as the default. Zero writes (never seeds the section). Any method other than GET (OPTIONS aside) returns the `method_not_allowed` envelope. Hook: `usePublicUnitPreferences` (`credentials: "omit"`).
+
+---
+
 ## Modem Data
 
 ### GET `/at_cmd/fetch_data.sh`

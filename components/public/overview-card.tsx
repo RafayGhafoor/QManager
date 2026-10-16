@@ -42,7 +42,7 @@ import {
   type TranslateFn,
 } from "@/components/public/overview/tone";
 import { usePublicOverview } from "@/hooks/use-public-overview";
-import { useUnitPreferences } from "@/hooks/use-system-settings";
+import { usePublicUnitPreferences } from "@/hooks/use-public-unit-preferences";
 import { deriveConnectionLabel } from "@/lib/public-overview/format";
 import { formatTemperature } from "@/types/modem-status";
 import { LoginDeviceName } from "../auth/login-device-name";
@@ -137,11 +137,9 @@ export default function OverviewCard() {
   const { t } = useTranslation("common");
   const { data, isLoading, isStale, error, refresh, consecutiveFailures } =
     usePublicOverview();
-  // Target deviation: the source reads a public `units.sh` so a signed-out
-  // visitor sees their preferred unit. The target has no public units endpoint
-  // yet, so this falls back to celsius when signed out (the hook never
-  // redirects on 401). See the U3.4 ledger row.
-  const unitPrefs = useUnitPreferences();
+  // Unauthenticated public/units.sh, so a signed-out visitor sees their
+  // preferred unit (ledger B3.6). Null until loaded or on failure: celsius.
+  const unitPrefs = usePublicUnitPreferences();
   const reduceMotion = useMotionReduced();
   const nowSec = useNowSec();
 
@@ -356,7 +354,7 @@ interface BodyProps {
   refresh: () => void;
   bandMetric: BandMetric;
   onBandMetricChange: (metric: BandMetric) => void;
-  unitPrefs: ReturnType<typeof useUnitPreferences>;
+  unitPrefs: ReturnType<typeof usePublicUnitPreferences>;
   metersPainted: boolean;
 }
 
