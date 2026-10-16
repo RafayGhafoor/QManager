@@ -4,7 +4,8 @@
 # watchdog.sh — CGI Endpoint: Watchdog Settings & Status (GET + POST)
 # =============================================================================
 # GET:  Returns current watchdog configuration (UCI) + live status.
-# POST: Saves settings, dismisses SIM swap, or requests SIM revert.
+# POST: Saves settings, dismisses SIM swap, or requests SIM revert. A save
+#       may carry only one card's fields: absent keys are left untouched.
 #
 # Config: UCI quecmanager.watchcat.*
 # State:  /tmp/qmanager_watchcat.json (read-only, written by daemon)
@@ -89,6 +90,7 @@ uci_get() {
 if ! command -v conn_state_cadence >/dev/null 2>&1; then
     conn_state_cadence() {
         CQ_CFG_PROFILE="relaxed"
+        CQ_CFG_PROFILE_INTERVAL_SEC=5
         CQ_CFG_INTERVAL_SEC=5
         CQ_CFG_FAIL_SECS=15
         CQ_CFG_RECOVER_SECS=10
@@ -382,14 +384,16 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
             case "$val" in true) uci set quecmanager.watchcat.tier4_enabled=1 ;; false) uci set quecmanager.watchcat.tier4_enabled=0 ;; esac
         fi
 
-        val=$(printf '%s' "$POST_DATA" | jq -r '.backup_sim_slot // empty')
-        if [ -n "$val" ] && [ "$val" != "null" ]; then
+        # backup_sim_slot: present + 1/2 => set; present + null/empty => clear;
+        # absent => untouched, so a save from one card never wipes the slot.
+        has_slot=$(printf '%s' "$POST_DATA" | jq -r 'has("backup_sim_slot")')
+        if [ "$has_slot" = "true" ]; then
+            val=$(printf '%s' "$POST_DATA" | jq -r '.backup_sim_slot | if . == null then empty else tostring end')
             case "$val" in
+                '') uci set quecmanager.watchcat.backup_sim_slot="" ;;
                 1|2) uci set quecmanager.watchcat.backup_sim_slot="$val" ;;
                 *) reject_field "backup_sim_slot" "must be 1 or 2" ;;
             esac
-        else
-            uci set quecmanager.watchcat.backup_sim_slot=""
         fi
 
         val=$(printf '%s' "$POST_DATA" | jq -r '.max_reboots_per_hour | if . == null then empty else tostring end')
@@ -469,6 +473,25 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
                 uci set quecmanager.ping_profile.interval_override="$val"
             fi
             ping_profile_changed=1
+        fi
+
+        # probe_interval: the effective ping cadence in seconds (Detection card).
+        # Ignored when interval_override is also sent. An unchanged value writes
+        # nothing, so a Ladder-card save never touches cadence; a changed value
+        # sets the override, or clears it when it equals the profile's own interval.
+        val=$(printf '%s' "$POST_DATA" | jq -r '.probe_interval | if . == null then empty else tostring end')
+        if [ -n "$val" ] && [ "$has_override" != "true" ]; then
+            validate_int "$val" 1 60 || reject_field "probe_interval" "must be integer 1-60"
+            conn_state_cadence
+            if [ "$val" != "$CQ_CFG_INTERVAL_SEC" ]; then
+                uci -q get quecmanager.ping_profile >/dev/null 2>&1 ||                     uci set quecmanager.ping_profile=ping_profile
+                if [ "$val" = "$CQ_CFG_PROFILE_INTERVAL_SEC" ]; then
+                    uci -q delete quecmanager.ping_profile.interval_override 2>/dev/null
+                else
+                    uci set quecmanager.ping_profile.interval_override="$val"
+                fi
+                ping_profile_changed=1
+            fi
         fi
 
         uci commit quecmanager
