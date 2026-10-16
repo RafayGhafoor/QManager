@@ -47,6 +47,31 @@ if [ "$MODE" != "apply" ] && [ "$MODE" != "clear" ]; then
     exit 1
 fi
 
+# --- Clock-step guard (issue #9) ---------------------------------------------
+# crond runs a job whose minute a boot-time clock step crosses. Deny before any
+# config write or AT command. An unreadable schedule time means the config is
+# not readable, not "no schedule", so it denies too. See schedule_guard.sh.
+if [ -f /usr/lib/qmanager/schedule_guard.sh ]; then
+    . /usr/lib/qmanager/schedule_guard.sh
+    if [ "$MODE" = "apply" ]; then
+        sched_time=$(jq -r '.schedule.start_time // empty' "$TOWER_CONFIG_FILE" 2>/dev/null)
+    else
+        sched_time=$(jq -r '.schedule.end_time // empty' "$TOWER_CONFIG_FILE" 2>/dev/null)
+    fi
+    sched_days=$(jq -r '(.schedule.days // []) | map(tostring) | join(",")' "$TOWER_CONFIG_FILE" 2>/dev/null)
+    if ! _qm_validate_hhmm "$sched_time"; then
+        qlog_warn "Schedule $MODE skipped: schedule time unreadable ('$sched_time')"
+        exit 0
+    fi
+    if ! _qm_timer_fire_allowed "$sched_time" "$sched_days"; then
+        qlog_warn "Schedule $MODE skipped: $QM_GUARD_REASON (clock-step guard)"
+        exit 0
+    fi
+else
+    qlog_warn "Schedule $MODE skipped: schedule_guard.sh missing, failing closed"
+    exit 0
+fi
+
 # =============================================================================
 # APPLY MODE — Read config and send lock commands
 # =============================================================================
@@ -61,6 +86,10 @@ if [ "$MODE" = "apply" ]; then
     fi
 
     applied_any="false"
+
+    # AT results below are judged on "$rc:$result". qcmd prints a modem ERROR
+    # on stdout with rc=0; a transport failure (lock timeout, broker down) is
+    # rc!=0 with empty stdout, which a bare *ERROR* match read as success.
 
     # --- LTE Lock (using jq for all config parsing) ---
     lte_enabled=$(jq -r '.lte.enabled // false' "$TOWER_CONFIG_FILE" 2>/dev/null)
@@ -93,9 +122,10 @@ if [ "$MODE" = "apply" ]; then
         if [ "$num_cells" -gt 0 ]; then
             qlog_info "Applying LTE lock: $num_cells cell(s)"
             result=$(tower_lock_lte "$num_cells" $at_args)
-            case "$result" in
-                *ERROR*)
-                    qlog_error "Schedule: LTE lock failed: $result"
+            rc=$?
+            case "$rc:$result" in
+                0:*ERROR*|0:|[!0]*)
+                    qlog_error "Schedule: LTE lock failed (rc=$rc): $result"
                     ;;
                 *)
                     qlog_info "Schedule: LTE lock applied"
@@ -124,9 +154,10 @@ if [ "$MODE" = "apply" ]; then
            [ -n "$nr_band" ] && [ "$nr_band" != "null" ]; then
             qlog_info "Applying NR-SA lock: PCI=$nr_pci ARFCN=$nr_arfcn SCS=$nr_scs Band=$nr_band"
             result=$(tower_lock_nr "$nr_pci" "$nr_arfcn" "$nr_scs" "$nr_band")
-            case "$result" in
-                *ERROR*)
-                    qlog_error "Schedule: NR-SA lock failed: $result"
+            rc=$?
+            case "$rc:$result" in
+                0:*ERROR*|0:|[!0]*)
+                    qlog_error "Schedule: NR-SA lock failed (rc=$rc): $result"
                     ;;
                 *)
                     qlog_info "Schedule: NR-SA lock applied"
@@ -159,8 +190,9 @@ elif [ "$MODE" = "clear" ]; then
 
     # Clear LTE lock
     result=$(tower_unlock_lte 2>/dev/null)
-    case "$result" in
-        *ERROR*) qlog_error "Schedule: Failed to clear LTE lock: $result" ;;
+    rc=$?
+    case "$rc:$result" in
+        0:*ERROR*|0:|[!0]*) qlog_error "Schedule: Failed to clear LTE lock (rc=$rc): $result" ;;
         *) qlog_info "Schedule: LTE lock cleared" ;;
     esac
 
@@ -168,8 +200,9 @@ elif [ "$MODE" = "clear" ]; then
 
     # Clear NR-SA lock
     result=$(tower_unlock_nr 2>/dev/null)
-    case "$result" in
-        *ERROR*) qlog_error "Schedule: Failed to clear NR lock: $result" ;;
+    rc=$?
+    case "$rc:$result" in
+        0:*ERROR*|0:|[!0]*) qlog_error "Schedule: Failed to clear NR lock (rc=$rc): $result" ;;
         *) qlog_info "Schedule: NR-SA lock cleared" ;;
     esac
 

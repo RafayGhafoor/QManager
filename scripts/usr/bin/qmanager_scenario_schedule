@@ -57,6 +57,22 @@ if [ -z "$TARGET" ]; then
     exit 1
 fi
 
+# --- Clock-step guard (issue #9) ---------------------------------------------
+# crond runs a job whose minute a boot-time clock step crosses. A scenario
+# schedule is a multi-block timeline with no single HH:MM, so pass "" and the
+# guard degrades to clock + uptime. A deny is a plain skip, NOT an orphan: it
+# must not fall through to the self-heal teardown below.
+if [ -f /usr/lib/qmanager/schedule_guard.sh ]; then
+    . /usr/lib/qmanager/schedule_guard.sh
+    if ! _qm_timer_fire_allowed ""; then
+        qlog_warn "Scenario transition '$TARGET' skipped: $QM_GUARD_REASON (clock-step guard)"
+        exit 0
+    fi
+else
+    qlog_warn "Scenario transition '$TARGET' skipped: schedule_guard.sh missing, failing closed"
+    exit 0
+fi
+
 # --- Self-heal guard: only act for an active, schedule-enabled profile -------
 ACTIVE_PROFILE=$(get_active_profile)
 if [ -z "$ACTIVE_PROFILE" ] || \

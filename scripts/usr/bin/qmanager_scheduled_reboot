@@ -14,10 +14,40 @@ if [ -f /usr/lib/qmanager/qlog.sh ]; then
 else
     qlog_init() { :; }
     qlog_info() { logger -t scheduled_reboot "$1"; }
+    qlog_warn() { logger -t scheduled_reboot "WARN: $1"; }
     record_planned_reboot() { :; }
 fi
 
 qlog_init "scheduled_reboot"
+
+# --- Clock-step guard (issue #9) ---------------------------------------------
+# crond re-runs a job whose minute a boot-time clock step crosses, which for a
+# reboot is a loop. See schedule_guard.sh. A deny is a clean skip.
+if [ -f /usr/lib/qmanager/schedule_guard.sh ]; then
+    . /usr/lib/qmanager/schedule_guard.sh
+    sched_time=$(uci -q get quecmanager.settings.sched_reboot_time 2>/dev/null)
+    sched_days=$(uci -q get quecmanager.settings.sched_reboot_days 2>/dev/null)
+    if ! _qm_validate_hhmm "$sched_time"; then
+        qlog_warn "Scheduled reboot skipped: schedule time unreadable ('$sched_time')"
+        exit 0
+    fi
+    if ! _qm_timer_fire_allowed "$sched_time" "$sched_days"; then
+        qlog_warn "Scheduled reboot skipped: $QM_GUARD_REASON (clock-step guard)"
+        exit 0
+    fi
+else
+    # Stale or missing library: never leave the reboot unguarded. Uptime alone
+    # catches every boot-window misfire; an unreadable uptime fails closed.
+    _sr_up=$(awk '{print int($1)}' /proc/uptime 2>/dev/null)
+    case "$_sr_up" in
+        ''|*[!0-9]*) _sr_up=0 ;;
+    esac
+    if [ "$_sr_up" -lt 300 ]; then
+        qlog_warn "Scheduled reboot skipped: uptime ${_sr_up}s < 300s, guard library missing"
+        exit 0
+    fi
+fi
+
 qlog_info "Scheduled system reboot triggered"
 # Scheduled reboots fold into the single "user" (planned) class per the reboot-
 # alert routing model — drop the breadcrumb before rebooting so the next boot

@@ -137,28 +137,57 @@ while true; do
         if [ "$bad" -ge "$BAD_LIMIT" ]; then
             qlog_warn "FAILOVER: ${BAD_LIMIT} consecutive bad — clearing locks"
 
-            ok=0
+            # Both RATs must unlock: one shared flag OR'd across them reported
+            # COMPLETE (and wrote enabled=false) with the LTE lock still applied.
+            # qcmd prints a modem ERROR on stdout with rc=0; a transport failure
+            # is rc!=0 with empty stdout. Either one is a failed unlock.
+            lte_ok=0
+            nr_ok=0
             lte_r=$(tower_unlock_lte 2>/dev/null)
-            case "$lte_r" in *ERROR*) qlog_error "LTE unlock failed" ;; *) ok=1 ;; esac
+            lte_rc=$?
+            case "$lte_rc:$lte_r" in 0:*ERROR*|0:) qlog_error "LTE unlock failed" ;; 0:*) lte_ok=1 ;; *) qlog_error "LTE unlock failed (rc=$lte_rc)" ;; esac
 
             sleep 0.2
 
             nr_r=$(tower_unlock_nr 2>/dev/null)
-            case "$nr_r" in *ERROR*) qlog_error "NR unlock failed" ;; *) ok=1 ;; esac
+            nr_rc=$?
+            case "$nr_rc:$nr_r" in 0:*ERROR*|0:) qlog_error "NR unlock failed" ;; 0:*) nr_ok=1 ;; *) qlog_error "NR unlock failed (rc=$nr_rc)" ;; esac
 
-            if [ "$ok" -eq 1 ]; then
+            if [ "$lte_ok" -eq 0 ] || [ "$nr_ok" -eq 0 ]; then
+                qlog_error "FAILOVER INCOMPLETE (lte_ok=$lte_ok nr_ok=$nr_ok) — retrying failed unlock(s) in 5s"
+                sleep 5
+                if [ "$lte_ok" -eq 0 ]; then
+                    lte_r=$(tower_unlock_lte 2>/dev/null)
+                    lte_rc=$?
+                    case "$lte_rc:$lte_r" in 0:*ERROR*|0:) ;; 0:*) lte_ok=1 ;; esac
+                    sleep 0.2
+                fi
+                if [ "$nr_ok" -eq 0 ]; then
+                    nr_r=$(tower_unlock_nr 2>/dev/null)
+                    nr_rc=$?
+                    case "$nr_rc:$nr_r" in 0:*ERROR*|0:) ;; 0:*) nr_ok=1 ;; esac
+                fi
+            fi
+
+            if [ "$lte_ok" -eq 1 ] && [ "$nr_ok" -eq 1 ]; then
                 tower_config_update '.lte.enabled = false | .nr_sa.enabled = false'
                 echo "activated" > "$FLAG_FILE"
                 qlog_warn "FAILOVER COMPLETE — locks cleared"
             else
-                qlog_error "FAILOVER FAILED — retrying in 5s"
-                sleep 5
-                tower_unlock_lte >/dev/null 2>&1
-                sleep 0.2
-                tower_unlock_nr >/dev/null 2>&1
-                tower_config_update '.lte.enabled = false | .nr_sa.enabled = false'
-                echo "activated" > "$FLAG_FILE"
-                qlog_warn "FAILOVER COMPLETE (retry)"
+                # Record only what actually cleared, so config never claims a
+                # lock is off while the modem still holds it.
+                # The "activated" flag is not written: its presence alone reads as
+                # "failover cleared the locks". Keep watching and try again after
+                # another full bad window.
+                [ "$lte_ok" -eq 1 ] && tower_config_update '.lte.enabled = false'
+                [ "$nr_ok" -eq 1 ] && tower_config_update '.nr_sa.enabled = false'
+                qlog_error "FAILOVER FAILED after retry (lte_ok=$lte_ok nr_ok=$nr_ok) — remaining lock left in place, watching again"
+                if [ "$lte_ok" -eq 1 ] || [ "$nr_ok" -eq 1 ]; then
+                    mtu_reapply_after_bounce
+                fi
+                bad=0
+                sleep "$INTERVAL"
+                continue
             fi
 
             # Re-apply custom MTU after interface bounce

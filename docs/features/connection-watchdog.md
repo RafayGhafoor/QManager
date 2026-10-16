@@ -562,7 +562,9 @@ After any SIM transition, reading the ICCID is attempted up to three times with 
 3. Stop the tower-failover daemon (its lock state is meaningless on the backup SIM).
 4. Golden Rule sequence: `AT+CFUN=0` → 2 s → `AT+QUIMSLOT=N` → 2 s → `AT+CFUN=1`.
 5. `wait_for_modem` (up to 60 s). On failure, call `sim_failover_fallback` and enter cooldown.
-6. `AT+CPIN?` SIM-presence guard — if the backup slot returns an error, call `sim_failover_fallback` and enter cooldown.
+6. `AT+CPIN?` SIM-presence guard: up to 3 reads, 1 s apart. The check passes only on `rc=0` and a `+CPIN: READY` line. Right after `AT+CFUN=1`, the modem can answer `+CME ERROR: 14` (SIM busy) while SIM init is still running, so one failed read is routine and not proof the slot is empty. A `+CPIN:` reply other than READY (PIN/PUK) is logged as that state. Anything else after 3 tries is "could not confirm". Both cases call `sim_failover_fallback` and enter cooldown.
+
+> ℹ️ NOTE: On this target `qcmd` prints a modem `ERROR` on stdout with rc=0, and a transport failure (lock timeout, broker down) exits non-zero with empty stdout. A bare `*ERROR*` match therefore catches modem errors but reads a transport failure as success. Daemon AT checks judge `"$rc:$result"` instead (watchcat Tier 3, `qmanager_tower_failover`, `qmanager_tower_schedule`).
 7. Enter cooldown with `cooldown_remaining = max(CFG_COOLDOWN, SIM_SETTLE_SECS)`.
 8. **Finalization via `finalize_sim_failover()`** — called from the success arm of BOTH `recovery_reason="unreachable"` and `recovery_reason="quality"` paths in `finish_cooldown`. The function is self-guarded (no-op unless `current_tier==3` && slot moved && `original_sim_slot != "null"`), so both arms may call it unconditionally. It: sets `sim_failover_active="true"`, writes `/tmp/qmanager_sim_failover` (including `original_iccid` and `reason` field — `"connectivity_failure"` or `"quality_degradation"`), calls `sim_db_add` on the backup ICCID (3×retry), auto-applies a matching custom profile (`auto_apply_profile … "watchdog"`), and records `last_recheck_time` to start the auto-failback clock.
 
@@ -612,11 +614,17 @@ After `sim_failover_fallback` completes during a user revert, the daemon enters 
 
 `revert_settle_active` is also cleared on LOCKED-state entry (along with the rest of the recovery state) so a maintenance window cannot strand the daemon in a phantom settle.
 
+### Unconfirmed swap on LOCKED exit
+
+Entering LOCKED during a Tier-3 cooldown abandons the recovery before `finalize_sim_failover` runs. Without a guard, the modem stays on the backup SIM with `sim_failover_active="false"` and `original_sim_slot` still set. A revert request then sits in the "swap mid-flight" branch forever, and the next outage skips Tier 3 because the backup slot equals the current slot. So on LOCKED **exit**, an unconfirmed swap (`sim_failover_active != "true"`, `original_sim_slot != "null"`, slot moved) is reverted with `sim_failover_fallback`, then held for `SIM_SETTLE_SECS` as a revert settle. It is not reverted on entry, because the lock holder (cell scan, profile apply, maintenance lock) owns the modem until the lock clears.
+
+A stale-ping cooldown (3 stale re-reads) does not need this guard. It is treated as a recovery failure, and `_cooldown_handle_failure` already reverts a Tier-3 swap before escalating. (The RM520N fork returned to monitor there and needed `ba4df3b3`.)
+
 The `cooldown_remaining` value in the state file reflects `SIM_SETTLE_SECS` (90 s) during a revert settle, so the UI countdown is honest.
 
 ### Auto-failback: blind primary-SIM recheck
 
-When `primary_recheck_enabled=1` and the daemon is in an active failover (`sim_failover_active="true"`), the main loop accrues time since `last_recheck_time` (epoch). On reaching `primary_recheck_interval` minutes, `initiate_primary_recheck()` fires — provided: state is `monitor`, no `primary_recheck_active` settle is already in progress, and no user-revert flag is pending (user revert takes precedence).
+When `primary_recheck_enabled=1` and the daemon is in an active failover (`sim_failover_active="true"`), the main loop accrues time since `last_recheck_time` (`mono_now`, seconds since boot: a boot-time clock step must not make a recheck due at once; see [scheduled-jobs.md](scheduled-jobs.md)). On reaching `primary_recheck_interval` minutes, `initiate_primary_recheck()` fires — provided: state is `monitor`, no `primary_recheck_active` settle is already in progress, and no user-revert flag is pending (user revert takes precedence).
 
 **`initiate_primary_recheck()` sequence:**
 
