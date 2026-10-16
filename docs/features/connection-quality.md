@@ -144,7 +144,7 @@ The `ping_profile.sh` CGI also seeds these defaults on-read (via `ensure_ping_pr
 
 ## Quality Thresholds
 
-Quality thresholds control when `events.sh` fires `high_latency`, `latency_recovered`, `high_packet_loss`, and `packet_loss_recovered` events into the Recent Activities log. They also drive the Connection Watchdog's quality trigger — the same resolved threshold applies to both paths. See [connection-watchdog.md](connection-watchdog.md) for the watchdog's own debounce (`quality_consecutive`) which is independent.
+Quality thresholds control when `events.sh` (`detect_data_connection_events`, [see below](#one-detector-eventssh)) fires `high_latency`, `latency_recovered`, `high_packet_loss`, and `packet_loss_recovered` events into the Recent Activities log. They also drive the Connection Watchdog's quality trigger — the same resolved threshold applies to both paths. See [connection-watchdog.md](connection-watchdog.md) for the watchdog's own debounce (`quality_consecutive`) which is independent.
 
 **Latency basis:** both the Network Events path in `events.sh` and the watchdog's quality trigger compare against `avg_latency_ms` — the **windowed average** RTT from `status.json`. The old `events.sh` path previously used the last single RTT (`latency_ms`); it was unified to `conn_avg_latency` (which maps to `avg_latency_ms`) so that a single noisy probe cannot fire a latency event.
 
@@ -170,13 +170,40 @@ Quality thresholds control when `events.sh` fires `high_latency`, `latency_recov
 
 The `custom` preset stores the user-supplied value in `latency_custom_ms` / `loss_custom_pct` in UCI. The `QUALITY_PRESETS` constant in `types/modem-status.ts` is `["standard", "tolerant", "very-tolerant", "custom"]`.
 
+### One Detector (`events.sh`)
+
+`detect_data_connection_events` in `scripts/usr/lib/qmanager/events.sh` is the **only** place link transitions (`internet_lost` / `internet_restored`) and quality pairs (`high_latency` / `latency_recovered`, `high_packet_loss` / `packet_loss_recovered`) are decided (ledger B2.3). The poller calls it every cycle from the always-run local block, after `read_ping_data` / `read_dns_data` and before `alert_engine_check`; it is no longer called from `detect_events`, which only runs when an AT read is due. It publishes `ev_link_state` (`"down"`, `"up"`, or `""` for stale, unknown or low power) and the alert engine follows that value instead of keeping its own edge detector. **Why:** two detectors disagreed under watchdog recovery (live: two consecutive `internet_lost` with no restore between, and a `high_packet_loss` 100 % logged during an outage).
+
+**Link rules, in order**
+
+- It follows the ping daemon's reachable verdict (`conn_internet_available`), never `conn_status` (`"recovery"` would mask it), so a watchdog-fixed outage still logs `internet_restored`.
+- Stale or unknown ping data is no transition; every counter stays frozen.
+- The first reading after a poller start is adopted silently.
+- The first true to false edge always logs `internet_lost`, even when the watchdog raised its recovery flag before the poller saw the drop. Only a **repeat** drop after a restore inside the same recovery window is held (`ev_recov_restored`, cleared when the daemon's recovery flag clears), so one outage logs exactly one lost/restored pair.
+- Scheduled low power logs nothing and publishes `ev_link_state=""`; the baseline follows the reading so the exit is not an edge.
+
+**Quality rules**
+
+- Frozen while the link is down (the outage is the record).
+- Debounced on **entry and exit**: `QUALITY_*_DEBOUNCE` consecutive readings to raise, the same number of consecutive clear readings (`ev_lat_clear_streak` / `ev_loss_clear_streak`) to recover. A 40/0/40 flicker logs nothing.
+- Entry is held while `CQ_STREAK_FAIL > 0` (the daemon is counting failures, the run-up to a down verdict) and for one history window after a restore (`CONN_HISTORY_SIZE x conn_history_interval`, default 300 s; the outage nulls are still in the window). Exits are never held.
+- Kept from the pre-B2.3 target: latency basis is the windowed average (`conn_avg_latency`, "null" = no reading), thresholds come from the `QUALITY_*` globals including the `custom` preset, and the message wording is unchanged.
+
+**Degraded status.** In `status.json`, `connectivity.status` is `"degraded"` when packet loss is at or above `QUALITY_LOSS_THRESHOLD` (it was a hard-coded 10 %). Latency alone never degrades the status. The cuts are published as `connectivity.thresholds: { latency_ms, loss_pct }` so the UI grades against the configured values (`ConnectivityStatus.thresholds?` in `types/modem-status.ts`; absent on an older poller).
+
+### Alert wait (`alert_after_min`)
+
+One outage wait serves every alert channel (see [Alerts](alerts.md#one-alert-wait-for-every-channel)): UCI `quecmanager.quality_thresholds.alert_after_min`, minutes. The resolver `cq_alert_after_min` in `conn_state.sh` sets `CQ_ALERT_AFTER_MIN` from the UCI key (1-1440), else `/etc/qmanager/sms_alerts.json` `threshold_minutes`, else `email_alerts.json` `threshold_minutes`, else 5. `quality_thresholds.sh` GET returns it as top-level `alert_after_min`; POST accepts an optional `alert_after_min` (1-60). The Alerts page can write the same key (via `monitoring/alerts.sh`).
+
+> ⚠️ WARNING: Config Backup does not carry the `quality_thresholds` section. The wait travels only as `sms_alerts.json`'s `threshold_minutes` mirror, and restoring onto a device that already has an `alert_after_min` key keeps that device's wait.
+
 ### Why absence == default (never seeded)
 
-The `quecmanager.quality_thresholds` UCI section is **never seeded by the installer** and is **never created by `ensure_*` on read**. Its absence is the "user has not changed this" signal. The GET endpoint reports `isDefault: true` when the section is absent and returns `tolerant/tolerant` in the response body — the frontend displays a "Using defaults" notice instead of a "saved" state. The poller also falls back to `tolerant/tolerant` when the section is absent (see `resolve_quality_thresholds()` in `qmanager_poller`).
+The `quecmanager.quality_thresholds` UCI section is **never seeded by the installer** and is **never created by `ensure_*` on read**. Its absence is the "user has not changed this" signal. The GET endpoint reports `isDefault: true` when **neither `latency_preset` nor `loss_preset` is stored** and returns `tolerant/tolerant` in the response body — the frontend displays a "Using defaults" notice instead of a "saved" state. The poller also falls back to `tolerant/tolerant` in that case (see `resolve_quality_thresholds()` in `qmanager_poller`).
 
-When the user saves thresholds for the first time, `quality_thresholds.sh` creates the section then. From that point on, `isDefault` is always `false` even if the user picks the same tolerant/tolerant values.
+The section itself may exist while `isDefault` is still `true`: `monitoring/alerts.sh` creates it to hold `alert_after_min` alone (a `quality_thresholds.sh` POST always carries both presets). When the user saves thresholds for the first time, `quality_thresholds.sh` writes both presets; from that point on, `isDefault` is always `false` even if the user picks the same tolerant/tolerant values.
 
-> ℹ️ NOTE: If you need to reset a device back to "default" state (isDefault=true), remove the UCI section: `uci delete quecmanager.quality_thresholds && uci commit quecmanager`.
+> ℹ️ NOTE: To reset a device back to "default" state (isDefault=true) and also drop the alert wait, remove the UCI section: `uci delete quecmanager.quality_thresholds && uci commit quecmanager`. To keep the wait, delete just `latency_preset` and `loss_preset` (plus the custom keys).
 
 ---
 
@@ -194,7 +221,7 @@ quality_thresholds.sh POST
   ──touch /tmp/qmanager_quality_reload     (poller + events.sh path)
   ──touch /tmp/qmanager_watchcat_reload    (watchdog quality trigger)
                  │
-  qmanager_poller reads quality flag ──▶ resolve_quality_thresholds() ──▶ rm flag
+  qmanager_poller reads quality flag ──▶ resolve_quality_thresholds() + cq_alert_after_min() ──▶ rm flag
   qmanager_watchcat reads watchcat flag ──▶ read_config() ──▶ rm flag
 ```
 
@@ -268,9 +295,12 @@ On ping profile reload, `load_config()` re-reads UCI and `detect_ping6()` re-pro
     "latency": { "preset": "tolerant" },
     "loss": { "preset": "tolerant" }
   },
+  "alert_after_min": 5,
   "isDefault": false
 }
 ```
+
+`alert_after_min` is always present: the resolved single alert wait in minutes (`cq_alert_after_min`), whether or not a preset is stored.
 
 **GET response (section present, custom preset)**
 
@@ -287,7 +317,7 @@ On ping profile reload, `load_config()` re-reads UCI and `detect_ping6()` re-pro
 
 `custom_ms` and `custom_pct` are present only when the respective preset is `"custom"`.
 
-**GET response (section absent — factory state)**
+**GET response (no preset stored — factory state)**
 
 ```json
 {
@@ -296,6 +326,7 @@ On ping profile reload, `load_config()` re-reads UCI and `detect_ping6()` re-pro
     "latency": { "preset": "tolerant" },
     "loss": { "preset": "tolerant" }
   },
+  "alert_after_min": 5,
   "isDefault": true
 }
 ```
@@ -324,6 +355,8 @@ On ping profile reload, `load_config()` re-reads UCI and `detect_ping6()` re-pro
 
 `latency_custom_ms` and `loss_custom_pct` are required in the POST body when the corresponding preset is `"custom"`. The hook `useQualityThresholds` flattens the nested client type (`QualityThresholdsSettings`) to these flat wire keys before posting.
 
+`alert_after_min` is optional in the POST body (integer 1-60, minutes); absent leaves the stored wait unchanged. It is written to the same UCI section and picked up by the poller on the same `/tmp/qmanager_quality_reload` flag (the alert engine re-resolves it at the next outage start or channel reload).
+
 > ℹ️ NOTE: The POST body uses flat keys (`latency_preset`, `loss_preset`, `latency_custom_ms`, `loss_custom_pct`) even though the GET response uses a nested shape (`thresholds.latency.{preset,custom_ms}`). This asymmetry is intentional — the GET was shaped for front-end destructuring; the POST mirrors UCI field names.
 
 **POST success**
@@ -339,6 +372,7 @@ On ping profile reload, `load_config()` re-reads UCI and `detect_ping6()` re-pro
 | `invalid_preset` | `latency_preset` or `loss_preset` not one of: `standard`, `tolerant`, `very-tolerant`, `custom` |
 | `invalid_custom_ms` | `latency_custom_ms` not an integer 1–10000 (required when `latency_preset=custom`) |
 | `invalid_custom_pct` | `loss_custom_pct` not an integer 0–100 (required when `loss_preset=custom`) |
+| `invalid_threshold` | `alert_after_min` present but not an integer 1-60 |
 | `missing_action` | `action` field absent |
 | `unknown_action` | `action` not `save` |
 

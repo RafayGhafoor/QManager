@@ -222,7 +222,21 @@ Network event detection (sourced by the poller). Detects state changes and appen
 | `snapshot_event_state` | Save current state for next comparison |
 | `detect_events` | Compare current vs. previous state, emit events |
 | `detect_scc_pci_changes` | Detect SCC cell handoffs |
-| `detect_data_connection_events` | Detect internet/latency/loss changes |
+| `detect_data_connection_events` | The ONE link/quality detector (ledger B2.3). Called by the poller every cycle from the always-run local block (after `read_ping_data`/`read_dns_data`, before `alert_engine_check`), not from `detect_events`. Decides `internet_lost`/`internet_restored` and the `high_latency`/`latency_recovered` and `high_packet_loss`/`packet_loss_recovered` pairs; publishes `ev_link_state` (`down`/`up`/`""` for stale, unknown or low power). Rules in [`connection-quality.md`](features/connection-quality.md#one-detector-eventssh) |
+| `_ev_settle <channel> <value> [sticky]` | Generic settle debounce for discrete radio identifiers. rc 0 settled on a new value (`_EV_SETTLED_FROM`/`_EV_SETTLED_TO`), 1 nothing to report, 2 churning (`_EV_FLAP_N`). `EV_SETTLE_SAMPLES=3`, `EV_FLAP_THRESHOLD=6`, `EV_FLAP_WINDOW=300` s. A blank value is no observation. Channel name is interpolated into variable names, so it must be a bare identifier. State is poller memory (a restart re-settles) |
+| `_ev_ca_check <channel> <tech> <scc-count>` | CA announcements for one tech (`lte_ca` / `nr_ca`), keyed on the SCC count through a sticky `_ev_settle`. Called from `detect_events`. See [CA settle rules](#ca-change-settle-rules) |
+| `_ev_ca_diff` | Added/removed band diff, one `added\|removed` line (no more "(+B7, -B7)") |
+
+#### CA change settle rules
+
+`ca_change` events used to fire on every raw sample difference, so a secondary carrier dropping out of `AT+QCAINFO` for one sample produced an activated/deactivated pair seconds apart (9 events in about 60 s on the RM551E). They now go through `_ev_ca_check`:
+
+- **Settle:** an SCC count must hold for 3 consecutive observations before it is announced. Real held changes keep the existing wording: `CA activated: ... (N carriers)`, `CA deactivated — single carrier (Bx)`, `carriers changed from A to B (+x, -y)` (diffed against the last announced carriers, not the previous sample).
+- **Churn:** one-sample dips that never settle are counted; 6 within 300 s emit a single `LTE/NR CA churn detected` warning per episode (sticky: settling back onto the announced value does not reset the episode).
+- **Episode end:** after 300 s with no candidate change the episode closes with `CA settled on <bands>` (info) or `CA settled inactive` (warning).
+- **No observation:** an empty carrier list (`[]`) and the `deep` adaptive-polling tier (QCAINFO is skipped there, so the CA fields are stale). A blank never resets a counter.
+- **Cold start:** the first settled value after a poller start is adopted silently.
+- Band and PCI changes are not on `_ev_settle` yet (ledger B1.10).
 
 ### profile_mgr.sh
 
@@ -253,7 +267,8 @@ One centralized downtime state machine (sourced by poller, last in the alert-lib
 - `alert_engine_reboot_detect` — one-shot per poller start (called from `main()`), compares the kernel's per-boot `/proc/sys/kernel/random/boot_id` against `/etc/qmanager/last_boot_id`; a change means a real reboot happened (a bare procd respawn keeps the same `boot_id` and stages nothing). Classifies the cause from the shared `/etc/qmanager/crash.log` ledger (newest row within a ±300s window → `watchdog`/`user`/`unplanned`) and stages `/tmp/qmanager_reboot_pending.json`.
 - `_ae_reboot_check` — per-cycle delivery of a staged reboot alert once `conn_internet_available == "true"`; reuses the same `sms_alert_emit`/`email_alert_emit` rc-contract; coalesces >3 all-cause reboots/hour into one storm message via `/tmp/qmanager_reboot_storm_hour`
 - See [`docs/features/alerts.md`](features/alerts.md#reboot-alerts) for the full detection/classification/delivery model, and the critical **tier4-only vs all-cause reboot-count** distinction between `qmanager_watchcat`'s `count_recent_reboots()` and this engine's `_ae_reboot_count_last_hour()` — both read the same `crash.log` file but must never be conflated
-- Suppresses both channels during low-power mode and watchdog recovery churn (`conn_during_recovery`) — the old `check_email_alert` was missing this guard
+- Has no edge detector of its own: follows `ev_link_state`, published each cycle by `events.sh` `detect_data_connection_events`. Suppressed only by low-power mode; a watchdog recovery no longer freezes the outage machine (an outage the watchdog fixes is still alerted, SMS rc 2 retries a send made mid-CFUN). Reboot delivery (`_ae_reboot_check`) is still held mid-recovery and on stale ping data
+- One alert wait for every channel: `CQ_ALERT_AFTER_MIN` from `cq_alert_after_min` (`conn_state.sh`), re-resolved at init, at outage start and on SMS/email reloads
 - Dispatches sends via `sms_alert_emit`/`email_alert_emit <event> <secs>`, which return an rc contract of `0` (sent), `1` (failed, terminal), `2` (not ready, retry next cycle)
 - See [`docs/features/alerts.md`](features/alerts.md) for the full routing/capability model and clock-step rationale
 
@@ -282,6 +297,7 @@ The one reader of `/tmp/qmanager_ping.json` and the one ping-profile/cadence res
 
 - `conn_state_read` — one `jq` read into `CQ_*` vars; stale when `age > max(3 * interval_sec, 15)` s (monotonic `mono` vs `/proc/uptime`); stale or missing leaves `CQ_REACHABLE="null"`.
 - `conn_state_resolve <profile> [override]` / `conn_state_cadence` — the single profile table (interval/fail/recover seconds); the override changes cadence only.
+- `cq_alert_after_min` — resolves the single alert wait (minutes) into `CQ_ALERT_AFTER_MIN`: UCI `quecmanager.quality_thresholds.alert_after_min` (1-1440), else `threshold_minutes` from `sms_alerts.json`, then `email_alerts.json`, else 5. Used by `alert_engine.sh`, the poller (on `/tmp/qmanager_quality_reload`), `monitoring/alerts.sh` and `system/quality_thresholds.sh`; the CGIs stub a default of 5 if the lib is missing.
 
 Full contract: [`docs/features/connection-quality.md`](features/connection-quality.md#shared-ping-cache-reader-conn_statesh).
 
@@ -352,10 +368,10 @@ The core daemon — runs forever, polls the modem at tiered intervals.
 - Execute AT commands via `qcmd` at tiered intervals
 - Parse responses via `parse_at.sh`
 - Build complete JSON status object
-- Detect and emit network events via `events.sh`
+- Detect and emit network events via `events.sh` (radio events from `detect_events` when an AT read is due; link and quality events from `detect_data_connection_events` every cycle, right after `read_ping_data`/`read_dns_data`)
 - Manage signal/ping history NDJSON files
 - Read ping daemon and watchcat status
-- Run the centralized alert engine (`alert_engine_check`, every cycle) to detect connection-lost/restored events and dispatch SMS/email via `sms_alerts.sh`/`email_alerts.sh`, gated by `alert_routing.sh`'s routing + capability matrix; also runs `alert_engine_reboot_detect` once at startup to detect and stage a post-recovery reboot alert via `boot_id` comparison
+- Run the centralized alert engine (`alert_engine_check`, every cycle, following `ev_link_state`) to time outages and dispatch SMS/email via `sms_alerts.sh`/`email_alerts.sh`, gated by `alert_routing.sh`'s routing + capability matrix; also runs `alert_engine_reboot_detect` once at startup to detect and stage a post-recovery reboot alert via `boot_id` comparison
 
 **Tier System:**
 

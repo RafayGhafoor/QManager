@@ -16,6 +16,8 @@ A third event, **`reboot`**, tracks every real device restart — detected via t
 | SMS config | `/etc/qmanager/sms_alerts.json` (shape unchanged) |
 | Email config | `/etc/qmanager/email_alerts.json` (shape unchanged) |
 | Routing config | `/etc/qmanager/alert_routing.json` (version 2, additive `reboot` event) |
+| Single alert wait | UCI `quecmanager.quality_thresholds.alert_after_min` (minutes, optional, never seeded); resolver `cq_alert_after_min` in `/usr/lib/qmanager/conn_state.sh` |
+| Link detector | `detect_data_connection_events` in `/usr/lib/qmanager/events.sh` (publishes `ev_link_state`; the engine follows it) |
 | SMS log | `/tmp/qmanager_sms_log.json` (NDJSON, cap 100) |
 | Email log | `/tmp/qmanager_email_log.json` (NDJSON, cap 100) |
 | Reload flags | `/tmp/qmanager_sms_reload`, `/tmp/qmanager_email_reload`, `/tmp/qmanager_alert_routing_reload` |
@@ -33,7 +35,7 @@ A third event, **`reboot`**, tracks every real device restart — detected via t
 
 Three events, two channels:
 
-- **Events**: `connection_lost` (internet has been down ≥ the channel's threshold), `connection_restored` (it came back after a qualifying outage), `reboot` (the device restarted — see [Reboot Alerts](#reboot-alerts)).
+- **Events**: `connection_lost` (internet has been down ≥ the single alert wait, `alert_after_min`, shared by both channels), `connection_restored` (it came back after a qualifying outage), `reboot` (the device restarted — see [Reboot Alerts](#reboot-alerts)).
 - **Channels**: `sms`, `email`.
 
 **Routing** is a *user preference* — "should this event go out over this channel" — persisted in `alert_routing.json` and edited from the routing matrix on the Alerts page.
@@ -80,10 +82,14 @@ This is exactly what the two old pages did before centralization (SMS fired on b
 qmanager_poller poll_cycle():
   update_proc_metrics
   read_ping_data        # sets conn_internet_available / conn_during_recovery
+  read_dns_data
+  detect_data_connection_events   # events.sh: the ONE link detector, sets ev_link_state
   alert_engine_check     # <-- here, every 2s base cycle, every tier
 ```
 
 **Why here:** this is the same "no modem access, runs regardless of adaptive-polling tier" block that keeps watchdog connectivity data fresh (see [Adaptive Polling](adaptive-polling.md) Invariant 1 — `write_cache`/`read_ping_data` always run). Alert detection reads ICMP reachability that `read_ping_data` just wrote and needs to keep running at the base 2s cadence even when AT reads back off into the Idle/Deep tier — an outage doesn't pause just because the modem is quiet.
+
+**The engine has no edge detector of its own.** Since ledger B2.3, `detect_data_connection_events` (`events.sh`) is the only place a link transition is decided; it publishes `ev_link_state` (`down` / `up` / `""`) and the engine just follows it (`down` runs `_ae_handle_down`, `up` runs `_ae_handle_up`, `""` leaves a running outage untouched and starts nothing). **Why:** with two detectors the Activity feed and the alert channels could disagree about whether an outage happened (live evidence: two consecutive `internet_lost` with no restore between). It is called from the poller's local block, not from `detect_events`, because `detect_events` only runs when an AT read is due. The detector's rules (reachable verdict, stale handling, recovery handling) are in [Connection Quality](connection-quality.md#one-detector-eventssh).
 
 **Library sourcing order** (`qmanager_poller:302-335`) matters — `alert_engine.sh` is sourced last because it reads globals/functions owned by everything before it:
 
@@ -92,7 +98,13 @@ qlog.sh (mono_now, qlog_*) → events.sh → email_alerts.sh → sms_alerts.sh
   → alert_routing.sh → alert_engine.sh
 ```
 
-`alert_engine_init` runs once at poller startup (`main()`, after `email_alerts_init`/`sms_alerts_init` so the engine's threshold reads see already-loaded channel config) and resets state to idle.
+`alert_engine_init` runs once at poller startup (`main()`, after `email_alerts_init`/`sms_alerts_init` so the engine's channel-enabled reads see already-loaded channel config), resets state to idle and resolves the single wait.
+
+### One alert wait for every channel
+
+A `connection_lost` / `connection_restored` pair only reaches a channel when the outage lasted at least the **single wait**, owned by Connection Quality: UCI `quecmanager.quality_thresholds.alert_after_min` (minutes). The resolver `cq_alert_after_min` (`conn_state.sh`) sets `CQ_ALERT_AFTER_MIN`: the UCI key (integer 1-1440) when valid, else `threshold_minutes` from `/etc/qmanager/sms_alerts.json`, else from `email_alerts.json` (where the wait lived before it moved, so an upgrade keeps the user's value), else `5`. The engine re-resolves at init, at outage start and on every SMS/email reload flag; the poller re-resolves on `/tmp/qmanager_quality_reload`. `_ae_wait_secs` turns it into seconds (300 on garbage). Both channels arm on the same threshold (arming still ignores capability, see below).
+
+The per-channel `threshold_minutes` fields survive only as a compatibility shape: `sms_alerts.sh` / `email_alerts.sh` `_read_config` set `_sa_threshold_minutes` / `_ea_threshold_minutes` to the single wait, and `monitoring/alerts.sh` mirrors the wait into both channel files (see [CGI](#cgi-monitoringalertssh)).
 
 ### Clock-step hardening (`mono_now`)
 
@@ -102,12 +114,18 @@ The downtime timer measures elapsed time with `mono_now()` (`/proc/uptime`'s mon
 
 ### Suppression (both channels, one place)
 
-`alert_engine_check` bails before touching outage state when either guard trips:
+`alert_engine_check` has one gate that stops everything:
 
-- `/tmp/qmanager_low_power_active` present → low-power mode, no radio-adjacent work.
-- `conn_during_recovery = "true"` → watchdog is mid-recovery (AT+COPS/AT+CFUN cycling); `lte_state`/`nr_state` are transiently stale. Outage state is untouched — the mono timer keeps its start — so a qualifying `connection_restored` still fires on the first cycle after recovery finishes.
+- `/tmp/qmanager_low_power_active` present → low-power mode, no radio-adjacent work. The detector also publishes `ev_link_state=""` in low power and logs nothing (the link is down on purpose).
 
-> ℹ️ NOTE: This fixes a latent bug. The old `check_email_alert` state machine did **not** check `conn_during_recovery` — only `check_sms_alert` did. Email could fire a "recovered" message during watchdog recovery churn (a false-positive recovery signal) that SMS correctly suppressed. Both channels now share the same suppression gate.
+A watchdog recovery (`conn_during_recovery = "true"`) **no longer freezes the outage machine**. Before B2.3 the engine bailed entirely during recovery, so an outage the watchdog fixed was invisible to the channels. Now:
+
+- The outage is tracked and alerted like any other. The mono timer runs through the recovery; if the wait elapses mid-recovery the `connection_lost` SMS is attempted.
+- A send made mid-CFUN returns SMS rc 2 (modem not registered), which the engine already treats as "retry next cycle without burning the attempt", so no extra gate is needed.
+- Link flapping caused by recovery tiers cannot produce extra alerts: the detector holds a repeat drop after an in-recovery restore (`ev_recov_restored`), so one outage is one lost/restored pair.
+- **Reboot delivery is still held** during recovery and on stale ping data (`_ae_reboot_check` runs only when `conn_during_recovery != "true"` and `conn_internet_available` is `true` or `false`): a post-recovery reboot message needs a settled link.
+
+> ℹ️ NOTE: The earlier fix that gave email the same recovery gate SMS had is superseded: neither channel is gated by recovery any more, both follow `ev_link_state`.
 
 ### `sms_alert_emit` / `email_alert_emit` — the rc contract
 
@@ -121,11 +139,11 @@ The engine dispatches to the channel libs via `sms_alert_emit <event> <secs>` / 
 
 `email_alert_emit` never returns `2` — it has no registration concept — and treats `connection_lost` as a deliberate no-op success (`return 0`) rather than attempting a send it knows is incapable, since the engine still calls `_ae_channel_emit` for the *arming* check even on incapable pairs (arming determines whether a later `connection_restored` fires; sending does not).
 
-**Arming vs. sending are independent.** In `_ae_handle_down` (`alert_engine.sh:183-206`), a channel is armed (`_ae_set_armed`) purely from crossing its own threshold — capability is not checked for arming. Only the actual `connection_lost` send attempt is gated by `alert_route_enabled` (routing AND capability). This is why email arms during an outage (warranting a `connection_restored` email later) even though it never sends a `connection_lost` email.
+**Arming vs. sending are independent.** In `_ae_handle_down` (`alert_engine.sh:183-206`), a channel is armed (`_ae_set_armed`) purely from the outage crossing the single wait — capability is not checked for arming. Only the actual `connection_lost` send attempt is gated by `alert_route_enabled` (routing AND capability). This is why email arms during an outage (warranting a `connection_restored` email later) even though it never sends a `connection_lost` email.
 
 ## Reboot Alerts
 
-Unlike `connection_lost`/`connection_restored`, a reboot has no outage window and no downtime timer — it is a **separate one-shot detect-then-deliver path** inside `alert_engine.sh`, called from `alert_engine_check` (`_ae_reboot_check`, step 4, after the suppression/ping-null guards so it inherits low-power + recovery-churn suppression, before the outage machine runs).
+Unlike `connection_lost`/`connection_restored`, a reboot has no outage window and no downtime timer — it is a **separate one-shot detect-then-deliver path** inside `alert_engine.sh`, called from `alert_engine_check` (`_ae_reboot_check`, step 3, after the low-power gate and only while `conn_during_recovery != "true"` and the ping data is not stale, so it inherits low-power + recovery-churn suppression; it runs before the outage machine).
 
 ### Detection: `boot_id`, not uptime or a shutdown hook
 
@@ -229,6 +247,8 @@ Unified replacement for four retired endpoints: `monitoring/sms_alerts.sh`, `mon
 
 `email.app_password_set` is a boolean — the cleartext password is **never** returned by GET.
 
+**`threshold_minutes` is one value.** GET reports the single wait (`cq_alert_after_min`) as both channels' `threshold_minutes`, not the value in the channel file. On `save_settings`: a channel that omits `threshold_minutes` keeps the current wait; if both are posted the last one that differs from the current wait wins (an unchanged field never overwrites an edit); the result is still validated 1-60. The CGI writes UCI `quality_thresholds.alert_after_min` (creating the section if absent) when the wait changed or the key is absent, then mirrors the wait into both channel files so Config Backup's strict gate keeps passing. The Connection Quality page can set the same key (`system/quality_thresholds.sh`).
+
 `reboots` is read straight from the shared `/etc/qmanager/crash.log` ledger (all reason tags, not just this feature's own rows), newest-first, capped at 10. It powers the Recent Reboots card and is independent of `routing.events.reboot` — a reboot is always recorded here even when the alert itself is routed to neither channel.
 
 **POST actions** (dispatched on `.action`):
@@ -254,6 +274,8 @@ Unified replacement for four retired endpoints: `monitoring/sms_alerts.sh`, `mon
 ## Config Backup / Restore
 
 `alert_routing` is a new, additive section in `config_backup_sections.sh` (`CFG_BACKUP_APPLY_ORDER`), inserted immediately after `sms_alerts` — both alert-config sections restore together, ahead of the riskier AT/IMEI work. `collect_alert_routing()` emits the canonical default document (now version 2, with `reboot`) when `alert_routing.json` is absent (deterministic restores). `apply_alert_routing()` validates `.events` is present, then **re-clamps `connection_lost.email = false`** on the incoming document before writing — restoring a backup taken on a hypothetical future version that allowed the pair can never re-enable it on this version. **`reboot` gets no clamp** and passes through untouched (both channels are legitimately capable); a v1 backup with no `reboot` key restores fine — `alert_routing_load` fail-closes the missing cells to `false` on the next read, which is the correct opt-in default anyway. See [Config Backup & Restore](config-backup-restore.md) for the general apply-order/lock model.
+
+> ⚠️ WARNING: Config Backup does not carry the `quality_thresholds` UCI section, so the wait travels only as `sms_alerts.json`'s `threshold_minutes` (the mirror). Restoring onto a device that already has an `alert_after_min` key keeps that device's wait, because the UCI key outranks the channel file in `cq_alert_after_min`.
 
 ## Install / Uninstall Lifecycle
 

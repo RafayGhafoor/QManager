@@ -220,7 +220,8 @@ Main polling endpoint. Returns the cached modem status JSON (built by `qmanager_
     "during_recovery": false,
     "last_family": "ipv4",
     "dns_lookup_ms": 52,
-    "dns_resolver": "10.0.0.1"
+    "dns_resolver": "10.0.0.1",
+    "thresholds": { "latency_ms": 250, "loss_pct": 30 }
   },
   "signal_per_antenna": {
     "lte_rsrp": [-95, -97, -102, null],
@@ -255,9 +256,11 @@ Main polling endpoint. Returns the cached modem status JSON (built by `qmanager_
 }
 ```
 
+`connectivity.status` is `"recovery"` during a watchdog recovery, `"connected"` / `"degraded"` while the internet is reachable, `"disconnected"` when it is not, and `"unknown"` on stale data; `"degraded"` means packet loss is at or above `connectivity.thresholds.loss_pct` (the configured Connection Quality loss cut, default 30 %; it was a fixed 10 % before ledger B2.3). Latency alone never degrades the status. `connectivity.thresholds` is `{ latency_ms, loss_pct }` and is absent on an older poller.
+
 ### GET `/at_cmd/fetch_events.sh`
 
-Returns network events as a JSON array.
+Returns network events as a JSON array. `internet_lost`/`internet_restored` and the latency/loss pairs come from the single detector (one outage logs one lost/restored pair); `ca_change` events are settled and debounced (a one-sample carrier dip logs nothing, a flapping carrier logs one "CA churn detected" warning per episode). See [`docs/features/connection-quality.md`](features/connection-quality.md#one-detector-eventssh).
 
 **Response:**
 ```json
@@ -1045,7 +1048,7 @@ Unified endpoint for the centralized Alerts page — replaces the four retired e
 ```
 Validation notes:
 - `recipient_phone` accepts E.164 with or without a leading `+`; the CGI strips a leading `+` exactly once before writing `sms_alerts.json` — **storage and GET responses always return raw digits**. The send path passes the value verbatim to `sms_tool`.
-- `threshold_minutes` (both channels) range is `1..60`.
+- `threshold_minutes` is **one value shared by both channels** (the single alert wait, UCI `quality_thresholds.alert_after_min`). GET reports that wait as each channel's `threshold_minutes`. On POST, a channel that omits it keeps the current wait; if both are posted, the last one that differs from the current wait wins. Range is `1..60`. The CGI writes the UCI key (creating the section if absent) and mirrors the value into both channel files. See [`docs/features/alerts.md`](features/alerts.md#one-alert-wait-for-every-channel).
 - `app_password` is only sent when the user typed a new one; an empty/omitted value preserves the currently-stored password.
 - `routing.events.connection_lost.email` is **always clamped to `false` server-side** regardless of what is posted — email cannot deliver while the internet is down. This is the capability layer, not a routing preference; see the feature doc.
 - `routing.events.reboot.sms`/`.email` default to `false` (not `true`) when omitted or `null` — unlike the other two events, `reboot` is opt-in. Both cells are otherwise unclamped (both channels are genuinely capable, since the alert only ever sends post-recovery).
@@ -1218,11 +1221,12 @@ Read or write the latency and packet-loss event-threshold presets. These control
     "latency": { "preset": "tolerant" },
     "loss": { "preset": "tolerant" }
   },
+  "alert_after_min": 5,
   "isDefault": false
 }
 ```
 
-**GET Response (section absent — factory / never saved):**
+**GET Response (no preset stored — factory / never saved):**
 
 ```json
 {
@@ -1231,11 +1235,12 @@ Read or write the latency and packet-loss event-threshold presets. These control
     "latency": { "preset": "tolerant" },
     "loss": { "preset": "tolerant" }
   },
+  "alert_after_min": 5,
   "isDefault": true
 }
 ```
 
-`isDefault: true` means the `quecmanager.quality_thresholds` UCI section does not exist; the tolerant/tolerant values are the hardcoded fallback, not a stored setting.
+`isDefault: true` means neither `latency_preset` nor `loss_preset` is stored; the tolerant/tolerant values are the hardcoded fallback, not a stored setting. The UCI section may still exist holding only `alert_after_min`. `alert_after_min` is always present: the single outage wait (minutes) every alert channel uses.
 
 **POST Request (`action: "save"`):**
 
@@ -1247,7 +1252,7 @@ Read or write the latency and packet-loss event-threshold presets. These control
 }
 ```
 
-Each preset is one of: `standard`, `tolerant`, `very-tolerant`.
+Each preset is one of: `standard`, `tolerant`, `very-tolerant`. Optional `alert_after_min` (integer 1-60, minutes) sets the single alert wait; absent leaves it unchanged.
 
 **POST Success:**
 ```json
@@ -1256,7 +1261,7 @@ Each preset is one of: `standard`, `tolerant`, `very-tolerant`.
 
 Creates the `quality_thresholds` UCI section on first save, then drops `/tmp/qmanager_quality_reload`; the poller re-maps presets to numeric thresholds within one poll cycle. No reboot.
 
-**Error codes:** `invalid_preset`, `missing_action`, `unknown_action`
+**Error codes:** `invalid_preset`, `invalid_threshold` (bad `alert_after_min`), `missing_action`, `unknown_action`
 
 ---
 
