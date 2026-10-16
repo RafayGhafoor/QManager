@@ -36,4 +36,16 @@ export const EVENT_TAB_CATEGORIES: Record<NetworkEventType, EventTabCategory> =
     config_restore_section_skipped: "dataConnection",
     config_restore_completed: "dataConnection",
     lan_address_changed: "dataConnection",
+    apn_reapplied: "dataConnection",
+    apn_reapply_failed: "dataConnection",
   };
+
+/** The filter rail on `/monitoring/events`, in render order. `all` is not a category. */
+export const EVENT_FILTERS = [
+  "all",
+  "bandChanges",
+  "dataConnection",
+  "networkMode",
+] as const;
+
+export type EventFilter = (typeof EVENT_FILTERS)[number];

@@ -193,5 +193,99 @@
     "unreachable": {
       "banner": "數據機目前沒有回應。它可能正忙或正在重新啟動。"
     }
+  },
+  "networkEvents": {
+    "page": {
+      "title": "網路事件",
+      "description": "無線電與連線的變化，最新的在前。"
+    },
+    "actions": {
+      "refresh": "重新整理",
+      "updates_aria": "更新",
+      "live": "即時",
+      "paused": "已暫停"
+    },
+    "now": {
+      "title": "目前狀況",
+      "description": "仍在持續的問題，以及反覆出現的變化。",
+      "ongoing_one": "{{count}} 個問題持續中",
+      "ongoing_other": "{{count}} 個問題持續中",
+      "oldest_started": "最早的開始於 {{age}}",
+      "clear": "沒有持續中的問題",
+      "last_problem": "上次問題：{{age}}",
+      "no_problems": "沒有記錄到問題",
+      "no_events": "尚無事件記錄",
+      "repeating": "反覆出現",
+      "repeat_meta_one": "{{span}}內變化 {{count}} 次",
+      "repeat_meta_other": "{{span}}內變化 {{count}} 次",
+      "nothing_repeating": "沒有反覆出現的變化。"
+    },
+    "activity": {
+      "title": "活動",
+      "window_last_one": "最近 {{count}} 個事件，跨越 {{span}}。",
+      "window_last_other": "最近 {{count}} 個事件，跨越 {{span}}。",
+      "window_all_one": "數據機啟動以來的 {{count}} 個事件。",
+      "window_all_other": "數據機啟動以來的全部 {{count}} 個事件。",
+      "window_empty": "數據機啟動以來沒有事件。",
+      "chart_aria": "事件時間分布",
+      "column_one": "{{from}} 至 {{to}}：{{count}} 個事件",
+      "column_other": "{{from}} 至 {{to}}：{{count}} 個事件",
+      "now": "現在",
+      "problems": "問題",
+      "recoveries": "恢復",
+      "routine": "常規"
+    },
+    "span": {
+      "minutes_one": "{{count}} 分鐘",
+      "minutes_other": "{{count}} 分鐘",
+      "hours_one": "{{count}} 小時",
+      "hours_other": "{{count}} 小時"
+    },
+    "log": {
+      "title": "事件記錄",
+      "description_loading": "正在載入事件。",
+      "description_unreadable": "記錄無法讀取時不顯示計數。",
+      "description": "重複的事件已合併；展開即可查看每一筆。",
+      "scroll_aria": "事件"
+    },
+    "run": {
+      "title": "{{label}}反覆變化",
+      "meta_one": "{{span}}內 {{count}} 個事件",
+      "meta_other": "{{span}}內 {{count}} 個事件",
+      "show": "顯示 {{count}} 筆",
+      "hide": "收合"
+    },
+    "filters": {
+      "all": "全部",
+      "radio": "無線電",
+      "connectivity": "連線",
+      "mode": "模式"
+    },
+    "sort": {
+      "label": "排序",
+      "newest": "最新優先",
+      "oldest": "最早優先"
+    },
+    "row": {
+      "ongoing": "進行中"
+    },
+    "day": {
+      "today": "今天",
+      "yesterday": "昨天"
+    },
+    "empty": {
+      "title": "尚無事件",
+      "description": "數據機重新啟動後記錄會重新開始。事件發生時會顯示在這裡。",
+      "filtered_title": "此檢視中沒有內容",
+      "filtered_description": "目前記錄中沒有這類事件。"
+    },
+    "error": {
+      "title": "無法載入事件",
+      "description": "{{message}}",
+      "retry": "重試"
+    },
+    "notice": {
+      "stale": "顯示我們最後成功讀取到的事件。{{message}}"
+    }
   }
 }

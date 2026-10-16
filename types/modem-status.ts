@@ -749,7 +749,9 @@ export type NetworkEventType =
   | "config_restore_section_failed" // Single section failed after retries
   | "config_restore_section_skipped" // Single section skipped (incompatible or sim_mismatch)
   | "config_restore_completed" // Configuration restore completed
-  | "lan_address_changed"; // LAN IP address / subnet changed by user
+  | "lan_address_changed" // LAN IP address / subnet changed by user
+  | "apn_reapplied" // APN profile restored after a SIM profile deactivation
+  | "apn_reapply_failed"; // APN profile could not be restored after deactivation
 
 /** Severity level for UI icon coloring */
 export type EventSeverity = "info" | "warning" | "error";

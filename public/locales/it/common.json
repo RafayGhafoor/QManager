@@ -193,5 +193,99 @@
     "unreachable": {
       "banner": "Il modem non risponde in questo momento. Potrebbe essere occupato o in fase di riavvio."
     }
+  },
+  "networkEvents": {
+    "page": {
+      "title": "Eventi di rete",
+      "description": "Modifiche alla radio e alla connessione, dalle più recenti."
+    },
+    "actions": {
+      "refresh": "Aggiorna",
+      "updates_aria": "Aggiornamenti",
+      "live": "In diretta",
+      "paused": "In pausa"
+    },
+    "now": {
+      "title": "Adesso",
+      "description": "Cosa è ancora in corso e cosa continua a ripetersi.",
+      "ongoing_one": "{{count}} problema in corso",
+      "ongoing_other": "{{count}} problemi in corso",
+      "oldest_started": "Il più vecchio è iniziato {{age}}",
+      "clear": "Nessun problema in corso",
+      "last_problem": "Ultimo problema {{age}}",
+      "no_problems": "Nessun problema registrato",
+      "no_events": "Nessun evento ancora registrato",
+      "repeating": "Ripetuti",
+      "repeat_meta_one": "{{count}} cambio in {{span}}",
+      "repeat_meta_other": "{{count}} cambi in {{span}}",
+      "nothing_repeating": "Nulla si sta ripetendo."
+    },
+    "activity": {
+      "title": "Attività",
+      "window_last_one": "Ultimo {{count}} evento, in {{span}}.",
+      "window_last_other": "Ultimi {{count}} eventi, in {{span}}.",
+      "window_all_one": "{{count}} evento dall'avvio del modem.",
+      "window_all_other": "Tutti i {{count}} eventi dall'avvio del modem.",
+      "window_empty": "Nessun evento dall'avvio del modem.",
+      "chart_aria": "Eventi nel tempo",
+      "column_one": "Da {{from}} a {{to}}: {{count}} evento",
+      "column_other": "Da {{from}} a {{to}}: {{count}} eventi",
+      "now": "Ora",
+      "problems": "Problemi",
+      "recoveries": "Ripristini",
+      "routine": "Ordinari"
+    },
+    "span": {
+      "minutes_one": "{{count}} minuto",
+      "minutes_other": "{{count}} minuti",
+      "hours_one": "{{count}} ora",
+      "hours_other": "{{count}} ore"
+    },
+    "log": {
+      "title": "Registro eventi",
+      "description_loading": "Caricamento degli eventi.",
+      "description_unreadable": "Nessun conteggio da mostrare finché il registro non è leggibile.",
+      "description": "Le ripetizioni sono raggruppate; aprine una per vedere ogni evento.",
+      "scroll_aria": "Eventi"
+    },
+    "run": {
+      "title": "{{label}} continuava a cambiare",
+      "meta_one": "{{count}} evento in {{span}}",
+      "meta_other": "{{count}} eventi in {{span}}",
+      "show": "Mostra {{count}}",
+      "hide": "Nascondi"
+    },
+    "filters": {
+      "all": "Tutti",
+      "radio": "Radio",
+      "connectivity": "Connettività",
+      "mode": "Modalità"
+    },
+    "sort": {
+      "label": "Ordina",
+      "newest": "Prima i più recenti",
+      "oldest": "Prima i meno recenti"
+    },
+    "row": {
+      "ongoing": "In corso"
+    },
+    "day": {
+      "today": "Oggi",
+      "yesterday": "Ieri"
+    },
+    "empty": {
+      "title": "Nessun evento",
+      "description": "Il registro ricomincia quando il modem si riavvia. Gli eventi compaiono qui man mano che accadono.",
+      "filtered_title": "Nulla in questa vista",
+      "filtered_description": "Al momento nel registro non ci sono eventi di questo tipo."
+    },
+    "error": {
+      "title": "Impossibile caricare gli eventi",
+      "description": "{{message}}",
+      "retry": "Riprova"
+    },
+    "notice": {
+      "stale": "Mostriamo gli ultimi eventi che siamo riusciti a leggere. {{message}}"
+    }
   }
 }

@@ -646,7 +646,7 @@ The sidebar account dropdown carries an **Animations** row cycling System / Full
 
 Both guards are wrapped in `:where()` so they contribute **zero** specificity. The two variants can match simultaneously; duplicate identical declarations are harmless.
 
-**Charts follow the same switch.** recharts animates through react-smooth, which `MotionConfig` cannot reach, so `useChartSeriesMotion()` (`hooks/use-chart-motion.ts`, for `<Area>` / `<Line>`) reads `useMotionReduced()`. A new chart spreads it rather than setting `isAnimationActive` by hand. No `<Bar>` chart exists, so there is no bar hook; the first one adds a sibling built on `useMotionReduced()`.
+**Charts follow the same switch.** recharts animates through react-smooth, which `MotionConfig` cannot reach, so `useChartSeriesMotion()` (`hooks/use-chart-motion.ts`, for `<Area>` / `<Line>`) reads `useMotionReduced()`. A new chart spreads it rather than setting `isAnimationActive` by hand. `<Bar>` charts spread its sibling `useChartBarMotion()` (first consumer: the Network Events Activity chart, U4.5).
 
 ### Named Rules
 
