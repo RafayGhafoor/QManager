@@ -710,7 +710,7 @@ The forms are not interchangeable. **An outline tag is never a status indicator,
 
 Tone maps key onto the exported `BadgeVariant` / `TagVariant` types, never onto a class string, so a new tone without a matching role fails the build.
 
-A filled `info` chip is also how a **fact** is shown when it is neither a fault nor health (The Fact-Is-Info Rule), rendered only while the fact applies: the RM520N fork's `components/system-settings/sim-registry-card.tsx` draws its "Alerts on" chip as `<Badge variant="info">` with a glyph (the target's Known SIMs row, `components/system-settings/known-sims-row.tsx`, is where the equivalent lands).
+A filled `info` chip is also how a **fact** is shown when it is neither a fault nor health (The Fact-Is-Info Rule), rendered only while the fact applies: the RM520N fork's `components/system-settings/sim-registry-card.tsx` draws its "Alerts on" chip as `<Badge variant="info">` with a glyph (the target's Tracked SIMs card, `components/system-settings/tracked-sims-card.tsx`, is where the equivalent lands).
 
 ### Cards / Containers
 
