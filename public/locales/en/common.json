@@ -193,5 +193,99 @@
     "unreachable": {
       "banner": "The modem isn't responding right now. It may be busy or restarting."
     }
+  },
+  "networkEvents": {
+    "page": {
+      "title": "Network Events",
+      "description": "Changes to the radio and the connection, newest first."
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "updates_aria": "Updates",
+      "live": "Live",
+      "paused": "Paused"
+    },
+    "now": {
+      "title": "Right now",
+      "description": "What is still standing, and what keeps repeating.",
+      "ongoing_one": "{{count}} problem ongoing",
+      "ongoing_other": "{{count}} problems ongoing",
+      "oldest_started": "The oldest started {{age}}",
+      "clear": "Nothing ongoing",
+      "last_problem": "Last problem {{age}}",
+      "no_problems": "No problems recorded",
+      "no_events": "No events recorded yet",
+      "repeating": "Repeating",
+      "repeat_meta_one": "{{count}} change in {{span}}",
+      "repeat_meta_other": "{{count}} changes in {{span}}",
+      "nothing_repeating": "Nothing is repeating."
+    },
+    "activity": {
+      "title": "Activity",
+      "window_last_one": "Last {{count}} event, over {{span}}.",
+      "window_last_other": "Last {{count}} events, over {{span}}.",
+      "window_all_one": "{{count}} event since the modem started.",
+      "window_all_other": "All {{count}} events since the modem started.",
+      "window_empty": "No events since the modem started.",
+      "chart_aria": "Events over time",
+      "column_one": "{{from}} to {{to}}: {{count}} event",
+      "column_other": "{{from}} to {{to}}: {{count}} events",
+      "now": "Now",
+      "problems": "Problems",
+      "recoveries": "Recoveries",
+      "routine": "Routine"
+    },
+    "span": {
+      "minutes_one": "{{count}} min",
+      "minutes_other": "{{count}} min",
+      "hours_one": "{{count}} hour",
+      "hours_other": "{{count}} hours"
+    },
+    "log": {
+      "title": "Event log",
+      "description_loading": "Loading events.",
+      "description_unreadable": "No counts to show while the log cannot be read.",
+      "description": "Repeats are grouped; open one to see each event.",
+      "scroll_aria": "Events"
+    },
+    "run": {
+      "title": "{{label}} kept changing",
+      "meta_one": "{{count}} event in {{span}}",
+      "meta_other": "{{count}} events in {{span}}",
+      "show": "Show {{count}}",
+      "hide": "Hide"
+    },
+    "filters": {
+      "all": "All",
+      "radio": "Radio",
+      "connectivity": "Connectivity",
+      "mode": "Mode"
+    },
+    "sort": {
+      "label": "Sort by",
+      "newest": "Newest first",
+      "oldest": "Oldest first"
+    },
+    "row": {
+      "ongoing": "Ongoing"
+    },
+    "day": {
+      "today": "Today",
+      "yesterday": "Yesterday"
+    },
+    "empty": {
+      "title": "No events yet",
+      "description": "The log starts over when the modem restarts. Events appear here as they happen.",
+      "filtered_title": "Nothing in this view",
+      "filtered_description": "No events of this kind are in the log right now."
+    },
+    "error": {
+      "title": "Could not load events",
+      "description": "{{message}}",
+      "retry": "Try again"
+    },
+    "notice": {
+      "stale": "Showing the last events we managed to read. {{message}}"
+    }
   }
 }
