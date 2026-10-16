@@ -292,13 +292,13 @@ Email channel transport library (sourced by poller; downtime detection now lives
 
 SMS channel transport library (sourced by poller; downtime detection now lives in `alert_engine.sh`):
 - Config management (`/etc/qmanager/sms_alerts.json`; recipient stored as raw digits, no leading `+`)
-- `sms_alert_emit <event> <secs>` — builds and sends via `sms_tool`; returns `2` (not ready to retry) when `_sa_is_registered()` fails rather than attempting a send
+- `sms_alert_emit <event> <secs>` — builds and sends via `qsms send` (`_sa_do_send`: 3 attempts, 5 s apart, registration check each); returns `2` (not ready to retry) when `_sa_is_registered()` fails rather than attempting a send, or when every attempt that reached `qsms` failed with `modem_busy` / `scan_in_progress`
 - `_sa_is_registered()` short-circuits on `conn_internet_available=true` so the recovery branch is never blocked by stale `lte_state`/`nr_state`
-- `sms_tool send` runs under the shared `/var/lock/qmanager.lock` so it serializes against `qcmd` (the AT broker)
+- No lock in this lib: the broker takes `/var/lock/qmanager.lock` itself, so `qsms` serializes against `qcmd`. Never wrap it in `flock`.
 - Test-send helper for CGI (`send_test` action)
 - Log writing to `/tmp/qmanager_sms_log.json`
-- Failures are logged via `qlog_error` (full context: `modem_reachable`, `lte_state`, `nr_state`, `conn`, and the cleaned `sms_tool` stderr). No breadcrumb file.
-- Stderr noise filtering (`tcgetattr`/`tcsetattr` / "Inappropriate ioctl for device") is retained as defense-in-depth; the patched `sms_tool` binary now self-guards via `isatty()` so these filters are no-ops in practice. See [`docs/features/sms.md`](features/sms.md).
+- Failures are logged via `qlog_error` (full context: `modem_reachable`, `lte_state`, `nr_state`, `conn`, and `last_err` formatted `<code>[: <detail>]` from the `qsms` response). No breadcrumb file.
+- No stderr noise filtering: `qsms` prints one JSON line on stdout. See [`docs/features/sms.md`](features/sms.md).
 
 ### conn_state.sh
 

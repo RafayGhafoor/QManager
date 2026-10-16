@@ -9,7 +9,7 @@ SMS Forwarding automatically relays every new incoming SMS to a configured phone
 | CGI | `GET/POST /cgi-bin/quecmanager/cellular/sms_forwarding.sh` |
 | Daemon | `/usr/bin/qmanager_sms_forward` |
 | init.d | `/etc/init.d/qmanager_sms_forward` (procd, `START=99`, `STOP=10`) |
-| Shared AT lock | `/var/lock/qmanager.lock` |
+| Transport | `qsms` (`list all`, `send`); the AT broker holds `/var/lock/qmanager.lock` itself |
 | UCI — enabled | `quecmanager.sms_forwarding.enabled` |
 | UCI — target | `quecmanager.sms_forwarding.target_phone` |
 | Daemon PID file | `/tmp/qmanager_sms_forward.pid` |
@@ -23,7 +23,7 @@ SMS Forwarding automatically relays every new incoming SMS to a configured phone
 
 ## How It Works
 
-`qmanager_sms_forward` is a procd-managed daemon that wakes every 15 seconds, reads the modem inbox (ME + SM, identical to `sms.sh`), and forwards each message it has not yet seen to the configured number in the format `From <sender>: <body>`. The daemon sends outbound SMS via `sms_tool -d /dev/smd11` under the same `flock`-based shared lock used by `sms.sh` and `qcmd` — it is the **only** server-side inbox reader in the project. Read state everywhere else (the inbox UI tab) is entirely client-side; see [`docs/features/sms.md`](sms.md).
+`qmanager_sms_forward` is a procd-managed daemon that wakes every 15 seconds, reads the modem inbox with one `qsms list all` (ME + SM, each message tagged with its storage), and forwards each message it has not yet seen to the configured number in the format `From <sender>: <body>`. The daemon sends outbound SMS via `qsms send`; the broker (`qmanager_atd`) takes the shared AT lock itself, so the daemon never wraps `qsms` in `flock`. It is the **only** server-side inbox reader in the project. Read state everywhere else (the inbox UI tab) is entirely client-side; see [`docs/features/sms.md`](sms.md).
 
 The init.d script uses `USE_PROCD=1` for automatic respawn (`3600 5 5`). The service is **UCI-gated**: `start_service()` reads `quecmanager.sms_forwarding.enabled` and returns early if it is not `1`, so enabling the init.d service on its own does nothing — UCI must also be set. For this reason the daemon is listed in `UCI_GATED_SERVICES` in `install.sh` and is **not** auto-enabled on install.
 
@@ -38,6 +38,8 @@ The init.d script uses `USE_PROCD=1` for automatic respawn (`3600 5 5`). The ser
 When `/tmp/qmanager_sms_forward_seen` is absent (daemon first start, or after a stop/disable), the daemon creates the file empty and calls `process_cycle 1` — a special pass that records every currently-present inbox fingerprint **without forwarding anything**. Only messages that appear in later poll cycles are relayed.
 
 **Why:** Without this guard, enabling forwarding on a device that already has 50 messages in its inbox would immediately spray all 50 to the target number. The seen-file absence is the trigger — its presence (even empty) means seeding is complete.
+
+**Failed reads:** if `qsms list all` fails (modem busy, scan in progress), the daemon logs it and skips the cycle (`process_cycle` returns 1), so a busy modem is never mistaken for an empty inbox. During initial seeding, a failed read deletes the just-created empty seen-file so the next cycle re-seeds. **Why:** otherwise the empty seen-file would mark seeding complete and the next successful read would forward the whole existing inbox.
 
 ### Loop Guard
 
@@ -63,7 +65,7 @@ The daemon fingerprints each message as `djb2(storage|sender|timestamp|content)`
 
 ### Phone Number Handling
 
-Outbound sends use the same convention as `sms.sh`: the daemon strips a single leading `+` from `SF_TARGET` before passing it to `sms_tool`. The validation rule (E.164-ish: optional `+`, first digit 1–9, 7–15 digits total) is applied both in the CGI (at save time, when `enabled=1`) and in the daemon (each cycle, before forwarding). A temporarily invalid number causes the daemon to idle rather than exit.
+Outbound sends use the same convention as `sms.sh`: the daemon strips a single leading `+` from `SF_TARGET` before passing it to `qsms send`. The validation rule (E.164-ish: optional `+`, first digit 1–9, 7–15 digits total) is applied both in the CGI (at save time, when `enabled=1`) and in the daemon (each cycle, before forwarding). A temporarily invalid number causes the daemon to idle rather than exit.
 
 The test-send action (`action=send_test`) reads the **configured target from UCI directly** — it ignores any number in the POST body. This ensures the test verifies the actual saved forwarding path.
 
@@ -84,7 +86,7 @@ The test-send action (`action=send_test`) reads the **configured target from UCI
     {
       "sender": "+14155550100",
       "timestamp": "06/07/26 14:33:11",
-      "last_error": "sms_tool send failed (rc=1)"
+      "last_error": "send_failed: +CMS ERROR: 500"
     }
   ],
   "failure_count": 1
@@ -153,7 +155,7 @@ The state drives a focal icon + label + destination row, toned `success` / `warn
 | Code | Meaning |
 |---|---|
 | `invalid_phone` | Phone number failed E.164-ish validation (optional `+`, first digit 1–9, 7–15 total digits). |
-| `send_failed` | SMS test send via `sms_tool` failed. Check `logread` for full context. |
+| `send_failed` | SMS test send via `qsms send` failed. The message is `<code>: <detail>` from `qsms`. Check `logread` for full context. |
 | `missing_action` | POST body did not include an `action` field. |
 | `invalid_action` | POST `action` value is not one of the three recognized strings. |
 
@@ -163,5 +165,5 @@ See [`docs/features/error-codes.md`](error-codes.md) for the full error vocabula
 
 ## Related Features
 
-- [`docs/features/sms.md`](sms.md) — `sms_tool` binary, `/dev/smd11` invariant, shared lock contract, inbox CGI, alert library, client-side read/unread state. The daemon in this feature is the only **server-side** inbox consumer — everything else is client-side.
+- [`docs/features/sms.md`](sms.md) — `qsms` transport, `/dev/smd11` invariant, broker-owned lock contract, inbox CGI, alert library, client-side read/unread state. The daemon in this feature is the only **server-side** inbox consumer — everything else is client-side.
 - [`docs/features/error-codes.md`](error-codes.md) — `resolveErrorMessage`, `errors.json` namespace, adding new error codes.

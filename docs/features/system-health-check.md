@@ -30,9 +30,9 @@ An on-demand, read-only sweep of every QManager subsystem on the device (49 chec
 ## Invariants
 
 - **Read-only toward user state.** No UCI writes, no AT set commands, no service restarts, no reboot. AT checks are queries only (`AT`, `AT+CGMI`, `AT+CGMM`, `AT+CGSN`, `AT+CFUN?`, `AT+CPIN?`, `AT+CPMS?`).
-- **Never read the SMS inbox.** The RM520N runner ran `sms_tool recv`, and on this modem every listing marks unread messages read (`AT+CMGL=4`). SMS health is `AT+CPMS?` instead.
+- **Never read the SMS inbox.** The RM520N runner ran `sms_tool recv` (history; QManager's SMS transport is now `qsms`), and on this modem every listing marks unread messages read (`AT+CMGL=4`). SMS health is `AT+CPMS?` instead.
 - **The poller is never paused.** The source stopped it to beat lock contention. The broker queues requests, and stopping the poller would blank the dashboard and blind the watchdog.
-- **The modem lock is never waited on.** `sms.lock` makes up to 5 `flock -n` tries 1 s apart, so it never queues ahead of the broker or `sms_tool`. BusyBox `flock` here has no `-w`.
+- **The modem lock is never waited on.** `sms.lock` makes up to 5 `flock -n` tries 1 s apart, so it never queues ahead of the broker. The binary catalog checks `bin.qsms` (replacing `bin.sms_tool`) with the same logic as `bin.qcmd`: pass if the link points at `qmanager_atd` and the binary is executable. BusyBox `flock` here has no `-w`.
 - **No lock fd reaches a child.** Lock fds are closed on child commands, so an orphaned `qcmd` or `timeout` can never keep a lock (the FD-9 bug class from `qcmd`).
 - **Every external command is bounded** with `timeout` (ping 10 s, nslookup 5 s, logread and dmesg). A full run takes about 8–11 s.
 - **Durations come from `/proc/uptime`.** `date +%N` is unsupported on this BusyBox.

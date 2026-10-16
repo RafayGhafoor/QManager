@@ -134,8 +134,8 @@ The engine dispatches to the channel libs via `sms_alert_emit <event> <secs>` / 
 | rc | Meaning | Engine behavior |
 |---|---|---|
 | `0` | Sent | Marks `lost_sent=1` for the channel; won't re-attempt this outage |
-| `1` | Attempted, failed (terminal — e.g. `sms_tool` send error, msmtp failure after 3 retries) | Marks `lost_sent=1`; won't re-attempt this outage |
-| `2` | Not ready, retry later (SMS: modem not yet registered) | Leaves `lost_sent` clear; retried next cycle without burning an attempt |
+| `1` | Attempted, failed (terminal — e.g. `qsms send` error, msmtp failure after 3 retries) | Marks `lost_sent=1`; won't re-attempt this outage |
+| `2` | Not ready, retry later (SMS: modem not yet registered, or every attempt that reached `qsms` failed with `modem_busy` / `scan_in_progress`) | Leaves `lost_sent` clear; retried next cycle without burning an attempt |
 
 `email_alert_emit` never returns `2` — it has no registration concept — and treats `connection_lost` as a deliberate no-op success (`return 0`) rather than attempting a send it knows is incapable, since the engine still calls `_ae_channel_emit` for the *arming* check even on incapable pairs (arming determines whether a later `connection_restored` fires; sending does not).
 
@@ -276,7 +276,7 @@ Unified replacement for four retired endpoints: `monitoring/sms_alerts.sh`, `mon
 
 - **No regex in jq on this device** (see [Error Code Vocabulary](error-codes.md) and the device-jq note in project memory) — `_validate_phone`/`_validate_email` in `alerts.sh` do shape-checking in POSIX shell/`grep -E`, not `jq test()`.
 - **Never `//` on a routing boolean.** A routing cell that is legitimately `false` (e.g. `connection_lost.email`) must survive a round-trip. Every boolean read in `alert_routing.sh` and `alerts.sh` uses the null-safe `if . == null then <default> else tostring end` form, never `.foo // default` — `//` treats JSON `false` as falsy and silently coerces it to the default, which would have flipped `connection_lost.email` back to a truthy default and defeated the capability clamp.
-- **Phone `+`-strip is preserved exactly**: a single leading `+` is stripped once before writing `sms_alerts.json` (`sed 's/^+//'`); GET/storage always return raw digits; the send path passes the stored value verbatim to `sms_tool`. Same behavior as before centralization — see [SMS](sms.md#phone-number-handling).
+- **Phone `+`-strip is preserved exactly**: a single leading `+` is stripped once before writing `sms_alerts.json` (`sed 's/^+//'`); GET/storage always return raw digits; the send path passes the stored value verbatim to `qsms send`. Same behavior as before centralization — see [SMS](sms.md#phone-number-handling).
 - **Password preservation**: `save_settings` re-reads the currently-stored `app_password` from `email_alerts.json` when the client posts an empty one, so re-saving other email fields (or SMS/routing only) never blanks the stored password.
 
 ## Config Backup / Restore
@@ -314,7 +314,7 @@ Unified replacement for four retired endpoints: `monitoring/sms_alerts.sh`, `mon
 
 - [Connection Watchdog](connection-watchdog.md) — status-first page anatomy this page follows; SSR-aware clock-step hardening this engine mirrors; owns the `tier4_escalation`-only half of the shared `crash.log` ledger contract (`count_recent_reboots`).
 - [Adaptive Polling](adaptive-polling.md) — the always-every-cycle local-block invariant `alert_engine_check` (and `alert_engine_reboot_detect`) depends on.
-- [SMS](sms.md) — `sms_tool` transport, `/dev/smd11` invariant, shared `flock`, phone-number normalization (unchanged by this centralization).
+- [SMS](sms.md) — `qsms` transport, `/dev/smd11` invariant, broker-owned lock, phone-number normalization (unchanged by this centralization).
 - [Config Backup & Restore](config-backup-restore.md) — apply-order model, atomic-write pattern.
 - [Error Code Vocabulary](error-codes.md) — `{error, detail}` envelope, device-`jq`-has-no-regex constraint.
 - [`docs/BACKEND.md`](../BACKEND.md#busybox-ash-dot-sourcing-a-missing-file-kills-the-shell) — the general BusyBox dot-source-missing-file invariant that `record_planned_reboot`'s callers all guard against.
