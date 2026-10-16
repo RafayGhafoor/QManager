@@ -568,3 +568,124 @@ export const SKELETON = {
     ACTION: `${FIELD_HEIGHT} w-28 rounded-pill`,
   },
 } as const;
+
+// -----------------------------------------------------------------------------
+// Config Backup / Restore (ledger U4.11.c1)
+// -----------------------------------------------------------------------------
+
+/**
+ * The section picker: a labelled group per family of settings, each a
+ * `ROW_GROUP` of checkbox rows. Grouping is the fix for an eleven-row list
+ * (The Group-Before-You-Pad Rule), so the rows themselves stay compact — a
+ * checkbox row is a choice, not a decision, and needs no consequence line
+ * unless the overlap rule has disabled it.
+ */
+export const PICK = {
+  /** The group's section label, sitting on the card's column edge. */
+  LABEL: "text-on-surface-variant px-1 text-xs font-semibold",
+  ROW: "flex min-h-11 cursor-pointer items-center gap-3 rounded-field px-3.5 py-2.5 has-[button:disabled]:cursor-default",
+  TEXT: "flex min-w-0 flex-1 flex-col gap-0.5",
+  NAME: "text-sm font-medium",
+  /** Why a row is disabled: the overlap rule, stated on the row it binds. */
+  WHY: "text-on-surface-variant text-xs",
+} as const;
+
+/** A password row: label above a full-width field at every width. */
+export const STACK_ROW = "flex flex-col gap-2.5 rounded-field px-4 py-4";
+
+/** The match line under the confirm field: ink on the neutral group. */
+export const MATCH = {
+  ROOT: "flex items-center gap-1.5 text-xs font-medium",
+  OK: "text-success-on-surface",
+  BAD: "text-destructive-on-surface",
+  GLYPH: "size-3.5 flex-none",
+} as const;
+
+/**
+ * The restore card's one inner container while no backup is open: a centred
+ * empty state on `surface-container` that also absorbs the row's slack (the
+ * create card beside it is the taller of the pair).
+ */
+export const DROP = {
+  ROOT: "flex min-h-0 flex-1 flex-col items-center justify-center gap-3.5 rounded-tile bg-surface-container px-6 py-10 text-center",
+  /** Neutral disc: an empty state names no role. */
+  DISC: "grid size-14 flex-none place-items-center rounded-pill bg-surface-container-high text-on-surface-variant",
+  GLYPH: "size-[1.625rem]",
+  TITLE: "text-base font-semibold",
+  BODY: "text-on-surface-variant max-w-[36ch] text-sm text-pretty",
+} as const;
+
+/** Receipt rows (key left, value right) describing an opened backup. */
+export const RECEIPT = {
+  ROW: "flex min-h-11 items-center justify-between gap-4 rounded-field px-4 py-2.5",
+  KEY: "text-on-surface-variant text-sm",
+  VALUE: "min-w-0 truncate text-right text-sm font-semibold tabular-nums",
+} as const;
+
+/**
+ * The Sequenced Pipeline Dialog (DESIGN.md > Target-only surfaces): a status
+ * hero, a determinate fill and a one-level step ledger.
+ */
+export const PIPELINE = {
+  HERO: "flex flex-col items-center gap-3 py-1 text-center",
+  /** The Glyph-Disc Rule: the role's STRONG fill, keyed by `PIPELINE_TONE`. */
+  DISC: "grid size-14 flex-none place-items-center rounded-pill transition-colors duration-[var(--duration-standard)] ease-[var(--ease-standard)]",
+  GLYPH: "size-7",
+  /** Reserves two lines so advancing a step never resizes the dialog. */
+  TEXT: "flex min-h-[2.875rem] flex-col justify-center gap-0.5",
+  HEADLINE: "text-base font-semibold tracking-[-0.005em]",
+  SUB: "text-on-surface-variant text-sm tabular-nums",
+  TRACK: "h-2 w-full overflow-hidden rounded-pill bg-surface-container-high",
+  FILL: "h-full w-full origin-left rounded-pill",
+  LEDGER: "flex max-h-72 flex-col gap-0.5 overflow-y-auto rounded-tile bg-surface-container p-1.5",
+  STEP: "flex min-h-10 items-center gap-2.5 rounded-field px-3 py-2 transition-colors duration-[var(--duration-standard)] ease-[var(--ease-standard)]",
+  /** Highlight-by-Container: the running step is promoted one step. */
+  STEP_RUNNING: "bg-primary-container text-on-primary-container",
+  STEP_GLYPH: "size-4 flex-none",
+  STEP_NAME: "min-w-0 flex-1 truncate text-sm font-medium",
+  STEP_DETAIL: "max-w-[45%] flex-none truncate text-xs",
+} as const;
+
+export type PipelineTone = "info" | "success" | "warning" | "destructive";
+
+export const PIPELINE_TONE: Record<PipelineTone, { disc: string; fill: string }> = {
+  info: { disc: "bg-primary text-primary-foreground", fill: "bg-primary" },
+  success: { disc: "bg-success text-success-foreground", fill: "bg-success" },
+  warning: { disc: "bg-warning text-warning-foreground", fill: "bg-warning" },
+  destructive: {
+    disc: "bg-destructive text-destructive-foreground",
+    fill: "bg-destructive",
+  },
+};
+
+// -----------------------------------------------------------------------------
+// Adaptive Polling (ledger U4.11.c2)
+// -----------------------------------------------------------------------------
+
+/**
+ * The card is a full-width band (one card has no row-mate to pair with), so
+ * its rows recompose into two columns on a wide card rather than stretching a
+ * label and its field 1000px apart (The Row-Span Rule). The On/Off row spans
+ * both columns because it governs the four beneath it.
+ */
+export const POLLING_GRID = {
+  GROUP: "@5xl/card:grid @5xl/card:grid-cols-2",
+  SPAN: "@5xl/card:col-span-2",
+} as const;
+
+/** The interval rows' field: a narrow numeric box with a trailing unit. */
+export const SECONDS_FIELD = {
+  WRAP: "relative w-full @2xl/card:w-36",
+  INPUT: "pr-9 text-[0.84375rem] font-medium tabular-nums",
+  UNIT: "text-on-surface-variant pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-xs font-medium",
+} as const;
+
+export const SKELETON_POLLING = {
+  LABEL: LINE.LABEL,
+  CONSEQUENCE: LINE.CONSEQUENCE,
+  /** The On/Off pill: 42px tall like a field, about two segments wide. */
+  PILL: `${FIELD_HEIGHT} w-full rounded-pill @2xl/card:w-36`,
+  FIELD: `${FIELD_HEIGHT} w-full rounded-field @2xl/card:w-36`,
+  CHIP: "h-[1.375rem] w-32 rounded-pill",
+  ACTION: `${FIELD_HEIGHT} w-28 rounded-pill`,
+} as const;

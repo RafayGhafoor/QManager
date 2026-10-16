@@ -177,5 +177,9 @@
   "invalid_target": "該探測目標不是有效位址。",
   "invalid_preset": "無法識別該預設。",
   "invalid_custom_latency": "請輸入 1 到 10000 毫秒之間的延遲門檻。",
-  "invalid_custom_loss": "請輸入 0 到 100% 之間的封包遺失門檻。"
+  "invalid_custom_loss": "請輸入 0 到 100% 之間的封包遺失門檻。",
+  "invalid_envelope": "此檔案不是 QManager 備份。",
+  "wrong_version": "此備份由更新版本的 QManager 建立，無法在此讀取。",
+  "restore_in_progress": "恢復已在進行中。",
+  "unknown_section": "此備份包含當前版本無法恢復的部分。"
 }

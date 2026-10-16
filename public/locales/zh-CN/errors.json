@@ -177,5 +177,9 @@
   "invalid_target": "该探测目标不是有效地址。",
   "invalid_preset": "无法识别该预设。",
   "invalid_custom_latency": "请输入 1 到 10000 毫秒之间的时延阈值。",
-  "invalid_custom_loss": "请输入 0 到 100% 之间的丢包阈值。"
+  "invalid_custom_loss": "请输入 0 到 100% 之间的丢包阈值。",
+  "invalid_envelope": "此文件不是 QManager 备份。",
+  "wrong_version": "此备份由更新版本的 QManager 创建，无法在此读取。",
+  "restore_in_progress": "恢复已在进行中。",
+  "unknown_section": "此备份包含当前版本无法恢复的部分。"
 }

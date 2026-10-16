@@ -177,5 +177,9 @@
   "invalid_target": "That probe target isn't a valid address.",
   "invalid_preset": "That preset isn't recognized.",
   "invalid_custom_latency": "Enter a latency limit from 1 to 10000 ms.",
-  "invalid_custom_loss": "Enter a loss limit from 0 to 100%."
+  "invalid_custom_loss": "Enter a loss limit from 0 to 100%.",
+  "invalid_envelope": "This file isn't a QManager backup.",
+  "wrong_version": "This backup was made by a newer QManager and can't be read here.",
+  "restore_in_progress": "A restore is already running.",
+  "unknown_section": "This backup contains a section this version can't restore."
 }

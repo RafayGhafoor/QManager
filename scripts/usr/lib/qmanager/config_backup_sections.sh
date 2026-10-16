@@ -38,7 +38,9 @@ fi
 # --- Canonical apply order (safe first, IMEI/profiles last) ---
 # alert_routing sits with sms_alerts (both are trivial, safe JSON writes) so the
 # two alert-config sections restore together, ahead of the risky AT/IMEI work.
-CFG_BACKUP_APPLY_ORDER="sms_alerts alert_routing watchdog network_mode_apn bands tower_lock ttl_hl imei profiles"
+# quality_thresholds precedes watchdog because watchcat quality recovery reads
+# them; sites is a plain JSON write with no modem side effects.
+CFG_BACKUP_APPLY_ORDER="sms_alerts alert_routing quality_thresholds sites watchdog network_mode_apn bands tower_lock ttl_hl imei profiles"
 
 # --- Known section keys (used for validation) ---
 CFG_BACKUP_KNOWN_SECTIONS="$CFG_BACKUP_APPLY_ORDER"
@@ -56,6 +58,8 @@ cfg_backup_collect() {
     case "$key" in
         sms_alerts)       collect_sms_alerts ;;
         alert_routing)    collect_alert_routing ;;
+        quality_thresholds) collect_quality_thresholds ;;
+        sites)            collect_sites ;;
         watchdog)         collect_watchdog ;;
         network_mode_apn) collect_network_mode_apn ;;
         bands)            collect_bands ;;
@@ -73,6 +77,8 @@ cfg_backup_apply() {
     case "$key" in
         sms_alerts)       apply_sms_alerts ;;
         alert_routing)    apply_alert_routing ;;
+        quality_thresholds) apply_quality_thresholds ;;
+        sites)            apply_sites ;;
         watchdog)         apply_watchdog ;;
         network_mode_apn) apply_network_mode_apn ;;
         bands)            apply_bands ;;
@@ -172,6 +178,195 @@ apply_alert_routing() {
     # Signal the running poller to reload routing next cycle
     touch /tmp/qmanager_alert_routing_reload
     return 0
+}
+
+# =============================================================================
+# Connection Quality thresholds — UCI quecmanager.quality_thresholds.*
+# =============================================================================
+# Mirrors system/quality_thresholds.sh. Absent presets ARE the default (the CGI
+# reports isDefault=true), so collect emits null presets when none is stored
+# and apply deletes them when the backup carries none. alert_after_min is the
+# ONE outage wait every alert channel uses; it may exist without any preset.
+# Every value is re-validated on apply.
+_qt_int_in() {
+    case "$1" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+    [ "$1" -ge "$2" ] 2>/dev/null && [ "$1" -le "$3" ] 2>/dev/null
+}
+
+collect_quality_thresholds() {
+    local lat loss lat_c loss_c wait
+    lat=$(uci -q get quecmanager.quality_thresholds.latency_preset)
+    loss=$(uci -q get quecmanager.quality_thresholds.loss_preset)
+    lat_c=$(uci -q get quecmanager.quality_thresholds.latency_custom_ms)
+    loss_c=$(uci -q get quecmanager.quality_thresholds.loss_custom_pct)
+    wait=$(uci -q get quecmanager.quality_thresholds.alert_after_min)
+    _qt_int_in "$lat_c" 1 10000 || lat_c=""
+    _qt_int_in "$loss_c" 0 100 || loss_c=""
+    _qt_int_in "$wait" 1 60 || wait=""
+    jq -nc --arg lat "$lat" --arg loss "$loss" --arg lat_c "$lat_c" \
+        --arg loss_c "$loss_c" --arg wait "$wait" '
+        def num: if . == "" then null else tonumber end;
+        def str: if . == "" then null else . end;
+        {latency_preset: ($lat | str), loss_preset: ($loss | str),
+         latency_custom_ms: ($lat_c | num), loss_custom_pct: ($loss_c | num),
+         alert_after_min: ($wait | num)}'
+}
+
+apply_quality_thresholds() {
+    local input lat loss lat_c loss_c wait
+    input=$(cat)
+    echo "$input" | jq -e 'type == "object"' >/dev/null 2>&1 || {
+        qlog_error "apply_quality_thresholds: invalid input"
+        return 1
+    }
+    lat=$(echo "$input" | jq -r '.latency_preset // empty')
+    loss=$(echo "$input" | jq -r '.loss_preset // empty')
+    lat_c=$(echo "$input" | jq -r '.latency_custom_ms | if . == null then empty else tostring end')
+    loss_c=$(echo "$input" | jq -r '.loss_custom_pct | if . == null then empty else tostring end')
+    wait=$(echo "$input" | jq -r '.alert_after_min | if . == null then empty else tostring end')
+
+    # Presets travel as a pair (the CGI always writes both); one alone is junk.
+    if [ -n "$lat" ] || [ -n "$loss" ]; then
+        case "$lat" in
+            standard|tolerant|very-tolerant|custom) ;;
+            *) qlog_error "apply_quality_thresholds: bad latency_preset"; return 1 ;;
+        esac
+        case "$loss" in
+            standard|tolerant|very-tolerant|custom) ;;
+            *) qlog_error "apply_quality_thresholds: bad loss_preset"; return 1 ;;
+        esac
+        if [ "$lat" = "custom" ] && ! _qt_int_in "$lat_c" 1 10000; then
+            qlog_error "apply_quality_thresholds: bad latency_custom_ms"; return 1
+        fi
+        if [ "$loss" = "custom" ] && ! _qt_int_in "$loss_c" 0 100; then
+            qlog_error "apply_quality_thresholds: bad loss_custom_pct"; return 1
+        fi
+    fi
+    if [ -n "$wait" ] && ! _qt_int_in "$wait" 1 60; then
+        qlog_error "apply_quality_thresholds: bad alert_after_min"; return 1
+    fi
+
+    uci -q get quecmanager.quality_thresholds >/dev/null 2>&1 || \
+        uci set quecmanager.quality_thresholds=quality_thresholds
+    if [ -n "$lat" ]; then
+        uci set quecmanager.quality_thresholds.latency_preset="$lat"
+        uci set quecmanager.quality_thresholds.loss_preset="$loss"
+    else
+        uci -q delete quecmanager.quality_thresholds.latency_preset
+        uci -q delete quecmanager.quality_thresholds.loss_preset
+    fi
+    if [ "$lat" = "custom" ]; then
+        uci set quecmanager.quality_thresholds.latency_custom_ms="$lat_c"
+    else
+        uci -q delete quecmanager.quality_thresholds.latency_custom_ms
+    fi
+    if [ "$loss" = "custom" ]; then
+        uci set quecmanager.quality_thresholds.loss_custom_pct="$loss_c"
+    else
+        uci -q delete quecmanager.quality_thresholds.loss_custom_pct
+    fi
+    if [ -n "$wait" ]; then
+        uci set quecmanager.quality_thresholds.alert_after_min="$wait"
+    else
+        uci -q delete quecmanager.quality_thresholds.alert_after_min
+    fi
+    uci commit quecmanager || return 1
+    # Poller (events) and watchdog (recovery) read these through SEPARATE
+    # reload flags; touching only one leaves the other consumer stale.
+    touch /tmp/qmanager_quality_reload /tmp/qmanager_watchcat_reload
+    return 0
+}
+
+# =============================================================================
+# Sites monitor — /etc/qmanager/sites.json (qmanager_sites re-reads each cycle)
+# =============================================================================
+# Mirrors monitoring/sites.sh handle_save. An absent file means the built-in
+# defaults, so collect emits {"default":true} and apply removes the file.
+_SITES_CONF="/etc/qmanager/sites.json"
+
+# Same conservative hostname / IPv4 check as the CGI (device jq has no regex).
+_sites_valid_host() {
+    local h="$1"
+    [ "${#h}" -ge 3 ] && [ "${#h}" -le 253 ] || return 1
+    case "$h" in
+        *[!A-Za-z0-9.-]*|-*|.*|*.|*-|*..*|*.-*|*-.*) return 1 ;;
+        *.*) return 0 ;;
+    esac
+    return 1
+}
+
+collect_sites() {
+    if [ ! -f "$_SITES_CONF" ]; then
+        echo '{"default":true}'
+        return 0
+    fi
+    jq -c '{default: false,
+            enabled: (if .enabled == false then false else true end),
+            interval_sec: (.interval_sec // 300),
+            sites: [(.sites // [])[] | select(type == "object" and (.host | type) == "string")
+                    | {host: .host, label: (.label // .host)}]}' "$_SITES_CONF"
+}
+
+apply_sites() {
+    local input is_default enabled interval nsites lines h nlines new tmp
+    input=$(cat)
+    is_default=$(echo "$input" | jq -r 'if type == "object" then (.default == true | tostring) else "invalid" end' 2>/dev/null)
+    case "$is_default" in
+        true) rm -f "$_SITES_CONF"; : > /tmp/qmanager_sites_now; return 0 ;;
+        false) ;;
+        *) qlog_error "apply_sites: invalid input"; return 1 ;;
+    esac
+
+    enabled=$(echo "$input" | jq -r '.enabled | if type == "boolean" then tostring else "invalid" end')
+    case "$enabled" in
+        true|false) ;;
+        *) qlog_error "apply_sites: bad enabled"; return 1 ;;
+    esac
+    interval=$(echo "$input" | jq -r '.interval_sec
+        | if type == "number" then (floor | if . < 60 then 60 elif . > 3600 then 3600 else . end | tostring)
+          else "invalid" end')
+    case "$interval" in
+        ''|*[!0-9]*) qlog_error "apply_sites: bad interval_sec"; return 1 ;;
+    esac
+    nsites=$(echo "$input" | jq -r '.sites | if type == "array" then length | tostring else "invalid" end')
+    case "$nsites" in
+        ''|*[!0-9]*) qlog_error "apply_sites: bad sites"; return 1 ;;
+    esac
+    [ "$nsites" -le 32 ] || { qlog_error "apply_sites: too many sites"; return 1; }
+
+    nlines=0
+    if [ "$nsites" -gt 0 ]; then
+        lines=$(echo "$input" | jq -r '.sites[]
+            | if type == "object" and (.host | type) == "string" then (.host | ascii_downcase) else "" end')
+        while IFS= read -r h; do
+            nlines=$((nlines + 1))
+            _sites_valid_host "$h" || { qlog_error "apply_sites: invalid host"; return 1; }
+        done <<EOF
+$lines
+EOF
+        [ "$nlines" -eq "$nsites" ] || { qlog_error "apply_sites: invalid host"; return 1; }
+    fi
+
+    new=$(echo "$input" | jq -c --argjson en "$enabled" --argjson iv "$interval" '
+        {enabled: $en, interval_sec: $iv,
+         sites: ([.sites[] | (.host | ascii_downcase) as $h
+                  | {host: $h,
+                     label: (((.label | if type == "string" then . else "" end)
+                              | explode | map(select(. >= 32 and . != 127)) | implode | .[:40])
+                             | if . == "" then $h else . end)}]
+                 | reduce .[] as $s ([]; if any(.[]; .host == $s.host) then . else . + [$s] end))}') || return 1
+
+    mkdir -p /etc/qmanager
+    tmp="${_SITES_CONF}.tmp.$$"
+    if printf '%s\n' "$new" > "$tmp" && chmod 0644 "$tmp" && mv -f "$tmp" "$_SITES_CONF"; then
+        [ "$enabled" = "true" ] && : > /tmp/qmanager_sites_now
+        [ "$enabled" = "false" ] && rm -f /tmp/qmanager_sites_live
+        return 0
+    fi
+    rm -f "$tmp"
+    return 1
 }
 
 # =============================================================================

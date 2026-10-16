@@ -12,6 +12,9 @@ describe("sections", () => {
       imei: false,
       sms_alerts: false,
       watchdog: false,
+      alert_routing: false,
+      quality_thresholds: false,
+      sites: false,
       bands: false,
       tower_lock: false,
     });
@@ -29,6 +32,9 @@ describe("sections", () => {
       imei: false,
       sms_alerts: false,
       watchdog: false,
+      alert_routing: false,
+      quality_thresholds: false,
+      sites: false,
       bands: false,
       tower_lock: false,
     });
@@ -36,9 +42,12 @@ describe("sections", () => {
     expect(d.has("network_mode_apn")).toBe(false);
   });
 
-  it("BACKUP_SECTIONS contains all 8 expected keys", () => {
+  it("BACKUP_SECTIONS contains all 11 expected keys", () => {
     const expected: BackupSectionKey[] = [
       "sms_alerts",
+      "alert_routing",
+      "quality_thresholds",
+      "sites",
       "watchdog",
       "network_mode_apn",
       "bands",
@@ -59,6 +68,9 @@ describe("sections", () => {
       imei: true,
       sms_alerts: false,
       watchdog: false,
+      alert_routing: false,
+      quality_thresholds: false,
+      sites: false,
       bands: false,
       tower_lock: false,
     });

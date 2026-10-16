@@ -3,6 +3,9 @@
 /** Canonical section keys. Order matters for apply sequence. */
 export type BackupSectionKey =
   | "sms_alerts"
+  | "alert_routing"
+  | "quality_thresholds"
+  | "sites"
   | "watchdog"
   | "network_mode_apn"
   | "bands"
@@ -14,11 +17,14 @@ export type BackupSectionKey =
 /** Overlap group used by the mutual-disable logic in the backup card */
 export type OverlapGroup = "profile" | "profile-parent" | null;
 
-/** Metadata describing one section in the UI */
+/** The two groups the section picker is split into (labels via i18n). */
+export type BackupSectionGroup = "connection" | "monitoring";
+
+/** Metadata describing one section in the UI. Labels live in the
+ *  `system-settings` catalog under `config_backup.sections.<key>`. */
 export interface BackupSectionMeta {
   key: BackupSectionKey;
-  label: string;
-  description: string;
+  group: BackupSectionGroup;
   overlapGroup: OverlapGroup;
   defaultChecked: boolean;
 }

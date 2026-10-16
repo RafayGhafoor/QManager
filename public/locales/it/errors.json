@@ -177,5 +177,9 @@
   "invalid_target": "Questa destinazione non è un indirizzo valido.",
   "invalid_preset": "Questa preimpostazione non è riconosciuta.",
   "invalid_custom_latency": "Inserisci un limite di latenza da 1 a 10000 ms.",
-  "invalid_custom_loss": "Inserisci un limite di perdita da 0 al 100%."
+  "invalid_custom_loss": "Inserisci un limite di perdita da 0 al 100%.",
+  "invalid_envelope": "Questo file non è un backup di QManager.",
+  "wrong_version": "Questo backup è stato creato da una versione più recente di QManager e non può essere letto qui.",
+  "restore_in_progress": "Un ripristino è già in corso.",
+  "unknown_section": "Questo backup contiene una sezione che questa versione non può ripristinare."
 }

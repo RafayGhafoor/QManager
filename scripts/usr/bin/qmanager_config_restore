@@ -118,6 +118,9 @@ append_event "config_restore_started" "Configuration restore started ($(echo $pr
 section_label() {
     case "$1" in
         sms_alerts)       echo "SMS Alerts" ;;
+        alert_routing)    echo "Alert Routing" ;;
+        quality_thresholds) echo "Connection Quality" ;;
+        sites)            echo "Sites Monitor" ;;
         watchdog)         echo "Watchdog/Watchcat" ;;
         network_mode_apn) echo "Network Mode and APN" ;;
         bands)            echo "LTE/5G Bands" ;;
