@@ -1582,8 +1582,7 @@
       "page": {
         "title": "APN 設定",
         "description": "設定 SIM 卡用於連線的 APN、IP 協定及資料連線情境。",
-        "error_load_title": "載入 APN 設定失敗",
-        "error_load_description": "顯示的值可能已過時。"
+        "error_load_title": "載入 APN 設定失敗"
       },
       "card": {
         "title": "APN 設定",
@@ -1593,7 +1592,7 @@
         "active": "已啟用",
         "not_live": "未生效",
         "carrier_default": "電信商預設",
-        "network_using": "網路正在使用：{{apn}}"
+        "network_using_label": "網路正在使用"
       },
       "save_connection_notice": "儲存時數據機重新連線期間蜂窩連線會短暫中斷。",
       "carrier_default": {
@@ -1607,70 +1606,11 @@
       },
       "toast": {
         "saved": "APN 設定已儲存",
-        "save_error": "儲存 APN 設定失敗",
-        "deactivated": "已還原至電信商預設 APN",
-        "deactivate_error": "還原至電信商預設失敗"
+        "deactivated": "已還原至電信商預設 APN"
       },
-      "controls_label": "APN 配置",
       "managed_by_profile_fallback": "活動的自訂 SIM 設定",
-      "list": {
-        "card": {
-          "title": "APN 設定檔",
-          "description": "五個資料設定檔槽位。開啟其中一個即可將其設為活動的網際網路 APN — 同一時間只能有一個處於活動狀態。"
-        },
-        "empty": {
-          "title": "沒有設定檔槽位",
-          "subtitle": "無法載入設定檔槽位。"
-        },
-        "unnamed": "未命名",
-        "no_apn": "未設定 APN",
-        "slot": "槽位 {{id}}",
-        "apn_on_cid": "{{apn}} · CID {{cid}}",
-        "status": {
-          "active": "活動",
-          "not_live": "未生效",
-          "idle": "空閒",
-          "empty": "空",
-          "overridden": "已被設定檔接管"
-        },
-        "live": {
-          "mismatch_title": "儲存的 APN 未生效",
-          "mismatch": "網路正在使用：{{apn}}",
-          "mismatch_default": "網路正在使用運營商預設值"
-        },
-        "carrier_default": {
-          "title": "無活動設定檔",
-          "subtitle": "您的運營商正在自動選擇 APN。"
-        },
-        "aria": {
-          "activate_switch": "啟用 {{name}}",
-          "active_switch": "{{name}} 是活動設定檔",
-          "deactivate_switch": "停用 {{name}}，讓運營商選擇 APN",
-          "edit_button": "編輯 {{name}}"
-        },
-        "toast": {
-          "activating": "正在啟用 {{name}}…",
-          "activated": "{{name}} 現已成為活動 APN",
-          "activate_error": "啟用 {{name}} 失敗",
-          "deactivating": "正在停用設定檔…",
-          "deactivated": "設定檔已停用 — 現由運營商選擇 APN",
-          "deactivate_error": "停用設定檔失敗"
-        },
-        "deactivate": {
-          "title": "停用 APN 設定檔？",
-          "description": "您的運營商將自動選擇 APN。數據機重新連線時，蜂窩連線會短暫中斷。",
-          "confirm": "停用",
-          "cancel": "取消"
-        }
-      },
       "edit": {
-        "title": "編輯槽位 {{id}}",
-        "description_default": "配置此資料設定檔。儲存即儲存；在列表中將其啟用以生效。",
         "fields": {
-          "name": {
-            "label": "名稱",
-            "placeholder": "我的資料設定檔"
-          },
           "apn": {
             "label": "APN *",
             "placeholder": "fast.t-mobile.com",
@@ -1703,35 +1643,15 @@
           "confirm": "仍然使用",
           "cancel": "取消"
         },
-        "clear": {
-          "button": "清空槽位",
-          "disabled_active": "清空活動設定檔前請先切換到其他設定檔",
-          "title": "清空此槽位？",
-          "description": "這將清空該設定檔的名稱和 APN。此操作無法撤銷。",
-          "confirm": "清空",
-          "cancel": "取消",
-          "toast_success": "槽位已清空",
-          "toast_error": "清空槽位失敗"
-        },
-        "save_button": "儲存設定檔",
-        "cancel": "取消",
-        "toast": {
-          "saved": "{{name}} 已儲存",
-          "save_error": "儲存設定檔失敗"
-        }
+        "save_button": "儲存設定檔"
       },
       "mbn": {
         "card": {
           "title": "運營商設定檔",
-          "description": "選擇在調變解調器上啟用的運營商韌體設定檔。變更後需要重啟。"
+          "description": "選擇數據機執行的電信業者韌體設定檔；變更後需要重新啟動。"
         },
         "auto_select": {
-          "label": "自動選擇設定檔",
-          "placeholder": "選擇自動選擇",
-          "options": {
-            "enabled": "已啟用",
-            "disabled": "已停用"
-          }
+          "label": "自動選擇設定檔"
         },
         "configuration": {
           "label": "運營商設定",
@@ -1750,13 +1670,25 @@
           "auto_enabled": "已啟用自動選擇 — 需要重啟",
           "auto_disabled": "已停用自動選擇 — 需要重啟",
           "profile_applied": "運營商設定檔已套用 — 需要重啟",
-          "enable_error": "啟用自動選擇失敗",
-          "disable_error": "停用自動選擇失敗",
-          "apply_error": "套用運營商設定檔失敗",
-          "no_changes": "沒有需要儲存的變更",
-          "rebooting": "裝置正在重啟…",
           "reboot_error": "重啟失敗 — 請手動重啟裝置"
+        },
+        "load_error_title": "無法載入電信業者設定檔",
+        "errors": {
+          "load_failed": "數據機未回傳電信業者設定檔，請稍後再試。",
+          "save_failed": "無法套用電信業者設定檔設定。"
+        },
+        "pending_reboot": {
+          "title": "重新啟動以完成電信業者設定檔變更",
+          "description": "新的電信業者設定檔會在數據機重新啟動後生效。",
+          "dismiss": "關閉"
         }
+      },
+      "profile_gate_title": "{{profile}} 自訂 SIM 設定正在管理您的 APN",
+      "profile_gate_note": "請編輯該設定以變更這些設定值。",
+      "errors": {
+        "load_failed": "數據機未回傳 APN 設定，請稍後再試。",
+        "save_failed": "無法儲存 APN。",
+        "deactivate_failed": "無法切換到電信業者預設 APN。"
       }
     },
     "imei": {

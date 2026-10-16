@@ -1582,8 +1582,7 @@
       "page": {
         "title": "Pengaturan APN",
         "description": "Atur APN, protokol IP, dan konteks data yang digunakan SIM Anda untuk terhubung.",
-        "error_load_title": "Gagal memuat pengaturan APN",
-        "error_load_description": "Nilai yang ditampilkan mungkin sudah usang."
+        "error_load_title": "Gagal memuat pengaturan APN"
       },
       "card": {
         "title": "Konfigurasi APN",
@@ -1593,7 +1592,7 @@
         "active": "Aktif",
         "not_live": "Tidak live",
         "carrier_default": "Default operator",
-        "network_using": "Jaringan menggunakan: {{apn}}"
+        "network_using_label": "Jaringan menggunakan"
       },
       "save_connection_notice": "Menyimpan akan memutus koneksi seluler sebentar saat modem menyambung ulang.",
       "carrier_default": {
@@ -1607,70 +1606,11 @@
       },
       "toast": {
         "saved": "Pengaturan APN disimpan",
-        "save_error": "Gagal menyimpan pengaturan APN",
-        "deactivated": "Dikembalikan ke APN default operator",
-        "deactivate_error": "Gagal kembali ke default operator"
+        "deactivated": "Dikembalikan ke APN default operator"
       },
-      "controls_label": "Konfigurasi APN",
       "managed_by_profile_fallback": "Profil SIM Kustom aktif",
-      "list": {
-        "card": {
-          "title": "Profil APN",
-          "description": "Lima slot profil data. Aktifkan salah satu untuk menjadikannya APN Internet aktif — hanya satu yang bisa aktif pada satu waktu."
-        },
-        "empty": {
-          "title": "Tidak ada slot profil",
-          "subtitle": "Slot profil tidak dapat dimuat."
-        },
-        "unnamed": "Tanpa Nama",
-        "no_apn": "APN belum diatur",
-        "slot": "Slot {{id}}",
-        "apn_on_cid": "{{apn}} · CID {{cid}}",
-        "status": {
-          "active": "Aktif",
-          "not_live": "Tidak aktif",
-          "idle": "Siaga",
-          "empty": "Kosong",
-          "overridden": "Ditimpa Profil"
-        },
-        "live": {
-          "mismatch_title": "APN tersimpan tidak aktif",
-          "mismatch": "Jaringan menggunakan: {{apn}}",
-          "mismatch_default": "Jaringan menggunakan default operator"
-        },
-        "carrier_default": {
-          "title": "Tidak ada profil aktif",
-          "subtitle": "Operator Anda memilih APN secara otomatis."
-        },
-        "aria": {
-          "activate_switch": "Aktifkan {{name}}",
-          "active_switch": "{{name}} adalah profil aktif",
-          "deactivate_switch": "Nonaktifkan {{name}} dan biarkan operator memilih APN",
-          "edit_button": "Edit {{name}}"
-        },
-        "toast": {
-          "activating": "Mengaktifkan {{name}}…",
-          "activated": "{{name}} kini menjadi APN aktif Anda",
-          "activate_error": "Gagal mengaktifkan {{name}}",
-          "deactivating": "Menonaktifkan profil…",
-          "deactivated": "Profil dinonaktifkan — operator Anda kini memilih APN",
-          "deactivate_error": "Gagal menonaktifkan profil"
-        },
-        "deactivate": {
-          "title": "Nonaktifkan profil APN?",
-          "description": "Operator Anda akan memilih APN secara otomatis. Koneksi seluler akan terputus sebentar saat modem menyambung ulang.",
-          "confirm": "Nonaktifkan",
-          "cancel": "Batal"
-        }
-      },
       "edit": {
-        "title": "Edit Slot {{id}}",
-        "description_default": "Konfigurasi profil data ini. Menyimpan akan menyimpannya; aktifkan dari daftar untuk menggunakannya.",
         "fields": {
-          "name": {
-            "label": "Nama",
-            "placeholder": "Profil Data Saya"
-          },
           "apn": {
             "label": "APN *",
             "placeholder": "fast.t-mobile.com",
@@ -1703,35 +1643,15 @@
           "confirm": "Tetap gunakan",
           "cancel": "Batal"
         },
-        "clear": {
-          "button": "Kosongkan slot",
-          "disabled_active": "Beralih ke profil lain sebelum mengosongkan yang aktif",
-          "title": "Kosongkan slot ini?",
-          "description": "Ini akan mengosongkan nama dan APN profil. Tindakan ini tidak dapat dibatalkan.",
-          "confirm": "Kosongkan",
-          "cancel": "Batal",
-          "toast_success": "Slot dikosongkan",
-          "toast_error": "Gagal mengosongkan slot"
-        },
-        "save_button": "Simpan Profil",
-        "cancel": "Batal",
-        "toast": {
-          "saved": "{{name}} disimpan",
-          "save_error": "Gagal menyimpan profil"
-        }
+        "save_button": "Simpan Profil"
       },
       "mbn": {
         "card": {
           "title": "Profil Operator",
-          "description": "Pilih profil firmware operator mana yang aktif pada modem. Reboot diperlukan setelah perubahan."
+          "description": "Pilih profil firmware operator yang dijalankan modem; perubahan memerlukan reboot."
         },
         "auto_select": {
-          "label": "Pilih Otomatis Profil",
-          "placeholder": "Pilih Pilihan Otomatis",
-          "options": {
-            "enabled": "Aktif",
-            "disabled": "Nonaktif"
-          }
+          "label": "Pilih Otomatis Profil"
         },
         "configuration": {
           "label": "Konfigurasi Operator",
@@ -1750,13 +1670,25 @@
           "auto_enabled": "Pilihan otomatis diaktifkan — reboot diperlukan",
           "auto_disabled": "Pilihan otomatis dinonaktifkan — reboot diperlukan",
           "profile_applied": "Profil operator diterapkan — reboot diperlukan",
-          "enable_error": "Gagal mengaktifkan pilihan otomatis",
-          "disable_error": "Gagal menonaktifkan pilihan otomatis",
-          "apply_error": "Gagal menerapkan profil operator",
-          "no_changes": "Tidak ada perubahan untuk disimpan",
-          "rebooting": "Perangkat sedang memulai ulang…",
           "reboot_error": "Reboot gagal — mulai ulang perangkat secara manual"
+        },
+        "load_error_title": "Tidak dapat memuat profil operator",
+        "errors": {
+          "load_failed": "Modem tidak mengembalikan profil operator. Coba lagi sebentar lagi.",
+          "save_failed": "Tidak dapat menerapkan pengaturan profil operator."
+        },
+        "pending_reboot": {
+          "title": "Reboot untuk menyelesaikan perubahan profil operator",
+          "description": "Profil operator baru berlaku setelah modem dinyalakan ulang.",
+          "dismiss": "Tutup"
         }
+      },
+      "profile_gate_title": "Profil SIM Kustom {{profile}} mengelola APN Anda",
+      "profile_gate_note": "Ubah profil tersebut untuk mengganti pengaturan ini.",
+      "errors": {
+        "load_failed": "Modem tidak mengembalikan pengaturan APN. Coba lagi sebentar lagi.",
+        "save_failed": "Tidak dapat menyimpan APN.",
+        "deactivate_failed": "Tidak dapat beralih ke APN bawaan operator."
       }
     },
     "imei": {

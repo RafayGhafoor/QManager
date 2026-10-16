@@ -6,6 +6,7 @@ import { authFetch } from "@/lib/auth-fetch";
 import { enterRebootFlow } from "@/lib/reboot";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type {
+  MbnActionResult,
   MbnProfile,
   MbnSettingsResponse,
   MbnSaveRequest,
@@ -23,6 +24,7 @@ import type {
 // =============================================================================
 
 const CGI_ENDPOINT = "/cgi-bin/quecmanager/cellular/mbn.sh";
+const K = "core_settings.apn.mbn.errors";
 
 export interface UseMbnSettingsReturn {
   /** All MBN profiles (null before first fetch) */
@@ -33,10 +35,10 @@ export interface UseMbnSettingsReturn {
   isLoading: boolean;
   /** True while a save operation is in progress */
   isSaving: boolean;
-  /** Error message if fetch or save failed */
+  /** Why the last READ failed (translated), or null. Saves return theirs. */
   error: string | null;
-  /** Apply MBN changes. Returns true on success. */
-  saveMbn: (request: MbnSaveRequest) => Promise<boolean>;
+  /** Apply MBN changes. */
+  saveMbn: (request: MbnSaveRequest) => Promise<MbnActionResult>;
   /** Trigger device reboot. Returns true if command was sent. */
   rebootDevice: () => Promise<boolean>;
   /** Re-fetch MBN data from the modem */
@@ -44,7 +46,7 @@ export interface UseMbnSettingsReturn {
 }
 
 export function useMbnSettings(): UseMbnSettingsReturn {
-  const { t } = useTranslation("errors");
+  const { t } = useTranslation("cellular");
   const [profiles, setProfiles] = useState<MbnProfile[] | null>(null);
   const [autoSel, setAutoSel] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,17 +79,15 @@ export function useMbnSettings(): UseMbnSettingsReturn {
       if (!mountedRef.current) return;
 
       if (!data.success) {
-        setError(resolveErrorMessage(t, data.error, undefined, "Failed to fetch MBN settings"));
+        setError(resolveErrorMessage(t, data.error, data.detail, t(`${K}.load_failed`)));
         return;
       }
 
       setProfiles(data.profiles);
       setAutoSel(data.auto_sel);
-    } catch (err) {
+    } catch {
       if (!mountedRef.current) return;
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch MBN settings"
-      );
+      setError(t(`${K}.load_failed`));
     } finally {
       if (mountedRef.current && !silent) {
         setIsLoading(false);
@@ -104,8 +104,7 @@ export function useMbnSettings(): UseMbnSettingsReturn {
   // Save MBN change (apply profile or toggle auto-select)
   // ---------------------------------------------------------------------------
   const saveMbn = useCallback(
-    async (request: MbnSaveRequest): Promise<boolean> => {
-      setError(null);
+    async (request: MbnSaveRequest): Promise<MbnActionResult> => {
       setIsSaving(true);
 
       try {
@@ -120,22 +119,19 @@ export function useMbnSettings(): UseMbnSettingsReturn {
         }
 
         const data: MbnSaveResponse = await resp.json();
-        if (!mountedRef.current) return false;
 
         if (!data.success) {
-          setError(resolveErrorMessage(t, data.error, data.detail, "Failed to apply MBN settings"));
-          return false;
+          return {
+            ok: false,
+            error: resolveErrorMessage(t, data.error, data.detail, t(`${K}.save_failed`)),
+          };
         }
 
         // Silent re-fetch to update local state (no skeleton)
-        await fetchMbn(true);
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(
-          err instanceof Error ? err.message : "Failed to apply MBN settings"
-        );
-        return false;
+        if (mountedRef.current) await fetchMbn(true);
+        return { ok: true };
+      } catch {
+        return { ok: false, error: t(`${K}.save_failed`) };
       } finally {
         if (mountedRef.current) {
           setIsSaving(false);

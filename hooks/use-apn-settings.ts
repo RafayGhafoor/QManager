@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { authFetch } from "@/lib/auth-fetch";
+import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type {
+  ApnActionResult,
   ApnSetting,
   CidContext,
   ApnSettingsResponse,
@@ -28,6 +31,7 @@ const CGI_ENDPOINT = "/cgi-bin/quecmanager/cellular/apn.sh";
 // fresh active_cid/cids state isn't readable immediately — a short delayed
 // silent refresh reconciles the optimistic patch.
 const RECONCILE_DELAY_MS = 1500;
+const K = "core_settings.apn.errors";
 
 export interface UseApnSettingsReturn {
   /** The stored single APN setting (null before first fetch). */
@@ -42,17 +46,18 @@ export interface UseApnSettingsReturn {
   isLoading: boolean;
   /** True while a save/deactivate operation is in progress. */
   isSaving: boolean;
-  /** Error message if fetch or a mutation failed. */
+  /** Why the last READ failed (translated), or null. Mutations return theirs. */
   error: string | null;
-  /** Persist the APN configuration and apply it. Returns true on success. */
-  save: (request: ApnSaveRequest) => Promise<boolean>;
-  /** Revert to carrier-default APN (active=0). Returns true on success. */
-  deactivate: () => Promise<boolean>;
+  /** Persist the APN configuration and apply it. */
+  save: (request: ApnSaveRequest) => Promise<ApnActionResult>;
+  /** Revert to carrier-default APN (active=0). */
+  deactivate: () => Promise<ApnActionResult>;
   /** Re-fetch the APN setting + CID contexts. */
   refresh: () => void;
 }
 
 export function useApnSettings(): UseApnSettingsReturn {
+  const { t } = useTranslation("cellular");
   const [apn, setApn] = useState<ApnSetting | null>(null);
   const [cids, setCids] = useState<CidContext[] | null>(null);
   const [active, setActive] = useState<number | null>(null);
@@ -87,7 +92,7 @@ export function useApnSettings(): UseApnSettingsReturn {
       if (!mountedRef.current) return;
 
       if (!data.success) {
-        setError(data.error ?? "Failed to fetch APN settings");
+        setError(resolveErrorMessage(t, data.error, data.detail, t(`${K}.load_failed`)));
         return;
       }
 
@@ -97,17 +102,15 @@ export function useApnSettings(): UseApnSettingsReturn {
       setActiveCid(
         typeof data.active_cid === "number" ? data.active_cid : null
       );
-    } catch (err) {
+    } catch {
       if (!mountedRef.current) return;
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch APN settings"
-      );
+      setError(t(`${K}.load_failed`));
     } finally {
       if (mountedRef.current && !silent) {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [t]);
 
   // Fetch on mount
   useEffect(() => {
@@ -153,16 +156,17 @@ export function useApnSettings(): UseApnSettingsReturn {
   // Save — writes the APN and runs a COPS cycle (brief WAN drop).
   // ---------------------------------------------------------------------------
   const save = useCallback(
-    async (request: ApnSaveRequest): Promise<boolean> => {
-      setError(null);
+    async (request: ApnSaveRequest): Promise<ApnActionResult> => {
       setIsSaving(true);
       try {
         const data = await postAction({ action: "save", ...request });
-        if (!mountedRef.current) return false;
         if (!data.success) {
-          setError(data.error ?? "Failed to save APN");
-          return false;
+          return {
+            ok: false,
+            error: resolveErrorMessage(t, data.error, data.detail, t(`${K}.save_failed`)),
+          };
         }
+        if (!mountedRef.current) return { ok: true };
         // Optimistic update: reflect the stored setting immediately.
         setApn(request);
         setActive(1);
@@ -170,44 +174,39 @@ export function useApnSettings(): UseApnSettingsReturn {
         // flash "Not live" before the reconcile picks up the modem's response.
         patchCidApn(request.cid, request.apn);
         scheduleReconcile();
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(err instanceof Error ? err.message : "Failed to save APN");
-        return false;
+        return { ok: true };
+      } catch {
+        return { ok: false, error: t(`${K}.save_failed`) };
       } finally {
         if (mountedRef.current) setIsSaving(false);
       }
     },
-    [postAction, patchCidApn, scheduleReconcile]
+    [postAction, patchCidApn, scheduleReconcile, t]
   );
 
   // ---------------------------------------------------------------------------
   // Deactivate — revert to carrier-default APN (active=0).
   // ---------------------------------------------------------------------------
-  const deactivate = useCallback(async (): Promise<boolean> => {
-    setError(null);
+  const deactivate = useCallback(async (): Promise<ApnActionResult> => {
     setIsSaving(true);
     try {
       const data = await postAction({ action: "deactivate" });
-      if (!mountedRef.current) return false;
       if (!data.success) {
-        setError(data.error ?? "Failed to use carrier default");
-        return false;
+        return {
+          ok: false,
+          error: resolveErrorMessage(t, data.error, data.detail, t(`${K}.deactivate_failed`)),
+        };
       }
+      if (!mountedRef.current) return { ok: true };
       setActive(0);
       scheduleReconcile();
-      return true;
-    } catch (err) {
-      if (!mountedRef.current) return false;
-      setError(
-        err instanceof Error ? err.message : "Failed to use carrier default"
-      );
-      return false;
+      return { ok: true };
+    } catch {
+      return { ok: false, error: t(`${K}.deactivate_failed`) };
     } finally {
       if (mountedRef.current) setIsSaving(false);
     }
-  }, [postAction, scheduleReconcile]);
+  }, [postAction, scheduleReconcile, t]);
 
   return {
     apn,

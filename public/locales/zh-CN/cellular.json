@@ -1582,8 +1582,7 @@
       "page": {
         "title": "APN 设置",
         "description": "设置 SIM 卡用于连接的 APN、IP 协议和数据上下文。",
-        "error_load_title": "加载 APN 设置失败",
-        "error_load_description": "显示的值可能已过时。"
+        "error_load_title": "加载 APN 设置失败"
       },
       "card": {
         "title": "APN 配置",
@@ -1593,7 +1592,7 @@
         "active": "已激活",
         "not_live": "未生效",
         "carrier_default": "运营商默认",
-        "network_using": "网络正在使用：{{apn}}"
+        "network_using_label": "网络正在使用"
       },
       "save_connection_notice": "保存时调制解调器重连期间蜂窝连接会短暂中断。",
       "carrier_default": {
@@ -1607,70 +1606,11 @@
       },
       "toast": {
         "saved": "APN 设置已保存",
-        "save_error": "保存 APN 设置失败",
-        "deactivated": "已恢复到运营商默认 APN",
-        "deactivate_error": "恢复到运营商默认失败"
+        "deactivated": "已恢复到运营商默认 APN"
       },
-      "controls_label": "APN 配置",
       "managed_by_profile_fallback": "活动的自定义 SIM 配置",
-      "list": {
-        "card": {
-          "title": "APN 配置文件",
-          "description": "五个数据配置文件槽位。开启其中一个即可将其设为活动的互联网 APN — 同一时间只能有一个处于活动状态。"
-        },
-        "empty": {
-          "title": "没有配置文件槽位",
-          "subtitle": "无法加载配置文件槽位。"
-        },
-        "unnamed": "未命名",
-        "no_apn": "未设置 APN",
-        "slot": "槽位 {{id}}",
-        "apn_on_cid": "{{apn}} · CID {{cid}}",
-        "status": {
-          "active": "活动",
-          "not_live": "未生效",
-          "idle": "空闲",
-          "empty": "空",
-          "overridden": "已被配置文件接管"
-        },
-        "live": {
-          "mismatch_title": "存储的 APN 未生效",
-          "mismatch": "网络正在使用：{{apn}}",
-          "mismatch_default": "网络正在使用运营商默认值"
-        },
-        "carrier_default": {
-          "title": "无活动配置文件",
-          "subtitle": "您的运营商正在自动选择 APN。"
-        },
-        "aria": {
-          "activate_switch": "激活 {{name}}",
-          "active_switch": "{{name}} 是活动配置文件",
-          "deactivate_switch": "停用 {{name}}，让运营商选择 APN",
-          "edit_button": "编辑 {{name}}"
-        },
-        "toast": {
-          "activating": "正在激活 {{name}}…",
-          "activated": "{{name}} 现已成为活动 APN",
-          "activate_error": "激活 {{name}} 失败",
-          "deactivating": "正在停用配置文件…",
-          "deactivated": "配置文件已停用 — 现由运营商选择 APN",
-          "deactivate_error": "停用配置文件失败"
-        },
-        "deactivate": {
-          "title": "停用 APN 配置文件？",
-          "description": "您的运营商将自动选择 APN。调制解调器重新连接时，蜂窝连接会短暂中断。",
-          "confirm": "停用",
-          "cancel": "取消"
-        }
-      },
       "edit": {
-        "title": "编辑槽位 {{id}}",
-        "description_default": "配置此数据配置文件。保存即存储；在列表中将其激活以生效。",
         "fields": {
-          "name": {
-            "label": "名称",
-            "placeholder": "我的数据配置文件"
-          },
           "apn": {
             "label": "APN *",
             "placeholder": "fast.t-mobile.com",
@@ -1703,35 +1643,15 @@
           "confirm": "仍然使用",
           "cancel": "取消"
         },
-        "clear": {
-          "button": "清空槽位",
-          "disabled_active": "清空活动配置文件前请先切换到其他配置文件",
-          "title": "清空此槽位？",
-          "description": "这将清空该配置文件的名称和 APN。此操作无法撤销。",
-          "confirm": "清空",
-          "cancel": "取消",
-          "toast_success": "槽位已清空",
-          "toast_error": "清空槽位失败"
-        },
-        "save_button": "保存配置文件",
-        "cancel": "取消",
-        "toast": {
-          "saved": "{{name}} 已保存",
-          "save_error": "保存配置文件失败"
-        }
+        "save_button": "保存配置文件"
       },
       "mbn": {
         "card": {
           "title": "运营商配置文件",
-          "description": "选择在调制解调器上激活的运营商固件配置文件。更改后需要重启。"
+          "description": "选择调制解调器运行的运营商固件配置文件；更改后需要重启。"
         },
         "auto_select": {
-          "label": "自动选择配置文件",
-          "placeholder": "选择自动选择",
-          "options": {
-            "enabled": "已启用",
-            "disabled": "已禁用"
-          }
+          "label": "自动选择配置文件"
         },
         "configuration": {
           "label": "运营商配置",
@@ -1750,13 +1670,25 @@
           "auto_enabled": "已启用自动选择 — 需要重启",
           "auto_disabled": "已禁用自动选择 — 需要重启",
           "profile_applied": "运营商配置文件已应用 — 需要重启",
-          "enable_error": "启用自动选择失败",
-          "disable_error": "禁用自动选择失败",
-          "apply_error": "应用运营商配置文件失败",
-          "no_changes": "没有需要保存的更改",
-          "rebooting": "设备正在重启…",
           "reboot_error": "重启失败 — 请手动重启设备"
+        },
+        "load_error_title": "无法加载运营商配置文件",
+        "errors": {
+          "load_failed": "调制解调器未返回运营商配置文件，请稍后重试。",
+          "save_failed": "无法应用运营商配置文件设置。"
+        },
+        "pending_reboot": {
+          "title": "重启以完成运营商配置文件更改",
+          "description": "新的运营商配置文件将在调制解调器重启后生效。",
+          "dismiss": "关闭"
         }
+      },
+      "profile_gate_title": "{{profile}} 自定义 SIM 配置正在管理您的 APN",
+      "profile_gate_note": "请编辑该配置以更改这些设置。",
+      "errors": {
+        "load_failed": "调制解调器未返回 APN 设置，请稍后重试。",
+        "save_failed": "无法保存 APN。",
+        "deactivate_failed": "无法切换到运营商默认 APN。"
       }
     },
     "imei": {

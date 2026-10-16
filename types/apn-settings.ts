@@ -56,6 +56,7 @@ export interface ApnSettingsResponse {
   /** The modem's live PDP contexts (1-6), each tagged for the CID picker. */
   cids: CidContext[];
   error?: string;
+  detail?: string;
 }
 
 /** Response from POST save / deactivate operations. */
@@ -63,6 +64,7 @@ export interface ApnSaveResponse {
   success: boolean;
   active?: number;
   error?: string;
+  detail?: string;
 }
 
 // --- API Request Types -------------------------------------------------------
@@ -85,3 +87,6 @@ export const PDP_TYPE_OPTIONS = [
   { value: "ipv6", label: "IPv6" },
   { value: "ipv4v6", label: "IPv4v6" },
 ] as const;
+
+/** A mutation's outcome; `error` is already resolved for display. */
+export type ApnActionResult = { ok: true } | { ok: false; error: string };

@@ -1582,8 +1582,7 @@
       "page": {
         "title": "APN Settings",
         "description": "Set the APN, IP protocol, and data context your SIM uses to connect.",
-        "error_load_title": "Failed to load APN settings",
-        "error_load_description": "Displayed values may be outdated."
+        "error_load_title": "Failed to load APN settings"
       },
       "card": {
         "title": "APN Configuration",
@@ -1593,7 +1592,7 @@
         "active": "Active",
         "not_live": "Not live",
         "carrier_default": "Carrier default",
-        "network_using": "Network is using: {{apn}}"
+        "network_using_label": "Network is using"
       },
       "save_connection_notice": "Saving briefly drops the cellular connection while the modem reconnects.",
       "carrier_default": {
@@ -1607,70 +1606,11 @@
       },
       "toast": {
         "saved": "APN settings saved",
-        "save_error": "Failed to save APN settings",
-        "deactivated": "Reverted to carrier default APN",
-        "deactivate_error": "Failed to revert to carrier default"
+        "deactivated": "Reverted to carrier default APN"
       },
-      "controls_label": "APN configuration",
       "managed_by_profile_fallback": "active Custom SIM Profile",
-      "list": {
-        "card": {
-          "title": "APN Profiles",
-          "description": "Five data-profile slots. Switch one on to make it your active Internet APN — only one can be active at a time."
-        },
-        "empty": {
-          "title": "No profile slots",
-          "subtitle": "Profile slots could not be loaded."
-        },
-        "unnamed": "Unnamed",
-        "no_apn": "No APN set",
-        "slot": "Slot {{id}}",
-        "apn_on_cid": "{{apn}} · CID {{cid}}",
-        "status": {
-          "active": "Active",
-          "not_live": "Not live",
-          "idle": "Idle",
-          "empty": "Empty",
-          "overridden": "Overridden"
-        },
-        "live": {
-          "mismatch_title": "Stored APN isn't live",
-          "mismatch": "Network is using: {{apn}}",
-          "mismatch_default": "Network is using the carrier default"
-        },
-        "carrier_default": {
-          "title": "No profile active",
-          "subtitle": "Your carrier is choosing the APN automatically."
-        },
-        "aria": {
-          "activate_switch": "Activate {{name}}",
-          "active_switch": "{{name}} is the active profile",
-          "deactivate_switch": "Disable {{name}} and let the carrier choose the APN",
-          "edit_button": "Edit {{name}}"
-        },
-        "toast": {
-          "activating": "Activating {{name}}…",
-          "activated": "{{name}} is now your active APN",
-          "activate_error": "Failed to activate {{name}}",
-          "deactivating": "Disabling profiles…",
-          "deactivated": "Profiles disabled — your carrier now chooses the APN",
-          "deactivate_error": "Failed to disable profiles"
-        },
-        "deactivate": {
-          "title": "Disable APN profile?",
-          "description": "Your carrier will choose the APN automatically. The cellular connection will drop briefly while the modem reconnects.",
-          "confirm": "Disable",
-          "cancel": "Cancel"
-        }
-      },
       "edit": {
-        "title": "Edit Slot {{id}}",
-        "description_default": "Configure this data profile. Saving stores it; activate it from the list to go live.",
         "fields": {
-          "name": {
-            "label": "Name",
-            "placeholder": "My Data Profile"
-          },
           "apn": {
             "label": "APN *",
             "placeholder": "fast.t-mobile.com",
@@ -1703,35 +1643,15 @@
           "confirm": "Use anyway",
           "cancel": "Cancel"
         },
-        "clear": {
-          "button": "Clear slot",
-          "disabled_active": "Switch to another profile before clearing the active one",
-          "title": "Clear this slot?",
-          "description": "This empties the profile's name and APN. It cannot be undone.",
-          "confirm": "Clear",
-          "cancel": "Cancel",
-          "toast_success": "Slot cleared",
-          "toast_error": "Failed to clear slot"
-        },
-        "save_button": "Save Profile",
-        "cancel": "Cancel",
-        "toast": {
-          "saved": "{{name}} saved",
-          "save_error": "Failed to save profile"
-        }
+        "save_button": "Save Profile"
       },
       "mbn": {
         "card": {
           "title": "Carrier Profile",
-          "description": "Select which carrier firmware profile is active on the modem. A reboot is required after changes."
+          "description": "Choose the carrier firmware profile the modem runs; changes need a reboot."
         },
         "auto_select": {
-          "label": "Auto-Select Profile",
-          "placeholder": "Choose Auto-Select",
-          "options": {
-            "enabled": "Enabled",
-            "disabled": "Disabled"
-          }
+          "label": "Auto-Select Profile"
         },
         "configuration": {
           "label": "Carrier Configuration",
@@ -1750,13 +1670,25 @@
           "auto_enabled": "Auto-select enabled — reboot required",
           "auto_disabled": "Auto-select disabled — reboot required",
           "profile_applied": "Carrier profile applied — reboot required",
-          "enable_error": "Failed to enable auto-select",
-          "disable_error": "Failed to disable auto-select",
-          "apply_error": "Failed to apply carrier profile",
-          "no_changes": "No changes to save",
-          "rebooting": "Device is rebooting…",
           "reboot_error": "Reboot failed — restart the device manually"
+        },
+        "load_error_title": "Couldn't load carrier profiles",
+        "errors": {
+          "load_failed": "The modem didn't answer with its carrier profiles. Try again in a moment.",
+          "save_failed": "Couldn't apply the carrier profile setting."
+        },
+        "pending_reboot": {
+          "title": "Reboot to finish the carrier profile change",
+          "description": "The new carrier profile takes effect after the modem restarts.",
+          "dismiss": "Dismiss"
         }
+      },
+      "profile_gate_title": "The {{profile}} Custom SIM Profile manages your APN",
+      "profile_gate_note": "Edit that profile to change these settings.",
+      "errors": {
+        "load_failed": "The modem didn't answer with its APN settings. Try again in a moment.",
+        "save_failed": "Couldn't save the APN.",
+        "deactivate_failed": "Couldn't switch to the carrier default APN."
       }
     },
     "imei": {

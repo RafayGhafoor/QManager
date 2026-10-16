@@ -41,15 +41,15 @@ import { Tag } from "@/components/ui/tag";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { CardFoot } from "@/components/ui/card-foot";
-import {
-  GlobeIcon,
-  PhoneCallIcon,
-  SirenIcon,
-  TriangleAlertIcon,
-  CircleSlashIcon,
-} from "lucide-react";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
+import { ConditionScreen } from "@/components/cellular/condition-screen";
 
-import type { ApnSetting, CidContext, ApnSaveRequest } from "@/types/apn-settings";
+import type {
+  ApnActionResult,
+  ApnSetting,
+  CidContext,
+  ApnSaveRequest,
+} from "@/types/apn-settings";
 import { PDP_TYPE_OPTIONS } from "@/types/apn-settings";
 
 // =============================================================================
@@ -65,8 +65,11 @@ export interface ApnSettingsCardProps {
   activeCid: number | null;
   isLoading: boolean;
   isSaving: boolean;
-  onSave: (request: ApnSaveRequest) => Promise<boolean>;
-  onDeactivate: () => Promise<boolean>;
+  /** The first read failed and there is nothing to show (translated). */
+  loadError: string | null;
+  onRetry: () => void;
+  onSave: (request: ApnSaveRequest) => Promise<ApnActionResult>;
+  onDeactivate: () => Promise<ApnActionResult>;
 }
 
 // =============================================================================
@@ -81,7 +84,7 @@ function CidBadge({ ctx }: { ctx: CidContext }) {
   if (ctx.apn_type === "ims") {
     return (
       <Tag variant="neutral">
-        <PhoneCallIcon className="size-3" aria-hidden="true" />
+        <MaterialSymbol name="call" size={12} />
         {t("core_settings.apn.edit.fields.modem_profile.ims_badge")}
       </Tag>
     );
@@ -89,7 +92,7 @@ function CidBadge({ ctx }: { ctx: CidContext }) {
   if (ctx.apn_type === "emergency") {
     return (
       <Tag variant="neutral">
-        <SirenIcon className="size-3" aria-hidden="true" />
+        <MaterialSymbol name="sos" size={12} />
         {t("core_settings.apn.edit.fields.modem_profile.sos_badge")}
       </Tag>
     );
@@ -97,7 +100,7 @@ function CidBadge({ ctx }: { ctx: CidContext }) {
   if (ctx.is_internet) {
     return (
       <Tag variant="neutral">
-        <GlobeIcon className="size-3" aria-hidden="true" />
+        <MaterialSymbol name="public" size={12} />
         {t("core_settings.apn.edit.fields.modem_profile.for_internet")}
       </Tag>
     );
@@ -130,7 +133,7 @@ function LiveStatusBadge({
     return (
       <div className="flex items-center gap-2">
         <Badge variant="muted">
-          <CircleSlashIcon className="size-3" aria-hidden="true" />
+          <MaterialSymbol name="do_not_disturb_on" size={12} />
           {t("core_settings.apn.status.carrier_default")}
         </Badge>
       </div>
@@ -156,13 +159,12 @@ function LiveStatusBadge({
     return (
       <div className="flex flex-col gap-1">
         <Badge variant="warning" className="w-fit">
-          <TriangleAlertIcon className="size-3" aria-hidden="true" />
+          <MaterialSymbol name="warning" size={12} />
           {t("core_settings.apn.status.not_live")}
         </Badge>
         <p className="text-xs text-muted-foreground">
-          {liveApn
-            ? t("core_settings.apn.status.network_using", { apn: liveApn })
-            : t("core_settings.apn.list.live.mismatch_default")}
+          {t("core_settings.apn.status.network_using_label")}{" "}
+          <span className="font-mono text-on-surface">{liveApn}</span>
         </p>
       </div>
     );
@@ -170,7 +172,7 @@ function LiveStatusBadge({
 
   return (
     <Badge variant="success">
-      <GlobeIcon className="size-3" aria-hidden="true" />
+      <MaterialSymbol name="check_circle" size={12} />
       {t("core_settings.apn.status.active")}
     </Badge>
   );
@@ -229,6 +231,8 @@ export default function ApnSettingsCard({
   activeCid,
   isLoading,
   isSaving,
+  loadError,
+  onRetry,
   onSave,
   onDeactivate,
 }: ApnSettingsCardProps) {
@@ -260,6 +264,29 @@ export default function ApnSettingsCard({
   const contexts = cids ?? [];
 
   if (isLoading) return <ApnSettingsCardSkeleton />;
+
+  if (loadError) {
+    return (
+      <Card className="@container/card">
+        <CardHeader>
+          <CardTitle>{t("core_settings.apn.card.title")}</CardTitle>
+          <CardDescription>{t("core_settings.apn.card.description")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ConditionScreen
+            tone="destructive"
+            glyph="error"
+            ariaRole="alert"
+            title={t("core_settings.apn.page.error_load_title")}
+            description={loadError}
+            onRetry={onRetry}
+            retryLabel={t("actions.retry", { ns: "common" })}
+            className="rounded-tile py-10"
+          />
+        </CardContent>
+      </Card>
+    );
+  }
 
   // --- CID selection — intercept carrier contexts for confirmation ---
   const handleCidChange = (value: string) => {
@@ -296,22 +323,22 @@ export default function ApnSettingsCard({
       cid: parseInt(cid, 10),
     };
 
-    const success = await onSave(request);
-    if (success) {
+    const result = await onSave(request);
+    if (result.ok) {
       markSaved();
       toast.success(t("core_settings.apn.toast.saved"));
     } else {
-      toast.error(t("core_settings.apn.toast.save_error"));
+      toast.error(result.error);
     }
   };
 
   const handleDeactivate = async () => {
     setConfirmDeactivate(false);
-    const success = await onDeactivate();
-    if (success) {
+    const result = await onDeactivate();
+    if (result.ok) {
       toast.success(t("core_settings.apn.toast.deactivated"));
     } else {
-      toast.error(t("core_settings.apn.toast.deactivate_error"));
+      toast.error(result.error);
     }
   };
 
@@ -357,6 +384,10 @@ export default function ApnSettingsCard({
                 </FieldLabel>
                 <Input
                   id="apn-input"
+                  className="font-mono"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder={t("core_settings.apn.edit.fields.apn.placeholder")}
                   value={apnValue}
                   onChange={(e) => {
@@ -417,7 +448,7 @@ export default function ApnSettingsCard({
                       {contexts.length > 0 ? (
                         contexts.map((ctx) => (
                           <SelectItem key={ctx.cid} value={String(ctx.cid)}>
-                            <span className="flex items-center gap-2">
+                            <span className="flex items-center gap-2 tabular-nums">
                               {t(
                                 "core_settings.apn.edit.fields.modem_profile.option_template",
                                 { cid: ctx.cid }
@@ -514,10 +545,7 @@ export default function ApnSettingsCard({
             <AlertDialogCancel>
               {t("core_settings.apn.edit.cid_confirm.cancel")}
             </AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={confirmCidChange}
-            >
+            <AlertDialogAction variant="destructive" onClick={confirmCidChange}>
               {t("core_settings.apn.edit.cid_confirm.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
