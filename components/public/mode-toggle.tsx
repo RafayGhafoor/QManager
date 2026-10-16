@@ -19,8 +19,8 @@ import {
 // ModeToggle — Public-surface theme switcher.
 // =============================================================================
 // ShadCN-canonical Sun/Moon dropdown, wired through next-themes. Lives in the
-// public/ namespace because the authenticated nav uses AnimatedThemeToggler
-// (view-transition circle-clip), and the pre-login surface gets the more
+// public/ namespace because the authenticated nav toggles light/dark from a
+// plain row in the account menu, and the pre-login surface gets the more
 // conventional dropdown so first-time visitors can pick "system" explicitly.
 //
 // The optional `size` prop defaults to "icon" so the Overview matches the rest

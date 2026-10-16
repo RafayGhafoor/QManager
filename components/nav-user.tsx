@@ -9,7 +9,10 @@ import {
   Camera,
   Pencil,
   RotateCcw,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { logout } from "@/hooks/use-auth";
 import { useModemReconnect } from "@/hooks/use-modem-reconnect";
@@ -56,7 +59,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ChangePasswordDialog } from "@/components/auth/change-password-dialog";
-import { AnimatedThemeToggler } from "./ui/animated-theme-toggler";
 import { useTranslation } from "react-i18next";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
@@ -93,6 +95,7 @@ export function NavUser() {
   const { isMobile } = useSidebar();
   const { t } = useTranslation("common");
   const { t: tSidebar } = useTranslation("sidebar");
+  const { resolvedTheme, setTheme } = useTheme();
   const { preference: motionPreference, setPreference: setMotionPreference } =
     useMotionPreference();
 
@@ -327,8 +330,14 @@ export function NavUser() {
                   <KeyRound />
                   {t("actions.change_password")}
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <AnimatedThemeToggler />
+                <DropdownMenuItem
+                  onClick={() =>
+                    setTheme(resolvedTheme === "dark" ? "light" : "dark")
+                  }
+                >
+                  <Sun className="dark:hidden" />
+                  <Moon className="hidden dark:block" />
+                  {t("actions.toggle_theme")}
                 </DropdownMenuItem>
                 {/* Animations sits directly under Theme: the two device-local
                     appearance preferences read as one pair.

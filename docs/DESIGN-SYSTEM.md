@@ -174,8 +174,6 @@ The radius is softly rounded — not pill-shaped, not sharp-cornered.
 **Content:** `accordion`, `collapsible`, `carousel`, `drawer` (vaul)
 
 **Custom:**
-- `animated-beam` — Signal beam animation
-- `animated-list` — Animated list transitions
 - `empty.tsx` — Empty state with icon and message
 - `field.tsx` — Labeled field display (label + value)
 - `input-group.tsx` — Input with prefix/suffix

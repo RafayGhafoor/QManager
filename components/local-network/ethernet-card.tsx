@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { authFetch } from "@/lib/auth-fetch";
@@ -38,7 +38,6 @@ import { useSaveFlash } from "@/components/ui/save-button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { AnimatedBeam } from "../ui/animated-beam";
 import { Separator } from "../ui/separator";
 
 const CGI_ENDPOINT = "/cgi-bin/quecmanager/network/ethernet.sh";
@@ -60,10 +59,6 @@ const EthernetStatusCard = () => {
   const [error, setError] = useState<string | null>(null);
   const { saved, markSaved } = useSaveFlash();
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const deviceRef = useRef<HTMLDivElement>(null);
-  const ringsRef = useRef<HTMLDivElement>(null);
-  const ethernetRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
   const hasDataRef = useRef(false);
 
@@ -231,21 +226,6 @@ const EthernetStatusCard = () => {
         center: "bg-muted-foreground/50",
       };
 
-  // Resolve CSS custom properties to computed values for SVG stopColor
-  const beamColors = useMemo(() => {
-    if (typeof document === "undefined") {
-      return { start: "#3b82f6", stop: "#22c55e" };
-    }
-    const styles = getComputedStyle(document.documentElement);
-    const primary = styles.getPropertyValue("--primary").trim();
-    const success = styles.getPropertyValue("--success").trim();
-    const muted = styles.getPropertyValue("--muted-foreground").trim();
-
-    return isConnected
-      ? { start: primary || "#3b82f6", stop: success || "#22c55e" }
-      : { start: muted || "#9ca3af", stop: muted || "#6b7280" };
-  }, [isConnected]);
-
   // Format display values
   const formatSpeed = (speed: string) => {
     if (!speed || speed === "Unknown") return "N/A";
@@ -361,11 +341,9 @@ const EthernetStatusCard = () => {
       <CardContent>
         <div className="grid space-y-6">
           <div
-            ref={containerRef}
             className="relative flex items-center justify-between"
           >
             <div
-              ref={deviceRef}
               className="size-16 @xs/card:size-24 bg-primary/15 rounded-full p-3 @xs/card:p-4 flex items-center justify-center"
             >
               <img
@@ -377,7 +355,6 @@ const EthernetStatusCard = () => {
             </div>
 
             <div
-              ref={ringsRef}
               className="relative flex items-center justify-center size-12 @xs/card:size-24"
             >
               {/* Outer rings - pulsating when connected, static when disconnected */}
@@ -405,37 +382,12 @@ const EthernetStatusCard = () => {
             </div>
 
             <div
-              ref={ethernetRef}
               className={`size-16 @xs/card:size-24 rounded-full p-3 @xs/card:p-6 flex items-center justify-center ${
                 isConnected ? "bg-primary" : "bg-muted-foreground/50"
               }`}
             >
               <CgEthernet className="size-full text-primary-foreground" />
             </div>
-
-            {/* Animated beams connecting the elements */}
-            <AnimatedBeam
-              containerRef={containerRef}
-              fromRef={deviceRef}
-              toRef={ringsRef}
-              duration={2}
-              pathWidth={3}
-              gradientStartColor={beamColors.start}
-              gradientStopColor={beamColors.stop}
-              startXOffset={72}
-              endXOffset={-56}
-            />
-            <AnimatedBeam
-              containerRef={containerRef}
-              fromRef={ringsRef}
-              toRef={ethernetRef}
-              duration={2}
-              pathWidth={3}
-              gradientStartColor={beamColors.stop}
-              gradientStopColor={beamColors.start}
-              startXOffset={56}
-              endXOffset={-72}
-            />
           </div>
           <div className="grid gap-2 w-full">
             <Separator />
