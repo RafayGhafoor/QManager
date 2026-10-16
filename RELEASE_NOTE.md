@@ -4,6 +4,7 @@ v0.1.32 is in progress. This release is shaping up as a polish and correctness p
 
 ## ✅ Improvements
 
+- **Redesigned landing page.** The page you see before signing in now leads with whether the internet is up and how warm the modem is, then shows each carrier's signal strength on a colour-coded bar with a switch between signal power and signal quality, then your carrier, network type and total bandwidth. It also tells you plainly when the readings are stale or the modem is offline.
 - **Redesigned sign-in screen.** The sign-in card now leads with your modem's name, has a cleaner layout in light and dark mode, keeps the language and theme switchers in the corner, and shows a clear message if the modem can't be reached.
 - **Failed sign-ins now show how many attempts remain.** If you're locked out, a countdown shows when you can try again, and it keeps counting if you refresh the page.
 - **Repeated failed sign-ins now lock out progressively.** After five wrong passwords the form locks for 30 seconds, and each further failure after a lock expires waits longer, up to 15 minutes. A correct password or an hour without a failed attempt starts you fresh.

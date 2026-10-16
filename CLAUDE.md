@@ -164,6 +164,7 @@ Detailed per-feature notes (apply pipelines, lock layering, contracts, gotchas, 
 | Custom DNS, `network/dns.sh`, `dhcp.lan.dns`, odhcpd RA RDNSS, `use-dns-settings.ts`, provider presets (`dns-providers.ts`, `matchProvider`), `/etc/qmanager/dns_mode`, IPv6 two-stage BusyBox gate | [`docs/features/custom-dns.md`](docs/features/custom-dns.md) |
 | Bandwidth monitor (**retired** 2026-10-15): `websocat:8838`, `qmanager_bandwidth`, the `retire_bandwidth_monitor()` upgrade cleanup in `install.sh` | [`docs/features/bandwidth-monitor.md`](docs/features/bandwidth-monitor.md) (retired stub) |
 | Login rate limiting / lockout ladder, `cgi_auth.sh` `qm_check_rate_limit`/`qm_get_rate_limit_status`, `auth/login.sh`, `auth/check.sh` (read-only invariant), `useLogin` lockout, `/tmp/qmanager_auth_attempts.json` | [`docs/reference/auth-rate-limiting.md`](docs/reference/auth-rate-limiting.md) |
+| Pre-auth `/` splash, `app/page.tsx` gate, `public/overview.sh` / `public/hostname.sh`, `overview-card`, `components/public/overview/*`, `resolveBodyMode`, `signal-quality-display.ts` | [`docs/reference/overview-splash.md`](docs/reference/overview-splash.md) |
 
 Quick CGI / hook / type / reboot table for all extracted features lives in [`docs/features/README.md`](docs/features/README.md).
 

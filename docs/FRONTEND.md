@@ -94,7 +94,7 @@ constants/                      # Static configuration data
 
 | Route | Component | Description |
 |-------|-----------|-------------|
-| `/` | Home (`app/page.tsx`) | Public Overview splash by default; confirms a live session via `auth/check.sh` before forwarding to `/dashboard` — never trusts the `qm_logged_in` indicator cookie alone (see gotcha below) |
+| `/` | Home (`app/page.tsx`) | Public Overview splash by default (re-authored in ledger U3.4, see [`reference/overview-splash.md`](reference/overview-splash.md)); confirms a live session via `auth/check.sh` before forwarding to `/dashboard` — never trusts the `qm_logged_in` indicator cookie alone (see gotcha below) |
 | `/login` | LoginComponent | Authentication (login or first-time setup): hostname title, progressive lockout banner with a refresh-safe countdown, attempts-left copy, recovery disclosure, offline banner, corner language/theme cluster, no footer (`login-chrome.tsx` was removed in U3.3) |
 | `/dashboard` | HomeComponent | Real-time signal, traffic, device status |
 | `/cellular` | CellularInformation | Cellular info cards |
@@ -145,7 +145,7 @@ RootLayout (app/layout.tsx)
          └── Page Content
 ```
 
-> ℹ️ NOTE: The pre-auth routes `/` and `/login/` draw their glyphs from Material Symbols (`LoginLanguagePicker`, `ModeToggle`, `TonalBanner` and the splash status glyphs), never lucide, so each stays on one icon set. Their type comes from `components/pre-auth-type.ts`. Slotted copy on the login card (`login.locked_countdown`, `login.recovery.option_reset_command`) is rendered through `components/auth/interpolation-slot.tsx`. Lockout behaviour and the `check.sh` read-only rule: [`reference/auth-rate-limiting.md`](reference/auth-rate-limiting.md).
+> ℹ️ NOTE: The pre-auth routes `/` and `/login/` draw their glyphs from Material Symbols (`LoginLanguagePicker`, `ModeToggle`, `TonalBanner` and the splash in `components/public/overview-card.tsx` plus `components/public/overview/*`, including its LuCI link), never lucide, so each stays on one icon set. The splash's reading order, `resolveBodyMode` states and public endpoints: [`reference/overview-splash.md`](reference/overview-splash.md). Their type comes from `components/pre-auth-type.ts`. Slotted copy on the login card (`login.locked_countdown`, `login.recovery.option_reset_command`) is rendered through `components/auth/interpolation-slot.tsx`. Lockout behaviour and the `check.sh` read-only rule: [`reference/auth-rate-limiting.md`](reference/auth-rate-limiting.md).
 
 ---
 
@@ -336,7 +336,7 @@ It's a thin wrapper around `fetch()` that:
 >
 > This bit the `/` Overview splash (`components/public/overview-card.tsx`): its `useUnitPreferences()` hook (`hooks/use-system-settings.ts`) called `authFetch()` against `system/settings.sh`, 401ing for every logged-out visitor and redirecting the public landing page to `/login/`. Fixed by switching it to a plain `fetch()` with a graceful celsius/km fallback on non-2xx — cookies still ride along by default (same-origin), so the authenticated dashboard still gets real unit prefs.
 >
-> Public hooks (`use-public-overview.ts`, `use-device-hostname.ts`, and now the unit-preference read in `use-system-settings.ts`) use plain `fetch()`, never `authFetch()`. The first two also pass `credentials: "omit"` since their endpoints are unauthenticated by design; `useUnitPreferences()` is shared with the logged-in dashboard so it keeps default same-origin credentials, just not the `authFetch` 401 redirect.
+> Public hooks (`use-public-overview.ts`, `use-device-hostname.ts`, and the unit-preference read in `use-system-settings.ts`, which the splash still uses because the target has no public units endpoint yet, so signed-out visitors see Celsius; ledger B3.6) use plain `fetch()`, never `authFetch()`. The first two also pass `credentials: "omit"` since their endpoints are unauthenticated by design; `useUnitPreferences()` is shared with the logged-in dashboard so it keeps default same-origin credentials, just not the `authFetch` 401 redirect.
 >
 > The `/` route gate (`app/page.tsx`) has the mirror-image problem covered: it never trusts the `qm_logged_in` indicator cookie by itself to forward to `/dashboard` (a stale/foreign-domain cookie would otherwise trap the visitor in a `/dashboard` → auto-logout → `/login/` bounce) — it confirms via `auth/check.sh` first and falls back to the public splash on anything but an explicit `authenticated: true`.
 
