@@ -596,5 +596,121 @@
     "reboot_later_button": "稍后重启",
     "reboot_now_button": "立即重启",
     "rebooting_label": "重启中…"
+  },
+  "connection_quality": {
+    "page": {
+      "title": "连接质量",
+      "description": "调制解调器 ping 的目标，以及把慢速连接记为事件的阈值。"
+    },
+    "targets": {
+      "title": "探测目标",
+      "description": "按顺序 ping，直到有目标响应，用来判断互联网是否连通。",
+      "restore": "恢复默认值",
+      "unsaved": "未保存",
+      "save": "保存探测目标",
+      "leg": {
+        "ipv4": "IPv4 目标",
+        "ipv6": "IPv6 备用目标"
+      },
+      "error": {
+        "title": "无法读取探测目标",
+        "body": "已保存的目标仍在使用。",
+        "retry": "重试"
+      },
+      "toast": {
+        "saved": "探测目标已保存。",
+        "failed": "无法保存探测目标。"
+      },
+      "validation": {
+        "empty": "请输入一个目标。",
+        "too_long": "最多 {{max}} 个字符。",
+        "spaces": "不允许包含空格。",
+        "disallowed": "包含不允许使用的字符。",
+        "ipv4_invalid": "请输入 IPv4 地址或主机名。",
+        "ipv6_invalid": "不是有效的 IPv6 地址。",
+        "ipv6_colon": "IPv6 地址应包含冒号。"
+      },
+      "verdict": {
+        "ipv4": "IPv4 在响应",
+        "ipv6": "IPv6 在响应",
+        "none": "无响应",
+        "unknown": "未上报"
+      },
+      "group": {
+        "sensitivity": "灵敏度",
+        "ipv4": "IPv4",
+        "ipv6": "IPv6 备用"
+      },
+      "fallback_hint": "仅当 IPv4 目标无响应时才会 ping，因此纯 IPv6 连接不会被误判为断网。",
+      "fallback_hint_label": "关于 IPv6 备用",
+      "interval": {
+        "label": "探测间隔",
+        "value": "每 {{seconds}} 秒",
+        "override": "每 {{seconds}} 秒（由看门狗设定）"
+      },
+      "failed": "保存失败",
+      "profile": {
+        "sensitive": "灵敏",
+        "regular": "常规",
+        "relaxed": "宽松",
+        "quiet": "安静"
+      }
+    },
+    "thresholds": {
+      "title": "质量阈值",
+      "description": "何时把缓慢或丢包的连接记录为网络事件。",
+      "latency": {
+        "title": "时延"
+      },
+      "loss": {
+        "title": "丢包率"
+      },
+      "preset": {
+        "standard": "标准",
+        "tolerant": "宽松",
+        "very_tolerant": "非常宽松",
+        "custom": "自定义"
+      },
+      "unsaved": "未保存",
+      "save": "保存阈值",
+      "error": {
+        "title": "无法读取质量阈值",
+        "body": "已保存的阈值仍在使用。",
+        "retry": "重试"
+      },
+      "toast": {
+        "saved": "质量阈值已保存。",
+        "failed": "无法保存质量阈值。"
+      },
+      "row": {
+        "flags": "触发条件",
+        "now": "当前",
+        "limit": "阈值"
+      },
+      "flags": {
+        "latency_one": "{{count}} 个样本超过 {{ms}} 毫秒",
+        "latency_other": "{{count}} 个样本超过 {{ms}} 毫秒",
+        "loss_one": "{{count}} 个样本达到 {{pct}}% 或以上",
+        "loss_other": "{{count}} 个样本达到 {{pct}}% 或以上",
+        "pending": "请输入阈值"
+      },
+      "now": {
+        "latency": "{{ms}} 毫秒",
+        "loss": "{{pct}}%",
+        "no_reply": "无回复",
+        "collecting": "正在收集",
+        "over_latency": "超出 {{ms}} 毫秒阈值",
+        "over_loss": "超出 {{pct}}% 阈值"
+      },
+      "default_chip": "内置默认值",
+      "failed": "保存失败",
+      "unit": {
+        "latency": "毫秒",
+        "loss": "%"
+      },
+      "validation": {
+        "range": "请输入 {{min}} 到 {{max}} 之间的整数。"
+      }
+    }
   }
 }

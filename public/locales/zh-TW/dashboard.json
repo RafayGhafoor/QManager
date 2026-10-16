@@ -100,11 +100,6 @@
     "chart_description": "此圖表顯示最近的 {{signal_type}} 訊號強度。",
     "fluctuation_note": "數值可能因環境因素和網路狀況而波動。"
   },
-  "latency": {
-    "title": "網際網路延遲與速度測試",
-    "chart_latency": "網際網路 RTT",
-    "chart_packetloss": "丟包率"
-  },
   "speedtest": {
     "section_label": "速度測試",
     "start_button_aria": "開始速度測試",
@@ -140,7 +135,13 @@
     "view_result_link": "在 Speedtest.net 上檢視",
     "bytes_transferred": "已傳輸 {{bytes}}",
     "try_again_button": "重試",
-    "run_again_button": "再次執行"
+    "run_again_button": "再次執行",
+    "unit_mbps": "Mbps",
+    "unit_ms": "毫秒",
+    "time_just_now": "剛剛",
+    "time_minutes_ago": "{{count}} 分鐘前",
+    "time_hours_ago": "{{count}} 小時前",
+    "time_days_ago": "{{count}} 天前"
   },
   "scc": {
     "title": "輔助載波",
@@ -317,5 +318,37 @@
     "unit_s": "s",
     "unit_pct": "%",
     "unmeasured": "—"
+  },
+  "connection_quality": {
+    "title": "連線質量",
+    "description": "過去半小時內連線的穩定程度，以及最近一次測速結果。",
+    "internet": "網際網路",
+    "dns": "DNS 查詢",
+    "unit_ms": "ms",
+    "unit_pct": "%",
+    "probing": "探測目標",
+    "reach_label": "可達性",
+    "reach_responsive": "回應正常",
+    "reach_degraded": "不穩定",
+    "reach_unreachable": "無法連線",
+    "reach_unknown": "未測量",
+    "reach_aria": "可達性，{{minutes}} 分鐘，從最早開始",
+    "jitter_label": "抖動",
+    "jitter_now": "目前 {{value}} ms",
+    "jitter_no_reading": "無讀數",
+    "jitter_aria": "抖動，{{minutes}} 分鐘，從最早開始",
+    "axis_now": "現在",
+    "axis_reach_one": "{{count}} 分鐘前",
+    "axis_reach_other": "{{count}} 分鐘前",
+    "axis_reach_none": "尚無歷史紀錄",
+    "axis_reach_sub_minute": "< 1 分鐘",
+    "footer_typical": "典型",
+    "footer_worst": "最差",
+    "footer_loss": "遺失",
+    "empty_title": "未在探測",
+    "empty_description": "連線探測未執行，因此沒有延遲、抖動或封包遺失資料可顯示。",
+    "empty_action": "開啟連線質量",
+    "error_title": "無法連線至數據機",
+    "error_description": "無法讀取數據機狀態，因此沒有品質讀數可顯示。"
   }
 }

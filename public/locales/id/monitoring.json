@@ -596,5 +596,121 @@
     "reboot_later_button": "Reboot Nanti",
     "reboot_now_button": "Reboot Sekarang",
     "rebooting_label": "Memulai ulang…"
+  },
+  "connection_quality": {
+    "page": {
+      "title": "Kualitas Koneksi",
+      "description": "Endpoint yang di-ping modem dan batas yang menjadikan koneksi lambat sebagai peristiwa."
+    },
+    "targets": {
+      "title": "Target Probe",
+      "description": "Di-ping berurutan sampai ada yang menjawab, untuk mengetahui apakah internet tersambung.",
+      "restore": "Pulihkan bawaan",
+      "unsaved": "Belum tersimpan",
+      "save": "Simpan Target Probe",
+      "leg": {
+        "ipv4": "Target IPv4",
+        "ipv6": "Target cadangan IPv6"
+      },
+      "error": {
+        "title": "Tidak dapat membaca target probe",
+        "body": "Target yang tersimpan tetap digunakan.",
+        "retry": "Coba lagi"
+      },
+      "toast": {
+        "saved": "Target probe tersimpan.",
+        "failed": "Gagal menyimpan target probe."
+      },
+      "validation": {
+        "empty": "Masukkan sebuah target.",
+        "too_long": "Gunakan maksimal {{max}} karakter.",
+        "spaces": "Spasi tidak diperbolehkan.",
+        "disallowed": "Mengandung karakter yang tidak diperbolehkan.",
+        "ipv4_invalid": "Masukkan alamat IPv4 atau nama host.",
+        "ipv6_invalid": "Bukan alamat IPv6 yang valid.",
+        "ipv6_colon": "Alamat IPv6 mengandung titik dua."
+      },
+      "verdict": {
+        "ipv4": "IPv4 menjawab",
+        "ipv6": "IPv6 menjawab",
+        "none": "Tidak ada jawaban",
+        "unknown": "Tidak melapor"
+      },
+      "group": {
+        "sensitivity": "Sensitivitas",
+        "ipv4": "IPv4",
+        "ipv6": "Cadangan IPv6"
+      },
+      "fallback_hint": "Di-ping hanya saat target IPv4 tidak menjawab, jadi koneksi khusus IPv6 tidak dianggap sebagai pemadaman.",
+      "fallback_hint_label": "Tentang cadangan IPv6",
+      "interval": {
+        "label": "Interval probe",
+        "value": "Setiap {{seconds}} detik",
+        "override": "Setiap {{seconds}} detik (diatur oleh Watchdog)"
+      },
+      "failed": "Gagal menyimpan",
+      "profile": {
+        "sensitive": "Sensitif",
+        "regular": "Reguler",
+        "relaxed": "Santai",
+        "quiet": "Senyap"
+      }
+    },
+    "thresholds": {
+      "title": "Ambang Kualitas",
+      "description": "Kapan koneksi yang lambat atau kehilangan paket dicatat sebagai peristiwa jaringan.",
+      "latency": {
+        "title": "Latensi"
+      },
+      "loss": {
+        "title": "Kehilangan paket"
+      },
+      "preset": {
+        "standard": "Standar",
+        "tolerant": "Toleran",
+        "very_tolerant": "Sangat toleran",
+        "custom": "Kustom"
+      },
+      "unsaved": "Belum tersimpan",
+      "save": "Simpan Ambang",
+      "error": {
+        "title": "Tidak dapat membaca ambang kualitas",
+        "body": "Batas yang tersimpan tetap digunakan.",
+        "retry": "Coba lagi"
+      },
+      "toast": {
+        "saved": "Ambang kualitas tersimpan.",
+        "failed": "Gagal menyimpan ambang kualitas."
+      },
+      "row": {
+        "flags": "Ditandai setelah",
+        "now": "Saat ini",
+        "limit": "Batas"
+      },
+      "flags": {
+        "latency_one": "{{count}} sampel di atas {{ms}} ms",
+        "latency_other": "{{count}} sampel di atas {{ms}} ms",
+        "loss_one": "{{count}} sampel pada {{pct}}% atau lebih",
+        "loss_other": "{{count}} sampel pada {{pct}}% atau lebih",
+        "pending": "Masukkan batas"
+      },
+      "now": {
+        "latency": "{{ms}} ms",
+        "loss": "{{pct}}%",
+        "no_reply": "Tidak ada balasan",
+        "collecting": "Mengumpulkan",
+        "over_latency": "Melebihi batas {{ms}} ms",
+        "over_loss": "Melebihi batas {{pct}}%"
+      },
+      "default_chip": "Nilai bawaan",
+      "failed": "Gagal menyimpan",
+      "unit": {
+        "latency": "ms",
+        "loss": "%"
+      },
+      "validation": {
+        "range": "Masukkan bilangan bulat dari {{min}} sampai {{max}}."
+      }
+    }
   }
 }

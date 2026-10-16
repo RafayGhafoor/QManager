@@ -1,23 +1,49 @@
 "use client";
 
-import ConnectivitySensitivityCard from "@/components/monitoring/connection-quality/connectivity-sensitivity-card";
-import QualityThresholdsCard from "@/components/monitoring/connection-quality/quality-thresholds-card";
+import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 
-const ConnectionQualitySettings = () => {
+import { MonitoringPageHeader } from "@/components/monitoring/page-header";
+import { usePingProfile } from "@/hooks/use-ping-profile";
+import { useQualityThresholds } from "@/hooks/use-quality-thresholds";
+import { staggerContainer, staggerItem } from "@/lib/motion";
+
+import ProbeTargetsCard from "./probe-targets-card";
+import QualityThresholdsCard from "./quality-thresholds-card";
+import { CARD_CELL, PAIR, PAGE_ROOT } from "./shapes";
+
+const K = "connection_quality";
+
+export function ConnectionQualitySettings() {
+  const { t } = useTranslation("monitoring");
+  const profile = usePingProfile();
+  const quality = useQualityThresholds();
+
   return (
-    <div className="@container/main mx-auto p-2">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Connection Quality</h1>
-        <p className="text-muted-foreground">
-          Probe sensitivity, and when latency or packet loss is flagged as an event.
-        </p>
-      </div>
-      <div className="grid grid-cols-1 @3xl/main:grid-cols-2 grid-flow-row gap-4">
-        <ConnectivitySensitivityCard />
-        <QualityThresholdsCard />
-      </div>
-    </div>
+    <motion.div
+      className={PAGE_ROOT}
+      variants={staggerContainer}
+      initial="hidden"
+      animate="visible"
+    >
+      {/* The cascade root declares initial/animate once; children only take variants. */}
+      <motion.div variants={staggerItem}>
+        <MonitoringPageHeader
+          title={t(`${K}.page.title`)}
+          description={t(`${K}.page.description`)}
+        />
+      </motion.div>
+
+      <motion.div className={PAIR} variants={staggerContainer}>
+        <motion.div variants={staggerItem} className={CARD_CELL}>
+          <ProbeTargetsCard profile={profile} />
+        </motion.div>
+        <motion.div variants={staggerItem} className={CARD_CELL}>
+          <QualityThresholdsCard quality={quality} />
+        </motion.div>
+      </motion.div>
+    </motion.div>
   );
-};
+}
 
 export default ConnectionQualitySettings;

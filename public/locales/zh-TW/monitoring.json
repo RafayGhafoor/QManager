@@ -596,5 +596,121 @@
     "reboot_later_button": "稍後重啟",
     "reboot_now_button": "立即重啟",
     "rebooting_label": "重啟中…"
+  },
+  "connection_quality": {
+    "page": {
+      "title": "連線品質",
+      "description": "數據機 ping 的目標，以及把緩慢連線記為事件的門檻。"
+    },
+    "targets": {
+      "title": "探測目標",
+      "description": "依序 ping，直到有目標回應，用來判斷網際網路是否連通。",
+      "restore": "還原預設值",
+      "unsaved": "未儲存",
+      "save": "儲存探測目標",
+      "leg": {
+        "ipv4": "IPv4 目標",
+        "ipv6": "IPv6 備援目標"
+      },
+      "error": {
+        "title": "無法讀取探測目標",
+        "body": "已儲存的目標仍在使用。",
+        "retry": "重試"
+      },
+      "toast": {
+        "saved": "探測目標已儲存。",
+        "failed": "無法儲存探測目標。"
+      },
+      "validation": {
+        "empty": "請輸入一個目標。",
+        "too_long": "最多 {{max}} 個字元。",
+        "spaces": "不允許包含空格。",
+        "disallowed": "包含不允許使用的字元。",
+        "ipv4_invalid": "請輸入 IPv4 位址或主機名稱。",
+        "ipv6_invalid": "不是有效的 IPv6 位址。",
+        "ipv6_colon": "IPv6 位址應包含冒號。"
+      },
+      "verdict": {
+        "ipv4": "IPv4 正在回應",
+        "ipv6": "IPv6 正在回應",
+        "none": "無回應",
+        "unknown": "未回報"
+      },
+      "group": {
+        "sensitivity": "靈敏度",
+        "ipv4": "IPv4",
+        "ipv6": "IPv6 備援"
+      },
+      "fallback_hint": "只有在 IPv4 目標沒有回應時才會 ping，因此純 IPv6 連線不會被誤判為斷線。",
+      "fallback_hint_label": "關於 IPv6 備援",
+      "interval": {
+        "label": "探測間隔",
+        "value": "每 {{seconds}} 秒",
+        "override": "每 {{seconds}} 秒（由看門狗設定）"
+      },
+      "failed": "儲存失敗",
+      "profile": {
+        "sensitive": "靈敏",
+        "regular": "一般",
+        "relaxed": "寬鬆",
+        "quiet": "安靜"
+      }
+    },
+    "thresholds": {
+      "title": "品質門檻",
+      "description": "何時把緩慢或封包遺失的連線記錄為網路事件。",
+      "latency": {
+        "title": "延遲"
+      },
+      "loss": {
+        "title": "封包遺失"
+      },
+      "preset": {
+        "standard": "標準",
+        "tolerant": "寬鬆",
+        "very_tolerant": "非常寬鬆",
+        "custom": "自訂"
+      },
+      "unsaved": "未儲存",
+      "save": "儲存門檻",
+      "error": {
+        "title": "無法讀取品質門檻",
+        "body": "已儲存的門檻仍在使用。",
+        "retry": "重試"
+      },
+      "toast": {
+        "saved": "品質門檻已儲存。",
+        "failed": "無法儲存品質門檻。"
+      },
+      "row": {
+        "flags": "觸發條件",
+        "now": "目前",
+        "limit": "門檻"
+      },
+      "flags": {
+        "latency_one": "{{count}} 個樣本超過 {{ms}} 毫秒",
+        "latency_other": "{{count}} 個樣本超過 {{ms}} 毫秒",
+        "loss_one": "{{count}} 個樣本達到 {{pct}}% 或以上",
+        "loss_other": "{{count}} 個樣本達到 {{pct}}% 或以上",
+        "pending": "請輸入門檻"
+      },
+      "now": {
+        "latency": "{{ms}} 毫秒",
+        "loss": "{{pct}}%",
+        "no_reply": "無回覆",
+        "collecting": "正在收集",
+        "over_latency": "超出 {{ms}} 毫秒門檻",
+        "over_loss": "超出 {{pct}}% 門檻"
+      },
+      "default_chip": "內建預設值",
+      "failed": "儲存失敗",
+      "unit": {
+        "latency": "毫秒",
+        "loss": "%"
+      },
+      "validation": {
+        "range": "請輸入 {{min}} 到 {{max}} 之間的整數。"
+      }
+    }
   }
 }

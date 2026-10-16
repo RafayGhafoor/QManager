@@ -173,5 +173,9 @@
   "invalid_range": "未知的时间范围",
   "disabled": "监控已关闭",
   "flag_failed": "无法开始检查",
-  "invalid_field": "某项设置的值无效"
+  "invalid_field": "某项设置的值无效",
+  "invalid_target": "该探测目标不是有效地址。",
+  "invalid_preset": "无法识别该预设。",
+  "invalid_custom_latency": "请输入 1 到 10000 毫秒之间的时延阈值。",
+  "invalid_custom_loss": "请输入 0 到 100% 之间的丢包阈值。"
 }

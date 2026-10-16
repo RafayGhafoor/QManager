@@ -16,7 +16,7 @@ import SccStatusComponent from "./scc-status";
 import { SignalHistoryComponent } from "./signal-history";
 import RecentActivitiesComponent from "./recent-activities";
 import DeviceMetricsComponent from "./device-metrics";
-import LiveLatencyComponent from "./live-latency";
+import ConnectionQualityComponent from "./connection-quality";
 
 
 const HomeComponent = () => {
@@ -130,9 +130,10 @@ const HomeComponent = () => {
             />
           </motion.div>
           <motion.div variants={staggerItem} className="h-full *:data-[slot=card]:h-full">
-            <LiveLatencyComponent
+            <ConnectionQualityComponent
               connectivity={data?.connectivity ?? null}
               isLoading={isLoading}
+              modemReachable={data?.modem_reachable ?? false}
             />
           </motion.div>
           <motion.div variants={staggerItem} className="h-full *:data-[slot=card]:h-full">
