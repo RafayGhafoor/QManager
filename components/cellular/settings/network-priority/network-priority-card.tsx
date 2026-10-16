@@ -33,13 +33,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import { RotateCcwIcon } from "lucide-react";
 import { IconGripVertical } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AiFillSignal } from "react-icons/ai";
 import { motion } from "motion/react";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { CardFoot } from "@/components/ui/card-foot";
+import { DUR, EASE_QUICK, STAGGER_STEP_ROWS } from "@/lib/motion";
 
 // =============================================================================
 // RAT name mapping: AT command value → display name
@@ -269,6 +270,9 @@ const NetworkPriorityCard = () => {
   // ---------------------------------------------------------------------------
   // Reset
   // ---------------------------------------------------------------------------
+  const isDirty =
+    fetchedOrder !== "" && networks.map((n) => n.id).join(":") !== fetchedOrder;
+
   const handleReset = () => {
     if (fetchedOrder) {
       setNetworks(orderToNetworks(fetchedOrder));
@@ -294,6 +298,12 @@ const NetworkPriorityCard = () => {
             <Skeleton className="h-12 w-full" />
           </div>
         </CardContent>
+        <CardFoot
+          className="px-6"
+          liveStatus={false}
+          aria-hidden="true"
+          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
+        />
       </Card>
     );
   }
@@ -317,7 +327,7 @@ const NetworkPriorityCard = () => {
             className="space-y-2"
             initial="hidden"
             animate="visible"
-            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: STAGGER_STEP_ROWS } } }}
           >
             <SortableContext
               items={networkIds}
@@ -327,7 +337,7 @@ const NetworkPriorityCard = () => {
                 <motion.div
                   key={network.id}
                   variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }}
-                  transition={{ duration: 0.22, ease: "easeOut" }}
+                  transition={{ duration: DUR.quick, ease: EASE_QUICK }}
                 >
                   <DraggableNetworkItem
                     network={network}
@@ -339,23 +349,35 @@ const NetworkPriorityCard = () => {
             </SortableContext>
           </motion.div>
         </DndContext>
-        <div className="mt-4 flex items-center gap-x-2">
-          <SaveButton
-            onClick={handleSave}
-            isSaving={isSaving}
-            saved={saved}
-            disabled={networks.length === 0}
-          />
-          <Button
-            variant="outline"
-            onClick={handleReset}
-            disabled={isSaving}
-            aria-label={t("core_settings.network_priority.reset_aria")}
-          >
-            <RotateCcwIcon />
-          </Button>
-        </div>
       </CardContent>
+      <CardFoot
+        className="px-6"
+        status={
+          isDirty ? (
+            <span className="font-medium">{t("common:state.unsaved")}</span>
+          ) : null
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={handleReset}
+              disabled={!isDirty || isSaving}
+            >
+              {t("common:actions.discard")}
+            </Button>
+            <SaveButton
+              onClick={handleSave}
+              isSaving={isSaving}
+              saved={saved}
+              disabled={!isDirty || networks.length === 0}
+              size="action"
+            />
+          </>
+        }
+      />
     </Card>
   );
 };

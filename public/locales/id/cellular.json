@@ -730,7 +730,6 @@
         "select_all": "Pilih semua",
         "deselect_all": "Batalkan Pilih Semua",
         "unlock_all_aria": "Buka kunci semua band",
-        "unlock_all_title": "Buka kunci semua band (reset)",
         "swap_view": "Beralih ke band {{target}}"
       },
       "card_live_region": "Menerapkan {{category_label}} kunci band…",
@@ -1498,7 +1497,6 @@
             "partner": "Jaringan Mitra"
           }
         },
-        "reset_aria": "Atur ulang ke nilai tersimpan",
         "toast": {
           "success": "Pengaturan modem tersimpan",
           "error": "Gagal menyimpan pengaturan modem",
@@ -1685,7 +1683,6 @@
           "option_active_suffix": " (Aktif)"
         },
         "save": "Simpan Pengaturan",
-        "reset_aria": "Atur ulang ke nilai tersimpan",
         "reboot_dialog": {
           "title": "Reboot Diperlukan",
           "description": "Perubahan profil operator memerlukan reboot perangkat agar berlaku. Apakah Anda ingin reboot sekarang?",
@@ -1722,7 +1719,6 @@
         "warning_aria": "Peringatan hukum IMEI",
         "warning_content": "Regulasi modifikasi IMEI berbeda di setiap negara. Periksa hukum lokal Anda sebelum mengubah IMEI.",
         "write_button": "Tulis IMEI",
-        "reset_aria": "Atur ulang ke nilai tersimpan",
         "reboot_dialog": {
           "title": "Reboot Diperlukan",
           "description": "Perubahan IMEI memerlukan reboot perangkat agar berlaku. Apakah Anda ingin reboot sekarang?",
@@ -1750,7 +1746,6 @@
         "field_description": "Beralih ke IMEI cadangan memerlukan reboot perangkat agar berlaku.",
         "warning_aria": "Peringatan hukum IMEI",
         "warning_content": "Regulasi modifikasi IMEI berbeda di setiap negara. Periksa hukum lokal Anda sebelum mengubah IMEI.",
-        "reset_aria": "Atur ulang ke nilai tersimpan",
         "enable_dialog": {
           "title": "Pemulihan Otomatis IMEI Cadangan",
           "description": "Saat IMEI cadangan diaktifkan, perangkat akan secara otomatis memeriksa penolakan IMEI setelah setiap reboot setelah perubahan IMEI. Jika jaringan menolak IMEI utama, perangkat akan beralih ke IMEI cadangan dan reboot secara otomatis.",
@@ -1803,7 +1798,6 @@
       },
       "drag_aria": "Seret untuk mengurutkan ulang",
       "priority_label": "Prioritas {{number}}",
-      "reset_aria": "Atur ulang ke nilai tersimpan",
       "toast": {
         "success": "Prioritas jaringan diperbarui",
         "error_fallback": "Gagal mengatur prioritas jaringan",

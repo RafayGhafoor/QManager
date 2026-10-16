@@ -9,7 +9,7 @@ Every user-initiated mutation that finishes is confirmed by exactly one `sonner`
 | Item | Value |
 |---|---|
 | Library | plain `sonner`: `import { toast } from "sonner"`. No wrapper. One `<Toaster />` in `app/layout.tsx` (`components/ui/sonner.tsx`) |
-| Reference implementation | The RM520N fork's `components/cellular/band-locking/band-grid-card.tsx`: `markSaved()` then `toast.success(t(...))` on ok, `toast.error(t(...))` on not ok, in the handler. The target has no ported reference yet; the first ported card (U4.1) becomes it |
+| Reference implementation | The RM520N fork's `components/cellular/band-locking/band-grid-card.tsx`: `markSaved()` then `toast.success(t(...))` on ok, `toast.error(t(...))` on not ok, in the handler. In the target: `components/system-settings/at-engine/host-at-ports-card.tsx` (result-carrying mutator) and, for a boolean mutator, `components/local-network/ttl-mtu-settings/ttl-settings-card.tsx` (fixed title toast, the hook's render-time `error` as the persistent `CardFoot` status) |
 | Failure reason | the call's own returned result. Turn a backend error code into copy with `resolveErrorMessage(t, code, detail, fallback)` from `lib/i18n/resolve-error.ts` (contract in [`docs/features/error-codes.md`](../features/error-codes.md)) |
 | Copy to clipboard | `copyText` from `lib/clipboard.ts` (lands with ledger U2.3; until then the target calls `navigator.clipboard` directly, see Target status); toast success only when it returns `true` |
 | Copy catalog | `t()` keys in **all five** catalogs (`en id it zh-CN zh-TW`, under `public/locales/`); `bun run i18n:check` (`lib/i18n/check.ts`) gates parity. Language-pack mechanics: [`docs/features/language-packs.md`](../features/language-packs.md) |
@@ -57,7 +57,7 @@ Polling and background or automatic work; draft-only edits (a pill, an input, a 
 
 ## Target status (grepped 2026-10-15, before the canon port)
 
-The rule is partly met by habit. These gaps are swept as each surface is re-authored; ledger **U4.1** (Card-Foot Apply sweep) retires the fading "Saved" labels first.
+The rule is partly met by habit. These gaps are swept as each surface is re-authored; ledger **U4.1** (Card-Foot Apply sweep, DONE 2026-10-16) retired the fading Saved labels (Ethernet link speed's `ethernet.badge_saved`, the only one left in the target) and the `toast.error(error || t(...))` stale closures in SMS Forwarding, Band Locking (x2), System Settings, TTL, MTU (x2) and Custom DNS; the counts below predate it.
 
 - **Handler-level toasts are common:** 105 `toast.success(` and 122 `toast.error(` sites (`git grep -E 'toast\.(success|error)\(' -- app components hooks lib`).
 - **Stale-closure sites: not audited.** Look for `toast.error(error || t(...))` or `error ?? t(...)` straight after an `await`. The RM520N fork fixed seven by returning `MutationResult` (`types/mutation-result.ts`, `{ ok, error }`) from the mutators; that type does not exist in the target, so a new mutator defines the shape it needs and tests the field (see the `if (await save())` trap).

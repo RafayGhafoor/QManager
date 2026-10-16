@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useId, useState } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { CardFoot } from "@/components/ui/card-foot";
 import { AlertCircle, RefreshCcwIcon } from "lucide-react";
 import { DUR, EASE_STANDARD } from "@/lib/motion";
 import {
@@ -49,6 +50,7 @@ const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
     fwd;
 
   const { saved, markSaved } = useSaveFlash();
+  const formId = useId();
   const [prevData, setPrevData] = useState<SmsForwardingData | null>(null);
   const [isEnabled, setIsEnabled] = useState(false);
   const [targetPhone, setTargetPhone] = useState("");
@@ -86,8 +88,16 @@ const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
       markSaved();
       toast.success(t("sms.forwarding.sms.toast_save_success"));
     } else {
-      toast.error(error || t("sms.forwarding.sms.toast_save_error"));
+      // saveSettings returns a bare boolean, so the reason is not ours to show;
+      // the hook's `error` here would be this render's stale value.
+      toast.error(t("sms.forwarding.sms.toast_save_error"));
     }
+  };
+
+  const handleDiscard = () => {
+    if (!data) return;
+    setIsEnabled(data.settings.enabled);
+    setTargetPhone(data.settings.target_phone);
   };
 
   // --- Loading skeleton ------------------------------------------------------
@@ -115,10 +125,14 @@ const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
               <Skeleton className="h-9 w-full max-w-sm" />
               <Skeleton className="h-3 w-48" />
             </div>
-            {/* Save */}
-            <Skeleton className="h-9 w-24" />
           </div>
         </CardContent>
+        <CardFoot
+          className="px-6"
+          liveStatus={false}
+          aria-hidden="true"
+          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
+        />
       </Card>
     );
   }
@@ -166,6 +180,7 @@ const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
       </CardHeader>
       <CardContent>
         <motion.form
+          id={formId}
           className="grid gap-4"
           onSubmit={handleSave}
           initial={{ opacity: 0, y: 6 }}
@@ -219,19 +234,40 @@ const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
                   </FieldDescription>
                 )}
               </Field>
-
-              {/* Save */}
-              <SaveButton
-                type="submit"
-                isSaving={isSaving}
-                saved={saved}
-                disabled={!canSave}
-                className="w-fit"
-              />
             </FieldGroup>
           </FieldSet>
         </motion.form>
       </CardContent>
+      {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
+      <CardFoot
+        className="px-6"
+        status={
+          isDirty ? (
+            <span className="font-medium">{t("common:state.unsaved")}</span>
+          ) : null
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={handleDiscard}
+              disabled={!isDirty || isSaving}
+            >
+              {t("common:actions.discard")}
+            </Button>
+            <SaveButton
+              type="submit"
+              form={formId}
+              isSaving={isSaving}
+              saved={saved}
+              disabled={!canSave}
+              size="action"
+            />
+          </>
+        }
+      />
     </Card>
   );
 };

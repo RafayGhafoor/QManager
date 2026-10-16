@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent, type ChangeEvent } from "react";
+import { useId, useState, type FormEvent, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -40,7 +40,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, RotateCcwIcon, AlertTriangleIcon } from "lucide-react";
+import { Loader2, AlertTriangleIcon } from "lucide-react";
+import { SaveButton } from "@/components/ui/save-button";
+import { CardFoot } from "@/components/ui/card-foot";
 
 interface IMEISettingsCardProps {
   currentImei: string | null;
@@ -58,6 +60,7 @@ const IMEISettingsCard = ({
   onReboot,
 }: IMEISettingsCardProps) => {
   const { t } = useTranslation("cellular");
+  const formId = useId();
   const [imei, setImei] = useState<string>("");
   const [showRebootDialog, setShowRebootDialog] = useState(false);
   const [isRebooting, setIsRebooting] = useState(false);
@@ -135,12 +138,14 @@ const IMEISettingsCard = ({
               <Skeleton className="h-9 w-full" />
               <Skeleton className="h-3 w-64" />
             </div>
-            <div className="flex gap-2">
-              <Skeleton className="h-9 w-28" />
-              <Skeleton className="h-9 w-9" />
-            </div>
           </div>
         </CardContent>
+        <CardFoot
+          className="px-6"
+          liveStatus={false}
+          aria-hidden="true"
+          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
+        />
       </Card>
     );
   }
@@ -154,7 +159,7 @@ const IMEISettingsCard = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="grid gap-4" onSubmit={handleSave}>
+        <form id={formId} className="grid gap-4" onSubmit={handleSave}>
           <div className="w-full">
             <FieldSet>
               <FieldGroup>
@@ -205,30 +210,6 @@ const IMEISettingsCard = ({
               </FieldGroup>
             </FieldSet>
           </div>
-          <div className="flex items-center gap-x-2">
-            <Button
-              type="submit"
-              disabled={isSaving || !isValidImei || !hasChanged}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  {t("common:state.saving")}
-                </>
-              ) : (
-                t("core_settings.imei.settings_card.write_button")
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleReset}
-              disabled={isSaving}
-              aria-label={t("core_settings.imei.settings_card.reset_aria")}
-            >
-              <RotateCcwIcon />
-            </Button>
-          </div>
         </form>
 
         {/* Reboot confirmation dialog */}
@@ -265,6 +246,37 @@ const IMEISettingsCard = ({
           </AlertDialogContent>
         </AlertDialog>
       </CardContent>
+      {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
+      <CardFoot
+        className="px-6"
+        status={
+          hasChanged ? (
+            <span className="font-medium">{t("common:state.unsaved")}</span>
+          ) : null
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={handleReset}
+              disabled={!hasChanged || isSaving}
+            >
+              {t("common:actions.discard")}
+            </Button>
+            <SaveButton
+              type="submit"
+              form={formId}
+              isSaving={isSaving}
+              saved={false}
+              label={t("core_settings.imei.settings_card.write_button")}
+              disabled={!isValidImei || !hasChanged}
+              size="action"
+            />
+          </>
+        }
+      />
     </Card>
   );
 };

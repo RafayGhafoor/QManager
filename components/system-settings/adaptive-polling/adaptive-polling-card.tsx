@@ -2,6 +2,7 @@
 
 import { useId, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import {
   AlertTriangleIcon,
   GaugeIcon,
@@ -26,6 +27,8 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { CardFoot } from "@/components/ui/card-foot";
+import { Button } from "@/components/ui/button";
 
 import { useAdaptivePolling } from "@/hooks/use-adaptive-polling";
 import type {
@@ -153,6 +156,7 @@ export default function AdaptivePollingCard() {
     saveError,
     save,
   } = useAdaptivePolling();
+  const { t } = useTranslation("system-settings");
   const { saved, markSaved } = useSaveFlash();
 
   const enabledId = useId();
@@ -194,10 +198,11 @@ export default function AdaptivePollingCard() {
     try {
       await save(sanitized);
       markSaved();
-      toast.success("Adaptive polling updated");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to save";
-      toast.error(msg);
+      toast.success(t("adaptive_polling.toast_saved"));
+    } catch {
+      // The thrown reason is backend prose; the persistent saveError Alert in
+      // the card shows it, so the toast carries the translated title only.
+      toast.error(t("adaptive_polling.toast_failed"));
     }
   };
 
@@ -223,11 +228,14 @@ export default function AdaptivePollingCard() {
               <Skeleton className="h-16 w-full rounded-md" />
               <Skeleton className="h-16 w-full rounded-md" />
             </div>
-            <div className="flex justify-end">
-              <Skeleton className="h-9 w-32" />
-            </div>
           </div>
         </CardContent>
+        <CardFoot
+          className="px-6"
+          liveStatus={false}
+          aria-hidden="true"
+          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
+        />
       </Card>
     );
   }
@@ -330,18 +338,36 @@ export default function AdaptivePollingCard() {
               Using default backoff timings.
             </p>
           )}
-
-          {/* ── Save button ─────────────────────────────────────────────── */}
-          <div className="flex justify-end">
+        </div>
+      </CardContent>
+      <CardFoot
+        className="px-6"
+        status={
+          isDirty ? (
+            <span className="font-medium">{t("common:state.unsaved")}</span>
+          ) : null
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={() => setDraft(settings)}
+              disabled={!isDirty || isSaving}
+            >
+              {t("common:actions.discard")}
+            </Button>
             <SaveButton
               onClick={handleSave}
               isSaving={isSaving}
               saved={saved}
               disabled={!canSave}
+              size="action"
             />
-          </div>
-        </div>
-      </CardContent>
+          </>
+        }
+      />
     </Card>
   );
 }

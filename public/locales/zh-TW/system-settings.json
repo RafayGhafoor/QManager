@@ -821,5 +821,9 @@
         "version": "已記錄 QManager 版本"
       }
     }
+  },
+  "adaptive_polling": {
+    "toast_saved": "自適應輪詢已儲存。",
+    "toast_failed": "無法儲存自適應輪詢。"
   }
 }

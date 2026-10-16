@@ -100,7 +100,6 @@
     "label_active_link_speed": "Active Link Speed",
     "label_set_link_speed": "Set Link Speed",
     "aria_set_link_speed": "Set Link Speed",
-    "badge_saved": "Saved!",
     "placeholder_link_speed": "Select a link speed",
     "select_label_link_speed": "Link Speed Limit",
     "option_auto_max_speed": "Auto (Max Speed)",

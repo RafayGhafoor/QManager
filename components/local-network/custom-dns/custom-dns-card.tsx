@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { CardFoot } from "@/components/ui/card-foot";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -45,6 +46,7 @@ const CustomDNSCard = () => {
   const { t } = useTranslation("local-network");
   const { data, isLoading, isSaving, error, saveDns, refresh } = useDnsSettings();
   const { saved, markSaved } = useSaveFlash();
+  const formId = useId();
 
   // --- Local form state -------------------------------------------------------
   const [isEnabled, setIsEnabled] = useState(false);
@@ -154,9 +156,23 @@ const CustomDNSCard = () => {
           : t("dns.toast_success_disabled"),
       );
     } else {
-      toast.error(error || t("dns.toast_error_apply"));
+      // saveDns returns a bare boolean; the banner above carries the reason.
+      toast.error(t("dns.toast_error_apply"));
     }
-  }, [data, isEnabled, dns1, dns2, dns3, dns1v6, dns2v6, noAddresses, hasV6Error, saveDns, error, markSaved, t]);
+  }, [data, isEnabled, dns1, dns2, dns3, dns1v6, dns2v6, noAddresses, hasV6Error, saveDns, markSaved, t]);
+
+  const handleDiscard = useCallback(() => {
+    if (!data) return;
+    setIsEnabled(data.mode === "enabled");
+    setDns1(data.dns1);
+    setDns2(data.dns2);
+    setDns3(data.dns3);
+    setDns1v6(data.dns1v6);
+    setDns2v6(data.dns2v6);
+    setProvider(
+      matchProvider(data.dns1, data.dns2, data.dns3, data.dns1v6, data.dns2v6),
+    );
+  }, [data]);
 
   // --- Render ----------------------------------------------------------------
   return (
@@ -193,6 +209,7 @@ const CustomDNSCard = () => {
           </div>
         ) : (
           <form
+            id={formId}
             className="grid gap-4"
             onSubmit={(e) => {
               e.preventDefault();
@@ -359,20 +376,51 @@ const CustomDNSCard = () => {
                     {t("dns.error_at_least_one")}
                   </FieldError>
                 )}
-
-                <SaveButton
-                  type="submit"
-                  isSaving={isSaving}
-                  saved={saved}
-                  label={t("actions.apply", { ns: "common" })}
-                  className="w-fit"
-                  disabled={!isDirty || (isEnabled && (noAddresses || hasV6Error))}
-                />
               </FieldGroup>
             </FieldSet>
           </form>
         )}
       </CardContent>
+      {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
+      {isLoading ? (
+        <CardFoot
+          className="px-6"
+          liveStatus={false}
+          aria-hidden="true"
+          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
+        />
+      ) : (
+        <CardFoot
+          className="px-6"
+          status={
+            isDirty ? (
+              <span className="font-medium">{t("common:state.unsaved")}</span>
+            ) : null
+          }
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="action"
+                onClick={handleDiscard}
+                disabled={!isDirty || isSaving}
+              >
+                {t("common:actions.discard")}
+              </Button>
+              <SaveButton
+                type="submit"
+                form={formId}
+                isSaving={isSaving}
+                saved={saved}
+                label={t("actions.apply", { ns: "common" })}
+                disabled={!isDirty || (isEnabled && (noAddresses || hasV6Error))}
+                size="action"
+              />
+            </>
+          }
+        />
+      )}
     </Card>
   );
 };

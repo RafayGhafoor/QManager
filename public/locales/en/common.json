@@ -15,7 +15,8 @@
     "reconnect_modem": "Reconnect Modem",
     "change_display_name": "Change Display Name",
     "change_password": "Change Password",
-    "toggle_theme": "Toggle Theme"
+    "toggle_theme": "Toggle Theme",
+    "discard": "Discard"
   },
   "motion": {
     "label": "Animations",
@@ -34,7 +35,8 @@
     "enabled": "Enabled",
     "disabled": "Disabled",
     "on": "On",
-    "off": "Off"
+    "off": "Off",
+    "unsaved": "Unsaved changes"
   },
   "connection": {
     "reconnecting": "Lost contact with the device. Reconnecting…"

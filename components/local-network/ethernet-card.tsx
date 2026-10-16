@@ -29,12 +29,10 @@ import {
   RefreshCcwIcon,
   Loader2,
   AlertCircle,
-  CheckIcon,
   CheckCircle2Icon,
   XCircleIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSaveFlash } from "@/components/ui/save-button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -57,7 +55,6 @@ const EthernetStatusCard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { saved, markSaved } = useSaveFlash();
 
   const mountedRef = useRef(true);
   const hasDataRef = useRef(false);
@@ -135,7 +132,6 @@ const EthernetStatusCard = () => {
       if (!mountedRef.current) return;
 
       if (data.success) {
-        markSaved();
         toast.success(t("ethernet.toast_speed_updated"));
 
         // Backend reports how long the PHY link bounce takes. Fall back to
@@ -452,11 +448,6 @@ const EthernetStatusCard = () => {
                     <span className="flex items-center gap-2">
                       <Loader2 className="h-3 w-3 animate-spin" />
                       {t("state.applying", { ns: "common" })}
-                    </span>
-                  ) : saved ? (
-                    <span className="flex items-center gap-2">
-                      <CheckIcon className="h-3 w-3" />
-                      {t("ethernet.badge_saved")}
                     </span>
                   ) : (
                     <SelectValue placeholder={t("ethernet.placeholder_link_speed")} />

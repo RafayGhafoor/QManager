@@ -100,7 +100,6 @@
     "label_active_link_speed": "Velocità di collegamento attivo",
     "label_set_link_speed": "Imposta la velocità di collegamento",
     "aria_set_link_speed": "Imposta la velocità di collegamento",
-    "badge_saved": "Salvato!",
     "placeholder_link_speed": "Seleziona una velocità di collegamento",
     "select_label_link_speed": "Limite di velocità di collegamento",
     "option_auto_max_speed": "Automatico (velocità massima)",

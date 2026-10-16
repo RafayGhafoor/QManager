@@ -730,7 +730,6 @@
         "select_all": "全選",
         "deselect_all": "全不選",
         "unlock_all_aria": "解鎖所有頻段",
-        "unlock_all_title": "解鎖所有頻段（重置）",
         "swap_view": "切換到 {{target}} 頻段"
       },
       "card_live_region": "正在套用 {{category_label}} 頻段鎖定…",
@@ -1498,7 +1497,6 @@
             "partner": "合作伙伴網路"
           }
         },
-        "reset_aria": "重置為已儲存值",
         "toast": {
           "success": "調變解調器設定已儲存",
           "error": "儲存調變解調器設定失敗",
@@ -1685,7 +1683,6 @@
           "option_active_suffix": "（活動）"
         },
         "save": "儲存設定",
-        "reset_aria": "重置為已儲存值",
         "reboot_dialog": {
           "title": "需要重啟",
           "description": "運營商設定檔變更需要重啟裝置才能生效。是否立即重啟?",
@@ -1722,7 +1719,6 @@
         "warning_aria": "IMEI 法律警告",
         "warning_content": "IMEI 修改法規因國家/地區而異。變更 IMEI 前請檢查當地法律。",
         "write_button": "寫入 IMEI",
-        "reset_aria": "重置為已儲存值",
         "reboot_dialog": {
           "title": "需要重啟",
           "description": "IMEI 變更需要重啟裝置才能生效。是否立即重啟?",
@@ -1750,7 +1746,6 @@
         "field_description": "切換到備份 IMEI 需要重啟裝置才能生效。",
         "warning_aria": "IMEI 法律警告",
         "warning_content": "IMEI 修改法規因國家/地區而異。變更 IMEI 前請檢查當地法律。",
-        "reset_aria": "重置為已儲存值",
         "enable_dialog": {
           "title": "備份 IMEI 自動恢復",
           "description": "啟用備份 IMEI 後,裝置將在每次 IMEI 變更後的重啟中自動檢查 IMEI 拒絕情況。如果網路拒絕主 IMEI,裝置將切換到備份 IMEI 並自動重啟。",
@@ -1803,7 +1798,6 @@
       },
       "drag_aria": "拖動以重新排序",
       "priority_label": "優先順序 {{number}}",
-      "reset_aria": "重置為已儲存值",
       "toast": {
         "success": "網路優先順序已更新",
         "error_fallback": "設定網路優先順序失敗",
