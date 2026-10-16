@@ -2,20 +2,29 @@
 
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { CheckCircle2Icon, Loader2, MinusCircleIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2Icon, Loader2, MinusCircleIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EngineTransition, ViewMode } from "./traffic-engine";
+import {
+  CARD_BODY,
+  CARD_DESC,
+  CARD_HEAD,
+  CARD_PAD,
+  CARD_TITLE,
+  EYEBROW,
+  HERO_SHELL,
+  SKELETON,
+  STAT,
+} from "./shapes";
 
 interface EngineStatusCardProps {
   /** Which mode owns the running engine, or null when idle. */
@@ -24,19 +33,16 @@ interface EngineStatusCardProps {
   uptime: string;
   packets: number;
   rate: number;
-  /** SNI domain, for the masquerading badge label. */
+  /** SNI domain, for the masquerading chip label. */
   sniDomain?: string;
   /**
-   * In-flight engine transition, or null when settled. Drives a busy badge
-   * (spinner + verb) and skeleton stats so every toggle — start, stop, and
-   * switch — has a loading state, and the badge isn't contradicted by a stale
-   * "Idle"/"Protecting" badge during the ~1s poll gap after the action lands.
+   * In-flight engine transition, or undefined when settled. Drives a busy chip
+   * and placeholder stats so start, stop and switch all have a loading state,
+   * and the chip isn't contradicted by a stale reading during the ~1s poll gap.
    */
   transition?: EngineTransition;
-  /**
-   * Optional footer content (e.g. the engine-remove row). The composer passes
-   * it only while idle, so a destructive action never sits under live stats.
-   */
+  /** The idle-only remove row. The composer passes it only while settled-idle,
+   *  so a destructive action never sits under live stats. */
   footer?: ReactNode;
 }
 
@@ -44,36 +50,32 @@ function Stat({
   label,
   value,
   unit,
-  muted,
+  live,
   loading,
 }: {
   label: string;
   value: string;
   unit?: string;
-  muted: boolean;
-  /** Show a placeholder bar instead of the value while the engine transitions. */
+  live: boolean;
   loading?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
+    <div className={STAT.ROOT}>
+      <span className={EYEBROW}>{label}</span>
       {loading ? (
-        <Skeleton className="h-5 w-12 rounded" />
+        <Skeleton className={SKELETON.STAT} />
       ) : (
-        <span className="flex items-baseline gap-1">
+        <span className={STAT.VALUE_ROW}>
           <span
             className={cn(
-              "text-xl font-semibold leading-none tabular-nums transition-colors duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
-              muted ? "text-muted-foreground" : "text-foreground",
+              STAT.VALUE,
+              STAT.TRANSITION,
+              live ? STAT.VALUE_ON : STAT.VALUE_OFF,
             )}
           >
             {value}
           </span>
-          {unit && (
-            <span className="text-xs text-muted-foreground">{unit}</span>
-          )}
+          {unit ? <span className={STAT.UNIT}>{unit}</span> : null}
         </span>
       )}
     </div>
@@ -81,10 +83,9 @@ function Stat({
 }
 
 /**
- * Informational status card. It reports what the single packet engine is doing
- * right now: a state badge in the header, and three quiet tabular readouts
- * below. No control lives here (enable/disable belongs to each mode panel), and
- * no hero number; "honest stats, calmly stated" is the whole brief.
+ * The anchor of the page. It reports what the single packet engine is doing
+ * right now: a state chip in the header and three tabular readouts. No control
+ * lives here (enable and disable belong to each mode card).
  */
 export function EngineStatusCard({
   activeMode,
@@ -98,13 +99,13 @@ export function EngineStatusCard({
   const { t } = useTranslation("local-network");
   const running = activeMode !== null;
   const transitioning = !!transition;
+  const dash = t("traffic_engine.stat_empty");
 
-  // A transition outranks the steady-state badge: during a switch the outgoing
-  // mode still reads "running" for a beat, and we want "Switching…", not the
-  // mode it's leaving.
-  const badge = transitioning ? (
+  // A transition outranks the steady state: during a switch the outgoing mode
+  // still reads "running" for a beat, and the chip should say "Switching".
+  const chip = transitioning ? (
     <Badge variant="info">
-      <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+      <Loader2 className="size-3 motion-safe:animate-spin" aria-hidden="true" />
       {t(
         transition === "stop"
           ? "traffic_engine.state_stopping"
@@ -128,41 +129,74 @@ export function EngineStatusCard({
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("traffic_engine.engine_status_label")}</CardTitle>
-        <CardDescription>
-          {t("traffic_engine.status_card_description")}
-        </CardDescription>
-        {/* Live region sits on the state badge (changes only on engine
-            state transitions), not on the stats — those tick every 1s poll
-            and would otherwise spam a screen reader once a second. */}
-        <CardAction aria-live="polite">{badge}</CardAction>
+    <Card className={HERO_SHELL}>
+      <CardHeader className={`${CARD_PAD} ${CARD_HEAD.ROOT}`}>
+        <div className={CARD_HEAD.TEXT}>
+          <CardTitle className={CARD_TITLE}>
+            {t("traffic_engine.engine_status_label")}
+          </CardTitle>
+          <CardDescription className={CARD_DESC}>
+            {t("traffic_engine.status_card_description")}
+          </CardDescription>
+        </div>
+        {/* The live region sits on the chip (it changes only on transitions),
+            not on the stats, which tick every poll. The chip drops under the
+            title on a narrow card so a long domain never squeezes it. */}
+        <div className={CARD_HEAD.ACTIONS} aria-live="polite">
+          {chip}
+        </div>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-3 gap-4">
+      <CardContent className={`${CARD_PAD} ${CARD_BODY}`}>
+        <div className={STAT.GRID}>
           <Stat
             label={t("traffic_engine.tile_uptime")}
-            value={running ? uptime : "—"}
-            muted={!running}
+            value={running ? uptime : dash}
+            live={running}
             loading={transitioning}
           />
           <Stat
-            label={t("traffic_engine.hero_packets_label")}
-            value={running ? packets.toLocaleString() : "—"}
-            muted={!running}
+            label={t("traffic_engine.stat_packets")}
+            value={running ? packets.toLocaleString() : dash}
+            live={running}
             loading={transitioning}
           />
           <Stat
             label={t("traffic_engine.hero_rate_label")}
-            value={running ? rate.toLocaleString() : "—"}
+            value={running ? rate.toLocaleString() : dash}
             unit={running ? t("traffic_engine.hero_rate_unit") : undefined}
-            muted={!running}
+            live={running}
             loading={transitioning}
           />
         </div>
+        {footer}
       </CardContent>
-      {footer && <CardFooter className="border-t pt-4">{footer}</CardFooter>}
+    </Card>
+  );
+}
+
+/** The status card's placeholder: same shell, same stat grid. */
+export function EngineStatusSkeleton() {
+  return (
+    <Card className={HERO_SHELL} aria-hidden="true">
+      <CardHeader className={`${CARD_PAD} ${CARD_HEAD.ROOT}`}>
+        <div className={CARD_HEAD.TEXT}>
+          <Skeleton className={SKELETON.TITLE} />
+          <Skeleton className={SKELETON.DESC} />
+        </div>
+        <div className={CARD_HEAD.ACTIONS}>
+          <Skeleton className={SKELETON.BADGE} />
+        </div>
+      </CardHeader>
+      <CardContent className={`${CARD_PAD} ${CARD_BODY}`}>
+        <div className={STAT.GRID}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className={STAT.ROOT}>
+              <Skeleton className={SKELETON.EYEBROW} />
+              <Skeleton className={SKELETON.STAT} />
+            </div>
+          ))}
+        </div>
+      </CardContent>
     </Card>
   );
 }

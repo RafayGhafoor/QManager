@@ -9,8 +9,11 @@ import type {
   TrafficMasqueradeResponse,
   TrafficMasqueradeSettings,
 } from "@/types/video-optimizer";
+import type { MutationResult } from "@/types/mutation-result";
 
 const API_URL = "/cgi-bin/quecmanager/network/video_optimizer.sh";
+
+const SUCCEEDED: MutationResult = { ok: true, code: null, error: null };
 
 export function useTrafficMasquerade() {
   const { t } = useTranslation("errors");
@@ -64,7 +67,7 @@ export function useTrafficMasquerade() {
   }, []);
 
   const saveSettings = useCallback(
-    async (enabled: boolean, sniDomain: string): Promise<boolean> => {
+    async (enabled: boolean, sniDomain: string): Promise<MutationResult> => {
       setIsSaving(true);
       setError(null);
 
@@ -83,19 +86,19 @@ export function useTrafficMasquerade() {
 
         const data = await response.json();
         if (!data.success) {
-          setError(resolveErrorMessage(t, undefined, data.detail, "Failed to save settings"));
-          return false;
+          setError(resolveErrorMessage(t, data.error, data.detail, "Failed to save settings"));
+          return { ok: false, code: data.error ?? null, error: data.detail ?? null };
         }
 
         await fetchSettings(true);
-        return true;
+        return SUCCEEDED;
       } catch (err) {
         if (mountedRef.current) {
           setError(
             err instanceof Error ? err.message : "Failed to save settings"
           );
         }
-        return false;
+        return { ok: false, code: null, error: err instanceof Error ? err.message : null };
       } finally {
         if (mountedRef.current) setIsSaving(false);
       }
@@ -171,7 +174,7 @@ export function useTrafficMasquerade() {
 
   const [isUninstalling, setIsUninstalling] = useState(false);
 
-  const runUninstall = useCallback(async (): Promise<boolean> => {
+  const runUninstall = useCallback(async (): Promise<MutationResult> => {
     setIsUninstalling(true);
     try {
       const response = await authFetch(API_URL, {
@@ -182,16 +185,16 @@ export function useTrafficMasquerade() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (!data.success) {
-        setError(resolveErrorMessage(t, undefined, data.detail, "Failed to uninstall"));
-        return false;
+        setError(resolveErrorMessage(t, data.error, data.detail, "Failed to uninstall"));
+        return { ok: false, code: data.error ?? null, error: data.detail ?? null };
       }
       await fetchSettings(true);
-      return true;
+      return SUCCEEDED;
     } catch (err) {
       if (mountedRef.current) {
         setError(err instanceof Error ? err.message : "Failed to uninstall");
       }
-      return false;
+      return { ok: false, code: null, error: err instanceof Error ? err.message : null };
     } finally {
       if (mountedRef.current) setIsUninstalling(false);
     }
