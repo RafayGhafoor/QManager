@@ -344,6 +344,32 @@ On ping profile reload, `load_config()` re-reads UCI and `detect_ping6()` re-pro
 
 ---
 
+## DNS Lookup Time
+
+`qmanager_ping` also times a DNS lookup and the poller publishes it as `connectivity.dns_lookup_ms` (ledger B2.2). It is a separate reading from the ICMP probe.
+
+**Contract.** The daemon runs `nslookup one.one.one.one <resolver>` in a detached background job, where `<resolver>` is the first `nameserver` in `/etc/resolv.conf`, re-read on every run. On the RM551E that is the carrier resolver (`/etc/resolv.conf` -> `/tmp/resolv.conf` -> `/tmp/resolv.conf.d/resolv.conf.auto`), not dnsmasq. The job writes `/tmp/qmanager_dns.json` (mode 644, atomic temp-and-rename):
+
+```json
+{ "ms": 52, "ok": true, "resolver": "10.0.0.1", "name": "one.one.one.one", "mono": 123456, "ts": 1760000000 }
+```
+
+`ms` is `null` when `ok` is `false`. Success means `nslookup` exited 0 and printed an `Address` line after a `Name:` line.
+
+**Schedule.** Every 60 s, plus a forced lookup on a reachable `true` to `false` edge with a 10 s floor between forced runs. At most one job runs at a time (PID file, zombie check and a 15 s age guard). The job is never run inline in the probe loop, so the 12 s probe budget is unchanged. **Why:** a slow or dead resolver would otherwise stall probes and the reachability verdict.
+
+**Timing and bound.** The lookup is bounded at 5 s by the BusyBox `timeout` applet through a local `qm_timeout` fallback (the target has no `platform.sh`); a killed lookup exits 143 and reports `ok:false`. Elapsed time comes from `/proc/uptime` centiseconds, so the quantum is 10 ms and `ms` is floored at 10.
+
+**Freshness gate.** The poller's `read_dns_data` publishes `dns_lookup_ms` as a number only when `ok` is true and the sample `mono` age against `/proc/uptime` is 0 to 180 s; otherwise `null`. `dns_resolver` is the resolver string, or `null` when unknown or stale. Both land in `/tmp/qmanager_status.json` under `connectivity` and in the `at_cmd/fetch_data.sh` response. The TS type `ConnectivityStatus` carries optional `dns_lookup_ms?: number | null` and `dns_resolver?: string | null`.
+
+> ℹ️ NOTE: Live numbers on the RM551E are 40 to 70 ms against the carrier resolver. A dead resolver (`192.0.2.1`) gives `ok:false`, `ms:null` after 5.07 s.
+
+> ⚠️ WARNING: The DNS reading is independent of the ICMP verdict. During validation ICMP reported unreachable while the carrier resolver kept answering at 40 to 70 ms. A consumer (ledger U4.7, the Connection Quality cards) must not read a DNS number as "online"; use `internet_available` for that.
+
+`uninstall.sh` removes `/tmp/qmanager_dns.json`, `/tmp/qmanager_dns_out.*` and `/tmp/qmanager_dns.json.??????`.
+
+---
+
 ## status.json / Poller Surface
 
 The poller merges `connectivity.profile` into `status.json` from `/tmp/qmanager_ping.json`, read through `conn_state_read` (field names and types are unchanged). Consumers should treat it as optional — it is absent on older poller output and on the first write before the ping daemon has run. When the cache is **missing** the poller clears `target`, `profile` and `last_family`; when it is **stale** it keeps them and only marks connectivity unknown. The `connectivity` object in the response holds both the live profile name and all latency/loss stats.

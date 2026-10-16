@@ -218,7 +218,9 @@ Main polling endpoint. Returns the cached modem status JSON (built by `qmanager_
     "history_interval_sec": 5,
     "history_size": 60,
     "during_recovery": false,
-    "last_family": "ipv4"
+    "last_family": "ipv4",
+    "dns_lookup_ms": 52,
+    "dns_resolver": "10.0.0.1"
   },
   "signal_per_antenna": {
     "lte_rsrp": [-95, -97, -102, null],

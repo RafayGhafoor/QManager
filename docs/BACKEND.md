@@ -381,6 +381,8 @@ HTTP-probe daemon that monitors internet reachability and latency. Uses `curl` �
 **History:** `/tmp/qmanager_ping_history` (flat-file ring buffer; read + processed by the poller)
 **Dependency:** `curl` full build, 8.7.1+ (hard runtime dependency — without it the daemon emits no results)
 
+Also runs a detached DNS lookup job (every 60 s, plus on a reachable true to false edge) that writes `/tmp/qmanager_dns.json` (`{ms, ok, resolver, name, mono, ts}`); the poller publishes it as `connectivity.dns_lookup_ms` / `dns_resolver`. See the DNS Lookup Time section of [`docs/features/connection-quality.md`](features/connection-quality.md).
+
 Writes slim JSON: `{ timestamp, mono, profile, targets, interval_sec, fail_secs, recover_secs, last_rtt_ms, reachable, streak_success, streak_fail, during_recovery, last_family }`. The poller handles all statistical analysis (avg/min/max/jitter/loss) in a single awk pass over the raw history file.
 
 The active probe sensitivity is set by the **ping profile** (`sensitive` / `regular` / `relaxed` / `quiet`). The profile→interval/fail/recover table lives in `conn_state.sh` (the daemon resolves through it); UCI stores only the profile name and the optional `interval_override`. A saved profile change drops `/tmp/qmanager_ping_reload`; the daemon re-reads UCI within one probe cycle without a restart. See [`docs/features/connection-quality.md`](features/connection-quality.md) for the full profile table and reload pipeline.
@@ -735,6 +737,7 @@ All auth endpoints set `_SKIP_AUTH=1`.
 | `qmanager_ping_history.json` | poller | Ping history NDJSON |
 | `qmanager_events.json` | poller | Network events NDJSON |
 | `qmanager_ping.json` | ping daemon | Current ping result |
+| `qmanager_dns.json` | ping daemon (detached job) | Last DNS lookup time `{ms, ok, resolver, name, mono, ts}` |
 | `qmanager_watchcat.json` | watchcat | Watchdog state |
 | `qmanager_profile_state.json` | profile_apply | Apply progress |
 | `qmanager_pci_state.json` | poller (events) | SCC PCI tracking |
