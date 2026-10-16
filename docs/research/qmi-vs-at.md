@@ -130,3 +130,114 @@ QRTR is multi-client by design. Each socket is its own QMI client, and no CTL cl
 - Test `0x00AC` under LTE-only intra-band or inter-band CA.
 - `/tmp/qmiprobe` was left on the device for re-runs. It lives on tmpfs and is cleared on reboot.
 - Unrelated observation: `Ping data stale (age_mono=11–12s)` warnings were logging every ~12 s from 09:36 onward.
+
+## Daemon decompilation findings
+
+**Date:** 2026-10-16, after the spike above.
+**Method:**
+- **Tooling:** REA 6.5.0 running inside WSL Ubuntu (the `rea-linux` MCP server), with Ghidra 12.1.4 headless. The binaries were auto-detected as AARCH64:LE:64:v8A.
+- **Source of the binaries:** pulled from the device with Posh-SSH `Get-SCPItem`.
+- **Live check:** read-only probes only (`ps`, `netstat`, `ubus list`, `ls`). Nothing was written to the device and nothing was restarted.
+- **Addresses:** all addresses below are Ghidra image addresses.
+
+**Question:** do the Quectel daemons hold a faster, lock-free copy of the radio telemetry that QManager reads over AT today, or does the vendor QMI service fill the gaps the spike found? **No to both.**
+
+### `quectel_daemon`: housekeeping and an AT relay, no telemetry
+
+| SHA-256 | Size | Functions |
+|---|---|---|
+| `71d14426…0636` | 65,546 B | 19 own functions, all decompiled |
+
+It opens one QCCI client to the vendor service `quec_common_qmi` with `quec_common_qmi_get_service_object_internal_v01(1,1,6)` (`FUN_0010185c`). Every message it uses:
+
+| Msg | Dir | Function | What it does |
+|---|---|---|---|
+| 0x30 | req | `FUN_00101ab8` | Sends the AP version (read from `/etc/quectel-project-version`) to the modem's CEFS. |
+| 0x54 | req | `FUN_00101d20` | Reads the project version (40-byte string). |
+| 0x1D | req | `FUN_001021c4` | Forwards `/proc/sys/kernel/qescape_sig` (escape signal). |
+| 0x39 | req | `FUN_001017e4` | Sends a 0xA8-byte reply received on UDP `127.0.0.1:22222` (`FUN_0010271c`) back to the modem. |
+| 0x1C | ind | `FUN_001015c0` | Modem mode: writes `/proc/sys/kernel/qmodem_mode`. |
+| 0x36 | ind | `FUN_001015c0` | Firmware-upload status, relayed to the unix socket `/var/run/qfupl_status_sock`. |
+| 0x3A | ind | `FUN_001015c0` → `FUN_001024a0` | 0xB8-byte "qmi msg to at" payload, sent to UDP `127.0.0.1:11111` or `:11112` (port = 0x2B67 + channel). |
+
+**What this means:**
+- UDP 11111 and 11112 are owned by `port-bridge` (live `netstat`). The 0x39/0x3A pair is therefore a **modem↔AP AT relay carried over vendor QMI**. It carries AT text, not structured measurements.
+- **On the live device `quectel_daemon` is not running at all.** No process exists, and nothing listens on UDP 22222. QManager's data cannot depend on it.
+
+### `ql_nw_service`: data-call control, no telemetry
+
+| SHA-256 | Size | Functions |
+|---|---|---|
+| `a638e7f5…ec92` | 65,709 B | 49 own functions |
+
+This is "QL_WWAN", a QCMAP client: backhaul, autoconnect, IP passthrough and DMZ (C++ `QCMAP_Client::*` imports). It also opens a NAS client and a WDS client. Only three functions send QMI requests:
+
+| Msg | Service | Function | What it does |
+|---|---|---|---|
+| 0x002B | WDS | `FUN_00105c9c` | Get Profile Settings. Reads the APN-disabled flag and the PDP type. |
+| 0x0023 | NAS | `FUN_0010618c` | Attach/Detach, PS action = 2 ("deattach lte"). |
+| 0x0023 | NAS | `FUN_001062a4` | Attach/Detach, PS action = 1 ("attach lte"). |
+
+**Indications:** `FUN_00105304` handles only the QCMAP bring-up (0x22), tear-down (0x23) and WWAN-status (0x24) indications.
+
+**Not present anywhere in the binary:**
+- No NAS Get Signal Info, Serving System, Cell Location Info or CA request.
+- No cache file and no ubus object for radio data.
+
+The TCP send loop (`FUN_00103aac`) drains internal `ctl`, `mdc`, `atc` and `qmi` queues to a connected peer. It holds no measurement data.
+
+### The vendor service itself (`libqmiservices.so`, service ID 0xE3)
+
+`quec_common_qmi_get_service_object_internal_v01` (0x123e5c) returns the IDL object at 0x1709b0:
+
+| Field | Value |
+|---|---|
+| Service ID | 0xE3 |
+| IDL version | 1 |
+| Max message size | 4231 B |
+| Messages | 76 requests, 76 responses, 32 indications |
+
+The message tables sit at 0x132c1a (requests), 0x132a52 (responses) and 0x132992 (indications).
+
+**Known IDs.** These are every vendor ID that `libql_atcop.so` or `quectel_daemon` calls:
+
+| Area | IDs | Callers |
+|---|---|---|
+| Sleep / clock | 0x07, 0x29 | `ql_qsclk_init`, `ql_sleep_init` |
+| GNSS | 0x2A, 0x2B, 0x2F, 0x38, 0x52, 0x53 | `getGpsConfig`, `setGpsConfig`, `ql_exec_qgpscfg_cmd_proc`, `ql_get_gnss_wdis2_status`, `ql_gps_init`, `setGnssEngineLock` |
+| Flash wear test (`+QFTEST`) | 0x37 | `FUN_001238b0` |
+| Secure-debug / auth sync | 0x4F, 0x50 | `ql_qmi_sync_secdbg_state`, `FUN_0014bedc` |
+| Version sync, escape, AT relay | 0x30, 0x54, 0x1D, 0x39 / 0x3A | `quectel_daemon` (table above) |
+| Unidentified | 0x2E | `FUN_00127f68` |
+
+**Size profile:**
+- Most responses carry 4–14 TLV bytes (result code plus a small field).
+- **Large responses to empty requests:** 0x4C (490 B), 0x4D (889 B), 0x4E (273 B), 0x37 (1027 B, the flash-test dump) and 0x18 (4112 B, which pairs with 0x19's 4231-B request, so it looks like a file or NV transfer).
+- **0x4C, 0x4D and 0x4E have no caller** in any binary we decompiled. Their purpose is unknown, and so is whether they have side effects.
+
+**Live surfaces:**
+- `ubus list` shows 48 objects. None of them is a modem or radio object.
+- The named unix sockets belong to tlpd, QCMAP (`pd_manager`), netmgrd, qms, qwesd and ubus.
+- `/var/run` and `/tmp` hold no radio cache. `qmanager_signal_history.json` is QManager's own file.
+
+### Verdict
+
+1. **No lock-free radio telemetry exists to borrow.**
+   - Neither daemon reads per-antenna signal, the CA/SCC list, MIMO, TA or NR identity in NSA.
+   - Nothing publishes such data over a socket, ubus or a file.
+   - The baseband's ATCoP (AT command processor) answers `QENG`, `QCAINFO`, `QRSRP` and `QNWCFG` itself, as established earlier. That leaves only two routes to those fields: AT on smd11, or standard NAS QMI for the subset the spike already covered.
+2. **The vendor service (0xE3) is a control channel, not a telemetry API.** Its known messages are GNSS, sleep, flash test, debug auth, version sync and an AT-text relay. The relay (0x39/0x3A) is the same AT engine reached another way, with no structured fields, so it doesn't help.
+3. **A Rust tool that speaks the vendor service would not replace the expensive AT polls.** The gaps the spike found (per-antenna RSRP, NR SCC, MIMO, TA, NR PCI/band in NSA) stay AT-only on this firmware. The single open lead is 0x4C/0x4D/0x4E (below).
+4. **The cost case is also weaker now.** The `qcmd` FD-9 fix shipped (`c2ae24a8`, about 1 s → about 50 ms per call, validated on the device), which removed most of the lock contention that motivated this work.
+
+### Recommended Rust scope (if pursued; nothing built)
+
+Rust over Go, as the user prefers. Build a static `aarch64-unknown-linux-musl` binary with no libqmi dependency, using raw `AF_QIPCRTR` (42) datagram sockets as in `qmi-spike/main.go`. In priority order:
+
+1. **Persistent AT broker** (`qmanager_atd`). Spike path (a): it owns `/dev/smd11` behind `/var/lock/qmanager.lock` semantics, serialises requests in-process, and serves `qcmd` callers over a unix socket.
+   - **Gain:** removes the remaining per-call `sh`, `flock`, `atcli` and `jq` spawning while keeping 100% field coverage.
+   - **When:** only if post-fix latency measurements still show contention.
+2. **Optional NAS indication listener.** Subscribe to Serving System and Signal Info indications (no polling) and write a small JSON cache for the fields NAS does cover: LTE serving-cell identity, summary RSRP/RSRQ/SINR, registration and RAT.
+   - **Gain:** a change-driven fast path, and a fallback while the AT lane is busy.
+   - **Caveat:** it doesn't remove any AT call the poller needs.
+3. **One guarded probe of vendor 0x4C/0x4D/0x4E** before investing further. Run it only with explicit approval, because an empty request with unknown semantics could trigger an action rather than a read. Dump the raw TLVs and compare them against `QENG`/`QRSRP`/`QCAINFO` output. If one of them turns out to hold per-antenna or CA data, it would be the only finding that changes this verdict.
