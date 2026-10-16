@@ -34,7 +34,22 @@
     "internet_offline": "Non in linea",
     "internet_unstable": "Instabile",
     "sim_label": "SIM {{slot}}",
-    "no_carrier": "Nessun corriere"
+    "no_carrier": "Nessun corriere",
+    "description": "A cosa è connesso il modem in questo momento.",
+    "description_unreachable": "L'ultimo sondaggio non ha risposto.",
+    "unreachable": "Modem non raggiungibile",
+    "sim_generic": "SIM",
+    "radio_unknown": "Stato radio sconosciuto",
+    "internet_unreachable": "Nessuna risposta",
+    "internet_degraded": "Instabile",
+    "internet_recovering": "In ripristino",
+    "internet_unknown": "Non misurato",
+    "internet_tooltip": {
+      "no_reply": "Nessuna risposta al ping di connettività. Alcuni operatori bloccano queste sonde, quindi la connessione potrebbe essere comunque attiva.",
+      "degraded": "I ping arrivano a destinazione, ma la perdita di pacchetti ha raggiunto la soglia impostata in Qualità della connessione.",
+      "recovery": "Il watchdog di connessione sta ripristinando il collegamento. Le letture restano inaffidabili finché non termina.",
+      "unknown": "La sonda di connettività non sta riportando dati, quindi al momento non si sa nulla sulla raggiungibilità di Internet."
+    }
   },
   "device_status": {
     "title": "Informazioni sul dispositivo",
@@ -49,7 +64,15 @@
     "iccid": "ICCID",
     "device_imei": "Dispositivo IMEI",
     "active_mimo": "Attivo MIMO",
-    "qmanager_version": "QManager Versione"
+    "qmanager_version": "QManager Versione",
+    "description": "Identità hardware, firmware e tempo di attività.",
+    "manufacturer": "Produttore",
+    "conn_uptime_short": "Tempo Conn.",
+    "device_uptime_short": "Tempo Disp.",
+    "conn_uptime_caption_up": "Collegamento attivo",
+    "conn_uptime_caption_down": "Collegamento assente",
+    "device_uptime_caption": "Dall'ultimo avvio",
+    "uptime_unknown": "Non raggiungibile"
   },
   "metrics": {
     "title": "Metriche del dispositivo",
@@ -65,7 +88,8 @@
     "ta_unavailable": "Il valore dell'anticipo temporale non è disponibile.",
     "connection_uptime": "Tempo di attività della connessione",
     "device_uptime": "Tempo di attività del dispositivo",
-    "more_info_aria": "Maggiori informazioni"
+    "more_info_aria": "Maggiori informazioni",
+    "description": "Salute del dispositivo, il contatore dati cumulativo e la distanza da ciascuna cella di servizio."
   },
   "signal_status": {
     "lte_primary_title": "Stato primario 4G",
@@ -87,7 +111,14 @@
     "searching": "Ricerca",
     "limited_service": "Servizio limitato",
     "inactive": "Inattivo",
-    "unknown": "Sconosciuto"
+    "unknown": "Sconosciuto",
+    "description": "Portante componente primaria",
+    "quality_excellent": "Eccellente",
+    "quality_good": "Buono",
+    "quality_fair": "Discreto",
+    "quality_poor": "Scarso",
+    "quality_bad": "Molto debole",
+    "quality_none": "Nessuna lettura"
   },
   "signal_history": {
     "title": "Monitoraggio della qualità del segnale",
@@ -98,7 +129,13 @@
     "loading_message": "Caricamento cronologia segnali…",
     "no_data_message": "Nessuna cronologia del segnale ancora disponibile. I dati verranno visualizzati dopo circa 10 secondi.",
     "chart_description": "Questo grafico mostra la potenza del segnale {{signal_type}} nella cronologia recente.",
-    "fluctuation_note": "I valori possono variare a causa di fattori ambientali e condizioni della rete."
+    "fluctuation_note": "I valori possono variare a causa di fattori ambientali e condizioni della rete.",
+    "description": "Come si sono mossi di recente i collegamenti 4G e 5G: cronologia sufficiente a distinguere un calo momentaneo da una tendenza.",
+    "legend_lte": "LTE",
+    "legend_nr": "5G",
+    "trend_heading": "Andamento {{metric}} nella cronologia recente, in {{unit}}",
+    "error_title": "Cronologia del segnale non disponibile",
+    "error_description": "Impossibile caricare la cronologia del segnale: {{message}}"
   },
   "speedtest": {
     "section_label": "Prova di velocità",
@@ -141,7 +178,24 @@
     "time_just_now": "adesso",
     "time_minutes_ago": "{{count}} min fa",
     "time_hours_ago": "{{count}} h fa",
-    "time_days_ago": "{{count}} g fa"
+    "time_days_ago": "{{count}} g fa",
+    "step_latency": "Latenza",
+    "step_download": "Scarica",
+    "step_upload": "Carica",
+    "step_status_done": "completato",
+    "step_status_active": "in corso",
+    "step_status_failed": "non riuscito",
+    "step_status_pending": "in attesa",
+    "data_cost_notice": "Consuma all'incirca 300–500 MB di dati.",
+    "unavailable_title": "Test di velocità non disponibile",
+    "unavailable_body": "Non è stato possibile scaricare lo strumento Ookla per il test di velocità durante l'installazione di QManager. Verrà riprovato automaticamente al prossimo aggiornamento.",
+    "servers_error_title": "Impossibile caricare i server vicini",
+    "servers_error_body": "Puoi comunque eseguire il test — il server più vicino viene scelto automaticamente.",
+    "servers_retry_button": "Riprova",
+    "metric_absent": "Non riportato",
+    "failed_during": "Non riuscito durante {{step}}",
+    "close_aria": "Chiudi",
+    "server_option": "{{name}} — {{location}}, {{country}}"
   },
   "scc": {
     "title": "Portatori secondari",
@@ -201,7 +255,16 @@
       "config_restore_completed": "Ripristino completato",
       "lan_address_changed": "Indirizzo LAN modificato",
       "apn_reapplied": "APN ripristinato",
-      "apn_reapply_failed": "Ripristino APN non riuscito"
+      "apn_reapply_failed": "Ripristino APN non riuscito",
+      "tower_failover": "Failover blocco BTS"
+    },
+    "description": "Cosa ha fatto la radio, dal più recente, e se qualcosa è ancora irrisolto.",
+    "error_title": "Impossibile caricare gli eventi",
+    "error_description": "{{message}}",
+    "chip": {
+      "quiet": "Tutto regolare",
+      "unresolved_one": "{{count}} non risolto",
+      "unresolved_other": "{{count}} non risolti"
     }
   },
   "latencyMonitor": {
@@ -350,5 +413,38 @@
     "empty_action": "Apri Qualità della connessione",
     "error_title": "Modem non raggiungibile",
     "error_description": "Non è stato possibile leggere lo stato del modem, quindi non c'è alcuna lettura di qualità da mostrare."
+  },
+  "page": {
+    "title": "Dashboard",
+    "description": "Una vista in tempo reale del modem: a cosa è connesso, quanto è forte il collegamento e cosa è cambiato di recente."
+  },
+  "ca": {
+    "title": "Aggregazione portanti",
+    "description": "Portanti componenti attive e la banda che ciascuna contribuisce.",
+    "aggregated": "MHz aggregati",
+    "bandwidth": "MHz di banda",
+    "bw_unknown": "— MHz",
+    "empty_title": "Nessun dato sulle portanti",
+    "empty_description": "Il modem non sta segnalando alcuna portante componente.",
+    "segment_label": "{{band}}, {{role}}, {{bw}} MHz",
+    "released_moments": "Rilasciata poco fa",
+    "released_minutes_one": "Rilasciata {{count}} min fa",
+    "released_minutes_other": "Rilasciata {{count}} min fa",
+    "status": {
+      "both": "NR-CA + LTE-CA attive",
+      "nr_ca": "NR-CA attiva",
+      "lte_ca": "LTE-CA attiva",
+      "endc_lte_ca": "EN-DC + LTE-CA attive",
+      "endc": "EN-DC attivo",
+      "none": "Nessuna aggregazione",
+      "released_one": "{{count}} portante rilasciata",
+      "released_other": "{{count}} portanti rilasciate"
+    },
+    "role": {
+      "pcc": "{{tech}} PCC",
+      "anchor": "Ancora NR",
+      "scc": "{{tech}} SCC",
+      "released": "Rilasciata"
+    }
   }
 }

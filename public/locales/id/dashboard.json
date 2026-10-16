@@ -34,7 +34,22 @@
     "internet_offline": "Offline",
     "internet_unstable": "Tidak stabil",
     "sim_label": "SIM {{slot}}",
-    "no_carrier": "Tidak Ada Operator"
+    "no_carrier": "Tidak Ada Operator",
+    "description": "Jaringan yang saat ini terhubung ke modem.",
+    "description_unreachable": "Polling terakhir tidak memberikan hasil.",
+    "unreachable": "Modem tidak dapat dijangkau",
+    "sim_generic": "SIM",
+    "radio_unknown": "Radio Tidak Diketahui",
+    "internet_unreachable": "Tanpa Respons",
+    "internet_degraded": "Tidak Stabil",
+    "internet_recovering": "Memulihkan",
+    "internet_unknown": "Belum Diukur",
+    "internet_tooltip": {
+      "no_reply": "Tidak ada balasan untuk ping konektivitas. Sebagian operator memblokir probe semacam ini, sehingga koneksi mungkin masih berfungsi.",
+      "degraded": "Ping tetap sampai, tetapi packet loss sudah mencapai ambang yang diatur di Kualitas Koneksi.",
+      "recovery": "Watchdog koneksi sedang memulihkan tautan. Pembacaan tetap tidak dapat diandalkan sampai proses selesai.",
+      "unknown": "Probe konektivitas tidak melaporkan data, sehingga saat ini keterjangkauan internet tidak diketahui."
+    }
   },
   "device_status": {
     "title": "Informasi Perangkat",
@@ -49,7 +64,15 @@
     "iccid": "ICCID",
     "device_imei": "IMEI Perangkat",
     "active_mimo": "MIMO Aktif",
-    "qmanager_version": "Versi QManager"
+    "qmanager_version": "Versi QManager",
+    "description": "Identitas perangkat keras, firmware, dan waktu aktif.",
+    "manufacturer": "Produsen",
+    "conn_uptime_short": "Waktu Koneksi",
+    "device_uptime_short": "Waktu Perangkat",
+    "conn_uptime_caption_up": "Tautan aktif",
+    "conn_uptime_caption_down": "Tautan terputus",
+    "device_uptime_caption": "Sejak boot terakhir",
+    "uptime_unknown": "Tidak terjangkau"
   },
   "metrics": {
     "title": "Metrik Perangkat",
@@ -65,7 +88,8 @@
     "ta_unavailable": "Nilai Timing Advance tidak tersedia.",
     "connection_uptime": "Waktu Aktif Koneksi",
     "device_uptime": "Waktu Aktif Perangkat",
-    "more_info_aria": "Info lebih lanjut"
+    "more_info_aria": "Info lebih lanjut",
+    "description": "Kesehatan perangkat, penghitung data kumulatif, dan jarak ke setiap sel yang melayani."
   },
   "signal_status": {
     "lte_primary_title": "Status Utama 4G",
@@ -87,7 +111,14 @@
     "searching": "Mencari",
     "limited_service": "Layanan Terbatas",
     "inactive": "Tidak Aktif",
-    "unknown": "Tidak Diketahui"
+    "unknown": "Tidak Diketahui",
+    "description": "Pembawa komponen utama",
+    "quality_excellent": "Sangat Baik",
+    "quality_good": "Baik",
+    "quality_fair": "Cukup",
+    "quality_poor": "Buruk",
+    "quality_bad": "Sangat lemah",
+    "quality_none": "Tidak Ada Pembacaan"
   },
   "signal_history": {
     "title": "Monitor Kualitas Sinyal",
@@ -98,7 +129,13 @@
     "loading_message": "Memuat riwayat sinyal…",
     "no_data_message": "Belum ada riwayat sinyal tersedia. Data akan muncul setelah ~10 detik.",
     "chart_description": "Grafik ini menunjukkan kekuatan sinyal {{signal_type}} dalam riwayat terkini.",
-    "fluctuation_note": "Nilai mungkin berfluktuasi karena faktor lingkungan dan kondisi jaringan."
+    "fluctuation_note": "Nilai mungkin berfluktuasi karena faktor lingkungan dan kondisi jaringan.",
+    "description": "Bagaimana jalur 4G dan 5G bergerak belakangan ini — cukup riwayat untuk membedakan penurunan sesaat dari tren.",
+    "legend_lte": "LTE",
+    "legend_nr": "5G",
+    "trend_heading": "Tren {{metric}} pada riwayat terkini, dalam {{unit}}",
+    "error_title": "Riwayat sinyal tidak tersedia",
+    "error_description": "Tidak dapat memuat riwayat sinyal: {{message}}"
   },
   "speedtest": {
     "section_label": "Tes Kecepatan",
@@ -141,7 +178,24 @@
     "time_just_now": "baru saja",
     "time_minutes_ago": "{{count}} mnt lalu",
     "time_hours_ago": "{{count}} jam lalu",
-    "time_days_ago": "{{count}} hr lalu"
+    "time_days_ago": "{{count}} hr lalu",
+    "step_latency": "Latensi",
+    "step_download": "Unduh",
+    "step_upload": "Unggah",
+    "step_status_done": "selesai",
+    "step_status_active": "sedang berlangsung",
+    "step_status_failed": "gagal",
+    "step_status_pending": "menunggu",
+    "data_cost_notice": "Menggunakan sekitar 300–500 MB data.",
+    "unavailable_title": "Tes kecepatan tidak tersedia",
+    "unavailable_body": "Alat tes kecepatan Ookla tidak dapat diunduh saat QManager dipasang. Pengunduhan akan dicoba ulang secara otomatis pada pembaruan berikutnya.",
+    "servers_error_title": "Tidak dapat memuat server terdekat",
+    "servers_error_body": "Anda tetap dapat menjalankan tes — server terdekat dipilih secara otomatis.",
+    "servers_retry_button": "Coba Lagi",
+    "metric_absent": "Tidak dilaporkan",
+    "failed_during": "Gagal saat {{step}}",
+    "close_aria": "Tutup",
+    "server_option": "{{name}} — {{location}}, {{country}}"
   },
   "scc": {
     "title": "Carrier Sekunder",
@@ -201,7 +255,16 @@
       "config_restore_completed": "Pemulihan Selesai",
       "lan_address_changed": "Alamat LAN Diubah",
       "apn_reapplied": "APN Dipulihkan",
-      "apn_reapply_failed": "Pemulihan APN Gagal"
+      "apn_reapply_failed": "Pemulihan APN Gagal",
+      "tower_failover": "Failover Penguncian Tower"
+    },
+    "description": "Apa yang dilakukan radio, terbaru dulu, dan apakah ada yang belum teratasi.",
+    "error_title": "Tidak dapat memuat peristiwa",
+    "error_description": "{{message}}",
+    "chip": {
+      "quiet": "Semua aman",
+      "unresolved_one": "{{count}} belum tuntas",
+      "unresolved_other": "{{count}} belum tuntas"
     }
   },
   "latencyMonitor": {
@@ -350,5 +413,38 @@
     "empty_action": "Buka Kualitas Koneksi",
     "error_title": "Modem tidak dapat dijangkau",
     "error_description": "Status modem tidak dapat dibaca, jadi belum ada data kualitas yang bisa ditampilkan."
+  },
+  "page": {
+    "title": "Dasbor",
+    "description": "Tampilan langsung modem Anda: terhubung ke apa, seberapa kuat sinyalnya, dan apa yang berubah baru-baru ini."
+  },
+  "ca": {
+    "title": "Agregasi Carrier",
+    "description": "Carrier komponen yang aktif dan lebar pita kontribusi masing-masing.",
+    "aggregated": "MHz teragregasi",
+    "bandwidth": "MHz lebar pita",
+    "bw_unknown": "— MHz",
+    "empty_title": "Tidak ada data carrier",
+    "empty_description": "Modem tidak melaporkan carrier komponen saat ini.",
+    "segment_label": "{{band}}, {{role}}, {{bw}} MHz",
+    "released_moments": "Baru saja dilepas",
+    "released_minutes_one": "Dilepas {{count}} mnt lalu",
+    "released_minutes_other": "Dilepas {{count}} mnt lalu",
+    "status": {
+      "both": "NR-CA + LTE-CA aktif",
+      "nr_ca": "NR-CA aktif",
+      "lte_ca": "LTE-CA aktif",
+      "endc_lte_ca": "EN-DC + LTE-CA aktif",
+      "endc": "EN-DC aktif",
+      "none": "Tanpa agregasi",
+      "released_one": "{{count}} carrier dilepas",
+      "released_other": "{{count}} carrier dilepas"
+    },
+    "role": {
+      "pcc": "{{tech}} PCC",
+      "anchor": "Anchor NR",
+      "scc": "{{tech}} SCC",
+      "released": "Dilepas"
+    }
   }
 }

@@ -34,7 +34,22 @@
     "internet_offline": "Offline",
     "internet_unstable": "Unstable",
     "sim_label": "SIM {{slot}}",
-    "no_carrier": "No Carrier"
+    "no_carrier": "No Carrier",
+    "description": "What the modem is connected to right now.",
+    "description_unreachable": "The last poll did not return.",
+    "unreachable": "Modem unreachable",
+    "sim_generic": "SIM",
+    "radio_unknown": "Radio Unknown",
+    "internet_unreachable": "No Reply",
+    "internet_degraded": "Unstable",
+    "internet_recovering": "Recovering",
+    "internet_unknown": "Not Measured",
+    "internet_tooltip": {
+      "no_reply": "No reply to the connectivity ping. Some carriers block these probes, so the connection may still be working.",
+      "degraded": "Pings are getting through, but packet loss has reached the loss threshold set in Connection Quality.",
+      "recovery": "The connection watchdog is restoring the link. Readings stay unreliable until it finishes.",
+      "unknown": "The connectivity probe is not reporting, so nothing is known about internet reachability right now."
+    }
   },
   "device_status": {
     "title": "Device Information",
@@ -49,7 +64,15 @@
     "iccid": "ICCID",
     "device_imei": "Device IMEI",
     "active_mimo": "Active MIMO",
-    "qmanager_version": "QManager Version"
+    "qmanager_version": "QManager Version",
+    "description": "Hardware identity, firmware, and uptime.",
+    "manufacturer": "Manufacturer",
+    "conn_uptime_short": "Conn. Uptime",
+    "device_uptime_short": "Device Uptime",
+    "conn_uptime_caption_up": "Link up",
+    "conn_uptime_caption_down": "Link down",
+    "device_uptime_caption": "Since last boot",
+    "uptime_unknown": "Not reachable"
   },
   "metrics": {
     "title": "Device Metrics",
@@ -65,7 +88,8 @@
     "ta_unavailable": "Timing Advance value is not available.",
     "connection_uptime": "Connection Uptime",
     "device_uptime": "Device Uptime",
-    "more_info_aria": "More info"
+    "more_info_aria": "More info",
+    "description": "Onboard health, the cumulative data counter, and the distance to each serving cell."
   },
   "signal_status": {
     "lte_primary_title": "4G Primary Status",
@@ -87,7 +111,14 @@
     "searching": "Searching",
     "limited_service": "Limited Service",
     "inactive": "Inactive",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "description": "Primary component carrier",
+    "quality_excellent": "Excellent",
+    "quality_good": "Good",
+    "quality_fair": "Fair",
+    "quality_poor": "Poor",
+    "quality_bad": "Very weak",
+    "quality_none": "No reading"
   },
   "signal_history": {
     "title": "Signal Quality Monitor",
@@ -98,7 +129,13 @@
     "loading_message": "Loading signal history…",
     "no_data_message": "No signal history available yet. Data will appear after ~10 seconds.",
     "chart_description": "This chart shows the {{signal_type}} signal strength over recent history.",
-    "fluctuation_note": "Values may fluctuate due to environmental factors and network conditions."
+    "fluctuation_note": "Values may fluctuate due to environmental factors and network conditions.",
+    "description": "How the 4G and 5G legs have moved recently — enough history to tell a dip from a trend.",
+    "legend_lte": "LTE",
+    "legend_nr": "5G",
+    "trend_heading": "{{metric}} trend over recent history, in {{unit}}",
+    "error_title": "Signal history unavailable",
+    "error_description": "Couldn't load signal history: {{message}}"
   },
   "speedtest": {
     "section_label": "Speed Test",
@@ -141,7 +178,24 @@
     "time_just_now": "just now",
     "time_minutes_ago": "{{count}} min ago",
     "time_hours_ago": "{{count}} hr ago",
-    "time_days_ago": "{{count}} d ago"
+    "time_days_ago": "{{count}} d ago",
+    "step_latency": "Latency",
+    "step_download": "Download",
+    "step_upload": "Upload",
+    "step_status_done": "completed",
+    "step_status_active": "in progress",
+    "step_status_failed": "failed",
+    "step_status_pending": "pending",
+    "data_cost_notice": "Uses roughly 300–500 MB of data.",
+    "unavailable_title": "Speed test unavailable",
+    "unavailable_body": "The Ookla speed test tool couldn't be downloaded when QManager was installed. It will be retried automatically on the next update.",
+    "servers_error_title": "Couldn't load nearby servers",
+    "servers_error_body": "You can still run the test — the nearest server is picked automatically.",
+    "servers_retry_button": "Retry",
+    "metric_absent": "Not reported",
+    "failed_during": "Failed during {{step}}",
+    "close_aria": "Close",
+    "server_option": "{{name}} — {{location}}, {{country}}"
   },
   "scc": {
     "title": "Secondary Carriers",
@@ -201,7 +255,16 @@
       "config_restore_completed": "Restore Completed",
       "lan_address_changed": "LAN Address Changed",
       "apn_reapplied": "APN Restored",
-      "apn_reapply_failed": "APN Restore Failed"
+      "apn_reapply_failed": "APN Restore Failed",
+      "tower_failover": "Tower Lock Failover"
+    },
+    "description": "What the radio did, newest first, and whether anything is still unresolved.",
+    "error_title": "Couldn't load events",
+    "error_description": "{{message}}",
+    "chip": {
+      "quiet": "All clear",
+      "unresolved_one": "{{count}} unresolved",
+      "unresolved_other": "{{count}} unresolved"
     }
   },
   "latencyMonitor": {
@@ -350,5 +413,38 @@
     "empty_action": "Open Connection Quality",
     "error_title": "Can't reach the modem",
     "error_description": "The modem's status couldn't be read, so there is no quality reading to show."
+  },
+  "page": {
+    "title": "Dashboard",
+    "description": "A live view of your modem: what it's connected to, how strong the link is, and what's changed."
+  },
+  "ca": {
+    "title": "Carrier Aggregation",
+    "description": "Component carriers on air, and the bandwidth each contributes.",
+    "aggregated": "MHz aggregated",
+    "bandwidth": "MHz bandwidth",
+    "bw_unknown": "— MHz",
+    "empty_title": "No carrier data",
+    "empty_description": "The modem is not reporting any component carriers right now.",
+    "segment_label": "{{band}}, {{role}}, {{bw}} MHz",
+    "released_moments": "Released moments ago",
+    "released_minutes_one": "Released {{count}} min ago",
+    "released_minutes_other": "Released {{count}} min ago",
+    "status": {
+      "both": "NR-CA + LTE-CA active",
+      "nr_ca": "NR-CA active",
+      "lte_ca": "LTE-CA active",
+      "endc_lte_ca": "EN-DC + LTE-CA active",
+      "endc": "EN-DC active",
+      "none": "No aggregation",
+      "released_one": "{{count}} carrier released",
+      "released_other": "{{count}} carriers released"
+    },
+    "role": {
+      "pcc": "{{tech}} PCC",
+      "anchor": "NR Anchor",
+      "scc": "{{tech}} SCC",
+      "released": "Released"
+    }
   }
 }

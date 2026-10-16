@@ -226,6 +226,8 @@ export interface DeviceStatus {
   firmware: string;
   /** Firmware build date, e.g. "Jun 25 2025" (from AT+CVERSION) */
   build_date: string;
+  /** Modem manufacturer, e.g. "Quectel" (the "Authors:" line of ATI) */
+  manufacturer: string;
   /** Modem model name, e.g. "RM551E-GL" (from AT+CGMM) */
   model: string;
   /** Device IMEI (15-digit) */
