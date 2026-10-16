@@ -37,10 +37,15 @@ PID_FILE="/tmp/qmanager_neighbour_scan.pid"
 RESULT_FILE="/tmp/qmanager_neighbour_scan_result.json"
 ERROR_FILE="/tmp/qmanager_neighbour_scan_error"
 PARSED_FILE="/tmp/qmanager_neighbour_scan_parsed.tmp"
+# Per-leg stderr: qcmd prints "ERROR: <code>" there on failure, and
+# modem_busy / scan_in_progress (another AT user holds the modem) must read
+# differently from a real AT failure.
+LTE_ERR_FILE="/tmp/qmanager_neighbour_scan_lte_err.tmp"
+NR_ERR_FILE="/tmp/qmanager_neighbour_scan_nr_err.tmp"
 
 # --- Cleanup on exit ---------------------------------------------------------
 cleanup() {
-    rm -f "$PID_FILE" "$PARSED_FILE"
+    rm -f "$PID_FILE" "$PARSED_FILE" "$LTE_ERR_FILE" "$NR_ERR_FILE"
 }
 trap cleanup EXIT INT TERM
 
@@ -57,7 +62,7 @@ qlog_info "Neighbour scanner started (PID: $$)"
 #   +QENG: "neighbourcell intra","LTE",<earfcn>,<pcid>,<rsrq>,<rsrp>,<rssi>,<sinr>,<srxlev>,<cell_resel_priority>,<s_non_intra_search>,<thresh_serving_low>,<s_intra_search>
 #   +QENG: "neighbourcell inter","LTE",<earfcn>,<pcid>,<rsrq>,<rsrp>,<rssi>,<sinr>,<srxlev>,<cell_resel_priority>,<threshX_low>,<threshX_high>
 
-lte_output=$(qcmd 'AT+QENG="neighbourcell"')
+lte_output=$(qcmd 'AT+QENG="neighbourcell"' 2>"$LTE_ERR_FILE")
 lte_rc=$?
 
 : > "$PARSED_FILE"
@@ -119,7 +124,7 @@ qcmd 'AT+QNWCFG="nr5g_meas_info",1' >/dev/null 2>&1
 # Brief pause to allow measurement data to populate
 sleep 1
 
-nr_output=$(qcmd 'AT+QNWCFG="nr5g_meas_info"')
+nr_output=$(qcmd 'AT+QNWCFG="nr5g_meas_info"' 2>"$NR_ERR_FILE")
 nr_rc=$?
 
 if [ $nr_rc -ne 0 ]; then
@@ -161,11 +166,40 @@ fi
 # =============================================================================
 # STEP 3: Check if any data was parsed
 # =============================================================================
+# leg_busy <rc> <err_file>: the leg failed because another AT user held the
+# modem, not because the command errored.
+leg_busy() {
+    [ "$1" -ne 0 ] && grep -q -e 'modem_busy' -e 'scan_in_progress' "$2" 2>/dev/null
+}
+
 if [ ! -s "$PARSED_FILE" ]; then
     # Check if both commands failed entirely
     if [ $lte_rc -ne 0 ] && [ $nr_rc -ne 0 ]; then
-        qlog_error "Both neighbour cell queries failed"
-        echo "Both AT commands failed" > "$ERROR_FILE"
+        if leg_busy "$lte_rc" "$LTE_ERR_FILE" || leg_busy "$nr_rc" "$NR_ERR_FILE"; then
+            qlog_error "Neighbour scan: modem busy on both legs"
+            echo "The modem is busy with another operation. Wait a moment and try again." > "$ERROR_FILE"
+        else
+            qlog_error "Both neighbour cell queries failed"
+            echo "Both AT commands failed" > "$ERROR_FILE"
+        fi
+        exit 1
+    fi
+
+    # One leg failed and the other found nothing: "complete, 0 cells" would
+    # look authoritative while half the read never ran. Report an error.
+    if [ $lte_rc -ne 0 ] || [ $nr_rc -ne 0 ]; then
+        if [ $lte_rc -ne 0 ]; then
+            failed_leg="LTE"; failed_rc="$lte_rc"; failed_err="$LTE_ERR_FILE"
+        else
+            failed_leg="NR5G"; failed_rc="$nr_rc"; failed_err="$NR_ERR_FILE"
+        fi
+        if leg_busy "$failed_rc" "$failed_err"; then
+            qlog_warn "Neighbour scan: $failed_leg leg blocked by a busy modem, other leg found no cells"
+            echo "The modem was busy during the $failed_leg read. Results are incomplete, try again." > "$ERROR_FILE"
+        else
+            qlog_warn "Neighbour scan: $failed_leg leg failed, other leg found no cells"
+            echo "The $failed_leg neighbour read failed. Results are incomplete, try again." > "$ERROR_FILE"
+        fi
         exit 1
     fi
 

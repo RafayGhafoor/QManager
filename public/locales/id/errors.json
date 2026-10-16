@@ -128,6 +128,7 @@
   "not_configured": "Layanan belum dikonfigurasi",
   "not_found": "Item yang diminta tidak ditemukan",
   "not_installed": "Layanan yang diperlukan tidak terinstal",
+  "other_scan_running": "Pemindaian lain sedang menggunakan modem. Tunggu hingga selesai, lalu coba lagi.",
   "other_vpn_installed": "Layanan VPN lain sudah terinstal",
   "parse_failed": "Gagal menguraikan respons perintah",
   "partial_apply": "Profil diterapkan dengan beberapa langkah gagal — periksa progres penerapan untuk detailnya",

@@ -36,17 +36,20 @@ if [ -f "$PID_FILE" ]; then
     rm -f "$PID_FILE"
 fi
 
-# --- Check: error file present? ----------------------------------------------
-if [ -f "$ERROR_FILE" ]; then
-    ERR_MSG=$(cat "$ERROR_FILE" 2>/dev/null | head -1)
-    rm -f "$ERROR_FILE"
-    jq -n --arg msg "$ERR_MSG" '{"status":"error","message":$msg}'
-    exit 0
-fi
-
 # --- Check: result file present? ---------------------------------------------
 if [ -f "$RESULT_FILE" ]; then
     jq -n --slurpfile results "$RESULT_FILE" '{"status":"complete","results":$results[0]}'
+    exit 0
+fi
+
+# --- Check: error file present? ----------------------------------------------
+# Read-only: a GET must not consume the error, or one lost poll drops it and
+# the page falls back to idle. The start CGI and the worker clear it.
+# Checked AFTER the result: if a stray older error and a newer result both
+# exist, the result wins (a real failure always removes the result first).
+if [ -f "$ERROR_FILE" ]; then
+    ERR_MSG=$(cat "$ERROR_FILE" 2>/dev/null | head -1)
+    jq -n --arg msg "$ERR_MSG" '{"status":"error","message":$msg}'
     exit 0
 fi
 

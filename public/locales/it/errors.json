@@ -123,6 +123,7 @@
   "not_configured": "Il servizio non è ancora configurato",
   "not_found": "Articolo richiesto non trovato",
   "not_installed": "Il servizio richiesto non è installato",
+  "other_scan_running": "Un'altra scansione sta usando il modem. Attendi che finisca, poi riprova.",
   "other_vpn_installed": "Un altro servizio VPN è già installato",
   "parse_failed": "Impossibile analizzare la risposta al comando",
   "partial_apply": "Profilo applicato con alcuni passaggi non riusciti — controlla il progresso di applicazione per i dettagli",
