@@ -1,9 +1,7 @@
-import EthernetStatusComponent from '@/components/local-network/ethernet-status'
+import EthernetStatusComponent from "@/components/local-network/ethernet/ethernet-status";
 
 const EthernetStatusPage = () => {
-  return (
-    <EthernetStatusComponent/>
-  )
-}
+  return <EthernetStatusComponent />;
+};
 
-export default EthernetStatusPage
+export default EthernetStatusPage;

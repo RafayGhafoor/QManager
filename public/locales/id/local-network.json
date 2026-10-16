@@ -84,35 +84,75 @@
     "bypass_aria": "Alihkan lewati hotspot (TTL dan hop-limit 64)"
   },
   "ethernet": {
-    "page_title": "Informasi Status Ethernet",
-    "page_description": "Lihat informasi detail tentang status Ethernet perangkat Anda, termasuk status koneksi, kecepatan, dan metrik lainnya.",
-    "card_title": "Status Ethernet",
-    "card_description": "Status link Ethernet saat ini, kecepatan, dan pengaturan duplex.",
-    "error_unable_to_reach": "Tidak dapat menjangkau perangkat",
-    "error_load_failed": "Tidak dapat memuat status Ethernet dari perangkat.",
-    "toast_speed_updated": "Batas kecepatan link diperbarui",
-    "toast_error_set_speed": "Gagal mengatur batas kecepatan link",
-    "aria_refresh": "Muat ulang status Ethernet",
-    "label_link_status": "Status Link",
-    "badge_connected": "Terhubung",
-    "badge_disconnected": "Terputus",
-    "label_auto_negotiation": "Auto-negotiation",
-    "label_active_link_speed": "Kecepatan Link Aktif",
-    "label_set_link_speed": "Atur Kecepatan Link",
-    "aria_set_link_speed": "Atur kecepatan link",
-    "placeholder_link_speed": "Pilih kecepatan link",
-    "select_label_link_speed": "Batas Kecepatan Link",
-    "option_auto_max_speed": "Otomatis (Kecepatan Maks)",
-    "option_speed_10": "10 Mbps",
-    "option_speed_100": "100 Mbps",
-    "option_speed_1000": "1000 Mbps",
-    "option_speed_2500": "2500 Mbps",
-    "label_duplex": "Duplex",
-    "alt_device_icon": "Ikon Perangkat"
+    "page": {
+      "title": "Status Ethernet",
+      "description": "Pantau tautan ethernet, batasi kecepatannya, dan atur gateway LAN.",
+      "refresh": "Muat ulang"
+    },
+    "strip": {
+      "label": "Port ethernet",
+      "unresponsive": "Tidak merespons",
+      "unavailable_title": "Tidak dapat membaca port ethernet",
+      "unavailable_body": "Mencoba lagi setiap 10 detik. Tidak ada yang diubah.",
+      "absent_title": "Tidak ada pengontrol ethernet",
+      "absent_body": "Perangkat ini tidak memiliki port ethernet, jadi tidak ada yang dapat dilaporkan atau dikonfigurasi."
+    },
+    "tiles": {
+      "link": {
+        "label": "Status tautan",
+        "value_up": "Terhubung",
+        "value_down": "Terputus",
+        "value_unknown": "Tidak diketahui",
+        "caption_up": "Kabel terhubung ke port host",
+        "caption_down": "Tidak ada kabel terdeteksi di port host",
+        "caption_unknown": "Menunggu status tautan"
+      },
+      "speed": {
+        "label": "Kecepatan negosiasi",
+        "caption": "Dinogosiasikan dengan perangkat lawan",
+        "caption_ceiling": "Dari {{ceiling}} yang didukung port",
+        "caption_down": "Memerlukan tautan aktif"
+      },
+      "duplex": {
+        "label": "Dupleks",
+        "caption": "Mengirim dan menerima sekaligus",
+        "caption_down": "Memerlukan tautan aktif",
+        "value_full": "Penuh",
+        "value_half": "Setengah"
+      },
+      "negotiation": {
+        "label": "Negosiasi",
+        "value_auto": "Otomatis",
+        "value_forced": "Dipaksa",
+        "value_unknown": "Tidak diketahui",
+        "caption_auto": "Tidak ada batas kecepatan",
+        "caption_limited": "Dibatasi ke {{speed}}"
+      }
+    },
+    "settings": {
+      "title": "Batas kecepatan tautan",
+      "description": "Paksa port ethernet ke kecepatan tetap alih-alih membiarkannya bernegosiasi.",
+      "row_label": "Batas kecepatan",
+      "placeholder": "Pilih kecepatan",
+      "option_auto": "Otomatis (maks)",
+      "option_10": "10 Mbps",
+      "option_100": "100 Mbps",
+      "option_1000": "1 Gbps",
+      "option_2500": "2.5 Gbps",
+      "consequence": "Menerapkan akan memutus tautan beberapa detik saat port bernegosiasi ulang. Anda sedang menggunakan tautan itu.",
+      "consequence_applying": "Tautan terputus saat port bernegosiasi ulang. Halaman ini mengonfirmasi kecepatan baru dengan sendirinya.",
+      "consequence_unresponsive": "Modem berhenti merespons, jadi kontrol ini ditahan sampai pembacaan berhasil berikutnya.",
+      "consequence_unread": "Modem belum merespons, jadi tidak ada yang dapat diubah sampai pembacaan pertama masuk.",
+      "consequence_absent": "Tidak ada port ethernet yang dapat dikonfigurasi di perangkat ini.",
+      "toast_success": "Kecepatan tautan diperbarui",
+      "toast_error": "Gagal mengatur kecepatan tautan",
+      "toast_confirm_error": "Tidak dapat mengonfirmasi kecepatan baru. Periksa tautan.",
+      "apply": "Terapkan kecepatan"
+    }
   },
   "lan_config": {
     "card_title": "Alamat LAN",
-    "card_description": "Atur alamat IP LAN router (gateway yang digunakan perangkat Anda) dan ukuran subnet untuk jaringan br-lan.",
+    "card_description": "Atur alamat IP LAN router (gateway yang digunakan perangkat Anda) dan ukuran jaringan lokal.",
     "label_gateway": "Alamat IP Gateway",
     "help_gateway": "Alamat router itu sendiri di LAN. Perangkat menggunakannya sebagai gateway default.",
     "label_subnet": "Subnet Mask",

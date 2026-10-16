@@ -84,35 +84,75 @@
     "bypass_aria": "切换热点绕过（TTL 和跳数限制 64）"
   },
   "ethernet": {
-    "page_title": "以太网状态信息",
-    "page_description": "查看设备以太网的详细状态信息，包括连接状态、速度及其他相关指标。",
-    "card_title": "以太网状态",
-    "card_description": "当前以太网链路状态、速度和双工设置。",
-    "error_unable_to_reach": "无法连接到设备",
-    "error_load_failed": "无法从设备加载以太网状态。",
-    "toast_speed_updated": "链路速率限制已更新",
-    "toast_error_set_speed": "设置链路速率限制失败",
-    "aria_refresh": "刷新以太网状态",
-    "label_link_status": "链路状态",
-    "badge_connected": "已连接",
-    "badge_disconnected": "未连接",
-    "label_auto_negotiation": "自动协商",
-    "label_active_link_speed": "当前链路速率",
-    "label_set_link_speed": "设置链路速率",
-    "aria_set_link_speed": "设置链路速率",
-    "placeholder_link_speed": "选择链路速率",
-    "select_label_link_speed": "链路速率限制",
-    "option_auto_max_speed": "自动（最大速率）",
-    "option_speed_10": "10 Mbps",
-    "option_speed_100": "100 Mbps",
-    "option_speed_1000": "1000 Mbps",
-    "option_speed_2500": "2500 Mbps",
-    "label_duplex": "双工模式",
-    "alt_device_icon": "设备图标"
+    "page": {
+      "title": "以太网状态",
+      "description": "监控以太网链路、限制其速度并设置 LAN 网关。",
+      "refresh": "刷新"
+    },
+    "strip": {
+      "label": "以太网端口",
+      "unresponsive": "无响应",
+      "unavailable_title": "无法读取以太网端口",
+      "unavailable_body": "每 10 秒重试一次。未做任何更改。",
+      "absent_title": "无以太网控制器",
+      "absent_body": "此设备没有以太网端口，因此没有可报告或配置的内容。"
+    },
+    "tiles": {
+      "link": {
+        "label": "链路状态",
+        "value_up": "已连接",
+        "value_down": "已断开",
+        "value_unknown": "未知",
+        "caption_up": "线缆已连接到主机端口",
+        "caption_down": "未在主机端口检测到线缆",
+        "caption_unknown": "等待链路状态"
+      },
+      "speed": {
+        "label": "协商速率",
+        "caption": "与对端协商确定",
+        "caption_ceiling": "端口最高支持 {{ceiling}}",
+        "caption_down": "需要活动链路"
+      },
+      "duplex": {
+        "label": "双工模式",
+        "caption": "同时收发",
+        "caption_down": "需要活动链路",
+        "value_full": "全双工",
+        "value_half": "半双工"
+      },
+      "negotiation": {
+        "label": "协商模式",
+        "value_auto": "自动",
+        "value_forced": "强制",
+        "value_unknown": "未知",
+        "caption_auto": "未设置速度限制",
+        "caption_limited": "限制为 {{speed}}"
+      }
+    },
+    "settings": {
+      "title": "链路速度限制",
+      "description": "强制以太网端口使用固定速度，而不是自动协商。",
+      "row_label": "速度限制",
+      "placeholder": "选择速度",
+      "option_auto": "自动（最大）",
+      "option_10": "10 Mbps",
+      "option_100": "100 Mbps",
+      "option_1000": "1 Gbps",
+      "option_2500": "2.5 Gbps",
+      "consequence": "应用后链路会中断几秒钟，等待端口重新协商。你正在使用该链路。",
+      "consequence_applying": "端口重新协商期间链路已中断。本页面会自行确认新速度。",
+      "consequence_unresponsive": "调制解调器已停止响应，因此在下一次成功读取前锁定此控件。",
+      "consequence_unread": "调制解调器尚未响应，在首次读取完成前没有可更改的内容。",
+      "consequence_absent": "此设备上没有可配置的以太网端口。",
+      "toast_success": "链路速度已更新",
+      "toast_error": "设置链路速度失败",
+      "toast_confirm_error": "无法确认新速度。请检查链路。",
+      "apply": "应用速度"
+    }
   },
   "lan_config": {
     "card_title": "LAN 地址",
-    "card_description": "设置路由器的 LAN IP 地址（设备所用的网关）以及 br-lan 网络的子网大小。",
+    "card_description": "设置路由器的 LAN IP 地址（设备所用的网关）以及本地网络的大小。",
     "label_gateway": "网关 IP 地址",
     "help_gateway": "路由器在 LAN 上的自身地址。设备将其用作默认网关。",
     "label_subnet": "子网掩码",

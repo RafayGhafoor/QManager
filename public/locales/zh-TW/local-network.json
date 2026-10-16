@@ -84,35 +84,75 @@
     "bypass_aria": "切換熱點繞過（TTL 和跳數限制 64）"
   },
   "ethernet": {
-    "page_title": "乙太網狀態資訊",
-    "page_description": "檢視裝置乙太網的詳細狀態資訊，包括連線狀態、速度及其他相關指標。",
-    "card_title": "乙太網狀態",
-    "card_description": "當前乙太網鏈路狀態、速度和雙工設定。",
-    "error_unable_to_reach": "無法連線到裝置",
-    "error_load_failed": "無法從裝置載入乙太網狀態。",
-    "toast_speed_updated": "鏈路速率限制已更新",
-    "toast_error_set_speed": "設定鏈路速率限制失敗",
-    "aria_refresh": "重新整理乙太網狀態",
-    "label_link_status": "鏈路狀態",
-    "badge_connected": "已連線",
-    "badge_disconnected": "未連線",
-    "label_auto_negotiation": "自動協商",
-    "label_active_link_speed": "當前鏈路速率",
-    "label_set_link_speed": "設定鏈路速率",
-    "aria_set_link_speed": "設定鏈路速率",
-    "placeholder_link_speed": "選擇鏈路速率",
-    "select_label_link_speed": "鏈路速率限制",
-    "option_auto_max_speed": "自動（最大速率）",
-    "option_speed_10": "10 Mbps",
-    "option_speed_100": "100 Mbps",
-    "option_speed_1000": "1000 Mbps",
-    "option_speed_2500": "2500 Mbps",
-    "label_duplex": "雙工模式",
-    "alt_device_icon": "裝置圖示"
+    "page": {
+      "title": "乙太網路狀態",
+      "description": "監控乙太網路鏈路、限制其速度並設定 LAN 閘道。",
+      "refresh": "重新整理"
+    },
+    "strip": {
+      "label": "乙太網路連接埠",
+      "unresponsive": "無回應",
+      "unavailable_title": "無法讀取乙太網路連接埠",
+      "unavailable_body": "每 10 秒重試一次。未做任何變更。",
+      "absent_title": "無乙太網路控制器",
+      "absent_body": "此裝置沒有乙太網路連接埠，因此沒有可回報或設定的內容。"
+    },
+    "tiles": {
+      "link": {
+        "label": "鏈路狀態",
+        "value_up": "已連線",
+        "value_down": "已中斷",
+        "value_unknown": "未知",
+        "caption_up": "纜線已連接到主機連接埠",
+        "caption_down": "未在主機連接埠偵測到纜線",
+        "caption_unknown": "等待鏈路狀態"
+      },
+      "speed": {
+        "label": "協商速率",
+        "caption": "與對端協商決定",
+        "caption_ceiling": "連接埠最高支援 {{ceiling}}",
+        "caption_down": "需要作用中鏈路"
+      },
+      "duplex": {
+        "label": "雙工模式",
+        "caption": "同時收發",
+        "caption_down": "需要作用中鏈路",
+        "value_full": "全雙工",
+        "value_half": "半雙工"
+      },
+      "negotiation": {
+        "label": "協商模式",
+        "value_auto": "自動",
+        "value_forced": "強制",
+        "value_unknown": "未知",
+        "caption_auto": "未設定速度限制",
+        "caption_limited": "限制為 {{speed}}"
+      }
+    },
+    "settings": {
+      "title": "鏈路速度限制",
+      "description": "強制乙太網路連接埠使用固定速度，而不是自動協商。",
+      "row_label": "速度限制",
+      "placeholder": "選擇速度",
+      "option_auto": "自動（最大）",
+      "option_10": "10 Mbps",
+      "option_100": "100 Mbps",
+      "option_1000": "1 Gbps",
+      "option_2500": "2.5 Gbps",
+      "consequence": "套用後鏈路會中斷幾秒鐘，等待連接埠重新協商。你正在使用該鏈路。",
+      "consequence_applying": "連接埠重新協商期間鏈路已中斷。本頁面會自行確認新速度。",
+      "consequence_unresponsive": "數據機已停止回應，因此在下一次成功讀取前鎖定此控制項。",
+      "consequence_unread": "數據機尚未回應，在首次讀取完成前沒有可變更的內容。",
+      "consequence_absent": "此裝置上沒有可設定的乙太網路連接埠。",
+      "toast_success": "鏈路速度已更新",
+      "toast_error": "設定鏈路速度失敗",
+      "toast_confirm_error": "無法確認新速度。請檢查鏈路。",
+      "apply": "套用速度"
+    }
   },
   "lan_config": {
     "card_title": "LAN 地址",
-    "card_description": "設定路由器的 LAN IP 地址（裝置所用的閘道器）以及 br-lan 網路的子網大小。",
+    "card_description": "設定路由器的 LAN IP 地址（裝置所用的閘道器）以及本地網路的大小。",
     "label_gateway": "閘道器 IP 地址",
     "help_gateway": "路由器在 LAN 上的自身地址。裝置將其用作預設閘道器。",
     "label_subnet": "子網掩碼",

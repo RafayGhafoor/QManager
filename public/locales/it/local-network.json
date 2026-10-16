@@ -84,35 +84,75 @@
     "bypass_aria": "Attiva/disattiva aggira hotspot (TTL e hop-limit 64)"
   },
   "ethernet": {
-    "page_title": "Informazioni sullo stato Ethernet",
-    "page_description": "Visualizza informazioni dettagliate sullo stato Ethernet del tuo dispositivo, inclusi stato della connessione, velocità e altri parametri rilevanti.",
-    "card_title": "Stato Ethernet",
-    "card_description": "Stato corrente del collegamento Ethernet, velocità e impostazioni duplex.",
-    "error_unable_to_reach": "Impossibile raggiungere il dispositivo",
-    "error_load_failed": "Impossibile caricare lo stato Ethernet dal dispositivo.",
-    "toast_speed_updated": "Limite di velocità del collegamento aggiornato",
-    "toast_error_set_speed": "Impossibile impostare il limite di velocità del collegamento",
-    "aria_refresh": "Aggiorna lo stato dell'Ethernet",
-    "label_link_status": "Stato del collegamento",
-    "badge_connected": "Connesso",
-    "badge_disconnected": "Disconnesso",
-    "label_auto_negotiation": "Negoziazione automatica",
-    "label_active_link_speed": "Velocità di collegamento attivo",
-    "label_set_link_speed": "Imposta la velocità di collegamento",
-    "aria_set_link_speed": "Imposta la velocità di collegamento",
-    "placeholder_link_speed": "Seleziona una velocità di collegamento",
-    "select_label_link_speed": "Limite di velocità di collegamento",
-    "option_auto_max_speed": "Automatico (velocità massima)",
-    "option_speed_10": "10Mbps",
-    "option_speed_100": "100Mbps",
-    "option_speed_1000": "1000Mbps",
-    "option_speed_2500": "2500Mbps",
-    "label_duplex": "Duplex",
-    "alt_device_icon": "Icona del dispositivo"
+    "page": {
+      "title": "Stato Ethernet",
+      "description": "Controlla il collegamento ethernet, limitane la velocità e imposta il gateway LAN.",
+      "refresh": "Aggiorna"
+    },
+    "strip": {
+      "label": "Porta ethernet",
+      "unresponsive": "Non risponde",
+      "unavailable_title": "Impossibile leggere la porta ethernet",
+      "unavailable_body": "Nuovo tentativo ogni 10 secondi. Nulla è stato modificato.",
+      "absent_title": "Nessun controller ethernet",
+      "absent_body": "Questo dispositivo non ha una porta ethernet, quindi non c'è nulla da segnalare o configurare."
+    },
+    "tiles": {
+      "link": {
+        "label": "Stato collegamento",
+        "value_up": "Connesso",
+        "value_down": "Disconnesso",
+        "value_unknown": "Sconosciuto",
+        "caption_up": "Cavo collegato alla porta host",
+        "caption_down": "Nessun cavo rilevato sulla porta host",
+        "caption_unknown": "In attesa dello stato del collegamento"
+      },
+      "speed": {
+        "label": "Velocità negoziata",
+        "caption": "Negoziata con il peer",
+        "caption_ceiling": "Su {{ceiling}} supportati dalla porta",
+        "caption_down": "Richiede un collegamento attivo"
+      },
+      "duplex": {
+        "label": "Duplex",
+        "caption": "Trasmette e riceve contemporaneamente",
+        "caption_down": "Richiede un collegamento attivo",
+        "value_full": "Completo",
+        "value_half": "Semi"
+      },
+      "negotiation": {
+        "label": "Negoziazione",
+        "value_auto": "Automatica",
+        "value_forced": "Forzata",
+        "value_unknown": "Sconosciuta",
+        "caption_auto": "Nessun limite di velocità impostato",
+        "caption_limited": "Limitata a {{speed}}"
+      }
+    },
+    "settings": {
+      "title": "Limite velocità collegamento",
+      "description": "Forza la porta ethernet a una velocità fissa invece di lasciarla negoziare.",
+      "row_label": "Limite velocità",
+      "placeholder": "Seleziona velocità",
+      "option_auto": "Auto (max)",
+      "option_10": "10 Mbps",
+      "option_100": "100 Mbps",
+      "option_1000": "1 Gbps",
+      "option_2500": "2.5 Gbps",
+      "consequence": "L'applicazione interrompe il collegamento per alcuni secondi mentre la porta rinegozia. Tu sei su quel collegamento.",
+      "consequence_applying": "Il collegamento è interrotto mentre la porta rinegozia. Questa pagina conferma da sola la nuova velocità.",
+      "consequence_unresponsive": "Il modem ha smesso di rispondere, quindi questo controllo resta bloccato fino alla prossima lettura riuscita.",
+      "consequence_unread": "Il modem non ha ancora risposto, quindi non c'è nulla da modificare finché non arriva la prima lettura.",
+      "consequence_absent": "Su questo dispositivo non c'è alcuna porta ethernet da configurare.",
+      "toast_success": "Velocità collegamento aggiornata",
+      "toast_error": "Impossibile impostare la velocità del collegamento",
+      "toast_confirm_error": "Impossibile confermare la nuova velocità. Controlla il collegamento.",
+      "apply": "Applica velocità"
+    }
   },
   "lan_config": {
     "card_title": "Indirizzo LAN",
-    "card_description": "Imposta l'indirizzo IP LAN del router (il gateway usato dai tuoi dispositivi) e la dimensione della sottorete per la rete br-lan.",
+    "card_description": "Imposta l'indirizzo IP LAN del router (il gateway usato dai tuoi dispositivi) e la dimensione della rete locale.",
     "label_gateway": "Indirizzo IP Gateway",
     "help_gateway": "L'indirizzo del router sulla LAN. I dispositivi lo usano come gateway predefinito.",
     "label_subnet": "Maschera di Sottorete",
