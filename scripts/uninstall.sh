@@ -12,7 +12,7 @@
 #
 # What it removes:
 #   - All init.d qmanager* services (stops, disables, deletes)
-#   - All qmanager_* daemons + qcmd + atcli_smd11 + sms_tool + nfqws
+#   - All qmanager_* daemons (incl. the qmanager_atd AT broker) + qcmd link + qcmd.sh + atcli_smd11 + sms_tool + nfqws
 #     + legacy cleanup of the retired WebSocket bandwidth monitor
 #       (bridge_traffic_monitor_rm551 binary, websocat process) on older devices
 #   - /usr/lib/qmanager/ (entire tree)
@@ -274,13 +274,27 @@ remove_services() {
 remove_backend() {
     step "Removing backend files"
 
+    # --- Host AT ports: hand the vendor port-bridge back as stock ---
+    # Only when QManager turned it off (quecmanager.ports.host_at=0); a bridge
+    # the user disabled outside QManager is left alone. Must run before the
+    # quecmanager UCI namespace is deleted below.
+    if [ "$(uci -q get quecmanager.ports.host_at 2>/dev/null)" = "0" ] \
+        && [ -x /etc/init.d/port-bridged ]; then
+        /etc/init.d/port-bridged enable 2>/dev/null || true
+        /etc/init.d/port-bridged start 2>/dev/null || true
+        info "Re-enabled host AT ports (port-bridged)"
+    fi
+
     # --- Binaries in /usr/bin/ ---
     local bin_count=0
 
-    if [ -f "$BIN_DIR/qcmd" ]; then
+    # /usr/bin/qcmd is a symlink to qmanager_atd or qcmd.sh; -L also catches a
+    # dangling link whose target is already gone.
+    if [ -f "$BIN_DIR/qcmd" ] || [ -L "$BIN_DIR/qcmd" ]; then
         rm -f "$BIN_DIR/qcmd"
         bin_count=$(( bin_count + 1 ))
     fi
+    rm -f /var/run/qmanager_atd.sock "$BIN_DIR"/.qcmd.* 2>/dev/null || true
 
     for f in "$BIN_DIR"/qmanager_*; do
         [ -f "$f" ] || continue
@@ -288,7 +302,7 @@ remove_backend() {
         bin_count=$(( bin_count + 1 ))
     done
 
-    for extra in atcli_smd11 sms_tool bridge_traffic_monitor_rm551 nfqws; do
+    for extra in qcmd.sh atcli_smd11 sms_tool bridge_traffic_monitor_rm551 nfqws; do
         if [ -f "$BIN_DIR/$extra" ]; then
             rm -f "$BIN_DIR/$extra"
             bin_count=$(( bin_count + 1 ))

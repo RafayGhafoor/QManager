@@ -1,7 +1,12 @@
 #!/bin/sh
 # =============================================================================
-# qcmd — QManager Gatekeeper
+# qcmd.sh — QManager Gatekeeper (LEGACY engine)
 # =============================================================================
+# /usr/bin/qcmd is a symlink managed by at_engine.sh: it points at the Rust AT
+# broker (/usr/bin/qmanager_atd) by default, or at this script when the user
+# selects the legacy engine (UCI quecmanager.at.engine=legacy). Kept for
+# rollback; behaviour and output contract are identical.
+#
 # The SINGLE entry point for ALL AT command execution.
 # Uses flock to serialize access to the modem and atcli_smd11 to talk to
 # /dev/smd11 directly.

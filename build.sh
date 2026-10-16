@@ -23,6 +23,7 @@ fail() { printf "${RED}[%s] ERROR:${NC} %s\n" "$(date +%H:%M:%S)" "$1"; exit 1; 
 [ -d "$DEPS_DIR" ] || fail "'dependencies/' not found at repo root"
 [ -f "$DEPS_DIR/atcli_smd11" ] || fail "Missing required binary: dependencies/atcli_smd11"
 [ -f "$DEPS_DIR/sms_tool" ] || fail "Missing required binary: dependencies/sms_tool"
+[ -f "$DEPS_DIR/qmanager_atd" ] || fail "Missing required binary: dependencies/qmanager_atd (build: native/qmanager_atd, see dependencies/README.md)"
 
 step "Preparing staging directory..."
 mkdir -p "$BUILD_DIR"
@@ -127,7 +128,8 @@ step "Copying bundled binaries (dependencies/)..."
 mkdir -p "$STAGING_DIR/dependencies"
 cp "$DEPS_DIR/atcli_smd11" "$STAGING_DIR/dependencies/atcli_smd11"
 cp "$DEPS_DIR/sms_tool" "$STAGING_DIR/dependencies/sms_tool"
-chmod 755 "$STAGING_DIR/dependencies/atcli_smd11" "$STAGING_DIR/dependencies/sms_tool"
+cp "$DEPS_DIR/qmanager_atd" "$STAGING_DIR/dependencies/qmanager_atd"
+chmod 755 "$STAGING_DIR/dependencies/atcli_smd11" "$STAGING_DIR/dependencies/sms_tool" "$STAGING_DIR/dependencies/qmanager_atd"
 
 step "Creating qmanager.tar.gz..."
 tar czf "$ARCHIVE" -C "$BUILD_DIR" qmanager_install

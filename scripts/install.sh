@@ -24,7 +24,7 @@
 #     usr/bin/                  Daemons and utilities (qmanager_*, qcmd, ...)
 #     usr/lib/qmanager/         Shared shell libraries
 #     www/cgi-bin/quecmanager/  CGI API endpoints
-#   dependencies/               Bundled binaries (atcli_smd11, sms_tool)
+#   dependencies/               Bundled binaries (atcli_smd11, sms_tool, qmanager_atd)
 #   install.sh                  This script
 #
 # Usage:
@@ -1013,7 +1013,43 @@ seed_uci_defaults() {
         info "Removed retired quecmanager.call_forwarding section"
     fi
 
+    # AT engine — Rust broker by default; legacy qcmd.sh stays installed for
+    # rollback. Preserve an existing choice on upgrade.
+    if ! uci -q get quecmanager.at >/dev/null 2>&1; then
+        uci set quecmanager.at=at
+    fi
+    if ! uci -q get quecmanager.at.engine >/dev/null 2>&1; then
+        uci set quecmanager.at.engine=broker
+        info "Seeded quecmanager.at.engine=broker"
+    else
+        info "quecmanager.at.engine already set — preserving user choice"
+    fi
+
+    # Host AT ports (vendor port-bridge) — on by default, matching stock firmware.
+    if ! uci -q get quecmanager.ports >/dev/null 2>&1; then
+        uci set quecmanager.ports=ports
+    fi
+    if ! uci -q get quecmanager.ports.host_at >/dev/null 2>&1; then
+        uci set quecmanager.ports.host_at=1
+        info "Seeded quecmanager.ports.host_at=1 (on by default)"
+    else
+        info "quecmanager.ports.host_at already set — preserving user choice"
+    fi
+
     uci commit quecmanager 2>/dev/null || warn "uci commit quecmanager failed"
+
+    # Point /usr/bin/qcmd at the configured engine (atomic symlink swap). Must
+    # run after install_backend + install_bundled_binaries and the seed above.
+    if [ -f "$LIB_DIR/at_engine.sh" ]; then
+        . "$LIB_DIR/at_engine.sh"
+        if at_engine_link; then
+            info "qcmd -> $(readlink "$BIN_DIR/qcmd" 2>/dev/null) (engine: $(at_engine_effective))"
+        else
+            warn "Could not repoint $BIN_DIR/qcmd — AT commands may be unavailable"
+        fi
+    else
+        warn "at_engine.sh missing — /usr/bin/qcmd not repointed"
+    fi
 }
 
 enable_services() {
@@ -1054,6 +1090,14 @@ enable_services() {
 
 start_services() {
     step "Starting QManager services"
+
+    # AT broker first (boot order START=98 before qmanager's 99), so the poller's
+    # first AT call goes through it. qcmd works without it (in-process fallback).
+    if [ -x "$INITD_DIR/qmanager_atd" ]; then
+        "$INITD_DIR/qmanager_atd" start >>"$LOG_FILE" 2>&1 \
+            || warn "Failed to start AT broker (qcmd falls back to in-process)"
+        info "Started AT broker"
+    fi
 
     if [ -x "$INITD_DIR/qmanager" ]; then
         "$INITD_DIR/qmanager" start >>"$LOG_FILE" 2>&1 \
@@ -1233,11 +1277,13 @@ install_backend() {
 }
 
 install_bundled_binaries() {
-    step "Installing bundled binaries (atcli_smd11, sms_tool)"
+    step "Installing bundled binaries (atcli_smd11, sms_tool, qmanager_atd)"
 
     [ -d "$SRC_DEPS" ] || die "Bundled dependencies not found: $SRC_DEPS"
 
-    for bin in atcli_smd11 sms_tool; do
+    # qmanager_atd is the Rust AT broker. /usr/bin/qcmd becomes a symlink to it
+    # (or to the legacy qcmd.sh) in seed_uci_defaults, after UCI is seeded.
+    for bin in atcli_smd11 sms_tool qmanager_atd; do
         local src="$SRC_DEPS/$bin"
         local dst="$BIN_DIR/$bin"
 
@@ -1567,6 +1613,9 @@ cleanup_legacy_scripts() {
         [ -f "$f" ] || continue
         fname="$(basename "$f")"
         [ -f "$SRC_SCRIPTS/usr/bin/$fname" ] && continue
+        # Not legacy: qmanager_atd ships from dependencies/, and /usr/bin/qcmd
+        # is the engine symlink that seed_uci_defaults repoints.
+        case "$fname" in qmanager_atd|qcmd) continue ;; esac
         rm -f "$f"
         info "  Removed legacy daemon: $fname"
         removed=$(( removed + 1 ))

@@ -10,3 +10,4 @@ scripts/usr/bin/* text eol=lf
 # Bundled prebuilt binaries (committed directly):
 dependencies/sms_tool binary
 dependencies/atcli_smd11 binary
+dependencies/qmanager_atd binary
