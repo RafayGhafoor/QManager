@@ -90,6 +90,20 @@ if ! scenario_is_known "$TARGET"; then
     scenario_is_known "$TARGET" || TARGET="balanced"
 fi
 
+# --- Minute leg: the fire must be the transition that is in effect now --------
+# The guard above cannot check a minute (no single HH:MM), so a forward clock
+# step after the 300 s uptime floor made crond run every crossed transition,
+# oldest first, and the last one to finish won. Apply only when the timeline
+# resolves "now" to this target: of the crossed fires, exactly the current
+# block's own transition matches, and an on-time fire always does.
+NOW_TARGET=$(scenario_block_for_now "$ACTIVE_PROFILE")
+# A block naming a deleted scenario cannot be compared; the fallback above rules.
+[ -n "$NOW_TARGET" ] && ! scenario_is_known "$NOW_TARGET" && NOW_TARGET=""
+if [ -n "$NOW_TARGET" ] && [ "$NOW_TARGET" != "$TARGET" ]; then
+    qlog_warn "Scenario transition '$TARGET' skipped: the schedule resolves now to '$NOW_TARGET' (late or catch-up fire)"
+    exit 0
+fi
+
 qlog_info "Scheduled scenario transition → '$TARGET' (profile $ACTIVE_PROFILE)"
 scenario_apply "$TARGET"
 

@@ -40,6 +40,32 @@ days=$(uci -q get quecmanager.settings.low_power_days 2>/dev/null)
 [ -z "$days" ] && days="0,1,2,3,4,5,6"
 
 # ---------------------------------------------------------------------------
+# Wait for a trusted wall clock (issue #9 follow-up, ledger B5.2)
+# ---------------------------------------------------------------------------
+# At boot the clock is the stale sysfixtime value (newest /etc mtime) until
+# time_daemon / sysntpd step it, so deciding at once could enter low power
+# outside the window or clear the flags inside it. Wait for the same legs the
+# cron guard uses (year >= 2025 AND uptime >= 300 s), up to SETTLE_MAX_SECS.
+# If they never hold, leave the radio and the flags as they are: staying
+# online is the safe direction, and the cron enter/exit jobs take over.
+SETTLE_MAX_SECS=900
+if [ -f /usr/lib/qmanager/schedule_guard.sh ]; then
+    . /usr/lib/qmanager/schedule_guard.sh
+    waited=0
+    while ! { _qm_clock_sane && _qm_boot_settled; }; do
+        if [ "$waited" -ge "$SETTLE_MAX_SECS" ]; then
+            qlog_info "Low power boot check skipped: clock not trusted after ${waited}s (year $_qm_seen_year, uptime ${_qm_seen_uptime}s)"
+            exit 0
+        fi
+        sleep 10
+        waited=$((waited + 10))
+    done
+else
+    qlog_info "Low power boot check skipped: schedule_guard.sh missing, failing closed"
+    exit 0
+fi
+
+# ---------------------------------------------------------------------------
 # Check if today is an active day
 # ---------------------------------------------------------------------------
 current_dow=$(date +%w)
@@ -97,11 +123,19 @@ if [ "$inside" = "true" ]; then
     date +%s > "$STATE_FILE"
     touch "$WATCHCAT_LOCK"
 
-    # Wait for modem to fully initialize after boot
-    sleep 30
-
-    # Disable modem radio
-    qcmd 'AT+CFUN=0'
+    # Disable modem radio (uptime >= 300 s by now, so the modem is up).
+    # rc!=0 or an empty reply is a transport failure; ERROR is the modem's no.
+    result=$(qcmd 'AT+CFUN=0' 2>/dev/null)
+    rc=$?
+    case "$rc:$result" in
+        0:*ERROR*|0:|[!0]*)
+            # Don't claim low power with the radio still on: clear the flags so
+            # the watchdog and poller run normally until the next scheduled enter.
+            qlog_info "Low power re-entry failed (rc=$rc), leaving the radio on"
+            rm -f "$STATE_FILE" "$WATCHCAT_LOCK"
+            exit 0
+            ;;
+    esac
 
     qlog_info "Low power mode re-established after boot"
 else
