@@ -168,5 +168,9 @@
   "job_running": "診斷正在執行，請等待其完成",
   "runner_missing": "未安裝健康檢查程式",
   "bundle_not_found": "本次執行的支援包已不在裝置上",
-  "clear_failed": "無法刪除診斷結果"
+  "clear_failed": "無法刪除診斷結果",
+  "invalid_range": "未知的時間範圍",
+  "disabled": "監控已關閉",
+  "flag_failed": "無法開始檢查",
+  "invalid_field": "某項設定的值無效"
 }

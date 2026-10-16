@@ -121,7 +121,7 @@ constants/                      # Static configuration data
 | `/monitoring` | (redirect) | Client-side redirect to `/monitoring/events` |
 | `/monitoring/events` | NetworkEvents | Event log |
 | `/monitoring/connection-quality` | ConnectionQuality | Ping profile + quality thresholds |
-| `/monitoring/latency` | LatencyMonitoring | Real-time + history charts |
+| `/monitoring/latency` | LatencyMonitoring | Right now + History cards, Sites card (per-site latency, live Now); see `docs/reference/latency-monitor.md` |
 | `/monitoring/alerts` | Alerts | Centralized SMS + email connection alerts (routing matrix + capability, readiness status, merged log) |
 | `/monitoring/watchdog` | Watchdog | Connection health |
 | `/monitoring/logs` | SystemLogs | Log viewer |
@@ -184,7 +184,15 @@ Fetches ping history for latency charts.
 
 - **Endpoint**: `GET /cgi-bin/quecmanager/at_cmd/fetch_ping_history.sh`
 - **Returns**: `PingHistoryEntry[]`
-- **Tabs**: Real Time (last 10 samples), Hourly, 12h, Daily
+- **Consumers**: Latency Monitor History card (1 h / 6 h / 24 h, reads each row's `lat` only) and Right now's "last answer" caption
+
+#### `useSites(range)`
+
+Polls the Sites monitor for the Latency Monitor's Sites card.
+
+- **Endpoint**: `GET/POST /cgi-bin/quecmanager/monitoring/sites.sh`
+- **Returns**: `data` (`SitesResponse`), `dataRange`, `checkPending`, `checkNow()` and `save()` returning `MutationResult` (`types/mutation-result.ts`: `ok`, `code`, `error`)
+- **Cadence**: `now` every 2 s while the tab is visible and the monitor is on; otherwise 30 s idle, 3 s while a sweep runs
 
 ### One-Shot Hooks (Fetch + Save)
 

@@ -2,7 +2,7 @@
 
 The Sites monitor times a TCP handshake to each website in a list, over the cellular link, every few minutes, and keeps up to 90 days of history: the per-site latency view UniFi and WiFiman show. The one-host ICMP verdict in [Connection Quality](connection-quality.md) answers "is there internet?"; this answers "is YouTube slow right now?". It is a separate daemon, `qmanager_sites`, that never touches the AT port and does **not** feed the connectivity verdict, events, the watchdog or alerts.
 
-Ported from the RM520N fork (ledger B3.1; source `3af1cc15`, `c9d162a2`, `8e8806ec`, `33047f70`, plus the untrusted-pid fix from `ba4df3b3`). The UI (the Sites card on the Latency Monitor) is ledger **U4.8**, which consumes the [CGI contract](#cgi-contract--monitoringsitessh) below.
+Ported from the RM520N fork (ledger B3.1; source `3af1cc15`, `c9d162a2`, `8e8806ec`, `33047f70`, plus the untrusted-pid fix from `ba4df3b3`). The UI (the Sites card on the Latency Monitor, [latency-monitor.md](../reference/latency-monitor.md)) is ledger **U4.8**, which consumes the [CGI contract](#cgi-contract--monitoringsitessh) below.
 
 ## Quick Reference
 
@@ -171,10 +171,10 @@ Also accepted as `?action=check_now`. Raises the flag → `{ "success": true }`.
 - After the write, `enabled: true` raises the check-now flag and `enabled: false` removes the live lease.
 - Response echoes the saved config: `{ "success": true, "enabled": …, "interval_sec": …, "sites": [ … ] }`. Write failure → `save_failed`. Unknown action → `invalid_action`.
 
-### Notes for U4.8
+### UI consumer (U4.8)
 
-- Error codes not yet in `public/locales/*/errors.json`: `invalid_range`, `disabled`, `flag_failed`, `invalid_field` (`save_failed`, `invalid_action` exist). Add them to all five catalogs with the UI, or map them in the hook.
-- Poll `range=now` every 2 s only while the tab is visible **and** `enabled` is true (fork fix `8e8806ec`): a disabled monitor writes no lease, so 2 s polling would spend CGI time for nothing.
+- The Sites card on `/monitoring/latency` ([latency-monitor.md](../reference/latency-monitor.md)) reads this through `hooks/use-sites.ts`. All six error codes are in the five `errors.json` catalogs; toasts resolve the returned `code` through `resolveErrorMessage` (`invalid_field`'s `reason` is the detail fallback).
+- `range=now` polls every 2 s only while the tab is visible **and** `enabled` is true (fork fix `8e8806ec`): a disabled monitor writes no lease, so 2 s polling would spend CGI time for nothing.
 
 ## Lifecycle
 
