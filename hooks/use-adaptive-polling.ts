@@ -161,7 +161,12 @@ export function useAdaptivePolling(): UseAdaptivePollingReturn {
 
       const json: AdaptivePollingSaveResponse = await response.json();
       if (!json.success) {
-        throw new Error(json.detail || json.error || "Failed to save");
+        // "code: detail", so the caller can resolve the code to copy.
+        throw new Error(
+          json.error
+            ? `${json.error}: ${json.detail ?? ""}`
+            : json.detail || "Failed to save",
+        );
       }
 
       if (mountedRef.current) {

@@ -1,8 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { useMotionReduced } from "@/components/motion-preference";
+import { useEffect, useId, useRef, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
+import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import {
+  ArchiveRestoreIcon,
+  CircleAlertIcon,
+  FileUpIcon,
+  Loader2Icon,
+  TriangleAlertIcon,
+} from "lucide-react";
+
 import {
   Card,
   CardContent,
@@ -10,20 +19,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  ArchiveRestoreIcon,
-  CheckCircle2Icon,
-  Loader2Icon,
-  LockIcon,
-  TriangleAlertIcon,
-  XCircleIcon,
-} from "lucide-react";
-import { useConfigRestore } from "@/hooks/use-config-restore";
-import { useModemStatus } from "@/hooks/use-modem-status";
-import { RestorePasswordDialog } from "./restore-password-dialog";
-import { RestoreProgressList } from "./restore-progress-list";
-import { BACKUP_SECTIONS } from "@/lib/config-backup/sections";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,101 +29,61 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { CardFoot } from "@/components/ui/card-foot";
+import { useConfigRestore } from "@/hooks/use-config-restore";
+import { useModemStatus } from "@/hooks/use-modem-status";
 import { authFetch } from "@/lib/auth-fetch";
+import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
+import { BACKUP_SECTIONS } from "@/lib/config-backup/sections";
 import {
-  requestRebootLater,
   clearPendingReboot,
   enterRebootFlow,
+  requestRebootLater,
 } from "@/lib/reboot";
 import { cn } from "@/lib/utils";
-import { useTranslation, Trans } from "react-i18next";
+import type { BackupSectionKey } from "@/types/config-backup";
 
-const SECTION_LABELS: Record<string, string> = Object.fromEntries(
-  BACKUP_SECTIONS.map((s) => [s.key, s.label]),
-);
+import {
+  CARD_BODY,
+  CARD_DESC,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_TITLE,
+  DROP,
+  FIELD,
+  GROUP_FILL,
+  NOTICE,
+  PICK,
+  PILL_GLYPH,
+  RECEIPT,
+  ROW,
+  ROW_GROUP,
+  STACK_ROW,
+} from "../shapes";
+import {
+  RestorePipelineDialog,
+  type PipelinePhase,
+} from "./restore-pipeline-dialog";
 
-type Tone = "muted" | "info" | "success" | "warning" | "destructive";
+const K = "config_backup.restore";
 
-const TONE_ICON_CLASS: Record<Tone, string> = {
-  muted: "text-muted-foreground",
-  info: "text-info",
-  success: "text-success",
-  warning: "text-warning",
-  destructive: "text-destructive",
-};
+/** Section keys in picker order, so the receipt lists them the way the
+ *  create card does rather than in whatever order the payload carries. */
+const PICKER_ORDER = BACKUP_SECTIONS.map((s) => s.key);
 
-// Cellular-information style row stagger — each internal row of the status
-// panel slides in from the left on mount. Re-plays every time AnimatePresence
-// swaps the panel (state change), matching the feel of the rest of the app.
-const panelStagger = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.06 } },
-};
-const panelRow = {
-  hidden: { opacity: 0, x: -8 },
-  visible: { opacity: 1, x: 0 },
-};
-const panelRowTransition = { duration: 0.2, ease: "easeOut" as const };
-
-interface RestoreStatusPanelProps {
-  icon: ReactNode;
-  tone: Tone;
-  title: string;
-  description?: ReactNode;
-  actions?: ReactNode;
-}
-
-function RestoreStatusPanel({
-  icon,
-  tone,
-  title,
-  description,
-  actions,
-}: RestoreStatusPanelProps) {
-  return (
-    <motion.div
-      className="flex flex-col gap-4 rounded-lg border border-dashed p-5"
-      initial="hidden"
-      animate="visible"
-      variants={panelStagger}
-    >
-      <motion.div
-        className="flex items-start gap-4"
-        variants={panelRow}
-        transition={panelRowTransition}
-      >
-        <span
-          className={cn(
-            "mt-0.5 flex size-5 shrink-0 items-center justify-center [&>svg]:size-5",
-            TONE_ICON_CLASS[tone],
-          )}
-          aria-hidden
-        >
-          {icon}
-        </span>
-        <div className="min-w-0 flex-1 space-y-2">
-          <h3 className="text-sm font-medium leading-none">{title}</h3>
-          {description && (
-            <div className="text-sm text-muted-foreground">{description}</div>
-          )}
-        </div>
-      </motion.div>
-      {actions && (
-        <motion.div
-          className="flex flex-wrap gap-2"
-          variants={panelRow}
-          transition={panelRowTransition}
-        >
-          {actions}
-        </motion.div>
-      )}
-    </motion.div>
-  );
+/** "invalid_envelope: not JSON" → "invalid_envelope"; "HTTP 500" → null. */
+function errorCode(message: string | null): string | null {
+  if (!message) return null;
+  const code = message.split(":")[0].trim();
+  return /^[a-z_]+$/.test(code) ? code : null;
 }
 
 const RestoreConfigBackupCard = () => {
   const { t } = useTranslation("system-settings");
   const modem = useModemStatus();
+  const currentModel = modem.data?.device.model ?? "";
   const {
     state,
     readFile,
@@ -137,44 +92,97 @@ const RestoreConfigBackupCard = () => {
     startApply,
     cancel,
     reset,
-  } = useConfigRestore(modem.data?.device.model ?? "");
+  } = useConfigRestore(currentModel);
 
   const fileInput = useRef<HTMLInputElement>(null);
-  const [pwDialogOpen, setPwDialogOpen] = useState(false);
+  const passId = useId();
+  const [passphrase, setPassphrase] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
+  const [pipelineOpen, setPipelineOpen] = useState(false);
   const [rebootDialogOpen, setRebootDialogOpen] = useState(false);
   const [rebootBusy, setRebootBusy] = useState(false);
 
   const ui = state.ui;
+  const envelope = state.envelope;
+  const progress = state.progress;
 
-  useEffect(() => {
-    if (
-      pwDialogOpen &&
-      ui !== "password_required" &&
-      ui !== "password_incorrect" &&
-      ui !== "reading"
-    ) {
-      setPwDialogOpen(false);
-    }
-  }, [ui, pwDialogOpen]);
+  const planned: BackupSectionKey[] = state.payload
+    ? PICKER_ORDER.filter((k) => k in state.payload!.sections)
+    : [];
 
-  // Open the password dialog automatically when the envelope is parsed.
-  // Intentionally does NOT depend on pwDialogOpen so user-dismissing it
-  // while still in password_required does not re-open it.
-  useEffect(() => {
-    if (ui === "password_required") {
-      setPwDialogOpen(true);
-    }
-  }, [ui]);
+  const phase: PipelinePhase =
+    ui === "success" || ui === "partial_success"
+      ? "done"
+      : ui === "failed"
+        ? "start_failed"
+        : progress
+          ? "running"
+          : "starting";
 
+  // One toast at the terminal moment of a restore this session started. The
+  // id is deterministic so a re-render cannot fire it twice.
   useEffect(() => {
-    if (
-      (ui === "success" || ui === "partial_success") &&
-      state.progress?.reboot_required === true
-    ) {
-      requestRebootLater("config_restore");
-      setRebootDialogOpen(true);
+    if (!pipelineOpen) return;
+    if (ui === "success" || ui === "partial_success") {
+      const id = `config-restore:${progress?.job_id ?? "run"}:${ui}`;
+      const failed = progress?.summary?.failed ?? 0;
+      const restored = progress?.summary?.success ?? 0;
+      if (progress?.reboot_required) requestRebootLater("config_restore");
+      if (failed > 0) {
+        toast.error(t(`${K}.toast_partial`, { count: failed }), { id });
+      } else if (progress?.status === "cancelled") {
+        toast.error(t(`${K}.toast_cancelled`, { count: restored }), { id });
+      } else {
+        toast.success(t(`${K}.toast_success`), { id });
+      }
+    } else if (ui === "failed") {
+      toast.error(
+        resolveErrorMessage(t, errorCode(state.error), undefined, t(`${K}.toast_failed`)),
+        { id: `config-restore:start:${state.error ?? ""}` },
+      );
     }
-  }, [ui, state.progress?.reboot_required]);
+  }, [pipelineOpen, ui, progress, state.error, t]);
+
+  const openFilePicker = () => fileInput.current?.click();
+
+  const onFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (f) {
+      setPassphrase("");
+      await readFile(f);
+    }
+  };
+
+  const handleUnlock = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!passphrase || unlocking) return;
+    setUnlocking(true);
+    try {
+      await tryPassword(passphrase);
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setPassphrase("");
+    reset();
+  };
+
+  const handleRestore = () => {
+    if (ui === "model_warning") confirmModelWarning();
+    setPipelineOpen(true);
+    void startApply();
+  };
+
+  const handlePipelineClose = () => {
+    const needsReboot = progress?.reboot_required === true;
+    setPipelineOpen(false);
+    setPassphrase("");
+    reset();
+    if (needsReboot) setRebootDialogOpen(true);
+  };
 
   const handleRebootNow = async () => {
     setRebootBusy(true);
@@ -183,297 +191,259 @@ const RestoreConfigBackupCard = () => {
       const res = await authFetch("/cgi-bin/quecmanager/system/reboot.sh", {
         method: "POST",
       });
-      if (!res.ok) {
-        throw new Error(`reboot_failed: HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`reboot_failed: HTTP ${res.status}`);
+      // Ends in the /reboot/ hand-off, which is its own confirmation.
       enterRebootFlow("config_restore");
     } catch {
       requestRebootLater("config_restore");
       setRebootBusy(false);
       setRebootDialogOpen(false);
+      toast.error(t("config_backup.reboot_failed_toast"));
     }
   };
 
-  const handleRebootLater = () => {
-    setRebootDialogOpen(false);
-  };
-
-  const openFilePicker = () => fileInput.current?.click();
-
-  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) {
-      await readFile(f);
-    }
-    e.target.value = "";
-  };
-
-  const handlePasswordSubmit = async (pw: string) => {
-    await tryPassword(pw);
-  };
-
-  const prefersReducedMotion = useMotionReduced();
-  const motionProps = useMemo(
-    () => ({
-      initial: { opacity: 0, y: prefersReducedMotion ? 0 : 6 },
-      animate: { opacity: 1, y: 0 },
-      exit: { opacity: 0, y: prefersReducedMotion ? 0 : -6 },
-      transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const },
-    }),
-    [prefersReducedMotion],
+  const fileInputEl = (
+    <input
+      ref={fileInput}
+      type="file"
+      accept=".qmbackup,application/octet-stream"
+      className="hidden"
+      onChange={onFileChange}
+    />
   );
 
-  // Collapse password_required/password_incorrect and success/partial_success
-  // into single motion keys — transitions inside these pairs are minor text
-  // swaps, not full state changes, so the panel should stay mounted.
-  const panelKey =
-    ui === "password_required" || ui === "password_incorrect"
-      ? "password"
-      : ui === "success" || ui === "partial_success"
-      ? "complete"
-      : ui;
+  // The read failed before anything was decrypted: the card stays on the
+  // picker and says why, beside the action that fixes it.
+  const readFailed = ui === "failed" && !state.payload;
+  const opened =
+    envelope &&
+    (ui === "password_required" ||
+      ui === "password_incorrect" ||
+      ui === "model_warning" ||
+      ui === "ready" ||
+      (pipelineOpen && state.payload));
+
+  const receipt = envelope ? (
+    <div className={ROW_GROUP}>
+      <div className={RECEIPT.ROW}>
+        <span className={RECEIPT.KEY}>{t(`${K}.receipt_model`)}</span>
+        <span className={RECEIPT.VALUE}>{envelope.device.model || "—"}</span>
+      </div>
+      <div className={RECEIPT.ROW}>
+        <span className={RECEIPT.KEY}>{t(`${K}.receipt_created`)}</span>
+        <span className={RECEIPT.VALUE}>
+          {new Date(envelope.created_at).toLocaleString()}
+        </span>
+      </div>
+    </div>
+  ) : null;
+
+  const unlocked = ui === "model_warning" || ui === "ready" || pipelineOpen;
+
+  let body: React.ReactNode;
+  let foot: React.ReactNode;
+
+  if (opened && !unlocked) {
+    // ── Passphrase ──────────────────────────────────────────────────────
+    body = (
+      <>
+        {receipt}
+        <div className={ROW_GROUP}>
+          <div className={STACK_ROW}>
+            <div className={ROW.TEXT}>
+              <label htmlFor={passId} className={ROW.LABEL}>
+                {t(`${K}.passphrase_label`)}
+              </label>
+              <span className={ROW.CONSEQUENCE}>{t(`${K}.passphrase_consequence`)}</span>
+            </div>
+            <Input
+              id={passId}
+              type="password"
+              host="container"
+              autoComplete="current-password"
+              value={passphrase}
+              onChange={(e) => setPassphrase(e.target.value)}
+              aria-invalid={ui === "password_incorrect" || undefined}
+              disabled={unlocking}
+              autoFocus
+              className={cn(FIELD, "@2xl/card:w-full")}
+            />
+          </div>
+        </div>
+        {ui === "password_incorrect" ? (
+          <div role="alert" className={cn(NOTICE.BOX, NOTICE.FAILED)}>
+            <CircleAlertIcon className={NOTICE.GLYPH} aria-hidden="true" />
+            <span className={NOTICE.TEXT}>{t(`${K}.password_incorrect`)}</span>
+          </div>
+        ) : null}
+      </>
+    );
+    foot = (
+      <>
+        <Button type="button" variant="ghost" size="action" onClick={handleCancel}>
+          {t("common:actions.cancel")}
+        </Button>
+        <Button type="submit" size="action" disabled={!passphrase || unlocking}>
+          {unlocking ? (
+            <Loader2Icon className={cn(PILL_GLYPH, "animate-spin")} aria-hidden="true" />
+          ) : null}
+          {t(`${K}.button_unlock`)}
+        </Button>
+      </>
+    );
+  } else if (opened && unlocked) {
+    // ── Ready: what will be overwritten ────────────────────────────────
+    body = (
+      <>
+        {receipt}
+        {ui === "model_warning" ? (
+          <div role="note" className={cn(NOTICE.BOX, NOTICE.STALE)}>
+            <TriangleAlertIcon className={NOTICE.GLYPH} aria-hidden="true" />
+            <span className={NOTICE.TEXT}>
+              {t(`${K}.model_warning`, {
+                from: envelope.device.model,
+                to: currentModel || t(`${K}.model_unknown`),
+              })}
+            </span>
+          </div>
+        ) : null}
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
+          <p className={PICK.LABEL}>{t(`${K}.overwrite_label`)}</p>
+          <ul className={cn(ROW_GROUP, GROUP_FILL)}>
+            {planned.map((key) => (
+              <li key={key} className={cn(PICK.ROW, "cursor-default")}>
+                <span className={PICK.NAME}>{t(`config_backup.sections.${key}`)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </>
+    );
+    foot = (
+      <>
+        <Button
+          type="button"
+          variant="ghost"
+          size="action"
+          onClick={handleCancel}
+          disabled={pipelineOpen}
+        >
+          {t("common:actions.cancel")}
+        </Button>
+        <Button type="button" size="action" onClick={handleRestore} disabled={pipelineOpen}>
+          <ArchiveRestoreIcon className={PILL_GLYPH} aria-hidden="true" />
+          {t(`${K}.button_apply`)}
+        </Button>
+      </>
+    );
+  } else {
+    // ── Picker (idle, reading, or a file that could not be read) ──────
+    const reading = ui === "reading";
+    body = (
+      <>
+        <div className={DROP.ROOT}>
+          <span className={DROP.DISC} aria-hidden="true">
+            {reading ? (
+              <Loader2Icon className={cn(DROP.GLYPH, "animate-spin")} />
+            ) : (
+              <FileUpIcon className={DROP.GLYPH} />
+            )}
+          </span>
+          <div className="flex flex-col gap-1">
+            <p className={DROP.TITLE}>
+              {t(reading ? `${K}.reading_title` : `${K}.idle_title`)}
+            </p>
+            <p className={DROP.BODY}>{t(`${K}.idle_description`)}</p>
+          </div>
+        </div>
+        {readFailed ? (
+          <div role="alert" className={cn(NOTICE.BOX, NOTICE.FAILED)}>
+            <CircleAlertIcon className={NOTICE.GLYPH} aria-hidden="true" />
+            <span className={NOTICE.TEXT}>
+              {resolveErrorMessage(
+                t,
+                errorCode(state.error),
+                undefined,
+                t(`${K}.read_failed`),
+              )}
+            </span>
+          </div>
+        ) : null}
+      </>
+    );
+    foot = (
+      <Button
+        type="button"
+        size="action"
+        onClick={openFilePicker}
+        disabled={reading}
+      >
+        <FileUpIcon className={PILL_GLYPH} aria-hidden="true" />
+        {t(readFailed ? `${K}.button_choose_another` : `${K}.upload_button`)}
+      </Button>
+    );
+  }
+
+  const isPassphraseView = opened && !unlocked;
 
   return (
-    <Card className="@container/card h-full">
-      <CardHeader>
-        <CardTitle>{t("config_backup.restore.card_title")}</CardTitle>
-        <CardDescription>
-          {t("config_backup.restore.card_description")}
+    <Card className={CARD_SHELL}>
+      <CardHeader className={CARD_PAD}>
+        <CardTitle className={CARD_TITLE}>{t(`${K}.card_title`)}</CardTitle>
+        <CardDescription className={CARD_DESC}>
+          {t(`${K}.card_description`)}
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".qmbackup,application/octet-stream"
-          className="hidden"
-          onChange={onFileChange}
-        />
 
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div key={panelKey} {...motionProps}>
-        {ui === "idle" && (
-          <RestoreStatusPanel
-            icon={<ArchiveRestoreIcon />}
-            tone="muted"
-            title={t("config_backup.restore.idle_title")}
-            description={t("config_backup.restore.idle_description")}
-            actions={
-              <Button onClick={openFilePicker}>
-                {t("config_backup.restore.upload_button")}
-              </Button>
-            }
-          />
-        )}
-
-        {ui === "reading" && (
-          <RestoreStatusPanel
-            icon={<Loader2Icon className="animate-spin" />}
-            tone="info"
-            title={t("config_backup.restore.reading_title")}
-            description={t("config_backup.restore.reading_description")}
-          />
-        )}
-
-        {(ui === "password_required" || ui === "password_incorrect") && (
-          <RestoreStatusPanel
-            icon={<LockIcon />}
-            tone={ui === "password_incorrect" ? "destructive" : "info"}
-            title={
-              ui === "password_incorrect"
-                ? t("config_backup.restore.password_incorrect_title")
-                : t("config_backup.restore.password_required_title")
-            }
-            description={
-              ui === "password_incorrect"
-                ? t("config_backup.restore.password_incorrect_description")
-                : t("config_backup.restore.password_required_description")
-            }
-            actions={
-              <>
-                <Button onClick={() => setPwDialogOpen(true)}>
-                  {ui === "password_incorrect"
-                    ? t("config_backup.restore.button_try_again")
-                    : t("config_backup.restore.button_enter_password")}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={reset}>
-                  {t("config_backup.restore.cancel_button")}
-                </Button>
-              </>
-            }
-          />
-        )}
-
-        {ui === "model_warning" && state.envelope && (
-          <RestoreStatusPanel
-            icon={<TriangleAlertIcon />}
-            tone="warning"
-            title={t("config_backup.restore.model_warning_title")}
-            description={
-              <Trans
-                i18nKey="config_backup.restore.model_warning_body"
-                ns="system-settings"
-                values={{
-                  from: state.envelope.device.model,
-                  to: modem.data?.device.model ?? t("config_backup.restore.model_unknown"),
-                }}
-                components={{
-                  b: <span className="font-medium text-foreground" />,
-                }}
-              />
-            }
-            actions={
-              <>
-                <Button onClick={confirmModelWarning}>
-                  {t("config_backup.restore.button_continue_anyway")}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={reset}>
-                  {t("config_backup.restore.cancel_button")}
-                </Button>
-              </>
-            }
-          />
-        )}
-
-        {ui === "ready" && state.envelope && state.payload && (
-          <RestoreStatusPanel
-            icon={<CheckCircle2Icon />}
-            tone="success"
-            title={t("config_backup.restore.ready_title")}
-            description={
-              <div className="space-y-3">
-                <p>
-                  <Trans
-                    i18nKey="config_backup.restore.ready_from_body"
-                    ns="system-settings"
-                    values={{
-                      model: state.envelope.device.model,
-                      created: new Date(state.envelope.created_at).toLocaleString(),
-                    }}
-                    components={{
-                      b: <span className="font-medium text-foreground" />,
-                    }}
-                  />
-                </p>
-                <div>
-                  <p className="mb-2 text-foreground/80">
-                    {t("config_backup.restore.ready_sections_label")}
-                  </p>
-                  <ul className="grid gap-1 text-sm text-foreground">
-                    {Object.keys(state.payload.sections).map((key) => (
-                      <li
-                        key={key}
-                        className="flex items-center gap-2 before:size-1.5 before:rounded-full before:bg-foreground/40 before:content-['']"
-                      >
-                        {t(`config_backup.sections.${key}`, SECTION_LABELS[key] ?? key)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            }
-            actions={
-              <>
-                <Button onClick={startApply}>
-                  {t("config_backup.restore.button_apply")}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={reset}>
-                  {t("config_backup.restore.cancel_button")}
-                </Button>
-              </>
-            }
-          />
-        )}
-
-        {ui === "applying" && (
-          <RestoreStatusPanel
-            icon={<Loader2Icon className="animate-spin" />}
-            tone="info"
-            title={t("config_backup.restore.applying_title")}
-            description={
-              state.progress ? (
-                <RestoreProgressList sections={state.progress.sections} />
-              ) : (
-                t("config_backup.restore.applying_starting")
-              )
-            }
-            actions={
-              <Button variant="outline" size="sm" onClick={cancel}>
-                {t("config_backup.restore.cancel_button")}
-              </Button>
-            }
-          />
-        )}
-
-        {(ui === "success" || ui === "partial_success") && state.progress && (
-          <RestoreStatusPanel
-            icon={
-              ui === "success" ? <CheckCircle2Icon /> : <TriangleAlertIcon />
-            }
-            tone={ui === "success" ? "success" : "warning"}
-            title={
-              ui === "success"
-                ? t("config_backup.restore.success_title")
-                : t("config_backup.restore.partial_success_title")
-            }
-            description={
-              <RestoreProgressList sections={state.progress.sections} />
-            }
-            actions={<Button onClick={reset}>{t("config_backup.restore.button_done")}</Button>}
-          />
-        )}
-
-        {ui === "failed" && (
-          <RestoreStatusPanel
-            icon={<XCircleIcon />}
-            tone="destructive"
-            title={t("config_backup.restore.failed_title")}
-            description={state.error ?? t("config_backup.restore.failed_unknown")}
-            actions={
-              <Button variant="outline" onClick={reset}>
-                {t("config_backup.restore.button_try_again")}
-              </Button>
-            }
-          />
-        )}
-          </motion.div>
-        </AnimatePresence>
-
-        <RestorePasswordDialog
-          open={
-            pwDialogOpen &&
-            (ui === "password_required" || ui === "password_incorrect")
-          }
-          onOpenChange={setPwDialogOpen}
-          onSubmit={handlePasswordSubmit}
-          incorrect={ui === "password_incorrect"}
-        />
-
-        <AlertDialog open={rebootDialogOpen} onOpenChange={setRebootDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t("config_backup.restore.reboot_dialog_title")}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t("config_backup.restore.reboot_dialog_description")}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel
-                onClick={handleRebootLater}
-                disabled={rebootBusy}
-              >
-                {t("config_backup.restore.reboot_later_button")}
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleRebootNow}
-                disabled={rebootBusy}
-              >
-                {rebootBusy ? t("config_backup.rebooting_button") : t("config_backup.reboot_now_button")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+        {fileInputEl}
+        <form
+          onSubmit={isPassphraseView ? handleUnlock : (e) => e.preventDefault()}
+          className={cn(CARD_BODY, "gap-4")}
+        >
+          {body}
+          <CardFoot className="mt-auto" actions={foot} />
+        </form>
       </CardContent>
+
+      <RestorePipelineDialog
+        open={pipelineOpen}
+        phase={phase}
+        planned={planned}
+        progress={progress}
+        startError={errorCode(state.error)}
+        sourceModel={envelope?.device.model ?? ""}
+        onStop={() => void cancel()}
+        onClose={handlePipelineClose}
+      />
+
+      <AlertDialog open={rebootDialogOpen} onOpenChange={setRebootDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t(`${K}.reboot_dialog_title`)}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(`${K}.reboot_dialog_description`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={rebootBusy}>
+              {t(`${K}.reboot_later_button`)}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleRebootNow();
+              }}
+              disabled={rebootBusy}
+            >
+              {rebootBusy ? (
+                <Loader2Icon className={cn(PILL_GLYPH, "animate-spin")} aria-hidden="true" />
+              ) : null}
+              {t("config_backup.reboot_now_button")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

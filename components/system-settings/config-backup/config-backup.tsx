@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
+import { motion } from "motion/react";
+import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+
 import ConfigBackupCard from "./config-backup-card";
 import RestoreConfigBackupCard from "./restore-backup-card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Banner, bannerActionVariants } from "@/components/ui/banner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,15 +18,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { TriangleAlertIcon } from "lucide-react";
 import { authFetch } from "@/lib/auth-fetch";
+import { staggerContainer, staggerItem } from "@/lib/motion";
 import {
   usePendingReboot,
   clearPendingReboot,
   requestRebootLater,
   enterRebootFlow,
 } from "@/lib/reboot";
-import { useTranslation } from "react-i18next";
+
+import { CARD_CELL, CARD_GRID, PAGE_HEAD, PAGE_ROOT } from "../shapes";
+
+const K = "config_backup";
 
 const ConfigurationBackupComponent = () => {
   const { t } = useTranslation("system-settings");
@@ -39,13 +44,13 @@ const ConfigurationBackupComponent = () => {
       const res = await authFetch("/cgi-bin/quecmanager/system/reboot.sh", {
         method: "POST",
       });
-      if (!res.ok) {
-        throw new Error(`reboot_failed: HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`reboot_failed: HTTP ${res.status}`);
+      // Ends in the /reboot/ hand-off, which is its own confirmation.
       enterRebootFlow("config_restore");
     } catch {
       requestRebootLater("config_restore");
       setRebootBusy(false);
+      toast.error(t(`${K}.reboot_failed_toast`));
     }
   };
 
@@ -55,80 +60,78 @@ const ConfigurationBackupComponent = () => {
   };
 
   return (
-    <div className="@container/main mx-auto p-2">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">{t("config_backup.page_title")}</h1>
-        <p className="text-muted-foreground">
-          {t("config_backup.page_description")}
-        </p>
-      </div>
+    <motion.div
+      className={PAGE_ROOT}
+      variants={staggerContainer}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.div variants={staggerItem}>
+        <div className={PAGE_HEAD.ROOT}>
+          <div className={PAGE_HEAD.TITLES}>
+            <h1 className={PAGE_HEAD.TITLE}>{t(`${K}.page_title`)}</h1>
+            <p className={PAGE_HEAD.DESC}>{t(`${K}.page_description`)}</p>
+          </div>
+        </div>
+      </motion.div>
 
-      <AnimatePresence initial={false}>
-        {pending && (
-          <motion.div
-            key="pending-reboot-banner"
-            initial={{ opacity: 0, y: -6, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: "auto" }}
-            exit={{ opacity: 0, y: -6, height: 0 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <Alert variant="warning" className="mb-6">
-              <TriangleAlertIcon />
-              <AlertTitle>{t("config_backup.pending_reboot_title")}</AlertTitle>
-              <AlertDescription>
-                <p className="text-foreground/80">
-                  {t("config_backup.pending_reboot_description")}
-                </p>
-                <div className="flex gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    onClick={handleRebootNow}
-                    disabled={rebootBusy}
-                  >
-                    {rebootBusy ? t("config_backup.rebooting_button") : t("config_backup.reboot_now_button")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setDismissDialogOpen(true)}
-                    disabled={rebootBusy}
-                  >
-                    {t("config_backup.dismiss_button")}
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* The deferred-reboot banner: a standing condition, so no X. Dismiss is
+          an explicit action behind a confirm, because the reminder lives only
+          in this browser and would otherwise outlive a reboot done elsewhere. */}
+      {pending ? (
+        <Banner
+          role="deferred-reboot"
+          title={t(`${K}.pending_reboot_title`)}
+          description={t(`${K}.pending_reboot_description`)}
+          action={
+            <>
+              <button
+                type="button"
+                className={bannerActionVariants({ tone: "on-warning" })}
+                onClick={() => setDismissDialogOpen(true)}
+                disabled={rebootBusy}
+              >
+                {t(`${K}.dismiss_button`)}
+              </button>
+              <button
+                type="button"
+                className={bannerActionVariants({ tone: "warning" })}
+                onClick={handleRebootNow}
+                disabled={rebootBusy}
+              >
+                {rebootBusy ? t(`${K}.rebooting_button`) : t(`${K}.reboot_now_button`)}
+              </button>
+            </>
+          }
+        />
+      ) : null}
 
       <AlertDialog open={dismissDialogOpen} onOpenChange={setDismissDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("config_backup.dismiss_dialog_title")}</AlertDialogTitle>
+            <AlertDialogTitle>{t(`${K}.dismiss_dialog_title`)}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("config_backup.dismiss_dialog_description")}
+              {t(`${K}.dismiss_dialog_description`)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("config_backup.dismiss_keep")}</AlertDialogCancel>
+            <AlertDialogCancel>{t(`${K}.dismiss_keep`)}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDismiss}>
-              {t("config_backup.dismiss_confirm")}
+              {t(`${K}.dismiss_confirm`)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="grid grid-cols-1 @3xl/main:grid-cols-2 grid-flow-row gap-4 items-stretch">
-        <div className="h-full">
+      <div className={CARD_GRID}>
+        <motion.div variants={staggerItem} className={CARD_CELL}>
           <ConfigBackupCard />
-        </div>
-        <div className="h-full">
+        </motion.div>
+        <motion.div variants={staggerItem} className={CARD_CELL}>
           <RestoreConfigBackupCard />
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

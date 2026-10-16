@@ -2,62 +2,20 @@
 import type { BackupSectionMeta, BackupSectionKey } from "@/types/config-backup";
 
 export const BACKUP_SECTIONS: BackupSectionMeta[] = [
-  {
-    key: "network_mode_apn",
-    label: "Network Mode and APN settings",
-    description: "Scan mode, scan sequence, and all APN profiles",
-    overlapGroup: "profile",
-    defaultChecked: true,
-  },
-  {
-    key: "bands",
-    label: "Preferred LTE and 5G bands",
-    description: "Locked LTE, NSA, and SA band lists",
-    overlapGroup: null,
-    defaultChecked: true,
-  },
-  {
-    key: "tower_lock",
-    label: "Tower Locking settings",
-    description: "Locked LTE and 5G NR-SA cells",
-    overlapGroup: null,
-    defaultChecked: false,
-  },
-  {
-    key: "ttl_hl",
-    label: "TTL/HL settings",
-    description: "TTL and hop-limit firewall rules",
-    overlapGroup: "profile",
-    defaultChecked: false,
-  },
-  {
-    key: "imei",
-    label: "IMEI Settings",
-    description: "Current device IMEI",
-    overlapGroup: "profile",
-    defaultChecked: false,
-  },
-  {
-    key: "profiles",
-    label: "Custom SIM Profiles",
-    description: "All saved profiles plus the active marker",
-    overlapGroup: "profile-parent",
-    defaultChecked: false,
-  },
-  {
-    key: "sms_alerts",
-    label: "SMS Alerts configuration",
-    description: "Alert recipient and threshold settings",
-    overlapGroup: null,
-    defaultChecked: false,
-  },
-  {
-    key: "watchdog",
-    label: "Watchdog/Watchcat configuration",
-    description: "All watchcat UCI keys and tier toggles",
-    overlapGroup: null,
-    defaultChecked: false,
-  },
+  // Connection: what the modem attaches with. Picker order, not apply order
+  // (the worker owns that: CFG_BACKUP_APPLY_ORDER).
+  { key: "network_mode_apn", group: "connection", overlapGroup: "profile", defaultChecked: true },
+  { key: "bands", group: "connection", overlapGroup: null, defaultChecked: true },
+  { key: "tower_lock", group: "connection", overlapGroup: null, defaultChecked: false },
+  { key: "ttl_hl", group: "connection", overlapGroup: "profile", defaultChecked: false },
+  { key: "imei", group: "connection", overlapGroup: "profile", defaultChecked: false },
+  { key: "profiles", group: "connection", overlapGroup: "profile-parent", defaultChecked: false },
+  // Monitoring and alerts: how QManager watches the link and who it tells.
+  { key: "watchdog", group: "monitoring", overlapGroup: null, defaultChecked: false },
+  { key: "quality_thresholds", group: "monitoring", overlapGroup: null, defaultChecked: false },
+  { key: "sites", group: "monitoring", overlapGroup: null, defaultChecked: false },
+  { key: "sms_alerts", group: "monitoring", overlapGroup: null, defaultChecked: false },
+  { key: "alert_routing", group: "monitoring", overlapGroup: null, defaultChecked: false },
 ];
 
 export type SelectionMap = Record<BackupSectionKey, boolean>;
