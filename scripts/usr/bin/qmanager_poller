@@ -82,7 +82,7 @@ SIGNAL_HISTORY_MAX=60  # 2 min at 2s intervals (Tier 1 cadence)
 
 # Ping history (NDJSON file for latency chart data)
 PING_HISTORY_FILE="/tmp/qmanager_ping_history.json"
-PING_HISTORY_MAX=8640  # 24h at 10s intervals
+PING_HISTORY_MAX=8640  # ~38h at the measured ~16s row cadence (not 10s)
 
 # --- State Variables ---------------------------------------------------------
 cycle_count=0
@@ -788,7 +788,7 @@ append_signal_history() {
 }
 
 # Append current ping/connectivity stats as one NDJSON line to the ping history file.
-# Capped at PING_HISTORY_MAX lines (~24h at 10s intervals).
+# Capped at PING_HISTORY_MAX lines (rows land about every 16s on device, not 10s).
 # Uses conn_ variables already populated by read_ping_data().
 append_ping_history() {
     local ts
@@ -1018,6 +1018,48 @@ resolve_poller_config() {
     # Clamp the AT-read cadences to never drop below the base cycle interval.
     [ "$AP_IDLE_INTERVAL" -lt "$POLL_INTERVAL" ] 2>/dev/null && AP_IDLE_INTERVAL="$POLL_INTERVAL"
     [ "$AP_DEEP_INTERVAL" -lt "$POLL_INTERVAL" ] 2>/dev/null && AP_DEEP_INTERVAL="$POLL_INTERVAL"
+}
+
+# DNS lookup time from qmanager_ping's detached job. A number only when the last
+# lookup succeeded and the sample is fresh (mono age 0..DNS_MAX_AGE_SEC).
+DNS_CACHE="${DNS_CACHE:-/tmp/qmanager_dns.json}"
+DNS_MAX_AGE_SEC=180
+dns_lookup_ms="null"
+dns_resolver=""
+
+read_dns_data() {
+    dns_lookup_ms="null"
+    dns_resolver=""
+    [ -f "$DNS_CACHE" ] || return 0
+
+    local _row
+    local _ok
+    local _ms
+    local _mono
+    local _res
+    local _up
+    local _idle
+    local _age
+    # Resolver last: `read` hands the rest of the line to the final variable.
+    _row=$(jq -r '"\(.ok|tostring) \(.ms|tostring) \(.mono|tostring) \(.resolver|tostring)"' \
+        "$DNS_CACHE" 2>/dev/null </dev/null)
+    [ -n "$_row" ] || return 0
+    read -r _ok _ms _mono _res <<EOF
+$_row
+EOF
+
+    case "$_mono" in ''|*[!0-9]*) return 0 ;; esac
+    { read -r _up _idle < /proc/uptime; } 2>/dev/null
+    _up="${_up%%.*}"
+    case "$_up" in ''|*[!0-9]*) return 0 ;; esac
+    _age=$((_up - _mono))
+    { [ "$_age" -ge 0 ] && [ "$_age" -le "$DNS_MAX_AGE_SEC" ]; } || return 0
+
+    case "$_res" in ''|null) ;; *) dns_resolver="$_res" ;; esac
+    if [ "$_ok" = "true" ]; then
+        case "$_ms" in ''|*[!0-9]*) ;; *) dns_lookup_ms="$_ms" ;; esac
+    fi
+    return 0
 }
 
 read_ping_data() {
@@ -1354,6 +1396,8 @@ write_cache() {
         --arg ping_tgt "$conn_ping_target" \
         --arg conn_profile "$conn_profile" \
         --arg conn_last_family "$conn_last_family" \
+        --argjson dns_ms "${dns_lookup_ms:-null}" \
+        --arg dns_res "$dns_resolver" \
         --argjson lat_hist "${conn_history:-[]}" \
         --argjson hist_int "${conn_history_interval:-2}" \
         --argjson hist_size "${CONN_HISTORY_SIZE:-60}" \
@@ -1456,6 +1500,8 @@ write_cache() {
                 ping_target: $ping_tgt, latency_history: $lat_hist,
                 history_interval_sec: $hist_int, history_size: $hist_size,
                 during_recovery: $during_rec, profile: $conn_profile,
+                dns_lookup_ms: $dns_ms,
+                dns_resolver: (if $dns_res == "" then null else $dns_res end),
                 last_family: $conn_last_family
             },
             watchcat: {
@@ -1525,6 +1571,7 @@ poll_cycle() {
     # They must also run before any AT command in case qcmd blocks on serial I/O.
     update_proc_metrics
     read_ping_data
+    read_dns_data
     # One centralized engine drives both SMS + email downtime alerts, reading
     # the conn_* globals read_ping_data just set. Replaces the two per-channel
     # check_*_alert calls; suppression + debounce + routing live inside it.

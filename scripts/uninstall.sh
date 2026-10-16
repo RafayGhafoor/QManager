@@ -448,6 +448,7 @@ remove_runtime_state() {
     for f in /tmp/qmanager_status.json \
              /tmp/qmanager_ping.json \
              /tmp/qmanager_ping_history \
+             /tmp/qmanager_dns.json \
              /tmp/qmanager_signal_history.json \
              /tmp/qmanager_events.json \
              /tmp/qmanager_email_log.json \
@@ -497,6 +498,8 @@ remove_runtime_state() {
           /tmp/qmanager_pending_reboot_verizon \
           /tmp/qm_spin_out \
           /tmp/qm_tmo_out.* \
+          /tmp/qmanager_dns_out.* \
+          /tmp/qmanager_dns.json.?????? \
           2>/dev/null || true
 
     # PID files in /var/run (config-restore and language-install workers)
