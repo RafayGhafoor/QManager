@@ -83,19 +83,17 @@ uci_get() {
     fi
 }
 
-# Map a ping profile name to its probe interval in seconds. Mirrors the
-# qmanager_ping daemon's profile->interval table (the daemon owns the canonical
-# table; we replicate only the interval column for read-only reflection). An
-# unknown name falls back to relaxed (5 s), matching daemon behaviour.
-profile_interval() {
-    case "$1" in
-        sensitive) echo 1 ;;
-        regular)   echo 2 ;;
-        relaxed)   echo 5 ;;
-        quiet)     echo 10 ;;
-        *)         echo 5 ;;
-    esac
-}
+# Probe cadence comes from conn_state_cadence (the same table qmanager_ping
+# runs). Guarded: a missing lib must not abort the CGI; fall back to relaxed.
+[ -f /usr/lib/qmanager/conn_state.sh ] && . /usr/lib/qmanager/conn_state.sh
+if ! command -v conn_state_cadence >/dev/null 2>&1; then
+    conn_state_cadence() {
+        CQ_CFG_PROFILE="relaxed"
+        CQ_CFG_INTERVAL_SEC=5
+        CQ_CFG_FAIL_SECS=15
+        CQ_CFG_RECOVER_SECS=10
+    }
+fi
 
 # Resolve a quality preset (latency) to a numeric ms threshold. custom uses the
 # stored custom value; unknown/empty falls back to tolerant. Mirrors the poller
@@ -194,11 +192,9 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     probe_profile=$(uci -q get quecmanager.ping_profile.profile 2>/dev/null)
     [ -z "$probe_profile" ] && probe_profile="relaxed"
     interval_override=$(uci -q get quecmanager.ping_profile.interval_override 2>/dev/null)
-    # Effective = override when a valid int is present, else profile-derived.
-    case "$interval_override" in
-        ''|*[!0-9]*) effective_interval=$(profile_interval "$probe_profile") ;;
-        *) effective_interval="$interval_override" ;;
-    esac
+    # Effective cadence from UCI (right even while the daemon is down).
+    conn_state_cadence
+    effective_interval="$CQ_CFG_INTERVAL_SEC"
 
     # --- Shared quality thresholds (read-only mirror of quality_thresholds) ---
     qt_latency_preset=""
@@ -265,6 +261,9 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         --arg probe_profile "$probe_profile" \
         --argjson interval_override "$interval_override_json" \
         --argjson effective_interval "$effective_interval" \
+        --argjson interval_sec "$CQ_CFG_INTERVAL_SEC" \
+        --argjson fail_secs "$CQ_CFG_FAIL_SECS" \
+        --argjson recover_secs "$CQ_CFG_RECOVER_SECS" \
         --argjson qt_latency_ms "$qt_latency_ms" \
         --argjson qt_loss_pct "$qt_loss_pct" \
         --arg qt_latency_preset "$qt_latency_preset" \
@@ -296,6 +295,9 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             probe_profile: $probe_profile,
             interval_override: $interval_override,
             effective_interval: $effective_interval,
+            interval_sec: $interval_sec,
+            fail_secs: $fail_secs,
+            recover_secs: $recover_secs,
             quality_thresholds: {
                 latency_ms: $qt_latency_ms,
                 loss_pct: $qt_loss_pct,

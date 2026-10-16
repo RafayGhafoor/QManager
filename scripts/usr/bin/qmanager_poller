@@ -310,6 +310,16 @@ else
     load_ondemand_cache() { :; }
 fi
 
+# Ping-cache reader (conn_state_read). Without it connectivity reads as
+# unknown every cycle — fail-closed, never "up".
+if [ -f /usr/lib/qmanager/conn_state.sh ]; then
+    . /usr/lib/qmanager/conn_state.sh
+else
+    qlog_warn "conn_state.sh not found, connectivity will read as unknown"
+    conn_state_read() { CQ_STALE=1; CQ_STALE_REASON="missing"; return 1; }
+    conn_state_why() { printf 'conn_state.sh missing'; }
+fi
+
 # Event detection
 if [ -f /usr/lib/qmanager/events.sh ]; then
     . /usr/lib/qmanager/events.sh
@@ -912,9 +922,9 @@ determine_service_status() {
 # CONNECTIVITY DATA (from ping daemon — no modem lock needed)
 # =============================================================================
 
-PING_CACHE="/tmp/qmanager_ping.json"
+# ping.json itself is read by conn_state_read (conn_state.sh), which also owns
+# the staleness rule.
 PING_HISTORY_RAW="/tmp/qmanager_ping_history"   # flat-file ring buffer from ping daemon
-PING_STALE_THRESHOLD=10  # seconds before ping data is considered stale
 # Window-maturity floor: packet_loss_pct = int(lost*100/n) is meaningless on a
 # tiny history (e.g. just after a reboot truncates it) — 2 transient boot-attach
 # nulls in a 4-sample window reads as 50% loss and can falsely trip the watchdog
@@ -1011,8 +1021,11 @@ resolve_poller_config() {
 }
 
 read_ping_data() {
-    # Reset to defaults if ping file missing or stale
-    if [ ! -f "$PING_CACHE" ]; then
+    # Step A: one read of ping.json via conn_state_read (conn_state.sh), which
+    # owns the staleness rule: age > max(3 * interval_sec, 15) on the monotonic
+    # clock. Missing, stale or unreadable data marks connectivity unknown.
+    # ping.json carries no stats/history — those are computed here from raw file.
+    if ! conn_state_read; then
         conn_internet_available="null"
         conn_status="unknown"
         conn_latency="null"
@@ -1021,79 +1034,29 @@ read_ping_data() {
         conn_max_latency="null"
         conn_jitter="null"
         conn_packet_loss=0
-        conn_ping_target=""
         conn_history="[]"
         conn_during_recovery="false"
-        conn_profile=""
-        conn_last_family=""
+        # Force a stats pass on the first fresh read after a gap.
+        _last_ping_ts=0
+        if [ "$CQ_STALE_REASON" = "missing" ]; then
+            conn_ping_target=""
+            conn_profile=""
+            conn_last_family=""
+        else
+            qlog_warn "Ping data stale ($(conn_state_why)), marking unknown"
+        fi
         return
     fi
 
-    # Check staleness (ping daemon may have crashed)
-    # Prefer monotonic /proc/uptime age; fall back to wall-clock when .mono absent.
     local ping_ts
-    local ping_mono
-    local _stale=0
-    ping_ts=$(jq -r '.timestamp | if . == null then empty else tostring end' "$PING_CACHE" 2>/dev/null)
-
-    if [ -n "$ping_ts" ]; then
-        ping_mono=$(jq -r '.mono | if . == null then "" else tostring end' "$PING_CACHE" 2>/dev/null)
-        case "$ping_mono" in
-            ''|0|*[!0-9]*)
-                # Back-compat fallback: .mono absent/invalid -> wall-clock age
-                local now
-                local age
-                now=$(date +%s)
-                age=$((now - ping_ts))
-                if [ "$age" -gt "$PING_STALE_THRESHOLD" ]; then
-                    qlog_warn "Ping data stale/wc (age=${age}s), marking unknown"
-                    _stale=1
-                fi
-                ;;
-            *)
-                local age_mono
-                age_mono=$(( $(mono_now) - ping_mono ))
-                if [ "$age_mono" -gt "$PING_STALE_THRESHOLD" ]; then
-                    qlog_warn "Ping data stale (age_mono=${age_mono}s), marking unknown"
-                    _stale=1
-                fi
-                ;;
-        esac
-        if [ "$_stale" -eq 1 ]; then
-            conn_internet_available="null"
-            conn_status="unknown"
-            conn_latency="null"
-            conn_avg_latency="null"
-            conn_min_latency="null"
-            conn_max_latency="null"
-            conn_jitter="null"
-            conn_packet_loss=0
-            conn_history="[]"
-            conn_during_recovery="false"
-            return
-        fi
-    fi
-
-    # Step A: Extract slim scalar fields from ping JSON (single jq call)
-    # ping.json no longer carries stats/history — those are computed here from raw file.
-    local _pdata
-    _pdata=$(jq -r '[
-        ((.reachable) | if . == null then "null" else tostring end),
-        ((.last_rtt_ms) | if . == null then "null" else tostring end),
-        ((.during_recovery) | if . == null then "false" else tostring end),
-        ((.interval_sec) | if . == null then "5" else tostring end),
-        ((.targets[0]) | if . == null then "" else . end),
-        ((.profile) | if . == null then "" else . end),
-        ((.last_family) | if . == null then "" else . end)
-    ] | @tsv' "$PING_CACHE" 2>/dev/null)
-
-    conn_internet_available=$(printf '%s' "$_pdata" | cut -f1)
-    conn_latency=$(printf '%s' "$_pdata" | cut -f2)
-    conn_during_recovery=$(printf '%s' "$_pdata" | cut -f3)
-    conn_history_interval=$(printf '%s' "$_pdata" | cut -f4)
-    conn_ping_target=$(printf '%s' "$_pdata" | cut -f5)
-    conn_profile=$(printf '%s' "$_pdata" | cut -f6)
-    conn_last_family=$(printf '%s' "$_pdata" | cut -f7)
+    ping_ts="$CQ_TIMESTAMP"
+    conn_internet_available="$CQ_REACHABLE"
+    conn_latency="$CQ_RTT_MS"
+    conn_during_recovery="$CQ_DURING_RECOVERY"
+    conn_history_interval="$CQ_INTERVAL_SEC"
+    conn_ping_target="$CQ_TARGET"
+    conn_profile="$CQ_PROFILE"
+    conn_last_family="$CQ_LAST_FAMILY"
 
     # Step B: Single awk pass — only when ping timestamp changed (saves awk fork every 2s)
     # With ping daemon at 5s, awk runs ~every 5s instead of every cycle.

@@ -3,7 +3,8 @@
 # =============================================================================
 # ping_profile.sh — CGI Endpoint: Connection Quality / Ping Profile (GET + POST)
 # =============================================================================
-# GET:  Returns the active ping profile name + the IPv4/IPv6 ICMP probe targets.
+# GET:  Returns the active ping profile name + the IPv4/IPv6 ICMP probe targets,
+#       plus the effective cadence (interval_sec, fail_secs, recover_secs).
 # POST: action=save — validates + persists profile + targets, then drops the
 #       /tmp/qmanager_ping_reload flag so qmanager_ping re-reads within one cycle.
 #
@@ -27,17 +28,17 @@ RELOAD_FLAG="/tmp/qmanager_ping_reload"
 DEFAULT_TARGET_IPV4="1.1.1.1"
 DEFAULT_TARGET_IPV6="2606:4700:4700::1111"
 
-# Map a ping profile name to its probe interval in seconds. Mirrors the
-# qmanager_ping daemon's profile->interval table. Unknown => relaxed (5 s).
-profile_interval() {
-    case "$1" in
-        sensitive) echo 1 ;;
-        regular)   echo 2 ;;
-        relaxed)   echo 5 ;;
-        quiet)     echo 10 ;;
-        *)         echo 5 ;;
-    esac
-}
+# Cadence comes from conn_state_cadence (the same table qmanager_ping runs).
+# Guarded: a missing lib must not abort the CGI; fall back to relaxed.
+[ -f /usr/lib/qmanager/conn_state.sh ] && . /usr/lib/qmanager/conn_state.sh
+if ! command -v conn_state_cadence >/dev/null 2>&1; then
+    conn_state_cadence() {
+        CQ_CFG_PROFILE="relaxed"
+        CQ_CFG_INTERVAL_SEC=5
+        CQ_CFG_FAIL_SECS=15
+        CQ_CFG_RECOVER_SECS=10
+    }
+fi
 
 # Ensure the UCI section exists with concrete defaults (seed-on-read).
 ensure_ping_profile_config() {
@@ -117,24 +118,25 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     # here read-only so the Sensitivity card can show "overridden by Watchdog".
     interval_override=$(uci -q get quecmanager.ping_profile.interval_override 2>/dev/null)
     case "$interval_override" in
-        ''|*[!0-9]*)
-            interval_override_json="null"
-            effective_interval=$(profile_interval "$profile")
-            ;;
-        *)
-            interval_override_json="$interval_override"
-            effective_interval="$interval_override"
-            ;;
+        ''|*[!0-9]*) interval_override_json="null" ;;
+        *)           interval_override_json="$interval_override" ;;
     esac
+
+    # Effective cadence from UCI (right even while the daemon is down).
+    # effective_interval is kept for existing consumers; it equals interval_sec.
+    conn_state_cadence
 
     jq -n \
         --arg profile "$profile" \
         --arg target_ipv4 "$target_ipv4" \
         --arg target_ipv6 "$target_ipv6" \
         --argjson interval_override "$interval_override_json" \
-        --argjson effective_interval "$effective_interval" \
+        --argjson interval_sec "$CQ_CFG_INTERVAL_SEC" \
+        --argjson fail_secs "$CQ_CFG_FAIL_SECS" \
+        --argjson recover_secs "$CQ_CFG_RECOVER_SECS" \
         '{success: true, profile: $profile, target_ipv4: $target_ipv4, target_ipv6: $target_ipv6,
-          interval_override: $interval_override, effective_interval: $effective_interval}'
+          interval_override: $interval_override, effective_interval: $interval_sec,
+          interval_sec: $interval_sec, fail_secs: $fail_secs, recover_secs: $recover_secs}'
     exit 0
 fi
 

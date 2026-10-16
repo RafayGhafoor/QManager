@@ -53,8 +53,17 @@ else
     sim_db_add() { :; }
 fi
 
+# --- Ping-cache reader (conn_state_read) -------------------------------------
+# Without it every read is "stale" and the state machine skips cycles —
+# fail-closed, never a recovery decision on unknown data.
+if [ -f /usr/lib/qmanager/conn_state.sh ]; then
+    . /usr/lib/qmanager/conn_state.sh
+else
+    conn_state_read() { CQ_STALE=1; CQ_STALE_REASON="conn_state.sh missing"; return 1; }
+    conn_state_why() { printf '%s' "$CQ_STALE_REASON"; }
+fi
+
 # --- File Paths --------------------------------------------------------------
-PING_CACHE="/tmp/qmanager_ping.json"
 STATE_FILE="/tmp/qmanager_watchcat.json"
 STATE_TMP="/tmp/qmanager_watchcat.json.tmp"
 PID_FILE="/tmp/qmanager_watchcat.pid"
@@ -98,7 +107,7 @@ CFG_PRIMARY_RECHECK_INTERVAL=30
 STATUS_CACHE="/tmp/qmanager_status.json"
 STATUS_STALE_THRESHOLD=30
 BOOT_SETTLE=30
-PING_STALE_THRESHOLD=15
+# Ping-cache staleness is conn_state_read's rule: max(3 * interval_sec, 15) s.
 MODEM_WAIT_TIMEOUT=60
 # A physical SIM swap on the RM551E needs ~90s to reach stable connectivity.
 # Any Tier-3 (SIM-failover) recovery — and the reverse revert swap — must hold
@@ -342,53 +351,23 @@ ping_reachable="true"
 ping_during_recovery="false"
 
 read_ping() {
-    if [ ! -f "$PING_CACHE" ]; then
-        qlog_warn "Ping cache missing"
+    # conn_state_read owns the read + staleness rule (max(3 * interval_sec, 15)
+    # on the monotonic clock). On failure the ping_* vars keep their previous
+    # values; every caller treats a non-zero return as "unknown, skip".
+    if ! conn_state_read; then
+        if [ "$CQ_STALE_REASON" = "missing" ]; then
+            qlog_warn "Ping cache missing"
+        else
+            qlog_warn "Ping data stale ($(conn_state_why)), skipping cycle"
+        fi
         return 1
     fi
 
-    local _pdata
-    _pdata=$(jq -r '[
-        (.timestamp | if . == null then "0" else tostring end),
-        ((.streak_fail) | if . == null then "0" else tostring end),
-        ((.reachable) | if . == null then "true" else tostring end),
-        ((.during_recovery) | if . == null then "false" else tostring end)
-    ] | @tsv' "$PING_CACHE" 2>/dev/null)
-
-    [ -z "$_pdata" ] && return 1
-
-    local ping_ts
-    ping_ts=$(printf '%s' "$_pdata" | cut -f1)
-    ping_streak_fail=$(printf '%s' "$_pdata" | cut -f2)
-    ping_reachable=$(printf '%s' "$_pdata" | cut -f3)
-    ping_during_recovery=$(printf '%s' "$_pdata" | cut -f4)
-
-    # Staleness check — prefer monotonic /proc/uptime; wall-clock fallback when .mono absent
-    local ping_mono
-    local _stale=0
-    ping_mono=$(jq -r '.mono | if . == null then "" else tostring end' "$PING_CACHE" 2>/dev/null)
-    case "$ping_mono" in
-        ''|0|*[!0-9]*)
-            local now
-            local age
-            now=$(date +%s)
-            age=$((now - ping_ts))
-            if [ "$age" -gt "$PING_STALE_THRESHOLD" ]; then
-                qlog_warn "Ping data stale/wc (age=${age}s), skipping cycle"
-                _stale=1
-            fi
-            ;;
-        *)
-            local age_mono
-            age_mono=$(( $(mono_now) - ping_mono ))
-            if [ "$age_mono" -gt "$PING_STALE_THRESHOLD" ]; then
-                qlog_warn "Ping data stale (age_mono=${age_mono}s), skipping cycle"
-                _stale=1
-            fi
-            ;;
-    esac
-    [ "$_stale" -eq 1 ] && return 1
-
+    # reachable is true/false, or "null" when the cache did not say — "null"
+    # is never treated as up. The down decision stays on the probe-count streak.
+    ping_streak_fail="$CQ_STREAK_FAIL"
+    ping_reachable="$CQ_REACHABLE"
+    ping_during_recovery="$CQ_DURING_RECOVERY"
     return 0
 }
 

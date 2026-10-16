@@ -46,12 +46,15 @@ else
 fi
 qlog_init "ping"
 
+# --- Cadence table (conn_state_resolve) --------------------------------------
+[ -f /usr/lib/qmanager/conn_state.sh ] && . /usr/lib/qmanager/conn_state.sh
+
 # --- Configuration -----------------------------------------------------------
 # Defaults — overridable via UCI (/etc/config/quecmanager, section ping_profile).
 # These are fallbacks only; load_config() below re-reads UCI at startup and on
 # every reload-flag trip. The active profile name drives interval + thresholds
-# via resolve_profile(); the daemon holds the profile->params table as the
-# single source of truth (UCI stores only the profile name + 2 ICMP targets).
+# via resolve_profile(), which reads the one profile table in conn_state.sh
+# (UCI stores only the profile name, the override and the 2 ICMP targets).
 PING_PROFILE="${PING_PROFILE:-relaxed}"
 PING_TARGET_IPV4="${PING_TARGET_IPV4:-1.1.1.1}"
 PING_TARGET_IPV6="${PING_TARGET_IPV6:-2606:4700:4700::1111}"
@@ -59,6 +62,8 @@ PING_INTERVAL="${PING_INTERVAL:-5}"
 PING_INTERVAL_OVERRIDE=""    # quecmanager.ping_profile.interval_override (1–60); empty = unused
 FAIL_THRESHOLD="${FAIL_THRESHOLD:-3}"
 RECOVER_THRESHOLD="${RECOVER_THRESHOLD:-2}"
+PING_FAIL_SECS=15          # profile time-to-fail / time-to-recover, published
+PING_RECOVER_SECS=10       # in the cache as fail_secs / recover_secs
 HISTORY_SIZE="${HISTORY_SIZE:-60}"
 PROBE_COUNT=1              # ping -c : ICMP echo requests per probe
 PROBE_TIMEOUT=2            # ping -W : per-probe wait (BusyBox: seconds)
@@ -88,45 +93,24 @@ history_count=0        # tracked in shell — avoids wc -l fork every cycle
 # HELPERS
 # =============================================================================
 
-# --- Ceil division: ceil(a/b) using POSIX integer math -----------------------
-# samples = (secs + interval - 1) / interval. Both args must be positive ints.
-ceil_div() {
-    echo $(( ($1 + $2 - 1) / $2 ))
-}
-
 # --- Resolve the active profile name to {interval, fail/recover thresholds} ---
-# Table (seconds): sensitive 1/6/3 · regular 2/10/6 · relaxed 5/15/10 · quiet
-# 10/30/20. The daemon owns this table; UCI only stores the profile NAME.
-# Thresholds are derived from seconds via ceil(secs/interval) so changing the
-# interval keeps the time-to-fail / time-to-recover stable.
+# The profile table lives in conn_state.sh (conn_state_resolve) so the CGIs,
+# poller and watchcat see the same cadence this daemon runs: sensitive 1/6/3,
+# regular 2/10/6, relaxed 5/15/10, quiet 10/30/20 (interval/fail/recover s).
+# Thresholds are ceil(secs / PROFILE interval); interval_override (validated
+# 1-60 in load_config) changes only the probe cadence, not the thresholds.
+# Without the lib, the env/relaxed defaults above stand (override still wins).
 resolve_profile() {
-    local _interval
-    local _fail_secs
-    local _recover_secs
-
-    case "$PING_PROFILE" in
-        sensitive) _interval=1;  _fail_secs=6;  _recover_secs=3  ;;
-        regular)   _interval=2;  _fail_secs=10; _recover_secs=6  ;;
-        quiet)     _interval=10; _fail_secs=30; _recover_secs=20 ;;
-        relaxed|*)
-            # Unknown/empty falls back to relaxed defaults.
-            PING_PROFILE="relaxed"
-            _interval=5;  _fail_secs=15; _recover_secs=10
-            ;;
-    esac
-
-    # Fail/recover thresholds derive from the PROFILE's interval (time-to-fail /
-    # time-to-recover stay stable per profile). The override only changes the
-    # probe cadence — it deliberately does NOT re-derive the thresholds.
-    FAIL_THRESHOLD=$(ceil_div "$_fail_secs" "$_interval")
-    RECOVER_THRESHOLD=$(ceil_div "$_recover_secs" "$_interval")
-
-    # Effective probe interval = interval_override ?? profile interval.
-    # Override is validated 1–60 in load_config; empty/invalid = unused.
-    if [ -n "$PING_INTERVAL_OVERRIDE" ]; then
+    if command -v conn_state_resolve >/dev/null 2>&1; then
+        conn_state_resolve "$PING_PROFILE" "$PING_INTERVAL_OVERRIDE"
+        PING_PROFILE="$CQ_CFG_PROFILE"
+        PING_INTERVAL="$CQ_CFG_INTERVAL_SEC"
+        PING_FAIL_SECS="$CQ_CFG_FAIL_SECS"
+        PING_RECOVER_SECS="$CQ_CFG_RECOVER_SECS"
+        FAIL_THRESHOLD="$CQ_CFG_FAIL_THRESHOLD"
+        RECOVER_THRESHOLD="$CQ_CFG_RECOVER_THRESHOLD"
+    elif [ -n "$PING_INTERVAL_OVERRIDE" ]; then
         PING_INTERVAL="$PING_INTERVAL_OVERRIDE"
-    else
-        PING_INTERVAL="$_interval"
     fi
 }
 
@@ -270,7 +254,8 @@ probe_cycle() {
 }
 
 # --- Write slim JSON cache atomically ----------------------------------------
-# Keys: timestamp, mono, profile, targets, interval_sec, last_rtt_ms, reachable,
+# Keys: timestamp, mono, profile, targets, interval_sec, fail_secs, recover_secs,
+# last_rtt_ms, reachable,
 # streak_success, streak_fail, during_recovery, last_family. Stats (avg/min/max/
 # jitter/loss) and the history array are computed by the poller, not here.
 write_cache() {
@@ -291,6 +276,8 @@ write_cache() {
         --arg target4 "$PING_TARGET_IPV4" \
         --arg target6 "$PING_TARGET_IPV6" \
         --argjson interval "$PING_INTERVAL" \
+        --argjson fail_secs "$PING_FAIL_SECS" \
+        --argjson recover_secs "$PING_RECOVER_SECS" \
         --argjson last_rtt "$rtt" \
         --argjson reachable "$reachable" \
         --argjson streak_s "$streak_success" \
@@ -303,6 +290,8 @@ write_cache() {
             profile: $profile,
             targets: [$target4, $target6],
             interval_sec: $interval,
+            fail_secs: $fail_secs,
+            recover_secs: $recover_secs,
             last_rtt_ms: $last_rtt,
             reachable: $reachable,
             streak_success: $streak_s,
