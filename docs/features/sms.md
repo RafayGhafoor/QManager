@@ -47,6 +47,8 @@ All `sms_tool` calls run inside a `flock -x` on `/var/lock/qmanager.lock`, the s
 
 Both wrappers use a polling fallback loop (`_sms_flock_wait` / `_sa_flock_wait`) with a 10-second timeout because BusyBox `flock` does not support `-w <timeout>`. The lock file is created as an empty file if absent before the `flock` call — `flock` on a non-existent file returns 0 immediately (no lock held), so the creation step is load-bearing.
 
+A lock timeout exits **99** from both wrappers, never 2: `sms_tool` itself exits 2 on a real send failure (bad number, no SMSC, not registered), so sharing the code conflated the two. `sms.sh` maps 99 to `{"success":false,"error":"modem_busy","detail":"Could not acquire AT lock"}` on the inbox GET (the ME read) and on `send`; any other non-zero send exit stays `send_failed` with `sms_tool`'s own message. `sms_alerts.sh` logs a 99 as `could not acquire AT lock` instead of a blank `sms_tool send failed`.
+
 ## SMS Storage Routing (`AT+CPMS`)
 
 `AT+CPMS` controls three independent storage pointers: mem1 (read/delete source), mem2 (send destination), and mem3 (incoming-message routing). On the RM551E the modem defaults mem3 to `SM` (SIM card), so every incoming SMS is written to the SIM rather than modem memory (`ME`). QManager read `ME` exclusively, which meant incoming messages accumulated silently on the SIM card and never appeared in the inbox.

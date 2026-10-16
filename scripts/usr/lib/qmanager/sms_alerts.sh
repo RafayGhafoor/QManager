@@ -91,7 +91,7 @@ _sa_sms_locked() {
     _sa_err="/tmp/qmanager_sa_err.$$"
 
     (
-        _sa_flock_wait 9 10 || exit 2
+        _sa_flock_wait 9 10 || exit 99
         _sa_out=$("$_SA_SMS_TOOL" -d "$_SA_AT_DEVICE" "$@" 2>"$_sa_err")
         _sa_rc=$?
         if [ "$_sa_rc" -eq 0 ]; then
@@ -291,6 +291,10 @@ _sa_do_send() {
 
         # _sa_sms_locked already strips tcgetattr noise; just fall back to a
         # generic message if the stripped output is empty.
+        # rc 99 is the lock-timeout sentinel (clear of sms_tool's own 0/1/2).
+        if [ "$rc" -eq 99 ]; then
+            send_out="could not acquire AT lock"
+        fi
         [ -z "$send_out" ] && send_out="sms_tool send failed (rc=$rc)"
         _last_err="$send_out"
         qlog_warn "SMS alerts: sms_tool send failed on attempt $attempt/$max_attempts (rc=$rc) — $send_out"
