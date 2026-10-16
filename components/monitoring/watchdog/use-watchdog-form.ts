@@ -1,515 +1,357 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import { isMotionReduced } from "@/lib/motion-preference";
 import { useSaveFlash } from "@/components/ui/save-button";
-import { PING_PROFILES, type PingProfile } from "@/types/modem-status";
 import type {
   WatchdogSettings,
   WatchdogSavePayload,
+  WatchdogSaveResult,
 } from "@/hooks/use-watchdog-settings";
+import { isIntInRange, type TierIndex } from "./derive";
 
-// -----------------------------------------------------------------------------
-// useWatchdogForm — the single form-state coordinator for the watchdog page.
-// -----------------------------------------------------------------------------
-// The page splits the surface into grouped cards (Status, Recovery Triggers,
-// Recovery Ladder), but the backend save is ATOMIC: one `save_settings` POST
-// carrying every field. So one hook owns the whole form — every value, every
-// validation rule, the dirty check, the submit, and the discard — and the cards
-// each consume the slice they render.
-//
-// Probe interval: the Reachability tab mirrors the Connection Quality sensitivity
-// Select (the 4 named profiles) plus a "Custom" escape hatch (1-60s). The named
-// profile rides UCI `ping_profile.profile`; Custom rides `ping_profile.
-// interval_override`. The watchdog is the single writer for the override, so the
-// form models the choice as: a fallback `probeProfile` (always one of the 4
-// names) + a `useCustomInterval` flag + the custom value.
-//
-// The consuming component is keyed on a signature of `settings` (see
-// `watchdog.tsx`), so this hook remounts and re-seeds its `useState` defaults
-// from fresh server values after every save / background refetch. That keeps the
-// initial-value pattern honest without a setState-in-effect (forbidden by the
-// project's React-Compiler lint rules).
+// Ladder and Detection each commit their own draft. The CGI writes only the
+// keys a POST carries, so a card sends its own fields and nothing else: the
+// other card's half-edit, and a cadence another page changed, both survive.
 
-// Probe interval per named profile, in seconds. Mirrors the ping daemon's
-// profile→interval table (the daemon is the source of truth; this is only for
-// previewing the effective interval before save).
-export const PROFILE_INTERVAL_SEC: Record<PingProfile, number> = {
-  sensitive: 1,
-  regular: 2,
-  relaxed: 5,
-  quiet: 10,
-};
+/** Probe cadence options (seconds); every ping profile's own interval is one. */
+export const PROBE_INTERVAL_OPTIONS = [1, 2, 5, 10, 15, 30] as const;
 
-export const CUSTOM_INTERVAL_MIN = 1;
-export const CUSTOM_INTERVAL_MAX = 60;
+/** A callback-ref factory: the form owns the map, a card registers into it. */
+export type RegisterField = (id: string) => (el: HTMLElement | null) => void;
+
+export type WatchdogScope = "ladder" | "detection";
+
+/** The validated controls, by the id they register under. */
+export const FIELD_ID = {
+  probeInterval: "watchdog-probe-interval",
+  failThreshold: "watchdog-fail-threshold",
+  cooldown: "watchdog-cooldown",
+  qualityConsecutive: "watchdog-quality-consecutive",
+  ssrGrace: "watchdog-ssr-grace",
+  backupSim: "watchdog-backup-slot",
+  recheckInterval: "watchdog-recheck-interval",
+  maxReboots: "watchdog-max-reboots",
+} as const;
 
 export interface WatchdogFormErrors {
+  probeInterval: string | null;
   failThreshold: string | null;
-  customInterval: string | null;
   cooldown: string | null;
-  maxReboots: string | null;
-  backupSim: string | null;
-  consecutive: string | null;
+  qualityConsecutive: string | null;
   ssrGrace: string | null;
-  primaryRecheckInterval: string | null;
+  backupSim: string | null;
+  recheckInterval: string | null;
+  maxReboots: string | null;
 }
 
-export interface WatchdogForm {
-  // Master
-  isEnabled: boolean;
-  setIsEnabled: (v: boolean) => void;
+/** Reading order per card, which is also the order a blocked save walks them in. */
+const SCOPE_FIELDS = {
+  ladder: ["backupSim", "recheckInterval", "maxReboots"],
+  detection: [
+    "probeInterval",
+    "failThreshold",
+    "cooldown",
+    "qualityConsecutive",
+    "ssrGrace",
+  ],
+} as const satisfies Record<WatchdogScope, readonly (keyof WatchdogFormErrors)[]>;
 
-  // Probe interval (mirrored sensitivity Select + Custom override)
-  intervalChoice: string; // one of PING_PROFILES, or "custom"
-  setIntervalChoice: (v: string) => void;
-  customInterval: string;
-  setCustomInterval: (v: string) => void;
-  effectiveInterval: number | null; // resolved seconds, null when invalid
-  estimatedDownSecs: number | null; // effectiveInterval × failThreshold
+/** A blocked save names the FIELD by its visible label. */
+export const FIELD_LABEL_KEY: Record<keyof WatchdogFormErrors, string> = {
+  probeInterval: "watchdog.detection.probe.label",
+  failThreshold: "watchdog.detection.threshold.label",
+  cooldown: "watchdog.detection.cooldown.label",
+  qualityConsecutive: "watchdog.detection.quality.label",
+  ssrGrace: "watchdog.detection.ssr.label",
+  backupSim: "watchdog.ladder.tier3.slotLabel",
+  recheckInterval: "watchdog.ladder.failback.name",
+  maxReboots: "watchdog.ladder.tier4.capLabel",
+};
 
-  // Reachability recovery policy
+/** Every field the two cards edit. Numbers stay strings while typed. */
+export interface WatchdogDraft {
+  enabled: boolean;
+  tier1: boolean;
+  tier2: boolean;
+  tier3: boolean;
+  tier4: boolean;
+  backupSlot: string;
+  recheck: boolean;
+  recheckInterval: string;
+  maxReboots: string;
+  probeInterval: string;
   failThreshold: string;
-  setFailThreshold: (v: string) => void;
   cooldown: string;
-  setCooldown: (v: string) => void;
-
-  // Recovery ladder tiers
-  tier1Enabled: boolean;
-  setTier1Enabled: (v: boolean) => void;
-  tier2Enabled: boolean;
-  setTier2Enabled: (v: boolean) => void;
-  tier3Enabled: boolean;
-  setTier3Enabled: (v: boolean) => void;
-  tier4Enabled: boolean;
-  setTier4Enabled: (v: boolean) => void;
-  backupSimSlot: string;
-  setBackupSimSlot: (v: string) => void;
-  maxRebootsPerHour: string;
-  setMaxRebootsPerHour: (v: string) => void;
-
-  // Auto fail-back to primary SIM (nested in Tier 3). Opt-in; interval in minutes.
-  primaryRecheckEnabled: boolean;
-  setPrimaryRecheckEnabled: (v: boolean) => void;
-  primaryRecheckInterval: string;
-  setPrimaryRecheckInterval: (v: string) => void;
-
-  // Connection-quality recovery (acts on the shared thresholds)
-  qualityEnabled: boolean;
-  setQualityEnabled: (v: boolean) => void;
+  quality: boolean;
   qualityConsecutive: string;
-  setQualityConsecutive: (v: string) => void;
-
-  // SSR-aware hold (wait out a recoverable baseband restart before recovering)
   ssrAware: boolean;
-  setSsrAware: (v: boolean) => void;
   ssrGrace: string;
-  setSsrGrace: (v: string) => void;
+}
 
-  // Derived
-  errors: WatchdogFormErrors;
-  hasValidationErrors: boolean;
-  isDirty: boolean;
-  canSave: boolean;
+const SCOPE_KEYS = {
+  ladder: [
+    "enabled",
+    "tier1",
+    "tier2",
+    "tier3",
+    "tier4",
+    "backupSlot",
+    "recheck",
+    "recheckInterval",
+    "maxReboots",
+  ],
+  detection: [
+    "probeInterval",
+    "failThreshold",
+    "cooldown",
+    "quality",
+    "qualityConsecutive",
+    "ssrAware",
+    "ssrGrace",
+  ],
+} as const satisfies Record<WatchdogScope, readonly (keyof WatchdogDraft)[]>;
 
-  // Flow
+export interface ScopeState {
+  dirty: boolean;
+  /** Fields blocking this card's save, in reading order. */
+  blockedFields: (keyof WatchdogFormErrors)[];
   isSaving: boolean;
+  /** Either card is saving; one save at a time. */
+  busy: boolean;
   saved: boolean;
   submit: () => Promise<void>;
   discard: () => void;
+  /** Focus and reveal the first blocking control. No-op when nothing blocks. */
+  focusFirstBlocked: () => void;
+}
+
+export interface WatchdogForm {
+  /** The draft both cards render: saved truth overlaid with unsaved edits. */
+  draft: WatchdogDraft;
+  setFields: (patch: Partial<WatchdogDraft>) => void;
+  errors: WatchdogFormErrors;
+  scopes: Record<WatchdogScope, ScopeState>;
+  /** Newly lets the watchdog reboot unattended; keyed on master AND tier 4 (stock ships tier 4 armed, master off). */
+  grantsRebootAuthority: boolean;
+  registerField: RegisterField;
 }
 
 interface UseWatchdogFormArgs {
   settings: WatchdogSettings;
   isSaving: boolean;
-  error: string | null;
-  saveSettings: (payload: WatchdogSavePayload) => Promise<boolean>;
+  saveSettings: (payload: WatchdogSavePayload) => Promise<WatchdogSaveResult>;
 }
 
-const isIntInRange = (raw: string, min: number, max: number) => {
-  const n = Number(raw);
-  return !(raw === "" || isNaN(n) || !Number.isInteger(n) || n < min || n > max);
+const savedDraft = (s: WatchdogSettings): WatchdogDraft => ({
+  enabled: s.enabled,
+  tier1: s.tier1_enabled,
+  tier2: s.tier2_enabled,
+  tier3: s.tier3_enabled,
+  tier4: s.tier4_enabled,
+  backupSlot: s.backup_sim_slot != null ? String(s.backup_sim_slot) : "",
+  recheck: s.primary_recheck_enabled,
+  recheckInterval: String(s.primary_recheck_interval),
+  maxReboots: String(s.max_reboots_per_hour),
+  probeInterval: String(s.probe_interval),
+  failThreshold: String(s.fail_threshold),
+  cooldown: String(s.cooldown),
+  quality: s.quality_enabled,
+  qualityConsecutive: String(s.quality_consecutive),
+  ssrAware: s.ssr_aware,
+  ssrGrace: String(s.ssr_grace),
+});
+
+const int = (raw: string) => parseInt(raw, 10);
+
+/** Only the card's own keys go on the wire. */
+const toPayload = (
+  scope: WatchdogScope,
+  d: WatchdogDraft,
+): WatchdogSavePayload =>
+  scope === "ladder"
+    ? {
+        action: "save_settings",
+        enabled: d.enabled,
+        tier1_enabled: d.tier1,
+        tier2_enabled: d.tier2,
+        tier3_enabled: d.tier3,
+        tier4_enabled: d.tier4,
+        backup_sim_slot: d.backupSlot ? int(d.backupSlot) : null,
+        primary_recheck_enabled: d.recheck,
+        primary_recheck_interval: int(d.recheckInterval),
+        max_reboots_per_hour: int(d.maxReboots),
+      }
+    : {
+        action: "save_settings",
+        // An unchanged value writes nothing on the CGI side.
+        probe_interval: int(d.probeInterval),
+        fail_threshold: int(d.failThreshold),
+        cooldown: int(d.cooldown),
+        quality_enabled: d.quality,
+        quality_consecutive: int(d.qualityConsecutive),
+        ssr_aware: d.ssrAware,
+        ssr_grace: int(d.ssrGrace),
+      };
+
+const omit = (
+  edits: Partial<WatchdogDraft>,
+  keys: readonly (keyof WatchdogDraft)[],
+): Partial<WatchdogDraft> => {
+  const next = { ...edits };
+  for (const k of keys) delete next[k];
+  return next;
 };
 
-const isValidProfile = (v: string): v is PingProfile =>
-  (PING_PROFILES as readonly string[]).includes(v);
+/** A number field's error key: empty is caught separately as "required". */
+const rangeError = (raw: string, min: number, max: number, key: string) =>
+  raw.trim() !== "" && !isIntInRange(raw, min, max) ? key : null;
 
 export function useWatchdogForm({
   settings,
   isSaving,
-  error,
   saveSettings,
 }: UseWatchdogFormArgs): WatchdogForm {
   const { t } = useTranslation("monitoring");
-  const { saved, markSaved } = useSaveFlash();
+  const ladderFlash = useSaveFlash();
+  const detectionFlash = useSaveFlash();
 
-  const [isEnabled, setIsEnabled] = useState(settings.enabled);
+  // Edits overlay server truth, so a re-read never eats a typed value and one
+  // card's save leaves the other card's half-edit alone.
+  const [edits, setEdits] = useState<Partial<WatchdogDraft>>({});
+  const [savingScope, setSavingScope] = useState<WatchdogScope | null>(null);
 
-  // Probe interval — fallback named profile + custom-override flag/value.
-  const seedProfile: PingProfile = isValidProfile(settings.probe_profile)
-    ? settings.probe_profile
-    : "relaxed";
-  const [probeProfile, setProbeProfile] = useState<PingProfile>(seedProfile);
-  const [useCustomInterval, setUseCustomInterval] = useState(
-    settings.interval_override != null,
-  );
-  const [customInterval, setCustomInterval] = useState(
-    settings.interval_override != null ? String(settings.interval_override) : "",
-  );
+  const saved = useMemo(() => savedDraft(settings), [settings]);
+  const draft = useMemo<WatchdogDraft>(() => ({ ...saved, ...edits }), [saved, edits]);
 
-  const [failThreshold, setFailThreshold] = useState(
-    String(settings.fail_threshold),
-  );
-  // check_interval is no longer user-edited; carried verbatim so the atomic save
-  // never resets it.
-  const checkInterval = String(settings.check_interval);
-  const [cooldown, setCooldown] = useState(String(settings.cooldown));
-  const [tier1Enabled, setTier1Enabled] = useState(settings.tier1_enabled);
-  const [tier2Enabled, setTier2Enabled] = useState(settings.tier2_enabled);
-  const [tier3Enabled, setTier3Enabled] = useState(settings.tier3_enabled);
-  const [tier4Enabled, setTier4Enabled] = useState(settings.tier4_enabled);
-  const [backupSimSlot, setBackupSimSlot] = useState(
-    settings.backup_sim_slot != null ? String(settings.backup_sim_slot) : "",
-  );
-  const [maxRebootsPerHour, setMaxRebootsPerHour] = useState(
-    String(settings.max_reboots_per_hour),
-  );
-  const [qualityEnabled, setQualityEnabled] = useState(settings.quality_enabled);
-  const [qualityConsecutive, setQualityConsecutive] = useState(
-    String(settings.quality_consecutive),
-  );
-  const [ssrAware, setSsrAware] = useState(settings.ssr_aware);
-  const [ssrGrace, setSsrGrace] = useState(String(settings.ssr_grace));
-  const [primaryRecheckEnabled, setPrimaryRecheckEnabled] = useState(
-    settings.primary_recheck_enabled,
-  );
-  const [primaryRecheckInterval, setPrimaryRecheckInterval] = useState(
-    String(settings.primary_recheck_interval),
-  );
+  const setFields = useCallback((patch: Partial<WatchdogDraft>) => {
+    setEdits((prev) => ({ ...prev, ...patch }));
+  }, []);
 
-  // --- Interval choice as one control value ---
-  const intervalChoice = useCustomInterval ? "custom" : probeProfile;
-  const setIntervalChoice = useCallback(
-    (v: string) => {
-      if (v === "custom") {
-        setUseCustomInterval(true);
-        // Seed the custom field from the current effective interval so the input
-        // isn't blank when the user switches to Custom.
-        setCustomInterval((prev) =>
-          prev !== "" ? prev : String(PROFILE_INTERVAL_SEC[probeProfile]),
-        );
-      } else if (isValidProfile(v)) {
-        setUseCustomInterval(false);
-        setProbeProfile(v);
-      }
-    },
-    [probeProfile],
-  );
-
-  // --- Derived interval values ---
-  const effectiveInterval = useMemo<number | null>(() => {
-    if (useCustomInterval) {
-      return isIntInRange(customInterval, CUSTOM_INTERVAL_MIN, CUSTOM_INTERVAL_MAX)
-        ? Number(customInterval)
-        : null;
-    }
-    return PROFILE_INTERVAL_SEC[probeProfile];
-  }, [useCustomInterval, customInterval, probeProfile]);
-
-  const estimatedDownSecs = useMemo<number | null>(() => {
-    if (effectiveInterval == null) return null;
-    if (!isIntInRange(failThreshold, 1, 20)) return null;
-    return effectiveInterval * Number(failThreshold);
-  }, [effectiveInterval, failThreshold]);
-
-  // --- Validation (mirrors the CGI field ranges) ---
-  const errors = useMemo<WatchdogFormErrors>(() => {
-    const failThresholdErr =
-      failThreshold && !isIntInRange(failThreshold, 1, 20)
-        ? t("watchdog.failure_threshold_error")
-        : null;
-    const customIntervalErr =
-      useCustomInterval &&
-      customInterval &&
-      !isIntInRange(customInterval, CUSTOM_INTERVAL_MIN, CUSTOM_INTERVAL_MAX)
-        ? t("watchdog.custom_interval_error")
-        : null;
-    const cooldownErr =
-      cooldown && !isIntInRange(cooldown, 10, 300)
-        ? t("watchdog.cooldown_error")
-        : null;
-    const maxRebootsErr =
-      maxRebootsPerHour && !isIntInRange(maxRebootsPerHour, 1, 10)
-        ? t("watchdog.max_reboots_error")
-        : null;
-    const backupSimErr =
-      tier3Enabled && !backupSimSlot
-        ? t("watchdog.backup_sim_required_error")
-        : null;
-    const consecutiveErr =
-      qualityEnabled &&
-      qualityConsecutive &&
-      !isIntInRange(qualityConsecutive, 1, 60)
-        ? t("watchdog.quality_consecutive_error")
-        : null;
-    const ssrGraceErr =
-      ssrAware && ssrGrace && !isIntInRange(ssrGrace, 10, 120)
-        ? t("watchdog.ssr_grace_error")
-        : null;
-    // Auto fail-back interval is only meaningful when the toggle is on. An empty
-    // field while enabled is handled as a save-blocking "missing" below, not a
-    // range error (mirrors the customInterval pattern).
-    const primaryRecheckIntervalErr =
-      primaryRecheckEnabled &&
-      primaryRecheckInterval &&
-      !isIntInRange(primaryRecheckInterval, 5, 1440)
-        ? t("watchdog.primary_recheck_interval_error")
-        : null;
-
-    return {
-      failThreshold: failThresholdErr,
-      customInterval: customIntervalErr,
-      cooldown: cooldownErr,
-      maxReboots: maxRebootsErr,
-      backupSim: backupSimErr,
-      consecutive: consecutiveErr,
-      ssrGrace: ssrGraceErr,
-      primaryRecheckInterval: primaryRecheckIntervalErr,
-    };
-  }, [
-    t,
-    failThreshold,
-    useCustomInterval,
-    customInterval,
-    cooldown,
-    maxRebootsPerHour,
-    tier3Enabled,
-    backupSimSlot,
-    qualityEnabled,
-    qualityConsecutive,
-    ssrAware,
-    ssrGrace,
-    primaryRecheckEnabled,
-    primaryRecheckInterval,
-  ]);
-
-  const hasValidationErrors = useMemo(
-    () => Object.values(errors).some(Boolean),
-    [errors],
-  );
-
-  // An empty custom field while Custom is selected isn't a range error but still
-  // can't be saved.
-  const customIntervalMissing =
-    useCustomInterval && customInterval.trim() === "";
-
-  // Same rule for the auto fail-back interval: empty while the toggle is on
-  // blocks the save without being a range error.
-  const primaryRecheckIntervalMissing =
-    primaryRecheckEnabled && primaryRecheckInterval.trim() === "";
-
-  const isDirty = useMemo(
-    () =>
-      isEnabled !== settings.enabled ||
-      probeProfile !== seedProfile ||
-      useCustomInterval !== (settings.interval_override != null) ||
-      customInterval !==
-        (settings.interval_override != null
-          ? String(settings.interval_override)
-          : "") ||
-      failThreshold !== String(settings.fail_threshold) ||
-      cooldown !== String(settings.cooldown) ||
-      tier1Enabled !== settings.tier1_enabled ||
-      tier2Enabled !== settings.tier2_enabled ||
-      tier3Enabled !== settings.tier3_enabled ||
-      tier4Enabled !== settings.tier4_enabled ||
-      backupSimSlot !==
-        (settings.backup_sim_slot != null
-          ? String(settings.backup_sim_slot)
-          : "") ||
-      maxRebootsPerHour !== String(settings.max_reboots_per_hour) ||
-      qualityEnabled !== settings.quality_enabled ||
-      qualityConsecutive !== String(settings.quality_consecutive) ||
-      ssrAware !== settings.ssr_aware ||
-      ssrGrace !== String(settings.ssr_grace) ||
-      primaryRecheckEnabled !== settings.primary_recheck_enabled ||
-      primaryRecheckInterval !== String(settings.primary_recheck_interval),
-    [
-      settings,
-      seedProfile,
-      isEnabled,
-      probeProfile,
-      useCustomInterval,
-      customInterval,
-      failThreshold,
-      cooldown,
-      tier1Enabled,
-      tier2Enabled,
-      tier3Enabled,
-      tier4Enabled,
-      backupSimSlot,
-      maxRebootsPerHour,
-      qualityEnabled,
-      qualityConsecutive,
-      ssrAware,
-      ssrGrace,
-      primaryRecheckEnabled,
-      primaryRecheckInterval,
-    ],
-  );
-
-  const canSave =
-    !hasValidationErrors &&
-    !customIntervalMissing &&
-    !primaryRecheckIntervalMissing &&
-    isDirty &&
-    !isSaving;
-
-  const submit = useCallback(async () => {
-    if (
-      hasValidationErrors ||
-      customIntervalMissing ||
-      primaryRecheckIntervalMissing ||
-      !isDirty ||
-      isSaving
-    )
-      return;
-
-    const payload: WatchdogSavePayload = {
-      action: "save_settings",
-      enabled: isEnabled,
-      fail_threshold: parseInt(failThreshold, 10),
-      check_interval: parseInt(checkInterval, 10),
-      cooldown: parseInt(cooldown, 10),
-      tier1_enabled: tier1Enabled,
-      tier2_enabled: tier2Enabled,
-      tier3_enabled: tier3Enabled,
-      tier4_enabled: tier4Enabled,
-      backup_sim_slot: backupSimSlot ? parseInt(backupSimSlot, 10) : null,
-      max_reboots_per_hour: parseInt(maxRebootsPerHour, 10),
-      quality_enabled: qualityEnabled,
-      quality_consecutive: parseInt(qualityConsecutive || "5", 10),
-      ssr_aware: ssrAware,
-      ssr_grace: parseInt(ssrGrace || "45", 10),
-      primary_recheck_enabled: primaryRecheckEnabled,
-      primary_recheck_interval: parseInt(primaryRecheckInterval || "30", 10),
-      probe_profile: probeProfile,
-      interval_override: useCustomInterval
-        ? parseInt(customInterval, 10)
+  // Values are i18n KEYS; the rendering component translates them. The ranges
+  // mirror the CGI's validate_int bounds.
+  const errors = useMemo<WatchdogFormErrors>(
+    () => ({
+      probeInterval: rangeError(draft.probeInterval, 1, 60, "watchdog.errors.probeInterval"),
+      failThreshold: rangeError(draft.failThreshold, 1, 20, "watchdog.errors.failThreshold"),
+      cooldown: rangeError(draft.cooldown, 10, 300, "watchdog.errors.cooldown"),
+      qualityConsecutive: draft.quality
+        ? rangeError(draft.qualityConsecutive, 1, 60, "watchdog.errors.qualityConsecutive")
         : null,
-    };
+      ssrGrace: draft.ssrAware
+        ? rangeError(draft.ssrGrace, 10, 120, "watchdog.errors.ssrGrace")
+        : null,
+      // An unset slot leaves the ladder unable to fail over, so it blocks.
+      backupSim:
+        draft.tier3 && !draft.backupSlot ? "watchdog.errors.backupSim" : null,
+      recheckInterval:
+        draft.tier3 && draft.recheck
+          ? rangeError(draft.recheckInterval, 5, 1440, "watchdog.errors.recheckInterval")
+          : null,
+      maxReboots: draft.tier4
+        ? rangeError(draft.maxReboots, 1, 10, "watchdog.errors.maxReboots")
+        : null,
+    }),
+    [draft],
+  );
 
-    const ok = await saveSettings(payload);
-    if (ok) {
-      markSaved();
-      toast.success(t("watchdog.toast_save_success"));
+  // An empty number field the CGI would receive as NaN still blocks. A field
+  // whose switch is off is still sent, so it must hold a number too.
+  const emptyRequired: Record<keyof WatchdogFormErrors, boolean> = {
+    probeInterval: draft.probeInterval.trim() === "",
+    failThreshold: draft.failThreshold.trim() === "",
+    cooldown: draft.cooldown.trim() === "",
+    qualityConsecutive: draft.qualityConsecutive.trim() === "",
+    ssrGrace: draft.ssrGrace.trim() === "",
+    backupSim: false,
+    recheckInterval: draft.recheckInterval.trim() === "",
+    maxReboots: draft.maxReboots.trim() === "",
+  };
+
+  const blockedFor = (scope: WatchdogScope) =>
+    SCOPE_FIELDS[scope].filter(
+      (key) => errors[key] !== null || emptyRequired[key],
+    );
+  const dirtyFor = (scope: WatchdogScope) =>
+    SCOPE_KEYS[scope].some((k) => draft[k] !== saved[k]);
+
+  const grantsRebootAuthority =
+    draft.enabled && draft.tier4 && !(settings.enabled && settings.tier4_enabled);
+
+  // A ref, because nothing renders off it.
+  const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
+  const registerField = useCallback<RegisterField>(
+    (id) => (el) => {
+      fieldRefs.current[id] = el;
+    },
+    [],
+  );
+
+  const focusField = (key: keyof WatchdogFormErrors) => {
+    const host = fieldRefs.current[FIELD_ID[key]];
+    if (!host) return;
+    // A segmented control registers its wrapper; focus its first visible segment.
+    const el = host.matches("input, button")
+      ? host
+      : Array.from(host.querySelectorAll<HTMLElement>("input, button")).find(
+          (n) => n.getClientRects().length > 0 && !n.hasAttribute("disabled"),
+        );
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    el.scrollIntoView({
+      block: "center",
+      behavior: isMotionReduced() ? "auto" : "smooth",
+    });
+  };
+
+  const submitScope = async (scope: WatchdogScope) => {
+    if (!dirtyFor(scope) || blockedFor(scope).length > 0 || isSaving) return;
+
+    setSavingScope(scope);
+    // The RESULT carries the backend's reason; hook `error` state would be stale here.
+    const result = await saveSettings(toPayload(scope, draft));
+    setSavingScope(null);
+    if (result.ok) {
+      setEdits((prev) => omit(prev, SCOPE_KEYS[scope]));
+      (scope === "ladder" ? ladderFlash : detectionFlash).markSaved();
+      toast.success(t("watchdog.save.toastOk"));
     } else {
-      toast.error(error || t("watchdog.toast_save_error"));
+      toast.error(t("watchdog.save.toastFail"), {
+        description: result.message ?? undefined,
+      });
     }
-  }, [
-    hasValidationErrors,
-    customIntervalMissing,
-    primaryRecheckIntervalMissing,
-    isDirty,
-    isSaving,
-    isEnabled,
-    failThreshold,
-    checkInterval,
-    cooldown,
-    tier1Enabled,
-    tier2Enabled,
-    tier3Enabled,
-    tier4Enabled,
-    backupSimSlot,
-    maxRebootsPerHour,
-    qualityEnabled,
-    qualityConsecutive,
-    ssrAware,
-    ssrGrace,
-    primaryRecheckEnabled,
-    primaryRecheckInterval,
-    probeProfile,
-    useCustomInterval,
-    customInterval,
-    saveSettings,
-    markSaved,
-    error,
-    t,
-  ]);
+  };
 
-  // Discard resets every field to the server-truth in `settings`.
-  const discard = useCallback(() => {
-    setIsEnabled(settings.enabled);
-    setProbeProfile(seedProfile);
-    setUseCustomInterval(settings.interval_override != null);
-    setCustomInterval(
-      settings.interval_override != null
-        ? String(settings.interval_override)
-        : "",
-    );
-    setFailThreshold(String(settings.fail_threshold));
-    setCooldown(String(settings.cooldown));
-    setTier1Enabled(settings.tier1_enabled);
-    setTier2Enabled(settings.tier2_enabled);
-    setTier3Enabled(settings.tier3_enabled);
-    setTier4Enabled(settings.tier4_enabled);
-    setBackupSimSlot(
-      settings.backup_sim_slot != null ? String(settings.backup_sim_slot) : "",
-    );
-    setMaxRebootsPerHour(String(settings.max_reboots_per_hour));
-    setQualityEnabled(settings.quality_enabled);
-    setQualityConsecutive(String(settings.quality_consecutive));
-    setSsrAware(settings.ssr_aware);
-    setSsrGrace(String(settings.ssr_grace));
-    setPrimaryRecheckEnabled(settings.primary_recheck_enabled);
-    setPrimaryRecheckInterval(String(settings.primary_recheck_interval));
-  }, [settings, seedProfile]);
+  const scopeState = (scope: WatchdogScope): ScopeState => ({
+    dirty: dirtyFor(scope),
+    blockedFields: blockedFor(scope),
+    isSaving: isSaving && savingScope === scope,
+    busy: isSaving,
+    saved: (scope === "ladder" ? ladderFlash : detectionFlash).saved,
+    submit: () => submitScope(scope),
+    discard: () => setEdits((prev) => omit(prev, SCOPE_KEYS[scope])),
+    focusFirstBlocked: () => {
+      const first = blockedFor(scope)[0];
+      if (first) focusField(first);
+    },
+  });
 
   return {
-    isEnabled,
-    setIsEnabled,
-    intervalChoice,
-    setIntervalChoice,
-    customInterval,
-    setCustomInterval,
-    effectiveInterval,
-    estimatedDownSecs,
-    failThreshold,
-    setFailThreshold,
-    cooldown,
-    setCooldown,
-    tier1Enabled,
-    setTier1Enabled,
-    tier2Enabled,
-    setTier2Enabled,
-    tier3Enabled,
-    setTier3Enabled,
-    tier4Enabled,
-    setTier4Enabled,
-    backupSimSlot,
-    setBackupSimSlot,
-    maxRebootsPerHour,
-    setMaxRebootsPerHour,
-    qualityEnabled,
-    setQualityEnabled,
-    qualityConsecutive,
-    setQualityConsecutive,
-    ssrAware,
-    setSsrAware,
-    ssrGrace,
-    setSsrGrace,
-    primaryRecheckEnabled,
-    setPrimaryRecheckEnabled,
-    primaryRecheckInterval,
-    setPrimaryRecheckInterval,
+    draft,
+    setFields,
     errors,
-    hasValidationErrors,
-    isDirty,
-    canSave,
-    isSaving,
-    saved,
-    submit,
-    discard,
+    scopes: { ladder: scopeState("ladder"), detection: scopeState("detection") },
+    grantsRebootAuthority,
+    registerField,
   };
 }
+
+/** Tier on/off by index, for the rungs and the timeline. */
+export const draftTiers = (d: WatchdogDraft): Record<TierIndex, boolean> => ({
+  1: d.tier1,
+  2: d.tier2,
+  3: d.tier3,
+  4: d.tier4,
+});

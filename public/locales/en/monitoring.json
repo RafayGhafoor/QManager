@@ -227,165 +227,245 @@
     }
   },
   "watchdog": {
-    "page_title": "Watchdog",
-    "page_description": "Automatically detect and recover from internet outages with escalating recovery steps.",
-    "settings_title": "Watchdog Settings",
-    "settings_description": "Configure connection health monitoring and recovery.",
-    "auto_disabled_alert": "Watchdog disabled itself after too many reboots in one hour. Re-enable it below once your connection is stable.",
-    "enable_label": "Enable Watchdog",
-    "failure_threshold_label": "Failure Threshold",
-    "failure_threshold_placeholder": "5",
-    "failure_threshold_description": "How many failed probes in a row count as down before recovery begins.",
-    "failure_threshold_error": "Must be 1–20",
-    "probe_interval_label": "Probe Interval",
-    "probe_interval_description": "How often the modem checks the internet. Shared with Connection Quality.",
-    "probe_interval_tooltip": "Recovery reacts to the connectivity check run at this interval. Picking a profile sets the same sensitivity as the Connection Quality page; Custom overrides it with your own interval.",
-    "probe_interval_more_info_aria": "More information about the probe interval",
-    "probe_interval_custom": "Custom",
-    "profile_sensitive": "Sensitive",
-    "profile_regular": "Regular",
-    "profile_relaxed": "Relaxed",
-    "profile_quiet": "Quiet",
-    "custom_interval_label": "Custom Interval (seconds)",
-    "custom_interval_placeholder": "8",
-    "custom_interval_description": "Overrides the profile interval. 1–60 seconds.",
-    "custom_interval_error": "Must be 1–60",
-    "declares_down_preview": "Declares the connection down after about {{secs}}s.",
-    "declares_down_unknown": "Set a probe interval and failure threshold to see the detection time.",
-    "cooldown_label": "Cooldown Period (seconds)",
-    "cooldown_placeholder": "60",
-    "cooldown_description": "Wait time after each recovery step before checking connectivity again.",
-    "cooldown_error": "Must be 10–300 seconds",
-    "max_reboots_label": "Max Reboots Per Hour",
-    "max_reboots_placeholder": "3",
-    "max_reboots_description": "How many device reboots are allowed per hour before the watchdog locks itself.",
-    "max_reboots_error": "Must be 1–10",
-    "tier_1_description": "Asks the modem to reconnect to your carrier's network. The gentlest first step.",
-    "tier_2_description": "Turns the modem's radio off and back on to force a fresh connection to the tower.",
-    "tier_3_description": "Switches to your backup SIM when the primary SIM can't get back online.",
-    "tier_4_description": "Restarts the whole device. Used only as a last resort when nothing else works.",
-    "backup_sim_label": "Backup SIM Slot",
-    "backup_sim_placeholder": "Select slot",
-    "backup_sim_slot_1": "Slot 1",
-    "backup_sim_slot_2": "Slot 2",
-    "backup_sim_description": "Which SIM slot to fail over to when Tier 3 activates.",
-    "backup_sim_required_error": "Choose a backup SIM slot or disable Tier 3.",
-    "tier_2_tooltip": "Automatically skipped when tower lock is active to preserve your locked cells.",
-    "tier_2_more_info_aria": "More info",
-    "toast_save_success": "Watchdog settings saved",
-    "toast_save_error": "Failed to save watchdog settings",
-    "toast_sim_revert_success": "SIM revert requested. The watchdog will process this shortly.",
-    "toast_sim_revert_error": "Failed to request SIM revert",
-    "status_description": "Live connection health status.",
-    "status_badge_monitoring": "Monitoring",
-    "status_badge_suspect": "Detecting Issue",
-    "status_badge_recovery": "Recovering",
-    "status_badge_cooldown": "Cooldown",
-    "status_badge_locked": "Locked",
-    "status_badge_disabled": "Disabled",
-    "status_starting": "Watchdog is starting up. It will begin monitoring shortly.",
-    "status_row_current_step": "Current Step",
-    "status_row_failed_checks": "Failed Checks",
-    "status_row_cooldown": "Cooldown",
-    "status_row_total_recoveries": "Total Recoveries",
-    "status_row_reboots_this_hour": "Reboots This Hour",
-    "status_row_last_recovery": "Last Recovery",
-    "tier_label_none": "—",
-    "tier_label_short": "Step {{n}}",
-    "status_cooldown_remaining": "{{count}}s remaining",
-    "status_sim_failover_message": "Running on backup SIM (slot {{current_slot}}) since {{switched_at}}. Original SIM was in slot {{original_slot}}.",
-    "status_sim_failover_recently": "recently",
-    "status_sim_revert_button": "Revert to Original SIM",
-    "status_sim_reverting": "Reverting…",
-    "status_sim_revert_dialog_title": "Revert to Original SIM?",
-    "status_sim_revert_dialog_description": "This will switch back to SIM slot {{original_slot}}. Your internet will briefly disconnect while the modem reconnects.",
-    "status_sim_revert_cancel": "Cancel",
-    "status_sim_revert_confirm": "Revert SIM",
+    "page": {
+      "title": "Watchdog",
+      "description": "Watches the internet link and climbs a recovery ladder when it goes down.",
+      "refresh": "Refresh",
+      "unreadableTitle": "Could not read the watchdog settings",
+      "unreadable": "The modem did not answer.",
+      "retry": "Try again"
+    },
+    "band": {
+      "checks": "Failed checks",
+      "recoveries": "Recoveries",
+      "reboots": "Reboots",
+      "absent": "Not reported",
+      "checksCaption": "Before recovery starts",
+      "cooldownCaption": "Rechecking in {{seconds}}s",
+      "recoveriesLast": "Step {{tier}}, {{ago}}",
+      "recoveriesNone": "None yet",
+      "rebootsCaption": "Since the watchdog started",
+      "rebootsOff": "Reboot step is off",
+      "aria": "Watchdog status",
+      "cooldownStep": "Step {{tier}} ran. Rechecking in {{seconds}}s."
+    },
+    "phase": {
+      "off": {
+        "label": "Off",
+        "blurb": "The watchdog is not watching the connection."
+      },
+      "unknown": {
+        "label": "Unknown",
+        "blurb": "The modem is not answering, so we cannot say what the watchdog is doing."
+      },
+      "starting": {
+        "label": "Starting",
+        "blurb": "The service was just enabled and has not reported yet."
+      },
+      "not_running": {
+        "label": "Not reporting",
+        "blurb": "Enabled, but the service has not reported since boot."
+      },
+      "auto_disabled": {
+        "label": "Turned itself off",
+        "blurb": "It reached the reboot limit. Turn it back on once the link is stable."
+      },
+      "monitor": {
+        "label": "Monitoring",
+        "blurb": "The connection is healthy. Watching for outages."
+      },
+      "suspect": {
+        "label": "Checking",
+        "blurb": "A connectivity check just failed. Confirming before acting."
+      },
+      "recovery": {
+        "label": "Recovering",
+        "blurb": "Working through the recovery ladder to restore the connection."
+      },
+      "cooldown": {
+        "label": "Cooling down",
+        "blurb": "Waiting for the last recovery step to settle before rechecking."
+      },
+      "locked": {
+        "label": "Paused",
+        "blurb": "Maintenance is in progress, so the watchdog is holding off."
+      },
+      "disabled": {
+        "label": "Disabled",
+        "blurb": "The service is running but switched off."
+      },
+      "ssr_hold": {
+        "label": "Holding",
+        "blurb": "The baseband is restarting on its own. Recovery waits for it to come back."
+      }
+    },
+    "master": {
+      "aria": "Enable the connection watchdog"
+    },
+    "ladder": {
+      "title": "Recovery ladder",
+      "description": "Tried in order, gentlest first.",
+      "aria": "Recovery ladder",
+      "status": {
+        "blocked": "Needs a slot",
+        "running": "Running now"
+      },
+      "tier1": {
+        "name": "Re-register to the network",
+        "consequence": "The link drops for a few seconds."
+      },
+      "tier2": {
+        "name": "Restart the radio",
+        "consequence": "Skipped while a tower lock is active."
+      },
+      "tier3": {
+        "name": "Switch to the backup SIM",
+        "consequence": "Rides on the backup until you revert.",
+        "slotLabel": "Backup SIM slot",
+        "slot": "Slot {{slot}}"
+      },
+      "tier4": {
+        "name": "Reboot the device",
+        "consequence": "Offline for about a minute.",
+        "capLabel": "Maximum reboots per hour",
+        "capLead": "Up to",
+        "capUnit": "per hour"
+      },
+      "tierAria": "Arm this recovery step: {{name}}",
+      "failback": {
+        "name": "Switch back to the primary SIM",
+        "consequence": "Retries the primary; the link drops briefly each try.",
+        "lead": "Every",
+        "unit": "min",
+        "intervalLabel": "Primary SIM recheck interval"
+      }
+    },
+    "detection": {
+      "title": "Detection",
+      "description": "How quickly a quiet link counts as an outage.",
+      "probe": {
+        "label": "Probe every",
+        "short": "{{seconds}}s"
+      },
+      "threshold": {
+        "label": "Down after",
+        "unit": "failed probes"
+      },
+      "cooldown": {
+        "label": "Wait between steps",
+        "unit": "s"
+      },
+      "timeline": {
+        "eyebrow": "If the link drops",
+        "declaredStep": "Outage declared, step {{tier}}",
+        "declaredReboot": "Outage declared, step 4, reboot",
+        "step": "Step {{tier}}",
+        "reboot": "Step 4, reboot",
+        "about": "about {{time}}",
+        "seconds": "{{s}} s",
+        "minutes": "{{m}} min",
+        "minutesSeconds": "{{m}} min {{s}} s",
+        "off": "The watchdog is off, so nothing runs.",
+        "none": "No steps are armed, so nothing runs.",
+        "invalid": "Enter valid detection values to preview the timeline.",
+        "stopped": "Step 3 has no slot, so the ladder stops there."
+      },
+      "quality": {
+        "label": "Quality trigger",
+        "unit": "checks",
+        "caption": "Over {{ms}} ms or {{pct}}% loss",
+        "link": "Thresholds"
+      },
+      "ssr": {
+        "label": "Baseband restart hold",
+        "unit": "s",
+        "caption": "Lets a modem self-restart finish first"
+      }
+    },
+    "activity": {
+      "title": "Recovery activity",
+      "description": "What the watchdog has done, newest first.",
+      "type": {
+        "recovery": "Recovery",
+        "failover": "SIM failover"
+      },
+      "day": {
+        "today": "Today",
+        "yesterday": "Yesterday"
+      },
+      "time": {
+        "just_now": "Just now",
+        "minutes_one": "{{count}}m ago",
+        "minutes_other": "{{count}}m ago",
+        "hours_one": "{{count}}h ago",
+        "hours_other": "{{count}}h ago",
+        "days_one": "{{count}}d ago",
+        "days_other": "{{count}}d ago"
+      },
+      "empty": {
+        "title": "No recovery activity yet",
+        "description": "Recovery steps and SIM failovers appear here when the watchdog acts on an outage. Older activity ages out of the modem event log."
+      },
+      "error": {
+        "title": "Could not load recovery activity",
+        "retry": "Try again"
+      },
+      "allEvents": "All events"
+    },
+    "save": {
+      "discard": "Discard",
+      "action": "Save",
+      "clean": "All changes saved",
+      "dirty": "Unsaved changes",
+      "blockedIn": "Check {{fields}} before saving",
+      "toastOk": "Watchdog settings saved",
+      "toastFail": "Could not save the watchdog settings",
+      "confirmReboot": {
+        "title": "Let the watchdog reboot the modem?",
+        "body": "Saving this lets the watchdog restart the modem on its own when every gentler step has failed. This page goes away for about a minute while the modem comes back.",
+        "cap": "Reboots are capped at {{cap}} per hour. At the cap the watchdog switches itself off until you turn it back on.",
+        "cancel": "Cancel",
+        "action": "Allow reboots"
+      }
+    },
+    "errors": {
+      "failThreshold": "Must be between 1 and 20",
+      "probeInterval": "Must be between 1 and 60 seconds",
+      "cooldown": "Must be between 10 and 300 seconds",
+      "maxReboots": "Must be between 1 and 10",
+      "backupSim": "Choose a backup SIM slot to enable failover",
+      "qualityConsecutive": "Must be between 1 and 60",
+      "ssrGrace": "Must be between 10 and 120 seconds",
+      "recheckInterval": "Must be between 5 and 1440 minutes"
+    },
+    "failover": {
+      "title": "Running on the backup SIM",
+      "body": "Switched to slot {{current}} {{since}}. The original SIM is in slot {{original}}.",
+      "recently": "recently",
+      "revert": "Revert to the original SIM",
+      "reverting": "Reverting…",
+      "confirmTitle": "Revert to the original SIM?",
+      "confirmBody": "This switches back to SIM slot {{original}}. Your internet will briefly disconnect while the modem reconnects.",
+      "cancel": "Cancel",
+      "confirm": "Revert SIM",
+      "requested": "SIM revert requested. The watchdog will process it shortly.",
+      "failed": "Could not request the SIM revert"
+    },
+    "strip": {
+      "title": "Probes",
+      "noReply": "{{n}} no reply",
+      "average": "{{ms}} ms average",
+      "ago": "{{minutes}} min ago",
+      "now": "Now",
+      "empty": "No probe data from the modem",
+      "aria": "{{total}} probes, {{missed}} without a reply"
+    },
     "sim_swap_title": "New SIM card detected",
     "sim_swap_with_profile": "Profile <strong>{{profile_name}}</strong> matches this SIM.",
     "sim_swap_no_profile": "No matching profile found.",
     "sim_swap_apply_button": "Apply Profile",
     "sim_swap_dismiss_button": "Dismiss",
-    "sim_swap_dismiss_aria": "Dismiss SIM swap notification",
-    "quality_more_info_aria": "More information about connection quality recovery",
-    "quality_tooltip": "Latency and loss are read as windowed averages and compared to the thresholds you set on the Connection Quality page. A breach must persist for the set number of consecutive samples before recovery runs.",
-    "quality_enable_label": "Enable Quality Recovery",
-    "quality_thresholds_readonly_title": "Recovery acts on your quality thresholds",
-    "quality_thresholds_link": "Connection Quality",
-    "quality_latency_readonly_label": "Latency over",
-    "quality_loss_readonly_label": "Loss over",
-    "quality_thresholds_shared_note": "Set on the Connection Quality page. The same thresholds also fire Recent Activities events.",
-    "quality_consecutive_label": "Consecutive Breaches",
-    "quality_consecutive_placeholder": "5",
-    "quality_consecutive_description": "How many degraded samples in a row before recovery runs.",
-    "quality_consecutive_error": "Must be a number between 1 and 60.",
-    "overview_description": "Live connection health and the recovery actions taken.",
-    "quality_off_hint": "Off — recovery triggers on reachability only.",
-    "state_off_title": "Watchdog is off",
-    "state_off_subtitle": "Turn it on to monitor connection health and auto-recover.",
-    "state_starting_title": "Starting up",
-    "state_blurb_monitor": "Connection healthy. Watching for outages.",
-    "state_blurb_suspect": "A check just failed. Confirming before acting.",
-    "state_blurb_recovery": "Running a recovery step to restore the connection.",
-    "state_blurb_cooldown": "Waiting to see if the last step worked.",
-    "state_blurb_locked": "Paused during modem maintenance.",
-    "state_blurb_disabled": "Stopped after repeated reboots.",
-    "tier_1_name": "Network Re-registration",
-    "tier_2_name": "Restart Modem Radio",
-    "tier_3_name": "Switch to Backup SIM",
-    "tier_4_name": "Reboot Device",
-    "save_unsaved": "Unsaved changes",
-    "save_discard": "Discard",
-    "save_fix_errors": "Fix the highlighted fields first.",
-    "save_all_saved": "All changes saved",
-    "tab_quality": "Connection Quality",
-    "status_badge_ssr_hold": "Letting Modem Self-Recover",
-    "state_blurb_ssr_hold": "The modem is restarting its radio firmware. Holding off recovery so it can heal on its own.",
-    "ssr_aware_label": "Wait Out Radio Self-Recovery",
-    "ssr_aware_description": "When the modem briefly restarts its own radio firmware, let it heal before any recovery step runs.",
-    "ssr_aware_tooltip": "Some modems briefly restart their radio firmware and recover on their own within seconds. When that's detected, the watchdog waits instead of forcing a reconnect on top, which can make the outage longer. If the connection still hasn't returned after the grace window, the recovery steps run as usual.",
-    "ssr_aware_more_info_aria": "More information about waiting out radio self-recovery",
-    "ssr_grace_label": "Grace Window (seconds)",
-    "ssr_grace_placeholder": "45",
-    "ssr_grace_description": "How long to let the modem self-recover before the recovery steps may act.",
-    "ssr_grace_error": "Must be a number between 10 and 120.",
-    "primary_recheck_label": "Auto Fail-Back to Primary SIM",
-    "primary_recheck_description": "Periodically switch back to the primary SIM to check whether it's healthy again, and return to it automatically when it is.",
-    "primary_recheck_tooltip": "The modem can only use one SIM at a time, so the only way to know if your primary SIM is working again is to switch back and test it. Each check briefly interrupts the connection — if the primary is still down, the watchdog returns to the backup SIM. Leave this off if you'd rather switch back manually.",
-    "primary_recheck_more_info_aria": "More information about auto fail-back to the primary SIM",
-    "primary_recheck_interval_label": "Recheck Every (minutes)",
-    "primary_recheck_interval_placeholder": "30",
-    "primary_recheck_interval_description": "How often to test the primary SIM while running on the backup. Each check briefly interrupts the connection.",
-    "primary_recheck_interval_error": "Must be a number between 5 and 1440.",
-    "status_live_title": "Live Status",
-    "status_row_quality_breaches": "Quality Breaches",
-    "status_state_announce": "Watchdog status: {{state}}",
-    "hero_ladder_label": "Recovery ladder",
-    "hero_ladder_step_enabled": "{{name}}: enabled",
-    "hero_ladder_step_disabled": "{{name}}: disabled",
-    "hero_ladder_step_running": "{{name}}: currently running",
-    "tab_detection": "Detection",
-    "tab_recovery": "Recovery",
-    "tab_has_errors_aria": "This tab has fields that need attention",
-    "probe_interval_effective": "Effective: checks the connection every {{secs}}s.",
-    "quality_on_hint": "On — recovery also runs when latency or packet loss stays over your thresholds.",
-    "save_fix_errors_in": "Fix the highlighted fields in {{tabs}} before saving.",
-    "save_saved_flash": "Changes saved",
-    "save_button": "Save Changes",
-    "save_saving": "Saving…",
-    "activity_title": "Recovery Activity",
-    "activity_description": "Recovery attempts and SIM failovers the watchdog has logged.",
-    "activity_refresh_aria": "Refresh recovery activity",
-    "activity_load_error": "Couldn’t load recovery activity.",
-    "activity_retry": "Retry",
-    "activity_col_event": "Event",
-    "activity_col_detail": "Detail",
-    "activity_col_time": "Time",
-    "activity_empty_title": "No recovery activity yet",
-    "activity_empty_message": "When the watchdog runs a recovery step or fails over to a backup SIM, it will show up here.",
-    "activity_page_status": "Page {{page}} of {{total}}",
-    "activity_prev_aria": "Previous page",
-    "activity_next_aria": "Next page"
+    "sim_swap_dismiss_aria": "Dismiss SIM swap notification"
   },
   "tailscale": {
     "page_title": "Tailscale VPN",
