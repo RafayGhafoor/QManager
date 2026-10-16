@@ -137,6 +137,7 @@ recovery_reason="unreachable"   # "unreachable" | "quality" — why current/last
 revert_settle_active="false"    # "true" while holding the post-revert SIM settle floor
 primary_recheck_active="false"  # "true" while holding the blind primary-recheck settle floor
 recheck_return_slot="null"      # backup slot to return to if a primary recheck fails
+recheck_interrupted="false"     # "true" when LOCKED abandoned a primary-recheck settle
 last_recheck_time=0             # mono_now of the last failover finalize / recheck; auto-failback clock
                                 # (monotonic: a boot-time clock step must not make a recheck due at once)
 _recovery_marker_emitted=""     # "<tier>-<reason>" of the last emitted start marker; "" = none this episode
@@ -1513,6 +1514,10 @@ main() {
                 # Any active recovery is abandoned; the lock holder owns the modem.
                 rm -f "$RECOVERY_FLAG"
                 revert_settle_active="false"
+                # A primary-recheck settle is abandoned with the device on the
+                # primary slot while the failover record still says backup; the
+                # exit below re-arms the settle so finish_cooldown decides.
+                [ "$primary_recheck_active" = "true" ] && recheck_interrupted="true"
                 primary_recheck_active="false"
                 current_tier=0
                 failure_counter=0
@@ -1553,6 +1558,21 @@ main() {
                 cooldown_remaining="$SIM_SETTLE_SECS"
                 state="cooldown"
                 qlog_info "Entering post-revert SIM settle for ${SIM_SETTLE_SECS}s"
+            fi
+
+            # LOCKED during a primary-recheck settle left the modem on the primary
+            # slot with sim_failover_active=true and the record still naming the
+            # backup. Re-arm the settle so finish_cooldown's recheck arm decides
+            # failback or return-to-backup from a fresh health read.
+            if [ "$recheck_interrupted" = "true" ]; then
+                recheck_interrupted="false"
+                if [ "$sim_failover_active" = "true" ] && [ "$original_sim_slot" != "null" ] && [ "$current_sim_slot" = "$original_sim_slot" ] && [ "$recheck_return_slot" != "null" ]; then
+                    qlog_warn "LOCKED exit: primary recheck was interrupted on slot $current_sim_slot, re-arming its settle for ${SIM_SETTLE_SECS}s"
+                    touch "$RECOVERY_FLAG"
+                    primary_recheck_active="true"
+                    cooldown_remaining="$SIM_SETTLE_SECS"
+                    state="cooldown"
+                fi
             fi
         fi
 
