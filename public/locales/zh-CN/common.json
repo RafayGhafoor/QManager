@@ -289,5 +289,311 @@
     "notice": {
       "stale": "显示我们最后成功读取到的事件。{{message}}"
     }
+  },
+  "aboutDevice": {
+    "page": {
+      "title": "关于设备",
+      "description": "设备标识、地址，以及其上运行的软件。"
+    },
+    "actions": {
+      "refresh": "刷新",
+      "refreshing": "正在刷新…",
+      "retry": "重试"
+    },
+    "band": {
+      "label": "标识",
+      "not_responding": "无响应",
+      "unreachable": {
+        "title": "设备未响应",
+        "detail": "来自 {{endpoint}} 的 {{reason}}。以下内容均未读取。",
+        "no_reason": "无响应"
+      }
+    },
+    "tiles": {
+      "model": {
+        "eyebrow": "型号"
+      },
+      "firmware": {
+        "eyebrow": "模块固件",
+        "caption": "构建于 {{date}}"
+      },
+      "host": {
+        "eyebrow": "主机系统",
+        "caption": "Linux {{kernel}}"
+      },
+      "internet": {
+        "eyebrow": "互联网",
+        "reachable": "可达",
+        "not_reachable": "不可达",
+        "caption_reachable": "公网 {{address}}",
+        "caption_unreachable": "{{probe}} 无应答"
+      }
+    },
+    "modem": {
+      "title": "模块",
+      "description": "硬件标识，以及各制式无线电所实现的 3GPP 版本。"
+    },
+    "addresses": {
+      "title": "地址",
+      "description": "本设备在局域网和运营商网络中的位置。",
+      "provenance": "公网地址通过 {{probe}} 解析。破折号表示设备未报告任何地址。"
+    },
+    "groups": {
+      "three_gpp": "3GPP 版本",
+      "local": "本地",
+      "wwan": "WWAN",
+      "public": "公网"
+    },
+    "rows": {
+      "manufacturer": "制造商",
+      "model": "型号",
+      "firmware": "固件",
+      "openwrt_version": "OpenWrt 版本",
+      "build_date": "构建日期",
+      "imei": "IMEI",
+      "lte": "LTE",
+      "nr5g": "NR5G",
+      "device_ip": "设备 IP",
+      "lan_subnet": "局域网子网",
+      "ipv4": "IPv4",
+      "ipv6": "IPv6"
+    },
+    "empty": {
+      "title": "未读取到数据",
+      "modem": "这些数值来自设备，而设备未响应。",
+      "addresses": "地址由同一次请求读取。"
+    },
+    "qmanager": {
+      "title": "关于 QManager",
+      "note": "你好！我是 Rus。QManager 是 QuecManager 的最新一代，采用了比前代更新、更可靠的实现方式——同时依然把面向高级用户的技术设置与面向新手的简化界面结合在一起。特别感谢 iamromulan、clndwhr 和 Wutang Clan！",
+      "copyright": "© {{year}} QManager。保留所有权利。",
+      "repository": "GitHub 仓库",
+      "release_notes": "发行说明",
+      "support": "支持本项目"
+    },
+    "errors": {
+      "fetch_failed": "无法读取设备信息"
+    }
+  },
+  "support": {
+    "page": {
+      "title": "支持",
+      "description": "报告缺陷、向社区提问，或联系维护者。"
+    },
+    "help": {
+      "title": "获取帮助",
+      "description": "四条途径，按最常用的顺序排列。",
+      "bug": {
+        "label": "报告缺陷"
+      },
+      "community": {
+        "label": "向社区提问"
+      },
+      "email": {
+        "label": "给维护者发邮件"
+      },
+      "release_notes": {
+        "label": "查看发行说明",
+        "dest": "已安装：{{version}}"
+      }
+    },
+    "community": {
+      "title": "社区",
+      "description": "Discord 上的 Cellular Modem Talk/Development。",
+      "body": "用户在这里分享配置、共同排查问题、交流蜂窝网络话题。扫码或直接打开邀请链接。",
+      "open_invite": "打开邀请链接",
+      "qr_alt": "QManager Discord 服务器邀请二维码"
+    },
+    "opens_new_tab": "在新标签页中打开"
+  },
+  "donate": {
+    "dialog": {
+      "title": "支持本项目",
+      "description": "让 QManager 继续走下去。",
+      "body": "你好，我是 Rus。QManager 是我利用业余时间免费维护的项目。如果它对你有帮助，一点小小的支持意义重大，也让我能继续做下去。",
+      "thanks": "谢谢你，你真好。💙"
+    },
+    "links": {
+      "group_label": "捐赠渠道",
+      "opens_new_tab": "在新标签页中打开"
+    },
+    "band": {
+      "title": "支持本项目",
+      "body": "QManager 是一个业余维护、完全免费的项目。如果它对你的设备有帮助，一点小小的支持就能让它继续走下去——无论如何都不会有付费墙。"
+    }
+  },
+  "tailscale": {
+    "actions": {
+      "cancel": "取消",
+      "retry": "重试"
+    },
+    "page": {
+      "title": "Tailscale VPN",
+      "description": "你的 mesh VPN：这台调制解调器在 tailnet 上的状态，以及还有谁在线。",
+      "refresh": "刷新",
+      "stale": "显示我们最后成功读取的状态。{{message}}",
+      "unreadableTitle": "无法读取 Tailscale 状态",
+      "unreadable": "设备没有应答。"
+    },
+    "status": {
+      "aria": "Tailscale 状态",
+      "running": "已连接",
+      "needsLogin": "需要登录",
+      "disconnected": "已断开",
+      "serviceStopped": "服务已停止",
+      "notInstalled": "未安装",
+      "unknown": "未知"
+    },
+    "band": {
+      "dash": "—",
+      "connectionEyebrow": "连接",
+      "version": "版本 {{version}}",
+      "versionUnknown": "版本未知",
+      "deviceEyebrow": "此设备",
+      "deviceUnknown": "尚无 tailnet 地址",
+      "tailnetEyebrow": "Tailnet",
+      "magicDnsOn": "MagicDNS 已开启",
+      "magicDnsOff": "MagicDNS 已关闭",
+      "peersEyebrow": "在线节点",
+      "exitNodes_one": "{{count}} 个出口节点",
+      "exitNodes_other": "{{count}} 个出口节点",
+      "noExitNode": "没有出口节点"
+    },
+    "connection": {
+      "title": "连接",
+      "description": "此调制解调器是否加入 tailnet，以及加入后的行为方式。",
+      "version": "v{{version}}",
+      "connect": "连接",
+      "connecting": "正在连接…",
+      "disconnect": "断开",
+      "disconnecting": "正在断开…",
+      "startService": "启动服务",
+      "starting": "正在启动…",
+      "stopService": "停止服务",
+      "stopping": "正在停止…",
+      "logout": "退出登录",
+      "logoutDialogTitle": "退出 Tailscale 登录？",
+      "logoutDialogDescription": "这会将此调制解调器从你的 tailnet 中移除。重新连接前需要重新登录。",
+      "authTitle": "登录以完成连接",
+      "authDescription": "打开登录页面并使用你的 Tailscale 账号完成身份验证。批准后，调制解调器将立即加入 tailnet。",
+      "openLogin": "打开登录页面",
+      "authWaiting": "等待你登录",
+      "bootTitle": "开机自启",
+      "bootDescription": "调制解调器重启后自动启动 Tailscale。",
+      "on": "开",
+      "off": "关",
+      "exitNodeTitle": "宣告为出口节点",
+      "exitNodeDescription": "允许其他设备通过此调制解调器路由其互联网流量。需要在 Tailscale 管理控制台中批准。",
+      "exitNodeLocked": "连接 Tailscale 后才能更改。"
+    },
+    "device": {
+      "title": "此设备",
+      "description": "此调制解调器在 tailnet 上的身份标识。",
+      "hostname": "主机名",
+      "ipv4": "IPv4",
+      "ipv6": "IPv6",
+      "dnsName": "DNS 名称",
+      "tailnet": "Tailnet",
+      "magicDns": "MagicDNS",
+      "relay": "DERP 中继",
+      "emptyTitle": "尚未加入 tailnet",
+      "emptyDescription": "连接 Tailscale 后，此调制解调器的地址、DNS 名称和中继信息会显示在这里。"
+    },
+    "peers": {
+      "title": "网络节点",
+      "description": "你的 tailnet 上的其他设备，以及它们是否可达。",
+      "dash": "—",
+      "unnamed": "未命名设备",
+      "exitNode": "出口节点",
+      "colDevice": "设备",
+      "colAddress": "地址",
+      "colOs": "系统",
+      "colStatus": "状态",
+      "colLastSeen": "最后在线",
+      "online": "在线",
+      "offline": "离线",
+      "seenNow": "现在",
+      "seenUnknown": "未知",
+      "seenJustNow": "刚刚",
+      "seenMinutes": "{{n}} 分钟前",
+      "seenHours": "{{n}} 小时前",
+      "seenDays": "{{n}} 天前",
+      "countOnline": "{{online}} / {{total}} 在线",
+      "countExitNodes_one": "{{count}} 个出口节点",
+      "countExitNodes_other": "{{count}} 个出口节点",
+      "errorTitle": "无法加载节点列表",
+      "emptyTitle": "没有其他设备",
+      "emptyDescription": "此 tailnet 上还没有其他设备加入。从 Tailscale 管理后台添加设备后会显示在这里。",
+      "offlineTitle": "未连接",
+      "offlineDescription": "连接 Tailscale 后即可查看你 tailnet 上的其他设备。"
+    },
+    "install": {
+      "title": "Tailscale",
+      "description": "无需开放端口，即可从任何地方访问这台调制解调器的 mesh VPN。",
+      "conditionTitle": "尚未安装 Tailscale",
+      "conditionDescription": "安装会通过当前这条蜂窝连接下载 Tailscale 安装包，因此会消耗你的流量，安装期间连接也会变慢。",
+      "install": "安装 Tailscale",
+      "installing": "正在安装…",
+      "checkAgain": "再次检查",
+      "done": "Tailscale 已安装。",
+      "failed": "安装未完成。",
+      "manualLabel": "或通过命令行安装",
+      "copyCommand": "复制安装命令",
+      "logTitle": "安装日志",
+      "logWaiting": "等待输出…",
+      "chooseLabel": "选择要安装的版本",
+      "manualCommand": "opkg update && opkg install luci-app-tailscale-community-tiny",
+      "variant": {
+        "official": {
+          "title": "官方版",
+          "description": "最新版本，直接来自 Tailscale。占用约 50 MB 磁盘空间。"
+        },
+        "tiny": {
+          "title": "Tiny",
+          "description": "轻量级社区软件包。体积更小，但版本较旧。"
+        }
+      }
+    },
+    "danger": {
+      "title": "移除 Tailscale",
+      "description": "从此调制解调器卸载 Tailscale 安装包及其防火墙规则。",
+      "uninstall": "卸载",
+      "removing": "正在移除…",
+      "dialogTitle": "卸载 Tailscale？",
+      "dialogDescription": "这会从此调制解调器卸载 Tailscale 安装包、其防火墙规则以及所有连接状态。之后重启可清除残留内容。",
+      "rebootTitle": "建议重启",
+      "rebootDescription": "Tailscale 已移除。重启可清除残留的防火墙规则等内容。是否现在重启？",
+      "rebootLater": "稍后重启",
+      "rebootNow": "立即重启",
+      "rebooting": "正在重启…"
+    },
+    "toast": {
+      "bootEnabled": "Tailscale 将在开机时启动",
+      "bootDisabled": "Tailscale 将不会在开机时启动",
+      "bootFailed": "无法更改开机启动设置",
+      "connected": "正在连接 Tailscale",
+      "connectFailed": "无法建立连接",
+      "disconnected": "Tailscale 已断开",
+      "disconnectFailed": "无法断开连接",
+      "loggedOut": "已退出 Tailscale 登录",
+      "logoutFailed": "无法退出登录",
+      "serviceStarted": "Tailscale 服务已启动",
+      "serviceStartFailed": "无法启动 Tailscale 服务",
+      "serviceStopped": "Tailscale 服务已停止",
+      "serviceStopFailed": "无法停止 Tailscale 服务",
+      "uninstalled": "Tailscale 已卸载",
+      "uninstallFailed": "无法卸载 Tailscale",
+      "copied": "命令已复制",
+      "copyFailed": "无法复制命令",
+      "exitNodeEnabled": "已宣告为出口节点",
+      "exitNodeDisabled": "已停止宣告为出口节点",
+      "exitNodeFailed": "无法更改出口节点宣告",
+      "installed": "Tailscale 已安装",
+      "installFailed": "Tailscale 安装未完成"
+    },
+    "mutex": {
+      "title": "已安装其他 VPN",
+      "description": "同一时间只能安装一个 VPN。请先在 <link>NetBird 页面</link>卸载 {{other_vpn}}。"
+    }
   }
 }

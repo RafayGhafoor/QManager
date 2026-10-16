@@ -24,8 +24,8 @@ QManager provides a first-class Tailscale integration that installs, connects, a
 | init.d script | `/etc/init.d/tailscale` (written via `qm_write_ts_initd` from the shared lib on the official path; opkg-owned for tiny) |
 | Reboot? | No |
 | Hook | `hooks/use-tailscale.ts` |
-| Frontend component | `components/monitoring/tailscale/tailscale-connection-card.tsx` |
-| i18n namespace | `tailscale.*` (`monitoring.json` — EN seeded; other locales need backfill) |
+| Frontend component | `components/monitoring/tailscale/tailscale.tsx` (page root; family listed under Frontend Files) |
+| i18n namespace | `tailscale.*` in `common.json`, all five locales |
 
 ---
 
@@ -447,35 +447,26 @@ verify no binary at /usr/bin/tailscale, /usr/sbin/tailscale, /usr/sbin/tailscale
 
 ## Frontend Files
 
-| File | Purpose |
+The page was re-authored to the RM520N canon in ledger U4.2 (see [`docs/reference/tailscale.md`](../reference/tailscale.md) for the anatomy). Target-only behaviour that the re-author kept:
+
+| Target-only feature | Where it lives |
 |---|---|
-| `hooks/use-tailscale.ts` | Fetch + action hook. Adaptive polling: 10 s normal, 3 s during auth wait. Exports `runInstall(variant)`, `setExitNodeAdvertised(enabled)`, `isTogglingExitNode`. |
-| `components/monitoring/tailscale/tailscale-connection-card.tsx` | Connection card. Not-installed state: `RadioGroup` variant picker (two bordered rows, default Official) + manual `CopyableCommand` shown only when Tiny is selected. Installed states: variant shown as plain muted text in `CardDescription`. Connected state: "Advertise as exit node" `Switch` row. |
-| `components/monitoring/tailscale/tailscale-peers-card.tsx` | Peer list. |
-| `components/monitoring/tailscale/tailscale.tsx` | Page root; assembles cards. |
-| `components/ui/radio-group.tsx` | shadcn `RadioGroup` wrapper (added for the variant picker — was previously missing). |
+| Install variants official / tiny | `install-card.tsx`: `SegmentedField` (Official / Tiny) with the chosen build's caption; `runInstall(variant)`. The installed variant is a `Tag` in the Connection card header. |
+| Manual install command | `install-card.tsx` `CommandRow`, shown only while Tiny is selected: `status.install_hint`, else the fixed opkg command in `tailscale.install.manualCommand`. |
+| Exit-node advertising | `connection-card.tsx`: an On / Off `SegmentedField` row beside Start on boot; locked with a note until the node is connected (`set_exit_node` needs a running node). |
+| Other-VPN mutex | `tailscale.tsx`: a `Banner` (`degraded`) with a link to the NetBird page replaces the page body while `other_vpn_installed`. |
+| Uninstall reboot | `danger-card.tsx` `RebootDialog` calls `rebootNow("tailscale")` (`lib/reboot`). |
+| Install log | `install-log-viewer.tsx` renders only when `install_status` carries a `log`; otherwise the notice shows the backend `message`. |
+
+Dropped from the source: the Tailscale SSH row (no `set_ssh` action in this CGI).
+
+The hook returns `TailscaleActionResult { ok, reason }` from every mutation (reason already resolved through `resolveErrorMessage`), so handlers toast the returned reason and never read hook state after an `await`. `error` is the status read only.
 
 ---
 
 ## i18n
 
-Namespace: `monitoring.json` key prefix `tailscale.*`.
-
-New keys added in this release (EN only; **other locales need backfill**):
-
-| Key | Usage |
-|---|---|
-| `tailscale.choose_variant_label` | Label above the variant `RadioGroup` |
-| `tailscale.variant_official_title` | Official variant radio label |
-| `tailscale.variant_official_description` | Official variant description |
-| `tailscale.variant_official_short` | Short label (badge/muted text in installed state) |
-| `tailscale.variant_tiny_title` | Tiny variant radio label |
-| `tailscale.variant_tiny_description` | Tiny variant description |
-| `tailscale.variant_tiny_short` | Short label (badge/muted text in installed state) |
-| `tailscale.exit_node_label` | "Advertise as exit node" switch label |
-| `tailscale.exit_node_description` | Description below the switch |
-
-> ⚠️ WARNING: `zh-CN`, `zh-TW`, `it`, and `id` locales do not have these 9 keys. The UI falls back to the EN string, but a full i18n sweep is needed before the next stable release.
+Namespace: `common.json`, key prefix `tailscale.*` (`page`, `status`, `band`, `connection`, `device`, `peers`, `install`, `danger`, `mutex`, `toast`, `actions`), at parity in en, zh-CN, zh-TW, it and id. The old `monitoring.json` `tailscale.*` block is gone.
 
 ---
 

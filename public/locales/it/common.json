@@ -289,5 +289,311 @@
     "notice": {
       "stale": "Mostriamo gli ultimi eventi che siamo riusciti a leggere. {{message}}"
     }
+  },
+  "aboutDevice": {
+    "page": {
+      "title": "Informazioni dispositivo",
+      "description": "Identità del dispositivo, indirizzi e software in esecuzione."
+    },
+    "actions": {
+      "refresh": "Aggiorna",
+      "refreshing": "Aggiornamento…",
+      "retry": "Riprova"
+    },
+    "band": {
+      "label": "Identità",
+      "not_responding": "Non risponde",
+      "unreachable": {
+        "title": "Il dispositivo non ha risposto",
+        "detail": "{{reason}} da {{endpoint}}. Nessun dato è stato letto.",
+        "no_reason": "Nessuna risposta"
+      }
+    },
+    "tiles": {
+      "model": {
+        "eyebrow": "MODELLO"
+      },
+      "firmware": {
+        "eyebrow": "FIRMWARE MODEM",
+        "caption": "Compilato il {{date}}"
+      },
+      "host": {
+        "eyebrow": "SISTEMA HOST",
+        "caption": "Linux {{kernel}}"
+      },
+      "internet": {
+        "eyebrow": "INTERNET",
+        "reachable": "Raggiungibile",
+        "not_reachable": "Non raggiungibile",
+        "caption_reachable": "Pubblico {{address}}",
+        "caption_unreachable": "Nessuna risposta da {{probe}}"
+      }
+    },
+    "modem": {
+      "title": "Modem",
+      "description": "Identità hardware e release 3GPP implementata da ciascuna radio."
+    },
+    "addresses": {
+      "title": "Indirizzi",
+      "description": "Dove si colloca questo dispositivo sulla LAN e sulla rete dell’operatore.",
+      "provenance": "Gli indirizzi pubblici sono risolti tramite {{probe}}. Una lineetta indica che il dispositivo non ne riporta alcuno."
+    },
+    "groups": {
+      "three_gpp": "Release 3GPP",
+      "local": "Locale",
+      "wwan": "WWAN",
+      "public": "Pubblico"
+    },
+    "rows": {
+      "manufacturer": "Produttore",
+      "model": "Modello",
+      "firmware": "Firmware",
+      "openwrt_version": "Versione OpenWrt",
+      "build_date": "Data di build",
+      "imei": "IMEI",
+      "lte": "LTE",
+      "nr5g": "NR5G",
+      "device_ip": "IP dispositivo",
+      "lan_subnet": "Subnet LAN",
+      "ipv4": "IPv4",
+      "ipv6": "IPv6"
+    },
+    "empty": {
+      "title": "Nessun dato letto",
+      "modem": "Questi valori provengono dal dispositivo, che non ha risposto.",
+      "addresses": "Gli indirizzi vengono letti dalla stessa richiesta."
+    },
+    "qmanager": {
+      "title": "Informazioni su QManager",
+      "note": "Ciao! Sono Rus. QManager è l’ultima evoluzione di QuecManager, costruita con un approccio più moderno e affidabile rispetto al suo predecessore — pur continuando a unire impostazioni tecniche per utenti esperti a un’interfaccia semplice per chi inizia. Un ringraziamento speciale a iamromulan, clndwhr e Wutang Clan!",
+      "copyright": "© {{year}} QManager. Tutti i diritti riservati.",
+      "repository": "Repository GitHub",
+      "release_notes": "Note di rilascio",
+      "support": "Sostieni il progetto"
+    },
+    "errors": {
+      "fetch_failed": "Impossibile leggere le informazioni del dispositivo"
+    }
+  },
+  "support": {
+    "page": {
+      "title": "Supporto",
+      "description": "Segnala un bug, chiedi alla community o contatta il manutentore."
+    },
+    "help": {
+      "title": "Ottieni aiuto",
+      "description": "Quattro percorsi, nell’ordine in cui servono più spesso.",
+      "bug": {
+        "label": "Segnala un bug"
+      },
+      "community": {
+        "label": "Chiedi alla community"
+      },
+      "email": {
+        "label": "Scrivi al manutentore"
+      },
+      "release_notes": {
+        "label": "Leggi le note di rilascio",
+        "dest": "Installata: {{version}}"
+      }
+    },
+    "community": {
+      "title": "Community",
+      "description": "Cellular Modem Talk/Development su Discord.",
+      "body": "Gli utenti condividono configurazioni, risolvono problemi insieme e parlano di reti cellulari. Scansiona o apri l’invito.",
+      "open_invite": "Apri l’invito",
+      "qr_alt": "Codice QR per l’invito al server Discord di QManager"
+    },
+    "opens_new_tab": "si apre in una nuova scheda"
+  },
+  "donate": {
+    "dialog": {
+      "title": "Sostieni il progetto",
+      "description": "Aiuta QManager ad andare avanti.",
+      "body": "Ciao, sono Rus. QManager è un progetto personale che mantengo gratuitamente. Se ti è stato utile, anche un piccolo contributo significa molto e mi permette di continuare.",
+      "thanks": "Grazie di cuore. 💙"
+    },
+    "links": {
+      "group_label": "Canali di donazione",
+      "opens_new_tab": "si apre in una nuova scheda"
+    },
+    "band": {
+      "title": "Sostieni il progetto",
+      "body": "QManager è un progetto personale, mantenuto gratuitamente. Se ti è stato utile, un contributo lo tiene in vita — e in ogni caso non arriverà alcun paywall."
+    }
+  },
+  "tailscale": {
+    "actions": {
+      "cancel": "Annulla",
+      "retry": "Riprova"
+    },
+    "page": {
+      "title": "Tailscale VPN",
+      "description": "La tua mesh VPN: cosa fa questo modem sulla tailnet, e chi altro c'è.",
+      "refresh": "Aggiorna",
+      "stale": "Mostriamo l'ultimo stato che siamo riusciti a leggere. {{message}}",
+      "unreadableTitle": "Impossibile leggere lo stato di Tailscale",
+      "unreadable": "Il dispositivo non ha risposto."
+    },
+    "status": {
+      "aria": "Stato di Tailscale",
+      "running": "Connesso",
+      "needsLogin": "Richiede accesso",
+      "disconnected": "Disconnesso",
+      "serviceStopped": "Servizio fermo",
+      "notInstalled": "Non installato",
+      "unknown": "Sconosciuto"
+    },
+    "band": {
+      "dash": "—",
+      "connectionEyebrow": "Connessione",
+      "version": "Versione {{version}}",
+      "versionUnknown": "Versione sconosciuta",
+      "deviceEyebrow": "Questo dispositivo",
+      "deviceUnknown": "Ancora nessun indirizzo tailnet",
+      "tailnetEyebrow": "Tailnet",
+      "magicDnsOn": "MagicDNS è attivo",
+      "magicDnsOff": "MagicDNS è disattivo",
+      "peersEyebrow": "Peer online",
+      "exitNodes_one": "{{count}} nodo di uscita",
+      "exitNodes_other": "{{count}} nodi di uscita",
+      "noExitNode": "Nessun nodo di uscita"
+    },
+    "connection": {
+      "title": "Connessione",
+      "description": "Se questo modem si unisce alla tailnet, e come si comporta una volta fatto.",
+      "version": "v{{version}}",
+      "connect": "Connetti",
+      "connecting": "Connessione…",
+      "disconnect": "Disconnetti",
+      "disconnecting": "Disconnessione…",
+      "startService": "Avvia servizio",
+      "starting": "Avvio…",
+      "stopService": "Ferma servizio",
+      "stopping": "Arresto…",
+      "logout": "Esci",
+      "logoutDialogTitle": "Uscire da Tailscale?",
+      "logoutDialogDescription": "Questo rimuove il modem dalla tua tailnet. Dovrai accedere di nuovo prima che possa riconnettersi.",
+      "authTitle": "Accedi per completare la connessione",
+      "authDescription": "Apri la pagina di accesso e autenticati con il tuo account Tailscale. Il modem si unisce alla tailnet non appena lo approvi.",
+      "openLogin": "Apri la pagina di accesso",
+      "authWaiting": "In attesa del tuo accesso",
+      "bootTitle": "Avvia all'accensione",
+      "bootDescription": "Avvia Tailscale automaticamente dopo il riavvio del modem.",
+      "on": "Attivo",
+      "off": "Spento",
+      "exitNodeTitle": "Annuncia come exit node",
+      "exitNodeDescription": "Consente ad altri dispositivi di instradare il loro traffico Internet attraverso questo modem. Lo approvi nella console di amministrazione di Tailscale.",
+      "exitNodeLocked": "Connettiti a Tailscale per modificarlo."
+    },
+    "device": {
+      "title": "Questo dispositivo",
+      "description": "Come il modem si identifica sulla tailnet.",
+      "hostname": "Hostname",
+      "ipv4": "IPv4",
+      "ipv6": "IPv6",
+      "dnsName": "Nome DNS",
+      "tailnet": "Tailnet",
+      "magicDns": "MagicDNS",
+      "relay": "Relay DERP",
+      "emptyTitle": "Non sulla tailnet",
+      "emptyDescription": "Connetti Tailscale e qui compariranno l'indirizzo, il nome DNS e il relay di questo modem."
+    },
+    "peers": {
+      "title": "Peer di rete",
+      "description": "Gli altri dispositivi sulla tua tailnet, e se sono raggiungibili.",
+      "dash": "—",
+      "unnamed": "Dispositivo senza nome",
+      "exitNode": "Nodo di uscita",
+      "colDevice": "Dispositivo",
+      "colAddress": "Indirizzo",
+      "colOs": "SO",
+      "colStatus": "Stato",
+      "colLastSeen": "Ultimo accesso",
+      "online": "Online",
+      "offline": "Offline",
+      "seenNow": "Ora",
+      "seenUnknown": "Sconosciuto",
+      "seenJustNow": "Proprio adesso",
+      "seenMinutes": "{{n}} min fa",
+      "seenHours": "{{n}} h fa",
+      "seenDays": "{{n}} d fa",
+      "countOnline": "{{online}} di {{total}} online",
+      "countExitNodes_one": "{{count}} nodo di uscita",
+      "countExitNodes_other": "{{count}} nodi di uscita",
+      "errorTitle": "Impossibile caricare i peer",
+      "emptyTitle": "Nessun altro dispositivo",
+      "emptyDescription": "Nessun altro si è ancora unito a questa tailnet. Aggiungi un dispositivo dalla console admin di Tailscale e comparirà qui.",
+      "offlineTitle": "Non connesso",
+      "offlineDescription": "Connetti Tailscale per vedere gli altri dispositivi sulla tua tailnet."
+    },
+    "install": {
+      "title": "Tailscale",
+      "description": "Una mesh VPN per raggiungere questo modem da ovunque, senza aprire una porta.",
+      "conditionTitle": "Tailscale non è installato",
+      "conditionDescription": "L'installazione scarica i pacchetti Tailscale sulla stessa connessione cellulare su cui gira questa sessione, quindi consuma il tuo traffico dati e la connessione sarà più lenta durante l'operazione.",
+      "install": "Installa Tailscale",
+      "installing": "Installazione…",
+      "checkAgain": "Controlla di nuovo",
+      "done": "Tailscale installato.",
+      "failed": "L'installazione non è andata a buon fine.",
+      "manualLabel": "Oppure installa da shell",
+      "copyCommand": "Copia il comando di installazione",
+      "logTitle": "Log di installazione",
+      "logWaiting": "In attesa di output…",
+      "chooseLabel": "Scegli la versione da installare",
+      "manualCommand": "opkg update && opkg install luci-app-tailscale-community-tiny",
+      "variant": {
+        "official": {
+          "title": "Ufficiale",
+          "description": "L'ultima versione, direttamente da Tailscale. Occupa circa 50 MB su disco."
+        },
+        "tiny": {
+          "title": "Tiny",
+          "description": "Un pacchetto community leggero. Più piccolo, ma di una versione meno recente."
+        }
+      }
+    },
+    "danger": {
+      "title": "Rimuovi Tailscale",
+      "description": "Disinstalla i pacchetti Tailscale e le regole del firewall da questo modem.",
+      "uninstall": "Disinstalla",
+      "removing": "Rimozione…",
+      "dialogTitle": "Disinstallare Tailscale?",
+      "dialogDescription": "Questo rimuove i pacchetti Tailscale, le sue regole firewall e tutto lo stato di connessione da questo modem. Un riavvio successivo elimina ciò che resta.",
+      "rebootTitle": "Riavvio consigliato",
+      "rebootDescription": "Tailscale è stato rimosso. Riavviare elimina le regole firewall residue e altri artefatti. Riavviare ora?",
+      "rebootLater": "Riavvia più tardi",
+      "rebootNow": "Riavvia ora",
+      "rebooting": "Riavvio…"
+    },
+    "toast": {
+      "bootEnabled": "Tailscale si avvierà all'accensione",
+      "bootDisabled": "Tailscale non si avvierà all'accensione",
+      "bootFailed": "Impossibile cambiare l'impostazione di avvio",
+      "connected": "Connessione a Tailscale in corso",
+      "connectFailed": "Impossibile avviare la connessione",
+      "disconnected": "Tailscale disconnesso",
+      "disconnectFailed": "Impossibile disconnettersi",
+      "loggedOut": "Uscito da Tailscale",
+      "logoutFailed": "Impossibile uscire",
+      "serviceStarted": "Servizio Tailscale avviato",
+      "serviceStartFailed": "Impossibile avviare il servizio Tailscale",
+      "serviceStopped": "Servizio Tailscale fermato",
+      "serviceStopFailed": "Impossibile fermare il servizio Tailscale",
+      "uninstalled": "Tailscale disinstallato",
+      "uninstallFailed": "Impossibile disinstallare Tailscale",
+      "copied": "Comando copiato",
+      "copyFailed": "Impossibile copiare il comando",
+      "exitNodeEnabled": "Annuncio come exit node attivo",
+      "exitNodeDisabled": "Annuncio come exit node disattivato",
+      "exitNodeFailed": "Impossibile modificare l'annuncio come exit node",
+      "installed": "Tailscale installato",
+      "installFailed": "L'installazione di Tailscale non è stata completata"
+    },
+    "mutex": {
+      "title": "È installata un'altra VPN",
+      "description": "È possibile installare una sola VPN alla volta. Disinstalla prima {{other_vpn}} dalla pagina <link>NetBird</link>."
+    }
   }
 }

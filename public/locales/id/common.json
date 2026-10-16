@@ -289,5 +289,311 @@
     "notice": {
       "stale": "Menampilkan peristiwa terakhir yang berhasil kami baca. {{message}}"
     }
+  },
+  "aboutDevice": {
+    "page": {
+      "title": "Tentang Perangkat",
+      "description": "Identitas perangkat, alamat, dan perangkat lunak yang berjalan di dalamnya."
+    },
+    "actions": {
+      "refresh": "Segarkan",
+      "refreshing": "Menyegarkan…",
+      "retry": "Coba lagi"
+    },
+    "band": {
+      "label": "Identitas",
+      "not_responding": "Tidak merespons",
+      "unreachable": {
+        "title": "Perangkat tidak menjawab",
+        "detail": "{{reason}} dari {{endpoint}}. Tidak ada data di bawah ini yang terbaca.",
+        "no_reason": "Tidak ada respons"
+      }
+    },
+    "tiles": {
+      "model": {
+        "eyebrow": "MODEL"
+      },
+      "firmware": {
+        "eyebrow": "FIRMWARE MODEM",
+        "caption": "Dibuat {{date}}"
+      },
+      "host": {
+        "eyebrow": "SISTEM HOST",
+        "caption": "Linux {{kernel}}"
+      },
+      "internet": {
+        "eyebrow": "INTERNET",
+        "reachable": "Terjangkau",
+        "not_reachable": "Tidak terjangkau",
+        "caption_reachable": "Publik {{address}}",
+        "caption_unreachable": "Tidak ada jawaban dari {{probe}}"
+      }
+    },
+    "modem": {
+      "title": "Modem",
+      "description": "Identitas perangkat keras dan rilis 3GPP yang diterapkan setiap radio."
+    },
+    "addresses": {
+      "title": "Alamat",
+      "description": "Posisi perangkat ini di LAN dan di jaringan operator.",
+      "provenance": "Alamat publik diselesaikan melalui {{probe}}. Tanda pisah berarti perangkat tidak melaporkan alamat."
+    },
+    "groups": {
+      "three_gpp": "Rilis 3GPP",
+      "local": "Lokal",
+      "wwan": "WWAN",
+      "public": "Publik"
+    },
+    "rows": {
+      "manufacturer": "Produsen",
+      "model": "Model",
+      "firmware": "Firmware",
+      "openwrt_version": "Versi OpenWrt",
+      "build_date": "Tanggal build",
+      "imei": "IMEI",
+      "lte": "LTE",
+      "nr5g": "NR5G",
+      "device_ip": "IP Perangkat",
+      "lan_subnet": "Subnet LAN",
+      "ipv4": "IPv4",
+      "ipv6": "IPv6"
+    },
+    "empty": {
+      "title": "Tidak ada data",
+      "modem": "Angka-angka ini berasal dari perangkat, dan perangkat tidak menjawab.",
+      "addresses": "Alamat dibaca dari permintaan yang sama."
+    },
+    "qmanager": {
+      "title": "Tentang QManager",
+      "note": "Halo! Rus di sini. QManager adalah iterasi terbaru dari QuecManager, dibangun dengan pendekatan yang lebih baru dan lebih andal dibandingkan pendahulunya — sambil tetap menggabungkan pengaturan teknis untuk pengguna tingkat lanjut dengan antarmuka sederhana bagi yang baru memulai. Terima kasih khusus kepada iamromulan, clndwhr, dan Wutang Clan!",
+      "copyright": "© {{year}} QManager. Seluruh hak cipta dilindungi.",
+      "repository": "Repositori GitHub",
+      "release_notes": "Catatan rilis",
+      "support": "Dukung proyek ini"
+    },
+    "errors": {
+      "fetch_failed": "Tidak dapat membaca informasi perangkat"
+    }
+  },
+  "support": {
+    "page": {
+      "title": "Dukungan",
+      "description": "Laporkan bug, tanya komunitas, atau hubungi pengelola."
+    },
+    "help": {
+      "title": "Dapatkan bantuan",
+      "description": "Empat jalur, sesuai urutan yang paling sering dibutuhkan.",
+      "bug": {
+        "label": "Laporkan bug"
+      },
+      "community": {
+        "label": "Tanya komunitas"
+      },
+      "email": {
+        "label": "Email pengelola"
+      },
+      "release_notes": {
+        "label": "Baca catatan rilis",
+        "dest": "Terpasang: {{version}}"
+      }
+    },
+    "community": {
+      "title": "Komunitas",
+      "description": "Cellular Modem Talk/Development di Discord.",
+      "body": "Pengguna berbagi konfigurasi, memecahkan masalah bersama, dan membahas jaringan seluler. Pindai atau buka undangannya.",
+      "open_invite": "Buka undangan",
+      "qr_alt": "Kode QR untuk undangan server Discord QManager"
+    },
+    "opens_new_tab": "terbuka di tab baru"
+  },
+  "donate": {
+    "dialog": {
+      "title": "Dukung proyek ini",
+      "description": "Bantu QManager terus berjalan.",
+      "body": "Hai, saya Rus. QManager adalah proyek sampingan yang saya kelola secara gratis. Jika bermanfaat bagi Anda, dukungan kecil sangat berarti dan membuat saya terus melanjutkan.",
+      "thanks": "Terima kasih sudah luar biasa. 💙"
+    },
+    "links": {
+      "group_label": "Kanal donasi",
+      "opens_new_tab": "terbuka di tab baru"
+    },
+    "band": {
+      "title": "Dukung proyek ini",
+      "body": "QManager adalah proyek sampingan yang dikelola secara gratis. Jika bermanfaat untuk perangkat Anda, sedikit dukungan membuatnya terus berjalan — dan tidak akan ada fitur berbayar apa pun."
+    }
+  },
+  "tailscale": {
+    "actions": {
+      "cancel": "Batal",
+      "retry": "Coba lagi"
+    },
+    "page": {
+      "title": "Tailscale VPN",
+      "description": "Mesh VPN Anda: yang sedang dilakukan modem ini di tailnet, dan siapa lagi yang tergabung.",
+      "refresh": "Segarkan",
+      "stale": "Menampilkan status terakhir yang berhasil kami baca. {{message}}",
+      "unreadableTitle": "Tidak dapat membaca status Tailscale",
+      "unreadable": "Perangkat tidak menjawab."
+    },
+    "status": {
+      "aria": "Status Tailscale",
+      "running": "Terhubung",
+      "needsLogin": "Perlu masuk",
+      "disconnected": "Terputus",
+      "serviceStopped": "Layanan berhenti",
+      "notInstalled": "Belum terinstal",
+      "unknown": "Tidak diketahui"
+    },
+    "band": {
+      "dash": "—",
+      "connectionEyebrow": "Koneksi",
+      "version": "Versi {{version}}",
+      "versionUnknown": "Versi tidak diketahui",
+      "deviceEyebrow": "Perangkat ini",
+      "deviceUnknown": "Belum ada alamat tailnet",
+      "tailnetEyebrow": "Tailnet",
+      "magicDnsOn": "MagicDNS aktif",
+      "magicDnsOff": "MagicDNS nonaktif",
+      "peersEyebrow": "Peer online",
+      "exitNodes_one": "{{count}} node keluar",
+      "exitNodes_other": "{{count}} node keluar",
+      "noExitNode": "Tidak ada node keluar"
+    },
+    "connection": {
+      "title": "Koneksi",
+      "description": "Apakah modem ini bergabung ke tailnet, dan bagaimana perilakunya setelah itu.",
+      "version": "v{{version}}",
+      "connect": "Hubungkan",
+      "connecting": "Menghubungkan…",
+      "disconnect": "Putuskan",
+      "disconnecting": "Memutuskan…",
+      "startService": "Mulai layanan",
+      "starting": "Memulai…",
+      "stopService": "Hentikan layanan",
+      "stopping": "Menghentikan…",
+      "logout": "Keluar",
+      "logoutDialogTitle": "Keluar dari Tailscale?",
+      "logoutDialogDescription": "Ini menghapus modem dari tailnet Anda. Anda perlu masuk lagi sebelum modem dapat terhubung kembali.",
+      "authTitle": "Masuk untuk menyelesaikan koneksi",
+      "authDescription": "Buka halaman masuk dan autentikasi dengan akun Tailscale Anda. Modem bergabung ke tailnet segera setelah Anda menyetujuinya.",
+      "openLogin": "Buka halaman masuk",
+      "authWaiting": "Menunggu Anda masuk",
+      "bootTitle": "Mulai saat boot",
+      "bootDescription": "Jalankan Tailscale otomatis setelah modem restart.",
+      "on": "Aktif",
+      "off": "Mati",
+      "exitNodeTitle": "Iklankan sebagai exit node",
+      "exitNodeDescription": "Memungkinkan perangkat lain merutekan lalu lintas internetnya melalui modem ini. Anda menyetujuinya di konsol admin Tailscale.",
+      "exitNodeLocked": "Hubungkan ke Tailscale untuk mengubahnya."
+    },
+    "device": {
+      "title": "Perangkat ini",
+      "description": "Bagaimana modem mengidentifikasi dirinya di tailnet.",
+      "hostname": "Hostname",
+      "ipv4": "IPv4",
+      "ipv6": "IPv6",
+      "dnsName": "Nama DNS",
+      "tailnet": "Tailnet",
+      "magicDns": "MagicDNS",
+      "relay": "Relay DERP",
+      "emptyTitle": "Belum di tailnet",
+      "emptyDescription": "Hubungkan Tailscale dan alamat, nama DNS, serta relay modem ini akan muncul di sini."
+    },
+    "peers": {
+      "title": "Peer jaringan",
+      "description": "Perangkat lain di tailnet Anda, dan apakah mereka bisa dijangkau.",
+      "dash": "—",
+      "unnamed": "Perangkat tanpa nama",
+      "exitNode": "Node keluar",
+      "colDevice": "Perangkat",
+      "colAddress": "Alamat",
+      "colOs": "OS",
+      "colStatus": "Status",
+      "colLastSeen": "Terakhir online",
+      "online": "Online",
+      "offline": "Offline",
+      "seenNow": "Sekarang",
+      "seenUnknown": "Tidak diketahui",
+      "seenJustNow": "Baru saja",
+      "seenMinutes": "{{n}}m lalu",
+      "seenHours": "{{n}}j lalu",
+      "seenDays": "{{n}}h lalu",
+      "countOnline": "{{online}} dari {{total}} online",
+      "countExitNodes_one": "{{count}} node keluar",
+      "countExitNodes_other": "{{count}} node keluar",
+      "errorTitle": "Tidak dapat memuat peer",
+      "emptyTitle": "Tidak ada perangkat lain",
+      "emptyDescription": "Belum ada yang bergabung ke tailnet ini. Tambahkan perangkat dari konsol admin Tailscale dan akan muncul di sini.",
+      "offlineTitle": "Tidak terhubung",
+      "offlineDescription": "Hubungkan Tailscale untuk melihat perangkat lain di tailnet Anda."
+    },
+    "install": {
+      "title": "Tailscale",
+      "description": "Mesh VPN untuk menjangkau modem ini dari mana saja, tanpa membuka port.",
+      "conditionTitle": "Tailscale belum terinstal",
+      "conditionDescription": "Instalasi mengunduh paket Tailscale lewat koneksi seluler yang sama dengan sesi ini, jadi ini memakai kuota data Anda dan koneksi akan lebih lambat selama berlangsung.",
+      "install": "Instal Tailscale",
+      "installing": "Menginstal…",
+      "checkAgain": "Periksa lagi",
+      "done": "Tailscale terinstal.",
+      "failed": "Instalasi tidak selesai.",
+      "manualLabel": "Atau instal lewat shell",
+      "copyCommand": "Salin perintah instalasi",
+      "logTitle": "Log instalasi",
+      "logWaiting": "Menunggu output…",
+      "chooseLabel": "Pilih versi yang akan dipasang",
+      "manualCommand": "opkg update && opkg install luci-app-tailscale-community-tiny",
+      "variant": {
+        "official": {
+          "title": "Resmi",
+          "description": "Versi terbaru, langsung dari Tailscale. Memakan sekitar 50 MB penyimpanan."
+        },
+        "tiny": {
+          "title": "Tiny",
+          "description": "Paket komunitas ringan. Lebih kecil, tetapi versinya lebih lama."
+        }
+      }
+    },
+    "danger": {
+      "title": "Hapus Tailscale",
+      "description": "Menghapus paket Tailscale dan aturan firewall dari modem ini.",
+      "uninstall": "Hapus instalasi",
+      "removing": "Menghapus…",
+      "dialogTitle": "Hapus instalasi Tailscale?",
+      "dialogDescription": "Ini menghapus paket Tailscale, aturan firewall-nya, dan semua status koneksi dari modem ini. Reboot setelahnya membersihkan sisa yang tertinggal.",
+      "rebootTitle": "Reboot disarankan",
+      "rebootDescription": "Tailscale telah dihapus. Reboot membersihkan sisa aturan firewall dan artefak lainnya. Reboot sekarang?",
+      "rebootLater": "Reboot nanti",
+      "rebootNow": "Reboot sekarang",
+      "rebooting": "Reboot…"
+    },
+    "toast": {
+      "bootEnabled": "Tailscale akan berjalan saat boot",
+      "bootDisabled": "Tailscale tidak akan berjalan saat boot",
+      "bootFailed": "Tidak dapat mengubah pengaturan boot",
+      "connected": "Menghubungkan ke Tailscale",
+      "connectFailed": "Tidak dapat memulai koneksi",
+      "disconnected": "Tailscale terputus",
+      "disconnectFailed": "Tidak dapat memutuskan koneksi",
+      "loggedOut": "Keluar dari Tailscale",
+      "logoutFailed": "Tidak dapat keluar",
+      "serviceStarted": "Layanan Tailscale dimulai",
+      "serviceStartFailed": "Tidak dapat memulai layanan Tailscale",
+      "serviceStopped": "Layanan Tailscale berhenti",
+      "serviceStopFailed": "Tidak dapat menghentikan layanan Tailscale",
+      "uninstalled": "Tailscale dihapus",
+      "uninstallFailed": "Tidak dapat menghapus Tailscale",
+      "copied": "Perintah disalin",
+      "copyFailed": "Tidak dapat menyalin perintah",
+      "exitNodeEnabled": "Diiklankan sebagai exit node",
+      "exitNodeDisabled": "Tidak lagi diiklankan sebagai exit node",
+      "exitNodeFailed": "Tidak dapat mengubah pengiklanan exit node",
+      "installed": "Tailscale terinstal",
+      "installFailed": "Instalasi Tailscale tidak selesai"
+    },
+    "mutex": {
+      "title": "VPN lain sudah terinstal",
+      "description": "Hanya satu VPN yang dapat diinstal dalam satu waktu. Copot {{other_vpn}} dari <link>halaman NetBird</link> terlebih dahulu."
+    }
   }
 }

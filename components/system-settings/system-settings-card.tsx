@@ -1,7 +1,18 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
+import type * as React from "react";
+import { motion } from "motion/react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import {
+  CheckIcon,
+  ChevronsUpDownIcon,
+  CircleAlertIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -10,18 +21,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Command,
   CommandEmpty,
   CommandGroup,
@@ -29,49 +28,83 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { fieldVariants } from "@/components/ui/input";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  AlertTriangleIcon,
-  Check,
-  ChevronsUpDown,
-} from "lucide-react";
-import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CardFoot } from "@/components/ui/card-foot";
-import KnownSimsRow from "@/components/system-settings/known-sims-row";
-import SshPasswordSection from "@/components/system-settings/ssh-password/ssh-password-section";
-import { motion } from "motion/react";
-import { staggerRows, staggerRowItem } from "@/lib/motion";
-import { TbInfoCircleFilled } from "react-icons/tb";
-import { useTranslation } from "react-i18next";
-
-import type {
-  UseSystemSettingsReturn,
-  SaveSettingsPayload,
-} from "@/hooks/use-system-settings";
-import { TIMEZONES } from "@/types/system-settings";
+import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { SEGMENTED, SegmentedField } from "@/components/ui/segmented-field";
+import { Skeleton } from "@/components/ui/skeleton";
+import { staggerRowItem, staggerRows } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
-// ─── Component ──────────────────────────────────────────────────────────────
+import type {
+  SaveResult,
+  SaveSettingsPayload,
+  UseSystemSettingsReturn,
+} from "@/hooks/use-system-settings";
+import { TIMEZONES } from "@/types/system-settings";
+
+import { ConditionBlock } from "./condition-block";
+import {
+  CARD_BODY,
+  CARD_DESC,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_TITLE,
+  CONDITION_PANEL,
+  CONTROL_FILL,
+  DELTA,
+  FIELD,
+  FIELD_GLYPH,
+  GROUP_FILL,
+  LABEL_LINE,
+  NOTICE,
+  ROW,
+  ROW_GROUP,
+  SKELETON,
+} from "./shapes";
+
+// =============================================================================
+// Time & Units — the writable half of /system-settings' preferences
+// =============================================================================
+// Three decisions in one tonal group: the zone the whole device measures time
+// against, and the two units every reading is rendered in. The zone leads
+// because it is the only one of the three with a consequence beyond display.
+//
+// The always-visible clock readout lives on the page's status band, not here.
+// What this card keeps is the FAILURE case — the zone was saved but never
+// reached the live clock — which is a fact about this card's own write.
+// =============================================================================
+
+const K = "preferences";
+
+const TZ_LABEL_ID = "preferences-timezone-label";
+const TZ_LIST_ID = "preferences-timezone-list";
+const TEMP_LABEL_ID = "preferences-temperature-label";
+const DISTANCE_LABEL_ID = "preferences-distance-label";
+const TAILSCALE_LABEL_ID = "preferences-tailscale-label";
+
+/** The lucide check that `SegmentedField` reserves on every segment. */
+const renderCheckGlyph = (className: string) => (
+  <CheckIcon size={SEGMENTED.GLYPH} className={className} aria-hidden="true" />
+);
+
+// -----------------------------------------------------------------------------
 
 type SystemSettingsCardProps = Pick<
   UseSystemSettingsReturn,
-  "settings" | "isLoading" | "isSaving" | "error" | "saveSettings"
+  "settings" | "isLoading" | "isSaving" | "error" | "saveSettings" | "refresh"
 >;
 
 export default function SystemSettingsCard({
@@ -80,114 +113,107 @@ export default function SystemSettingsCard({
   isSaving,
   error,
   saveSettings,
+  refresh,
 }: SystemSettingsCardProps) {
   const { t } = useTranslation("system-settings");
 
-  // --- Loading skeleton ---
-  if (isLoading) {
-    return (
-      <Card className="@container/card">
-        <CardHeader>
-          <CardTitle>{t("system.card_title")}</CardTitle>
-          <CardDescription>
-            {t("system.card_description")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2">
-            <Separator />
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-36" />
-              <Skeleton className="h-6 w-28" />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-44" />
-              <Skeleton className="h-6 w-28" />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-9 w-36" />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-28" />
-              <Skeleton className="h-9 w-36" />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-24" />
-              <Skeleton className="h-9 w-52" />
-            </div>
-          </div>
-        </CardContent>
-        <CardFoot
-          className="px-6"
-          liveStatus={false}
-          aria-hidden="true"
-          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
-        />
-      </Card>
-    );
-  }
-
-  // --- Error state ---
-  if (error && !settings) {
-    return (
-      <Card className="@container/card">
-        <CardHeader>
-          <CardTitle>{t("system.card_title")}</CardTitle>
-          <CardDescription>
-            {t("system.card_description")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertTriangleIcon className="size-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Key-based remount: when settings change after save/re-fetch,
-  // the form reinitializes with fresh values from useState defaults.
-  const formKey = settings
-    ? `${settings.force_tailscale_fixes}-${settings.temp_unit}-${settings.distance_unit}-${settings.zonename}`
-    : "empty";
-
   return (
-    <SystemSettingsForm
-      key={formKey}
-      settings={settings}
-      isSaving={isSaving}
-      error={error}
-      saveSettings={saveSettings}
-    />
+    <Card className={CARD_SHELL}>
+      <CardHeader className={CARD_PAD}>
+        <CardTitle className={CARD_TITLE}>{t(`${K}.card.title`)}</CardTitle>
+        <CardDescription className={CARD_DESC}>
+          {t(`${K}.card.description`)}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className={cn(CARD_PAD, CARD_BODY, "gap-4")}>
+        {isLoading ? (
+          <PreferencesSkeleton />
+        ) : !settings ? (
+          // No settings to show — a failed read, or an envelope carrying none.
+          // The form would otherwise fill itself with its own fallbacks.
+          <ConditionBlock
+            tone="destructive"
+            glyph={CircleAlertIcon}
+            ariaRole="alert"
+            title={t(`${K}.states.error_title`)}
+            description={
+              error
+                ? t(`${K}.states.error_body_detail`, { detail: error })
+                : t(`${K}.states.error_body`)
+            }
+            onRetry={() => refresh()}
+            retryLabel={t("actions.retry", { ns: "common" })}
+            className={CONDITION_PANEL.SCREEN}
+          />
+        ) : (
+          <PreferencesForm
+            settings={settings}
+            isSaving={isSaving}
+            error={error}
+            saveSettings={saveSettings}
+          />
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
-// ─── Form (remounts on settings change for clean state reset) ───────────────
+// ─── Loading ────────────────────────────────────────────────────────────────
 
-interface SystemSettingsFormProps {
+/**
+ * Real `ROW_GROUP` / `ROW.ROOT` boxes wearing slivers, so the skeleton's height
+ * RESOLVES to the loaded row's rather than being asserted against it.
+ */
+function PreferencesSkeleton(): React.JSX.Element {
+  return (
+    <>
+      <div className={cn(ROW_GROUP, GROUP_FILL)}>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className={ROW.ROOT}>
+            <div className={ROW.TEXT}>
+              <Skeleton className={cn(SKELETON.TIME.LABEL, "w-28")} />
+              <Skeleton className={cn(SKELETON.TIME.CONSEQUENCE, "w-full")} />
+              {/* The zone row's consequence wraps to two lines at real widths. */}
+              {i === 0 ? (
+                <Skeleton className={cn(SKELETON.TIME.CONSEQUENCE_2, "w-2/3")} />
+              ) : null}
+            </div>
+            <div className={cn(ROW.CONTROL, CONTROL_FILL)}>
+              <Skeleton className={SKELETON.TIME.FIELD} />
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* The card foot. Absent, the card grows by its height plus the gap. */}
+      <CardFoot
+        liveStatus={false}
+        aria-hidden="true"
+        actions={<Skeleton className={SKELETON.TIME.ACTION} />}
+      />
+    </>
+  );
+}
+
+// ─── Form ───────────────────────────────────────────────────────────────────
+
+interface PreferencesFormProps {
   settings: UseSystemSettingsReturn["settings"];
   isSaving: boolean;
   error: string | null;
-  saveSettings: (payload: SaveSettingsPayload) => Promise<boolean>;
+  saveSettings: (payload: SaveSettingsPayload) => Promise<SaveResult>;
 }
 
-function SystemSettingsForm({
+function PreferencesForm({
   settings,
   isSaving,
   error,
   saveSettings,
-}: SystemSettingsFormProps) {
+}: PreferencesFormProps): React.JSX.Element {
   const { t } = useTranslation("system-settings");
   const { saved, markSaved } = useSaveFlash();
 
-  // --- Local form state (initialized from settings prop) ---
+  const [prevSettings, setPrevSettings] = useState(settings);
   const [tempUnit, setTempUnit] = useState<"celsius" | "fahrenheit">(
     settings?.temp_unit ?? "celsius",
   );
@@ -197,65 +223,59 @@ function SystemSettingsForm({
   const [zonename, setZonename] = useState(settings?.zonename ?? "UTC");
   const [timezone, setTimezone] = useState(settings?.timezone ?? "UTC0");
   const [tzOpen, setTzOpen] = useState(false);
-
-  // Force Tailscale Fixes toggle state (saves immediately, not via Save button).
-  // Re-introduces the historical fw4 zone + mwan3 ipset workarounds for
-  // tailscale0. Off by default; recommended for R02 firmware users.
-  const [forceTailscaleFixes, setForceTailscaleFixes] = useState(
+  // The Tailscale row saves on its own, immediately, so it is not part of the
+  // draft or the dirty check.
+  const [forceTs, setForceTs] = useState(
     settings?.force_tailscale_fixes ?? false,
   );
-  const [forceTailscaleFixesSaving, setForceTailscaleFixesSaving] = useState(false);
+  const [tsSaving, setTsSaving] = useState(false);
 
-  // --- Dirty check (Save-button items only, not the immediate toggles) ---
-  const isDirty = useMemo(() => {
-    if (!settings) return false;
-    return (
-      tempUnit !== settings.temp_unit ||
-      distanceUnit !== settings.distance_unit ||
-      zonename !== settings.zonename
-    );
-  }, [settings, tempUnit, distanceUnit, zonename]);
+  // Server -> local during render, never in an effect: a data-derived remount
+  // would kill the pending `saved` flash, since the refetch and markSaved()
+  // land in one React batch. `tzOpen` is popover state, deliberately not synced.
+  // Field by field: the Tailscale row's own refetch must not wipe an unsaved
+  // edit to a unit or the zone.
+  if (settings !== prevSettings) {
+    setPrevSettings(settings);
+    if (settings?.temp_unit !== prevSettings?.temp_unit) {
+      setTempUnit(settings?.temp_unit ?? "celsius");
+    }
+    if (settings?.distance_unit !== prevSettings?.distance_unit) {
+      setDistanceUnit(settings?.distance_unit ?? "km");
+    }
+    if (
+      settings?.zonename !== prevSettings?.zonename ||
+      settings?.timezone !== prevSettings?.timezone
+    ) {
+      setZonename(settings?.zonename ?? "UTC");
+      setTimezone(settings?.timezone ?? "UTC0");
+    }
+    if (settings?.force_tailscale_fixes !== prevSettings?.force_tailscale_fixes) {
+      setForceTs(settings?.force_tailscale_fixes ?? false);
+    }
+  }
 
+  const tzDirty = Boolean(
+    settings &&
+      (zonename !== settings.zonename || timezone !== settings.timezone),
+  );
+  const tempDirty = Boolean(settings && tempUnit !== settings.temp_unit);
+  const distanceDirty = Boolean(
+    settings && distanceUnit !== settings.distance_unit,
+  );
+  const isDirty = tzDirty || tempDirty || distanceDirty;
   const canSave = isDirty && !isSaving;
 
-  // --- Force Tailscale Fixes immediate toggle handler ---
-  const handleForceTailscaleFixesChange = useCallback(
-    async (checked: boolean) => {
-      setForceTailscaleFixes(checked);
-      setForceTailscaleFixesSaving(true);
-
-      const success = await saveSettings({
-        action: "save_settings",
-        force_tailscale_fixes: checked,
-        temp_unit: settings?.temp_unit ?? "celsius",
-        distance_unit: settings?.distance_unit ?? "km",
-        timezone: settings?.timezone ?? "UTC0",
-        zonename: settings?.zonename ?? "UTC",
-      });
-
-      setForceTailscaleFixesSaving(false);
-
-      if (success) {
-        toast.success(
-          checked
-            ? t("system.force_tailscale_fixes_toast_enabled")
-            : t("system.force_tailscale_fixes_toast_disabled"),
-        );
-      } else {
-        setForceTailscaleFixes(!checked);
-        toast.error(t("system.force_tailscale_fixes_toast_failed"));
-      }
-    },
-    [saveSettings, settings, t],
+  const tzLabel = useMemo(
+    () => TIMEZONES.find((tz) => tz.zonename === zonename)?.label,
+    [zonename],
   );
 
-  // --- Timezone change handler ---
-  const handleTimezoneChange = useCallback((selectedZonename: string) => {
-    const entry = TIMEZONES.find((tz) => tz.zonename === selectedZonename);
-    if (entry) {
-      setZonename(entry.zonename);
-      setTimezone(entry.timezone);
-    }
+  const handleTimezoneChange = useCallback((selected: string) => {
+    const entry = TIMEZONES.find((tz) => tz.zonename === selected);
+    if (!entry) return;
+    setZonename(entry.zonename);
+    setTimezone(entry.timezone);
   }, []);
 
   const handleDiscard = useCallback(() => {
@@ -266,31 +286,26 @@ function SystemSettingsForm({
     setTimezone(settings.timezone);
   }, [settings]);
 
-  // --- Save handler (items 2-4) ---
   const handleSave = useCallback(async () => {
     if (!canSave) return;
 
-    const success = await saveSettings({
+    const result = await saveSettings({
       action: "save_settings",
-      force_tailscale_fixes: forceTailscaleFixes,
       temp_unit: tempUnit,
       distance_unit: distanceUnit,
       timezone,
       zonename,
     });
 
-    if (success) {
+    if (result.success) {
       markSaved();
-      toast.success(t("system.toast_saved"));
+      toast.success(t(`${K}.toast.saved`));
     } else {
-      // saveSettings returns a bare boolean; the persistent Alert above carries
-      // the reason, and `error` read here would be this render's stale value.
-      toast.error(t("system.toast_failed"));
+      toast.error(result.message ?? t(`${K}.toast.failed`));
     }
   }, [
     canSave,
     saveSettings,
-    forceTailscaleFixes,
     tempUnit,
     distanceUnit,
     timezone,
@@ -299,135 +314,103 @@ function SystemSettingsForm({
     t,
   ]);
 
+  const handleTailscaleChange = useCallback(
+    async (next: "on" | "off") => {
+      const checked = next === "on";
+      setForceTs(checked);
+      setTsSaving(true);
+      const result = await saveSettings({
+        action: "save_settings",
+        force_tailscale_fixes: checked,
+      });
+      setTsSaving(false);
+      if (result.success) {
+        toast.success(
+          t(
+            checked
+              ? `${K}.rows.tailscale.toast_enabled`
+              : `${K}.rows.tailscale.toast_disabled`,
+          ),
+        );
+      } else {
+        setForceTs(!checked);
+        toast.error(result.message ?? t(`${K}.rows.tailscale.toast_failed`));
+      }
+    },
+    [saveSettings, t],
+  );
+
+  const unsaved = t(`${K}.rows.unsaved`);
+
   return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardTitle>{t("system.card_title")}</CardTitle>
-        <CardDescription>
-          {t("system.card_description")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangleIcon className="size-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+    <>
+      {/* A failed refresh over live data says so and steps aside; it does not
+          take the card down. */}
+      {error ? (
+        <div role="status" className={cn(NOTICE.BOX, NOTICE.STALE)}>
+          <TriangleAlertIcon className={NOTICE.GLYPH} aria-hidden="true" />
+          <span className={NOTICE.TEXT}>{t(`${K}.states.stale`)}</span>
+        </div>
+      ) : null}
 
-        <motion.div
-          className="grid gap-2"
-          variants={staggerRows}
-          initial="hidden"
-          animate="visible"
-        >
-          {/* ── Force Tailscale Fixes Toggle ──────────────────────── */}
-          <Separator />
-          <motion.div variants={staggerRowItem} className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex"
-                    aria-label={t("system.force_tailscale_fixes_info_aria")}
-                  >
-                    <TbInfoCircleFilled className="size-5 text-info" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-balance max-w-sm">{t("system.force_tailscale_fixes_tooltip")}</p>
-                </TooltipContent>
-              </Tooltip>
-              <p className="font-semibold text-muted-foreground text-sm">
-                {t("system.force_tailscale_fixes_label")}
-              </p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="force-tailscale-fixes"
-                checked={forceTailscaleFixes}
-                onCheckedChange={handleForceTailscaleFixesChange}
-                disabled={forceTailscaleFixesSaving}
-              />
-              <Label htmlFor="force-tailscale-fixes">
-                {forceTailscaleFixes
-                  ? t("state.enabled", { ns: "common" })
-                  : t("state.disabled", { ns: "common" })}
-              </Label>
-            </div>
-          </motion.div>
-
-          {/* ── Known SIMs (clear remembered SIM list) ────────────── */}
-          <Separator />
-          <KnownSimsRow />
-
-          {/* ── Temperature Unit ──────────────────────────────────── */}
-          <Separator />
-          <motion.div variants={staggerRowItem} className="flex items-center justify-between">
-            <p className="font-semibold text-muted-foreground text-sm">
-              {t("system.temperature_unit_label")}
-            </p>
-            <Select
-              value={tempUnit}
-              onValueChange={(v) => setTempUnit(v as "celsius" | "fahrenheit")}
-            >
-              <SelectTrigger className="w-36" aria-label={t("system.temperature_unit_aria")}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="celsius">{t("system.temperature_celsius")}</SelectItem>
-                <SelectItem value="fahrenheit">{t("system.temperature_fahrenheit")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </motion.div>
-
-          {/* ── Distance Unit ─────────────────────────────────────── */}
-          <Separator />
-          <motion.div variants={staggerRowItem} className="flex items-center justify-between">
-            <p className="font-semibold text-muted-foreground text-sm">
-              {t("system.distance_unit_label")}
-            </p>
-            <Select
-              value={distanceUnit}
-              onValueChange={(v) => setDistanceUnit(v as "km" | "miles")}
-            >
-              <SelectTrigger className="w-36" aria-label={t("system.distance_unit_aria")}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="km">{t("system.distance_km")}</SelectItem>
-                <SelectItem value="miles">{t("system.distance_miles")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </motion.div>
-
-          {/* ── Timezone ──────────────────────────────────────────── */}
-          <Separator />
-          <motion.div variants={staggerRowItem} className="flex items-center justify-between">
-            <p className="font-semibold text-muted-foreground text-sm">
-              {t("system.timezone_label")}
-            </p>
+      {/* No `initial`/`animate`: this container is a child of the page cascade
+          and must stay on the parent's clock. */}
+      <motion.div
+        className={cn(ROW_GROUP, GROUP_FILL)}
+        variants={staggerRows}
+      >
+        {/* ── Time zone ───────────────────────────────────────────────── */}
+        <motion.div variants={staggerRowItem} className={ROW.ROOT}>
+          <div className={ROW.TEXT}>
+            <span className={LABEL_LINE}>
+              <span id={TZ_LABEL_ID} className={ROW.LABEL}>
+                {t(`${K}.rows.timezone.label`)}
+              </span>
+              <span className={cn(DELTA.ROOT, !tzDirty && DELTA.CLEAN)}>
+                {unsaved}
+              </span>
+            </span>
+            <span className={ROW.CONSEQUENCE}>
+              {t(`${K}.rows.timezone.consequence`)}
+            </span>
+          </div>
+          <div className={ROW.CONTROL}>
             <Popover open={tzOpen} onOpenChange={setTzOpen}>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
+                <button
+                  type="button"
                   role="combobox"
                   aria-expanded={tzOpen}
-                  className="w-52 @sm/card:w-64 justify-between font-normal"
+                  aria-controls={TZ_LIST_ID}
+                  aria-labelledby={TZ_LABEL_ID}
+                  className={cn(
+                    fieldVariants({ host: "container" }),
+                    "flex h-[2.625rem] items-center justify-between gap-2 px-3.5",
+                    FIELD,
+                  )}
                 >
                   <span className="truncate">
-                    {TIMEZONES.find((tz) => tz.zonename === zonename)?.label ??
-                      t("system.timezone_placeholder")}
+                    {tzLabel ?? t(`${K}.rows.timezone.placeholder`)}
                   </span>
-                  <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-                </Button>
+                  <ChevronsUpDownIcon
+                    className={cn(FIELD_GLYPH, "flex-none opacity-60")}
+                    aria-hidden="true"
+                  />
+                </button>
               </PopoverTrigger>
-              <PopoverContent className="w-64 p-0" align="end">
+              <PopoverContent
+                id={TZ_LIST_ID}
+                align="end"
+                className="w-(--radix-popover-trigger-width) min-w-64 rounded-field p-0"
+              >
                 <Command>
-                  <CommandInput placeholder={t("system.timezone_search_placeholder")} />
+                  <CommandInput
+                    placeholder={t(`${K}.rows.timezone.search`)}
+                  />
                   <CommandList>
-                    <CommandEmpty>{t("system.timezone_not_found")}</CommandEmpty>
+                    <CommandEmpty>
+                      {t(`${K}.rows.timezone.empty`)}
+                    </CommandEmpty>
                     <CommandGroup>
                       {TIMEZONES.map((tz) => (
                         <CommandItem
@@ -438,13 +421,14 @@ function SystemSettingsForm({
                             setTzOpen(false);
                           }}
                         >
-                          <Check
+                          <CheckIcon
                             className={cn(
                               "mr-2 size-4",
                               zonename === tz.zonename
                                 ? "opacity-100"
                                 : "opacity-0",
                             )}
+                            aria-hidden="true"
                           />
                           {tz.label}
                         </CommandItem>
@@ -454,40 +438,116 @@ function SystemSettingsForm({
                 </Command>
               </PopoverContent>
             </Popover>
-          </motion.div>
-
-          {/* ── SSH Password (disclosed form) ─────────────────────── */}
-          {/* Standard accordion: the row IS the trigger. Its own CGI   */}
-          {/* mutation (ssh_password.sh) is an inline sub-form,         */}
-          {/* independent of the card's CardFoot Save (units +          */}
-          {/* timezone) — see SshPasswordSection.                       */}
-          <Separator />
-          <motion.div variants={staggerRowItem}>
-            <Accordion type="single" collapsible>
-              <AccordionItem value="ssh-password" className="border-b-0">
-                <AccordionTrigger className="items-center py-2 text-muted-foreground hover:text-foreground hover:no-underline">
-                  <span className="font-semibold text-sm">
-                    {t("ssh_password.card_title")}
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent className="pt-1 pb-1">
-                  <p className="mb-4 text-sm text-muted-foreground text-balance">
-                    {t("ssh_password.card_description")}
-                  </p>
-                  <SshPasswordSection />
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </motion.div>
+          </div>
         </motion.div>
-      </CardContent>
+
+        {/* ── Temperature ─────────────────────────────────────────────── */}
+        <motion.div variants={staggerRowItem} className={ROW.ROOT}>
+          <div className={ROW.TEXT}>
+            <span className={LABEL_LINE}>
+              <span id={TEMP_LABEL_ID} className={ROW.LABEL}>
+                {t(`${K}.rows.temperature.label`)}
+              </span>
+              <span className={cn(DELTA.ROOT, !tempDirty && DELTA.CLEAN)}>
+                {unsaved}
+              </span>
+            </span>
+            <span className={ROW.CONSEQUENCE}>
+              {t(`${K}.rows.temperature.consequence`)}
+            </span>
+          </div>
+          <div className={ROW.CONTROL}>
+            <Select
+              value={tempUnit}
+              onValueChange={(v) => setTempUnit(v as "celsius" | "fahrenheit")}
+            >
+              <SelectTrigger
+                aria-labelledby={TEMP_LABEL_ID}
+                host="container"
+                className={FIELD}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="celsius">
+                  {t(`${K}.rows.temperature.celsius`)}
+                </SelectItem>
+                <SelectItem value="fahrenheit">
+                  {t(`${K}.rows.temperature.fahrenheit`)}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </motion.div>
+
+        {/* ── Distance ────────────────────────────────────────────────── */}
+        <motion.div variants={staggerRowItem} className={ROW.ROOT}>
+          <div className={ROW.TEXT}>
+            <span className={LABEL_LINE}>
+              <span id={DISTANCE_LABEL_ID} className={ROW.LABEL}>
+                {t(`${K}.rows.distance.label`)}
+              </span>
+              <span className={cn(DELTA.ROOT, !distanceDirty && DELTA.CLEAN)}>
+                {unsaved}
+              </span>
+            </span>
+            <span className={ROW.CONSEQUENCE}>
+              {t(`${K}.rows.distance.consequence`)}
+            </span>
+          </div>
+          <div className={ROW.CONTROL}>
+            <Select
+              value={distanceUnit}
+              onValueChange={(v) => setDistanceUnit(v as "km" | "miles")}
+            >
+              <SelectTrigger
+                aria-labelledby={DISTANCE_LABEL_ID}
+                host="container"
+                className={FIELD}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="km">
+                  {t(`${K}.rows.distance.km`)}
+                </SelectItem>
+                <SelectItem value="miles">
+                  {t(`${K}.rows.distance.miles`)}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </motion.div>
+
+        {/* ── Force Tailscale Fixes ───────────────────────────────────── */}
+        <motion.div variants={staggerRowItem} className={ROW.ROOT}>
+          <div className={ROW.TEXT}>
+            <span id={TAILSCALE_LABEL_ID} className={ROW.LABEL}>
+              {t(`${K}.rows.tailscale.label`)}
+            </span>
+            <span className={ROW.CONSEQUENCE}>
+              {t(`${K}.rows.tailscale.consequence`)}
+            </span>
+          </div>
+          <div className={ROW.CONTROL}>
+            <SegmentedField
+              value={forceTs ? "on" : "off"}
+              onValueChange={(next) => void handleTailscaleChange(next)}
+              options={[
+                { value: "off", label: t("state.off", { ns: "common" }) },
+                { value: "on", label: t("state.on", { ns: "common" }) },
+              ]}
+              ariaLabel={t(`${K}.rows.tailscale.label`)}
+              disabled={tsSaving}
+              breakpoint="never"
+              glyph={renderCheckGlyph}
+            />
+          </div>
+        </motion.div>
+      </motion.div>
+
+      {/* Each row carries its own unsaved marker; the foot only commits. */}
       <CardFoot
-        className="px-6"
-        status={
-          isDirty ? (
-            <span className="font-medium">{t("common:state.unsaved")}</span>
-          ) : null
-        }
         actions={
           <>
             <Button
@@ -497,18 +557,19 @@ function SystemSettingsForm({
               onClick={handleDiscard}
               disabled={!isDirty || isSaving}
             >
-              {t("common:actions.discard")}
+              {t("actions.discard", { ns: "common" })}
             </Button>
             <SaveButton
               onClick={handleSave}
               isSaving={isSaving}
               saved={saved}
+              label={t(`${K}.card.save`)}
               disabled={!canSave}
               size="action"
             />
           </>
         }
       />
-    </Card>
+    </>
   );
 }

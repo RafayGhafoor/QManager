@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { ChevronDownIcon, Trash2Icon } from "lucide-react";
+import { useTranslation } from "react-i18next";
+
 import {
   Popover,
   PopoverContent,
@@ -25,14 +27,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { DEFAULT_AT_COMMANDS, type ATCommandPreset } from "@/constants/at-commands";
-import { useTranslation } from "react-i18next";
+import { Tag } from "@/components/ui/tag";
+import { cn } from "@/lib/utils";
+import { type ATCommandPreset } from "@/constants/at-commands";
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+import { groupedDefaults } from "./derive";
+import { HEAD_ACTION, HEAD_GLYPH, MANAGE, POPOVER } from "./shapes";
 
 const STORAGE_KEY = "qm_at_custom_commands";
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+const K = "at_terminal.commands";
 
 function loadCustomCommands(): ATCommandPreset[] {
   try {
@@ -52,14 +55,21 @@ function saveCustomCommands(commands: ATCommandPreset[]): void {
   }
 }
 
-// ─── Props ───────────────────────────────────────────────────────────────────
+/**
+ * Which field the standing error is about, so the invalid state lands on the
+ * control at fault rather than only on a sentence under the row.
+ */
+type AddErrorField = "both" | "label" | "command";
+
+interface AddError {
+  message: string;
+  field: AddErrorField;
+}
 
 interface CommandsPopoverProps {
   onSelect: (command: string) => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
 }
-
-// ─── Component ───────────────────────────────────────────────────────────────
 
 export default function CommandsPopover({
   onSelect,
@@ -70,46 +80,88 @@ export default function CommandsPopover({
   const [manageOpen, setManageOpen] = useState(false);
 
   // Load custom commands once on mount via initializer
-  const [customCommands, setCustomCommands] = useState<ATCommandPreset[]>(
-    () => loadCustomCommands()
+  const [customCommands, setCustomCommands] = useState<ATCommandPreset[]>(() =>
+    loadCustomCommands(),
   );
 
-  // Add form state
   const [newLabel, setNewLabel] = useState("");
   const [newCommand, setNewCommand] = useState("");
-  const [addError, setAddError] = useState("");
+  const [addError, setAddError] = useState<AddError | null>(null);
 
-  const totalCount = DEFAULT_AT_COMMANDS.length + customCommands.length;
+  const errorId = useId();
+  const labelInvalid =
+    addError !== null && (addError.field === "both" || addError.field === "label");
+  const commandInvalid =
+    addError !== null &&
+    (addError.field === "both" || addError.field === "command");
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  const groups = useMemo(() => groupedDefaults(), []);
+  const defaultCount = useMemo(
+    () => groups.reduce((sum, group) => sum + group.items.length, 0),
+    [groups],
+  );
+  const totalCount = defaultCount + customCommands.length;
+
+  /** Every label on the surface, built-ins translated, for the duplicate test. */
+  const allLabels = useMemo(
+    () => [
+      ...groups.flatMap((group) =>
+        group.items.map((preset) => t(`${K}.presets.${preset.id}`)),
+      ),
+      ...customCommands.map((preset) => preset.label),
+    ],
+    [groups, customCommands, t],
+  );
+
+  const allCommands = useMemo(
+    () => [
+      ...groups.flatMap((group) => group.items.map((preset) => preset.command)),
+      ...customCommands.map((preset) => preset.command),
+    ],
+    [groups, customCommands],
+  );
+
+  const pick = (command: string) => {
+    onSelect(command);
+    setOpen(false);
+    inputRef.current?.focus();
+  };
 
   function handleAdd() {
     const trimmedLabel = newLabel.trim();
     const trimmedCommand = newCommand.trim();
 
     if (!trimmedLabel || !trimmedCommand) {
-      setAddError(t("at_terminal.validate_fields_required"));
+      setAddError({ message: t(`${K}.errors.required`), field: "both" });
       return;
     }
 
     if (!trimmedCommand.toUpperCase().startsWith("AT")) {
-      setAddError(t("at_terminal.validate_must_start_at"));
+      setAddError({
+        message: t(`${K}.errors.must_start_at`),
+        field: "command",
+      });
       return;
     }
 
-    const allCommands = [...DEFAULT_AT_COMMANDS, ...customCommands];
-    const isDuplicateCommand = allCommands.some(
-      (p) => p.command.toLowerCase() === trimmedCommand.toLowerCase()
-    );
-    if (isDuplicateCommand) {
-      setAddError(t("at_terminal.validate_command_duplicate"));
+    if (
+      allCommands.some(
+        (command) => command.toLowerCase() === trimmedCommand.toLowerCase(),
+      )
+    ) {
+      setAddError({
+        message: t(`${K}.errors.duplicate_command`),
+        field: "command",
+      });
       return;
     }
-    const isDuplicateLabel = allCommands.some(
-      (p) => p.label.toLowerCase() === trimmedLabel.toLowerCase()
-    );
-    if (isDuplicateLabel) {
-      setAddError(t("at_terminal.validate_label_duplicate"));
+
+    if (
+      allLabels.some(
+        (label) => label.toLowerCase() === trimmedLabel.toLowerCase(),
+      )
+    ) {
+      setAddError({ message: t(`${K}.errors.duplicate_label`), field: "label" });
       return;
     }
 
@@ -121,7 +173,7 @@ export default function CommandsPopover({
     saveCustomCommands(updated);
     setNewLabel("");
     setNewCommand("");
-    setAddError("");
+    setAddError(null);
   }
 
   function handleDelete(index: number) {
@@ -130,68 +182,69 @@ export default function CommandsPopover({
     saveCustomCommands(updated);
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="xs" aria-expanded={open}>
-            {t("at_terminal.popover_trigger")}
-            <ChevronDownIcon />
+          <Button
+            type="button"
+            variant="ghost"
+            aria-expanded={open}
+            className={HEAD_ACTION}
+          >
+            {t(`${K}.trigger`)}
+            <ChevronDownIcon className={HEAD_GLYPH} />
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent className="w-80 p-0" align="end">
+        <PopoverContent className={POPOVER.CONTENT} align="end">
           <Command>
-            <CommandInput placeholder={t("at_terminal.popover_search_placeholder")} />
-            <CommandList>
-              <CommandEmpty>{t("at_terminal.popover_no_results")}</CommandEmpty>
+            <CommandInput placeholder={t(`${K}.search_placeholder`)} />
+            <CommandList className={POPOVER.LIST}>
+              <CommandEmpty>{t(`${K}.empty`)}</CommandEmpty>
 
-              <CommandGroup heading={t("at_terminal.popover_group_default")}>
-                {DEFAULT_AT_COMMANDS.map((preset) => {
-                  const label = preset.id
-                    ? t(preset.id, { ns: "at-commands" })
-                    : preset.label;
-                  return (
+              {/* The 26 built-ins, split by function. One flat "Default" list
+                  asked the reader to scan a paragraph to find a band query. */}
+              {groups.map((group) => (
+                <CommandGroup
+                  key={group.category}
+                  heading={t(`${K}.groups.${group.category}`)}
+                >
+                  {group.items.map((preset) => (
                     <CommandItem
                       key={preset.command}
-                      value={label}
-                      onSelect={() => {
-                        onSelect(preset.command);
-                        setOpen(false);
-                        inputRef.current?.focus();
-                      }}
+                      value={t(`${K}.presets.${preset.id}`)}
+                      className={POPOVER.ITEM}
+                      onSelect={() => pick(preset.command)}
                     >
-                      <span className="font-medium flex-1 min-w-0 truncate">
-                        {label}
+                      <span className={POPOVER.LABEL}>
+                        {t(`${K}.presets.${preset.id}`)}
                       </span>
-                      <span className="font-mono text-xs text-muted-foreground truncate max-w-32">
-                        {preset.command}
-                      </span>
+                      <Tag variant="neutral" className={POPOVER.PREVIEW}>
+                        <span className={POPOVER.PREVIEW_TEXT}>
+                          {preset.command}
+                        </span>
+                      </Tag>
                     </CommandItem>
-                  );
-                })}
-              </CommandGroup>
+                  ))}
+                </CommandGroup>
+              ))}
 
               {customCommands.length > 0 && (
-                <CommandGroup heading={t("at_terminal.popover_group_custom")}>
+                <CommandGroup heading={t(`${K}.groups.custom`)}>
                   {customCommands.map((preset) => (
                     <CommandItem
                       key={preset.command}
                       value={preset.label}
-                      onSelect={() => {
-                        onSelect(preset.command);
-                        setOpen(false);
-                        inputRef.current?.focus();
-                      }}
+                      className={POPOVER.ITEM}
+                      onSelect={() => pick(preset.command)}
                     >
-                      <span className="font-medium flex-1 min-w-0 truncate">
-                        {preset.label}
-                      </span>
-                      <span className="font-mono text-xs text-muted-foreground truncate max-w-32">
-                        {preset.command}
-                      </span>
+                      <span className={POPOVER.LABEL}>{preset.label}</span>
+                      <Tag variant="neutral" className={POPOVER.PREVIEW}>
+                        <span className={POPOVER.PREVIEW_TEXT}>
+                          {preset.command}
+                        </span>
+                      </Tag>
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -199,59 +252,54 @@ export default function CommandsPopover({
             </CommandList>
           </Command>
 
-          {/* Footer */}
-          <div className="flex items-center justify-between px-3 py-2 border-t text-xs text-muted-foreground">
-            <span>{t("at_terminal.popover_total_count", { count: totalCount })}</span>
+          <div className={POPOVER.FOOT}>
+            <span className={POPOVER.COUNT}>
+              {t(`${K}.count`, { count: totalCount })}
+            </span>
             <button
-              className="text-xs underline underline-offset-2 hover:text-foreground transition-colors"
+              type="button"
+              className={POPOVER.MANAGE}
               onClick={() => {
                 setManageOpen(true);
                 setOpen(false);
               }}
             >
-              {t("at_terminal.popover_manage_button")}
+              {t(`${K}.manage`)}
             </button>
           </div>
         </PopoverContent>
       </Popover>
 
-      {/* Manage Commands Dialog */}
       <Dialog open={manageOpen} onOpenChange={setManageOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className={MANAGE.CONTENT}>
           <DialogHeader>
-            <DialogTitle>{t("at_terminal.manage_title")}</DialogTitle>
+            <DialogTitle>{t(`${K}.manage_dialog.title`)}</DialogTitle>
             <DialogDescription>
-              {t("at_terminal.manage_description")}
+              {t(`${K}.manage_dialog.description`)}
             </DialogDescription>
           </DialogHeader>
 
-          {/* Custom command list */}
           {customCommands.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              {t("at_terminal.manage_empty")}
-            </p>
+            <p className={MANAGE.EMPTY}>{t(`${K}.manage_dialog.empty`)}</p>
           ) : (
-            <ul className="space-y-1">
+            <ul className={MANAGE.LIST}>
               {customCommands.map((preset, index) => (
-                <li
-                  key={`${preset.command}-${index}`}
-                  className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50"
-                >
-                  <span className="flex-1 min-w-0">
-                    <span className="font-medium text-sm block truncate">
-                      {preset.label}
-                    </span>
-                    <span className="font-mono text-xs text-muted-foreground block truncate">
-                      {preset.command}
-                    </span>
+                <li key={`${preset.command}-${index}`} className={MANAGE.ROW}>
+                  <span className={MANAGE.ROW_TEXT}>
+                    <span className={MANAGE.ROW_LABEL}>{preset.label}</span>
+                    <span className={MANAGE.ROW_COMMAND}>{preset.command}</span>
                   </span>
                   <Button
+                    type="button"
                     variant="ghost"
-                    size="icon-xs"
-                    aria-label={t("at_terminal.manage_delete_aria", { label: preset.label })}
+                    size="icon-sm"
+                    aria-label={t(`${K}.manage_dialog.delete`, {
+                      label: preset.label,
+                    })}
                     onClick={() => handleDelete(index)}
+                    className={MANAGE.DELETE}
                   >
-                    <Trash2Icon />
+                    <Trash2Icon className={MANAGE.DELETE_GLYPH} />
                   </Button>
                 </li>
               ))}
@@ -260,38 +308,43 @@ export default function CommandsPopover({
 
           <Separator />
 
-          {/* Add form */}
-          <div className="flex gap-2">
+          <div className={MANAGE.FORM}>
             <Input
-              placeholder={t("at_terminal.manage_name_placeholder")}
-              aria-label={t("at_terminal.manage_name_aria")}
+              placeholder={t(`${K}.manage_dialog.label_placeholder`)}
+              aria-label={t(`${K}.manage_dialog.label_field`)}
               value={newLabel}
               onChange={(e) => {
                 setNewLabel(e.target.value);
-                setAddError("");
+                setAddError(null);
               }}
-              className="flex-1"
+              aria-invalid={labelInvalid || undefined}
+              aria-describedby={labelInvalid ? errorId : undefined}
+              className={MANAGE.FIELD}
             />
             <Input
-              placeholder={t("at_terminal.manage_command_placeholder")}
-              aria-label={t("at_terminal.manage_command_aria")}
+              placeholder={t(`${K}.manage_dialog.command_placeholder`)}
+              aria-label={t(`${K}.manage_dialog.command_field`)}
               value={newCommand}
               onChange={(e) => {
                 setNewCommand(e.target.value);
-                setAddError("");
+                setAddError(null);
               }}
-              className="flex-1 font-mono"
+              aria-invalid={commandInvalid || undefined}
+              aria-describedby={commandInvalid ? errorId : undefined}
+              className={cn(MANAGE.FIELD, MANAGE.FIELD_MONO)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleAdd();
               }}
             />
-            <Button size="sm" onClick={handleAdd}>
-              {t("at_terminal.manage_action_add")}
+            <Button type="button" onClick={handleAdd} size="action">
+              {t(`${K}.manage_dialog.add`)}
             </Button>
           </div>
 
           {addError && (
-            <p className="text-xs text-destructive">{addError}</p>
+            <p id={errorId} role="alert" className={MANAGE.ERROR}>
+              {addError.message}
+            </p>
           )}
         </DialogContent>
       </Dialog>
