@@ -41,9 +41,32 @@ pub struct Logger {
 const MAX_BYTES: u64 = 256 * 1024;
 const MAX_FILES: u32 = 2;
 
+/// OpenWrt keeps the POSIX TZ string in /etc/TZ (e.g. "PHT-8") and BusyBox
+/// reads it; a static musl binary only honours $TZ. Without this, broker log
+/// lines are stamped UTC while qlog.sh lines are local time.
+fn init_tz() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        if std::env::var_os("TZ").is_none() {
+            if let Ok(tz) = fs::read_to_string("/etc/TZ") {
+                let tz = tz.trim();
+                if !tz.is_empty() {
+                    std::env::set_var("TZ", tz);
+                }
+            }
+        }
+        unsafe { tzset() };
+    });
+}
+
+extern "C" {
+    fn tzset();
+}
+
 impl Logger {
     /// Level comes from $QLOG_LEVEL, else /etc/qmanager/log_level, else INFO.
     pub fn new(component: &'static str) -> Logger {
+        init_tz();
         let lvl = std::env::var("QLOG_LEVEL")
             .ok()
             .or_else(|| fs::read_to_string("/etc/qmanager/log_level").ok())

@@ -55,6 +55,11 @@ pub struct Channel<D: Device> {
     opener: Box<dyn Fn() -> io::Result<D> + Send>,
     dev: Option<D>,
     dirty: bool,
+    /// True once a command has been written on the current fd. glink_pkt resets
+    /// the channel (EBUSY/ECONNRESET) if you read before the first write, so a
+    /// drain only runs on an established fd — never right after open. Matches
+    /// atcli, which always wrote before reading.
+    established: bool,
     /// Bytes read past a terminator (a URC glued onto the reply) that belong to
     /// no command. Folded into the next drain so they are logged, not returned.
     pending: Vec<u8>,
@@ -62,12 +67,52 @@ pub struct Channel<D: Device> {
     pub last_drained: Vec<u8>,
 }
 
+/// Bound on a blocking open. glink_pkt's open() waits for the remote channel,
+/// which can stall while the baseband restarts (SSR).
+const OPEN_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// glink_pkt only works on a blocking fd (verified on-device): O_NONBLOCK at
+/// open() fails with EBUSY, and a non-blocking write never succeeds (EBUSY for
+/// the whole deadline), because it is the blocking write that asks the remote
+/// for an RX intent. So the fd stays blocking, like atcli. Deadlines still hold:
+/// reads go through poll() first, writes through a bounded helper thread. The
+/// open itself runs on a helper thread so a stalled open (SSR) can't hang us.
 pub fn open_smd(path: &str) -> io::Result<File> {
-    OpenOptions::new()
-        .read(true)
-        .write(true)
-        .custom_flags(libc::O_NOCTTY | libc::O_NONBLOCK | libc::O_CLOEXEC)
-        .open(path)
+    let p = path.to_string();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let r = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .custom_flags(libc::O_NOCTTY | libc::O_CLOEXEC)
+            .open(&p);
+        // If we already gave up, the receiver is gone: dropping the File here
+        // closes it, so a late open never leaks an fd.
+        let _ = tx.send(r);
+    });
+    match rx.recv_timeout(OPEN_TIMEOUT) {
+        Ok(r) => r,
+        Err(_) => Err(io::Error::new(io::ErrorKind::TimedOut, "smd open timed out")),
+    }
+}
+
+/// Upper bound on one write. An AT command is a few bytes; a healthy channel
+/// accepts it in milliseconds.
+const WRITE_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Writes all of `buf` to `fd`, waiting out EAGAIN on non-blocking test sockets.
+fn write_all_fd(fd: RawFd, buf: &[u8]) -> io::Result<()> {
+    let mut off = 0;
+    while off < buf.len() {
+        match raw_write(fd, &buf[off..]) {
+            Ok(n) => off += n,
+            Err(e) if would_block(&e) => {
+                poll_fd(fd, libc::POLLOUT, Duration::from_millis(50))?;
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(())
 }
 
 fn poll_fd(fd: RawFd, events: i16, timeout: Duration) -> io::Result<bool> {
@@ -114,17 +159,29 @@ fn remaining(deadline: Instant) -> Option<Duration> {
 
 impl<D: Device> Channel<D> {
     pub fn new(opener: Box<dyn Fn() -> io::Result<D> + Send>) -> Self {
-        Channel { opener, dev: None, dirty: false, pending: Vec::new(), last_drained: Vec::new() }
+        Channel {
+            opener,
+            dev: None,
+            dirty: false,
+            established: false,
+            pending: Vec::new(),
+            last_drained: Vec::new(),
+        }
     }
 
     pub fn close(&mut self) {
         self.dev = None;
+        self.established = false;
         self.pending.clear();
     }
 
     fn fd(&mut self) -> Result<RawFd, AtError> {
         if self.dev.is_none() {
-            self.dev = Some((self.opener)().map_err(AtError::Io)?);
+            // A stalled open (SSR) is "not ready", not a command failure.
+            self.dev = Some((self.opener)().map_err(|e| match e.kind() {
+                io::ErrorKind::TimedOut => AtError::NotReady,
+                _ => AtError::Io(e),
+            })?);
         }
         Ok(self.dev.as_ref().unwrap().as_raw_fd())
     }
@@ -132,6 +189,10 @@ impl<D: Device> Channel<D> {
     /// Reads and discards whatever is already queued, until `quiet` passes
     /// with nothing new (capped at 1 s total).
     fn drain(&mut self, quiet: Duration) -> Result<Vec<u8>, AtError> {
+        // Never read a fresh fd before its first write (see `established`).
+        if !self.established {
+            return Ok(std::mem::take(&mut self.pending));
+        }
         let fd = self.fd()?;
         let cap = Instant::now() + Duration::from_secs(1);
         // Anything left past a previous terminator is stale too.
@@ -156,20 +217,35 @@ impl<D: Device> Channel<D> {
         Ok(out)
     }
 
+    /// Blocking write on a helper thread, bounded by WRITE_TIMEOUT (or the
+    /// command deadline if sooner).
     fn send(&mut self, bytes: &[u8], deadline: Instant) -> Result<(), AtError> {
         let fd = self.fd()?;
-        let mut off = 0;
-        while off < bytes.len() {
-            match raw_write(fd, &bytes[off..]) {
-                Ok(n) => off += n,
-                Err(e) if would_block(&e) => {
-                    let left = remaining(deadline).ok_or(AtError::Timeout)?;
-                    poll_fd(fd, libc::POLLOUT, left).map_err(AtError::Io)?;
+        let data = bytes.to_vec();
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(write_all_fd(fd, &data));
+        });
+        let bound = remaining(deadline).unwrap_or(Duration::ZERO).min(WRITE_TIMEOUT);
+        match rx.recv_timeout(bound) {
+            Ok(Ok(())) => {
+                self.established = true;
+                Ok(())
+            }
+            Ok(Err(e)) => Err(AtError::Io(e)),
+            Err(_) => {
+                // The write is wedged inside the driver. Abandon this fd WITHOUT
+                // closing it: closing would free the fd number for reuse while
+                // the stuck thread could still complete its write into whatever
+                // file got that number. The next exchange opens a fresh fd.
+                if let Some(d) = self.dev.take() {
+                    std::mem::forget(d);
                 }
-                Err(e) => return Err(AtError::Io(e)),
+                self.established = false;
+                self.pending.clear();
+                Err(AtError::NotReady)
             }
         }
-        Ok(())
     }
 
     /// Reads until a complete line that is a final result code. Returns every
@@ -252,7 +328,9 @@ impl<D: Device> Channel<D> {
         if self.dirty {
             self.resync()?;
         }
-        self.last_drained = self.drain(Duration::from_millis(20))?;
+        // Zero-wait: stale bytes are already queued in the kernel when we look.
+        // Waiting a "quiet" window here cost ~20 ms on every daemon command.
+        self.last_drained = self.drain(Duration::ZERO)?;
         let mut line = Vec::with_capacity(cmd.len() + 2);
         line.extend_from_slice(cmd.as_bytes());
         line.extend_from_slice(b"\r\n");
