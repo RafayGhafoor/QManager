@@ -306,9 +306,15 @@ through the broker, behind a 3 s lock hold so a short call queued behind it:
   saw `ENETRESET`, answered `modem_not_ready`, cleared the long flag and
   recovered on the next call without a restart, same pid, no leaked fds: the
   first live SSR against the hardened channel.
-- So the **QSCAN result format is still unconfirmed** on this modem: the scan
-  never finished. Whether QSCAN itself provokes this SSR is open (one crash in
-  one attempt; the legacy engine's only earlier attempt was killed after 2 s).
+- A second `AT+QSCAN=3,1` (15:06) **completed** through the broker in 153 s
+  with no SSR (crash counter unchanged at #33): the echo
+  (`AT+QSCAN=3,1\r\r\n`), 13 `+QSCAN: "LTE"` rows of 13 fields each, then
+  `OK\r` (trailing `\n` stripped per the contract), long flag cleared, the
+  next call answered at once. Replayed into `qmanager_cell_scanner`, it parsed
+  all 13 cells with no missing band / EARFCN / PCI / signal (bands 1, 3, 8,
+  28, 40, 41). No NR5G cell was in range, so the 16-field NR row is untested
+  live. One SSR in two scans, matching the crash seen without a scan at 14:46,
+  so there is no evidence QSCAN itself causes it.
 
 **Not exercised on the device:** a forced timeout and resync, and the
 frozen-broker restart (it needs a broker stuck for 340 s while every AT call
