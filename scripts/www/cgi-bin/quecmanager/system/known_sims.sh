@@ -1,5 +1,6 @@
 #!/bin/sh
 . /usr/lib/qmanager/cgi_base.sh
+. /usr/lib/qmanager/cgi_at.sh
 . /usr/lib/qmanager/sim_db.sh
 # =============================================================================
 # known_sims.sh — CGI Endpoint: Known-SIMs Database (GET + POST)
@@ -53,7 +54,14 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         clear)
             qlog_info "Clearing known-SIMs set (keeping currently-inserted SIM)"
             # Canonical QCCID pipeline — byte-identical to all other read sites.
-            cur=$(qcmd 'AT+QCCID' 2>/dev/null | grep '+QCCID:' | sed 's/+QCCID: //g' | tr -d '\r ')
+            # A transport failure must not read as "no SIM inserted": that clears
+            # the inserted SIM too. A modem ERROR (no SIM seated) clears all.
+            at_exec 'AT+QCCID'
+            if [ $? -eq 1 ]; then
+                cgi_error "modem_error" "Could not read the inserted SIM; nothing was cleared"
+                exit 0
+            fi
+            cur=$(printf '%s\n' "$AT_RAW" | grep '+QCCID:' | sed 's/+QCCID: //g' | tr -d '\r ')
             sim_db_clear_keep "$cur"
             rm -f "$SIM_SWAP_FLAG"
             count=$(sim_db_count)

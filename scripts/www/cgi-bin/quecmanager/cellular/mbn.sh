@@ -41,7 +41,12 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     qlog_info "Fetching MBN settings"
 
     # --- Compound AT: fetch auto-select status and profile list in one call ---
-    raw=$(qcmd 'AT+QMBNCFG="AutoSel";+QMBNCFG="list"' 2>/dev/null)
+    at_exec 'AT+QMBNCFG="AutoSel";+QMBNCFG="list"'
+    if [ $? -eq 1 ]; then
+        cgi_error "modem_error" "Failed to read MBN settings"
+        exit 0
+    fi
+    raw="$AT_RAW"
 
     # --- 1. Auto-select status ---
     auto_sel="0"
@@ -136,10 +141,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         qlog_info "Applying MBN profile: $PROFILE_NAME"
 
         # Step 1: Disable auto-select
-        result=$(qcmd 'AT+QMBNCFG="AutoSel",0' 2>/dev/null)
-        case "$result" in
-            *ERROR*)
-                qlog_error "Failed to disable auto-select: $result"
+        at_exec 'AT+QMBNCFG="AutoSel",0'
+        case $? in
+            1) cgi_error "modem_error" "Modem did not answer: Failed to disable auto-select"; exit 0 ;;
+            2)
+                qlog_error "Failed to disable auto-select: $AT_RAW"
                 cgi_error "autosel_failed" "Failed to disable auto-select"
                 exit 0
                 ;;
@@ -147,10 +153,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         sleep "$CMD_GAP"
 
         # Step 2: Deactivate current profile
-        result=$(qcmd 'AT+QMBNCFG="deactivate"' 2>/dev/null)
-        case "$result" in
-            *ERROR*)
-                qlog_error "Failed to deactivate profile: $result"
+        at_exec 'AT+QMBNCFG="deactivate"'
+        case $? in
+            1) cgi_error "modem_error" "Modem did not answer: Failed to deactivate current profile"; exit 0 ;;
+            2)
+                qlog_error "Failed to deactivate profile: $AT_RAW"
                 cgi_error "deactivate_failed" "Failed to deactivate current profile"
                 exit 0
                 ;;
@@ -158,10 +165,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         sleep "$CMD_GAP"
 
         # Step 3: Select new profile
-        result=$(qcmd "AT+QMBNCFG=\"select\",\"$PROFILE_NAME\"" 2>/dev/null)
-        case "$result" in
-            *ERROR*)
-                qlog_error "Failed to select profile '$PROFILE_NAME': $result"
+        at_exec "AT+QMBNCFG=\"select\",\"$PROFILE_NAME\""
+        case $? in
+            1) cgi_error "modem_error" "Modem did not answer: Failed to select MBN profile"; exit 0 ;;
+            2)
+                qlog_error "Failed to select profile '$PROFILE_NAME': $AT_RAW"
                 cgi_error "select_failed" "Failed to select MBN profile"
                 exit 0
                 ;;
@@ -188,10 +196,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
         qlog_info "Setting MBN auto-select to $AUTO_SEL_VAL"
 
-        result=$(qcmd "AT+QMBNCFG=\"AutoSel\",$AUTO_SEL_VAL" 2>/dev/null)
-        case "$result" in
-            *ERROR*)
-                qlog_error "Failed to set auto-select: $result"
+        at_exec "AT+QMBNCFG=\"AutoSel\",$AUTO_SEL_VAL"
+        case $? in
+            1) cgi_error "modem_error" "Modem did not answer: Failed to set auto-select"; exit 0 ;;
+            2)
+                qlog_error "Failed to set auto-select: $AT_RAW"
                 cgi_error "autosel_failed" "Failed to set auto-select"
                 exit 0
                 ;;

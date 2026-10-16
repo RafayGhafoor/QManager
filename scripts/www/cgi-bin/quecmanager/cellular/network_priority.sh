@@ -76,10 +76,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
     qlog_info "Setting RAT acquisition order: $ORDER"
 
-    result=$(qcmd "AT+QNWPREFCFG=\"rat_acq_order\",$ORDER" 2>/dev/null)
-    case "$result" in
-        *ERROR*)
-            qlog_error "Failed to set rat_acq_order: $result"
+    at_exec "AT+QNWPREFCFG=\"rat_acq_order\",$ORDER"
+    case $? in
+        1) cgi_error "modem_error" "Modem did not answer the RAT order write"; exit 0 ;;
+        2)
+            qlog_error "Failed to set rat_acq_order: $AT_RAW"
             cgi_error "at_failed" "AT+QNWPREFCFG returned ERROR"
             exit 0
             ;;

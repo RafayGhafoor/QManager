@@ -88,8 +88,12 @@ rel_lte=""
 rel_nr5g=""
 
 # 3GPP release versions -- +QNWCFG: "3gpp_rel",R17,R17
-raw=$(qcmd 'AT+QNWCFG="3gpp_rel"' 2>/dev/null)
-line=$(printf '%s\n' "$raw" | grep '+QNWCFG:.*"3gpp_rel"' | head -1 | tr -d '\r ')
+# Read-only display field: a transport failure or ERROR leaves both empty
+# (shown as unknown) instead of failing the whole page; at_exec logs it.
+line=""
+if at_exec 'AT+QNWCFG="3gpp_rel"'; then
+    line=$(printf '%s\n' "$AT_RAW" | grep '+QNWCFG:.*"3gpp_rel"' | head -1 | tr -d '\r ')
+fi
 if [ -n "$line" ]; then
     rel_lte=$(printf '%s' "$line" | cut -d',' -f2)
     rel_nr5g=$(printf '%s' "$line" | cut -d',' -f3)

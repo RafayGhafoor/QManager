@@ -43,6 +43,39 @@ run_at() {
 }
 
 # ---------------------------------------------------------------------------
+# at_exec <at_command>
+# Execute an AT command via qcmd WITHOUT a subshell so the caller can branch on
+# the kind of failure. Sets global AT_RAW to the raw reply ("" on a transport
+# failure).
+# Returns: 0 reply without ERROR
+#          1 transport failure (lock timeout, broker/channel down: qcmd rc!=0
+#            with empty stdout) -> callers answer cgi_error "modem_error"
+#          2 the modem answered ERROR / +CME ERROR (qcmd rc 0)
+# A bare *ERROR* match reads a transport failure (empty reply) as success.
+#
+# Usage:
+#   at_exec 'AT+QCFG="usbnet",1'
+#   case $? in 1) cgi_error modem_error ...;; 2) cgi_error usbnet_failed ...;; esac
+# ---------------------------------------------------------------------------
+at_exec() {
+    local rc
+    AT_RAW=$(qcmd "$1" 2>/dev/null)
+    rc=$?
+    if [ "$rc" -ne 0 ] || [ -z "$AT_RAW" ]; then
+        qlog_warn "AT transport failure: $1 (rc=$rc)"
+        AT_RAW=""
+        return 1
+    fi
+    case "$AT_RAW" in
+        *ERROR*)
+            qlog_warn "AT command returned ERROR: $1"
+            return 2
+            ;;
+    esac
+    return 0
+}
+
+# ---------------------------------------------------------------------------
 # detect_active_cid
 # Determine which CID is carrying WAN data by cross-referencing
 # AT+CGPADDR (IPs assigned per CID) with AT+QMAP="WWAN" (authoritative WAN CID).
