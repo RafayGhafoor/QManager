@@ -276,6 +276,15 @@ SMS channel transport library (sourced by poller; downtime detection now lives i
 - Failures are logged via `qlog_error` (full context: `modem_reachable`, `lte_state`, `nr_state`, `conn`, and the cleaned `sms_tool` stderr). No breadcrumb file.
 - Stderr noise filtering (`tcgetattr`/`tcsetattr` / "Inappropriate ioctl for device") is retained as defense-in-depth; the patched `sms_tool` binary now self-guards via `isatty()` so these filters are no-ops in practice. See [`docs/features/sms.md`](features/sms.md).
 
+### conn_state.sh
+
+The one reader of `/tmp/qmanager_ping.json` and the one ping-profile/cadence resolver (ledger B2.1). Sourced by `qmanager_ping`, `qmanager_poller`, `qmanager_watchcat`, `system/ping_profile.sh` and `monitoring/watchdog.sh`; consumers guard the source (`[ -f ... ] && .`) and stub a fail-closed fallback.
+
+- `conn_state_read` — one `jq` read into `CQ_*` vars; stale when `age > max(3 * interval_sec, 15)` s (monotonic `mono` vs `/proc/uptime`); stale or missing leaves `CQ_REACHABLE="null"`.
+- `conn_state_resolve <profile> [override]` / `conn_state_cadence` — the single profile table (interval/fail/recover seconds); the override changes cadence only.
+
+Full contract: [`docs/features/connection-quality.md`](features/connection-quality.md#shared-ping-cache-reader-conn_statesh).
+
 ### ethtool_helper.sh
 
 Ethernet negotiation helpers:
@@ -372,9 +381,9 @@ HTTP-probe daemon that monitors internet reachability and latency. Uses `curl` �
 **History:** `/tmp/qmanager_ping_history` (flat-file ring buffer; read + processed by the poller)
 **Dependency:** `curl` full build, 8.7.1+ (hard runtime dependency — without it the daemon emits no results)
 
-Writes slim JSON: `{ timestamp, profile, targets, interval_sec, last_rtt_ms, reachable, streak_success, streak_fail, during_recovery }`. The poller handles all statistical analysis (avg/min/max/jitter/loss) in a single awk pass over the raw history file.
+Writes slim JSON: `{ timestamp, mono, profile, targets, interval_sec, fail_secs, recover_secs, last_rtt_ms, reachable, streak_success, streak_fail, during_recovery, last_family }`. The poller handles all statistical analysis (avg/min/max/jitter/loss) in a single awk pass over the raw history file.
 
-The active probe sensitivity is set by the **ping profile** (`sensitive` / `regular` / `relaxed` / `quiet`). The daemon owns the profile→interval/fail/recover table; UCI stores only the profile name. A saved profile change drops `/tmp/qmanager_ping_reload`; the daemon re-reads UCI within one probe cycle without a restart. See [`docs/features/connection-quality.md`](features/connection-quality.md) for the full profile table and reload pipeline.
+The active probe sensitivity is set by the **ping profile** (`sensitive` / `regular` / `relaxed` / `quiet`). The profile→interval/fail/recover table lives in `conn_state.sh` (the daemon resolves through it); UCI stores only the profile name and the optional `interval_override`. A saved profile change drops `/tmp/qmanager_ping_reload`; the daemon re-reads UCI within one probe cycle without a restart. See [`docs/features/connection-quality.md`](features/connection-quality.md) for the full profile table and reload pipeline.
 
 ### qmanager_watchcat (Connection Watchdog)
 

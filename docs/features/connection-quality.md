@@ -19,6 +19,7 @@ The Connection Quality settings page (Monitoring → Connection Quality) control
 | Watchdog reload flag | `/tmp/qmanager_watchcat_reload` (touched by `quality_thresholds.sh` POST — dual reload invariant) |
 | Interval override owner | `quecmanager.watchcat` (watchdog is sole writer of `ping_profile.interval_override`) |
 | Ping daemon output | `/tmp/qmanager_ping.json` |
+| Shared ping-cache reader + profile table | `scripts/usr/lib/qmanager/conn_state.sh` (`conn_state_read`, `conn_state_resolve`, `conn_state_cadence`); sourced by `qmanager_ping`, `qmanager_poller`, `qmanager_watchcat`, `ping_profile.sh`, `watchdog.sh` |
 | Reboot required | No |
 
 ---
@@ -64,6 +65,8 @@ using `grep -oE 'min/avg/max[^=]*= ...'` followed by `cut -d'/' -f2`. If that li
   "profile": "relaxed",
   "targets": ["1.1.1.1", "2606:4700:4700::1111"],
   "interval_sec": 5,
+  "fail_secs": 15,
+  "recover_secs": 10,
   "last_rtt_ms": 34.2,
   "reachable": true,
   "streak_success": 12,
@@ -73,28 +76,52 @@ using `grep -oE 'min/avg/max[^=]*= ...'` followed by `cut -d'/' -f2`. If that li
 }
 ```
 
-`targets` is `[target_ipv4, target_ipv6]`. `last_rtt_ms` is a JSON number or `null`. `last_family` is `"ipv4"`, `"ipv6"`, or `"none"` — `"none"` when both families failed. Statistics (avg/min/max/jitter/loss) and the history array are NOT written here; they are computed by the poller from `/tmp/qmanager_ping_history`.
+`targets` is `[target_ipv4, target_ipv6]`. `interval_sec` is the effective probe interval (override applied); `fail_secs` / `recover_secs` are the profile's time-to-fail / time-to-recover in seconds (unaffected by `interval_override`). `last_rtt_ms` is a JSON number or `null`. `last_family` is `"ipv4"`, `"ipv6"`, or `"none"` — `"none"` when both families failed. Statistics (avg/min/max/jitter/loss) and the history array are NOT written here; they are computed by the poller from `/tmp/qmanager_ping_history`.
+
+---
+
+## Shared Ping-Cache Reader (`conn_state.sh`)
+
+`scripts/usr/lib/qmanager/conn_state.sh` is the one reader of `/tmp/qmanager_ping.json` and the one cadence resolver. It is sourced, never executed, and guarded by `_CONN_STATE_LOADED`. Consumers that source it must guard the include (`[ -f ... ] && . ...`) and supply a fail-closed stub, because a dot-source of a missing file aborts the script under BusyBox: the poller and watchcat stub `conn_state_read` to "stale"; the CGIs stub `conn_state_cadence` to `relaxed`.
+
+| Function | Contract |
+|---|---|
+| `conn_state_read` | One `jq` read of the cache into `CQ_*` vars. Returns 0 when fresh, 1 when missing, unreadable, or stale. |
+| `conn_state_why` | Reason for the last non-zero read (`missing`, `unreadable`, `no timestamp`, `mono ahead of uptime`, `age Ns > Ms`). |
+| `conn_state_is_up` | True only for a fresh read with `reachable=true`. |
+| `conn_state_resolve <profile> [override]` | Pure profile table + override → `CQ_CFG_*` (see [Ping Profiles](#ping-profiles)). |
+| `conn_state_cadence` | `conn_state_resolve` fed from UCI `quecmanager.ping_profile.{profile,interval_override}`. |
+
+**Verdict vars on a fresh read:** `CQ_REACHABLE` (`true`/`false`/`"null"`), `CQ_RTT_MS`, `CQ_STREAK_SUCCESS`, `CQ_STREAK_FAIL`, `CQ_DURING_RECOVERY`, `CQ_INTERVAL_SEC`, `CQ_FAIL_SECS`, `CQ_RECOVER_SECS`, `CQ_PROFILE`, `CQ_LAST_FAMILY`, `CQ_TARGET` (first of `targets`), `CQ_TIMESTAMP`, `CQ_AGE_SEC`.
+
+**The one staleness rule:** the cache is stale when `age > max(3 * interval_sec, 15)` seconds. `interval_sec` comes from the cache and is clamped to 1–300, anything else becoming 5. `age` is `/proc/uptime` minus the cache's `mono`; the wall clock (`date +%s - timestamp`) is used only when `mono` is absent or `0`.
+
+**Why:** the old windows were fixed per reader (poller 10 s, watchcat 15 s) and ignored the profile, so `quiet` (10 s interval, 30 s fail window) made the poller mark connectivity unknown on every cycle. Three probe intervals with a 15 s floor tolerates one or two lost cycles without hiding a dead daemon.
+
+**Fail-closed:** any problem (missing, unreadable, stale, `mono` ahead of uptime, no timestamp) leaves `CQ_STALE=1` and `CQ_REACHABLE="null"`. A `mono` ahead of uptime cannot come from this boot's daemon (`/tmp` is tmpfs), so it is treated as garbage, not as fresh. A missing or corrupt `reachable` also reads as `"null"`, never as up.
+
+> ⚠️ WARNING: Do not add regex (`test()`, `sub()`) to the lib's `jq` program. The device `jq` is built without Oniguruma and fails at runtime.
 
 ---
 
 ## Ping Profiles
 
-The daemon holds the profile→parameters table. UCI stores the **profile name**, two probe targets, and optionally an `interval_override`. Changing the profile name in UCI (or via the CGI) is sufficient — the daemon re-derives the internal parameters from the name. **`interval_override`, if set, supersedes the profile-derived interval entirely.** The `interval_override` key is written and cleared only by the Connection Watchdog — never by `ping_profile.sh` POST.
+The profile→parameters table lives in exactly one place: `conn_state_resolve` in `scripts/usr/lib/qmanager/conn_state.sh`. UCI stores the **profile name**, two probe targets, and optionally an `interval_override`. Changing the profile name in UCI (or via the CGI) is sufficient — `qmanager_ping` re-derives the parameters from the name through the lib. **`interval_override`, if set, supersedes the profile-derived interval entirely.** The `interval_override` key is written and cleared only by the Connection Watchdog — never by `ping_profile.sh` POST.
 
 ### Profile Table
 
-| Profile | Interval | Fail (secs → samples) | Recover (secs → samples) |
+| Profile | Interval | Fail (secs → probes) | Recover (secs → probes) |
 |---|---|---|---|
 | sensitive | 1 s | 6 s → 6 | 3 s → 3 |
 | regular | 2 s | 10 s → 5 | 6 s → 3 |
 | relaxed | 5 s | 15 s → 3 | 10 s → 2 |
 | quiet | 10 s | 30 s → 3 | 20 s → 2 |
 
-The profile→interval mapping (`sensitive=1 s`, `regular=2 s`, `relaxed=5 s`, `quiet=10 s`) is also used by the watchdog to compute `effective_interval` when no `interval_override` is set.
+`conn_state_resolve <profile> [override]` is pure (no UCI, no I/O) and sets `CQ_CFG_*` globals. An unknown or empty profile resolves to `relaxed`. A valid override (integer 1–60) changes the **probe cadence only**; the thresholds stay `ceil(fail_secs / profile_interval)` using the profile's own interval, so an override never re-derives them. `conn_state_cadence` is the same resolve fed from UCI (`quecmanager.ping_profile.profile` + `interval_override`); the CGIs use it so their answer is right even while the daemon is down. `ping_profile.sh` and `watchdog.sh` no longer carry their own `profile_interval()` mirrors.
 
-**Why ceil division:** The daemon converts seconds to sample counts via `ceil(secs/interval)`. This keeps the real-world time-to-fail and time-to-recover stable when the interval changes — a 6-second fail window at 1 s interval and the same 6 s at 2 s interval still declare failure after roughly the same wall-clock time.
+**Why ceil division:** The lib converts seconds to probe counts via `ceil(secs/profile_interval)`. This keeps the real-world time-to-fail and time-to-recover stable when the interval changes — a 6-second fail window at 1 s interval and the same 6 s at 2 s interval still declare failure after roughly the same wall-clock time.
 
-**Why the daemon owns this table:** The UI uses the profile name as an opaque key. Only the daemon needs to know what the numbers mean. Storing interval in UCI would create a second source of truth that could drift from the daemon's internal logic.
+**Why one lib owns this table:** The UI uses the profile name as an opaque key. Before `conn_state.sh`, the daemon and two CGIs each carried a copy of the interval column, and the poller and watchcat each hard-coded a staleness window that ignored the profile (the poller's fixed 10 s tripped on every cycle under `quiet`). Storing interval in UCI would still be a second source of truth, so UCI holds only the profile name and the optional override.
 
 ### UCI defaults (seeded by installer)
 
@@ -196,7 +223,7 @@ On ping profile reload, `load_config()` re-reads UCI and `detect_ping6()` re-pro
 }
 ```
 
-`interval_override` is `null` when not set. `effective_interval` is the resolved probe interval in seconds: `interval_override` if set, else the profile-derived value (sensitive=1, regular=2, relaxed=5, quiet=10). Both GET and POST use the same `target_ipv4`/`target_ipv6` snake_case keys — there is no GET/POST asymmetry in this endpoint (unlike the old `target1`/`target_1` split that existed in the prior HTTP-probe version).
+`interval_override` is `null` when not set. `effective_interval` is the resolved probe interval in seconds: `interval_override` if set, else the profile-derived value (sensitive=1, regular=2, relaxed=5, quiet=10). The GET also returns numeric `interval_sec` (same value as `effective_interval`, which is kept for existing consumers), `fail_secs` and `recover_secs`, all resolved from UCI via `conn_state_cadence` rather than from the cache, so they stay correct while `qmanager_ping` is stopped. Both GET and POST use the same `target_ipv4`/`target_ipv6` snake_case keys — there is no GET/POST asymmetry in this endpoint (unlike the old `target1`/`target_1` split that existed in the prior HTTP-probe version).
 
 > ⚠️ WARNING: `ping_profile.sh` POST does NOT write `interval_override`. That key is owned exclusively by the watchdog. Only a watchdog `save_settings` POST can set or clear `interval_override`.
 
@@ -319,7 +346,7 @@ On ping profile reload, `load_config()` re-reads UCI and `detect_ping6()` re-pro
 
 ## status.json / Poller Surface
 
-The poller merges `connectivity.profile` into `status.json` from `/tmp/qmanager_ping.json`. Consumers should treat it as optional — it is absent on older poller output and on the first write before the ping daemon has run. The `connectivity` object in the response holds both the live profile name and all latency/loss stats.
+The poller merges `connectivity.profile` into `status.json` from `/tmp/qmanager_ping.json`, read through `conn_state_read` (field names and types are unchanged). Consumers should treat it as optional — it is absent on older poller output and on the first write before the ping daemon has run. When the cache is **missing** the poller clears `target`, `profile` and `last_family`; when it is **stale** it keeps them and only marks connectivity unknown. The `connectivity` object in the response holds both the live profile name and all latency/loss stats.
 
 The poller also passes `last_family` from `ping.json` through into `status.json` as `connectivity.last_family`. Values: `"ipv4"` (IPv4 probe answered), `"ipv6"` (IPv4 failed, IPv6 fallback answered), `"none"` (both failed), `""` (older poller output before the field existed). The frontend reads this to show the "Currently reachable via IPv6" indicator next to the IPv6 DNS Server input.
 
@@ -331,7 +358,7 @@ The poller's `read_ping_data()` function computes `packet_loss_pct` via an awk p
 
 Genuine total outages are independently caught by the reachability/`streak_fail` path, which reads raw `ping_streak_fail` from `qmanager_ping.json` and is unaffected by this guard.
 
-Both `/tmp/qmanager_ping.json` (written by `qmanager_ping`) and `/tmp/qmanager_status.json` (written by `qmanager_poller`) carry a root-level **`mono`** integer field alongside the existing wall-clock `timestamp`. The value is `mono_now()` from `scripts/usr/lib/qmanager/qlog.sh` — integer seconds since boot read from `/proc/uptime` (kernel monotonic counter, immune to NTP/NITZ steps). The poller's `read_ping_data` and the watchdog's `read_ping` / `read_quality` compute staleness from this field when it is valid, falling back to wall-clock age only when `.mono` is absent, zero, or non-numeric. This guards against the ~90 s false-stale event caused by the NITZ `time_daemon` + `ntpd` stepping the system clock after MPSS SSR `rmnet` re-registration.
+Both `/tmp/qmanager_ping.json` (written by `qmanager_ping`) and `/tmp/qmanager_status.json` (written by `qmanager_poller`) carry a root-level **`mono`** integer field alongside the existing wall-clock `timestamp`. The value is `mono_now()` from `scripts/usr/lib/qmanager/qlog.sh` — integer seconds since boot read from `/proc/uptime` (kernel monotonic counter, immune to NTP/NITZ steps). `conn_state_read` (used by the poller's `read_ping_data` and the watchdog's `read_ping`) computes ping-cache staleness from this field when it is valid, falling back to wall-clock age only when `.mono` is absent, zero, or non-numeric; the watchdog's `read_quality` still checks `status.json`'s own `mono`. This guards against the ~90 s false-stale event caused by the NITZ `time_daemon` + `ntpd` stepping the system clock after MPSS SSR `rmnet` re-registration.
 
 ---
 

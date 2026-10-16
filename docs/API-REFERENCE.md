@@ -1088,6 +1088,8 @@ Merges both channels' NDJSON logs, tags each entry with `channel: "sms"|"email"`
 
 ### GET/POST `/monitoring/watchdog.sh`
 
+> ℹ️ NOTE: The sample below predates the current shape. The live GET returns `settings`, then top-level `probe_profile`, `interval_override`, `effective_interval`, `interval_sec`, `fail_secs`, `recover_secs`, `quality_thresholds`, `status`, `sim_failover`, `sim_swap`, `auto_disabled`. See [`docs/features/connection-watchdog.md`](features/connection-watchdog.md) for the authoritative envelope.
+
 **GET Response:**
 ```json
 {
@@ -1166,11 +1168,14 @@ Read or write the ping-daemon sensitivity profile and ICMP probe targets. See [`
   "target_ipv4": "1.1.1.1",
   "target_ipv6": "2606:4700:4700::1111",
   "interval_override": null,
-  "effective_interval": 5
+  "effective_interval": 5,
+  "interval_sec": 5,
+  "fail_secs": 15,
+  "recover_secs": 10
 }
 ```
 
-`profile` is one of: `sensitive`, `regular`, `relaxed`, `quiet`. Both GET and POST use the same `target_ipv4`/`target_ipv6` keys — there is no GET/POST asymmetry in this endpoint. `interval_override` is `null` when not set (sole writer: Connection Watchdog). `effective_interval` is the resolved probe interval in seconds.
+`profile` is one of: `sensitive`, `regular`, `relaxed`, `quiet`. Both GET and POST use the same `target_ipv4`/`target_ipv6` keys — there is no GET/POST asymmetry in this endpoint. `interval_override` is `null` when not set (sole writer: Connection Watchdog). `effective_interval` is the resolved probe interval in seconds. `interval_sec` carries the same value; `fail_secs` and `recover_secs` are the profile's time-to-fail / time-to-recover in seconds. All three are resolved from UCI (`conn_state_cadence`), so they are correct while the ping daemon is stopped.
 
 **POST Request (`action: "save"`):**
 

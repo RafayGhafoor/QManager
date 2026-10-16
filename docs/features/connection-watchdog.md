@@ -13,7 +13,7 @@
 | CGI script | `scripts/www/cgi-bin/quecmanager/monitoring/watchdog.sh` |
 | UCI section | `quecmanager.watchcat` |
 | Daemon state file | `/tmp/qmanager_watchcat.json` |
-| Reachability input | `/tmp/qmanager_ping.json` `.ping_streak_fail` (raw probe count; written by `qmanager_ping`) |
+| Reachability input | `/tmp/qmanager_ping.json` `.streak_fail` (raw probe count; written by `qmanager_ping`), read through `conn_state_read` in `scripts/usr/lib/qmanager/conn_state.sh` (see [connection-quality.md](connection-quality.md#shared-ping-cache-reader-conn_statesh)) |
 | Quality input | `/tmp/qmanager_status.json` `.connectivity.avg_latency_ms` + `.packet_loss_pct` (windowed averages; written by `qmanager_poller`) |
 | Quality thresholds | `quecmanager.quality_thresholds.*` (shared with Connection Quality Network Events) |
 | Ping reload flag | `/tmp/qmanager_ping_reload` (touched by watchdog save when interval changes) |
@@ -97,6 +97,10 @@ See §5 (Reason-aware cooldown) for *why* the success test must differ: a degrad
 The watchdog has two independent paths into the recovery ladder.
 
 **Reachability trigger (always active when watchdog is enabled):** The daemon reads `qmanager_ping.json` every cycle and inspects the RAW `ping_streak_fail` integer — NOT the debounced `.reachable` boolean. If `ping_streak_fail` rises above `fail_threshold` consecutive failed probes, the reachability path fires, sets `recovery_reason="unreachable"`, and runs `do_recovery`.
+
+**Staleness and unknown state:** `read_ping` in the daemon is a thin wrapper over `conn_state_read`. The ping cache is stale when `age > max(3 * interval_sec, 15)` seconds on the monotonic clock (the old fixed 15 s window ignored the profile, so `quiet` at a 10 s interval had almost no margin). A missing, stale or unreadable cache makes `read_ping` return non-zero and every caller skips the cycle, keeping its previous values. A missing or corrupt `reachable` reads as `"null"` and is never treated as up (it used to default to `true`). If `conn_state.sh` itself is missing, the daemon stubs `conn_state_read` to stale, so it never makes a recovery decision on unknown data.
+
+**Down decision is unchanged:** it is still the probe-count `ping_streak_fail` against `fail_threshold`, not an elapsed-time rule. An elapsed-time rule (the RM520N fork's `fail_elapsed_sec`) was deliberately not ported with B2.1; it is a separate follow-up (user decision 2026-10-16). The SSR-aware hold is untouched.
 
 **Why raw streak, not debounced reachable:** Before this change the watchdog read the debounced `.reachable` boolean and maintained its own `failure_counter` on top. Under a slow profile (e.g. `quiet` at 10 s interval), a single probe failure that already caused the ping daemon to flip `.reachable=false` was then counted AGAIN by the watchdog's counter — a double-debounce / re-count bug. Reading `ping_streak_fail` directly means the watchdog counts individual failed probes regardless of profile interval, and `fail_threshold` has a single canonical meaning: N consecutive failed probes, not N poller-cycle runs where `.reachable=false` happened to be sampled.
 
@@ -187,7 +191,9 @@ The watchdog is the **sole writer** of `ping_profile.interval_override`. When an
 | `probe_profile` | `watchcat` | `sensitive`/`regular`/`relaxed`/`quiet` | (unset) | Named profile the watchdog UI has selected; written to `ping_profile.profile` when saved |
 | `interval_override` | `ping_profile` | int 1–60, or unset | unset | When set, overrides the profile-derived interval for `qmanager_ping`. Cleared by writing JSON `null` via the watchdog POST (which tests `has("interval_override")` to distinguish null-clear from absent). |
 
-**Effective interval resolution** (in `qmanager_ping`): `interval_override` if set, else the profile→seconds map: `sensitive=1`, `regular=2`, `relaxed=5`, `quiet=10`. The GET response from `watchdog.sh` exposes both `interval_override` (raw) and `effective_interval` (resolved). The GET response from `ping_profile.sh` also surfaces both.
+**Effective interval resolution** (`conn_state_resolve`, used by `qmanager_ping` and both CGIs): `interval_override` if set, else the profile→seconds map: `sensitive=1`, `regular=2`, `relaxed=5`, `quiet=10`. The GET response from `watchdog.sh` exposes `interval_override` (raw), `effective_interval` (resolved) and, since ledger B2.1, numeric `interval_sec` (same value as `effective_interval`), `fail_secs` and `recover_secs` from `conn_state_cadence` (UCI, correct while the daemon is down). The GET response from `ping_profile.sh` surfaces the same set. These are the fields the Watchdog bento (ledger U4.6) and Connection Quality (U4.7) consume.
+
+> ℹ️ NOTE: The RM520N fork's `watchdog.sh` POST also writes `probe_interval` (`3fb535ba`). That was not ported; the target POST is unchanged (it still accepts `probe_profile` / `interval_override`) and the port is deferred to ledger U4.6.
 
 > ⚠️ WARNING: Only the watchdog writes `interval_override`. `ping_profile.sh` POST never touches this key — it writes only `profile`/targets and touches the ping reload flag. Hand-editing UCI or calling `ping_profile.sh` POST cannot override the interval; only a watchdog save can.
 
@@ -400,14 +406,19 @@ Returns current UCI settings, live daemon state, SIM failover state, SIM swap de
     "ssr_aware": true,
     "ssr_grace": 45,
     "primary_recheck_enabled": false,
-    "primary_recheck_interval": 30,
-    "probe_profile": "relaxed",
-    "interval_override": null,
-    "effective_interval": 5,
-    "quality_thresholds": {
-      "latency": { "preset": "tolerant", "custom_ms": null },
-      "loss": { "preset": "tolerant", "custom_pct": null }
-    }
+    "primary_recheck_interval": 30
+  },
+  "probe_profile": "relaxed",
+  "interval_override": null,
+  "effective_interval": 5,
+  "interval_sec": 5,
+  "fail_secs": 15,
+  "recover_secs": 10,
+  "quality_thresholds": {
+    "latency_ms": 250,
+    "loss_pct": 30,
+    "latency_preset": "tolerant",
+    "loss_preset": "tolerant"
   },
   "status": { ... },
   "sim_failover": { "active": false },
@@ -416,7 +427,7 @@ Returns current UCI settings, live daemon state, SIM failover state, SIM swap de
 }
 ```
 
-`status` is the raw contents of `/tmp/qmanager_watchcat.json`; it is `{}` if the file is absent (daemon not yet started). `settings.backup_sim_slot` is `null` if the UCI value is empty. `settings.interval_override` is `null` when not set. `settings.quality_thresholds` is a read-only passthrough of the shared `quecmanager.quality_thresholds.*` keys — it is included for display purposes; changes to it must be saved via `quality_thresholds.sh`, not via the watchdog POST.
+`status` is the raw contents of `/tmp/qmanager_watchcat.json`; it is `{}` if the file is absent (daemon not yet started). `settings.backup_sim_slot` is `null` if the UCI value is empty. `interval_override` is `null` when not set. The probe-cadence keys (`probe_profile`, `interval_override`, `effective_interval`, `interval_sec`, `fail_secs`, `recover_secs`) and `quality_thresholds` are top-level siblings of `settings`, not nested in it. `quality_thresholds` is a read-only passthrough of the shared `quecmanager.quality_thresholds.*` keys — it is included for display purposes; changes to it must be saved via `quality_thresholds.sh`, not via the watchdog POST.
 
 ### POST `/cgi-bin/quecmanager/monitoring/watchdog.sh`
 
@@ -715,7 +726,7 @@ The counter strip now includes a `status_row_quality_breaches` stat sourced from
 
 - **Wall-clock staleness checks are corrupted by NITZ/NTP clock steps.** When the modem's data path is restored after an MPSS SSR, the NITZ `time_daemon` and BusyBox `ntpd` both issue a STEP (abrupt jump) of the system wall clock — typically ~90 s forward. Any staleness check that computes `age = date+%s − cached_timestamp` across that step produces a corrupted age (it shows ~90 s of extra staleness). Before the monotonic fix this caused `read_ping_data` in the poller and `read_ping` / `read_quality` in the watchdog to log "Ping data stale (age=90s), marking unknown" or "skipping cycle" and reset connectivity state to unknown — on a connection that had just recovered cleanly.
 
-  The fix: `mono_now()` in `scripts/usr/lib/qmanager/qlog.sh` reads `/proc/uptime` (kernel monotonic counter, immune to NTP/NITZ steps) and returns the integer seconds since boot. Writers (`qmanager_ping` `write_cache`, `qmanager_poller` `write_cache`) emit an **additive integer `mono` field** in `/tmp/qmanager_ping.json` and `/tmp/qmanager_status.json` alongside the existing wall-clock `timestamp`. The three reader sites — `read_ping_data` in `qmanager_poller` and `read_ping` / `read_quality` in `qmanager_watchcat` — compute `age_mono = mono_now() − .mono` and use that instead. A wall-clock fallback runs whenever `.mono` is absent, zero, or non-numeric (safe partial deploy — old writer, new reader). Staleness thresholds are unchanged: `PING_STALE_THRESHOLD=10` in the poller, `PING_STALE_THRESHOLD=15` in the watchdog's `read_ping`, `STATUS_STALE_THRESHOLD=30` in the watchdog's `read_quality`.
+  The fix: `mono_now()` in `scripts/usr/lib/qmanager/qlog.sh` reads `/proc/uptime` (kernel monotonic counter, immune to NTP/NITZ steps) and returns the integer seconds since boot. Writers (`qmanager_ping` `write_cache`, `qmanager_poller` `write_cache`) emit an **additive integer `mono` field** in `/tmp/qmanager_ping.json` and `/tmp/qmanager_status.json` alongside the existing wall-clock `timestamp`. The ping-cache readers (`read_ping_data` in `qmanager_poller` and `read_ping` in `qmanager_watchcat`, both via `conn_state_read`) and `read_quality` compute age against `/proc/uptime` and the cached `.mono` instead. A wall-clock fallback runs whenever `.mono` is absent or zero (safe partial deploy — old writer, new reader); a `.mono` ahead of uptime is treated as stale. The ping-cache staleness window is no longer a per-reader constant (`PING_STALE_THRESHOLD` was removed from both the poller and the watchdog): `conn_state_read` applies `max(3 * interval_sec, 15)` for both. `STATUS_STALE_THRESHOLD=30` in the watchdog's `read_quality` is unchanged.
 
   > ⚠️ WARNING: `read_ping` in `qmanager_watchcat` extracts the 4 core ping fields via a single batched `jq -r ... @tsv` call into `_pdata` (cuts off columns 1–4), then reads `.mono` with a **separate** `jq -r '.mono ...'` call. The separate call is intentional — inserting `.mono` into the `@tsv` batch would shift the `cut -f` column indices for `ping_ts`, `ping_streak_fail`, `ping_reachable`, and `ping_during_recovery`, breaking the parse. Any future edit to that `jq` block must keep the `.mono` read separate.
 
