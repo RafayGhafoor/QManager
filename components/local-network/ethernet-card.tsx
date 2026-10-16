@@ -444,19 +444,13 @@ const EthernetStatusCard = () => {
                 {t("ethernet.label_link_status")}
               </p>
               {isConnected ? (
-                <Badge
-                  variant="outline"
-                  className="bg-success/15 text-success hover:bg-success/20 border-success/30"
-                >
-                  <CheckCircle2Icon className="h-3 w-3" />
+                <Badge variant="success">
+                  <CheckCircle2Icon className="size-3" aria-hidden="true" />
                   {t("ethernet.badge_connected")}
                 </Badge>
               ) : (
-                <Badge
-                  variant="outline"
-                  className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30"
-                >
-                  <XCircleIcon className="h-3 w-3" />
+                <Badge variant="destructive">
+                  <XCircleIcon className="size-3" aria-hidden="true" />
                   {t("ethernet.badge_disconnected")}
                 </Badge>
               )}

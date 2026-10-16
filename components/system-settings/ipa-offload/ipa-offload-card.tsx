@@ -138,11 +138,8 @@ const IpaOffloadCard = () => {
               <p className="font-semibold text-muted-foreground text-sm">
                 {t("ipa_offload.status_label")}
               </p>
-              <Badge
-                variant="outline"
-                className="bg-warning/15 text-warning border-warning/30 gap-1"
-              >
-                <RotateCcwIcon className="size-3" />
+              <Badge variant="warning">
+                <RotateCcwIcon className="size-3" aria-hidden="true" />
                 {t("ipa_offload.pending_reboot_badge")}
               </Badge>
             </motion.div>

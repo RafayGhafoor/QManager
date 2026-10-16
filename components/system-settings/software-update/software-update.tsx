@@ -19,7 +19,7 @@ import {
   CheckIcon,
   CheckCircle2Icon,
   AlertTriangleIcon,
-  TriangleAlertIcon,
+  ArrowUpCircleIcon,
   DownloadIcon,
   LoaderCircle,
   RefreshCwIcon,
@@ -49,31 +49,31 @@ export function StatusBadge({
 
   if (isUpdating && updateStatus.status !== "error") {
     return (
-      <Badge variant="outline" className="bg-info/15 text-info hover:bg-info/20 border-info/30">
-        <DownloadIcon className="size-3" />
+      <Badge variant="info">
+        <RefreshCwIcon className="size-3" aria-hidden="true" />
         {t("software_update.badge_updating")}
       </Badge>
     );
   }
   if (isDownloading) {
     return (
-      <Badge variant="outline" className="bg-info/15 text-info hover:bg-info/20 border-info/30">
-        <DownloadIcon className="size-3" />
+      <Badge variant="info">
+        <DownloadIcon className="size-3" aria-hidden="true" />
         {t("software_update.badge_downloading")}
       </Badge>
     );
   }
   if (updateAvailable) {
     return (
-      <Badge variant="outline" className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30">
-        <TriangleAlertIcon className="size-3" />
+      <Badge variant="info">
+        <ArrowUpCircleIcon className="size-3" aria-hidden="true" />
         {t("software_update.badge_update_available")}
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="bg-success/15 text-success hover:bg-success/20 border-success/30">
-      <CheckCircle2Icon className="size-3" />
+    <Badge variant="success">
+      <CheckCircle2Icon className="size-3" aria-hidden="true" />
       {t("software_update.badge_up_to_date")}
     </Badge>
   );

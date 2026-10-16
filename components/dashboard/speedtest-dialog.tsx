@@ -350,7 +350,8 @@ export function SpeedtestDialog({ open, onOpenChange }: SpeedtestDialogProps) {
           <DialogTitle className="flex items-center gap-2">
             {t("speedtest.title")}
             {isRunning && (
-              <Badge variant="default" className="text-[10px] font-normal">
+              <Badge variant="info">
+                <Loader2 className="size-3 animate-spin" aria-hidden="true" />
                 {t("speedtest.running_badge")}
               </Badge>
             )}

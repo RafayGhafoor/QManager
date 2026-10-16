@@ -12,10 +12,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import {
-  TbAlertTriangleFilled,
-  TbInfoCircleFilled,
-} from "react-icons/tb";
+import { TbInfoCircleFilled } from "react-icons/tb";
+import { TriangleAlertIcon } from "lucide-react";
 
 import type { DeviceStatus, LteStatus, NrStatus } from "@/types/modem-status";
 import {
@@ -155,8 +153,8 @@ const DeviceMetricsComponent = ({
               </p>
               <div className="flex items-center gap-1.5">
                 {isTempHigh && (
-                  <Badge className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30">
-                    <TbAlertTriangleFilled className="text-warning" />
+                  <Badge variant="warning">
+                    <TriangleAlertIcon className="size-3" aria-hidden="true" />
                     {t("metrics.high_temp_warning")}
                   </Badge>
                 )}
@@ -184,8 +182,8 @@ const DeviceMetricsComponent = ({
               </p>
               <div className="flex items-center gap-1.5">
                 {isCpuHigh && (
-                  <Badge className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30">
-                    <TbAlertTriangleFilled className="text-warning" />
+                  <Badge variant="warning">
+                    <TriangleAlertIcon className="size-3" aria-hidden="true" />
                     {t("metrics.high_cpu_warning")}
                   </Badge>
                 )}

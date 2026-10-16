@@ -13,7 +13,17 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CardSimIcon, Plane } from "lucide-react";
+import {
+  CardSimIcon,
+  CheckCircle2Icon,
+  CircleHelpIcon,
+  ClockAlertIcon,
+  Plane,
+  PowerOffIcon,
+  RadioIcon,
+  TriangleAlertIcon,
+  XCircleIcon,
+} from "lucide-react";
 
 import {
   MdOutline5G,
@@ -233,35 +243,25 @@ const NetworkStatusComponent = ({
             <div className="flex items-center gap-x-1.5">
               {/* Stale indicator */}
               {isStale && (
-                <Badge
-                  variant="outline"
-                  className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30"
-                >
-                  <div className="w-2 h-2 rounded-full bg-warning" />
+                <Badge variant="warning">
+                  <ClockAlertIcon className="size-3" aria-hidden="true" />
                   {t("network.data_delayed_badge")}
                 </Badge>
               )}
 
               {/* Radio status — based on modem reachability + CFUN */}
               <Badge
-                variant="outline"
-                className={
-                  isAirplaneMode
-                    ? "bg-warning/15 text-warning hover:bg-warning/20 border-warning/30"
-                    : radioOn
-                      ? "bg-success/15 text-success hover:bg-success/20 border-success/30"
-                      : "bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30"
+                variant={
+                  isAirplaneMode ? "warning" : radioOn ? "success" : "destructive"
                 }
               >
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    isAirplaneMode
-                      ? "bg-warning"
-                      : radioOn
-                        ? "bg-success"
-                        : "bg-destructive"
-                  }`}
-                />
+                {isAirplaneMode ? (
+                  <Plane className="size-3" aria-hidden="true" />
+                ) : radioOn ? (
+                  <RadioIcon className="size-3" aria-hidden="true" />
+                ) : (
+                  <PowerOffIcon className="size-3" aria-hidden="true" />
+                )}
                 {isAirplaneMode
                   ? t("network.airplane_mode")
                   : radioOn
@@ -269,39 +269,28 @@ const NetworkStatusComponent = ({
                     : t("network.radio_off")}
               </Badge>
 
-              {/* Internet status — green online / amber recent-blip / red offline / gray unknown */}
+              {/* Internet status — online / recent blip / offline / unknown */}
               <Badge
-                variant="outline"
-                className={
+                variant={
                   internetAvailable === true
                     ? recentBriefDrop
-                      ? "bg-warning/15 text-warning hover:bg-warning/20 border-warning/30"
-                      : "bg-success/15 text-success hover:bg-success/20 border-success/30"
+                      ? "warning"
+                      : "success"
                     : internetAvailable === false
-                      ? "bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30"
-                      : "bg-muted/50 text-muted-foreground hover:bg-muted/70 border-muted-foreground/30"
+                      ? "destructive"
+                      : "muted"
                 }
               >
-                {/* Sonar ping — only when online; amber while a recent blip is in the window */}
                 {internetAvailable === true ? (
-                  <span className="relative flex size-2 shrink-0">
-                    <span
-                      className={`absolute inline-flex size-full rounded-full opacity-75 animate-ping ${
-                        recentBriefDrop ? "bg-warning" : "bg-success"
-                      }`}
-                    />
-                    <span
-                      className={`relative inline-flex size-2 rounded-full ${
-                        recentBriefDrop ? "bg-warning" : "bg-success"
-                      }`}
-                    />
-                  </span>
+                  recentBriefDrop ? (
+                    <TriangleAlertIcon className="size-3" aria-hidden="true" />
+                  ) : (
+                    <CheckCircle2Icon className="size-3" aria-hidden="true" />
+                  )
+                ) : internetAvailable === false ? (
+                  <XCircleIcon className="size-3" aria-hidden="true" />
                 ) : (
-                  <span
-                    className={`inline-flex size-2 rounded-full shrink-0 ${
-                      internetAvailable === false ? "bg-destructive" : "bg-muted-foreground"
-                    }`}
-                  />
+                  <CircleHelpIcon className="size-3" aria-hidden="true" />
                 )}
                 {internetAvailable === true
                   ? recentBriefDrop

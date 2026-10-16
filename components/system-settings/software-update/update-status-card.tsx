@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Tag } from "@/components/ui/tag";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -224,9 +224,9 @@ export function UpdateStatusCard({
                   </div>
                 </div>
                 {updateInfo.download_size && (
-                  <Badge variant="secondary" className="ml-auto">
+                  <Tag variant="neutral" className="ml-auto tabular-nums">
                     {updateInfo.download_size}
-                  </Badge>
+                  </Tag>
                 )}
               </motion.div>
             ) : (

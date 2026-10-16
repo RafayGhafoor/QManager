@@ -1,7 +1,12 @@
 "use client";
 
 import React from "react";
-import { Settings, LockIcon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  LockIcon,
+  MinusCircleIcon,
+  Settings,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,35 +63,23 @@ export const ActiveConfigCard = ({
                 {t("scenarios.active_config_card.configuration", { name: scenario.name })}
               </h4>
               {scheduleLocked ? (
-                <Badge
-                  variant="outline"
-                  className="bg-info/15 text-info hover:bg-info/20 border-info/30"
-                >
-                  <LockIcon className="size-3" />
+                <Badge variant="info">
+                  <LockIcon className="size-3" aria-hidden="true" />
                   {t("scenarios.schedule_lock.badge")}
                 </Badge>
               ) : isActivating ? (
-                <Badge
-                  variant="outline"
-                  className="bg-info/15 text-info hover:bg-info/20 border-info/30"
-                >
-                  <Spinner className="h-2 w-2" />
+                <Badge variant="info">
+                  <Spinner className="size-3" />
                   {t("state.applying", { ns: "common" })}
                 </Badge>
               ) : isActive ? (
-                <Badge
-                  variant="outline"
-                  className="bg-success/15 text-success hover:bg-success/20 border-success/30"
-                >
-                  <div className="w-2 h-2 rounded-full bg-success" />
+                <Badge variant="success">
+                  <CheckCircle2Icon className="size-3" aria-hidden="true" />
                   {t("scenarios.active_config_card.status.active")}
                 </Badge>
               ) : (
-                <Badge
-                  variant="outline"
-                  className="bg-muted text-muted-foreground hover:bg-muted border-border"
-                >
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                <Badge variant="muted">
+                  <MinusCircleIcon className="size-3" aria-hidden="true" />
                   {t("scenarios.active_config_card.status.not_active")}
                 </Badge>
               )}

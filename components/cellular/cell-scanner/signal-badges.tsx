@@ -1,30 +1,62 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { Badge } from "@/components/ui/badge";
+import {
+  SignalHighIcon,
+  SignalLowIcon,
+  SignalMediumIcon,
+  SignalZeroIcon,
+  type LucideIcon,
+} from "lucide-react";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { Tag, type TagVariant } from "@/components/ui/tag";
 
-export function SignalBadge({ strength }: { strength: number }) {
+type SignalTier = "good" | "fair" | "poor" | "none";
+
+// Tiers key onto `BadgeVariant`; the bar-count glyph carries the tier, since
+// success and warning fills are 1.03:1 apart.
+const SIGNAL_BADGE: Record<SignalTier, { variant: BadgeVariant; Icon: LucideIcon }> = {
+  good: { variant: "success", Icon: SignalHighIcon },
+  fair: { variant: "warning", Icon: SignalMediumIcon },
+  poor: { variant: "destructive", Icon: SignalLowIcon },
+  none: { variant: "muted", Icon: SignalZeroIcon },
+};
+
+// Literal keys so the i18n checker can see them.
+const SIGNAL_LABEL_KEY: Record<SignalTier, string> = {
+  good: "cell_scanner.signal_badge.good",
+  fair: "cell_scanner.signal_badge.fair",
+  poor: "cell_scanner.signal_badge.bad",
+  none: "cell_scanner.signal_badge.no_data",
+};
+
+function signalTier(strength: number | null | undefined): SignalTier {
+  // 0 dBm is the scan workers' "unreported" sentinel, not a reading.
+  if (strength === null || strength === undefined || strength === 0) return "none";
+  if (strength >= -85) return "good";
+  if (strength >= -100) return "fair";
+  return "poor";
+}
+
+/** Measured signal quality: a filled status chip with a per-tier bar glyph. */
+export function SignalBadge({ strength }: { strength: number | null }) {
   const { t } = useTranslation("cellular");
+  const tier = signalTier(strength);
+  const { variant, Icon } = SIGNAL_BADGE[tier];
 
-  if (strength >= -85)
-    return (
-      <Badge className="bg-success/15 text-success hover:bg-success/20 border-success/30">
-        {t("cell_scanner.signal_badge.good")}
-      </Badge>
-    );
-  if (strength >= -100)
-    return (
-      <Badge className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30">
-        {t("cell_scanner.signal_badge.fair")}
-      </Badge>
-    );
   return (
-    <Badge className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30">
-      {t("cell_scanner.signal_badge.bad")}
+    <Badge variant={variant}>
+      <Icon className="size-3" aria-hidden="true" />
+      {t(SIGNAL_LABEL_KEY[tier])}
     </Badge>
   );
 }
 
+/** Radio identity, an outline `Tag`, never a verdict. */
+function networkIdentity(type: string): TagVariant {
+  return type.toUpperCase().startsWith("NR") ? "nr" : "lte";
+}
+
 export function NetworkTypeBadge({ type }: { type: string }) {
-  return <Badge variant="default">{type}</Badge>;
+  return <Tag variant={networkIdentity(type)}>{type}</Tag>;
 }

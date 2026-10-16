@@ -34,7 +34,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { DownloadIcon } from "lucide-react";
+import { CheckCircle2Icon, DownloadIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 import type { UpdateInfo } from "@/hooks/use-software-update";
@@ -296,9 +297,10 @@ export function UpdatePreferencesCard({
                           <div className="flex items-center justify-between gap-3 w-full">
                             <span>{v.tag}</span>
                             {v.is_current ? (
-                              <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                              <Badge variant="info">
+                                <CheckCircle2Icon className="size-3" aria-hidden="true" />
                                 {t("software_update.version_current_tag")}
-                              </span>
+                              </Badge>
                             ) : !v.has_assets ? (
                               <span className="text-[10px] text-muted-foreground">
                                 {t("software_update.version_no_binary_tag")}

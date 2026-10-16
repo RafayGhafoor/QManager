@@ -492,8 +492,8 @@ export function TailscaleConnectionCard({
               <p className="text-sm font-semibold text-muted-foreground">
                 {t("tailscale.label_service")}
               </p>
-              <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-muted-foreground/30">
-                <MinusCircleIcon className="size-3" />
+              <Badge variant="muted">
+                <MinusCircleIcon className="size-3" aria-hidden="true" />
                 {t("tailscale.badge_stopped")}
               </Badge>
             </div>
@@ -546,8 +546,8 @@ export function TailscaleConnectionCard({
               <p className="text-sm font-semibold text-muted-foreground">
                 {t("tailscale.label_status")}
               </p>
-              <Badge variant="outline" className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30">
-                <LogInIcon className="size-3" />
+              <Badge variant="warning">
+                <LogInIcon className="size-3" aria-hidden="true" />
                 {t("tailscale.badge_needs_login")}
               </Badge>
             </div>
@@ -745,8 +745,8 @@ export function TailscaleConnectionCard({
               <p className="text-sm font-semibold text-muted-foreground">
                 {t("tailscale.label_status")}
               </p>
-              <Badge variant="outline" className="bg-success/15 text-success hover:bg-success/20 border-success/30">
-                <CheckCircle2Icon className="size-3" />
+              <Badge variant="success">
+                <CheckCircle2Icon className="size-3" aria-hidden="true" />
                 {t("tailscale.badge_connected")}
               </Badge>
             </div>
@@ -854,8 +854,8 @@ export function TailscaleConnectionCard({
             <p className="text-sm font-semibold text-muted-foreground">
               {t("tailscale.label_status")}
             </p>
-            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-muted-foreground/30">
-              <MinusCircleIcon className="size-3" />
+            <Badge variant="muted">
+              <MinusCircleIcon className="size-3" aria-hidden="true" />
               {t("tailscale.badge_disconnected")}
             </Badge>
           </div>

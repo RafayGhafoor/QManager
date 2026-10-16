@@ -2,11 +2,15 @@
 
 import {
   CheckCircle2Icon,
+  CircleDashedIcon,
   Loader2Icon,
   MinusCircleIcon,
+  RefreshCwIcon,
   XCircleIcon,
+  type LucideIcon,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import type { SectionProgress } from "@/types/config-backup";
 import { BACKUP_SECTIONS } from "@/lib/config-backup/sections";
 import { useTranslation } from "react-i18next";
@@ -15,8 +19,42 @@ const LABELS: Record<string, string> = Object.fromEntries(
   BACKUP_SECTIONS.map((s) => [s.key, s.label]),
 );
 
-// Shared base so every status badge renders at an identical width
-const BADGE_BASE = "min-w-[7.5rem] justify-center";
+type RestoreTone =
+  | "success"
+  | "running"
+  | "retrying"
+  | "failed"
+  | "skipped"
+  | "pending";
+
+// Tone and glyph key onto `BadgeVariant`, never a class string
+// (DESIGN.md > Status chips). Each tone owns a distinct glyph.
+const RESTORE_BADGE: Record<RestoreTone, BadgeVariant> = {
+  success: "success",
+  running: "info",
+  retrying: "warning",
+  failed: "destructive",
+  skipped: "muted",
+  pending: "muted",
+};
+
+const RESTORE_GLYPH: Record<RestoreTone, LucideIcon> = {
+  success: CheckCircle2Icon,
+  running: Loader2Icon,
+  retrying: RefreshCwIcon,
+  failed: XCircleIcon,
+  skipped: MinusCircleIcon,
+  pending: CircleDashedIcon,
+};
+
+function toTone(status: SectionProgress["status"]): RestoreTone {
+  if (status === "success") return "success";
+  if (status === "running") return "running";
+  if (status.startsWith("retrying:")) return "retrying";
+  if (status === "failed") return "failed";
+  if (status.startsWith("skipped")) return "skipped";
+  return "pending";
+}
 
 function StatusBadge({
   status,
@@ -24,69 +62,33 @@ function StatusBadge({
   status: SectionProgress["status"];
 }) {
   const { t } = useTranslation("system-settings");
-  if (status === "success") {
-    return (
-      <Badge
-        variant="outline"
-        className={`${BADGE_BASE} bg-success/15 text-success hover:bg-success/20 border-success/30`}
-      >
-        <CheckCircle2Icon className="size-3" />
-        {t("config_backup.progress.status_restored")}
-      </Badge>
-    );
-  }
-  if (status === "running") {
-    return (
-      <Badge
-        variant="outline"
-        className={`${BADGE_BASE} bg-info/15 text-info hover:bg-info/20 border-info/30`}
-      >
-        <Loader2Icon className="size-3 animate-spin" />
-        {t("config_backup.progress.status_running")}
-      </Badge>
-    );
-  }
-  if (status.startsWith("retrying:")) {
-    const n = status.split(":")[1];
-    return (
-      <Badge
-        variant="outline"
-        className={`${BADGE_BASE} bg-warning/15 text-warning hover:bg-warning/20 border-warning/30`}
-      >
-        <Loader2Icon className="size-3 animate-spin" />
-        {t("config_backup.progress.status_retrying", { n })}
-      </Badge>
-    );
-  }
-  if (status === "failed") {
-    return (
-      <Badge
-        variant="outline"
-        className={`${BADGE_BASE} bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30`}
-      >
-        <XCircleIcon className="size-3" />
-        {t("config_backup.progress.status_failed")}
-      </Badge>
-    );
-  }
-  if (status.startsWith("skipped")) {
-    return (
-      <Badge
-        variant="outline"
-        className={`${BADGE_BASE} bg-muted/50 text-muted-foreground border-muted-foreground/30`}
-      >
-        <MinusCircleIcon className="size-3" />
-        {t("config_backup.progress.status_skipped")}
-      </Badge>
-    );
-  }
+  const tone = toTone(status);
+  const Glyph = RESTORE_GLYPH[tone];
+  const spinning = tone === "running" || tone === "retrying";
+
+  const label =
+    tone === "success"
+      ? t("config_backup.progress.status_restored")
+      : tone === "running"
+        ? t("config_backup.progress.status_running")
+        : tone === "retrying"
+          ? t("config_backup.progress.status_retrying", {
+              n: status.split(":")[1],
+            })
+          : tone === "failed"
+            ? t("config_backup.progress.status_failed")
+            : tone === "skipped"
+              ? t("config_backup.progress.status_skipped")
+              : t("config_backup.progress.status_pending");
+
+  // min-width keeps every status chip at an identical width down the list
   return (
-    <Badge
-      variant="outline"
-      className={`${BADGE_BASE} bg-muted/50 text-muted-foreground border-muted-foreground/30`}
-    >
-      <MinusCircleIcon className="size-3" />
-      {t("config_backup.progress.status_pending")}
+    <Badge variant={RESTORE_BADGE[tone]} className="min-w-[7.5rem]">
+      <Glyph
+        className={cn("size-3", spinning && "animate-spin")}
+        aria-hidden="true"
+      />
+      {label}
     </Badge>
   );
 }

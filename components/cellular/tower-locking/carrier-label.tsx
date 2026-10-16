@@ -1,3 +1,4 @@
+import { Tag } from "@/components/ui/tag";
 import type { CarrierOption } from "./simple-mode-utils";
 
 interface CarrierLabelProps {
@@ -8,15 +9,8 @@ interface CarrierLabelProps {
 export function CarrierLabel({ opt }: CarrierLabelProps) {
   return (
     <span className="flex items-center gap-2 min-w-0">
-      <span
-        className={`text-[10px] px-1.5 py-0.5 rounded border ${
-          opt.type === "PCC"
-            ? "border-success/40 text-success bg-success/10"
-            : "border-info/40 text-info bg-info/10"
-        }`}
-      >
-        {opt.type}
-      </span>
+      {/* PCC/SCC is carrier role metadata, not status: a neutral Tag. */}
+      <Tag variant="neutral">{opt.type}</Tag>
       <span className="font-medium">{opt.band || "—"}</span>
       <span className="tabular-nums text-muted-foreground">({opt.earfcn})</span>
       {opt.rsrp !== null && (

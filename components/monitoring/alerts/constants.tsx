@@ -7,6 +7,7 @@
 // =============================================================================
 
 import type { ComponentType } from "react";
+import type { BadgeVariant } from "@/components/ui/badge";
 import {
   MessageSquareIcon,
   MailIcon,
@@ -50,7 +51,7 @@ export const EVENT_META: Record<AlertEventKey, EventMeta> = {
 // ─── Reboot-cause presentation (icon + tone + i18n key) ──────────────────────
 // Tone is a status role, never a brand accent: `unplanned` earns attention
 // (warning), `watchdog` reads as an automated recovery (info), `user` is the
-// expected, low-signal case (muted). Color is always paired with icon + text.
+// expected, low-signal case (muted). The filled chip always carries the icon.
 
 type RebootTone = "warning" | "info" | "muted";
 
@@ -67,10 +68,11 @@ export const REBOOT_CAUSE_META: Record<RebootCause, RebootCauseMeta> = {
   user: { icon: PowerIcon, tone: "muted", key: "user" },
 };
 
-export const REBOOT_TONE_BADGE: Record<RebootTone, string> = {
-  warning: "bg-warning/15 text-warning border-warning/30",
-  info: "bg-info/15 text-info border-info/30",
-  muted: "bg-muted/50 text-muted-foreground border-muted-foreground/30",
+// Keys onto `BadgeVariant`, never a class string; the glyph is the cause icon.
+export const REBOOT_TONE_BADGE: Record<RebootTone, BadgeVariant> = {
+  warning: "warning",
+  info: "info",
+  muted: "muted",
 };
 
 // ─── Recipient masking (never show the full contact in the glance hero) ──────

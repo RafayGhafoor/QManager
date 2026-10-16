@@ -241,13 +241,13 @@ export function NetBirdPeersCard({
                     <TableCell className="hidden @sm/card:table-cell">
                       {isOnline ? (
                         isP2P ? (
-                          <Badge variant="outline" className="bg-success/15 text-success hover:bg-success/20 border-success/30">
-                            <CheckCircle2Icon className="size-3" />
+                          <Badge variant="success">
+                            <CheckCircle2Icon className="size-3" aria-hidden="true" />
                             {t("netbird.peers_connection_p2p")}
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30">
-                            <AlertCircle className="size-3" />
+                          <Badge variant="warning">
+                            <AlertCircle className="size-3" aria-hidden="true" />
                             {t("netbird.peers_connection_relayed")}
                           </Badge>
                         )
@@ -257,13 +257,13 @@ export function NetBirdPeersCard({
                     </TableCell>
                     <TableCell>
                       {isOnline ? (
-                        <Badge variant="outline" className="bg-success/15 text-success hover:bg-success/20 border-success/30">
-                          <CheckCircle2Icon className="h-3 w-3" />
+                        <Badge variant="success">
+                          <CheckCircle2Icon className="size-3" aria-hidden="true" />
                           {t("netbird.peers_status_online")}
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-muted-foreground/30">
-                          <MinusCircleIcon className="h-3 w-3" />
+                        <Badge variant="muted">
+                          <MinusCircleIcon className="size-3" aria-hidden="true" />
                           {t("netbird.peers_status_offline")}
                         </Badge>
                       )}

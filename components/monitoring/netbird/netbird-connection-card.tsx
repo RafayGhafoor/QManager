@@ -412,8 +412,8 @@ export function NetBirdConnectionCard({
               <p className="text-sm font-semibold text-muted-foreground">
                 {t("netbird.label_service")}
               </p>
-              <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-muted-foreground/30">
-                <MinusCircleIcon className="size-3" />
+              <Badge variant="muted">
+                <MinusCircleIcon className="size-3" aria-hidden="true" />
                 {t("netbird.badge_stopped")}
               </Badge>
             </div>
@@ -478,13 +478,13 @@ export function NetBirdConnectionCard({
         label: t("netbird.status_label_management"),
         value:
           management === "Connected" ? (
-            <Badge variant="outline" className="bg-success/15 text-success hover:bg-success/20 border-success/30">
-              <CheckCircle2Icon className="size-3" />
+            <Badge variant="success">
+              <CheckCircle2Icon className="size-3" aria-hidden="true" />
               {t("netbird.badge_connected")}
             </Badge>
           ) : (
-            <Badge variant="outline" className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30">
-              <AlertTriangleIcon className="size-3" />
+            <Badge variant="destructive">
+              <AlertTriangleIcon className="size-3" aria-hidden="true" />
               {management}
             </Badge>
           ),
@@ -493,13 +493,13 @@ export function NetBirdConnectionCard({
         label: t("netbird.status_label_signal"),
         value:
           signal === "Connected" ? (
-            <Badge variant="outline" className="bg-success/15 text-success hover:bg-success/20 border-success/30">
-              <CheckCircle2Icon className="size-3" />
+            <Badge variant="success">
+              <CheckCircle2Icon className="size-3" aria-hidden="true" />
               {t("netbird.badge_connected")}
             </Badge>
           ) : (
-            <Badge variant="outline" className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30">
-              <AlertTriangleIcon className="size-3" />
+            <Badge variant="destructive">
+              <AlertTriangleIcon className="size-3" aria-hidden="true" />
               {signal}
             </Badge>
           ),
@@ -527,8 +527,8 @@ export function NetBirdConnectionCard({
               <p className="text-sm font-semibold text-muted-foreground">
                 {t("netbird.label_status")}
               </p>
-              <Badge variant="outline" className="bg-success/15 text-success hover:bg-success/20 border-success/30">
-                <CheckCircle2Icon className="size-3" />
+              <Badge variant="success">
+                <CheckCircle2Icon className="size-3" aria-hidden="true" />
                 {t("netbird.badge_connected")}
               </Badge>
             </div>
@@ -601,8 +601,8 @@ export function NetBirdConnectionCard({
             <p className="text-sm font-semibold text-muted-foreground">
               {t("netbird.label_status")}
             </p>
-            <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-muted-foreground/30">
-              <MinusCircleIcon className="size-3" />
+            <Badge variant="muted">
+              <MinusCircleIcon className="size-3" aria-hidden="true" />
               {t("netbird.badge_disconnected")}
             </Badge>
           </div>

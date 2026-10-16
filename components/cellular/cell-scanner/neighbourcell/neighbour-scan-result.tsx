@@ -38,7 +38,6 @@ import {
 import { motion } from "motion/react";
 
 const MotionTableRow = motion.create(TableRow);
-import { Badge } from "@/components/ui/badge";
 import { SignalBadge, NetworkTypeBadge } from "../signal-badges";
 
 export interface NeighbourCellResult {
@@ -121,12 +120,9 @@ function getColumns(
       ),
       cell: ({ row }) => {
         const strength = row.getValue("signalStrength") as number;
+        // 0 dBm is "unreported": SignalBadge renders it as the muted no-data chip.
         if (strength === 0) {
-          return (
-            <Badge className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30">
-              {t("cell_scanner.signal_badge.no_data")}
-            </Badge>
-          );
+          return <SignalBadge strength={strength} />;
         }
         return (
           <div className="flex items-center gap-2">

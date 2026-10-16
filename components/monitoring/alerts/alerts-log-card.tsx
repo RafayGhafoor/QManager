@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tag } from "@/components/ui/tag";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -274,13 +275,10 @@ export function AlertsLogCard({
                         </TableCell>
                         <TableCell>
                           <Badge
-                            variant="outline"
-                            className={cn(
-                              "gap-1 whitespace-nowrap",
-                              REBOOT_TONE_BADGE[meta.tone],
-                            )}
+                            variant={REBOOT_TONE_BADGE[meta.tone]}
+                            className="whitespace-nowrap"
                           >
-                            <CauseIcon className="size-3" />
+                            <CauseIcon className="size-3" aria-hidden="true" />
                             {t(`alerts.reboot_cause_${meta.key}`)}
                           </Badge>
                         </TableCell>
@@ -306,31 +304,28 @@ export function AlertsLogCard({
                         </span>
                       </TableCell>
                       <TableCell className="hidden @sm/card:table-cell">
-                        <Badge
-                          variant="outline"
-                          className="text-muted-foreground gap-1"
-                        >
-                          <ChannelIcon className="size-3" />
+                        <Tag variant="neutral">
+                          <ChannelIcon className="size-3" aria-hidden="true" />
                           {t(
                             `alerts.channel_${CHANNEL_META[entry.channel]?.labelKey ?? entry.channel}_short`,
                           )}
-                        </Badge>
+                        </Tag>
                       </TableCell>
                       <TableCell>
                         {entry.status === "sent" ? (
                           <Badge
-                            variant="outline"
-                            className="bg-success/15 text-success hover:bg-success/20 border-success/30 gap-1 whitespace-nowrap"
+                            variant="success"
+                            className="whitespace-nowrap"
                           >
-                            <CheckCircle2Icon className="size-3" />
+                            <CheckCircle2Icon className="size-3" aria-hidden="true" />
                             {t("alerts.log_badge_sent")}
                           </Badge>
                         ) : (
                           <Badge
-                            variant="outline"
-                            className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30 gap-1 whitespace-nowrap"
+                            variant="destructive"
+                            className="whitespace-nowrap"
                           >
-                            <XCircleIcon className="size-3" />
+                            <XCircleIcon className="size-3" aria-hidden="true" />
                             {t("alerts.log_badge_failed")}
                           </Badge>
                         )}

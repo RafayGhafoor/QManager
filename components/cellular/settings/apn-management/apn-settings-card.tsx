@@ -37,6 +37,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tag } from "@/components/ui/tag";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import {
@@ -68,8 +69,9 @@ export interface ApnSettingsCardProps {
 }
 
 // =============================================================================
-// CID badge — one per modem context in the picker.
-// Carrier (IMS/SOS) takes precedence over Internet; icons inherit text color.
+// CID tag — one per modem context in the picker. What a context IS (IMS, SOS,
+// Internet) is identity, so it is a neutral `Tag`. Carrier (IMS/SOS) takes
+// precedence over Internet.
 // =============================================================================
 
 function CidBadge({ ctx }: { ctx: CidContext }) {
@@ -77,26 +79,26 @@ function CidBadge({ ctx }: { ctx: CidContext }) {
 
   if (ctx.apn_type === "ims") {
     return (
-      <Badge variant="outline" className="bg-warning/15 text-warning border-warning/30">
-        <PhoneCallIcon className="text-warning size-3" />
+      <Tag variant="neutral">
+        <PhoneCallIcon className="size-3" aria-hidden="true" />
         {t("core_settings.apn.edit.fields.modem_profile.ims_badge")}
-      </Badge>
+      </Tag>
     );
   }
   if (ctx.apn_type === "emergency") {
     return (
-      <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30">
-        <SirenIcon className="text-destructive size-3" />
+      <Tag variant="neutral">
+        <SirenIcon className="size-3" aria-hidden="true" />
         {t("core_settings.apn.edit.fields.modem_profile.sos_badge")}
-      </Badge>
+      </Tag>
     );
   }
   if (ctx.is_internet) {
     return (
-      <Badge variant="outline" className="bg-success/15 text-success border-success/30">
-        <GlobeIcon className="text-success size-3" />
+      <Tag variant="neutral">
+        <GlobeIcon className="size-3" aria-hidden="true" />
         {t("core_settings.apn.edit.fields.modem_profile.for_internet")}
-      </Badge>
+      </Tag>
     );
   }
   return null;
@@ -126,11 +128,8 @@ function LiveStatusBadge({
   if (active === 0) {
     return (
       <div className="flex items-center gap-2">
-        <Badge
-          variant="outline"
-          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
-        >
-          <CircleSlashIcon className="size-3" />
+        <Badge variant="muted">
+          <CircleSlashIcon className="size-3" aria-hidden="true" />
           {t("core_settings.apn.status.carrier_default")}
         </Badge>
       </div>
@@ -155,11 +154,8 @@ function LiveStatusBadge({
   if (!isSaving && liveApn !== null && !isMatch) {
     return (
       <div className="flex flex-col gap-1">
-        <Badge
-          variant="outline"
-          className="bg-warning/15 text-warning border-warning/30 w-fit"
-        >
-          <TriangleAlertIcon className="size-3" />
+        <Badge variant="warning" className="w-fit">
+          <TriangleAlertIcon className="size-3" aria-hidden="true" />
           {t("core_settings.apn.status.not_live")}
         </Badge>
         <p className="text-xs text-muted-foreground">
@@ -172,11 +168,8 @@ function LiveStatusBadge({
   }
 
   return (
-    <Badge
-      variant="outline"
-      className="bg-success/15 text-success border-success/30"
-    >
-      <GlobeIcon className="size-3" />
+    <Badge variant="success">
+      <GlobeIcon className="size-3" aria-hidden="true" />
       {t("core_settings.apn.status.active")}
     </Badge>
   );

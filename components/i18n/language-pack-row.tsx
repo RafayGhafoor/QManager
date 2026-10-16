@@ -3,9 +3,10 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
-import { CheckCircle2Icon, DownloadIcon, Loader2Icon, RefreshCwIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
+import { ArrowUpCircleIcon, CheckCircle2Icon, DownloadIcon, Loader2Icon, RefreshCwIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Tag } from "@/components/ui/tag";
 import { Button } from "@/components/ui/button";
 import { CopyableCommand } from "@/components/ui/copyable-command";
 import {
@@ -108,18 +109,19 @@ export function LanguagePackRow({
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {variant.kind === "built_in" && (
-              <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-muted-foreground/30">
+              <Tag variant="neutral">
                 {t("languages.badges.built_in")}
-              </Badge>
+              </Tag>
             )}
             {variant.kind === "downloaded" && variant.updateAvailableVersion && (
-              <Badge variant="outline" className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30">
+              <Badge variant="info">
+                <ArrowUpCircleIcon className="size-3" aria-hidden="true" />
                 {t("languages.badges.update_available")}
               </Badge>
             )}
             {isActive && (
-              <Badge variant="outline" className="bg-success/15 text-success hover:bg-success/20 border-success/30">
-                <CheckCircle2Icon className="size-3" />
+              <Badge variant="success">
+                <CheckCircle2Icon className="size-3" aria-hidden="true" />
                 {t("languages.badges.active")}
               </Badge>
             )}

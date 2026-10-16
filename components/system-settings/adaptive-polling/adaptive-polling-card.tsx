@@ -18,7 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,35 +32,32 @@ import type {
   AdaptivePollingSettings,
   PollerTier,
 } from "@/types/modem-status";
-import { cn } from "@/lib/utils";
 
 // ─── Live-tier badge metadata ────────────────────────────────────────────────
-// Mandatory status-badge pattern: variant="outline" + bg-{role}/15
-// text-{role} border-{role}/30 + size-3 lucide icon. Solid variants forbidden.
+// Filled status chip + a distinct size-3 glyph per tier (DESIGN.md > Status chips).
 
 interface TierMeta {
   label: string;
   icon: LucideIcon;
-  /** Tailwind class trio keyed to a semantic OKLCH role. */
-  className: string;
+  /** Chip role; keys onto `BadgeVariant`, never a class string. */
+  variant: BadgeVariant;
 }
 
 const TIER_META: Record<PollerTier, TierMeta> = {
   active: {
     label: "Active · full rate",
     icon: ZapIcon,
-    className: "bg-success/15 text-success-on-surface border-success/30",
+    variant: "success",
   },
   idle: {
     label: "Idle · slowed",
     icon: GaugeIcon,
-    className: "bg-warning/15 text-warning-on-surface border-warning/30",
+    variant: "info",
   },
   deep: {
     label: "Deep idle · minimal",
     icon: MoonIcon,
-    className:
-      "bg-muted/50 text-muted-foreground border-muted-foreground/30",
+    variant: "muted",
   },
 };
 
@@ -70,11 +67,10 @@ function TierBadge({ tier }: { tier: PollerTier | undefined }) {
   const Icon = meta.icon;
   return (
     <Badge
-      variant="outline"
-      className={cn("gap-1", meta.className)}
+      variant={meta.variant}
       aria-label={`Live poller tier: ${meta.label}`}
     >
-      <Icon className="size-3" />
+      <Icon className="size-3" aria-hidden="true" />
       {meta.label}
     </Badge>
   );

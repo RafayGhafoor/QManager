@@ -2,7 +2,7 @@
 
 import { motion } from "motion/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Tag } from "@/components/ui/tag";
 import { cn } from "@/lib/utils";
 import { FaCircle } from "react-icons/fa6";
 import { useTranslation } from "react-i18next";
@@ -52,12 +52,9 @@ const SccStatusComponent = ({ carriers }: SccStatusProps) => {
                 </p>
               </div>
             </div>
-            <Badge
-              variant="outline"
-              className="bg-info/15 text-info hover:bg-info/20 border-info/30 tabular-nums"
-            >
+            <Tag variant="neutral" className="tabular-nums">
               {totalBw} MHz
-            </Badge>
+            </Tag>
           </div>
 
           {/* Carrier rows — dl/dt/dd semantics matching SignalStatusCard */}

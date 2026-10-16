@@ -24,6 +24,7 @@ import {
 const MotionTableRow = motion.create(TableRow);
 
 import { Badge } from "@/components/ui/badge";
+import { Tag } from "@/components/ui/tag";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { RefreshCcwIcon, UsersIcon, ShieldIcon, AlertCircle, CheckCircle2Icon, MinusCircleIcon } from "lucide-react";
@@ -214,13 +215,10 @@ export function TailscalePeersCard({
                           {peer.hostname || t("shared.os_unknown")}
                         </span>
                         {peer.exit_node && (
-                          <Badge
-                            variant="outline"
-                            className="text-xs shrink-0"
-                          >
-                            <ShieldIcon className="size-3 mr-1" />
+                          <Tag variant="neutral">
+                            <ShieldIcon className="size-3" aria-hidden="true" />
                             {t("tailscale.peers_exit_node_badge")}
-                          </Badge>
+                          </Tag>
                         )}
                       </div>
                       {peer.dns_name && (
@@ -238,13 +236,13 @@ export function TailscalePeersCard({
                   </TableCell>
                   <TableCell>
                     {peer.online ? (
-                      <Badge variant="outline" className="bg-success/15 text-success hover:bg-success/20 border-success/30">
-                        <CheckCircle2Icon className="h-3 w-3" />
+                      <Badge variant="success">
+                        <CheckCircle2Icon className="size-3" aria-hidden="true" />
                         {t("tailscale.peers_status_online")}
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-muted/50 text-muted-foreground border-muted-foreground/30">
-                        <MinusCircleIcon className="h-3 w-3" />
+                      <Badge variant="muted">
+                        <MinusCircleIcon className="size-3" aria-hidden="true" />
                         {t("tailscale.peers_status_offline")}
                       </Badge>
                     )}

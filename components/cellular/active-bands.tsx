@@ -16,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
+import { Tag, type TagVariant } from "@/components/ui/tag";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import type { CarrierComponent } from "@/types/modem-status";
@@ -48,11 +48,9 @@ interface ActiveBandsComponentProps {
 // Helpers
 // =============================================================================
 
-/** Technology badge styling */
-function techBadgeClass(tech: "LTE" | "NR"): string {
-  return tech === "NR"
-    ? "bg-blue-500 hover:bg-blue-500 text-white"
-    : "bg-emerald-500 hover:bg-emerald-500 text-white";
+/** Radio technology is identity, so it keys onto a `TagVariant`. */
+function techTagVariant(tech: "LTE" | "NR"): TagVariant {
+  return tech === "NR" ? "nr" : "lte";
 }
 
 /** Format a signal value with unit, or "-" for null */
@@ -202,11 +200,9 @@ const ActiveBandsComponent = ({
                   <AccordionItem value={`item-${idx}`}>
                     <AccordionTrigger className="font-bold">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Badge
-                          className={`text-xs rounded-full ${techBadgeClass(cc.technology)}`}
-                        >
+                        <Tag variant={techTagVariant(cc.technology)}>
                           {cc.type} {getDuplexMode(cc.band, cc.technology)}
-                        </Badge>
+                        </Tag>
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-bold">
                             {cc.technology} {cc.band}

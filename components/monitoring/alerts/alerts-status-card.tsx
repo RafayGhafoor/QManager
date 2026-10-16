@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import {
   CheckCircle2Icon,
   MinusCircleIcon,
@@ -40,10 +40,11 @@ const TONE_TILE: Record<Tone, string> = {
   muted: "border-border bg-muted/20",
 };
 
-const TONE_BADGE: Record<Tone, string> = {
-  success: "bg-success/15 text-success border-success/30",
-  warning: "bg-warning/15 text-warning border-warning/30",
-  muted: "bg-muted/50 text-muted-foreground border-muted-foreground/30",
+// Keys onto `BadgeVariant`, never a class string; each readiness carries its own glyph.
+const TONE_BADGE: Record<Tone, BadgeVariant> = {
+  success: "success",
+  warning: "warning",
+  muted: "muted",
 };
 
 interface Readiness {
@@ -64,20 +65,20 @@ function readinessFor(
     if (!c.enabled)
       return {
         tone: "muted",
-        icon: <MinusCircleIcon className="size-3" />,
+        icon: <MinusCircleIcon className="size-3" aria-hidden="true" />,
         labelKey: "alerts.readiness_off",
         detail: t("alerts.readiness_off_hint"),
       };
     if (!c.configured)
       return {
         tone: "warning",
-        icon: <TriangleAlertIcon className="size-3" />,
+        icon: <TriangleAlertIcon className="size-3" aria-hidden="true" />,
         labelKey: "alerts.readiness_needs_setup",
         detail: t("alerts.readiness_sms_no_recipient"),
       };
     return {
       tone: "success",
-      icon: <CheckCircle2Icon className="size-3" />,
+      icon: <CheckCircle2Icon className="size-3" aria-hidden="true" />,
       labelKey: "alerts.readiness_ready",
       detail: maskPhone(c.recipient_phone),
     };
@@ -86,27 +87,27 @@ function readinessFor(
   if (!c.enabled)
     return {
       tone: "muted",
-      icon: <MinusCircleIcon className="size-3" />,
+      icon: <MinusCircleIcon className="size-3" aria-hidden="true" />,
       labelKey: "alerts.readiness_off",
       detail: t("alerts.readiness_off_hint"),
     };
   if (!c.msmtp_installed)
     return {
       tone: "warning",
-      icon: <PackageXIcon className="size-3" />,
+      icon: <PackageXIcon className="size-3" aria-hidden="true" />,
       labelKey: "alerts.readiness_mailer_missing",
       detail: t("alerts.readiness_mailer_missing_hint"),
     };
   if (!c.configured)
     return {
       tone: "warning",
-      icon: <TriangleAlertIcon className="size-3" />,
+      icon: <TriangleAlertIcon className="size-3" aria-hidden="true" />,
       labelKey: "alerts.readiness_needs_setup",
       detail: t("alerts.readiness_email_incomplete"),
     };
   return {
     tone: "success",
-    icon: <CheckCircle2Icon className="size-3" />,
+    icon: <CheckCircle2Icon className="size-3" aria-hidden="true" />,
     labelKey: "alerts.readiness_ready",
     detail: maskEmail(c.recipient_email),
   };
@@ -158,10 +159,7 @@ export function AlertsStatusCard({ state }: { state: AlertsState }) {
                     <span className="text-sm font-semibold">
                       {t(`alerts.channel_${CHANNEL_META[ch].labelKey}_name`)}
                     </span>
-                    <Badge
-                      variant="outline"
-                      className={cn("gap-1", TONE_BADGE[r.tone])}
-                    >
+                    <Badge variant={TONE_BADGE[r.tone]}>
                       {r.icon}
                       {t(r.labelKey)}
                     </Badge>
@@ -211,12 +209,8 @@ export function AlertsStatusCard({ state }: { state: AlertsState }) {
                       fires.map((ch) => {
                         const Icon = CHANNEL_META[ch].icon;
                         return (
-                          <Badge
-                            key={ch}
-                            variant="outline"
-                            className="border-primary/30 bg-primary/10 text-primary gap-1"
-                          >
-                            <Icon className="size-3" />
+                          <Badge key={ch} variant="info">
+                            <Icon className="size-3" aria-hidden="true" />
                             {t(
                               `alerts.channel_${CHANNEL_META[ch].labelKey}_short`,
                             )}

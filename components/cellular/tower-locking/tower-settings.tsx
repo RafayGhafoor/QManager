@@ -26,23 +26,43 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { TbInfoCircleFilled } from "react-icons/tb";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import {
   Loader2,
   PercentIcon,
+  ActivityIcon,
   CheckCircle2Icon,
+  CircleHelpIcon,
   TriangleAlertIcon,
   XCircleIcon,
   MinusCircleIcon,
+  MinusIcon,
+  SearchIcon,
+  SignalHighIcon,
+  SignalLowIcon,
+  SignalMediumIcon,
+  SignalZeroIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import type {
+  QualityLevel,
   TowerLockConfig,
   TowerFailoverState,
 } from "@/types/tower-locking";
 import type { ModemStatus } from "@/types/modem-status";
 import { rsrpToQualityPercent, qualityLevel } from "@/types/tower-locking";
+
+// Signal quality tiers key onto `BadgeVariant`; the bar-count glyph separates
+// tiers whose fills match. A missing reading is `none` (muted dash), not a verdict.
+const QUALITY_BADGE: Record<QualityLevel, { variant: BadgeVariant; Icon: LucideIcon }> = {
+  good: { variant: "success", Icon: SignalHighIcon },
+  fair: { variant: "warning", Icon: SignalMediumIcon },
+  poor: { variant: "warning", Icon: SignalLowIcon },
+  critical: { variant: "destructive", Icon: SignalZeroIcon },
+  none: { variant: "muted", Icon: MinusIcon },
+};
 
 interface TowerLockingSettingsProps {
   config: TowerLockConfig | null;
@@ -120,36 +140,17 @@ const TowerLockingSettingsComponent = ({
   }
 
   const signalQualityPct = rsrpToQualityPercent(activeRsrp);
-  const qualityLvl = qualityLevel(signalQualityPct);
-
-  // --- Signal quality badge styling ---
-  const qualityBadgeStyles: Record<string, string> = {
-    good: "bg-success/15 text-success hover:bg-success/20 border-success/30",
-    fair: "bg-warning/15 text-warning hover:bg-warning/20 border-warning/30",
-    poor: "bg-warning/15 text-warning hover:bg-warning/20 border-warning/30",
-    critical:
-      "bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30",
-    none: "bg-muted/50 text-muted-foreground border-muted-foreground/30",
-  };
-
-  const qualityIcons: Record<string, React.ReactNode> = {
-    good: <CheckCircle2Icon className="h-3 w-3" />,
-    fair: <TriangleAlertIcon className="h-3 w-3" />,
-    poor: <TriangleAlertIcon className="h-3 w-3" />,
-    critical: <XCircleIcon className="h-3 w-3" />,
-    none: null,
-  };
+  const qualityLvl: QualityLevel =
+    activeRsrp === null ? "none" : qualityLevel(signalQualityPct);
+  const { variant: qualityVariant, Icon: QualityIcon } = QUALITY_BADGE[qualityLvl];
 
   // --- Failover status badge ---
   const renderFailoverBadge = () => {
     // Show loading only during initial load; after that show a fallback
     if (!failoverState && isLoading) {
       return (
-        <Badge
-          variant="outline"
-          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
-        >
-          <Loader2 className="h-3 w-3 animate-spin" />
+        <Badge variant="muted">
+          <Loader2 className="size-3 animate-spin" aria-hidden="true" />
           {t("cell_locking.tower_locking.settings.failover_badge.loading")}
         </Badge>
       );
@@ -157,11 +158,8 @@ const TowerLockingSettingsComponent = ({
 
     if (!failoverState) {
       return (
-        <Badge
-          variant="outline"
-          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
-        >
-          <MinusCircleIcon className="h-3 w-3" />
+        <Badge variant="muted">
+          <CircleHelpIcon className="size-3" aria-hidden="true" />
           {t("cell_locking.tower_locking.settings.failover_badge.unknown")}
         </Badge>
       );
@@ -169,11 +167,8 @@ const TowerLockingSettingsComponent = ({
 
     if (failoverState.watcher_running) {
       return (
-        <Badge
-          variant="outline"
-          className="bg-success/15 text-success hover:bg-success/20 border-success/30"
-        >
-          <CheckCircle2Icon className="h-3 w-3" />
+        <Badge variant="success">
+          <ActivityIcon className="size-3" aria-hidden="true" />
           {t("cell_locking.tower_locking.settings.failover_badge.monitoring")}
         </Badge>
       );
@@ -181,11 +176,8 @@ const TowerLockingSettingsComponent = ({
 
     if (failoverState.activated) {
       return (
-        <Badge
-          variant="outline"
-          className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30"
-        >
-          <TriangleAlertIcon className="h-3 w-3" />
+        <Badge variant="warning">
+          <TriangleAlertIcon className="size-3" aria-hidden="true" />
           {t("cell_locking.tower_locking.settings.failover_badge.unlocked_poor_signal")}
         </Badge>
       );
@@ -193,22 +185,16 @@ const TowerLockingSettingsComponent = ({
 
     if (!failoverState.enabled) {
       return (
-        <Badge
-          variant="outline"
-          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
-        >
-          <MinusCircleIcon className="h-3 w-3" />
+        <Badge variant="muted">
+          <MinusCircleIcon className="size-3" aria-hidden="true" />
           {t("cell_locking.tower_locking.settings.failover_badge.disabled")}
         </Badge>
       );
     }
 
     return (
-      <Badge
-        variant="outline"
-        className="bg-success/15 text-success hover:bg-success/20 border-success/30"
-      >
-        <CheckCircle2Icon className="h-3 w-3" />
+      <Badge variant="success">
+        <CheckCircle2Icon className="size-3" aria-hidden="true" />
         {t("cell_locking.tower_locking.settings.failover_badge.ready")}
       </Badge>
     );
@@ -219,11 +205,8 @@ const TowerLockingSettingsComponent = ({
     // Show loading only during initial load; after that show a fallback
     if (!config && isLoading) {
       return (
-        <Badge
-          variant="outline"
-          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
-        >
-          <Loader2 className="h-3 w-3 animate-spin" />
+        <Badge variant="muted">
+          <Loader2 className="size-3 animate-spin" aria-hidden="true" />
           {t("cell_locking.tower_locking.settings.schedule_badge.loading")}
         </Badge>
       );
@@ -231,11 +214,8 @@ const TowerLockingSettingsComponent = ({
 
     if (!config) {
       return (
-        <Badge
-          variant="outline"
-          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
-        >
-          <MinusCircleIcon className="h-3 w-3" />
+        <Badge variant="muted">
+          <CircleHelpIcon className="size-3" aria-hidden="true" />
           {t("cell_locking.tower_locking.settings.schedule_badge.unknown")}
         </Badge>
       );
@@ -243,22 +223,16 @@ const TowerLockingSettingsComponent = ({
 
     if (scheduleEnabled) {
       return (
-        <Badge
-          variant="outline"
-          className="bg-success/15 text-success hover:bg-success/20 border-success/30"
-        >
-          <CheckCircle2Icon className="h-3 w-3" />
+        <Badge variant="success">
+          <CheckCircle2Icon className="size-3" aria-hidden="true" />
           {t("cell_locking.tower_locking.settings.schedule_badge.active")}
         </Badge>
       );
     }
 
     return (
-      <Badge
-        variant="outline"
-        className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
-      >
-        <MinusCircleIcon className="h-3 w-3" />
+      <Badge variant="muted">
+        <MinusCircleIcon className="size-3" aria-hidden="true" />
         {t("cell_locking.tower_locking.settings.schedule_badge.inactive")}
       </Badge>
     );
@@ -270,11 +244,8 @@ const TowerLockingSettingsComponent = ({
 
     if (!modemData && isLoading) {
       return (
-        <Badge
-          variant="outline"
-          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
-        >
-          <Loader2 className="h-3 w-3 animate-spin" />
+        <Badge variant="muted">
+          <Loader2 className="size-3 animate-spin" aria-hidden="true" />
           {t("cell_locking.tower_locking.settings.connection_badge.loading")}
         </Badge>
       );
@@ -282,11 +253,8 @@ const TowerLockingSettingsComponent = ({
 
     if (!modemData || !serviceStatus) {
       return (
-        <Badge
-          variant="outline"
-          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
-        >
-          <MinusCircleIcon className="h-3 w-3" />
+        <Badge variant="muted">
+          <MinusCircleIcon className="size-3" aria-hidden="true" />
           {t("cell_locking.tower_locking.settings.connection_badge.unknown")}
         </Badge>
       );
@@ -296,50 +264,36 @@ const TowerLockingSettingsComponent = ({
       case "optimal":
       case "connected":
         return (
-          <Badge
-            variant="outline"
-            className="bg-success/15 text-success hover:bg-success/20 border-success/30"
-          >
-            <CheckCircle2Icon className="h-3 w-3" />
+          <Badge variant="success">
+            <CheckCircle2Icon className="size-3" aria-hidden="true" />
             {t("cell_locking.tower_locking.settings.connection_badge.connected")}
           </Badge>
         );
       case "limited":
         return (
-          <Badge
-            variant="outline"
-            className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30"
-          >
-            <TriangleAlertIcon className="h-3 w-3" />
+          <Badge variant="warning">
+            <TriangleAlertIcon className="size-3" aria-hidden="true" />
             {t("cell_locking.tower_locking.settings.connection_badge.limited")}
           </Badge>
         );
       case "searching":
         return (
-          <Badge
-            variant="outline"
-            className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30"
-          >
-            <TriangleAlertIcon className="h-3 w-3" />
+          <Badge variant="warning">
+            <SearchIcon className="size-3" aria-hidden="true" />
             {t("cell_locking.tower_locking.settings.connection_badge.searching")}
           </Badge>
         );
       case "no_service":
         return (
-          <Badge
-            variant="outline"
-            className="bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30"
-          >
-            <XCircleIcon className="h-3 w-3" />
+          <Badge variant="destructive">
+            <XCircleIcon className="size-3" aria-hidden="true" />
             {t("cell_locking.tower_locking.settings.connection_badge.no_service")}
           </Badge>
         );
       default:
         return (
-          <Badge
-            variant="outline"
-            className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
-          >
+          <Badge variant="muted">
+            <CircleHelpIcon className="size-3" aria-hidden="true" />
             {serviceStatus}
           </Badge>
         );
@@ -571,11 +525,8 @@ const TowerLockingSettingsComponent = ({
               {t("cell_locking.tower_locking.settings.signal_quality_label")}
             </span>
             <div className="flex items-center gap-1.5">
-              <Badge
-                variant="outline"
-                className={qualityBadgeStyles[qualityLvl]}
-              >
-                {qualityIcons[qualityLvl]}
+              <Badge variant={qualityVariant} className="tabular-nums">
+                <QualityIcon className="size-3" aria-hidden="true" />
                 {activeRsrp !== null ? `${signalQualityPct}%` : "N/A"}
               </Badge>
             </div>

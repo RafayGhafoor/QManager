@@ -91,6 +91,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Tag } from "@/components/ui/tag";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { staggerRows, staggerRowItem } from "@/lib/motion";
@@ -307,12 +308,9 @@ export default function SmsInboxCard({
                 {row.original.sender}
               </span>
               {row.original.storage === "SM" && (
-                <Badge
-                  variant="outline"
-                  className="shrink-0 px-1.5 py-0 text-xs font-medium tracking-wide text-muted-foreground"
-                >
+                <Tag variant="neutral" className="tracking-wide">
                   {t("sms.inbox.table.sim_badge")}
-                </Badge>
+                </Tag>
               )}
             </div>
             <span className="block text-xs text-muted-foreground @sm/card:hidden">

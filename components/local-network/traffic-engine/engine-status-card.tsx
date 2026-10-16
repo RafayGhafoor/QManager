@@ -103,8 +103,8 @@ export function EngineStatusCard({
   // mode still reads "running" for a beat, and we want "Switching…", not the
   // mode it's leaving.
   const badge = transitioning ? (
-    <Badge variant="outline" className="border-info/30 bg-info/15 text-info">
-      <Loader2 className="size-3 animate-spin" />
+    <Badge variant="info">
+      <Loader2 className="size-3 animate-spin" aria-hidden="true" />
       {t(
         transition === "stop"
           ? "traffic_engine.state_stopping"
@@ -114,21 +114,15 @@ export function EngineStatusCard({
       )}
     </Badge>
   ) : running ? (
-    <Badge
-      variant="outline"
-      className="border-success/30 bg-success/15 text-success"
-    >
-      <CheckCircle2Icon className="size-3" />
+    <Badge variant="success">
+      <CheckCircle2Icon className="size-3" aria-hidden="true" />
       {activeMode === "video"
         ? t("traffic_engine.state_protecting")
         : t("traffic_engine.state_masquerading", { domain: sniDomain })}
     </Badge>
   ) : (
-    <Badge
-      variant="outline"
-      className="border-muted-foreground/30 bg-muted/50 text-muted-foreground"
-    >
-      <MinusCircleIcon className="size-3" />
+    <Badge variant="muted">
+      <MinusCircleIcon className="size-3" aria-hidden="true" />
       {t("traffic_engine.state_idle")}
     </Badge>
   );

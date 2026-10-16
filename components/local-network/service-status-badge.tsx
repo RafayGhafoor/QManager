@@ -1,8 +1,23 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle2Icon, MinusCircleIcon } from "lucide-react";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { CheckCircle2Icon, MinusCircleIcon, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+type ServiceTone = "running" | "stopped";
+
+// Tone and glyph key onto `BadgeVariant`, never a class string, so a tone
+// without a matching chip role fails the build (DESIGN.md > Status chips).
+// Stopped is a deliberate state, not a failure, hence `muted`.
+const SERVICE_BADGE: Record<ServiceTone, BadgeVariant> = {
+  running: "success",
+  stopped: "muted",
+};
+
+const SERVICE_GLYPH: Record<ServiceTone, LucideIcon> = {
+  running: CheckCircle2Icon,
+  stopped: MinusCircleIcon,
+};
 
 export function ServiceStatusBadge({
   status,
@@ -12,24 +27,17 @@ export function ServiceStatusBadge({
   installed?: boolean;
 }) {
   const { t } = useTranslation("local-network");
-  if (status === "running") {
-    return (
-      <Badge
-        variant="outline"
-        className="border-success/30 bg-success/15 text-success hover:bg-success/20"
-      >
-        <CheckCircle2Icon className="size-3" />
-        {t("shared.status_active")}
-      </Badge>
-    );
-  }
+  const tone: ServiceTone = status === "running" ? "running" : "stopped";
+  const Glyph = SERVICE_GLYPH[tone];
+
   return (
-    <Badge
-      variant="outline"
-      className="border-muted-foreground/30 bg-muted/50 text-muted-foreground"
-    >
-      <MinusCircleIcon className="size-3" />
-      {installed ? t("shared.status_inactive") : t("shared.status_not_installed")}
+    <Badge variant={SERVICE_BADGE[tone]}>
+      <Glyph className="size-3" aria-hidden="true" />
+      {tone === "running"
+        ? t("shared.status_active")
+        : installed
+          ? t("shared.status_inactive")
+          : t("shared.status_not_installed")}
     </Badge>
   );
 }

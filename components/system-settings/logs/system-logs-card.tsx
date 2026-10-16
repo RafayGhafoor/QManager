@@ -46,7 +46,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -92,36 +92,24 @@ interface LogsResponse {
 }
 
 // Level → calm outline badge, per the project status-badge contract:
-// variant="outline" + bg-{role}/15 text-{role} border-{role}/30 + size-3 icon.
-// (DESIGN.md / ServiceStatusBadge — solid variants are forbidden in feature surfaces.)
+// Filled tonal chip per level, keyed onto `BadgeVariant` so a level without a
+// chip role fails the build. Each level keeps its own glyph (DESIGN.md > Status chips).
 const LEVEL_STYLES: Record<
   string,
-  { cls: string; Icon: typeof InfoIcon }
+  { variant: BadgeVariant; Icon: typeof InfoIcon }
 > = {
-  ERROR: {
-    cls: "border-destructive/30 bg-destructive/15 text-destructive",
-    Icon: OctagonAlertIcon,
-  },
-  WARN: {
-    cls: "border-warning/30 bg-warning/15 text-warning",
-    Icon: TriangleAlertIcon,
-  },
-  INFO: {
-    cls: "border-info/30 bg-info/15 text-info",
-    Icon: InfoIcon,
-  },
-  DEBUG: {
-    cls: "border-muted-foreground/30 bg-muted/50 text-muted-foreground",
-    Icon: BugIcon,
-  },
+  ERROR: { variant: "destructive", Icon: OctagonAlertIcon },
+  WARN: { variant: "warning", Icon: TriangleAlertIcon },
+  INFO: { variant: "info", Icon: InfoIcon },
+  DEBUG: { variant: "muted", Icon: BugIcon },
 };
 
 const LevelBadge = ({ level }: { level: string }) => {
   const style = LEVEL_STYLES[level] ?? LEVEL_STYLES.DEBUG;
-  const { cls, Icon } = style;
+  const { variant, Icon } = style;
   return (
-    <Badge variant="outline" className={cls}>
-      <Icon className="size-3" />
+    <Badge variant={variant}>
+      <Icon className="size-3" aria-hidden="true" />
       {level}
     </Badge>
   );

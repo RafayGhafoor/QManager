@@ -135,11 +135,8 @@ const BandSettingsComponent = ({
 
     if (!failover.enabled) {
       return (
-        <Badge
-          variant="outline"
-          className="bg-muted/50 text-muted-foreground border-muted-foreground/30"
-        >
-          <MinusCircleIcon className="h-3 w-3" />
+        <Badge variant="muted">
+          <MinusCircleIcon className="size-3" aria-hidden="true" />
           {t("cell_locking.band_locking.settings_card.status.disabled")}
         </Badge>
       );
@@ -147,22 +144,16 @@ const BandSettingsComponent = ({
 
     if (failover.activated) {
       return (
-        <Badge
-          variant="outline"
-          className="bg-warning/15 text-warning hover:bg-warning/20 border-warning/30"
-        >
-          <TriangleAlertIcon className="h-3 w-3" />
+        <Badge variant="warning">
+          <TriangleAlertIcon className="size-3" aria-hidden="true" />
           {t("cell_locking.band_locking.settings_card.status.fallback_active")}
         </Badge>
       );
     }
 
     return (
-      <Badge
-        variant="outline"
-        className="bg-success/15 text-success hover:bg-success/20 border-success/30"
-      >
-        <CheckCircle2Icon className="h-3 w-3" />
+      <Badge variant="success">
+        <CheckCircle2Icon className="size-3" aria-hidden="true" />
         {t("cell_locking.band_locking.settings_card.status.ready")}
       </Badge>
     );

@@ -19,6 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tag, type TagVariant } from "@/components/ui/tag";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,6 +52,13 @@ import {
   type RecordingSnapshot,
   type SignalKey,
 } from "./utils";
+
+/** Radio mode is identity, not status: an outline `Tag`. EN-DC names both radios, so it stays neutral. */
+const RADIO_MODE_TAG: Record<RadioMode, TagVariant> = {
+  lte: "lte",
+  nr: "nr",
+  endc: "neutral",
+};
 
 // ---------------------------------------------------------------------------
 // Recording hook — accumulates samples then averages
@@ -332,8 +340,8 @@ function RecordingSlotCard({
     >
       {isBest && snapshot && (
         <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10">
-          <Badge className="gap-1 text-[10px]">
-            <TrophyIcon className="size-3" />
+          <Badge variant="info">
+            <TrophyIcon className="size-3" aria-hidden="true" />
             {t("antennas.alignment.meter.best_badge")}
           </Badge>
         </div>
@@ -565,7 +573,9 @@ export default function AlignmentMeterSection({
       </CardHeader>
 
       <CardContent className="space-y-4">
-                    <Badge>{t(`antennas.alignment.meter.radio_mode.${mode}`)}</Badge>
+                    <Tag variant={RADIO_MODE_TAG[mode]}>
+                      {t(`antennas.alignment.meter.radio_mode.${mode}`)}
+                    </Tag>
         {/* Live signal preview */}
         <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
           <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">

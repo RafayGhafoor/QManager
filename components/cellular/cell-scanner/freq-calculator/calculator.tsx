@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { Tag } from "@/components/ui/tag";
 import { Separator } from "@/components/ui/separator";
 import { X, Trash2 } from "lucide-react";
 import {
@@ -367,7 +367,9 @@ const FrequencyCalculator = () => {
                     )}
                   </div>
                   <div className="font-medium">
-                    <Badge variant="default">{result.networkType}</Badge>
+                    <Tag variant={result.networkType === "NR" ? "nr" : "lte"}>
+                      {result.networkType}
+                    </Tag>
                   </div>
 
                   <div className="text-muted-foreground font-semibold">
@@ -563,7 +565,9 @@ const FrequencyCalculator = () => {
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{entry.earfcn}</span>
-                      <Badge>{entry.networkType}</Badge>
+                      <Tag variant={entry.networkType === "NR" ? "nr" : "lte"}>
+                        {entry.networkType}
+                      </Tag>
                       <span className="text-sm font-medium text-muted-foreground">
                         {entry.frequency} MHz
                       </span>

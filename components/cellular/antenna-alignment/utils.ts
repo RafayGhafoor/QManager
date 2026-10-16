@@ -82,20 +82,6 @@ export function getQualityColor(quality: string) {
   }
 }
 
-export function getQualityBadgeClasses(quality: string) {
-  switch (quality) {
-    case "excellent":
-    case "good":
-      return "bg-success/15 text-success hover:bg-success/20 border-success/30";
-    case "fair":
-      return "bg-warning/15 text-warning hover:bg-warning/20 border-warning/30";
-    case "poor":
-      return "bg-destructive/15 text-destructive hover:bg-destructive/20 border-destructive/30";
-    default:
-      return "bg-muted/50 text-muted-foreground border-muted-foreground/30";
-  }
-}
-
 export function qualityToBarColor(quality: string) {
   switch (quality) {
     case "excellent":

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tag } from "@/components/ui/tag";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -242,12 +243,9 @@ const ProfileViewComponent = ({ sim, currentIccid, onEdit }: ProfileViewProps) =
         </CardDescription>
         {profiles.length > 0 && (
           <CardAction>
-            <Badge
-              variant="outline"
-              className="text-muted-foreground tabular-nums"
-            >
+            <Tag variant="neutral" className="tabular-nums">
               {profiles.length}
-            </Badge>
+            </Tag>
           </CardAction>
         )}
       </CardHeader>
@@ -491,64 +489,41 @@ const ProfileRow = ({
 };
 
 // -----------------------------------------------------------------------------
-// Status badge — outline pattern per DESIGN.md (bg/15 text border/30 + size-3).
+// Status badge — filled tonal chip + size-3 glyph (DESIGN.md > Status chips).
 // -----------------------------------------------------------------------------
 const StatusBadge = ({ status }: { status: ProfileStatus }) => {
   if (status === "active") {
     return (
-      <Badge
-        variant="outline"
-        className="border-success/30 bg-success/15 text-success"
-      >
-        <CheckCircle2Icon className="size-3" />
+      <Badge variant="success">
+        <CheckCircle2Icon className="size-3" aria-hidden="true" />
         Active
       </Badge>
     );
   }
   if (status === "mismatch") {
     return (
-      <Badge
-        variant="outline"
-        className="border-warning/30 bg-warning/15 text-warning"
-      >
-        <TriangleAlertIcon className="size-3" />
+      <Badge variant="warning">
+        <TriangleAlertIcon className="size-3" aria-hidden="true" />
         SIM Mismatch
       </Badge>
     );
   }
   return (
-    <Badge
-      variant="outline"
-      className="border-muted-foreground/30 bg-muted/50 text-muted-foreground"
-    >
-      <MinusCircleIcon className="size-3" />
+    <Badge variant="muted">
+      <MinusCircleIcon className="size-3" aria-hidden="true" />
       Inactive
     </Badge>
   );
 };
 
 // -----------------------------------------------------------------------------
-// Config pills — dense outline tags describing what a profile does.
+// Config pills — outline metadata tags describing what a profile does. They
+// say what the profile IS, not whether anything is well, so they are `Tag`s.
 // -----------------------------------------------------------------------------
-// neutral = routine settings; info = settings that carry consequence (an IMEI
-// rewrite reboots the modem on activation, Verizon MPDN locks data routing).
-const Pill = ({
-  children,
-  tone = "neutral",
-}: {
-  children: React.ReactNode;
-  tone?: "neutral" | "info";
-}) => (
-  <span
-    className={cn(
-      "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium tabular-nums",
-      tone === "info"
-        ? "border-info/30 bg-info/10 text-info"
-        : "border-border bg-muted/40 text-muted-foreground",
-    )}
-  >
+const Pill = ({ children }: { children: React.ReactNode }) => (
+  <Tag variant="neutral" className="tabular-nums">
     {children}
-  </span>
+  </Tag>
 );
 
 const PDP_PILL_KEY: Record<PdpType, string> = {
@@ -580,10 +555,10 @@ const ConfigPills = ({
       {ttl > 0 && <Pill>{t("custom_profiles.pills.ttl", { value: ttl })}</Pill>}
       {hl > 0 && <Pill>{t("custom_profiles.pills.hl", { value: hl })}</Pill>}
       {imei.trim() !== "" && (
-        <Pill tone="info">{t("custom_profiles.pills.imei_override")}</Pill>
+        <Pill>{t("custom_profiles.pills.imei_override")}</Pill>
       )}
       {verizonMpdn && (
-        <Pill tone="info">{t("custom_profiles.pills.mpdn_locked")}</Pill>
+        <Pill>{t("custom_profiles.pills.mpdn_locked")}</Pill>
       )}
     </div>
   );

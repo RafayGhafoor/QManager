@@ -1,7 +1,16 @@
 "use client";
 
 import { useMemo } from "react";
-import { CheckCircle2Icon, MinusCircleIcon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  MinusCircleIcon,
+  SignalHighIcon,
+  SignalIcon,
+  SignalLowIcon,
+  SignalMediumIcon,
+  SignalZeroIcon,
+  type LucideIcon,
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,7 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
@@ -19,15 +28,24 @@ import {
   SINR_THRESHOLDS,
   getSignalQuality,
 } from "@/types/modem-status";
-import type { SignalPerAntenna } from "@/types/modem-status";
+import type { SignalPerAntenna, SignalQuality } from "@/types/modem-status";
 import {
   normalizeValue,
   formatValue,
   getQualityColor,
-  getQualityBadgeClasses,
   isAntennaActive,
   type RadioMode,
 } from "./utils";
+
+// Quality tiers key onto `BadgeVariant`; the bar-count glyph separates tiers
+// whose fills match (excellent/good) or nearly match (success/warning).
+const QUALITY_BADGE: Record<SignalQuality, { variant: BadgeVariant; Icon: LucideIcon }> = {
+  excellent: { variant: "success", Icon: SignalIcon },
+  good: { variant: "success", Icon: SignalHighIcon },
+  fair: { variant: "warning", Icon: SignalMediumIcon },
+  poor: { variant: "destructive", Icon: SignalLowIcon },
+  none: { variant: "muted", Icon: SignalZeroIcon },
+};
 
 // ---------------------------------------------------------------------------
 // Metric row inside an antenna card section
@@ -50,6 +68,7 @@ function MetricRow({
   const normalized = normalizeValue(rawValue ?? value ?? null);
   const quality = getSignalQuality(normalized, thresholds);
   const isNull = normalized === null;
+  const { variant: qualityVariant, Icon: QualityIcon } = QUALITY_BADGE[quality];
 
   return (
     <div className="flex items-center justify-between py-1.5">
@@ -64,13 +83,8 @@ function MetricRow({
           {formatValue(normalized, unit)}
         </span>
         {!isNull && (
-          <Badge
-            variant="outline"
-            className={cn(
-              "text-[10px] px-1.5 py-0 h-4",
-              getQualityBadgeClasses(quality)
-            )}
-          >
+          <Badge variant={qualityVariant}>
+            <QualityIcon className="size-3" aria-hidden="true" />
             {t(`antennas.quality.${quality}`)}
           </Badge>
         )}
@@ -124,18 +138,11 @@ export function AntennaCard({
               {description}
             </CardDescription>
           </div>
-          <Badge
-            variant="outline"
-            className={
-              active
-                ? "bg-success/15 text-success hover:bg-success/20 border-success/30"
-                : "bg-muted/50 text-muted-foreground border-muted-foreground/30"
-            }
-          >
+          <Badge variant={active ? "success" : "muted"}>
             {active ? (
-              <CheckCircle2Icon className="size-3" />
+              <CheckCircle2Icon className="size-3" aria-hidden="true" />
             ) : (
-              <MinusCircleIcon className="size-3" />
+              <MinusCircleIcon className="size-3" aria-hidden="true" />
             )}
             {active ? t("antennas.alignment.card.active") : t("antennas.alignment.card.inactive")}
           </Badge>
