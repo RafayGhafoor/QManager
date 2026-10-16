@@ -523,6 +523,10 @@ remove_runtime_state() {
           /tmp/qmanager_dns.json.?????? \
           2>/dev/null || true
 
+    # Sites monitor: latest/raw/live results, flag, lease, cursor, probe dirs.
+    rm -rf /tmp/qmanager_sites.json /tmp/qmanager_sites_* /tmp/qmanager_sites.?????? \
+          2>/dev/null || true
+
     # PID files in /var/run (config-restore and language-install workers)
     rm -f /var/run/qmanager_config_restore.pid \
           /var/run/qmanager_language_install.pid \
@@ -562,6 +566,11 @@ remove_config() {
     if [ -d "$CONF_DIR" ]; then
         rm -rf "$CONF_DIR"
         info "Removed $CONF_DIR"
+    fi
+    # Sites monitor history (its config, sites.json, went with $CONF_DIR).
+    if [ -d /usrdata/qmanager/sites ]; then
+        rm -rf /usrdata/qmanager/sites
+        info "Removed Sites monitor history"
     fi
 }
 

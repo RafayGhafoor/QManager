@@ -380,6 +380,8 @@ On ping profile reload, `load_config()` re-reads UCI and `detect_ping6()` re-pro
 
 ## DNS Lookup Time
 
+Per-site latency (TCP handshake to a list of websites, with history) is a separate daemon outside the verdict: see [Sites Monitor](sites-monitor.md).
+
 `qmanager_ping` also times a DNS lookup and the poller publishes it as `connectivity.dns_lookup_ms` (ledger B2.2). It is a separate reading from the ICMP probe.
 
 **Contract.** The daemon runs `nslookup one.one.one.one <resolver>` in a detached background job, where `<resolver>` is the first `nameserver` in `/etc/resolv.conf`, re-read on every run. On the RM551E that is the carrier resolver (`/etc/resolv.conf` -> `/tmp/resolv.conf` -> `/tmp/resolv.conf.d/resolv.conf.auto`), not dnsmasq. The job writes `/tmp/qmanager_dns.json` (mode 644, atomic temp-and-rename):

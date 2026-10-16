@@ -450,6 +450,15 @@ On-demand cell scanning daemons started by CGI endpoints.
 
 Signal-based automatic failover daemons for bands and towers.
 
+### qmanager_sites (Sites Monitor)
+
+Times a TCP handshake to each configured website every `interval_sec` (default 300) and keeps 90 days of hourly history; a live ~2 s probe runs while a browser holds the `range=now` lease. Never touches the AT port and feeds no verdict, event or alert.
+
+**Location:** `scripts/usr/bin/qmanager_sites` (procd service `qmanager_sites`)
+**Config:** `/etc/qmanager/sites.json`; **State:** `/tmp/qmanager_sites.json`, `/tmp/qmanager_sites_raw.ndjson`, `/tmp/qmanager_sites_live.json`; **History:** `/usrdata/qmanager/sites/*.jsonl`
+
+See [`docs/features/sites-monitor.md`](features/sites-monitor.md).
+
 Tower failover is an **explicit user toggle** (v0.1.18+) — applying a cell lock does not auto-enable the watcher. The user must flip the **Signal Failover** switch on the Tower Locking page for the daemon to spawn. Unlocking still stops and disables the daemon automatically. The init.d `stop()` escalates SIGTERM → 2 s wait → SIGKILL and always clears the PID file + activation flag, and `failover_status.sh` self-heals any orphan daemon it detects during the frontend's status poll.
 
 ### qmanager_tower_schedule
@@ -580,6 +589,7 @@ result=$(qcmd 'AT+QENG="servingcell"')
 | `qmanager_tower_failover` | non-procd | 99 | `qmanager_tower_failover` | Tower failover watchdog |
 | `qmanager_low_power_check` | non-procd | 99 | `qmanager_low_power_check` | Boot-time low power window check (one-shot, double-fork) |
 | `qmanager_dpi` | procd | 99 | `nfqws` (x2) | DPI evasion: Video Optimizer (queue 200) + Traffic Masquerade (queue 201), each UCI-gated |
+| `qmanager_sites` | procd | 99 | `qmanager_sites` | Sites monitor (per-site latency); always enabled, on/off in `/etc/qmanager/sites.json` |
 
 Non-procd services use the double-fork pattern for daemonization:
 ```sh
@@ -764,6 +774,8 @@ All auth endpoints set `_SKIP_AUTH=1`.
 | `qmanager_events.json` | poller | Network events NDJSON |
 | `qmanager_ping.json` | ping daemon | Current ping result |
 | `qmanager_dns.json` | ping daemon (detached job) | Last DNS lookup time `{ms, ok, resolver, name, mono, ts}` |
+| `qmanager_sites.json` / `qmanager_sites_raw.ndjson` / `qmanager_sites_live.json` | sites daemon | Latest sweep, 24 h raw samples, live "Now" samples |
+| `qmanager_sites_now` / `qmanager_sites_live` | CGI (`monitoring/sites.sh`) | Check-now flag; live lease (epoch), read-only for the daemon |
 | `qmanager_watchcat.json` | watchcat | Watchdog state |
 | `qmanager_profile_state.json` | profile_apply | Apply progress |
 | `qmanager_pci_state.json` | poller (events) | SCC PCI tracking |

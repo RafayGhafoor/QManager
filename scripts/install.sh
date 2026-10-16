@@ -1130,6 +1130,14 @@ start_services() {
             || warn "Failed to start main qmanager service"
         info "Started main qmanager service"
     fi
+
+    # Sites monitor: not UCI-gated (on/off lives in /etc/qmanager/sites.json).
+    # Started here because OTA runs --no-reboot; boot starts it via rc.d.
+    if [ -x "$INITD_DIR/qmanager_sites" ]; then
+        "$INITD_DIR/qmanager_sites" start >>"$LOG_FILE" 2>&1 \
+            || warn "Failed to start Sites monitor"
+        info "Started Sites monitor"
+    fi
 }
 
 # --- File Install Steps ------------------------------------------------------
@@ -1254,6 +1262,15 @@ install_backend() {
 
     # --- Required runtime directories ---
     mkdir -p "$CONF_DIR/profiles" "$SESSION_DIR" "$UPDATES_DIR" /var/lock
+
+    # Sites monitor rollups: daemon-written hourly JSONL, CGI read-only. The device
+    # has no `install` applet; the explicit chown/chmod also fix a re-install.
+    if mkdir -p /usrdata/qmanager/sites 2>>"$LOG_FILE"; then
+        chown root:root /usrdata/qmanager/sites 2>/dev/null || true
+        chmod 0755 /usrdata/qmanager/sites 2>/dev/null || true
+    else
+        warn "Could not create /usrdata/qmanager/sites (Sites history will retry at runtime)"
+    fi
 
     # --- Default config files (deploy ONLY if missing, never overwrite) ---
     # Exception: supported_bands_hw.env is a manually-maintained spec-sheet file
