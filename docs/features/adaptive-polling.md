@@ -235,7 +235,7 @@ Commits UCI and drops `/tmp/qmanager_poller_reload`. The running poller picks up
 | `components/system-settings/adaptive-polling/adaptive-polling-card.tsx` | Settings card with tier badge and save flow |
 | `hooks/use-adaptive-polling.ts` | Fetch + save adaptive polling settings |
 
-The live-tier badge uses the status-badge pattern: `active` → success variant, `idle` → warning variant, `deep` → muted/secondary variant. The badge sources `.device.poller_tier` from the polled `status.json` response, not from a separate fetch.
+The card (ledger U4.11.7, lucide route) is one `Card` on the page: a "Slow down when idle" `SegmentedField` (Off / On) above four numeric rows, committed from `CardFoot` (status left: Unsaved changes, a save failure, or "Default timings" while `isDefault`; ghost Discard; `SaveButton`). The live-tier chip follows the Fact-Is-Info Rule: a tier is a fact, not health, so `active` is a filled `info` Badge (Zap glyph) and `idle` / `deep` are `muted` (Gauge / Moon glyphs, never shared); labels and the aria-label go through `t()` (`adaptive_polling.tier.*`, `tier_aria`). The chip reads the GET's `tier` field, re-polled while the tab is visible. Saves toast once: success, or the returned CGI code through `resolveErrorMessage` (the hook throws `"code: detail"`), falling back to the generic failure line. States: skeleton, load-failure `ConditionBlock` with Retry, loaded.
 
 Sidebar entry key: `adaptive_polling`. Available in all 5 shipped locales.
 
