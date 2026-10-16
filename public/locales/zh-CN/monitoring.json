@@ -43,144 +43,188 @@
     "aria_refresh": "刷新网络事件"
   },
   "alerts": {
-    "page_title": "警报",
-    "page_description": "在连接中断和恢复时，通过短信或邮件获得通知。",
-
-    "status_title": "警报渠道",
-    "status_description": "连接状态变化时，QManager 将通过这里通知您。",
-    "status_routing_summary_label": "触发规则一览",
-    "status_not_alerting": "不会触发警报",
-
-    "channel_sms_name": "短信",
-    "channel_sms_short": "短信",
-    "channel_email_name": "邮件",
-    "channel_email_short": "邮件",
-
-    "readiness_ready": "已就绪",
-    "readiness_off": "已关闭",
-    "readiness_needs_setup": "需要设置",
-    "readiness_mailer_missing": "未安装邮件发送程序",
-    "readiness_off_hint": "此渠道已关闭。",
-    "readiness_sms_no_recipient": "添加收件手机号以启用此渠道。",
-    "readiness_email_incomplete": "完成邮件字段填写以启用此渠道。",
-    "readiness_mailer_missing_hint": "安装 msmtp 邮件发送程序以发送邮件警报。",
-
-    "event_connection_lost_name": "连接中断",
-    "event_connection_lost_desc": "网络中断时长已超过警报阈值。",
-    "event_connection_restored_name": "连接已恢复",
-    "event_connection_restored_desc": "网络中断后已恢复。",
-    "event_reboot_name": "调制解调器已重启",
-    "event_reboot_desc": "调制解调器已重新启动。恢复在线后发送，并附上原因。",
-    "trigger_test": "测试消息",
-    "reboot_cause_watchdog": "看门狗",
-    "reboot_cause_user": "计划内",
-    "reboot_cause_unplanned": "意外",
-
-    "settings_title": "警报设置",
-    "settings_description": "选择哪些事件通过哪个渠道通知，然后配置短信和邮件。",
-    "tab_routing": "路由",
-    "tab_sms": "短信",
-    "tab_email": "邮件",
-    "tab_has_errors_aria": "此标签页存在需要处理的字段",
-
-    "routing_intro": "选择每个事件应发送到哪个渠道。部分组合不可用，会显示为“不可用”。",
-    "routing_table_caption": "按事件和渠道划分的警报路由",
-    "routing_switch_aria": "通过 {{channel}} 发送 {{event}} 警报",
-    "routing_unavailable": "不可用",
-    "routing_unavailable_more_info_aria": "为什么 {{channel}} 无法发送 {{event}}",
-    "routing_channel_off_hint": "在对应标签页中开启该渠道，才能将事件路由至此。",
-    "reason_email_needs_internet": "网络中断期间无法发送邮件 — 中断期间只有短信可用。",
-    "reason_not_supported": "此渠道不支持该事件。",
-
-    "sms_enable_label": "启用短信警报",
-    "sms_on_hint": "警报将通过蜂窝网络以短信形式发送到您的手机。",
-    "sms_off_hint": "短信警报已关闭。",
-    "sms_recipient_label": "收件手机号",
-    "sms_recipient_placeholder": "+8613800138000",
-    "sms_recipient_description": "请包含国家代码，以 + 开头，例如 +8613800138000。",
-
-    "email_enable_label": "启用邮件警报",
-    "email_on_hint": "连接恢复后，警报将通过 Gmail 发送邮件通知。",
-    "email_off_hint": "邮件警报已关闭。",
-    "email_sender_label": "发件邮箱",
-    "email_sender_placeholder": "alerts@gmail.com",
-    "email_sender_description": "用于发送警报的 Gmail 账号。",
-    "email_recipient_label": "收件邮箱",
-    "email_recipient_placeholder": "you@example.com",
-    "email_recipient_description": "警报将发送到该邮箱。",
-    "email_app_password_label": "Gmail 应用专用密码",
-    "email_app_password_placeholder": "xxxx xxxx xxxx xxxx",
-    "email_app_password_saved_placeholder": "留空以保留已保存的密码",
-    "email_app_password_description": "在您的 Google 账号中生成<link>应用专用密码</link>。",
-    "email_app_password_show": "显示密码",
-    "email_app_password_hide": "隐藏密码",
-
-    "threshold_label": "警报触发时长（分钟）",
-    "threshold_description": "连接中断多长时间后发送警报。可避免瞬时抖动触发警报。",
-
-    "validation_phone": "请包含国家代码，例如 +8613800138000",
-    "validation_email": "请输入有效的邮箱地址。",
-    "validation_threshold": "时长必须在 1–60 分钟之间。",
-    "validation_app_password_required": "发送邮件需要应用专用密码。",
-
-    "test_sms_button": "发送测试短信",
-    "test_sms_sending": "发送中…",
-    "test_email_button": "发送测试邮件",
-    "test_email_sending": "发送中…",
-    "save_before_test_hint": "请先保存更改，再发送测试。",
-
-    "not_installed_title": "本设备未安装 msmtp。",
-    "not_installed_helper": "安装后才能发送邮件警报；未安装时短信和路由设置仍可正常保存。",
-    "install_button": "安装 msmtp",
-    "install_running_label": "安装中…",
-    "check_again_button": "重新检测",
-    "install_manually_label": "或手动安装：",
-    "install_command": "opkg update && opkg install msmtp",
-
-    "uninstall_section_label": "移除 msmtp",
-    "uninstall_section_description": "从本设备卸载 msmtp 软件包。",
-    "uninstall_button": "卸载",
-    "uninstall_confirm_title": "卸载 msmtp？",
-    "uninstall_confirm_description": "将从本设备移除 msmtp 软件包。邮件警报设置将被保留，但在重新安装 msmtp 之前不会发送邮件警报。",
-    "uninstall_confirm_button": "卸载",
-
-    "save_button": "保存设置",
-    "save_saving": "正在保存…",
-    "save_saved_flash": "已保存！",
-    "save_discard": "放弃",
-    "save_unsaved": "未保存的更改",
-    "save_all_saved": "所有更改已保存",
-    "save_fix_errors_in": "修正 {{tabs}} 中的错误",
-    "save_fix_errors": "修正高亮的字段",
-
-    "toast_save_success": "警报设置已保存",
-    "toast_save_error": "保存警报设置失败",
-    "toast_test_sms_success": "测试短信发送成功",
-    "toast_test_sms_error": "发送测试短信失败 — 请检查配置",
-    "toast_test_email_success": "测试邮件发送成功",
-    "toast_test_email_error": "发送测试邮件失败 — 请检查配置",
-    "toast_uninstalled": "msmtp 已卸载",
-    "toast_uninstall_error": "卸载 msmtp 失败",
-
-    "log_title": "警报活动",
-    "log_description": "两个渠道中已发送和失败警报的历史记录。",
-    "log_aria_refresh": "刷新警报活动",
-    "log_header_timestamp": "时间戳",
-    "log_header_trigger": "触发原因",
-    "log_header_channel": "渠道",
-    "log_header_status": "状态",
-    "log_header_recipient": "收件人",
-    "log_badge_sent": "已发送",
-    "log_badge_failed": "失败",
-    "log_reboot_event": "调制解调器已重启",
-    "log_time_unknown": "时间未知",
-    "log_empty_title": "暂无警报记录",
-    "log_empty_hint_1": "当连接中断时间超过配置阈值后，警报会显示在这里。",
-    "log_empty_hint_2": "使用“发送测试”验证您的配置。",
-    "log_error_title": "加载警报活动失败",
-    "log_showing_count_one": "显示 {{shown}} / {{total}} 条记录",
-    "log_showing_count_other": "显示 {{shown}} / {{total}} 条记录",
-    "log_last_updated": "上次更新：{{time}}"
+    "activity": {
+      "cause": {
+        "planned": "计划内",
+        "unexpected": "意外",
+        "watchdog": "看门狗"
+      },
+      "channel": {
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "day": {
+        "today": "今天",
+        "undated": "没有记录时间",
+        "yesterday": "昨天"
+      },
+      "description": "已发送的提醒和重启，最新的在前。",
+      "empty": {
+        "description": "一旦渠道发送提醒，就会显示在这里；重启也会连同原因自动记录。",
+        "title": "尚未发生任何事情"
+      },
+      "error": {
+        "title": "无法加载活动记录",
+        "description": "设备没有响应。请稍后重试。",
+        "retry": "重试"
+      },
+      "event": {
+        "reboot": "调制解调器已重启"
+      },
+      "notice": {
+        "stale": "显示我们最后成功读取到的活动记录。"
+      },
+      "sr": {
+        "failed": "提醒发送失败",
+        "reboot": "重启已记录",
+        "sent": "提醒已发送"
+      },
+      "time": {
+        "days_one": "{{count}} 天前",
+        "days_other": "{{count}} 天前",
+        "hours_one": "{{count}} 小时前",
+        "hours_other": "{{count}} 小时前",
+        "just_now": "刚刚",
+        "minutes_one": "{{count}} 分钟前",
+        "minutes_other": "{{count}} 分钟前",
+        "unknown": "未知"
+      },
+      "title": "活动记录",
+      "transcript_label": "提醒与重启记录",
+      "trigger": {
+        "test": "测试提醒"
+      }
+    },
+    "channels": {
+      "description": "设置每种渠道如何联系到你。",
+      "email": {
+        "address_error": "请输入有效的邮箱地址。",
+        "mailer_install": "安装 msmtp",
+        "mailer_installing": "正在安装…",
+        "mailer_missing": "尚未安装 msmtp 邮件程序，因此暂时无法发送邮件提醒。SMS 仍可正常保存。",
+        "mailer_recheck": "重新检查",
+        "password_hide": "隐藏应用专用密码",
+        "password_hint": "在你的 Google 账号中为此设备生成一个应用专用密码。",
+        "password_keep": "留空以保留已保存的密码",
+        "password_label": "Gmail 应用专用密码",
+        "password_link": "打开 Google 应用专用密码",
+        "password_missing": "需要应用专用密码才能发送邮件提醒。",
+        "password_placeholder": "xxxx xxxx xxxx xxxx",
+        "password_show": "显示应用专用密码",
+        "recipient_hint": "提醒的送达地址。",
+        "recipient_label": "收件人邮箱",
+        "recipient_missing": "需要填写收件人地址。",
+        "sender_hint": "发送提醒所使用的 Gmail 账号。",
+        "sender_label": "发件人邮箱",
+        "sender_missing": "需要填写发件人地址。",
+        "test": "发送测试 Email",
+        "title": "邮件提醒",
+        "sub": "连接恢复后通过 Gmail 发送。"
+      },
+      "empty": {
+        "description": "此设备未返回任何提醒渠道，因此暂时没有可配置的内容。",
+        "title": "未上报任何渠道"
+      },
+      "loading": "正在加载提醒渠道",
+      "name": {
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "rail_label": "提醒渠道",
+      "save": {
+        "action": "保存设置",
+        "blocked": "请修正高亮的字段",
+        "blocked_in": "修正 {{channels}} 中的错误",
+        "clean": "所有更改已保存",
+        "dirty": "未保存的更改",
+        "discard": "放弃",
+        "failed": "设置未能保存。",
+        "succeeded": "提醒设置已保存",
+        "errors": {}
+      },
+      "secret_saved": "已保存",
+      "sms": {
+        "phone_error": "请输入包含国家/地区代码的号码，例如 +14155551234。",
+        "phone_hint": "请包含国家/地区代码，并以加号开头。",
+        "phone_label": "收件人手机号码",
+        "phone_missing": "需要填写收件人手机号码。",
+        "test": "发送测试 SMS",
+        "title": "短信提醒",
+        "sub": "断网期间也能送达。"
+      },
+      "status": {
+        "incomplete": "需要设置",
+        "needs_fixing": "存在未保存的错误",
+        "off": "已关闭",
+        "ready": "已就绪",
+        "unused": "未路由任何事件"
+      },
+      "test": {
+        "blocked_busy": "另一项测试仍在进行中。",
+        "blocked_dirty": "请先保存更改。测试将基于已保存的设置运行。",
+        "blocked_incomplete": "请先完成此渠道的设置并保存，才能发送测试。",
+        "blocked_mailer": "安装 msmtp 邮件程序才能发送测试邮件。",
+        "blocked_off": "请先开启此渠道并保存，才能发送测试。",
+        "failed": "测试未能发送。",
+        "sending": "发送中…",
+        "succeeded": "测试 {{channel}} 已发送",
+        "errors": {
+          "send_failed_sms": "测试短信未发送，请检查信号、SIM 卡余额和号码。",
+          "send_failed_email": "测试邮件未发送，请检查邮件地址、应用专用密码和网络连接。"
+        }
+      },
+      "threshold_error": "请输入 1 到 60 之间的整数分钟。",
+      "threshold_hint": "较短的断网只记录，不发送。",
+      "threshold_label": "提醒前等待时间",
+      "threshold_unit": "分钟",
+      "title": "渠道",
+      "sends_for": "发送事件",
+      "error": {
+        "title": "无法加载渠道",
+        "description": "设备没有响应。请稍后重试。",
+        "retry": "重试"
+      }
+    },
+    "coverage": {
+      "description": "按已保存的设置，哪些提醒会送达。",
+      "emptyDesc": "此设备未上报任何提醒能力，因此这里没有可开启的内容。",
+      "emptyTitle": "没有可路由的内容",
+      "errorDesc": "设备没有应答，因此无法显示将会触发的内容。",
+      "errorRetry": "重试",
+      "errorTitle": "无法加载覆盖范围",
+      "event": {
+        "connection_lost": {
+          "name": "连接中断"
+        },
+        "connection_restored": {
+          "name": "连接恢复"
+        },
+        "reboot": {
+          "name": "调制解调器已重启"
+        }
+      },
+      "loading": "正在加载覆盖范围",
+      "reason": {
+        "email_needs_internet": "需要网络",
+        "not_supported": "此渠道无法发送该事件"
+      },
+      "staleNotice": "显示我们上一次从设备读取到的设置。",
+      "title": "覆盖范围",
+      "verdict": {
+        "all": "全部覆盖",
+        "outage": "断网未覆盖",
+        "partial": "已覆盖 {{covered}}/{{total}}",
+        "none": "不会发送任何提醒"
+      },
+      "needsSetup": "{{channel}} 需要设置",
+      "notSent": "不发送"
+    },
+    "page": {
+      "description": "连接中断、恢复或调制解调器重启时，通知对象是谁。",
+      "refresh": "刷新",
+      "title": "提醒",
+      "unreadable": "设备没有应答。"
+    }
   },
   "watchdog": {
     "page_title": "看门狗",

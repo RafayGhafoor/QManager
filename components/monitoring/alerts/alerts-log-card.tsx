@@ -1,61 +1,71 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import * as React from "react";
+import { motion, type Variants } from "motion/react";
 import { useTranslation } from "react-i18next";
-import { motion } from "motion/react";
+import {
+  BellOffIcon,
+  PowerIcon,
+  RefreshCcwIcon,
+  SendIcon,
+  ShieldCheckIcon,
+  TriangleAlertIcon,
+  UnplugIcon,
+  XCircleIcon,
+  type LucideIcon,
+} from "lucide-react";
+
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Tag } from "@/components/ui/tag";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import {
-  RefreshCcwIcon,
-  Clock,
-  BellIcon,
-  AlertCircle,
-  CheckCircle2Icon,
-  XCircleIcon,
-  RotateCcwIcon,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAlertsLog } from "@/hooks/use-alerts-log";
-import type { AlertLogEntry, RebootHistoryEntry } from "@/types/alerts";
-import {
-  CHANNEL_META,
-  REBOOT_CAUSE_META,
-  REBOOT_TONE_BADGE,
-  triggerLabelKey,
-} from "./constants";
+import { rowCascadeDelay, transitionStandard } from "@/lib/motion";
+import type {
+  AlertChannel,
+  AlertLogEntry,
+  RebootCause,
+  RebootHistoryEntry,
+} from "@/types/alerts";
 
-const MotionTableRow = motion.create(TableRow);
+import { ActivityRow } from "./activity-row";
+import { triggerLabelKey } from "./constants";
+import {
+  CARD_DESC,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_TITLE,
+  CONDITION,
+  CONDITION_TONE,
+  DAY,
+  FEED_FILL,
+  LOG,
+  LOG_SCROLL,
+  LOG_STACK,
+  NOTICE,
+  NOTICE_GLYPH,
+  NOTICE_TONE,
+  PILL_GLYPH,
+  SKELETON,
+  type ConditionTone,
+  type RowTone,
+} from "./shapes";
 
 // -----------------------------------------------------------------------------
 // Activity — one time-ordered feed of alert deliveries + recorded reboots.
 // -----------------------------------------------------------------------------
-// Deliveries (sent/failed SMS+email) come from the pollable `useAlertsLog`
-// hook; reboots are read-only telemetry passed down from the page's single
-// `useAlerts` GET. The two shapes are interleaved by time: a delivery row keeps
-// the full channel/status/recipient columns, while a reboot row is an *event*
-// row — it fills the columns it owns (timestamp, label, cause) and leaves the
-// delivery-only columns as muted em-dashes, so a reader can tell at a glance
-// that it is something that happened, not something that was sent.
+// The two shapes interleave by time onto ONE 52px row. A reboot record simply
+// has no recipient, so that element is omitted rather than placeheld: a row is
+// not a table and has no empty cells to fill.
 // -----------------------------------------------------------------------------
+
+const DAY_SEC = 86_400;
+const CLOCK_TICK_MS = 30_000;
 
 type FeedRow =
   | { kind: "delivery"; key: string; time: number; entry: AlertLogEntry }
@@ -68,308 +78,438 @@ function deliveryTime(ts: string): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
-/** Render an epoch as the same "YYYY-MM-DD HH:MM:SS" shape delivery rows use,
- *  so the timestamp column stays homogeneous. */
-function formatEpoch(epoch: number): string {
-  const d = new Date(epoch * 1000);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+/** A reboot is not an alert, so it keeps a neutral ground; the disc carries
+ *  whether it was something to notice. Glyphs separate all three causes. */
+const REBOOT_TONE: Record<RebootCause, RowTone> = {
+  unplanned: "notable",
+  watchdog: "notable",
+  user: "neutral",
+};
+
+const REBOOT_GLYPH: Record<RebootCause, LucideIcon> = {
+  unplanned: TriangleAlertIcon,
+  watchdog: ShieldCheckIcon,
+  user: PowerIcon,
+};
+
+const REBOOT_CAUSE_KEY: Record<RebootCause, string> = {
+  unplanned: "alerts.activity.cause.unexpected",
+  watchdog: "alerts.activity.cause.watchdog",
+  user: "alerts.activity.cause.planned",
+};
+
+const REBOOT_CAUSE_EN: Record<RebootCause, string> = {
+  unplanned: "Unexpected",
+  watchdog: "Watchdog",
+  user: "Planned",
+};
+
+const CHANNEL_KEY: Record<AlertChannel, string> = {
+  sms: "alerts.activity.channel.sms",
+  email: "alerts.activity.channel.email",
+};
+
+const CHANNEL_EN: Record<AlertChannel, string> = {
+  sms: "SMS",
+  email: "Email",
+};
+
+/** Known trigger keys get a name; a row from before the keys stays as logged. */
+function triggerLabel(trigger: string, t: (key: string) => string): string {
+  const key = triggerLabelKey(trigger);
+  return key ? t(key) : trigger;
+}
+
+/** The backend can name a cause we have no presentation for; fall back rather
+ *  than render a row with no glyph at all. */
+function knownCause(value: RebootCause): RebootCause {
+  return value in REBOOT_GLYPH ? value : "unplanned";
+}
+
+function knownChannel(value: AlertChannel): AlertChannel {
+  return value in CHANNEL_EN ? value : "sms";
+}
+
+/** The row cascade, capped by `rowCascadeDelay` so a long feed does not
+ *  choreograph for seconds. 80ms per row, standard curve, no spring. */
+const rowItem: Variants = {
+  hidden: { opacity: 0, y: 5 },
+  visible: (index: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { ...transitionStandard, delay: rowCascadeDelay(index) },
+  }),
+};
+
+function useNowSec(): number {
+  const [now, setNow] = React.useState(() => Math.floor(Date.now() / 1000));
+  React.useEffect(() => {
+    const id = setInterval(
+      () => setNow(Math.floor(Date.now() / 1000)),
+      CLOCK_TICK_MS,
+    );
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+function dayKey(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+interface RowView {
+  key: string;
+  tone: RowTone;
+  icon: LucideIcon;
+  severityWord: string;
+  message: string;
+  tagLabel: string;
+  identifier?: string;
+  timeAgo: string;
+  clockTime?: string;
+}
+
+interface DayGroup {
+  key: string;
+  label: string;
+  rows: RowView[];
+}
+
+// The shell owns the log fetch and the page's one Refresh.
+export interface AlertsLogCardProps {
+  entries: AlertLogEntry[];
+  isLoading: boolean;
+  error: string | null;
+  /** The condition block's retry. */
+  onRetry: () => void;
+  reboots: RebootHistoryEntry[];
 }
 
 export function AlertsLogCard({
-  refreshKey,
+  entries,
+  isLoading,
+  error,
+  onRetry,
   reboots,
-}: {
-  refreshKey?: number;
-  reboots: RebootHistoryEntry[];
-}) {
+}: AlertsLogCardProps) {
   const { t } = useTranslation("monitoring");
-  const {
-    entries,
-    total,
-    isLoading,
-    isRefreshing,
-    error,
-    lastFetched,
-    refresh,
-    silentRefresh,
-  } = useAlertsLog();
+  const nowSec = useNowSec();
 
-  useEffect(() => {
-    if (refreshKey) silentRefresh();
-  }, [refreshKey, silentRefresh]);
-
-  const feed = useMemo<FeedRow[]>(() => {
+  const feed = React.useMemo<FeedRow[]>(() => {
     const rows: FeedRow[] = [
-      ...entries.map((entry, i): FeedRow => ({
-        kind: "delivery",
-        key: `d-${entry.timestamp}-${entry.channel}-${i}`,
-        time: deliveryTime(entry.timestamp),
-        entry,
-      })),
-      ...reboots.map((reboot, i): FeedRow => ({
-        kind: "reboot",
-        key: `r-${reboot.epoch}-${i}`,
-        time: Number.isFinite(reboot.epoch) ? reboot.epoch * 1000 : 0,
-        reboot,
-      })),
+      ...entries.map(
+        (entry, i): FeedRow => ({
+          kind: "delivery",
+          key: `d-${entry.timestamp}-${entry.channel}-${i}`,
+          time: deliveryTime(entry.timestamp),
+          entry,
+        }),
+      ),
+      ...reboots.map(
+        (reboot, i): FeedRow => ({
+          kind: "reboot",
+          key: `r-${reboot.epoch}-${i}`,
+          time: Number.isFinite(reboot.epoch) ? reboot.epoch * 1000 : 0,
+          reboot,
+        }),
+      ),
     ];
     return rows.sort((a, b) => b.time - a.time);
   }, [entries, reboots]);
 
-  const header = (
-    <CardHeader>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <CardTitle>{t("alerts.log_title")}</CardTitle>
-          <CardDescription>{t("alerts.log_description")}</CardDescription>
-        </div>
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label={t("alerts.log_aria_refresh")}
-          disabled={isRefreshing}
-          onClick={refresh}
-        >
-          <RefreshCcwIcon className={cn("size-4", isRefreshing && "animate-spin")} />
-        </Button>
-      </div>
-    </CardHeader>
+  const timeAgo = React.useCallback(
+    (ms: number): string => {
+      const diff = Math.max(0, nowSec - Math.floor(ms / 1000));
+      if (diff < 60)
+        return t("alerts.activity.time.just_now", { defaultValue: "Just now" });
+      if (diff < 3600)
+        return t("alerts.activity.time.minutes", {
+          count: Math.floor(diff / 60),
+          defaultValue: "{{count}}m ago",
+        });
+      if (diff < DAY_SEC)
+        return t("alerts.activity.time.hours", {
+          count: Math.floor(diff / 3600),
+          defaultValue: "{{count}}h ago",
+        });
+      return t("alerts.activity.time.days", {
+        count: Math.floor(diff / DAY_SEC),
+        defaultValue: "{{count}}d ago",
+      });
+    },
+    [nowSec, t],
   );
 
-  if (isLoading) {
-    return (
-      <Card className="@container/card min-h-0 flex-1">
-        {header}
-        <CardContent className="flex min-h-0 flex-1 flex-col justify-center">
-          <div className="rounded-md border">
-            <div className="border-b px-4 py-3">
-              <div className="flex gap-4">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-4 w-14" />
-              </div>
-            </div>
-            <div className="divide-y">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-4 py-3">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-5 w-12 rounded-full" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const dayLabel = React.useCallback(
+    (ms: number): string => {
+      const nowMs = Date.now();
+      if (dayKey(ms) === dayKey(nowMs))
+        return t("alerts.activity.day.today", { defaultValue: "Today" });
+      if (dayKey(ms) === dayKey(nowMs - DAY_SEC * 1000))
+        return t("alerts.activity.day.yesterday", {
+          defaultValue: "Yesterday",
+        });
+      return new Date(ms).toLocaleDateString(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+    },
+    [t],
+  );
 
-  // Only hard-block on error when there is genuinely nothing to show. If reboots
-  // (from the page GET) are present, the feed is still useful even if the
-  // delivery-log fetch failed.
-  if (error && feed.length === 0) {
-    return (
-      <Card className="@container/card min-h-0 flex-1">
-        {header}
-        <CardContent className="flex min-h-0 flex-1 flex-col justify-center">
-          <Alert variant="destructive">
-            <AlertCircle className="size-4" />
-            <AlertTitle>{t("alerts.log_error_title")}</AlertTitle>
-            <AlertDescription>
-              <p>{error}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={refresh}
-              >
-                <RefreshCcwIcon className="size-3.5" />
-                {t("actions.retry", { ns: "common" })}
-              </Button>
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+  const present = React.useCallback(
+    (row: FeedRow): RowView => {
+      const dated = row.time > 0;
+      const when = {
+        timeAgo: dated
+          ? timeAgo(row.time)
+          : t("alerts.activity.time.unknown", { defaultValue: "Unknown" }),
+        clockTime: dated
+          ? new Date(row.time).toLocaleTimeString(undefined, {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : undefined,
+      };
+
+      if (row.kind === "reboot") {
+        const cause = knownCause(row.reboot.cause);
+        return {
+          key: row.key,
+          tone: REBOOT_TONE[cause],
+          icon: REBOOT_GLYPH[cause],
+          severityWord: t("alerts.activity.sr.reboot", {
+            defaultValue: "Reboot recorded",
+          }),
+          message: t("alerts.activity.event.reboot", {
+            defaultValue: "Modem rebooted",
+          }),
+          tagLabel: t(REBOOT_CAUSE_KEY[cause], {
+            defaultValue: REBOOT_CAUSE_EN[cause],
+          }),
+          ...when,
+        };
+      }
+
+      const { entry } = row;
+      const sent = entry.status === "sent";
+      const channel = knownChannel(entry.channel);
+      return {
+        key: row.key,
+        tone: sent ? "sent" : "failed",
+        icon: sent ? SendIcon : XCircleIcon,
+        severityWord: sent
+          ? t("alerts.activity.sr.sent", { defaultValue: "Alert sent" })
+          : t("alerts.activity.sr.failed", { defaultValue: "Alert failed" }),
+        // Known trigger keys get a name; anything else stays as logged.
+        message: triggerLabel(entry.trigger, (key) => t(key)),
+        tagLabel: t(CHANNEL_KEY[channel], {
+          defaultValue: CHANNEL_EN[channel],
+        }),
+        identifier: entry.recipient || undefined,
+        ...when,
+      };
+    },
+    [t, timeAgo],
+  );
+
+  const groups = React.useMemo<DayGroup[]>(() => {
+    const out: DayGroup[] = [];
+    for (const row of feed) {
+      const key = row.time > 0 ? dayKey(row.time) : "undated";
+      const last = out[out.length - 1];
+      if (last && last.key === key) last.rows.push(present(row));
+      else
+        out.push({
+          key,
+          label:
+            row.time > 0
+              ? dayLabel(row.time)
+              : t("alerts.activity.day.undated", {
+                  defaultValue: "No recorded time",
+                }),
+          rows: [present(row)],
+        });
+    }
+    return out;
+  }, [feed, present, dayLabel, t]);
+
+  // A stale feed beats a blank card: with rows in hand the read failure is a
+  // notice above the transcript, never a replacement for it.
+  const unreadable = error !== null && feed.length === 0;
+
+  let body: React.ReactNode;
+  if (unreadable) {
+    body = (
+      <ConditionPanel
+        tone="destructive"
+        icon={UnplugIcon}
+        title={t("alerts.activity.error.title", {
+          defaultValue: "Could not load activity",
+        })}
+        description={t("alerts.activity.error.description")}
+        actionLabel={t("alerts.activity.error.retry", {
+          defaultValue: "Try again",
+        })}
+        actionIcon={RefreshCcwIcon}
+        onAction={onRetry}
+      />
+    );
+  } else if (feed.length === 0) {
+    body = (
+      <ConditionPanel
+        tone="muted"
+        icon={BellOffIcon}
+        title={t("alerts.activity.empty.title", {
+          defaultValue: "Nothing has happened yet",
+        })}
+        description={t("alerts.activity.empty.description", {
+          defaultValue:
+            "Alerts appear here once a channel sends one, and reboots are recorded automatically with their cause.",
+        })}
+      />
+    );
+  } else {
+    let rendered = -1;
+    body = (
+      <div
+        // A scroll container is only reachable by keyboard once it is focusable,
+        // and a focusable region needs a name (WCAG 2.1.1 / 4.1.2).
+        tabIndex={0}
+        role="region"
+        aria-label={t("alerts.activity.transcript_label")}
+        className={cn(LOG_STACK, LOG_SCROLL)}
+        aria-live="polite"
+        aria-relevant="additions"
+      >
+        {groups.map((group) => (
+          <div key={group.key} className={LOG}>
+            <div className={DAY.ROOT}>
+              <span className={DAY.LABEL}>{group.label}</span>
+              <span aria-hidden className={DAY.RULE} />
+            </div>
+            {group.rows.map(({ key, ...row }) => {
+              rendered += 1;
+              return (
+                <motion.div
+                  key={key}
+                  custom={rendered}
+                  variants={rowItem}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  <ActivityRow {...row} />
+                </motion.div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
     );
   }
 
   return (
-    <Card className="@container/card min-h-0 flex-1">
-      {header}
-      <CardContent className="flex min-h-0 flex-1 flex-col">
-        <div className="min-h-[12rem] flex-1 overflow-auto rounded-md border">
-          <Table>
-            <TableHeader className="bg-card sticky top-0 z-10">
-              <TableRow>
-                <TableHead scope="col" className="whitespace-nowrap">
-                  {t("alerts.log_header_timestamp")}
-                </TableHead>
-                <TableHead scope="col">{t("alerts.log_header_trigger")}</TableHead>
-                <TableHead scope="col" className="hidden @sm/card:table-cell">
-                  {t("alerts.log_header_channel")}
-                </TableHead>
-                <TableHead scope="col" className="whitespace-nowrap">
-                  {t("alerts.log_header_status")}
-                </TableHead>
-                <TableHead scope="col" className="hidden @md/card:table-cell">
-                  {t("alerts.log_header_recipient")}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody aria-live="polite" aria-relevant="additions">
-              {feed.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-10 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <BellIcon className="text-muted-foreground size-8" />
-                      <p className="text-muted-foreground text-sm">
-                        {t("alerts.log_empty_title")}
-                      </p>
-                      <div className="grid gap-1">
-                        <p className="text-muted-foreground/70 text-xs">
-                          {t("alerts.log_empty_hint_1")}
-                        </p>
-                        <p className="text-muted-foreground/70 text-xs">
-                          {t("alerts.log_empty_hint_2")}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                feed.map((row, index) => {
-                  const entrance = {
-                    initial: { opacity: 0, x: -8 },
-                    animate: { opacity: 1, x: 0 },
-                    transition: {
-                      duration: 0.2,
-                      delay: Math.min(index * 0.03, 0.3),
-                      ease: "easeOut" as const,
-                    },
-                  };
+    <Card className={CARD_SHELL}>
+      <CardHeader className={CARD_PAD}>
+        <CardTitle className={CARD_TITLE}>
+          {t("alerts.activity.title", { defaultValue: "Activity" })}
+        </CardTitle>
+        <CardDescription className={CARD_DESC}>
+          {t("alerts.activity.description", {
+            defaultValue: "Alerts sent and reboots, newest first.",
+          })}
+        </CardDescription>
+      </CardHeader>
 
-                  if (row.kind === "reboot") {
-                    const meta =
-                      REBOOT_CAUSE_META[row.reboot.cause] ??
-                      REBOOT_CAUSE_META.unplanned;
-                    const CauseIcon = meta.icon;
-                    const valid =
-                      Number.isFinite(row.reboot.epoch) && row.reboot.epoch > 0;
-                    return (
-                      <MotionTableRow
-                        key={row.key}
-                        className="bg-muted/25"
-                        {...entrance}
-                      >
-                        <TableCell className="font-mono text-xs whitespace-nowrap">
-                          {valid
-                            ? formatEpoch(row.reboot.epoch)
-                            : t("alerts.log_time_unknown")}
-                        </TableCell>
-                        <TableCell className="min-w-0 text-sm">
-                          <span className="flex items-center gap-1.5">
-                            <RotateCcwIcon className="text-muted-foreground size-3.5 shrink-0" />
-                            <span className="truncate">
-                              {t("alerts.log_reboot_event")}
-                            </span>
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground/40 hidden @sm/card:table-cell">
-                          —
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={REBOOT_TONE_BADGE[meta.tone]}
-                            className="whitespace-nowrap"
-                          >
-                            <CauseIcon className="size-3" aria-hidden="true" />
-                            {t(`alerts.reboot_cause_${meta.key}`)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground/40 hidden @md/card:table-cell">
-                          —
-                        </TableCell>
-                      </MotionTableRow>
-                    );
-                  }
-
-                  const { entry } = row;
-                  const triggerKey = triggerLabelKey(entry.trigger);
-                  const ChannelIcon =
-                    CHANNEL_META[entry.channel]?.icon ?? BellIcon;
-                  return (
-                    <MotionTableRow key={row.key} {...entrance}>
-                      <TableCell className="font-mono text-xs whitespace-nowrap">
-                        {entry.timestamp}
-                      </TableCell>
-                      <TableCell className="min-w-0 text-sm">
-                        <span className="block truncate">
-                          {triggerKey ? t(triggerKey) : entry.trigger}
-                        </span>
-                        <span className="text-muted-foreground block truncate font-mono text-xs @md/card:hidden">
-                          {entry.recipient}
-                        </span>
-                      </TableCell>
-                      <TableCell className="hidden @sm/card:table-cell">
-                        <Tag variant="neutral">
-                          <ChannelIcon className="size-3" aria-hidden="true" />
-                          {t(
-                            `alerts.channel_${CHANNEL_META[entry.channel]?.labelKey ?? entry.channel}_short`,
-                          )}
-                        </Tag>
-                      </TableCell>
-                      <TableCell>
-                        {entry.status === "sent" ? (
-                          <Badge
-                            variant="success"
-                            className="whitespace-nowrap"
-                          >
-                            <CheckCircle2Icon className="size-3" aria-hidden="true" />
-                            {t("alerts.log_badge_sent")}
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="destructive"
-                            className="whitespace-nowrap"
-                          >
-                            <XCircleIcon className="size-3" aria-hidden="true" />
-                            {t("alerts.log_badge_failed")}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground hidden @md/card:table-cell text-sm">
-                        <span className="block truncate font-mono text-xs">
-                          {entry.recipient}
-                        </span>
-                      </TableCell>
-                    </MotionTableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-      {feed.length > 0 && (
-        <CardFooter className="flex flex-col gap-1 @xs/card:flex-row @xs/card:items-center @xs/card:justify-between">
-          <div className="text-muted-foreground text-xs">
-            {t("alerts.log_showing_count", {
-              count: feed.length,
-              shown: feed.length,
-              total: total + reboots.length,
+      <CardContent className={cn(CARD_PAD, "flex flex-1 flex-col gap-4")}>
+        {error && feed.length > 0 ? (
+          <div role="alert" className={cn(NOTICE, NOTICE_TONE.destructive)}>
+            <TriangleAlertIcon className={NOTICE_GLYPH} />
+            {t("alerts.activity.notice.stale", {
+              defaultValue: "Showing the last activity we managed to read.",
             })}
           </div>
-          {lastFetched && (
-            <div className="text-muted-foreground flex items-center gap-1 text-xs">
-              <Clock className="size-3 shrink-0" />
-              {t("alerts.log_last_updated", {
-                time: lastFetched.toLocaleTimeString(),
-              })}
-            </div>
-          )}
-        </CardFooter>
-      )}
+        ) : null}
+
+        {/* Skeleton and feed share ONE grid cell, so the swap costs no layout
+            shift and the fill region measures the taller of the two. */}
+        <div className={FEED_FILL}>
+          {isLoading ? <ActivityFeedSkeleton /> : <div className="flex flex-col">{body}</div>}
+        </div>
+      </CardContent>
     </Card>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// The condition block. The block IS the state, and it fills the card's slack
+// rather than sitting short with a void beneath it.
+// -----------------------------------------------------------------------------
+
+function ConditionPanel({
+  tone,
+  icon: Icon,
+  title,
+  description,
+  actionLabel,
+  actionIcon: ActionIcon,
+  onAction,
+}: {
+  tone: ConditionTone;
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  actionLabel?: string;
+  actionIcon?: LucideIcon;
+  onAction?: () => void;
+}) {
+  const skin = CONDITION_TONE[tone];
+  return (
+    <div
+      role="status"
+      className={cn(CONDITION.ROOT, skin.ROOT, "h-full justify-center")}
+    >
+      <span aria-hidden className={cn(CONDITION.DISC, skin.DISC)}>
+        <Icon className={CONDITION.GLYPH} />
+      </span>
+      <span className={CONDITION.TITLE}>{title}</span>
+      <p className={CONDITION.DESC}>{description}</p>
+      {actionLabel && onAction ? (
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onAction}
+          className={cn(CONDITION.ACTION, skin.ACTION)}
+        >
+          {ActionIcon ? <ActionIcon className={PILL_GLYPH} /> : null}
+          {actionLabel}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// ActivityFeedSkeleton — placeholder rows read the SAME pinned height the real
+// rows do, inside the same scroll cap.
+// -----------------------------------------------------------------------------
+
+export function ActivityFeedSkeleton({
+  rows = 8,
+}: {
+  rows?: number;
+}) {
+  return (
+    <div aria-hidden className={cn(LOG, LOG_SCROLL, "overflow-y-hidden")}>
+      <div className={cn(DAY.ROOT, "flex-none")}>
+        <Skeleton className={cn("h-3 w-16", SKELETON.LINE)} />
+        <span aria-hidden className={DAY.RULE} />
+      </div>
+      {Array.from({ length: rows }).map((_, i) => (
+        <Skeleton key={i} className={cn(SKELETON.ROW, "flex-none")} />
+      ))}
+    </div>
   );
 }

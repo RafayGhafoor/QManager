@@ -13,32 +13,70 @@ import { ALERT_EVENT_ORDER, ALERT_CHANNEL_ORDER } from "@/types/alerts";
 // =============================================================================
 // useAlertsForm — the single editable form behind the whole Alerts page
 // =============================================================================
-// Seeded ONCE from server truth (the page remounts this on a settings
-// signature after every save / refetch, so no in-render setState is needed and
-// the React Compiler lint rules stay satisfied). Owns both channels and the
-// routing matrix; a single atomic submit commits everything.
+// Seeded from server truth and re-seeded in place whenever that truth changes,
+// via a render-phase sync keyed on a settings signature (NOT a useEffect — the
+// React-Compiler lint rules forbid setState-in-effect, and NOT a remount — a
+// `key` on the consuming subtree also destroyed the save flash, the active
+// channel, the show-secret toggle and every sibling card's state). Owns both
+// channels, the routing and the one alert wait; a single atomic submit commits
+// everything.
 // =============================================================================
 
 // E.164-ish: optional leading +, first digit 1–9, total 7–15 digits.
 const PHONE_REGEX = /^\+?[1-9]\d{6,14}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const THRESHOLD_MIN = 1;
-const THRESHOLD_MAX = 60;
+// The CGI's `threshold_minutes` range (alerts.sh writes it to the shared
+// `alert_after_min` and mirrors it into both channel files).
+export const THRESHOLD_MIN = 1;
+export const THRESHOLD_MAX = 60;
 
 function thresholdInvalid(v: string): boolean {
+  if (!/^\d+$/.test(v.trim())) return true;
   const n = Number(v);
-  return v.trim() === "" || Number.isNaN(n) || n < THRESHOLD_MIN || n > THRESHOLD_MAX;
+  return n < THRESHOLD_MIN || n > THRESHOLD_MAX;
+}
+
+/** The one alert wait. The GET reports the same value on both channels. */
+function savedWait(state: AlertsState): string {
+  return String(state.channels.sms.threshold_minutes);
+}
+
+// Value fingerprint of everything the form mirrors. A change here means server
+// truth moved and the fields must be re-seeded; an identical signature (e.g. a
+// refetch that returned the same values) leaves the user's edits alone.
+// NOTE: the app password is represented by its `app_password_set` boolean — the
+// value is never sent to the client — so a rotation (set → set) does NOT move
+// the signature. Clearing the secret input after a successful save is therefore
+// the settings card's job, not this sync's.
+function settingsSignature(state: AlertsState): string {
+  const { sms, email } = state.channels;
+  const routing = ALERT_EVENT_ORDER.flatMap((ev) =>
+    ALERT_CHANNEL_ORDER.map((ch) =>
+      state.routing.events[ev]?.[ch] ? "1" : "0",
+    ),
+  ).join("");
+  return [
+    savedWait(state),
+    sms.enabled,
+    sms.recipient_phone,
+    email.enabled,
+    email.sender_email,
+    email.recipient_email,
+    email.app_password_set,
+    email.msmtp_installed,
+    routing,
+  ].join("|");
 }
 
 export type RoutingDraft = Record<AlertEventKey, Record<AlertChannel, boolean>>;
 
 export interface AlertsFormErrors {
   smsPhone?: boolean;
-  smsThreshold?: boolean;
   senderEmail?: boolean;
   recipientEmail?: boolean;
-  emailThreshold?: boolean;
+  /** The one alert wait, shared by every channel. */
+  threshold?: boolean;
 }
 
 export interface AlertsForm {
@@ -47,8 +85,10 @@ export interface AlertsForm {
   setSmsEnabled: (v: boolean) => void;
   smsPhone: string;
   setSmsPhone: (v: string) => void;
-  smsThreshold: string;
-  setSmsThreshold: (v: string) => void;
+
+  /** The one alert wait in minutes, sent as every channel's `threshold_minutes`. */
+  threshold: string;
+  setThreshold: (v: string) => void;
 
   // Email channel
   emailEnabled: boolean;
@@ -61,10 +101,8 @@ export interface AlertsForm {
   setAppPassword: (v: string) => void;
   /** True when the device already has a stored app password (never revealed). */
   appPasswordSet: boolean;
-  emailThreshold: string;
-  setEmailThreshold: (v: string) => void;
 
-  // Routing matrix
+  // Routing
   getRoute: (event: AlertEventKey, channel: AlertChannel) => boolean;
   setRoute: (event: AlertEventKey, channel: AlertChannel, v: boolean) => void;
 
@@ -101,15 +139,13 @@ export function useAlertsForm({
   // ── Seed once from server truth ────────────────────────────────────────────
   const [smsEnabled, setSmsEnabled] = useState(sms.enabled);
   const [smsPhone, setSmsPhone] = useState(sms.recipient_phone);
-  const [smsThreshold, setSmsThreshold] = useState(String(sms.threshold_minutes));
+  const currentWait = savedWait(state);
+  const [threshold, setThreshold] = useState(currentWait);
 
   const [emailEnabled, setEmailEnabled] = useState(email.enabled);
   const [senderEmail, setSenderEmail] = useState(email.sender_email);
   const [recipientEmail, setRecipientEmail] = useState(email.recipient_email);
   const [appPassword, setAppPassword] = useState(""); // never pre-filled
-  const [emailThreshold, setEmailThreshold] = useState(
-    String(email.threshold_minutes),
-  );
 
   const seedRouting = useCallback((): RoutingDraft => {
     const draft = {} as RoutingDraft;
@@ -146,12 +182,11 @@ export function useAlertsForm({
   const errors: AlertsFormErrors = useMemo(
     () => ({
       smsPhone: !!smsPhone && !PHONE_REGEX.test(smsPhone),
-      smsThreshold: thresholdInvalid(smsThreshold),
       senderEmail: !!senderEmail && !EMAIL_REGEX.test(senderEmail),
       recipientEmail: !!recipientEmail && !EMAIL_REGEX.test(recipientEmail),
-      emailThreshold: thresholdInvalid(emailThreshold),
+      threshold: thresholdInvalid(threshold),
     }),
-    [smsPhone, smsThreshold, senderEmail, recipientEmail, emailThreshold],
+    [smsPhone, senderEmail, recipientEmail, threshold],
   );
 
   // ── Empty-while-enabled blockers ───────────────────────────────────────────
@@ -160,7 +195,7 @@ export function useAlertsForm({
       smsPhone: smsEnabled && smsPhone.trim() === "",
       senderEmail: emailEnabled && senderEmail.trim() === "",
       recipientEmail: emailEnabled && recipientEmail.trim() === "",
-      // A new password is required only when none is stored yet.
+      // A new secret is required only when none is stored yet.
       appPassword:
         emailEnabled && !email.app_password_set && appPassword.trim() === "",
     }),
@@ -175,11 +210,11 @@ export function useAlertsForm({
     ],
   );
 
-  // Threshold errors only matter when their channel is enabled.
+  // Format errors matter only on an enabled channel; the shared wait always does.
   const hasFormatError =
-    (smsEnabled && (errors.smsPhone || errors.smsThreshold)) ||
-    (emailEnabled &&
-      (errors.senderEmail || errors.recipientEmail || errors.emailThreshold));
+    errors.threshold ||
+    (smsEnabled && errors.smsPhone) ||
+    (emailEnabled && (errors.senderEmail || errors.recipientEmail));
   const hasMissing =
     missing.smsPhone ||
     missing.senderEmail ||
@@ -202,11 +237,10 @@ export function useAlertsForm({
   const isDirty =
     smsEnabled !== sms.enabled ||
     smsPhone !== sms.recipient_phone ||
-    smsThreshold !== String(sms.threshold_minutes) ||
+    threshold !== currentWait ||
     emailEnabled !== email.enabled ||
     senderEmail !== email.sender_email ||
     recipientEmail !== email.recipient_email ||
-    emailThreshold !== String(email.threshold_minutes) ||
     appPassword.trim() !== "" ||
     routingDirty;
 
@@ -220,18 +254,20 @@ export function useAlertsForm({
         events[ev][ch] = capable && (routing[ev]?.[ch] ?? false);
       }
     }
+    // The one wait goes out as both channels' value, so neither can drift.
+    const wait = parseInt(threshold, 10);
     const payload: AlertsSavePayload = {
       action: "save_settings",
       sms: {
         enabled: smsEnabled,
         recipient_phone: smsPhone.trim(),
-        threshold_minutes: parseInt(smsThreshold, 10),
+        threshold_minutes: wait,
       },
       email: {
         enabled: emailEnabled,
         sender_email: senderEmail.trim(),
         recipient_email: recipientEmail.trim(),
-        threshold_minutes: parseInt(emailThreshold, 10),
+        threshold_minutes: wait,
       },
       routing: { events },
     };
@@ -242,33 +278,41 @@ export function useAlertsForm({
     routing,
     smsEnabled,
     smsPhone,
-    smsThreshold,
+    threshold,
     emailEnabled,
     senderEmail,
     recipientEmail,
-    emailThreshold,
     appPassword,
   ]);
 
   const discard = useCallback(() => {
     setSmsEnabled(sms.enabled);
     setSmsPhone(sms.recipient_phone);
-    setSmsThreshold(String(sms.threshold_minutes));
+    setThreshold(currentWait);
     setEmailEnabled(email.enabled);
     setSenderEmail(email.sender_email);
     setRecipientEmail(email.recipient_email);
     setAppPassword("");
-    setEmailThreshold(String(email.threshold_minutes));
     setRouting(seedRouting());
-  }, [sms, email, seedRouting]);
+  }, [sms, email, currentWait, seedRouting]);
+
+  // ── Re-seed on server-truth change (render-phase, React-Compiler safe) ──────
+  // `discard` is the already-correct re-seed path (pure setState, no async, no
+  // toast), so reuse it rather than maintaining a parallel seeding path.
+  const signature = settingsSignature(state);
+  const [prevSignature, setPrevSignature] = useState(signature);
+  if (signature !== prevSignature) {
+    setPrevSignature(signature);
+    discard();
+  }
 
   return {
     smsEnabled,
     setSmsEnabled,
     smsPhone,
     setSmsPhone,
-    smsThreshold,
-    setSmsThreshold,
+    threshold,
+    setThreshold,
     emailEnabled,
     setEmailEnabled,
     senderEmail,
@@ -278,8 +322,6 @@ export function useAlertsForm({
     appPassword,
     setAppPassword,
     appPasswordSet: email.app_password_set,
-    emailThreshold,
-    setEmailThreshold,
     getRoute,
     setRoute,
     errors,
@@ -291,5 +333,20 @@ export function useAlertsForm({
     markSaved,
     buildPayload,
     discard,
+  };
+}
+
+/** Which channels hold a field error. The shared wait belongs to no channel. */
+export function blockedChannelMap(
+  form: AlertsForm,
+): Record<AlertChannel, boolean> {
+  const { errors, missing } = form;
+  return {
+    sms: (form.smsEnabled && !!errors.smsPhone) || missing.smsPhone,
+    email:
+      (form.emailEnabled && (!!errors.senderEmail || !!errors.recipientEmail)) ||
+      missing.senderEmail ||
+      missing.recipientEmail ||
+      missing.appPassword,
   };
 }

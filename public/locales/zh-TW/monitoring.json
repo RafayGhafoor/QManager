@@ -43,144 +43,188 @@
     "aria_refresh": "重新整理網路事件"
   },
   "alerts": {
-    "page_title": "警報",
-    "page_description": "在連線中斷和恢復時，透過簡訊或郵件獲得通知。",
-
-    "status_title": "警報管道",
-    "status_description": "連線狀態變化時，QManager 將透過這裡通知您。",
-    "status_routing_summary_label": "觸發規則一覽",
-    "status_not_alerting": "不會觸發警報",
-
-    "channel_sms_name": "簡訊",
-    "channel_sms_short": "簡訊",
-    "channel_email_name": "郵件",
-    "channel_email_short": "郵件",
-
-    "readiness_ready": "已就緒",
-    "readiness_off": "已關閉",
-    "readiness_needs_setup": "需要設定",
-    "readiness_mailer_missing": "未安裝郵件發送程式",
-    "readiness_off_hint": "此管道已關閉。",
-    "readiness_sms_no_recipient": "新增收件手機號以啟用此管道。",
-    "readiness_email_incomplete": "完成郵件欄位填寫以啟用此管道。",
-    "readiness_mailer_missing_hint": "安裝 msmtp 郵件發送程式以傳送郵件警報。",
-
-    "event_connection_lost_name": "連線中斷",
-    "event_connection_lost_desc": "網路中斷時長已超過警報閾值。",
-    "event_connection_restored_name": "連線已恢復",
-    "event_connection_restored_desc": "網路中斷後已恢復。",
-    "event_reboot_name": "數據機已重新啟動",
-    "event_reboot_desc": "數據機已重新啟動。恢復連線後傳送，並附上原因。",
-    "trigger_test": "測試訊息",
-    "reboot_cause_watchdog": "看門狗",
-    "reboot_cause_user": "計畫內",
-    "reboot_cause_unplanned": "意外",
-
-    "settings_title": "警報設定",
-    "settings_description": "選擇哪些事件透過哪個管道通知，然後設定簡訊和郵件。",
-    "tab_routing": "路由",
-    "tab_sms": "簡訊",
-    "tab_email": "郵件",
-    "tab_has_errors_aria": "此分頁有需要處理的欄位",
-
-    "routing_intro": "選擇每個事件應傳送到哪個管道。部分組合不可用，會顯示為「不可用」。",
-    "routing_table_caption": "按事件和管道劃分的警報路由",
-    "routing_switch_aria": "透過 {{channel}} 傳送 {{event}} 警報",
-    "routing_unavailable": "不可用",
-    "routing_unavailable_more_info_aria": "為什麼 {{channel}} 無法傳送 {{event}}",
-    "routing_channel_off_hint": "在對應分頁中開啟該管道，才能將事件路由至此。",
-    "reason_email_needs_internet": "網路中斷期間無法傳送郵件 — 中斷期間只有簡訊可用。",
-    "reason_not_supported": "此管道不支援該事件。",
-
-    "sms_enable_label": "啟用簡訊警報",
-    "sms_on_hint": "警報將透過蜂窩網路以簡訊形式傳送到您的手機。",
-    "sms_off_hint": "簡訊警報已關閉。",
-    "sms_recipient_label": "收件手機號",
-    "sms_recipient_placeholder": "+886912345678",
-    "sms_recipient_description": "請包含國碼，以 + 開頭，例如 +886912345678。",
-
-    "email_enable_label": "啟用郵件警報",
-    "email_on_hint": "連線恢復後，警報將透過 Gmail 傳送郵件通知。",
-    "email_off_hint": "郵件警報已關閉。",
-    "email_sender_label": "寄件信箱",
-    "email_sender_placeholder": "alerts@gmail.com",
-    "email_sender_description": "用於傳送警報的 Gmail 帳號。",
-    "email_recipient_label": "收件信箱",
-    "email_recipient_placeholder": "you@example.com",
-    "email_recipient_description": "警報將傳送到該信箱。",
-    "email_app_password_label": "Gmail 應用程式密碼",
-    "email_app_password_placeholder": "xxxx xxxx xxxx xxxx",
-    "email_app_password_saved_placeholder": "留空以保留已儲存的密碼",
-    "email_app_password_description": "在您的 Google 帳號中產生<link>應用程式密碼</link>。",
-    "email_app_password_show": "顯示密碼",
-    "email_app_password_hide": "隱藏密碼",
-
-    "threshold_label": "警報觸發時長（分鐘）",
-    "threshold_description": "連線中斷多長時間後傳送警報。可避免瞬時抖動觸發警報。",
-
-    "validation_phone": "請包含國碼，例如 +886912345678",
-    "validation_email": "請輸入有效的信箱地址。",
-    "validation_threshold": "時長必須在 1–60 分鐘之間。",
-    "validation_app_password_required": "傳送郵件需要應用程式密碼。",
-
-    "test_sms_button": "傳送測試簡訊",
-    "test_sms_sending": "傳送中…",
-    "test_email_button": "傳送測試郵件",
-    "test_email_sending": "傳送中…",
-    "save_before_test_hint": "請先儲存變更，再傳送測試。",
-
-    "not_installed_title": "本裝置未安裝 msmtp。",
-    "not_installed_helper": "安裝後才能傳送郵件警報；未安裝時簡訊和路由設定仍可正常儲存。",
-    "install_button": "安裝 msmtp",
-    "install_running_label": "安裝中…",
-    "check_again_button": "重新檢測",
-    "install_manually_label": "或手動安裝：",
-    "install_command": "opkg update && opkg install msmtp",
-
-    "uninstall_section_label": "移除 msmtp",
-    "uninstall_section_description": "從本裝置解除安裝 msmtp 軟體包。",
-    "uninstall_button": "解除安裝",
-    "uninstall_confirm_title": "解除安裝 msmtp？",
-    "uninstall_confirm_description": "將從本裝置移除 msmtp 軟體包。郵件警報設定將被保留，但在重新安裝 msmtp 之前不會傳送郵件警報。",
-    "uninstall_confirm_button": "解除安裝",
-
-    "save_button": "儲存設定",
-    "save_saving": "正在儲存…",
-    "save_saved_flash": "已儲存！",
-    "save_discard": "放棄",
-    "save_unsaved": "未儲存的更改",
-    "save_all_saved": "所有更改已儲存",
-    "save_fix_errors_in": "修正 {{tabs}} 中的錯誤",
-    "save_fix_errors": "修正高亮的欄位",
-
-    "toast_save_success": "警報設定已儲存",
-    "toast_save_error": "儲存警報設定失敗",
-    "toast_test_sms_success": "測試簡訊傳送成功",
-    "toast_test_sms_error": "傳送測試簡訊失敗 — 請檢查設定",
-    "toast_test_email_success": "測試郵件傳送成功",
-    "toast_test_email_error": "傳送測試郵件失敗 — 請檢查設定",
-    "toast_uninstalled": "msmtp 已解除安裝",
-    "toast_uninstall_error": "解除安裝 msmtp 失敗",
-
-    "log_title": "警報活動",
-    "log_description": "兩個管道中已傳送和失敗警報的歷史記錄。",
-    "log_aria_refresh": "重新整理警報活動",
-    "log_header_timestamp": "時間戳",
-    "log_header_trigger": "觸發原因",
-    "log_header_channel": "管道",
-    "log_header_status": "狀態",
-    "log_header_recipient": "收件人",
-    "log_badge_sent": "已傳送",
-    "log_badge_failed": "失敗",
-    "log_reboot_event": "數據機已重新啟動",
-    "log_time_unknown": "時間不明",
-    "log_empty_title": "暫無警報記錄",
-    "log_empty_hint_1": "當連線中斷時間超過設定閾值後，警報會顯示在這裡。",
-    "log_empty_hint_2": "使用「傳送測試」驗證您的設定。",
-    "log_error_title": "載入警報活動失敗",
-    "log_showing_count_one": "顯示 {{shown}} / {{total}} 條記錄",
-    "log_showing_count_other": "顯示 {{shown}} / {{total}} 條記錄",
-    "log_last_updated": "上次更新：{{time}}"
+    "activity": {
+      "cause": {
+        "planned": "計畫內",
+        "unexpected": "非預期",
+        "watchdog": "看門狗"
+      },
+      "channel": {
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "day": {
+        "today": "今天",
+        "undated": "沒有記錄時間",
+        "yesterday": "昨天"
+      },
+      "description": "已傳送的提醒和重新啟動，最新的在前。",
+      "empty": {
+        "description": "管道傳送警示後會顯示在這裡，重新啟動也會自動記錄並附上原因。",
+        "title": "目前尚無記錄"
+      },
+      "error": {
+        "title": "無法載入活動記錄",
+        "description": "裝置沒有回應。請稍後再試。",
+        "retry": "重試"
+      },
+      "event": {
+        "reboot": "數據機已重新啟動"
+      },
+      "notice": {
+        "stale": "顯示我們最後成功讀取到的活動記錄。"
+      },
+      "sr": {
+        "failed": "警示傳送失敗",
+        "reboot": "已記錄重新啟動",
+        "sent": "警示已傳送"
+      },
+      "time": {
+        "days_one": "{{count}} 天前",
+        "days_other": "{{count}} 天前",
+        "hours_one": "{{count}} 小時前",
+        "hours_other": "{{count}} 小時前",
+        "just_now": "剛剛",
+        "minutes_one": "{{count}} 分鐘前",
+        "minutes_other": "{{count}} 分鐘前",
+        "unknown": "未知"
+      },
+      "title": "活動記錄",
+      "transcript_label": "警示與重新啟動記錄",
+      "trigger": {
+        "test": "測試提醒"
+      }
+    },
+    "channels": {
+      "description": "設定每種管道如何通知您。",
+      "email": {
+        "address_error": "請輸入有效的電子郵件地址。",
+        "mailer_install": "安裝 msmtp",
+        "mailer_installing": "安裝中",
+        "mailer_missing": "尚未安裝 msmtp 郵件程式，因此目前無法傳送 Email。SMS 仍可正常儲存。",
+        "mailer_recheck": "重新檢查",
+        "password_hide": "隱藏應用程式密碼",
+        "password_hint": "請在您的 Google 帳戶中為此裝置產生一組應用程式密碼。",
+        "password_keep": "留空以保留已儲存的密碼",
+        "password_label": "Gmail 應用程式密碼",
+        "password_link": "開啟 Google 應用程式密碼頁面",
+        "password_missing": "需要應用程式密碼才能傳送 Email。",
+        "password_placeholder": "xxxx xxxx xxxx xxxx",
+        "password_show": "顯示應用程式密碼",
+        "recipient_hint": "警示會送達的地址。",
+        "recipient_label": "收件人 Email",
+        "recipient_missing": "需要填寫收件人地址。",
+        "sender_hint": "用來寄送警示的 Gmail 帳號。",
+        "sender_label": "寄件人 Email",
+        "sender_missing": "需要填寫寄件人地址。",
+        "test": "傳送測試 Email",
+        "title": "電子郵件提醒",
+        "sub": "連線恢復後透過 Gmail 傳送。"
+      },
+      "empty": {
+        "description": "此裝置未回傳任何警示管道，因此目前沒有可設定的項目。",
+        "title": "沒有回報任何管道"
+      },
+      "loading": "正在載入警示管道",
+      "name": {
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "rail_label": "警示管道",
+      "save": {
+        "action": "儲存設定",
+        "blocked": "請修正標示的欄位",
+        "blocked_in": "請修正 {{channels}} 中的錯誤",
+        "clean": "所有變更已儲存",
+        "dirty": "未儲存的變更",
+        "discard": "捨棄",
+        "failed": "設定無法儲存。",
+        "succeeded": "警示設定已儲存",
+        "errors": {}
+      },
+      "secret_saved": "已儲存",
+      "sms": {
+        "phone_error": "請輸入含國碼的號碼，例如 +14155551234。",
+        "phone_hint": "請加上國碼，並以加號開頭。",
+        "phone_label": "收件人電話",
+        "phone_missing": "需要填寫收件人電話號碼。",
+        "test": "傳送測試 SMS",
+        "title": "簡訊提醒",
+        "sub": "斷線期間也能送達。"
+      },
+      "status": {
+        "incomplete": "尚待設定",
+        "needs_fixing": "有未儲存的錯誤",
+        "off": "已關閉",
+        "ready": "已就緒",
+        "unused": "沒有已路由的事件"
+      },
+      "test": {
+        "blocked_busy": "另一項測試仍在執行中。",
+        "blocked_dirty": "請先儲存變更。測試會依照已儲存的設定執行。",
+        "blocked_incomplete": "請先完成此管道的設定並儲存，才能傳送測試。",
+        "blocked_mailer": "請安裝 msmtp 郵件程式才能傳送測試 Email。",
+        "blocked_off": "請先開啟此管道並儲存，才能傳送測試。",
+        "failed": "測試無法傳送。",
+        "sending": "傳送中",
+        "succeeded": "測試 {{channel}} 已傳送",
+        "errors": {
+          "send_failed_sms": "測試簡訊未傳送，請檢查訊號、SIM 卡餘額和號碼。",
+          "send_failed_email": "測試郵件未傳送，請檢查電子郵件地址、應用程式密碼和網路連線。"
+        }
+      },
+      "threshold_error": "請輸入 1 到 60 之間的整數分鐘。",
+      "threshold_hint": "較短的斷線只記錄，不傳送。",
+      "threshold_label": "警示前等待時間",
+      "threshold_unit": "分鐘",
+      "title": "管道",
+      "sends_for": "傳送事件",
+      "error": {
+        "title": "無法載入管道",
+        "description": "裝置沒有回應。請稍後再試。",
+        "retry": "重試"
+      }
+    },
+    "coverage": {
+      "description": "依已儲存的設定，哪些提醒會送達。",
+      "emptyDesc": "裝置未回報任何警示功能，因此這裡沒有可開啟的項目。",
+      "emptyTitle": "沒有可路由的項目",
+      "errorDesc": "裝置沒有回應，因此無法顯示會觸發的項目。",
+      "errorRetry": "重試",
+      "errorTitle": "無法載入涵蓋範圍",
+      "event": {
+        "connection_lost": {
+          "name": "連線中斷"
+        },
+        "connection_restored": {
+          "name": "連線已恢復"
+        },
+        "reboot": {
+          "name": "數據機已重新啟動"
+        }
+      },
+      "loading": "正在載入涵蓋範圍",
+      "reason": {
+        "email_needs_internet": "需要網路連線",
+        "not_supported": "此管道無法傳送此事件"
+      },
+      "staleNotice": "顯示我們上次從裝置讀取到的設定。",
+      "title": "涵蓋範圍",
+      "verdict": {
+        "all": "全部涵蓋",
+        "outage": "斷線未涵蓋",
+        "partial": "已涵蓋 {{covered}}/{{total}}",
+        "none": "不會傳送任何提醒"
+      },
+      "needsSetup": "{{channel}} 需要設定",
+      "notSent": "不傳送"
+    },
+    "page": {
+      "description": "連線中斷、恢復或數據機重新啟動時，會通知哪些對象。",
+      "refresh": "重新整理",
+      "title": "警示",
+      "unreadable": "裝置沒有回應。"
+    }
   },
   "watchdog": {
     "page_title": "看門狗",

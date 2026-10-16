@@ -43,144 +43,188 @@
     "aria_refresh": "Aggiorna gli eventi di rete"
   },
   "alerts": {
-    "page_title": "Avvisi",
-    "page_description": "Ricevi una notifica via SMS o e-mail quando la connessione si interrompe e quando torna attiva.",
-
-    "status_title": "Canali di avviso",
-    "status_description": "Dove QManager ti contatterà quando la connessione cambia stato.",
-    "status_routing_summary_label": "Cosa si attiva e dove",
-    "status_not_alerting": "Nessun avviso attivo",
-
-    "channel_sms_name": "SMS",
-    "channel_sms_short": "SMS",
-    "channel_email_name": "E-mail",
-    "channel_email_short": "E-mail",
-
-    "readiness_ready": "Pronto",
-    "readiness_off": "Disattivato",
-    "readiness_needs_setup": "Richiede configurazione",
-    "readiness_mailer_missing": "Mailer non installato",
-    "readiness_off_hint": "Questo canale è disattivato.",
-    "readiness_sms_no_recipient": "Aggiungi un numero di telefono destinatario per attivare questo canale.",
-    "readiness_email_incomplete": "Completa i campi e-mail per attivare questo canale.",
-    "readiness_mailer_missing_hint": "Installa il mailer msmtp per inviare avvisi e-mail.",
-
-    "event_connection_lost_name": "Connessione interrotta",
-    "event_connection_lost_desc": "Internet è rimasto inattivo oltre la soglia di avviso.",
-    "event_connection_restored_name": "Connessione ripristinata",
-    "event_connection_restored_desc": "Internet è tornato attivo dopo un'interruzione.",
-    "event_reboot_name": "Modem riavviato",
-    "event_reboot_desc": "Il modem si è riavviato. Inviato appena torna online, con il motivo.",
-    "trigger_test": "Messaggio di prova",
-    "reboot_cause_watchdog": "Watchdog",
-    "reboot_cause_user": "Pianificato",
-    "reboot_cause_unplanned": "Imprevisto",
-
-    "settings_title": "Impostazioni avvisi",
-    "settings_description": "Scegli quali eventi raggiungono ciascun canale, poi configura SMS ed e-mail.",
-    "tab_routing": "Instradamento",
-    "tab_sms": "SMS",
-    "tab_email": "E-mail",
-    "tab_has_errors_aria": "Questa scheda contiene campi che richiedono attenzione",
-
-    "routing_intro": "Scegli quali eventi vanno a quale canale. Alcune combinazioni non sono possibili e vengono mostrate come non disponibili.",
-    "routing_table_caption": "Instradamento degli avvisi per evento e canale",
-    "routing_switch_aria": "Invia avvisi di {{event}} tramite {{channel}}",
-    "routing_unavailable": "Non disponibile",
-    "routing_unavailable_more_info_aria": "Perché {{channel}} non può inviare {{event}}",
-    "routing_channel_off_hint": "Attiva un canale nella relativa scheda per instradarvi gli eventi.",
-    "reason_email_needs_internet": "L'e-mail non può essere inviata mentre Internet è inattivo — solo l'SMS funziona durante un'interruzione.",
-    "reason_not_supported": "Questo canale non supporta questo evento.",
-
-    "sms_enable_label": "Abilita avvisi SMS",
-    "sms_on_hint": "Gli avvisi verranno inviati come SMS al tuo telefono tramite la rete cellulare.",
-    "sms_off_hint": "Gli avvisi SMS sono disattivati.",
-    "sms_recipient_label": "Telefono destinatario",
-    "sms_recipient_placeholder": "+393331234567",
-    "sms_recipient_description": "Includi il prefisso internazionale preceduto da un +, ad es. +393331234567.",
-
-    "email_enable_label": "Abilita avvisi e-mail",
-    "email_on_hint": "Gli avvisi verranno inviati via e-mail tramite Gmail non appena la connessione sarà ripristinata.",
-    "email_off_hint": "Gli avvisi e-mail sono disattivati.",
-    "email_sender_label": "E-mail del mittente",
-    "email_sender_placeholder": "alerts@gmail.com",
-    "email_sender_description": "L'account Gmail che invierà l'avviso.",
-    "email_recipient_label": "E-mail del destinatario",
-    "email_recipient_placeholder": "you@example.com",
-    "email_recipient_description": "Dove verranno consegnati gli avvisi.",
-    "email_app_password_label": "Password dell'app Gmail",
-    "email_app_password_placeholder": "xxxx xxxx xxxx xxxx",
-    "email_app_password_saved_placeholder": "Lascia vuoto per mantenere la password salvata",
-    "email_app_password_description": "Genera una <link>password per l'app</link> nel tuo account Google.",
-    "email_app_password_show": "Mostra password",
-    "email_app_password_hide": "Nascondi la password",
-
-    "threshold_label": "Avviso dopo (minuti)",
-    "threshold_description": "Per quanto tempo la connessione deve rimanere inattiva prima che venga inviato un avviso. Previene gli avvisi per interruzioni brevi e temporanee.",
-
-    "validation_phone": "Includi il prefisso internazionale, ad es. +393331234567",
-    "validation_email": "Inserisci un indirizzo e-mail valido.",
-    "validation_threshold": "La durata deve essere compresa tra 1 e 60 minuti.",
-    "validation_app_password_required": "È richiesta una password dell'app per inviare e-mail.",
-
-    "test_sms_button": "Invia SMS di prova",
-    "test_sms_sending": "Invio…",
-    "test_email_button": "Invia e-mail di prova",
-    "test_email_sending": "Invio…",
-    "save_before_test_hint": "Salva le modifiche prima di inviare un test.",
-
-    "not_installed_title": "msmtp non è installato su questo dispositivo.",
-    "not_installed_helper": "Installalo per inviare avvisi e-mail. SMS e instradamento vengono comunque salvati senza di esso.",
-    "install_button": "Installa msmtp",
-    "install_running_label": "Installazione…",
-    "check_again_button": "Controlla di nuovo",
-    "install_manually_label": "Oppure installalo manualmente:",
-    "install_command": "opkg update && opkg install msmtp",
-
-    "uninstall_section_label": "Rimuovi msmtp",
-    "uninstall_section_description": "Disinstalla il pacchetto msmtp da questo dispositivo.",
-    "uninstall_button": "Disinstalla",
-    "uninstall_confirm_title": "Disinstallare msmtp?",
-    "uninstall_confirm_description": "Questo rimuoverà il pacchetto msmtp. Le impostazioni degli avvisi e-mail vengono conservate, ma gli avvisi e-mail non verranno inviati finché non sarà reinstallato.",
-    "uninstall_confirm_button": "Disinstalla",
-
-    "save_button": "Salva impostazioni",
-    "save_saving": "Salvataggio…",
-    "save_saved_flash": "Salvato!",
-    "save_discard": "Annulla",
-    "save_unsaved": "Modifiche non salvate",
-    "save_all_saved": "Tutte le modifiche salvate",
-    "save_fix_errors_in": "Correggi gli errori in {{tabs}}",
-    "save_fix_errors": "Correggi i campi evidenziati",
-
-    "toast_save_success": "Impostazioni degli avvisi salvate",
-    "toast_save_error": "Impossibile salvare le impostazioni degli avvisi",
-    "toast_test_sms_success": "SMS di prova inviato con successo",
-    "toast_test_sms_error": "Impossibile inviare l'SMS di prova: controlla la configurazione",
-    "toast_test_email_success": "E-mail di prova inviata con successo",
-    "toast_test_email_error": "Impossibile inviare l'e-mail di prova: controlla la configurazione",
-    "toast_uninstalled": "msmtp disinstallato",
-    "toast_uninstall_error": "Impossibile disinstallare msmtp",
-
-    "log_title": "Attività degli avvisi",
-    "log_description": "Cronologia degli avvisi inviati e non riusciti su entrambi i canali.",
-    "log_aria_refresh": "Aggiorna l'attività degli avvisi",
-    "log_header_timestamp": "Timestamp",
-    "log_header_trigger": "Innesco",
-    "log_header_channel": "Canale",
-    "log_header_status": "Stato",
-    "log_header_recipient": "Destinatario",
-    "log_badge_sent": "Inviato",
-    "log_badge_failed": "Fallito",
-    "log_reboot_event": "Modem riavviato",
-    "log_time_unknown": "Ora sconosciuta",
-    "log_empty_title": "Nessun avviso ancora inviato",
-    "log_empty_hint_1": "Gli avvisi vengono visualizzati qui quando la connessione supera la soglia configurata.",
-    "log_empty_hint_2": "Usa Invia test per verificare la tua configurazione.",
-    "log_error_title": "Impossibile caricare l'attività degli avvisi",
-    "log_showing_count_one": "Visualizzazione di {{shown}} della voce {{total}}",
-    "log_showing_count_other": "Sono visualizzati {{shown}} di {{total}} voci",
-    "log_last_updated": "Ultimo aggiornamento: {{time}}"
+    "activity": {
+      "cause": {
+        "planned": "Pianificato",
+        "unexpected": "Imprevisto",
+        "watchdog": "Watchdog"
+      },
+      "channel": {
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "day": {
+        "today": "Oggi",
+        "undated": "Nessun orario registrato",
+        "yesterday": "Ieri"
+      },
+      "description": "Avvisi inviati e riavvii, dal più recente.",
+      "empty": {
+        "description": "Gli avvisi compaiono qui non appena un canale ne invia uno, e i riavvii vengono registrati automaticamente con la loro causa.",
+        "title": "Non è ancora successo nulla"
+      },
+      "error": {
+        "title": "Impossibile caricare l'attività",
+        "description": "Il dispositivo non ha risposto. Riprova tra poco.",
+        "retry": "Riprova"
+      },
+      "event": {
+        "reboot": "Modem riavviato"
+      },
+      "notice": {
+        "stale": "Mostriamo l'ultima attività che siamo riusciti a leggere."
+      },
+      "sr": {
+        "failed": "Avviso non riuscito",
+        "reboot": "Riavvio registrato",
+        "sent": "Avviso inviato"
+      },
+      "time": {
+        "days_one": "{{count}}d fa",
+        "days_other": "{{count}}d fa",
+        "hours_one": "{{count}}h fa",
+        "hours_other": "{{count}}h fa",
+        "just_now": "Proprio adesso",
+        "minutes_one": "{{count}}m fa",
+        "minutes_other": "{{count}}m fa",
+        "unknown": "Sconosciuto"
+      },
+      "title": "Attività",
+      "transcript_label": "Cronologia di avvisi e riavvii",
+      "trigger": {
+        "test": "Avviso di prova"
+      }
+    },
+    "channels": {
+      "description": "Configura come ciascuno ti raggiunge.",
+      "email": {
+        "address_error": "Inserisci un indirizzo email valido.",
+        "mailer_install": "Installa msmtp",
+        "mailer_installing": "Installazione",
+        "mailer_missing": "Il client di posta msmtp non è installato, quindi le email non possono ancora essere inviate. Gli SMS vengono comunque salvati.",
+        "mailer_recheck": "Controlla di nuovo",
+        "password_hide": "Nascondi la password per le app",
+        "password_hint": "Genera una password per le app per questo dispositivo nel tuo Account Google.",
+        "password_keep": "Lascia vuoto per mantenere la password salvata",
+        "password_label": "Password per le app di Gmail",
+        "password_link": "Apri le password per le app di Google",
+        "password_missing": "Per inviare email è necessaria una password per le app.",
+        "password_placeholder": "xxxx xxxx xxxx xxxx",
+        "password_show": "Mostra la password per le app",
+        "recipient_hint": "Dove vengono recapitati gli avvisi.",
+        "recipient_label": "Email del destinatario",
+        "recipient_missing": "È necessario un indirizzo del destinatario.",
+        "sender_hint": "L'account Gmail che invia l'avviso.",
+        "sender_label": "Email del mittente",
+        "sender_missing": "È necessario un indirizzo del mittente.",
+        "test": "Invia un'email di prova",
+        "title": "Avvisi email",
+        "sub": "Inviati tramite Gmail quando il collegamento torna."
+      },
+      "empty": {
+        "description": "Questo dispositivo non ha restituito alcun canale di avviso, quindi per ora non c'è nulla da configurare.",
+        "title": "Nessun canale segnalato"
+      },
+      "loading": "Caricamento dei canali di avviso…",
+      "name": {
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "rail_label": "Canale di avviso",
+      "save": {
+        "action": "Salva impostazioni",
+        "blocked": "Correggi i campi evidenziati",
+        "blocked_in": "Correggi gli errori in {{channels}}",
+        "clean": "Tutte le modifiche sono state salvate",
+        "dirty": "Modifiche non salvate",
+        "discard": "Scarta",
+        "failed": "Non è stato possibile salvare le impostazioni.",
+        "succeeded": "Impostazioni di avviso salvate",
+        "errors": {}
+      },
+      "secret_saved": "Salvato",
+      "sms": {
+        "phone_error": "Inserisci un numero con il prefisso internazionale, ad esempio +14155551234.",
+        "phone_hint": "Includi il prefisso internazionale con il segno più iniziale.",
+        "phone_label": "Telefono del destinatario",
+        "phone_missing": "È necessario un numero di telefono del destinatario.",
+        "test": "Invia un SMS di prova",
+        "title": "Avvisi SMS",
+        "sub": "Arrivano anche durante un'interruzione."
+      },
+      "status": {
+        "incomplete": "Richiede configurazione",
+        "needs_fixing": "Ha errori non salvati",
+        "off": "Disattivo",
+        "ready": "Pronto",
+        "unused": "Nessun evento instradato"
+      },
+      "test": {
+        "blocked_busy": "Un altro test è ancora in corso.",
+        "blocked_dirty": "Salva prima le modifiche. Un test viene eseguito sulle impostazioni salvate.",
+        "blocked_incomplete": "Completa la configurazione di questo canale, poi salva, per inviare un test.",
+        "blocked_mailer": "Installa il client di posta msmtp per inviare un'email di prova.",
+        "blocked_off": "Attiva questo canale, poi salva, per inviare un test.",
+        "failed": "Non è stato possibile inviare il test.",
+        "sending": "Invio in corso",
+        "succeeded": "Test {{channel}} inviato",
+        "errors": {
+          "send_failed_sms": "L'SMS di test non è stato inviato: controlla il segnale, il credito della SIM e il numero.",
+          "send_failed_email": "L'email di test non è stata inviata: controlla gli indirizzi, la password per le app e la connessione."
+        }
+      },
+      "threshold_error": "Inserisci un numero intero di minuti da 1 a 60.",
+      "threshold_hint": "Le interruzioni più brevi vengono registrate, non inviate.",
+      "threshold_label": "Attesa prima di avvisare",
+      "threshold_unit": "min",
+      "title": "Canali",
+      "sends_for": "Invia per",
+      "error": {
+        "title": "Impossibile caricare i canali",
+        "description": "Il dispositivo non ha risposto. Riprova tra poco.",
+        "retry": "Riprova"
+      }
+    },
+    "coverage": {
+      "description": "Cosa ti raggiunge, come salvato.",
+      "emptyDesc": "Il dispositivo non ha segnalato alcuna capacità di avviso, quindi qui non c'è nulla da attivare.",
+      "emptyTitle": "Non è possibile instradare nulla",
+      "errorDesc": "Il dispositivo non ha risposto, quindi non possiamo mostrare cosa scatterà.",
+      "errorRetry": "Riprova",
+      "errorTitle": "Impossibile caricare la copertura",
+      "event": {
+        "connection_lost": {
+          "name": "Connessione persa"
+        },
+        "connection_restored": {
+          "name": "Connessione ripristinata"
+        },
+        "reboot": {
+          "name": "Modem riavviato"
+        }
+      },
+      "loading": "Caricamento della copertura…",
+      "reason": {
+        "email_needs_internet": "Richiede internet",
+        "not_supported": "Questo canale non può inviare questo evento"
+      },
+      "staleNotice": "Mostriamo le ultime impostazioni lette dal dispositivo.",
+      "title": "Copertura",
+      "verdict": {
+        "all": "Tutto coperto",
+        "outage": "Interruzione non coperta",
+        "partial": "{{covered}} di {{total}} coperti",
+        "none": "Non verrà inviato nulla"
+      },
+      "needsSetup": "{{channel}} da configurare",
+      "notSent": "Non inviato"
+    },
+    "page": {
+      "description": "Chi viene avvisato quando la connessione cade, torna, o il modem si riavvia.",
+      "refresh": "Aggiorna",
+      "title": "Avvisi",
+      "unreadable": "Il dispositivo non ha risposto."
+    }
   },
   "watchdog": {
     "page_title": "Watchdog",

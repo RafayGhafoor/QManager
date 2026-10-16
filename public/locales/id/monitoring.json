@@ -43,144 +43,188 @@
     "aria_refresh": "Muat ulang peristiwa jaringan"
   },
   "alerts": {
-    "page_title": "Peringatan",
-    "page_description": "Dapatkan notifikasi lewat SMS atau email saat koneksi Anda terputus dan saat koneksi kembali.",
-
-    "status_title": "Kanal peringatan",
-    "status_description": "Ke mana QManager akan menghubungi Anda saat koneksi berubah.",
-    "status_routing_summary_label": "Apa yang terkirim ke mana",
-    "status_not_alerting": "Tidak mengirim peringatan",
-
-    "channel_sms_name": "SMS",
-    "channel_sms_short": "SMS",
-    "channel_email_name": "Email",
-    "channel_email_short": "Email",
-
-    "readiness_ready": "Siap",
-    "readiness_off": "Nonaktif",
-    "readiness_needs_setup": "Perlu pengaturan",
-    "readiness_mailer_missing": "Mailer belum terinstal",
-    "readiness_off_hint": "Kanal ini dinonaktifkan.",
-    "readiness_sms_no_recipient": "Tambahkan nomor telepon penerima untuk mengaktifkan kanal ini.",
-    "readiness_email_incomplete": "Lengkapi kolom email untuk mengaktifkan kanal ini.",
-    "readiness_mailer_missing_hint": "Instal mailer msmtp untuk mengirim peringatan email.",
-
-    "event_connection_lost_name": "Koneksi terputus",
-    "event_connection_lost_desc": "Internet terputus melebihi ambang batas peringatan.",
-    "event_connection_restored_name": "Koneksi pulih",
-    "event_connection_restored_desc": "Internet kembali normal setelah gangguan.",
-    "event_reboot_name": "Modem dimulai ulang",
-    "event_reboot_desc": "Modem dimulai ulang. Dikirim setelah kembali online, beserta alasannya.",
-    "trigger_test": "Pesan uji",
-    "reboot_cause_watchdog": "Watchdog",
-    "reboot_cause_user": "Terencana",
-    "reboot_cause_unplanned": "Tak terduga",
-
-    "settings_title": "Pengaturan peringatan",
-    "settings_description": "Pilih peristiwa mana yang dikirim ke setiap kanal, lalu konfigurasikan SMS dan email.",
-    "tab_routing": "Perutean",
-    "tab_sms": "SMS",
-    "tab_email": "Email",
-    "tab_has_errors_aria": "Tab ini memiliki bidang yang perlu diperhatikan",
-
-    "routing_intro": "Pilih peristiwa mana yang dikirim ke kanal mana. Beberapa kombinasi tidak memungkinkan dan ditampilkan sebagai tidak tersedia.",
-    "routing_table_caption": "Perutean peringatan berdasarkan peristiwa dan kanal",
-    "routing_switch_aria": "Kirim peringatan {{event}} melalui {{channel}}",
-    "routing_unavailable": "Tidak tersedia",
-    "routing_unavailable_more_info_aria": "Alasan {{channel}} tidak dapat mengirim {{event}}",
-    "routing_channel_off_hint": "Aktifkan kanal di tabnya untuk merutekan peristiwa ke sana.",
-    "reason_email_needs_internet": "Email tidak dapat dikirim saat internet terputus — hanya SMS yang berfungsi selama gangguan.",
-    "reason_not_supported": "Kanal ini tidak mendukung peristiwa ini.",
-
-    "sms_enable_label": "Aktifkan peringatan SMS",
-    "sms_on_hint": "Peringatan akan dikirim lewat SMS ke ponsel Anda melalui jaringan seluler.",
-    "sms_off_hint": "Peringatan SMS nonaktif.",
-    "sms_recipient_label": "Telepon penerima",
-    "sms_recipient_placeholder": "+6281234567890",
-    "sms_recipient_description": "Sertakan kode negara dengan awalan +, mis. +6281234567890.",
-
-    "email_enable_label": "Aktifkan peringatan email",
-    "email_on_hint": "Peringatan akan dikirim lewat email melalui Gmail setelah koneksi kembali.",
-    "email_off_hint": "Peringatan email nonaktif.",
-    "email_sender_label": "Email pengirim",
-    "email_sender_placeholder": "alerts@gmail.com",
-    "email_sender_description": "Akun Gmail yang akan mengirim peringatan.",
-    "email_recipient_label": "Email penerima",
-    "email_recipient_placeholder": "you@example.com",
-    "email_recipient_description": "Tujuan pengiriman peringatan.",
-    "email_app_password_label": "Kata sandi aplikasi Gmail",
-    "email_app_password_placeholder": "xxxx xxxx xxxx xxxx",
-    "email_app_password_saved_placeholder": "Biarkan kosong untuk mempertahankan kata sandi yang tersimpan",
-    "email_app_password_description": "Buat <link>Kata Sandi Aplikasi</link> di Akun Google Anda.",
-    "email_app_password_show": "Tampilkan kata sandi",
-    "email_app_password_hide": "Sembunyikan kata sandi",
-
-    "threshold_label": "Peringatan setelah (menit)",
-    "threshold_description": "Berapa lama koneksi harus terputus sebelum peringatan dikirim. Mencegah peringatan untuk gangguan singkat sementara.",
-
-    "validation_phone": "Sertakan kode negara, mis. +6281234567890",
-    "validation_email": "Masukkan alamat email yang valid.",
-    "validation_threshold": "Durasi harus 1–60 menit.",
-    "validation_app_password_required": "Kata sandi aplikasi diperlukan untuk mengirim email.",
-
-    "test_sms_button": "Kirim SMS uji",
-    "test_sms_sending": "Mengirim…",
-    "test_email_button": "Kirim email uji",
-    "test_email_sending": "Mengirim…",
-    "save_before_test_hint": "Simpan perubahan Anda sebelum mengirim uji.",
-
-    "not_installed_title": "msmtp tidak terinstal pada perangkat ini.",
-    "not_installed_helper": "Instal untuk mengirim peringatan email. SMS dan perutean tetap dapat disimpan tanpanya.",
-    "install_button": "Instal msmtp",
-    "install_running_label": "Menginstal…",
-    "check_again_button": "Periksa lagi",
-    "install_manually_label": "Atau instal secara manual:",
-    "install_command": "opkg update && opkg install msmtp",
-
-    "uninstall_section_label": "Hapus msmtp",
-    "uninstall_section_description": "Copot paket msmtp dari perangkat ini.",
-    "uninstall_button": "Copot",
-    "uninstall_confirm_title": "Copot msmtp?",
-    "uninstall_confirm_description": "Ini akan menghapus paket msmtp. Pengaturan peringatan email Anda akan dipertahankan, tetapi peringatan email tidak akan terkirim sampai msmtp diinstal ulang.",
-    "uninstall_confirm_button": "Copot",
-
-    "save_button": "Simpan pengaturan",
-    "save_saving": "Menyimpan…",
-    "save_saved_flash": "Tersimpan!",
-    "save_discard": "Buang",
-    "save_unsaved": "Perubahan belum disimpan",
-    "save_all_saved": "Semua perubahan tersimpan",
-    "save_fix_errors_in": "Perbaiki kesalahan di {{tabs}}",
-    "save_fix_errors": "Perbaiki bidang yang disorot",
-
-    "toast_save_success": "Pengaturan peringatan tersimpan",
-    "toast_save_error": "Gagal menyimpan pengaturan peringatan",
-    "toast_test_sms_success": "SMS uji berhasil dikirim",
-    "toast_test_sms_error": "Gagal mengirim SMS uji — periksa konfigurasi Anda",
-    "toast_test_email_success": "Email uji berhasil dikirim",
-    "toast_test_email_error": "Gagal mengirim email uji — periksa konfigurasi Anda",
-    "toast_uninstalled": "msmtp berhasil dicopot",
-    "toast_uninstall_error": "Gagal mencopot msmtp",
-
-    "log_title": "Aktivitas peringatan",
-    "log_description": "Riwayat peringatan yang terkirim dan gagal di kedua kanal.",
-    "log_aria_refresh": "Segarkan aktivitas peringatan",
-    "log_header_timestamp": "Timestamp",
-    "log_header_trigger": "Pemicu",
-    "log_header_channel": "Kanal",
-    "log_header_status": "Status",
-    "log_header_recipient": "Penerima",
-    "log_badge_sent": "Terkirim",
-    "log_badge_failed": "Gagal",
-    "log_reboot_event": "Modem dimulai ulang",
-    "log_time_unknown": "Waktu tidak diketahui",
-    "log_empty_title": "Belum ada peringatan terkirim",
-    "log_empty_hint_1": "Peringatan muncul di sini saat koneksi Anda putus melewati ambang batas yang dikonfigurasi.",
-    "log_empty_hint_2": "Gunakan Kirim Uji untuk memverifikasi pengaturan Anda.",
-    "log_error_title": "Gagal memuat aktivitas peringatan",
-    "log_showing_count_one": "Menampilkan {{shown}} dari {{total}} entri",
-    "log_showing_count_other": "Menampilkan {{shown}} dari {{total}} entri",
-    "log_last_updated": "Terakhir diperbarui: {{time}}"
+    "activity": {
+      "cause": {
+        "planned": "Direncanakan",
+        "unexpected": "Tidak terduga",
+        "watchdog": "Watchdog"
+      },
+      "channel": {
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "day": {
+        "today": "Hari ini",
+        "undated": "Waktu tidak tercatat",
+        "yesterday": "Kemarin"
+      },
+      "description": "Peringatan terkirim dan reboot, terbaru di atas.",
+      "empty": {
+        "description": "Peringatan muncul di sini setelah salurannya mengirim satu, dan reboot dicatat otomatis beserta penyebabnya.",
+        "title": "Belum ada yang terjadi"
+      },
+      "error": {
+        "title": "Tidak dapat memuat aktivitas",
+        "description": "Perangkat tidak menjawab. Coba lagi sebentar lagi.",
+        "retry": "Coba lagi"
+      },
+      "event": {
+        "reboot": "Modem reboot"
+      },
+      "notice": {
+        "stale": "Menampilkan aktivitas terakhir yang berhasil kami baca."
+      },
+      "sr": {
+        "failed": "Peringatan gagal",
+        "reboot": "Reboot tercatat",
+        "sent": "Peringatan terkirim"
+      },
+      "time": {
+        "days_one": "{{count}}h lalu",
+        "days_other": "{{count}}h lalu",
+        "hours_one": "{{count}}j lalu",
+        "hours_other": "{{count}}j lalu",
+        "just_now": "Baru saja",
+        "minutes_one": "{{count}}m lalu",
+        "minutes_other": "{{count}}m lalu",
+        "unknown": "Tidak diketahui"
+      },
+      "title": "Aktivitas",
+      "transcript_label": "Riwayat peringatan dan reboot",
+      "trigger": {
+        "test": "Peringatan uji"
+      }
+    },
+    "channels": {
+      "description": "Atur bagaimana masing-masing menjangkau Anda.",
+      "email": {
+        "address_error": "Masukkan alamat email yang valid.",
+        "mailer_install": "Instal msmtp",
+        "mailer_installing": "Menginstal…",
+        "mailer_missing": "Mailer msmtp belum terinstal, jadi email belum bisa dikirim. SMS tetap tersimpan.",
+        "mailer_recheck": "Periksa lagi",
+        "password_hide": "Sembunyikan kata sandi aplikasi",
+        "password_hint": "Buat kata sandi aplikasi untuk perangkat ini di Akun Google Anda.",
+        "password_keep": "Biarkan kosong untuk tetap memakai kata sandi tersimpan",
+        "password_label": "Kata sandi aplikasi Gmail",
+        "password_link": "Buka kata sandi aplikasi Google",
+        "password_missing": "Kata sandi aplikasi diperlukan untuk mengirim email.",
+        "password_placeholder": "xxxx xxxx xxxx xxxx",
+        "password_show": "Tampilkan kata sandi aplikasi",
+        "recipient_hint": "Tujuan pengiriman peringatan.",
+        "recipient_label": "Email penerima",
+        "recipient_missing": "Alamat penerima diperlukan.",
+        "sender_hint": "Akun Gmail yang mengirim peringatan.",
+        "sender_label": "Email pengirim",
+        "sender_missing": "Alamat pengirim diperlukan.",
+        "test": "Kirim email tes",
+        "title": "Peringatan email",
+        "sub": "Dikirim lewat Gmail setelah koneksi kembali."
+      },
+      "empty": {
+        "description": "Perangkat ini tidak mengembalikan saluran peringatan apa pun, sehingga belum ada yang dapat dikonfigurasi.",
+        "title": "Tidak ada saluran yang dilaporkan"
+      },
+      "loading": "Memuat saluran peringatan",
+      "name": {
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "rail_label": "Saluran peringatan",
+      "save": {
+        "action": "Simpan Pengaturan",
+        "blocked": "Perbaiki kolom yang ditandai",
+        "blocked_in": "Perbaiki kesalahan di {{channels}}",
+        "clean": "Semua perubahan tersimpan",
+        "dirty": "Perubahan belum tersimpan",
+        "discard": "Buang",
+        "failed": "Pengaturan tidak dapat disimpan.",
+        "succeeded": "Pengaturan peringatan tersimpan",
+        "errors": {}
+      },
+      "secret_saved": "Tersimpan",
+      "sms": {
+        "phone_error": "Masukkan nomor beserta kode negaranya, seperti +14155551234.",
+        "phone_hint": "Sertakan kode negara dengan tanda plus di depan.",
+        "phone_label": "Telepon penerima",
+        "phone_missing": "Nomor telepon penerima diperlukan.",
+        "test": "Kirim SMS tes",
+        "title": "Peringatan SMS",
+        "sub": "Tetap sampai meski saat gangguan."
+      },
+      "status": {
+        "incomplete": "Perlu disiapkan",
+        "needs_fixing": "Ada kesalahan yang belum disimpan",
+        "off": "Mati",
+        "ready": "Siap",
+        "unused": "Tidak ada peristiwa yang dirutekan"
+      },
+      "test": {
+        "blocked_busy": "Tes lain masih berjalan.",
+        "blocked_dirty": "Simpan perubahan Anda dahulu. Tes berjalan berdasarkan pengaturan yang tersimpan.",
+        "blocked_incomplete": "Selesaikan penyiapan saluran ini, lalu simpan, untuk mengirim tes.",
+        "blocked_mailer": "Instal mailer msmtp untuk mengirim email tes.",
+        "blocked_off": "Aktifkan saluran ini, lalu simpan, untuk mengirim tes.",
+        "failed": "Tes tidak dapat dikirim.",
+        "sending": "Mengirim…",
+        "succeeded": "Tes {{channel}} terkirim",
+        "errors": {
+          "send_failed_sms": "SMS tes tidak terkirim, jadi periksa sinyal, pulsa SIM, dan nomornya.",
+          "send_failed_email": "Email tes tidak terkirim, jadi periksa alamat, sandi aplikasi, dan koneksinya."
+        }
+      },
+      "threshold_error": "Masukkan jumlah menit bulat dari 1 sampai 60.",
+      "threshold_hint": "Gangguan yang lebih singkat dicatat, tidak dikirim.",
+      "threshold_label": "Tunggu sebelum memberi peringatan",
+      "threshold_unit": "mnt",
+      "title": "Saluran",
+      "sends_for": "Dikirim untuk",
+      "error": {
+        "title": "Saluran tidak dapat dimuat",
+        "description": "Perangkat tidak menjawab. Coba lagi sebentar lagi.",
+        "retry": "Coba lagi"
+      }
+    },
+    "coverage": {
+      "description": "Apa yang sampai ke Anda, sesuai yang disimpan.",
+      "emptyDesc": "Perangkat tidak melaporkan kemampuan peringatan apa pun, sehingga tidak ada yang dapat diaktifkan di sini.",
+      "emptyTitle": "Tidak ada yang dapat dirutekan",
+      "errorDesc": "Perangkat tidak menjawab, sehingga kami tidak dapat menunjukkan apa yang akan terpicu.",
+      "errorRetry": "Coba lagi",
+      "errorTitle": "Tidak dapat memuat cakupan",
+      "event": {
+        "connection_lost": {
+          "name": "Koneksi terputus"
+        },
+        "connection_restored": {
+          "name": "Koneksi pulih"
+        },
+        "reboot": {
+          "name": "Modem reboot"
+        }
+      },
+      "loading": "Memuat cakupan",
+      "reason": {
+        "email_needs_internet": "Perlu internet",
+        "not_supported": "Saluran ini tidak dapat mengirim peristiwa ini"
+      },
+      "staleNotice": "Menampilkan pengaturan terakhir yang berhasil kami baca dari perangkat.",
+      "title": "Cakupan",
+      "verdict": {
+        "all": "Semua tercakup",
+        "outage": "Gangguan tidak tercakup",
+        "partial": "{{covered}} dari {{total}} tercakup",
+        "none": "Tidak ada yang akan dikirim"
+      },
+      "needsSetup": "{{channel}} perlu disiapkan",
+      "notSent": "Tidak dikirim"
+    },
+    "page": {
+      "description": "Siapa yang diberi tahu saat koneksi terputus, kembali, atau modem reboot.",
+      "refresh": "Segarkan",
+      "title": "Peringatan",
+      "unreadable": "Perangkat tidak menjawab."
+    }
   },
   "watchdog": {
     "page_title": "Watchdog",

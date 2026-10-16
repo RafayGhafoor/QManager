@@ -43,145 +43,188 @@
     "aria_refresh": "Refresh network events"
   },
   "alerts": {
-    "page_title": "Alerts",
-    "page_description": "Get notified by SMS or email when your connection drops and when it comes back.",
-
-    "status_title": "Alert channels",
-    "status_description": "Where QManager will reach you when the connection changes.",
-    "status_routing_summary_label": "What fires where",
-    "status_not_alerting": "Not alerting",
-
-    "channel_sms_name": "SMS",
-    "channel_sms_short": "SMS",
-    "channel_email_name": "Email",
-    "channel_email_short": "Email",
-
-    "readiness_ready": "Ready",
-    "readiness_off": "Off",
-    "readiness_needs_setup": "Needs setup",
-    "readiness_mailer_missing": "Mailer not installed",
-    "readiness_off_hint": "This channel is turned off.",
-    "readiness_sms_no_recipient": "Add a recipient phone number to arm this channel.",
-    "readiness_email_incomplete": "Finish the email fields to arm this channel.",
-    "readiness_mailer_missing_hint": "Install the msmtp mailer to send email alerts.",
-
-    "event_connection_lost_name": "Connection lost",
-    "event_connection_lost_desc": "The internet has been down past the alert threshold.",
-    "event_connection_restored_name": "Connection restored",
-    "event_connection_restored_desc": "The internet came back after an outage.",
-    "event_reboot_name": "Modem rebooted",
-    "event_reboot_desc": "The modem restarted. Sent once it's back online, with the reason.",
-    "trigger_test": "Test message",
-
-    "reboot_cause_watchdog": "Watchdog",
-    "reboot_cause_user": "Planned",
-    "reboot_cause_unplanned": "Unexpected",
-
-    "settings_title": "Alert Settings",
-    "settings_description": "Choose which events reach each channel, then configure SMS and email.",
-    "tab_routing": "Routing",
-    "tab_sms": "SMS",
-    "tab_email": "Email",
-    "tab_has_errors_aria": "This tab has fields that need attention",
-
-    "routing_intro": "Pick which events go to which channel. Some combinations aren't possible and are shown as unavailable.",
-    "routing_table_caption": "Alert routing by event and channel",
-    "routing_switch_aria": "Send {{event}} alerts via {{channel}}",
-    "routing_unavailable": "Unavailable",
-    "routing_unavailable_more_info_aria": "Why {{channel}} can't send {{event}}",
-    "routing_channel_off_hint": "Turn a channel on in its tab to route events to it.",
-    "reason_email_needs_internet": "Email can't be sent while the internet is down — only SMS works during an outage.",
-    "reason_not_supported": "This channel doesn't support this event.",
-
-    "sms_enable_label": "Enable SMS alerts",
-    "sms_on_hint": "Alerts will be texted to your phone over the cellular network.",
-    "sms_off_hint": "SMS alerts are off.",
-    "sms_recipient_label": "Recipient phone",
-    "sms_recipient_placeholder": "+14155551234",
-    "sms_recipient_description": "Include the country code with a leading +, e.g. +14155551234.",
-
-    "email_enable_label": "Enable email alerts",
-    "email_on_hint": "Alerts will be emailed via Gmail once the connection is back.",
-    "email_off_hint": "Email alerts are off.",
-    "email_sender_label": "Sender email",
-    "email_sender_placeholder": "alerts@gmail.com",
-    "email_sender_description": "The Gmail account that will send the alert.",
-    "email_recipient_label": "Recipient email",
-    "email_recipient_placeholder": "you@example.com",
-    "email_recipient_description": "Where alerts will be delivered.",
-    "email_app_password_label": "Gmail app password",
-    "email_app_password_placeholder": "xxxx xxxx xxxx xxxx",
-    "email_app_password_saved_placeholder": "Leave blank to keep the saved password",
-    "email_app_password_description": "Generate an <link>App Password</link> in your Google Account.",
-    "email_app_password_show": "Show password",
-    "email_app_password_hide": "Hide password",
-
-    "threshold_label": "Alert After (minutes)",
-    "threshold_description": "How long the connection must be down before an alert is sent. Prevents alerts for brief, transient outages.",
-
-    "validation_phone": "Include country code, e.g. +14155551234",
-    "validation_email": "Enter a valid email address.",
-    "validation_threshold": "Duration must be 1–60 minutes.",
-    "validation_app_password_required": "An app password is required to send email.",
-
-    "test_sms_button": "Send Test SMS",
-    "test_sms_sending": "Sending…",
-    "test_email_button": "Send Test Email",
-    "test_email_sending": "Sending…",
-    "save_before_test_hint": "Save your changes before sending a test.",
-
-    "not_installed_title": "msmtp is not installed on this device.",
-    "not_installed_helper": "Install it to send email alerts. SMS and routing still save without it.",
-    "install_button": "Install msmtp",
-    "install_running_label": "Installing…",
-    "check_again_button": "Check Again",
-    "install_manually_label": "Or install it manually:",
-    "install_command": "opkg update && opkg install msmtp",
-
-    "uninstall_section_label": "Remove msmtp",
-    "uninstall_section_description": "Uninstall the msmtp package from this device.",
-    "uninstall_button": "Uninstall",
-    "uninstall_confirm_title": "Uninstall msmtp?",
-    "uninstall_confirm_description": "This removes the msmtp package. Your email alert settings are preserved, but email alerts won't send until it's reinstalled.",
-    "uninstall_confirm_button": "Uninstall",
-
-    "save_button": "Save Settings",
-    "save_saving": "Saving…",
-    "save_saved_flash": "Saved!",
-    "save_discard": "Discard",
-    "save_unsaved": "Unsaved changes",
-    "save_all_saved": "All changes saved",
-    "save_fix_errors_in": "Fix the errors in {{tabs}}",
-    "save_fix_errors": "Fix the highlighted fields",
-
-    "toast_save_success": "Alert settings saved",
-    "toast_save_error": "Failed to save alert settings",
-    "toast_test_sms_success": "Test SMS sent successfully",
-    "toast_test_sms_error": "Failed to send test SMS — check your configuration",
-    "toast_test_email_success": "Test email sent successfully",
-    "toast_test_email_error": "Failed to send test email — check your configuration",
-    "toast_uninstalled": "msmtp uninstalled",
-    "toast_uninstall_error": "Failed to uninstall msmtp",
-
-    "log_title": "Activity",
-    "log_description": "Sent alerts and recorded reboots, newest first.",
-    "log_aria_refresh": "Refresh activity",
-    "log_header_timestamp": "Timestamp",
-    "log_header_trigger": "Event",
-    "log_header_channel": "Channel",
-    "log_header_status": "Status",
-    "log_header_recipient": "Recipient",
-    "log_badge_sent": "Sent",
-    "log_badge_failed": "Failed",
-    "log_reboot_event": "Modem rebooted",
-    "log_time_unknown": "Unknown time",
-    "log_empty_title": "No activity yet",
-    "log_empty_hint_1": "Sent alerts appear here when your connection drops past the configured threshold.",
-    "log_empty_hint_2": "Reboots are recorded automatically, tagged with their cause.",
-    "log_error_title": "Failed to load activity",
-    "log_showing_count_one": "Showing {{shown}} of {{total}} event",
-    "log_showing_count_other": "Showing {{shown}} of {{total}} events",
-    "log_last_updated": "Last updated: {{time}}"
+    "coverage": {
+      "title": "Coverage",
+      "description": "What reaches you, as saved.",
+      "loading": "Loading coverage",
+      "event": {
+        "connection_lost": {
+          "name": "Connection lost"
+        },
+        "connection_restored": {
+          "name": "Connection restored"
+        },
+        "reboot": {
+          "name": "Modem rebooted"
+        }
+      },
+      "reason": {
+        "email_needs_internet": "Needs the internet",
+        "not_supported": "This channel cannot send this event"
+      },
+      "staleNotice": "Showing the settings we last read from the device.",
+      "errorTitle": "Could not load coverage",
+      "errorDesc": "The device did not answer, so we cannot show what will fire.",
+      "errorRetry": "Try again",
+      "emptyTitle": "Nothing can be routed",
+      "emptyDesc": "The device did not report any alert capabilities, so there is nothing to switch on here.",
+      "verdict": {
+        "all": "All covered",
+        "outage": "Outage not covered",
+        "partial": "{{covered}} of {{total}} covered",
+        "none": "Nothing will be sent"
+      },
+      "needsSetup": "{{channel}} needs setup",
+      "notSent": "Not sent"
+    },
+    "channels": {
+      "title": "Channels",
+      "description": "Set up how each one reaches you.",
+      "rail_label": "Alert channel",
+      "loading": "Loading alert channels",
+      "secret_saved": "Saved",
+      "name": {
+        "sms": "SMS",
+        "email": "Email"
+      },
+      "status": {
+        "ready": "Ready",
+        "incomplete": "Needs setup",
+        "unused": "No events routed",
+        "off": "Off",
+        "needs_fixing": "Has unsaved errors"
+      },
+      "sms": {
+        "phone_label": "Recipient phone",
+        "phone_hint": "Include the country code with a leading plus.",
+        "phone_error": "Enter a number with its country code, like +14155551234.",
+        "phone_missing": "A recipient phone number is required.",
+        "test": "Send a test SMS",
+        "title": "SMS alerts",
+        "sub": "Arrives even during an outage."
+      },
+      "email": {
+        "sender_label": "Sender email",
+        "sender_hint": "The Gmail account that sends the alert.",
+        "sender_missing": "A sender address is required.",
+        "recipient_label": "Recipient email",
+        "recipient_hint": "Where alerts are delivered.",
+        "recipient_missing": "A recipient address is required.",
+        "address_error": "Enter a valid email address.",
+        "password_label": "Gmail app password",
+        "password_hint": "Generate an app password for this device in your Google Account.",
+        "password_link": "Open Google app passwords",
+        "password_placeholder": "xxxx xxxx xxxx xxxx",
+        "password_keep": "Leave blank to keep the saved password",
+        "password_missing": "An app password is required to send email.",
+        "password_show": "Show app password",
+        "password_hide": "Hide app password",
+        "mailer_missing": "The msmtp mailer is not installed, so email cannot be sent yet. SMS still saves.",
+        "mailer_install": "Install msmtp",
+        "mailer_installing": "Installing",
+        "mailer_recheck": "Check again",
+        "test": "Send a test email",
+        "title": "Email alerts",
+        "sub": "Sent through Gmail once the link is back."
+      },
+      "threshold_label": "Wait before alerting",
+      "threshold_hint": "Shorter outages are logged, not sent.",
+      "threshold_error": "Enter a whole number of minutes from 1 to 60.",
+      "threshold_unit": "min",
+      "test": {
+        "sending": "Sending",
+        "succeeded": "Test {{channel}} sent",
+        "failed": "The test could not be sent.",
+        "blocked_off": "Turn this channel on, then save, to send a test.",
+        "blocked_incomplete": "Finish setting this channel up, then save, to send a test.",
+        "blocked_mailer": "Install the msmtp mailer to send a test email.",
+        "blocked_dirty": "Save your changes first. A test runs against the saved settings.",
+        "blocked_busy": "Another test is still running.",
+        "errors": {
+          "send_failed_sms": "The test SMS was not sent, so check the signal, SIM credit and number.",
+          "send_failed_email": "The test email was not sent, so check the addresses, app password and connection."
+        }
+      },
+      "save": {
+        "clean": "All changes saved",
+        "dirty": "Unsaved changes",
+        "blocked": "Fix the highlighted fields",
+        "blocked_in": "Fix the errors in {{channels}}",
+        "discard": "Discard",
+        "action": "Save settings",
+        "succeeded": "Alert settings saved",
+        "failed": "The settings could not be saved.",
+        "errors": {}
+      },
+      "empty": {
+        "title": "No channels reported",
+        "description": "This device did not return any alert channels, so there is nothing to configure yet."
+      },
+      "sends_for": "Sends for",
+      "error": {
+        "title": "Channels could not be loaded",
+        "description": "The device did not answer. Try again in a moment.",
+        "retry": "Try again"
+      }
+    },
+    "activity": {
+      "title": "Activity",
+      "description": "Alerts sent and reboots, newest first.",
+      "event": {
+        "reboot": "Modem rebooted"
+      },
+      "cause": {
+        "unexpected": "Unexpected",
+        "watchdog": "Watchdog",
+        "planned": "Planned"
+      },
+      "channel": {
+        "sms": "SMS",
+        "email": "Email"
+      },
+      "sr": {
+        "sent": "Alert sent",
+        "failed": "Alert failed",
+        "reboot": "Reboot recorded"
+      },
+      "day": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "undated": "No recorded time"
+      },
+      "time": {
+        "just_now": "Just now",
+        "unknown": "Unknown",
+        "minutes_one": "{{count}}m ago",
+        "minutes_other": "{{count}}m ago",
+        "hours_one": "{{count}}h ago",
+        "hours_other": "{{count}}h ago",
+        "days_one": "{{count}}d ago",
+        "days_other": "{{count}}d ago"
+      },
+      "empty": {
+        "title": "Nothing has happened yet",
+        "description": "Alerts appear here once a channel sends one, and reboots are recorded automatically with their cause."
+      },
+      "error": {
+        "title": "Could not load activity",
+        "description": "The device did not answer. Try again in a moment.",
+        "retry": "Try again"
+      },
+      "notice": {
+        "stale": "Showing the last activity we managed to read."
+      },
+      "transcript_label": "Alert and reboot history",
+      "trigger": {
+        "test": "Test alert"
+      }
+    },
+    "page": {
+      "title": "Alerts",
+      "description": "Who gets told when the connection drops, comes back, or the modem restarts.",
+      "refresh": "Refresh",
+      "unreadable": "The device did not answer."
+    }
   },
   "watchdog": {
     "page_title": "Watchdog",
