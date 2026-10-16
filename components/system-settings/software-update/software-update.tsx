@@ -1,117 +1,52 @@
 "use client";
 
-import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
+import * as React from "react";
+import { DownloadIcon, RotateCwIcon, ServerOffIcon } from "lucide-react";
 import { motion } from "motion/react";
-import { cn } from "@/lib/utils";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import {
-  CheckIcon,
-  CheckCircle2Icon,
-  AlertTriangleIcon,
-  ArrowUpCircleIcon,
-  DownloadIcon,
-  LoaderCircle,
-  RefreshCwIcon,
-  PackageIcon,
-  RotateCwIcon,
-} from "lucide-react";
+import { useTranslation } from "react-i18next";
 
+import ConditionBlock from "@/components/system-settings/condition-block";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Banner, bannerActionVariants } from "@/components/ui/banner";
 import { useSoftwareUpdate } from "@/hooks/use-software-update";
-import type { UpdateStatus } from "@/hooks/use-software-update";
-import { UpdateStatusCard } from "./update-status-card";
-import { UpdatePreferencesCard } from "./update-preferences-card";
+import { staggerContainer, staggerItem } from "@/lib/motion";
 
-// ─── Shared helpers ─────────────────────────────────────────────────────────
+import { AnchorCardSkeleton, NotesCardSkeleton } from "./card-skeleton";
+import PageHeader from "./page-header";
+import ReleaseNotesCard from "./release-notes-card";
+import StatusBand from "./status-band";
+import UpdateCard from "./update-card";
+import UpdatePreferencesCard from "./update-preferences-card";
+import VersionManagementCard from "./version-management-card";
+import {
+  installedState,
+  isPackageStaged,
+  packageSize as resolvePackageSize,
+  resolveFailure,
+  resolveView,
+} from "./derive";
+import {
+  CARD_GRID,
+  DIALOG_MOTION,
+  ERROR_STATE,
+  FOCUS_RING_ON_SURFACE,
+  PAGE_ROOT,
+  PILL_GLYPH,
+} from "./shapes";
 
-export function StatusBadge({
-  updateAvailable,
-  isUpdating,
-  isDownloading,
-  updateStatus,
-}: {
-  updateAvailable: boolean;
-  isUpdating: boolean;
-  isDownloading?: boolean;
-  updateStatus: UpdateStatus;
-}) {
+const K = "software_update";
+
+export function SoftwareUpdate(): React.JSX.Element {
   const { t } = useTranslation("system-settings");
-
-  if (isUpdating && updateStatus.status !== "error") {
-    return (
-      <Badge variant="info">
-        <RefreshCwIcon className="size-3" aria-hidden="true" />
-        {t("software_update.badge_updating")}
-      </Badge>
-    );
-  }
-  if (isDownloading) {
-    return (
-      <Badge variant="info">
-        <DownloadIcon className="size-3" aria-hidden="true" />
-        {t("software_update.badge_downloading")}
-      </Badge>
-    );
-  }
-  if (updateAvailable) {
-    return (
-      <Badge variant="info">
-        <ArrowUpCircleIcon className="size-3" aria-hidden="true" />
-        {t("software_update.badge_update_available")}
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="success">
-      <CheckCircle2Icon className="size-3" aria-hidden="true" />
-      {t("software_update.badge_up_to_date")}
-    </Badge>
-  );
-}
-
-// ─── Update progress stepper ────────────────────────────────────────────────
-
-interface StepConfig {
-  label: string;
-  detail: Record<string, string>;
-  icon: React.ReactNode;
-}
-
-const STEP_MAP: Record<string, number> = {
-  downloading: 0,
-  installing: 1,
-  rebooting: 2,
-};
-
-type StepState = "done" | "active" | "pending";
-
-function getStepState(stepIndex: number, activeIndex: number): StepState {
-  if (stepIndex < activeIndex) return "done";
-  if (stepIndex === activeIndex) return "active";
-  return "pending";
-}
-
-const stepIconMap: Record<StepState, (defaultIcon: React.ReactNode) => React.ReactNode> = {
-  done: () => <CheckIcon className="size-4 text-success" />,
-  active: () => <LoaderCircle className="size-4 animate-spin text-info" />,
-  pending: (icon) => <span className="text-muted-foreground/50">{icon}</span>,
-};
-
-// ─── Component ──────────────────────────────────────────────────────────────
-
-const SoftwareUpdateComponent = () => {
-  const { t } = useTranslation("system-settings");
-  const hookData = useSoftwareUpdate();
   const {
     updateInfo,
     updateStatus,
@@ -122,263 +57,269 @@ const SoftwareUpdateComponent = () => {
     isDownloading,
     isInstallStalled,
     error,
-  } = hookData;
+    errorKind,
+    lastChecked,
+    checkForUpdates,
+    downloadUpdate,
+    installStaged,
+    installVersion,
+    rebootDevice,
+    togglePrerelease,
+    saveAutoUpdate,
+  } = useSoftwareUpdate();
 
-  const progressListAria = t("software_update.progress_list_aria");
-
-  const steps = useMemo<StepConfig[]>(
-    () => [
-      {
-        label: t("software_update.steps_download_label"),
-        detail: {
-          active: t("software_update.steps_download_active"),
-          done: t("software_update.steps_download_done"),
-        },
-        icon: <DownloadIcon className="size-4" />,
-      },
-      {
-        label: t("software_update.steps_install_label"),
-        detail: {
-          active: t("software_update.steps_install_active"),
-          done: t("software_update.steps_install_done"),
-        },
-        icon: <PackageIcon className="size-4" />,
-      },
-      {
-        label: t("software_update.steps_reboot_label"),
-        detail: {
-          active: t("software_update.steps_reboot_active"),
-          done: t("software_update.steps_reboot_done"),
-        },
-        icon: <RotateCwIcon className="size-4" />,
-      },
-    ],
-    [t],
+  // The one union every child reads, so nothing infers state from a payload.
+  const view = resolveView({
+    isLoading,
+    error,
+    errorKind,
+    updateInfo,
+    updateStatus,
+    downloadState,
+    isUpdating,
+    isDownloading,
+  });
+  const failure = resolveFailure(
+    updateInfo,
+    error,
+    errorKind,
+    downloadState,
+    view === "installing" && isInstallStalled,
   );
+  const packageSize = resolvePackageSize(updateInfo);
+  const packageStaged = isPackageStaged(downloadState, updateInfo);
 
-  const waitingLabel = t("software_update.steps_waiting");
+  // The version select and its confirm live here so the interrupted-install
+  // banner can preselect a build and open the dialog from outside the card.
+  const [selectedVersion, setSelectedVersion] = React.useState("");
+  const [versionDialogOpen, setVersionDialogOpen] = React.useState(false);
+  const [installDialogOpen, setInstallDialogOpen] = React.useState(false);
+  const [rebootDialogOpen, setRebootDialogOpen] = React.useState(false);
 
-  // ── Fatal error (no data at all) ──────────────────────────────────────
-  if (error && !updateInfo && !isLoading) {
-    return (
-      <PageWrapper>
-        <Card className="@container/card">
-          <CardHeader>
-            <CardTitle>{t("software_update.status_card_title")}</CardTitle>
-            <CardDescription>
-              {t("software_update.error_unable_to_check")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert variant="destructive">
-              <AlertTriangleIcon className="size-4" />
-              <AlertTitle>{t("software_update.error_failed_title")}</AlertTitle>
-              <AlertDescription>
-                <p>{error}</p>
-              </AlertDescription>
-            </Alert>
-            <div className="mt-4 flex justify-end">
-              <Button
-                variant="outline"
-                onClick={hookData.checkForUpdates}
-                disabled={isChecking}
-              >
-                {isChecking ? (
-                  <>
-                    <LoaderCircle className="size-4 animate-spin" />
-                    {t("software_update.checking")}
-                  </>
-                ) : (
-                  <>
-                    <RefreshCwIcon className="size-4" />
-                    {t("actions.retry", { ns: "common" })}
-                  </>
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </PageWrapper>
-    );
-  }
+  const running = view === "installing" || view === "rebooting";
+  const interrupted = installedState(updateInfo) === "interrupted";
+  const pendingVersion = updateInfo?.pending_version ?? null;
 
-  // ── Updating state (replaces entire card grid) ────────────────────────
-  if (isUpdating && updateStatus.status !== "error") {
-    const activeIndex = STEP_MAP[updateStatus.status] ?? 0;
+  // Neither rejects — a failure lands in `errorKind` and repaints the view.
+  const handleDownload = React.useCallback(async () => {
+    await downloadUpdate();
+  }, [downloadUpdate]);
 
-    return (
-      <PageWrapper>
-        <Card className="@container/card">
-          <CardHeader>
-            <CardTitle>{t("software_update.updating_card_title")}</CardTitle>
-            <CardDescription>
-              {updateStatus.version
-                ? t("software_update.updating_description_version", { version: updateStatus.version })
-                : t("software_update.updating_description_generic")}
-              {updateStatus.size && ` (${updateStatus.size})`}
-            </CardDescription>
-            <CardAction>
-              <StatusBadge
-                updateAvailable={false}
-                isUpdating={true}
-                isDownloading={isDownloading}
-                updateStatus={updateStatus}
-              />
-            </CardAction>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-5" aria-live="polite">
-              {/* Step list */}
-              <div className="space-y-1" role="list" aria-label={progressListAria}>
-                {steps.map((step, i) => {
-                  const state = getStepState(i, activeIndex);
-                  const detailText =
-                    state === "active"
-                      ? updateStatus.message || step.detail.active
-                      : state === "done"
-                        ? step.detail.done
-                        : waitingLabel;
+  const handleInstallStaged = React.useCallback(async () => {
+    setInstallDialogOpen(false);
+    await installStaged();
+  }, [installStaged]);
 
-                  return (
-                    <motion.div
-                      key={step.label}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.25, delay: i * 0.06, ease: "easeOut" }}
-                      role="listitem"
-                      aria-current={state === "active" ? "step" : undefined}
-                      className={cn(
-                        "flex items-start gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-300",
-                        state === "active" && "bg-info/5",
-                      )}
-                    >
-                      <div className="mt-0.5 shrink-0">
-                        {stepIconMap[state](step.icon)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={cn(
-                            "font-medium",
-                            state === "done" && "text-success",
-                            state === "active" && "text-foreground",
-                            state === "pending" && "text-muted-foreground",
-                          )}
-                        >
-                          {step.label}
-                        </p>
-                        <p
-                          className={cn(
-                            "text-xs mt-0.5",
-                            state === "active"
-                              ? "text-muted-foreground"
-                              : "text-muted-foreground/60",
-                          )}
-                        >
-                          {detailText}
-                        </p>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
+  const handleReboot = React.useCallback(async () => {
+    setRebootDialogOpen(false);
+    await rebootDevice();
+  }, [rebootDevice]);
 
-              {/* Segmented progress bar */}
-              <div
-                className="flex w-full gap-1.5"
-                role="progressbar"
-                aria-valuenow={activeIndex + 1}
-                aria-valuemax={steps.length}
-                aria-label={progressListAria}
-              >
-                {steps.map((step, i) => (
-                  <div
-                    key={step.label}
-                    className={cn(
-                      "h-0.75 flex-1 rounded-full transition-colors duration-500",
-                      i < activeIndex
-                        ? "bg-success"
-                        : i === activeIndex
-                          ? "bg-primary/60"
-                          : "bg-muted/30",
-                    )}
-                  />
-                ))}
-              </div>
+  const resumeInterrupted = React.useCallback(() => {
+    if (!pendingVersion) return;
+    setSelectedVersion(pendingVersion);
+    setVersionDialogOpen(true);
+  }, [pendingVersion]);
 
-              {/* Warning footer */}
-              <div role="alert" className="flex items-center justify-center gap-2 rounded-lg bg-warning/10 px-4 py-2.5">
-                <AlertTriangleIcon className="size-4 shrink-0 text-warning" />
-                <p className="text-xs font-medium text-warning">
-                  {t("software_update.updating_do_not_power_off")}
-                </p>
-              </div>
-
-              {isInstallStalled && updateStatus.status === "installing" && (
-                <Alert variant="warning">
-                  <AlertTriangleIcon className="size-4" />
-                  <AlertTitle>{t("software_update.updating_stall_title")}</AlertTitle>
-                  <AlertDescription>
-                    <p className="mb-3">
-                      {t("software_update.updating_stall_description")}
-                    </p>
-                    <Button size="sm" onClick={hookData.rebootDevice}>
-                      {t("software_update.updating_reboot_device_now")}
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </PageWrapper>
-    );
-  }
-
-  // ── Normal state: 2-card grid ─────────────────────────────────────────
   return (
-    <PageWrapper>
-      <div className="grid grid-cols-1 @3xl/main:grid-cols-2 grid-flow-row gap-4">
-        <UpdateStatusCard
-          updateInfo={updateInfo}
-          updateStatus={updateStatus}
-          downloadState={downloadState}
-          isLoading={isLoading}
-          isChecking={isChecking}
-          isUpdating={isUpdating}
-          isDownloading={isDownloading}
-          error={error}
-          lastChecked={hookData.lastChecked}
-          checkForUpdates={hookData.checkForUpdates}
-          downloadUpdate={hookData.downloadUpdate}
-          installStaged={hookData.installStaged}
+    <motion.div
+      className={PAGE_ROOT}
+      initial="hidden"
+      animate="visible"
+      variants={staggerContainer}
+    >
+      {/* A standing condition, so it carries no dismiss and no motion wrapper —
+          `Banner` owns its own entrance. */}
+      {/* The condition, not the CTA, decides whether this renders: the Installed
+          tile already flips to warning without a pending version. */}
+      {interrupted && (
+        <Banner
+          role="degraded"
+          title={t(`${K}.banner.title`)}
+          description={
+            pendingVersion
+              ? t(`${K}.banner.description`, {
+                  version: updateInfo?.current_version ?? "",
+                  pending: pendingVersion,
+                })
+              : t(`${K}.banner.description_unknown`, {
+                  version: updateInfo?.current_version ?? "",
+                })
+          }
+          action={
+            pendingVersion ? (
+              <button
+                type="button"
+                onClick={resumeInterrupted}
+                className={bannerActionVariants({ tone: "on-warning" })}
+              >
+                {t(`${K}.banner.action`)}
+              </button>
+            ) : undefined
+          }
         />
-        <UpdatePreferencesCard
-          updateInfo={updateInfo}
-          isLoading={isLoading}
-          isUpdating={isUpdating}
-          isDownloading={isDownloading}
-          downloadUpdate={hookData.downloadUpdate}
-          togglePrerelease={hookData.togglePrerelease}
-          saveAutoUpdate={hookData.saveAutoUpdate}
-        />
-      </div>
-    </PageWrapper>
-  );
-};
+      )}
 
-function PageWrapper({ children }: { children: React.ReactNode }) {
-  const { t } = useTranslation("system-settings");
-  return (
-    <div className="@container/main mx-auto p-2">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">{t("software_update.page_title")}</h1>
-        <p className="text-muted-foreground">
-          {t("software_update.page_description")}
-        </p>
-      </div>
-      {children}
-    </div>
+      <PageHeader
+        view={view}
+        failure={failure}
+        isChecking={isChecking}
+        onCheck={() => void checkForUpdates()}
+      />
+
+      <StatusBand
+        view={view}
+        failure={failure}
+        info={updateInfo}
+        packageSize={packageSize}
+        lastChecked={lastChecked}
+      />
+
+      {view === "loading" ? (
+        <>
+          <AnchorCardSkeleton />
+          <NotesCardSkeleton />
+        </>
+      ) : view === "unreachable" ? (
+        // This branch mounts AFTER the page root settled, so it declares its
+        // own directions: a variants-only child that mounts late renders blank.
+        <motion.div
+          variants={staggerItem}
+          initial="hidden"
+          animate="visible"
+          className={ERROR_STATE.ROOT}
+        >
+          <ConditionBlock
+            tone="destructive"
+            glyph={ServerOffIcon}
+            ariaRole="alert"
+            title={t(`${K}.states.unreachable.title`)}
+            description={t(`${K}.states.unreachable.description`)}
+            detail={
+              error ? <p className={ERROR_STATE.DETAIL}>{error}</p> : undefined
+            }
+            onRetry={() => void checkForUpdates()}
+            retryLabel={t(`${K}.actions.retry`)}
+            className={ERROR_STATE.BLOCK}
+          />
+        </motion.div>
+      ) : (
+        // `display: contents` keeps these in the page's flex column while
+        // giving the late-mounting group its own cascade root: a variants-only
+        // child that mounts after its parent settled renders blank.
+        <motion.div
+          className="contents"
+          variants={staggerContainer}
+          initial="hidden"
+          animate="visible"
+        >
+          <UpdateCard
+            view={view}
+            info={updateInfo}
+            failure={failure}
+            packageStaged={packageStaged}
+            onDownload={() => void handleDownload()}
+            onInstall={() => setInstallDialogOpen(true)}
+            onReboot={() => setRebootDialogOpen(true)}
+          />
+
+          {/* Download and verify leave the page whole; only a run that is
+              replacing files takes the trailing cards away. */}
+          {!running && (
+            <>
+              <ReleaseNotesCard view={view} info={updateInfo} />
+
+              <div className={CARD_GRID}>
+                <UpdatePreferencesCard
+                  view={view}
+                  info={updateInfo}
+                  busy={isUpdating || isDownloading}
+                  togglePrerelease={togglePrerelease}
+                  saveAutoUpdate={saveAutoUpdate}
+                />
+                <VersionManagementCard
+                  view={view}
+                  info={updateInfo}
+                  busy={isUpdating || isDownloading}
+                  packageSize={packageSize}
+                  selectedVersion={selectedVersion}
+                  onSelectVersion={setSelectedVersion}
+                  dialogOpen={versionDialogOpen}
+                  onDialogOpenChange={setVersionDialogOpen}
+                  onInstallVersion={installVersion}
+                />
+              </div>
+            </>
+          )}
+        </motion.div>
+      )}
+
+      {/* The staged package still gets a confirm: the pill's one click is what
+          restarts the modem. */}
+      <AlertDialog open={installDialogOpen} onOpenChange={setInstallDialogOpen}>
+        <AlertDialogContent className={DIALOG_MOTION}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t(`${K}.versions.dialog.title_install`, {
+                version: updateInfo?.latest_version ?? "",
+              })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {[
+                t(`${K}.versions.dialog.description_install`, {
+                  version: updateInfo?.latest_version ?? "",
+                  current: updateInfo?.current_version ?? "",
+                }),
+                packageSize
+                  ? t(`${K}.versions.dialog.size`, { size: packageSize })
+                  : null,
+                t(`${K}.versions.dialog.warning`),
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {/* The gap takes the DIALOG's ground, which is `bg-surface`. */}
+            <AlertDialogCancel className={FOCUS_RING_ON_SURFACE}>
+              {t(`${K}.versions.dialog.cancel`)}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className={FOCUS_RING_ON_SURFACE}
+              onClick={() => void handleInstallStaged()}
+            >
+              <DownloadIcon className={PILL_GLYPH} aria-hidden="true" />
+              {t(`${K}.versions.dialog.confirm_install`)}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* A stalled install is rescued by a manual restart, so it is confirmed. */}
+      <AlertDialog open={rebootDialogOpen} onOpenChange={setRebootDialogOpen}>
+        <AlertDialogContent className={DIALOG_MOTION}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t(`${K}.stall_dialog.title`)}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(`${K}.stall_dialog.description`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className={FOCUS_RING_ON_SURFACE}>
+              {t(`${K}.stall_dialog.cancel`)}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className={FOCUS_RING_ON_SURFACE}
+              onClick={() => void handleReboot()}
+            >
+              <RotateCwIcon className={PILL_GLYPH} aria-hidden="true" />
+              {t(`${K}.stall_dialog.confirm`)}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </motion.div>
   );
 }
 
-export default SoftwareUpdateComponent;
+export default SoftwareUpdate;

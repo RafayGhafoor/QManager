@@ -1,7 +1,7 @@
-import { LanguagePackCard } from "@/components/i18n/language-pack-card";
+import Languages from "@/components/system-settings/languages/languages";
 
 const LanguagesPage = () => {
-  return <LanguagePackCard />;
+  return <Languages />;
 };
 
 export default LanguagesPage;

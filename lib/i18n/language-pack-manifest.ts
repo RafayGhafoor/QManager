@@ -64,12 +64,17 @@ function validateEntry(raw: unknown): RemoteManifestEntry | null {
     r.contributors.every((c) => typeof c === "string")
       ? (r.contributors as string[])
       : undefined;
+  const appMinVersion =
+    typeof r.app_min_version === "string" && r.app_min_version
+      ? r.app_min_version
+      : undefined;
   return {
     code: r.code as LanguageCode,
     native_name: r.native_name,
     english_name: r.english_name,
     rtl: r.rtl,
     version: r.version,
+    app_min_version: appMinVersion,
     completeness: Math.max(0, Math.min(1, r.completeness)),
     size_bytes: Math.max(0, r.size_bytes | 0),
     sha256: r.sha256,

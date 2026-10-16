@@ -163,7 +163,7 @@ The radius is softly rounded — not pill-shaped, not sharp-cornered.
 
 **Navigation:** `breadcrumb`, `navigation-menu`, `menubar`, `tabs`
 
-**Forms:** `button`, `input`, `label`, `select`, `checkbox`, `radio-group`, `switch`, `toggle`, `toggle-group`, `slider`, `input-otp`, `form` (React Hook Form integration)
+**Forms:** `button`, `input`, `label`, `select`, `checkbox`, `switch`, `toggle`, `toggle-group`, `slider`, `input-otp`, `form` (React Hook Form integration)
 
 **Data Display:** `table`, `badge`, `avatar`, `progress`, `chart` (Recharts wrapper)
 

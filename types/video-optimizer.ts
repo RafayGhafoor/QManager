@@ -48,6 +48,8 @@ export interface InstallResult {
   status: "idle" | "running" | "complete" | "error";
   message?: string;
   detail?: string;
+  /** Installer transcript, when the backend streams one. */
+  log?: string;
 }
 
 export interface TrafficMasqueradeSettings {

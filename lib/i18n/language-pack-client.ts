@@ -1,6 +1,11 @@
 // lib/i18n/language-pack-client.ts
 import { authFetch } from "@/lib/auth-fetch";
-import type { LanguageCode, LanguagePackInstallState, RemoteManifest } from "@/types/i18n";
+import type {
+  LanguageCode,
+  LanguagePackInstallState,
+  LanguagePackInstallStep,
+  RemoteManifest,
+} from "@/types/i18n";
 import { parseManifest } from "./language-pack-manifest";
 
 const CGI_BASE = "/cgi-bin/quecmanager/system/language-packs";
@@ -8,6 +13,11 @@ const CGI_BASE = "/cgi-bin/quecmanager/system/language-packs";
 export interface InstalledPack {
   code: LanguageCode;
   version: string;
+}
+
+export interface MutationResult {
+  ok: boolean;
+  error?: string;
 }
 
 export interface LanguagePackListResponse {
@@ -39,7 +49,7 @@ export async function fetchLanguagePackList(
 export async function startLanguagePackInstall(
   code: LanguageCode,
   manifestUrl: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<MutationResult> {
   const resp = await authFetch(`${CGI_BASE}/install.sh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -55,18 +65,62 @@ export async function startLanguagePackInstall(
   return { ok: true };
 }
 
+// The worker (`lp_write_progress`) reports `state` idle|running|success|failed|
+// cancelled and, while running, a `step`. The UI speaks one state per step, so
+// the two are folded together here and nowhere else.
+const RUNNING_STEP_STATE: Record<string, LanguagePackInstallStep> = {
+  start: "pending",
+  fetch_catalog: "pending",
+  download: "downloading",
+  verify: "verifying",
+  extract: "extracting",
+  validate: "validating",
+  install: "installing",
+};
+
+export function normalizeInstallStatus(raw: unknown): LanguagePackInstallState {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const rawState = typeof r.state === "string" ? r.state : "idle";
+  const rawStep = typeof r.step === "string" ? r.step : "";
+  const message = typeof r.message === "string" && r.message ? r.message : undefined;
+  const base = {
+    code: typeof r.code === "string" && r.code ? r.code : undefined,
+    progress: typeof r.progress === "number" ? r.progress : 0,
+    message,
+  };
+
+  switch (rawState) {
+    case "running": {
+      const state = RUNNING_STEP_STATE[rawStep] ?? "pending";
+      return { ...base, state, step: state };
+    }
+    case "success":
+      return { ...base, state: "done", step: "done", progress: 100 };
+    case "failed":
+      return {
+        ...base,
+        state: "failed",
+        step: "failed",
+        error_code:
+          typeof r.error === "string" && r.error
+            ? r.error
+            : typeof r.error_code === "string" && r.error_code
+              ? r.error_code
+              : undefined,
+      };
+    case "cancelled":
+      return { ...base, state: "cancelled", step: "cancelled" };
+    default:
+      return { ...base, state: "idle" };
+  }
+}
+
 export async function getLanguagePackInstallStatus(): Promise<LanguagePackInstallState> {
   const resp = await authFetch(`${CGI_BASE}/install_status.sh`);
   if (!resp.ok) {
     throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
   }
-  const raw = await resp.json();
-  return {
-    state: raw.state ?? "idle",
-    code: raw.code || undefined,
-    progress: typeof raw.progress === "number" ? raw.progress : 0,
-    message: raw.message || undefined,
-  };
+  return normalizeInstallStatus(await resp.json());
 }
 
 export async function cancelLanguagePackInstall(): Promise<void> {
@@ -78,7 +132,7 @@ export async function cancelLanguagePackInstall(): Promise<void> {
 
 export async function removeLanguagePack(
   code: LanguageCode,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<MutationResult> {
   const resp = await authFetch(`${CGI_BASE}/remove.sh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

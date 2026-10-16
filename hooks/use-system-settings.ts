@@ -49,17 +49,37 @@ export interface SaveLowPowerPayload {
   days: number[];
 }
 
+// ─── Save Result ──────────────────────────────────────────────────────────
+
+/**
+ * What a save returns. Callers toast from this and never from the hook's
+ * `error`, which a save no longer touches (it describes the last READ only, so
+ * a rejected edit cannot mislabel the card as stale).
+ */
+export interface SaveResult {
+  success: boolean;
+  /**
+   * The reason the device gave, already translated through `resolveErrorMessage`.
+   * Absent on success and when the device (or the network) gave none, in which
+   * case the caller shows its own generic line.
+   */
+  message?: string;
+}
+
 export interface UseSystemSettingsReturn {
   settings: SystemSettings | null;
   scheduledReboot: ScheduleConfig | null;
   lowPower: LowPowerConfig | null;
   isLoading: boolean;
   isSaving: boolean;
+  /** Set only by a failed READ. Cleared by the next read. */
   error: string | null;
-  saveSettings: (payload: SaveSettingsPayload) => Promise<boolean>;
-  saveScheduledReboot: (payload: SaveScheduledRebootPayload) => Promise<boolean>;
-  saveLowPower: (payload: SaveLowPowerPayload) => Promise<boolean>;
-  refresh: () => void;
+  saveSettings: (payload: SaveSettingsPayload) => Promise<SaveResult>;
+  saveScheduledReboot: (
+    payload: SaveScheduledRebootPayload,
+  ) => Promise<SaveResult>;
+  saveLowPower: (payload: SaveLowPowerPayload) => Promise<SaveResult>;
+  refresh: (silent?: boolean) => Promise<void>;
 }
 
 // ─── Hook ──────────────────────────────────────────────────────────────────
@@ -76,6 +96,11 @@ export function useSystemSettings(): UseSystemSettingsReturn {
 
   const mountedRef = useRef(true);
 
+  // Responses settle out of order, so every read claims a sequence at ISSUE
+  // time and a late one that lost the race is dropped instead of applied.
+  const reqSeqRef = useRef(0);
+  const appliedSeqRef = useRef(0);
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -87,6 +112,7 @@ export function useSystemSettings(): UseSystemSettingsReturn {
   // Fetch current settings
   // ---------------------------------------------------------------------------
   const fetchSettings = useCallback(async (silent = false) => {
+    const seq = ++reqSeqRef.current;
     if (!silent) setIsLoading(true);
     setError(null);
 
@@ -98,6 +124,9 @@ export function useSystemSettings(): UseSystemSettingsReturn {
 
       const json: SystemSettingsResponse = await resp.json();
       if (!mountedRef.current) return;
+      // A newer answer already landed, so this one is stale by definition.
+      if (seq <= appliedSeqRef.current) return;
+      appliedSeqRef.current = seq;
 
       if (!json.success) {
         setError("Failed to fetch system settings");
@@ -109,10 +138,14 @@ export function useSystemSettings(): UseSystemSettingsReturn {
       setLowPower(json.low_power);
     } catch (err) {
       if (!mountedRef.current) return;
+      if (seq <= appliedSeqRef.current) return;
+      appliedSeqRef.current = seq;
       setError(
         err instanceof Error ? err.message : "Failed to fetch system settings",
       );
     } finally {
+      // Deliberately unsequenced: gating this would strand the spinner whenever
+      // a silent refetch supersedes a visible one and never clears it.
       if (mountedRef.current && !silent) {
         setIsLoading(false);
       }
@@ -132,8 +165,7 @@ export function useSystemSettings(): UseSystemSettingsReturn {
         | SaveSettingsPayload
         | SaveScheduledRebootPayload
         | SaveLowPowerPayload,
-    ): Promise<boolean> => {
-      setError(null);
+    ): Promise<SaveResult> => {
       setIsSaving(true);
 
       try {
@@ -148,22 +180,20 @@ export function useSystemSettings(): UseSystemSettingsReturn {
         }
 
         const json = await resp.json();
-        if (!mountedRef.current) return false;
+        if (!mountedRef.current) return { success: false };
 
         if (!json.success) {
-          setError(resolveErrorMessage(t, json.error, json.detail, "Failed to save settings"));
-          return false;
+          const message = resolveErrorMessage(t, json.error, json.detail, "");
+          return { success: false, message: message || undefined };
         }
 
         // Silent re-fetch to sync all state
         await fetchSettings(true);
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(
-          err instanceof Error ? err.message : "Failed to save settings",
-        );
-        return false;
+        return { success: true };
+      } catch {
+        // Transport failure: no device reason to quote, the caller's generic
+        // line covers it.
+        return { success: false };
       } finally {
         if (mountedRef.current) {
           setIsSaving(false);

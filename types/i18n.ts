@@ -22,27 +22,34 @@ export interface LanguageMeta {
   bundled: boolean;
 }
 
-export type LanguageInstallStep =
-  | "start"
-  | "fetch_catalog"
-  | "download"
-  | "verify"
-  | "extract"
-  | "validate"
-  | "install"
-  | "done"
-  | "cancelled"
-  | "failed";
+/**
+ * Non-terminal install states the UI renders. The worker's own words
+ * (`running` + a `start|fetch_catalog|...` step) are normalised into these by
+ * `getLanguagePackInstallStatus`. `cancelling` is the transient state after a
+ * cancel request is accepted but before the worker unwinds.
+ */
+export type LanguagePackInstallStep =
+  | "pending"
+  | "downloading"
+  | "verifying"
+  | "extracting"
+  | "validating"
+  | "installing"
+  | "cancelling";
+
+/** Terminal states the poller stops on. `idle` is the resting state. */
+export type LanguagePackInstallTerminal = "done" | "cancelled" | "failed" | "idle";
 
 export interface LanguagePackInstallState {
-  state: "idle" | "running" | "success" | "failed" | "cancelled";
+  state: LanguagePackInstallStep | LanguagePackInstallTerminal;
   code?: LanguageCode;
-  progress?: number; // 0–100
-  /** Stable enum the frontend translates. Empty for older worker builds. */
-  step?: LanguageInstallStep | string;
-  /** Human fallback emitted by the worker. Used when step is unknown. */
+  progress: number; // 0..100
+  /** Machine step key (== state while running); used for a stable label. */
+  step?: string;
+  /** Human fallback emitted by the worker, quoted as machine voice. */
   message?: string;
-  error?: string;
+  /** A backend error code, kept unresolved so the UI can translate it. */
+  error_code?: string;
 }
 
 export interface RemoteManifestEntry {
@@ -51,6 +58,8 @@ export interface RemoteManifestEntry {
   english_name: string;
   rtl: boolean;
   version: string;
+  /** Oldest app release the pack was validated against; absent = compatible. */
+  app_min_version?: string;
   completeness: number;
   size_bytes: number;
   sha256: string;

@@ -10,8 +10,13 @@ import type { InstallResult } from "@/types/video-optimizer";
 // useTailscale — Fetch & Action Hook for Tailscale VPN Management
 // =============================================================================
 // Fetches Tailscale status on mount (tiered: not installed → stopped → full).
-// Provides action methods for connect, disconnect, logout, service, boot toggle.
+// Provides action methods for connect, disconnect, logout, service, boot and
+// exit-node toggles, install and uninstall.
 // Adaptive polling: 10s normal, 3s during auth wait.
+//
+// Every action RETURNS its outcome (`TailscaleActionResult`) instead of parking
+// the failure reason in hook state: a caller that toasts after an `await` would
+// read a stale closure of that state. The `error` field is the status READ only.
 //
 // Backend: GET/POST /cgi-bin/quecmanager/vpn/tailscale.sh
 // =============================================================================
@@ -68,27 +73,48 @@ export interface TailscaleStatus {
   other_vpn_name?: string;
 }
 
+export type TailscaleInstallVariant = "official" | "tiny";
+
+/**
+ * The outcome of one mutation. `reason` is the backend's own explanation,
+ * already resolved through `resolveErrorMessage`; it is empty when the backend
+ * gave none, so the caller supplies its translated fallback.
+ */
+export interface TailscaleActionResult {
+  ok: boolean;
+  reason: string;
+}
+
 export interface UseTailscaleReturn {
   status: TailscaleStatus | null;
   isLoading: boolean;
   isConnecting: boolean;
   isDisconnecting: boolean;
   isTogglingService: boolean;
+  isTogglingBoot: boolean;
   isTogglingExitNode: boolean;
   isUninstalling: boolean;
   installResult: InstallResult;
   error: string | null;
-  connect: () => Promise<boolean>;
-  disconnect: () => Promise<boolean>;
-  logout: () => Promise<boolean>;
-  startService: () => Promise<boolean>;
-  stopService: () => Promise<boolean>;
-  setBootEnabled: (enabled: boolean) => Promise<boolean>;
-  setExitNodeAdvertised: (enabled: boolean) => Promise<boolean>;
-  uninstall: () => Promise<boolean>;
-  runInstall: (variant: "official" | "tiny") => Promise<void>;
+  connect: () => Promise<TailscaleActionResult>;
+  disconnect: () => Promise<TailscaleActionResult>;
+  logout: () => Promise<TailscaleActionResult>;
+  startService: () => Promise<TailscaleActionResult>;
+  stopService: () => Promise<TailscaleActionResult>;
+  setBootEnabled: (enabled: boolean) => Promise<TailscaleActionResult>;
+  setExitNodeAdvertised: (enabled: boolean) => Promise<TailscaleActionResult>;
+  uninstall: () => Promise<TailscaleActionResult>;
+  runInstall: (variant: TailscaleInstallVariant) => Promise<void>;
   refresh: () => void;
 }
+
+interface PostResponse {
+  success: boolean;
+  error?: string;
+  detail?: string;
+}
+
+const OK: TailscaleActionResult = { ok: true, reason: "" };
 
 // ─── Hook ──────────────────────────────────────────────────────────────────
 
@@ -99,6 +125,7 @@ export function useTailscale(): UseTailscaleReturn {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [isTogglingService, setIsTogglingService] = useState(false);
+  const [isTogglingBoot, setIsTogglingBoot] = useState(false);
   const [isTogglingExitNode, setIsTogglingExitNode] = useState(false);
   const [isUninstalling, setIsUninstalling] = useState(false);
   const [installResult, setInstallResult] = useState<InstallResult>({
@@ -122,36 +149,48 @@ export function useTailscale(): UseTailscaleReturn {
   // ---------------------------------------------------------------------------
   // Fetch current status
   // ---------------------------------------------------------------------------
-  const fetchStatus = useCallback(async (silent = false) => {
-    if (!silent) setIsLoading(true);
-    setError(null);
+  const fetchStatus = useCallback(
+    async (silent = false) => {
+      if (!silent) setIsLoading(true);
+      setError(null);
 
-    try {
-      const resp = await authFetch(CGI_ENDPOINT);
-      if (!resp.ok) {
-        throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+      try {
+        const resp = await authFetch(CGI_ENDPOINT);
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+        }
+
+        const json = await resp.json();
+        if (!mountedRef.current) return;
+
+        if (!json.success) {
+          setError(
+            resolveErrorMessage(
+              t,
+              json.error,
+              undefined,
+              "Failed to fetch Tailscale status",
+            ),
+          );
+          return;
+        }
+
+        setStatus(json);
+      } catch (err) {
+        if (!mountedRef.current) return;
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to fetch Tailscale status",
+        );
+      } finally {
+        if (mountedRef.current && !silent) {
+          setIsLoading(false);
+        }
       }
-
-      const json = await resp.json();
-      if (!mountedRef.current) return;
-
-      if (!json.success) {
-        setError(resolveErrorMessage(t, json.error, undefined, "Failed to fetch Tailscale status"));
-        return;
-      }
-
-      setStatus(json);
-    } catch (err) {
-      if (!mountedRef.current) return;
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch Tailscale status",
-      );
-    } finally {
-      if (mountedRef.current && !silent) {
-        setIsLoading(false);
-      }
-    }
-  }, [t]);
+    },
+    [t],
+  );
 
   // ---------------------------------------------------------------------------
   // Adaptive polling — faster during auth wait
@@ -177,13 +216,7 @@ export function useTailscale(): UseTailscaleReturn {
   // POST helper
   // ---------------------------------------------------------------------------
   const postAction = useCallback(
-    async (body: Record<string, unknown>): Promise<{
-      success: boolean;
-      auth_url?: string;
-      already_authenticated?: boolean;
-      error?: string;
-      detail?: string;
-    }> => {
+    async (body: Record<string, unknown>): Promise<PostResponse> => {
       const resp = await authFetch(CGI_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -199,193 +232,85 @@ export function useTailscale(): UseTailscaleReturn {
     [],
   );
 
+  /**
+   * One mutation: POST, refetch on success, return the outcome. `setBusy` is
+   * the flag the caller owns for the duration of the call.
+   */
+  const runAction = useCallback(
+    async (
+      body: Record<string, unknown>,
+      setBusy?: (busy: boolean) => void,
+    ): Promise<TailscaleActionResult> => {
+      setBusy?.(true);
+      try {
+        const json = await postAction(body);
+        if (!json.success) {
+          return {
+            ok: false,
+            reason: resolveErrorMessage(t, json.error, json.detail, ""),
+          };
+        }
+        await fetchStatus(true);
+        return OK;
+      } catch (err) {
+        return {
+          ok: false,
+          reason: err instanceof Error ? err.message : "",
+        };
+      } finally {
+        if (mountedRef.current) setBusy?.(false);
+      }
+    },
+    [postAction, fetchStatus, t],
+  );
+
   // ---------------------------------------------------------------------------
   // Actions
   // ---------------------------------------------------------------------------
-  const connect = useCallback(async (): Promise<boolean> => {
-    setIsConnecting(true);
-    setError(null);
+  const connect = useCallback(
+    () => runAction({ action: "connect" }, setIsConnecting),
+    [runAction],
+  );
 
-    try {
-      const json = await postAction({ action: "connect" });
-      if (!mountedRef.current) return false;
+  const disconnect = useCallback(
+    () => runAction({ action: "disconnect" }, setIsDisconnecting),
+    [runAction],
+  );
 
-      if (!json.success) {
-        setError(resolveErrorMessage(t, json.error, json.detail, "Failed to connect"));
-        return false;
-      }
+  const logout = useCallback(
+    () => runAction({ action: "logout" }, setIsDisconnecting),
+    [runAction],
+  );
 
-      // Refetch to pick up auth_url or Running state
-      await fetchStatus(true);
-      return true;
-    } catch (err) {
-      if (!mountedRef.current) return false;
-      setError(err instanceof Error ? err.message : "Failed to connect");
-      return false;
-    } finally {
-      if (mountedRef.current) setIsConnecting(false);
-    }
-  }, [postAction, fetchStatus, t]);
+  const startService = useCallback(
+    () => runAction({ action: "start_service" }, setIsTogglingService),
+    [runAction],
+  );
 
-  const disconnect = useCallback(async (): Promise<boolean> => {
-    setIsDisconnecting(true);
-    setError(null);
-
-    try {
-      const json = await postAction({ action: "disconnect" });
-      if (!mountedRef.current) return false;
-
-      if (!json.success) {
-        setError(resolveErrorMessage(t, json.error, json.detail, "Failed to disconnect"));
-        return false;
-      }
-
-      await fetchStatus(true);
-      return true;
-    } catch (err) {
-      if (!mountedRef.current) return false;
-      setError(err instanceof Error ? err.message : "Failed to disconnect");
-      return false;
-    } finally {
-      if (mountedRef.current) setIsDisconnecting(false);
-    }
-  }, [postAction, fetchStatus, t]);
-
-  const logout = useCallback(async (): Promise<boolean> => {
-    setIsDisconnecting(true);
-    setError(null);
-
-    try {
-      const json = await postAction({ action: "logout" });
-      if (!mountedRef.current) return false;
-
-      if (!json.success) {
-        setError(resolveErrorMessage(t, json.error, json.detail, "Failed to logout"));
-        return false;
-      }
-
-      await fetchStatus(true);
-      return true;
-    } catch (err) {
-      if (!mountedRef.current) return false;
-      setError(err instanceof Error ? err.message : "Failed to logout");
-      return false;
-    } finally {
-      if (mountedRef.current) setIsDisconnecting(false);
-    }
-  }, [postAction, fetchStatus, t]);
-
-  const startService = useCallback(async (): Promise<boolean> => {
-    setIsTogglingService(true);
-    setError(null);
-
-    try {
-      const json = await postAction({ action: "start_service" });
-      if (!mountedRef.current) return false;
-
-      if (!json.success) {
-        setError(resolveErrorMessage(t, json.error, json.detail, "Failed to start service"));
-        return false;
-      }
-
-      await fetchStatus(true);
-      return true;
-    } catch (err) {
-      if (!mountedRef.current) return false;
-      setError(err instanceof Error ? err.message : "Failed to start service");
-      return false;
-    } finally {
-      if (mountedRef.current) setIsTogglingService(false);
-    }
-  }, [postAction, fetchStatus, t]);
-
-  const stopService = useCallback(async (): Promise<boolean> => {
-    setIsTogglingService(true);
-    setError(null);
-
-    try {
-      const json = await postAction({ action: "stop_service" });
-      if (!mountedRef.current) return false;
-
-      if (!json.success) {
-        setError(resolveErrorMessage(t, json.error, json.detail, "Failed to stop service"));
-        return false;
-      }
-
-      await fetchStatus(true);
-      return true;
-    } catch (err) {
-      if (!mountedRef.current) return false;
-      setError(err instanceof Error ? err.message : "Failed to stop service");
-      return false;
-    } finally {
-      if (mountedRef.current) setIsTogglingService(false);
-    }
-  }, [postAction, fetchStatus, t]);
+  const stopService = useCallback(
+    () => runAction({ action: "stop_service" }, setIsTogglingService),
+    [runAction],
+  );
 
   const setBootEnabled = useCallback(
-    async (enabled: boolean): Promise<boolean> => {
-      setError(null);
-
-      try {
-        const json = await postAction({
-          action: "set_boot_enabled",
-          enabled,
-        });
-        if (!mountedRef.current) return false;
-
-        if (!json.success) {
-          setError(resolveErrorMessage(t, json.error, json.detail, "Failed to update boot setting"));
-          return false;
-        }
-
-        await fetchStatus(true);
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(
-          err instanceof Error ? err.message : "Failed to update boot setting",
-        );
-        return false;
-      }
-    },
-    [postAction, fetchStatus, t],
+    (enabled: boolean) =>
+      runAction({ action: "set_boot_enabled", enabled }, setIsTogglingBoot),
+    [runAction],
   );
 
   const setExitNodeAdvertised = useCallback(
-    async (enabled: boolean): Promise<boolean> => {
-      setIsTogglingExitNode(true);
-      setError(null);
+    (enabled: boolean) =>
+      runAction({ action: "set_exit_node", enabled }, setIsTogglingExitNode),
+    [runAction],
+  );
 
-      try {
-        const json = await postAction({
-          action: "set_exit_node",
-          enabled,
-        });
-        if (!mountedRef.current) return false;
-
-        if (!json.success) {
-          setError(resolveErrorMessage(t, json.error, json.detail, "Failed to update exit node setting"));
-          return false;
-        }
-
-        await fetchStatus(true);
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(
-          err instanceof Error ? err.message : "Failed to update exit node setting",
-        );
-        return false;
-      } finally {
-        if (mountedRef.current) setIsTogglingExitNode(false);
-      }
-    },
-    [postAction, fetchStatus, t],
+  const uninstall = useCallback(
+    () => runAction({ action: "uninstall" }, setIsUninstalling),
+    [runAction],
   );
 
   // ---------------------------------------------------------------------------
-  // Install via opkg
+  // Install (official tarball or tiny opkg), polled until terminal
   // ---------------------------------------------------------------------------
   const stopInstallPolling = useCallback(() => {
     if (installPollRef.current) {
@@ -398,8 +323,8 @@ export function useTailscale(): UseTailscaleReturn {
     try {
       const json = await postAction({ action: "install_status" });
       if (!mountedRef.current) return;
-      setInstallResult(json as unknown as InstallResult);
       const r = json as unknown as InstallResult;
+      setInstallResult(r);
       if (r.status === "complete" || r.status === "error") {
         stopInstallPolling();
         await fetchStatus(true);
@@ -409,48 +334,36 @@ export function useTailscale(): UseTailscaleReturn {
     }
   }, [postAction, stopInstallPolling, fetchStatus]);
 
-  const runInstall = useCallback(async (variant: "official" | "tiny") => {
-    setInstallResult({ success: true, status: "running", message: "Starting installation..." });
-    try {
-      await authFetch(CGI_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "install", variant }),
-      });
-      installPollRef.current = setInterval(pollInstallStatus, 2000);
-    } catch (err) {
-      if (mountedRef.current) {
-        setInstallResult({
-          success: false,
-          status: "error",
-          message: err instanceof Error ? err.message : "Failed to start installation",
-        });
+  const runInstall = useCallback(
+    async (variant: TailscaleInstallVariant) => {
+      stopInstallPolling();
+      setInstallResult({ success: true, status: "running" });
+      try {
+        const json = await postAction({ action: "install", variant });
+        if (!mountedRef.current) return;
+        if (!json.success) {
+          // Refused up front (another VPN, install already running, ...): no
+          // background job exists to poll.
+          setInstallResult({
+            success: false,
+            status: "error",
+            message: resolveErrorMessage(t, json.error, json.detail, ""),
+          });
+          return;
+        }
+        installPollRef.current = setInterval(pollInstallStatus, 2000);
+      } catch (err) {
+        if (mountedRef.current) {
+          setInstallResult({
+            success: false,
+            status: "error",
+            message: err instanceof Error ? err.message : "",
+          });
+        }
       }
-    }
-  }, [pollInstallStatus]);
-
-  const uninstall = useCallback(async (): Promise<boolean> => {
-    setIsUninstalling(true);
-    try {
-      const json = await postAction({ action: "uninstall" });
-      if (!mountedRef.current) return false;
-      if (!json.success) {
-        setError(resolveErrorMessage(t, json.error, json.detail, "Failed to uninstall"));
-        return false;
-      }
-      await fetchStatus(true);
-      return true;
-    } catch (err) {
-      if (mountedRef.current) {
-        setError(
-          err instanceof Error ? err.message : "Failed to uninstall",
-        );
-      }
-      return false;
-    } finally {
-      if (mountedRef.current) setIsUninstalling(false);
-    }
-  }, [postAction, fetchStatus, t]);
+    },
+    [postAction, pollInstallStatus, stopInstallPolling, t],
+  );
 
   return {
     status,
@@ -458,6 +371,7 @@ export function useTailscale(): UseTailscaleReturn {
     isConnecting,
     isDisconnecting,
     isTogglingService,
+    isTogglingBoot,
     isTogglingExitNode,
     isUninstalling,
     installResult,

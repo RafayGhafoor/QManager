@@ -1,30 +1,8 @@
 {
   "page": {
-    "title": "System Settings"
-  },
-  "system": {
-    "card_title": "System Settings",
-    "card_description": "Configure device preferences and display options.",
-    "force_tailscale_fixes_label": "Force Tailscale Fixes",
-    "force_tailscale_fixes_info_aria": "Force Tailscale Fixes info",
-    "force_tailscale_fixes_tooltip": "Applies QManager's own Tailscale firewall and routing fixes on top of your firmware. Recommended for R02 firmware.",
-    "force_tailscale_fixes_toast_enabled": "Force Tailscale Fixes enabled — applying firewall zone and mwan3 exception",
-    "force_tailscale_fixes_toast_disabled": "Force Tailscale Fixes disabled — removing firewall zone",
-    "force_tailscale_fixes_toast_failed": "Failed to update Force Tailscale Fixes",
-    "temperature_unit_label": "Temperature Unit",
-    "temperature_unit_aria": "Temperature unit",
-    "temperature_celsius": "Celsius",
-    "temperature_fahrenheit": "Fahrenheit",
-    "distance_unit_label": "Distance Unit",
-    "distance_unit_aria": "Distance unit",
-    "distance_km": "Kilometers",
-    "distance_miles": "Miles",
-    "timezone_label": "Timezone",
-    "timezone_placeholder": "Select timezone",
-    "timezone_search_placeholder": "Search timezone...",
-    "timezone_not_found": "No timezone found.",
-    "toast_saved": "Settings saved",
-    "toast_failed": "Failed to save settings"
+    "title": "System Settings",
+    "description": "How this device keeps time, who can reach it, and which SIMs it remembers.",
+    "refresh": "Refresh"
   },
   "diagnostics": {
     "card_title": "Diagnostics",
@@ -62,56 +40,6 @@
     "toast_on": "Host AT ports turned on.",
     "toast_off": "Host AT ports turned off.",
     "toast_failed": "Couldn't update host AT ports."
-  },
-  "scheduled_operations": {
-    "card_title": "Scheduled Operations",
-    "card_description": "Set up automated system tasks on a schedule.",
-    "reboot_section_title": "Scheduled Reboot",
-    "reboot_enable_label": "Enable Scheduled Reboot",
-    "reboot_time_label": "Reboot Time",
-    "reboot_repeat_label": "Repeat On",
-    "reboot_repeat_aria": "Reboot days of the week",
-    "reboot_toast_enabled": "Scheduled reboot enabled",
-    "reboot_toast_disabled": "Scheduled reboot disabled",
-    "reboot_toast_saved": "Reboot schedule saved",
-    "reboot_toast_save_failed": "Failed to save reboot schedule",
-    "reboot_toast_update_failed": "Failed to update reboot schedule",
-    "low_power_section_title": "Low Power Mode",
-    "low_power_info_aria": "Low power mode info",
-    "low_power_tooltip": "Disables the modem radio during the scheduled window. Watchdog, email alerts, and network events are automatically suspended for the duration.",
-    "low_power_enable_label": "Enable Low Power Mode",
-    "low_power_start_label": "Start Time",
-    "low_power_end_label": "End Time",
-    "low_power_repeat_label": "Repeat On",
-    "low_power_repeat_aria": "Low power mode days of the week",
-    "low_power_toast_enabled": "Low power mode enabled",
-    "low_power_toast_disabled": "Low power mode disabled",
-    "low_power_toast_saved": "Low power schedule saved",
-    "low_power_toast_save_failed": "Failed to save low power schedule",
-    "low_power_toast_update_failed": "Failed to update low power schedule",
-    "day_sun": "Sun",
-    "day_mon": "Mon",
-    "day_tue": "Tue",
-    "day_wed": "Wed",
-    "day_thu": "Thu",
-    "day_fri": "Fri",
-    "day_sat": "Sat"
-  },
-  "ssh_password": {
-    "page_title": "SSH Password",
-    "page_description": "Change the root password used for SSH and console access. This is independent from your QManager web login.",
-    "card_title": "SSH Password",
-    "card_description": "Change the root password used for SSH and console access. This is separate from the QManager web login and does not affect your current browser session.",
-    "current_label": "Current SSH password",
-    "new_label": "New SSH password",
-    "confirm_label": "Confirm new SSH password",
-    "strong_policy_hint": "New password must be at least 5 characters and include uppercase, lowercase, and a number.",
-    "weak_policy_hint": "New password must be at least 5 characters.",
-    "error_mismatch": "Passwords do not match.",
-    "enforce_strong_label": "Enforce strong password",
-    "enforce_strong_info_aria": "Strong password policy info",
-    "button_change": "Change Password",
-    "toast_success": "SSH password updated"
   },
   "config_backup": {
     "page_title": "Configuration Backup",
@@ -208,325 +136,487 @@
     }
   },
   "software_update": {
-    "page_title": "QManager Updates",
-    "page_description": "Check for updates, view release notes, and manage QManager versions.",
-    "badge_updating": "Updating",
-    "badge_downloading": "Downloading",
-    "badge_update_available": "Update available",
-    "badge_up_to_date": "Up to date",
-    "steps_download_label": "Download",
-    "steps_download_active": "Downloading update package…",
-    "steps_download_done": "Download complete",
-    "steps_install_label": "Install",
-    "steps_install_active": "Installing update…",
-    "steps_install_done": "Installation complete",
-    "steps_reboot_label": "Reboot",
-    "steps_reboot_active": "Rebooting device…",
-    "steps_reboot_done": "Reboot complete",
-    "steps_waiting": "Waiting…",
-    "progress_list_aria": "Update progress",
-    "status_card_title": "Update Status",
-    "status_card_description": "Current version and available updates.",
-    "error_unable_to_check": "Unable to check for updates.",
-    "error_failed_title": "Failed to check for updates",
-    "error_check_failed_title": "Update check failed",
-    "checking": "Checking…",
-    "updating_card_title": "Update in Progress",
-    "updating_description_version": "Updating to {{version}}",
-    "updating_description_generic": "Updating QManager",
-    "updating_do_not_power_off": "Do not power off the device during the update.",
-    "updating_stall_title": "Install appears stalled",
-    "updating_stall_description": "No progress update has been received for a while. If the install has already completed on the device, you can request a reboot from the UI.",
-    "updating_reboot_device_now": "Reboot Device Now",
-    "installed_label": "Installed",
-    "available_label": "Available",
-    "installed_version": "Installed Version",
-    "release_notes": "Release Notes",
-    "current_release_notes": "Current Release Notes",
-    "view_full": "View full",
-    "release_notes_aria": "Release notes",
-    "downloading_file": "Downloading qmanager.tar.gz…",
-    "verifying_sha": "Verifying SHA-256…",
-    "download_progress_aria": "Downloading update",
-    "verify_progress_aria": "Verifying integrity",
-    "verified_badge": "Downloaded & SHA-256 verified",
-    "verified_badge_with_size": "Downloaded & SHA-256 verified ({{size}})",
-    "download_failed": "Download failed",
-    "last_checked": "Last checked {{time}}",
-    "never_checked": "Never checked",
-    "install_version": "Install {{version}}",
-    "verifying": "Verifying…",
-    "downloading": "Downloading…",
-    "retry_download": "Retry Download",
-    "download_update": "Download Update",
-    "check_for_updates": "Check for Updates",
-    "update_fallback": "Update",
-    "release_notes_dialog_title": "Release Notes — {{version}}",
-    "full_release_notes_aria": "Full release notes",
-    "install_dialog_reinstall_title": "Reinstall Current Version",
-    "install_dialog_install_title": "Install {{version}}",
-    "install_dialog_reinstall_description": "This will reinstall <strong>{{version}}</strong> to repair the current installation. The device will reboot after installation.",
-    "install_dialog_install_description": "This will install <strong>{{version}}</strong>, replacing the current version (<strong>{{current}}</strong>). The device will reboot after installation.",
-    "install_dialog_size_suffix": "Package size: <strong>{{size}}</strong>.",
-    "install_dialog_do_not_power_off": "Do not power off the device during this process.",
-    "install_dialog_reinstall_now": "Reinstall Now",
-    "install_dialog_install_now": "Install Now",
-    "toast_download_failed": "Failed to start download",
-    "toast_install_failed": "Failed to start installation",
-    "prefs_card_title": "Update Preferences",
-    "prefs_card_description": "Configure update channel and version management.",
-    "prerelease_label": "Include pre-releases",
-    "auto_update_label": "Automatic updates",
-    "update_time_title": "Update Installation Time",
-    "update_at_label": "Update at",
-    "update_at_description": "Checks for updates and installs automatically. The device will reboot if an update is found.",
-    "update_time_aria": "Automatic update time",
-    "version_mgmt_title": "Version Management",
-    "version_select_hint": "Select a version to install, reinstall, or rollback.",
-    "version_placeholder": "Select version…",
-    "version_select_aria": "Select version to install",
-    "install_button": "Install",
-    "version_current_tag": "current",
-    "version_no_binary_tag": "no binary",
-    "toast_prerelease_enabled": "Pre-release updates enabled",
-    "toast_prerelease_disabled": "Pre-release updates disabled",
-    "toast_preference_failed": "Failed to update preference",
-    "toast_auto_update_enabled": "Automatic updates enabled",
-    "toast_auto_update_disabled": "Automatic updates disabled",
-    "toast_schedule_saved": "Update schedule saved",
-    "toast_schedule_failed": "Failed to save schedule"
-  },
-  "system_logs": {
-    "page_title": "System Logs",
-    "page_description": "Filter and search QManager event logs.",
-    "card_title": "System Logs",
-    "card_description": "QManager application logs from all components.",
-    "filter_all_levels": "All Levels",
-    "filter_all_components": "All Components",
-    "filter_search_label": "Search logs",
-    "filter_search_placeholder": "Search logs…",
-    "filter_include_archived": "Include archived",
-    "actions_refresh_aria": "Refresh system logs",
-    "actions_clear": "Clear",
-    "table_col_timestamp": "Timestamp",
-    "table_col_level": "Level",
-    "table_col_component": "Component",
-    "table_col_message": "Message",
-    "table_empty": "No log entries found",
-    "footer_showing": "Showing <strong>{{count}}</strong> of <strong>{{total}}</strong> entries",
-    "footer_stats_one": "({{kb}}KB, {{rotated}} rotated file)",
-    "footer_stats_other": "({{kb}}KB, {{rotated}} rotated files)",
-    "footer_last_updated": "Last updated: {{time}}",
-    "clear_dialog_title": "Clear System Logs",
-    "clear_dialog_description": "This will permanently delete all log entries including rotated files. This action cannot be undone.",
-    "clear_dialog_clearing": "Clearing…",
-    "clear_dialog_clear_all": "Clear All Logs",
-    "toast_load_failed": "Failed to load system logs",
-    "toast_cleared": "Log files cleared",
-    "toast_clear_failed": "Failed to clear log files",
-    "table_empty_filtered": "No logs match these filters",
-    "error_message": "Couldn't load logs",
-    "error_retry": "Retry",
-    "actions_clear_filters": "Clear filters",
-    "actions_copy_aria": "Copy visible logs",
-    "toast_copied_one": "Copied {{count}} log line",
-    "toast_copied_other": "Copied {{count}} log lines",
-    "toast_copy_failed": "Couldn't copy logs"
+    "page": {
+      "title": "Software Update",
+      "description": "QManager checks GitHub for a newer release and installs it on the modem itself. Installing replaces the app and restarts the device, so the session you are reading this in will drop and come back."
+    },
+    "actions": {
+      "check": "Check for updates",
+      "checking": "Checking...",
+      "check_again": "Check again",
+      "download": "Download {{version}}",
+      "downloading": "Downloading...",
+      "install": "Install {{version}}",
+      "installing": "Installing...",
+      "try_again": "Try again",
+      "retry": "Retry",
+      "read_full_notes": "Read the full notes",
+      "rebooting": "Restarting...",
+      "verifying": "Verifying...",
+      "retry_download": "Try download again",
+      "reboot_now": "Restart now"
+    },
+    "band": {
+      "head": "Update status",
+      "chip_offline": "Offline",
+      "chip_in_progress": "In progress",
+      "installed": {
+        "eyebrow": "Installed",
+        "caption_stable": "Stable channel",
+        "caption_prerelease": "Pre-release channel",
+        "caption_interrupted": "Install may be incomplete"
+      },
+      "latest": {
+        "eyebrow": "Latest release",
+        "caption_checked": "Checked {{ago}}",
+        "caption_downloading": "Downloading {{size}}...",
+        "caption_verified": "Downloaded and verified",
+        "caption_installing": "Step {{step}} of 4 — do not power off",
+        "caption_failed": "Could not reach GitHub",
+        "caption_never": "Never checked",
+        "value_none_label": "No release information",
+        "caption_downloading_plain": "Downloading the package...",
+        "caption_verifying": "Checking the package...",
+        "caption_failed_download": "The download did not finish",
+        "caption_failed_install": "The install did not finish"
+      },
+      "auto": {
+        "eyebrow": "Automatic updates",
+        "value_on": "On",
+        "value_off": "Off",
+        "caption_on": "Daily check at a randomised time",
+        "caption_off": "Manual updates only"
+      },
+      "chip_failed": "Failed"
+    },
+    "card": {
+      "loading": {
+        "title": "Checking for updates",
+        "description": "Reading the release list from GitHub."
+      },
+      "unreachable": {
+        "title": "Update service unavailable",
+        "description": "QManager can't reach the update endpoint on this modem, so it can't say what is installed or what is available."
+      },
+      "check_failed": {
+        "title": "The update check failed",
+        "description": "The build on this modem is untouched. QManager just couldn't read the release list this time."
+      },
+      "download_failed": {
+        "title": "The download didn't finish",
+        "description": "Nothing has been replaced. The build already on this modem is untouched, so it is safe to try the download again."
+      },
+      "install_failed": {
+        "title": "The install didn't finish",
+        "description": "The modem may be running a mixed set of files. Installing again puts it back on a known build."
+      },
+      "up_to_date": {
+        "title": "You're on the latest build",
+        "description": "Nothing to install. The four steps below are what an update does when one arrives."
+      },
+      "available": {
+        "title": "Update available",
+        "description": "Downloading and installing takes a few minutes and ends in a restart. This is exactly what happens."
+      },
+      "downloading": {
+        "title": "Downloading the update",
+        "description": "The package is being fetched from GitHub. Nothing has been replaced yet and the modem keeps working."
+      },
+      "verifying": {
+        "title": "Verifying the download",
+        "description": "QManager is checking the package against its SHA-256 before anything is replaced."
+      },
+      "staged": {
+        "title": "Ready to install",
+        "description": "The package is downloaded and verified. Installing replaces QManager and restarts the modem."
+      },
+      "installing": {
+        "title": "Installing the update",
+        "description": "The app and its services are being replaced. Do not power off the modem."
+      },
+      "rebooting": {
+        "title": "Restarting the modem",
+        "description": "The install finished. The modem is restarting and this session drops until it comes back."
+      },
+      "chip": {
+        "loading": "Checking",
+        "unreachable": "Unreachable",
+        "check_failed": "Check failed",
+        "download_failed": "Download failed",
+        "install_failed": "Install failed",
+        "up_to_date": "Up to date",
+        "available": "Available",
+        "downloading": "Downloading",
+        "verifying": "Verifying",
+        "staged": "Ready",
+        "installing": "Installing",
+        "rebooting": "Restarting"
+      }
+    },
+    "delta": {
+      "installed": "Installed",
+      "available": "Available",
+      "channel_stable": "Stable",
+      "channel_prerelease": "Pre-release"
+    },
+    "steps": {
+      "aria_label": "Update steps",
+      "download": {
+        "label": "Download",
+        "detail": "Fetches the release package from GitHub"
+      },
+      "verify": {
+        "label": "Verify",
+        "detail": "Checks the package against its SHA-256"
+      },
+      "install": {
+        "label": "Install",
+        "detail": "Replaces the app and its services"
+      },
+      "reboot": {
+        "label": "Reboot",
+        "detail": "The modem restarts. Your session will drop."
+      },
+      "state": {
+        "done": "Done",
+        "active": "Running"
+      }
+    },
+    "notice": {
+      "rest": "Installing restarts the modem, which drops this session and every connection through it for about a minute.",
+      "staged": "Installing replaces QManager and restarts the modem. This session drops and comes back on its own.",
+      "running": "Do not power off the modem.",
+      "failed_check": "QManager couldn't read the release list. The build on this modem is untouched, so this is a read failure and not a loss.",
+      "failed_download": "The download didn't finish, so nothing has been installed. The build already on the modem is untouched.",
+      "versions": "Every option here restarts the modem, and an older build can undo settings a newer one introduced.",
+      "failed_install": "The install did not finish, so the modem may be running a mixed set of files. Installing again puts it back on a known build.",
+      "stalled": "The installer has gone quiet for two minutes. If it does not recover, restart the modem to finish or undo the install."
+    },
+    "notes": {
+      "title": "What changed",
+      "description": "The release notes published with {{version}}.",
+      "empty_title": "No release notes",
+      "empty_description": "GitHub returned no changelog for this release, so there's nothing to show here.",
+      "dialog_title": "Release notes for {{version}}",
+      "region_label": "Release notes"
+    },
+    "preferences": {
+      "title": "Update Preferences",
+      "description": "How this modem decides when to update itself.",
+      "auto": {
+        "label": "Automatic updates",
+        "description": "Checks once a day at a randomised time and installs what it finds. The modem reboots to finish.",
+        "error": "Couldn't save the automatic-update setting"
+      },
+      "prerelease": {
+        "label": "Include pre-releases",
+        "description": "Offers builds marked pre-release on GitHub. They arrive earlier and have had less testing.",
+        "error": "Couldn't save the pre-release setting"
+      }
+    },
+    "versions": {
+      "title": "Version Management",
+      "description": "Install, reinstall or roll back to any published build.",
+      "select_label": "Select a version to install",
+      "select_placeholder": "Choose a version",
+      "install": "Install",
+      "current": "Current",
+      "no_binary": "No binary",
+      "dialog": {
+        "title_install": "Install {{version}}?",
+        "title_reinstall": "Reinstall {{version}}?",
+        "description_install": "This installs {{version}} in place of {{current}}. The modem restarts when it finishes.",
+        "description_reinstall": "This reinstalls {{version}} over the copy already on the modem, to repair it. The modem restarts when it finishes.",
+        "size": "Download size: {{size}}.",
+        "warning": "Do not power off the modem while it is installing.",
+        "cancel": "Cancel",
+        "confirm_install": "Install now",
+        "confirm_reinstall": "Reinstall now"
+      },
+      "empty_title": "No versions to choose from",
+      "empty_description": "GitHub returned no releases carrying an installable package, so there is nothing to install or roll back to here."
+    },
+    "banner": {
+      "title": "The last update did not finish",
+      "description": "A pending marker for {{pending}} survived a restart while {{version}} is running, so the installed files may be mixed. Reinstalling {{pending}} puts this modem back on a known build.",
+      "action": "Finish the install",
+      "description_unknown": "An install did not finish while {{version}} is running, so the installed files may be mixed. Reinstalling puts this modem back on a known build."
+    },
+    "states": {
+      "loading": {
+        "status": "Checking for updates",
+        "notes": "Loading release notes"
+      },
+      "unreachable": {
+        "title": "Can't reach the update service",
+        "description": "QManager couldn't reach the update endpoint on this modem. The build that is installed is untouched, so this is a read failure and not a loss."
+      }
+    },
+    "time": {
+      "just_now": "just now",
+      "minutes": "{{value}} minutes ago",
+      "minutes_one": "a minute ago",
+      "hours": "{{value}} hours ago",
+      "hours_one": "an hour ago",
+      "days": "{{value}} days ago",
+      "days_one": "a day ago"
+    },
+    "toast": {
+      "prerelease_on": "Pre-release updates enabled",
+      "prerelease_off": "Pre-release updates disabled",
+      "auto_on": "Automatic updates enabled",
+      "auto_off": "Automatic updates disabled",
+      "save_failed": "Couldn't save that preference"
+    },
+    "stall_dialog": {
+      "title": "Restart the modem now?",
+      "description": "The install looks stuck. Restarting interrupts it and drops this session; the modem comes back on its own.",
+      "cancel": "Keep waiting",
+      "confirm": "Restart now"
+    }
   },
   "at_terminal": {
-    "page_title": "AT Terminal",
-    "page_description": "Send AT commands directly to the modem.",
-    "header_title": "AT Terminal",
-    "game_active_hint": "Playing Signal Storm... (Esc to exit)",
-    "action_clear": "Clear",
-    "action_export": "Export",
-    "action_send": "Send",
-    "action_send_anyway": "Send Anyway",
-    "history_empty": "No commands yet. Type an AT command below.",
-    "input_placeholder": "AT+COPS?",
-    "kbd_tab": "Tab",
-    "warning_title": "Warning",
-    "response_network_error": "Network error — could not reach modem backend",
-    "response_unexpected_error": "Unexpected error — check backend logs",
-    "response_command_failed": "Command failed",
-    "popover_trigger": "Commands",
-    "popover_search_placeholder": "Search commands...",
-    "popover_no_results": "No commands found.",
-    "popover_group_default": "Default",
-    "popover_group_custom": "Custom",
-    "popover_total_count_one": "{{count}} command",
-    "popover_total_count_other": "{{count}} commands",
-    "popover_manage_button": "Manage Commands",
-    "manage_title": "Manage Custom Commands",
-    "manage_description": "Add and remove custom AT command presets.",
-    "manage_empty": "No custom commands yet.",
-    "manage_delete_aria": "Delete {{label}}",
-    "manage_name_placeholder": "Command name",
-    "manage_name_aria": "Command name",
-    "manage_command_placeholder": "AT+...",
-    "manage_command_aria": "AT command",
-    "manage_action_add": "Add",
-    "validate_fields_required": "Both fields are required.",
-    "validate_must_start_at": "Command must start with \"AT\".",
-    "validate_command_duplicate": "This command already exists.",
-    "validate_label_duplicate": "A command with this label already exists."
+    "page": {
+      "title": "AT Terminal",
+      "description": "Send AT commands straight to the modem and read its replies exactly as they come back. Commands that would take the radio off the air are held for confirmation first, and a few are refused outright."
+    },
+    "card": {
+      "title": "Console",
+      "description": "Replies are shown raw, in the modem's own words. The last 100 commands stay in this browser until you clear them."
+    },
+    "actions": {
+      "clear": "Clear",
+      "export": "Export"
+    },
+    "game": {
+      "playing": "Playing Signal Storm"
+    },
+    "empty": {
+      "title": "Nothing sent yet",
+      "description": "Type an AT command in the prompt below, or open Commands to pick a ready-made one."
+    },
+    "transcript": {
+      "label": "Command transcript",
+      "copy": "Copy this command and its reply",
+      "copied": "Copied",
+      "status": {
+        "success": "Succeeded",
+        "error": "Failed",
+        "blocked": "Blocked"
+      }
+    },
+    "hint": {
+      "key": "Tab",
+      "label": "Press Tab to complete this command from your history, or Shift+Tab to leave the field."
+    },
+    "gate": {
+      "title": "This command can cut your connection",
+      "confirm": "Send anyway",
+      "cancel": "Cancel"
+    },
+    "rules": {
+      "qscanfreq": "Frequency scans are refused here. They hold the radio off the air for minutes with nothing to show while they run — use the Cell Scanner page, which reports progress and can be stopped.",
+      "qscan": "Network scans are refused here. They hold the radio off the air for minutes with nothing to show while they run — use the Cell Scanner page, which reports progress and can be stopped.",
+      "resetfactory": "A factory reset is refused here. It clears every setting on the modem at once, including the ones QManager needs to reach it, and nothing on this page can undo it.",
+      "reboot": "This reboots the modem. Every connection through it drops, this page included, and anything still in flight is lost — it takes about a minute to come back, with its clock at January 1970 until the network sets it again.",
+      "radio_off": "This turns the modem's radio off. If you reached this page over the modem's own connection, Tailscale included, you lose this page until the radio is switched back on from the device itself."
+    },
+    "input": {
+      "label": "AT command",
+      "placeholder": "AT+COPS?",
+      "send": "Send"
+    },
+    "responses": {
+      "failed": "The command failed and the modem gave no reason.",
+      "unexpected": "This command couldn't be sent. Check System Logs for what the backend reported.",
+      "unreachable": "Couldn't reach QManager's backend on the modem. Check that the device is still reachable, then send it again.",
+      "game": "Starting Signal Storm..."
+    },
+    "commands": {
+      "trigger": "Commands",
+      "search_placeholder": "Search commands",
+      "empty": "No commands match that search.",
+      "count_one": "{{count}} command",
+      "count_other": "{{count}} commands",
+      "manage": "Manage commands",
+      "groups": {
+        "modem": "Modem",
+        "network": "Network mode",
+        "sim": "SIM slots",
+        "apn": "APN",
+        "bands": "Bands",
+        "passthrough": "IP passthrough",
+        "custom": "Custom"
+      },
+      "presets": {
+        "reboot": "Reboot the modem",
+        "disconnect": "Turn the radio off",
+        "connect": "Turn the radio on",
+        "signal_info": "Signal info (serving cell)",
+        "ca_info": "Carrier aggregation info",
+        "imei_show": "Show the IMEI",
+        "mode_show": "Show the network mode",
+        "mode_auto": "Set network mode to auto",
+        "mode_nr_lte": "Set network mode to 5G NR and LTE",
+        "mode_nr": "Set network mode to 5G NR only",
+        "mode_lte": "Set network mode to LTE only",
+        "nr5g_disable_status": "Show which of SA and NSA are on",
+        "nr5g_enable_both": "Enable both SA and NSA",
+        "nr5g_disable_sa": "Disable SA only",
+        "nr5g_disable_nsa": "Disable NSA only",
+        "sim_slot_get": "Show the active SIM slot",
+        "sim_slot_1": "Switch to SIM slot 1",
+        "sim_slot_2": "Switch to SIM slot 2",
+        "apn_list": "Show the APN list",
+        "apn_nrbroadband": "Set the APN to NRBROADBAND",
+        "bands_nr_sa": "Show enabled 5G NR SA bands",
+        "bands_nr_nsa": "Show enabled 5G NR NSA bands",
+        "bands_lte": "Show enabled LTE bands",
+        "ippt_addresses": "Show assigned IP addresses",
+        "ippt_enable": "Enable IP passthrough",
+        "ippt_disable": "Disable IP passthrough"
+      },
+      "errors": {
+        "required": "Both a name and a command are required.",
+        "must_start_at": "The command has to start with AT.",
+        "duplicate_command": "That command is already in the list.",
+        "duplicate_label": "Another command already uses that name."
+      },
+      "manage_dialog": {
+        "title": "Manage custom commands",
+        "description": "Commands you add here are saved in this browser and appear under Custom in the list.",
+        "empty": "You haven't added any custom commands yet.",
+        "label_field": "Command name",
+        "label_placeholder": "Command name",
+        "command_field": "AT command",
+        "command_placeholder": "AT+...",
+        "add": "Add",
+        "delete": "Delete {{label}}"
+      }
+    }
   },
   "languages": {
     "page": {
       "title": "Languages",
-      "description": "Pick the language QManager uses. A few come built in — download more any time as the community translates them."
+      "description": "Choose the language QManager's interface is shown in, and install community translation packs published for this device."
     },
-    "sections": {
-      "installed_title": "Active & Installed",
-      "installed_description": "Languages already on this device. Activate any to switch QManager's interface.",
-      "available_title": "Available for Download",
-      "available_description": "Additional language packs maintained by the community.",
-      "available_loading": "Checking for available language packs…",
-      "available_empty_title": "No downloadable packs yet",
-      "available_empty_description": "Check back later — the community is always adding new translations."
+    "actions": {
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "refresh_aria": "Refresh the installed languages and the community catalog",
+      "check_again": "Check again",
+      "install": "Install",
+      "update": "Update",
+      "cancel": "Cancel",
+      "install_aria": "Install {{language}}",
+      "update_aria": "Update {{language}}",
+      "cancel_aria": "Cancel the {{language}} install",
+      "remove_aria": "Remove the {{language}} pack",
+      "copy_command": "Copy the manual install command"
     },
-    "badges": {
-      "built_in": "Built-in",
-      "update_available": "Update available",
-      "active": "Active"
-    },
-    "row": {
-      "size_label": "Download size",
-      "size_unit_kb": "{{kb}} KB",
-      "size_unit_mb": "{{mb}} MB",
-      "completeness_label": "Completeness",
-      "completeness_value": "{{percent}}% complete",
-      "version_label": "Version",
-      "last_updated_label": "Last updated",
-      "translator_label": "Translator",
-      "translator_label_plural": "Translators",
-      "translators_fallback": "Community contributors",
-      "install_button": "Install",
-      "install_button_progress": "Installing…",
-      "install_button_aria": "Install {{name}} language pack",
-      "update_button": "Update",
-      "update_button_aria": "Update {{name}} language pack",
-      "remove_button": "Remove",
-      "remove_button_aria": "Remove {{name}} language pack",
-      "cancel_install_button": "Cancel install",
-      "activate_button": "Activate",
-      "activate_button_aria": "Switch QManager to {{name}}"
-    },
-    "install_steps": {
-      "start": "Starting install…",
-      "fetch_catalog": "Fetching catalog…",
-      "download": "Downloading pack…",
-      "verify": "Verifying checksum…",
-      "extract": "Extracting files…",
-      "validate": "Validating pack…",
-      "install": "Installing…",
-      "done": "Installed"
-    },
-    "manifest_error": {
-      "title": "Unable to reach language-pack catalog",
-      "description": "QManager could not fetch the remote manifest. Installed packs still work. Check your internet connection and try again.",
-      "retry_button": "Retry"
-    },
-    "toast": {
-      "install_started": "Installing language pack {{name}} ({{code}})…",
-      "install_success": "Language pack {{name}} ({{code}}) installed",
-      "install_failed": "Failed to install language pack {{name}} ({{code}})",
-      "install_failed_generic": "Failed to install language pack",
-      "install_cancelled": "Installation cancelled",
-      "install_in_progress": "Another install is already in progress",
-      "remove_success": "Language {{name}} ({{code}}) removed",
-      "remove_failed": "Failed to remove language {{name}} ({{code}})",
-      "remove_active_switched": "Language {{name}} ({{code}}) removed — switched to English",
-      "switched": "Language switched to {{name}} ({{code}})",
-      "manifest_refreshed": "Catalog refreshed"
-    },
-    "install_failure_fallback": {
-      "title": "Manual install",
-      "description": "Copy the command below into an SSH session to install the pack manually.",
-      "command_template": "curl -sSfL -o /tmp/{{code}}.tar.gz {{url}} && sha256sum -c <(echo '{{sha256}}  /tmp/{{code}}.tar.gz') && mkdir -p /www/locales/{{code}} && tar -xzf /tmp/{{code}}.tar.gz -C /www/locales/{{code}} && echo {{version}} > /www/locales/{{code}}/.version"
-    },
-    "remove_dialog": {
-      "title": "Remove language pack",
-      "description": "{{name}} will be removed from this device. You can re-install it later from the catalog.",
-      "description_active": "{{name}} is the active language. Removing it will switch QManager back to English.",
-      "confirm_button": "Remove",
-      "cancel_button": "Cancel"
-    },
-    "error_missing_pack": "This language pack is no longer available.",
-    "disk_hint": "The pack requires about {{kb}} KB of free space on /www."
-  },
-  "about_device": {
-    "page": {
-      "title": "About Device",
-      "subtitle": "Device identity, network addresses, and system information."
-    },
-    "device_info": {
-      "card_title": "Device Information",
-      "card_description": "Modem identity and system details.",
-      "image_alt": "{{model}} modem",
-      "image_alt_fallback": "Modem",
-      "sections": {
-        "device": "Device",
-        "system": "System"
+    "band": {
+      "head": "On this device",
+      "display": {
+        "eyebrow": "Display language",
+        "caption_built_in": "Built in, {{code}}",
+        "caption_downloaded": "Downloaded, {{code}}",
+        "caption_unknown": "Not in this device's catalog"
       },
-      "fields": {
-        "manufacturer_label": "Manufacturer",
-        "model_label": "Model",
-        "firmware_label": "Firmware",
-        "build_date_label": "Build Date",
-        "imei_label": "IMEI",
-        "lte_3gpp_release_label": "3GPP Release (LTE)",
-        "nr5g_3gpp_release_label": "3GPP Release (NR5G)",
-        "hostname_label": "Hostname",
-        "openwrt_version_label": "OpenWRT Version",
-        "kernel_version_label": "Kernel Version"
+      "ready": {
+        "eyebrow": "Ready to use",
+        "caption_built_in_one": "{{count}} built in",
+        "caption_built_in_other": "{{count}} built in",
+        "caption_with_downloaded_one": "{{builtIn}} built in, {{count}} downloaded",
+        "caption_with_downloaded_other": "{{builtIn}} built in, {{count}} downloaded",
+        "caption_unknown": "Couldn't read the list"
       },
-      "error": {
-        "title": "Failed to load device information",
-        "retry_button": "Retry"
+      "catalog": {
+        "eyebrow": "Community catalog",
+        "value_unreachable": "Unreachable",
+        "caption_unreachable": "Couldn't reach GitHub",
+        "caption_none": "Nothing published yet",
+        "caption_available": "Ready to install",
+        "caption_updates_one": "Update available",
+        "caption_updates_other": "{{count}} updates available"
       }
     },
-    "about_qmanager": {
-      "card_title": "About QManager",
-      "card_description": "Modem management interface for OpenWRT.",
-      "copyright": "© {{year}} QManager. All rights reserved.",
-      "sections": {
-        "qmanager": "QManager",
-        "network": "Network"
-      },
-      "fields": {
-        "version_label": "Version",
-        "device_ip_label": "Device IP",
-        "lan_subnet_label": "LAN Subnet",
-        "wwan_ipv4_label": "WWAN IPv4",
-        "wwan_ipv6_label": "WWAN IPv6",
-        "public_ipv4_label": "Public IPv4",
-        "public_ipv6_label": "Public IPv6"
-      }
+    "display": {
+      "title": "Display language",
+      "description": "Pick the language QManager's interface is written in. The change takes effect straight away, and only on this device.",
+      "group_aria": "Display language",
+      "built_in": "Built in",
+      "version": "v{{version}}"
     },
-    "errors": {
-      "fetch_failed": "Failed to fetch device information"
-    }
-  },
-  "support": {
-    "page": {
-      "title": "Support",
-      "subtitle": "Get help, report issues, or connect with the community."
-    },
-    "contact": {
-      "card_title": "Contact",
-      "card_description": "Reach out for questions, bug reports, or feature requests.",
-      "description": "Found a bug, have a feature idea, or need help with your setup? Reach out through any of the channels below.",
-      "fields": {
-        "email_label": "Email",
-        "github_label": "GitHub"
-      }
+    "remove": {
+      "title": "Remove {{language}}?",
+      "description": "This deletes the downloaded {{language}} pack from this device. You can install it again at any time.",
+      "description_active": "{{language}} is the language you are reading right now. Removing it switches QManager back to English.",
+      "cancel": "Keep it",
+      "confirm": "Remove",
+      "removing": "Removing…"
     },
     "community": {
-      "card_title": "Community",
-      "card_description": "Join the Cellular Modem Talk/Development Discord server.",
-      "description": "The Cellular Modem Talk/Development community on Discord is where users share configurations, troubleshoot issues together, and discuss cellular networking tips. Come say hello!",
-      "qr_alt": "QR code for QManager Discord server invite"
+      "title": "Community packs",
+      "description": "Translation packs published for QManager by the community. Installing one adds it to the list above.",
+      "list_aria": "Community language packs",
+      "completeness": "{{pct}}% translated",
+      "size": {
+        "kb": "{{value}} KB",
+        "mb": "{{value}} MB"
+      },
+      "contributors_one": "{{count}} translator",
+      "contributors_other": "{{count}} translators",
+      "contributors_none": "Community",
+      "incompatible": "Needs a newer QManager"
+    },
+    "install": {
+      "percent": "{{pct}}%",
+      "progress_aria": "Installing {{language}}"
+    },
+    "steps": {
+      "pending": "Queued",
+      "downloading": "Downloading",
+      "verifying": "Verifying checksum",
+      "extracting": "Extracting",
+      "validating": "Validating",
+      "installing": "Installing",
+      "cancelling": "Cancelling",
+      "working": "Working"
+    },
+    "failure": {
+      "manual": "Nothing on the device was changed. You can install this pack by hand over SSH:"
+    },
+    "states": {
+      "unreachable": {
+        "title": "Couldn't reach the pack catalog",
+        "description": "The device couldn't load the community pack list from GitHub. Your installed languages are untouched — this is a read that failed, and nothing on the modem has changed."
+      },
+      "none": {
+        "title": "No community packs yet",
+        "description": "Nobody has published a downloadable translation pack for QManager yet. The languages above are built into the firmware and are always available."
+      }
+    },
+    "loading": {
+      "status": "Loading languages"
+    },
+    "toast": {
+      "switched": "Switched to {{language}}",
+      "switch_failed": "Couldn't load the {{language}} pack",
+      "switch_failed_detail": "It may need to be installed again.",
+      "installing": "Installing {{language}}…",
+      "installed": "{{language}} installed",
+      "install_failed": "Couldn't install {{language}}",
+      "install_failed_generic": "The language pack install failed",
+      "use_now": "Use now",
+      "install_cancelled": "Install cancelled",
+      "removed": "{{language}} removed",
+      "removed_active": "{{language}} removed, switched back to English",
+      "remove_failed": "Couldn't remove {{language}}",
+      "copied": "Install command copied",
+      "copy_failed": "Couldn't copy the install command"
+    },
+    "errors": {
+      "generic": "The language pack couldn't be installed."
     }
   },
   "signal_storm": {
@@ -569,11 +659,22 @@
     }
   },
   "known_sims": {
-    "row_label": "Known SIMs",
-    "info_aria": "Known SIMs info",
-    "tooltip": "QManager remembers the SIMs it has seen, so it only alerts you when a genuinely new SIM is inserted. Clearing forgets every SIM except the one currently inserted.",
-    "remembered_count_one": "{{count}} SIM",
-    "remembered_count_other": "{{count}} SIMs",
+    "card": {
+      "title": "Tracked SIMs",
+      "description": "The SIMs QManager has seen, so only a genuinely new one raises an alert."
+    },
+    "rows": {
+      "count": {
+        "consequence": "QManager remembers the SIMs it has seen, so it only alerts you when a genuinely new SIM is inserted. Clearing forgets every SIM except the one currently inserted.",
+        "label": "SIMs remembered"
+      }
+    },
+    "states": {
+      "empty_title": "No SIMs tracked yet",
+      "empty_description": "QManager records each SIM the first time it is inserted. Insert a SIM to start the list.",
+      "error_title": "Couldn't read the tracked SIMs",
+      "error_description": "The device didn't answer. Nothing has been forgotten; this is a read failure and the count is still on the modem."
+    },
     "clear_button": "Clear",
     "clear_dialog_title": "Clear known SIMs?",
     "clear_dialog_description": "This forgets every SIM QManager has seen, except the one currently inserted — so your active SIM won't be flagged as new. Previously-used SIMs will alert again the next time they are inserted.",
@@ -825,5 +926,313 @@
   "adaptive_polling": {
     "toast_saved": "Adaptive polling saved.",
     "toast_failed": "Couldn't save adaptive polling."
+  },
+  "logs": {
+    "page": {
+      "title": "System Logs",
+      "description": "QManager keeps its log in memory on the modem, so it starts empty after every reboot and never wears the flash. Filter it here to see what each component has been doing.",
+      "refresh": "Refresh",
+      "clear": "Clear log",
+      "copy": "Copy"
+    },
+    "band": {
+      "head": "Log health",
+      "severity": {
+        "eyebrow": "Severity",
+        "errors_one": "{{count}} error",
+        "errors_other": "{{count}} errors",
+        "warnings_one": "{{count}} warning",
+        "warnings_other": "{{count}} warnings",
+        "clean": "Clean",
+        "caption_unread": "No read has landed yet",
+        "caption_errors_one": "{{count}} warning in {{lines}} lines read",
+        "caption_errors_other": "{{count}} warnings in {{lines}} lines read",
+        "caption_warnings_one": "No errors in {{count}} line read",
+        "caption_warnings_other": "No errors in {{count}} lines read",
+        "caption_clean_one": "No warnings in {{count}} line read",
+        "caption_clean_other": "No warnings in {{count}} lines read"
+      },
+      "feed": {
+        "eyebrow": "Feed",
+        "live": "Live",
+        "paused": "Paused",
+        "stopped": "Stopped",
+        "caption_unread": "Waiting for the first read",
+        "caption_live": "Refreshed {{age}}, every 10s",
+        "caption_paused": "Auto-refresh paused, read {{age}}",
+        "caption_stopped": "Last read failed, {{age}}"
+      },
+      "file": {
+        "eyebrow": "Log file",
+        "size": "{{size}} KB",
+        "caption_one": "{{count}} line, {{rotated}} archived",
+        "caption_other": "{{count}} lines, {{rotated}} archived",
+        "caption_unread": "Size not reported"
+      }
+    },
+    "card": {
+      "title": "Transcript",
+      "description": "Showing {{shown}} lines. The live log holds {{held}}.",
+      "description_loading": "Reading the log...",
+      "description_unreadable": "QManager couldn't read the log."
+    },
+    "rail": {
+      "label": "Filter by level",
+      "all": "All",
+      "DEBUG": "Debug",
+      "INFO": "Info",
+      "WARN": "Warn",
+      "ERROR": "Error"
+    },
+    "filters": {
+      "search_label": "Search the log",
+      "search_placeholder": "Search messages",
+      "component_label": "Filter by component",
+      "component_all": "All components",
+      "lines_label": "Lines to read",
+      "lines_option": "{{lines}} lines",
+      "archived": "Include archived"
+    },
+    "day": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "unknown": "Undated"
+    },
+    "time": {
+      "now": "just now",
+      "seconds": "{{value}}s ago",
+      "minutes": "{{value}}m ago",
+      "hours": "{{value}}h ago",
+      "days": "{{value}}d ago"
+    },
+    "severity": {
+      "DEBUG": "Debug",
+      "INFO": "Information",
+      "WARN": "Warning",
+      "ERROR": "Error"
+    },
+    "notice": {
+      "stale": "QManager lost contact while refreshing. These are the last lines it read from the device."
+    },
+    "empty": {
+      "title": "The log is empty",
+      "description": "QManager keeps its log in memory and clears it on every reboot, so nothing has been written since this device last started."
+    },
+    "empty_filtered": {
+      "title": "Nothing matches these filters",
+      "description": "The log has lines in it, but none of them match the level, component or search you picked.",
+      "action": "Clear filters"
+    },
+    "error": {
+      "title": "Can't read the log",
+      "description": "QManager couldn't reach the log reader on this device. The log itself is untouched, so this is a read failure and not a loss.",
+      "retry": "Retry"
+    },
+    "clear_dialog": {
+      "title": "Clear the system log?",
+      "description": "This empties the live log and deletes both archived files. Anything already written is gone for good, and new lines start arriving immediately.",
+      "cancel": "Cancel",
+      "confirm": "Clear log",
+      "clearing": "Clearing..."
+    },
+    "toast": {
+      "cleared": "System log cleared",
+      "clear_failed": "Couldn't clear the system log",
+      "refresh_failed": "Couldn't read the system log",
+      "copied": "Log copied to the clipboard",
+      "copy_failed": "Couldn't copy the log"
+    }
+  },
+  "band": {
+    "head": "In force right now",
+    "unreachable": "Unreachable",
+    "clock": {
+      "eyebrow": "Time zone",
+      "caption_unread": "Could not read the time zone",
+      "caption_saved": "Used for logs and schedules"
+    },
+    "reboot": {
+      "eyebrow": "Next reboot",
+      "off": "Off",
+      "day_separator": ", ",
+      "caption_repeats": "Repeats on {{days}}",
+      "caption_off": "No automatic reboot",
+      "caption_no_day": "Enabled, but no day is selected",
+      "caption_unread": "Could not read the schedule",
+      "never": "Never"
+    },
+    "sims": {
+      "eyebrow": "Tracked SIMs",
+      "caption_none": "Nothing recorded yet",
+      "caption_known": "Only a new SIM raises an alert",
+      "caption_unread": "Could not read the count"
+    },
+    "stale": "Last confirmed read"
+  },
+  "preferences": {
+    "card": {
+      "title": "Time & Units",
+      "description": "How this modem keeps time, and the units every reading is shown in.",
+      "save": "Save Preferences"
+    },
+    "rows": {
+      "unsaved": "Unsaved",
+      "timezone": {
+        "label": "Time zone",
+        "consequence": "The modem has no battery clock. This is what every log line, event and schedule is measured against.",
+        "placeholder": "Select a time zone",
+        "search": "Search time zones…",
+        "empty": "No time zone matches that."
+      },
+      "temperature": {
+        "label": "Temperature",
+        "consequence": "Applies to every temperature reading in QManager.",
+        "celsius": "Celsius (°C)",
+        "fahrenheit": "Fahrenheit (°F)"
+      },
+      "distance": {
+        "label": "Distance",
+        "consequence": "Applies to tower distance on the cell scanner and antenna pages.",
+        "km": "Kilometers (km)",
+        "miles": "Miles (mi)"
+      },
+      "tailscale": {
+        "label": "Force Tailscale Fixes",
+        "consequence": "Applies QManager's own Tailscale firewall and routing fixes on top of your firmware. Recommended for R02 firmware.",
+        "toast_failed": "Failed to update Force Tailscale Fixes",
+        "toast_enabled": "Force Tailscale Fixes enabled. Applying firewall changes.",
+        "toast_disabled": "Force Tailscale Fixes disabled. Removing firewall changes."
+      }
+    },
+    "states": {
+      "error_title": "Couldn't read your preferences",
+      "error_body": "QManager couldn't read this device's preferences. Nothing has been changed — the zone and units already saved are still in force on the modem.",
+      "error_body_detail": "QManager couldn't read this device's preferences. Nothing has been changed — the zone and units already saved are still in force on the modem. The device said: {{detail}}",
+      "stale": "The modem didn't answer the last request. What's shown is the last state it confirmed."
+    },
+    "toast": {
+      "saved": "Preferences saved",
+      "failed": "Couldn't save preferences"
+    }
+  },
+  "reboot": {
+    "card": {
+      "title": "Scheduled Operations",
+      "description": "Restart the modem, or switch its radio off, automatically on a weekly schedule."
+    },
+    "rows": {
+      "enabled": {
+        "label": "Automatic reboot",
+        "armed": "Armed",
+        "off": "Off",
+        "consequence": "The modem restarts on this schedule. Your session drops for about ninety seconds and comes back on its own.",
+        "no_day": "Never fires"
+      },
+      "time": {
+        "label": "Time",
+        "consequence": "Local device time, not your browser's."
+      },
+      "days": {
+        "label": "Repeat on",
+        "consequence": "With no day selected the schedule never fires.",
+        "rail": "Reboot days of the week"
+      }
+    },
+    "days": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    },
+    "states": {
+      "error": {
+        "title": "Can't read the schedules",
+        "description": "QManager couldn't load this device's schedules. Anything already saved is still in force on the modem. This is a read failure, not a disarm."
+      },
+      "stale": "QManager lost contact while refreshing. These are the last values it read from the device.",
+      "autosave": "Saves automatically",
+      "saving": "Saving…"
+    },
+    "toast": {
+      "enabled": "Scheduled reboot enabled",
+      "disabled": "Scheduled reboot disabled",
+      "saved": "Reboot schedule saved",
+      "save_failed": "Failed to save reboot schedule",
+      "update_failed": "Failed to update reboot schedule",
+      "unsaved": "Reboot schedule change wasn’t saved — you left the page before it could save."
+    },
+    "section": "Scheduled Reboot"
+  },
+  "ssh": {
+    "card": {
+      "title": "SSH Access",
+      "description": "The root password for SSH sessions into this modem. It is separate from the password you sign in to QManager with.",
+      "save": "Update SSH Password"
+    },
+    "fields": {
+      "current": {
+        "label": "Your QManager password",
+        "consequence": "Proves it is you. This is the web password you signed in with, not the SSH one."
+      },
+      "new": {
+        "label": "New SSH password",
+        "consequence_strong": "At least five characters, with upper case, lower case and a number. Takes effect immediately; existing SSH sessions stay open.",
+        "consequence_weak": "At least five characters. Takes effect immediately; existing SSH sessions stay open."
+      },
+      "confirm": {
+        "label": "Confirm new password"
+      },
+      "strong": {
+        "label": "Enforce strong password",
+        "consequence": "Off allows any password of five or more characters."
+      }
+    },
+    "toggle": {
+      "show": "Show password",
+      "hide": "Hide password"
+    },
+    "errors": {
+      "too_short": "SSH password must be at least 5 characters.",
+      "mismatch": "Passwords do not match.",
+      "failed": "SSH password change failed.",
+      "weak": "New password must be at least 5 characters and include uppercase, lowercase, and a number."
+    },
+    "toast_saved": "SSH password updated successfully."
+  },
+  "low_power": {
+    "section": "Low Power Mode",
+    "rows": {
+      "enabled": {
+        "off": "Off",
+        "armed": "Armed",
+        "label": "Low power window",
+        "no_day": "Never starts",
+        "consequence": "The modem radio switches off at the start time and back on at the end time. Watchdog, alerts and network events pause while it is off."
+      },
+      "start": {
+        "label": "Start Time",
+        "consequence": "The radio switches off at this time."
+      },
+      "end": {
+        "label": "End Time",
+        "consequence": "The radio switches back on at this time."
+      },
+      "days": {
+        "label": "Repeat On",
+        "rail": "Low power mode days of the week",
+        "consequence": "With no day selected the window never starts."
+      }
+    },
+    "toast": {
+      "enabled": "Low power mode enabled",
+      "disabled": "Low power mode disabled",
+      "saved": "Low power schedule saved",
+      "save_failed": "Failed to save low power schedule",
+      "update_failed": "Failed to update low power schedule",
+      "unsaved": "Low power schedule change wasn't saved. You left the page before it could save."
+    }
   }
 }

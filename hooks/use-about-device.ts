@@ -19,15 +19,19 @@ const CGI_ENDPOINT = "/cgi-bin/quecmanager/device/about.sh";
 
 export interface UseAboutDeviceReturn {
   data: AboutDeviceData | null;
+  /** The first read, which is the only one that may show skeletons. */
   isLoading: boolean;
+  /** A re-read behind an already-painted page: the figures stay put. */
+  isRefreshing: boolean;
   error: string | null;
   refresh: () => void;
 }
 
 export function useAboutDevice(): UseAboutDeviceReturn {
-  const { t } = useTranslation("system-settings");
+  const { t } = useTranslation("common");
   const [data, setData] = useState<AboutDeviceData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const mountedRef = useRef(true);
@@ -39,13 +43,14 @@ export function useAboutDevice(): UseAboutDeviceReturn {
     };
   }, []);
 
-  const fetchData = useCallback(async (silent = false) => {
-    if (!silent) setIsLoading(true);
+  const fetchData = useCallback(async (silent: boolean) => {
+    if (silent) setIsRefreshing(true);
+    else setIsLoading(true);
     setError(null);
 
     // Compute fallback inside each call so language changes are picked up
     // without re-creating fetchData (which would re-run the mount effect).
-    const fallback = t("about_device.errors.fetch_failed");
+    const fallback = t("aboutDevice.errors.fetch_failed");
 
     try {
       const resp = await authFetch(CGI_ENDPOINT);
@@ -78,8 +83,9 @@ export function useAboutDevice(): UseAboutDeviceReturn {
       if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : fallback);
     } finally {
-      if (mountedRef.current && !silent) {
+      if (mountedRef.current) {
         setIsLoading(false);
+        setIsRefreshing(false);
       }
     }
     // t intentionally omitted from deps — see fallback comment above.
@@ -87,12 +93,13 @@ export function useAboutDevice(): UseAboutDeviceReturn {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    void fetchData(false);
   }, [fetchData]);
 
+  /** Re-reads behind the painted page: the pill spins, the figures stay put. */
   const refresh = useCallback(() => {
-    fetchData();
+    void fetchData(true);
   }, [fetchData]);
 
-  return { data, isLoading, error, refresh };
+  return { data, isLoading, isRefreshing, error, refresh };
 }

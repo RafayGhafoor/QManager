@@ -13,7 +13,8 @@ This model replaced the older single-value `/etc/qmanager/last_iccid` scheme, wh
 | Persistent set file | `/etc/qmanager/known_iccids` (UBIFS, newline-delimited) |
 | Legacy file (retired) | `/etc/qmanager/last_iccid` (read-once for migration; no longer written) |
 | Banner flag | `/tmp/qmanager_sim_swap_detected` (tmpfs; cleared by `clear` action) |
-| Frontend component | `components/system-settings/known-sims-row.tsx` |
+| Frontend component | `components/system-settings/tracked-sims-card.tsx` (the "Tracked SIMs" card on `/system-settings`) |
+| Frontend hook | `hooks/use-known-sims.ts` (shared with the page's status band) |
 | Frontend i18n namespace | `system-settings`, keys `known_sims.*` |
 
 ## Storage Format
@@ -105,16 +106,20 @@ Sources `cgi_base.sh` and `sim_db.sh`. Handles GET, POST `list`, POST `clear`, a
 
 Unknown actions return `cgi_error "invalid_action"`.
 
-## Frontend: `known-sims-row.tsx`
+## Frontend: `tracked-sims-card.tsx`
 
-Rendered inside `components/system-settings/system-settings-card.tsx`. Shows:
+The "Tracked SIMs" card on `/system-settings`, driven by `useKnownSims()` (`hooks/use-known-sims.ts`). The hook is mounted ONCE by the page root and handed to the card and to the status band's Tracked SIMs tile, so the two cannot disagree; the page's Refresh button calls its `refresh()`.
 
-- Left side: info-tooltip + "Known SIMs" label.
-- Right side: the current count (fetched on mount via GET) + a destructive **Clear** button.
+The set is a membership store with no names, so the card shows a count and nothing else. It has four states:
 
-Clicking Clear opens an `AlertDialog` that explains the current SIM will be kept. On confirm, POSTs `{"action":"clear"}` and updates the displayed count from the response.
+- Loading: the real row box wearing skeleton slivers, plus a skeleton foot.
+- `count === null`: the read failed. A destructive condition block with a retry. The count is never rendered as 0, because 0 is a real answer.
+- `count === 0`: an empty condition block. There is nothing to clear, so no Clear action.
+- `count > 0`: one row ("SIMs remembered" and the count) and a destructive **Clear** in the card foot.
 
-i18n keys live under `system-settings.known_sims.*` in all four locales (en, id, it, zh-CN) with full key parity.
+Clear opens an `AlertDialog` that says the current SIM is kept. On confirm the hook POSTs `{"action":"clear"}`, takes the new count from the response, and the card fires `toast.success` / `toast.error`. A failure's reason comes from the returned `ClearKnownSimsResult.message` (`resolveErrorMessage`), never from hook state.
+
+i18n keys live under `system-settings.known_sims.*` in all five catalogs (en, zh-CN, zh-TW, it, id) with full key parity. The band tile reads `band.sims.*`.
 
 ## `previous_iccid` Shape Compatibility
 

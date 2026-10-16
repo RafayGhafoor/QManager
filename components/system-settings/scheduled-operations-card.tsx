@@ -1,10 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type * as React from "react";
 import { motion } from "motion/react";
-import { staggerRows, staggerRowItem } from "@/lib/motion";
 import { toast } from "sonner";
+import {
+  CheckCircle2Icon,
+  CircleAlertIcon,
+  ClockIcon,
+  Loader2Icon,
+  MinusCircleIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
 
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -12,29 +22,404 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Toggle } from "@/components/ui/toggle";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { TbInfoCircleFilled } from "react-icons/tb";
-import { AlertTriangleIcon, CircleIcon } from "lucide-react";
-
-import { useTranslation } from "react-i18next";
+import { Switch } from "@/components/ui/switch";
+import { staggerRowItem, staggerRows } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 
 import type {
-  UseSystemSettingsReturn,
-  SaveScheduledRebootPayload,
   SaveLowPowerPayload,
+  SaveResult,
+  SaveScheduledRebootPayload,
+  UseSystemSettingsReturn,
 } from "@/hooks/use-system-settings";
-import type { ScheduleConfig, LowPowerConfig } from "@/types/system-settings";
+import type { LowPowerConfig, ScheduleConfig } from "@/types/system-settings";
+
+import { ConditionBlock } from "./condition-block";
+import {
+  CARD_BODY,
+  CARD_DESC,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_TITLE,
+  COARSE_TARGET,
+  CONDITION_PANEL,
+  DAY_PILL,
+  FIELD,
+  FOCUS_RING,
+  GROUP_FILL,
+  LABEL_LINE,
+  NOTICE,
+  RECEIPT_ROW,
+  ROW,
+  ROW_GROUP,
+  SAVE_LAYER,
+  SKELETON,
+} from "./shapes";
+
+const K = "reboot";
+const LP = "low_power";
+
+/** Index 0-6 = Sun-Sat, matching `ScheduleConfig.days`. The status band reads
+    the same keys, so the two cannot ship rival weekday names. */
+export const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+
+/** The sr-only line that says this card saves without a Save button. */
+const AUTOSAVE_HINT_ID = "scheduled-autosave-hint";
+
+/** Section heading over a group of rows. The card's own title stays the card's. */
+const SECTION_LABEL = "text-on-surface-variant px-1 text-xs font-semibold";
+
+/** The debounce between the last edit and the save it triggers. */
+const SAVE_DEBOUNCE_MS = 800;
+
+// -----------------------------------------------------------------------------
+// useAutosaveSchedule — one schedule block's draft, debounce and revert rules
+// -----------------------------------------------------------------------------
+// The reboot block and the low-power block save exactly the same way: the switch
+// saves at once, every other edit saves 800ms after the last while the schedule
+// is on, and a failed save puts the server's values back. They differ only in
+// which fields they hold, so the rules live here once.
+
+interface ScheduleLike {
+  enabled: boolean;
+  days: number[];
+}
+
+interface ToastKeys {
+  enabled: string;
+  disabled: string;
+  saved: string;
+  saveFailed: string;
+  updateFailed: string;
+  unsaved: string;
+}
+
+interface AutosaveArgs<C extends ScheduleLike> {
+  server: C | null;
+  /** The draft a block shows before the device has answered. */
+  fallback: C;
+  save: (draft: C) => Promise<SaveResult>;
+  keys: ToastKeys;
+}
+
+function useAutosaveSchedule<C extends ScheduleLike>({
+  server,
+  fallback,
+  save,
+  keys,
+}: AutosaveArgs<C>) {
+  const { t } = useTranslation("system-settings");
+
+  const [draft, setDraft] = useState<C>(server ?? fallback);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savePending, setSavePending] = useState(false);
+
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Only the newest save may lift `savePending`; an older one settling under a
+  // queued edit must leave the latch armed.
+  const seqRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  // A save runs long after the render that scheduled it, so it reads the server
+  // value, the saver and the translator from here rather than a stale closure.
+  const latestRef = useRef({ server, save, t, keys, fallback });
+  useEffect(() => {
+    latestRef.current = { server, save, t, keys, fallback };
+  });
+
+  // Server value at render time, never copied in by an effect, and compared by
+  // IDENTITY. Held off while a save is queued or in flight, or a refresh landing
+  // inside the debounce window would overwrite the very edit being saved.
+  const [prevServer, setPrevServer] = useState<C | null>(null);
+  if (!savePending && server !== prevServer) {
+    setPrevServer(server);
+    setDraft(server ?? fallback);
+  }
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (!timerRef.current) return;
+      // The card promises it saves on its own, so a dropped edit must say so.
+      clearTimeout(timerRef.current);
+      toast.warning(
+        latestRef.current.t(latestRef.current.keys.unsaved),
+      );
+    };
+  }, []);
+
+  const reportFailure = useCallback((result: SaveResult, key: string) => {
+    toast.error(result.message ?? latestRef.current.t(key));
+  }, []);
+
+  /** Debounced save of an edit made while the schedule is on. */
+  const queueSave = useCallback(
+    (next: C) => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      const seq = ++seqRef.current;
+      setSavePending(true);
+      timerRef.current = setTimeout(async () => {
+        // Cleared before the await so unmounting mid-flight does not warn about
+        // a request that is already on the wire.
+        timerRef.current = null;
+        setIsSaving(true);
+        let result: SaveResult;
+        try {
+          result = await latestRef.current.save(next);
+        } finally {
+          setIsSaving(false);
+          if (seqRef.current === seq) setSavePending(false);
+        }
+        // Unmounted mid-flight: the request is on the wire, but nothing is left
+        // to narrate it to.
+        if (!mountedRef.current) return;
+        if (!result.success) {
+          // Revert to the server's values so the rail stops disagreeing with
+          // the band, but not when a newer edit is already queued to replace it.
+          if (seqRef.current === seq) {
+            const { server: current, fallback: base } = latestRef.current;
+            setDraft(current ?? base);
+          }
+          reportFailure(result, latestRef.current.keys.saveFailed);
+          return;
+        }
+        toast.success(latestRef.current.t(latestRef.current.keys.saved));
+      }, SAVE_DEBOUNCE_MS);
+    },
+    [reportFailure],
+  );
+
+  /** Edit a non-switch field. Saves (debounced) only while the schedule is on. */
+  const edit = useCallback(
+    (patch: Partial<C>) => {
+      const next = { ...draft, ...patch };
+      setDraft(next);
+      if (next.enabled) queueSave(next);
+    },
+    [draft, queueSave],
+  );
+
+  const toggleDay = useCallback(
+    (dayIndex: number) => {
+      const days = draft.days.includes(dayIndex)
+        ? draft.days.filter((d) => d !== dayIndex)
+        : [...draft.days, dayIndex].sort();
+      edit({ days } as unknown as Partial<C>);
+    },
+    [draft.days, edit],
+  );
+
+  /** The switch saves at once and supersedes any queued edit. */
+  const setEnabled = useCallback(
+    async (checked: boolean) => {
+      const next = { ...draft, enabled: checked };
+      setDraft(next);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      const seq = ++seqRef.current;
+      setSavePending(true);
+      setIsSaving(true);
+      let result: SaveResult;
+      try {
+        result = await latestRef.current.save(next);
+      } finally {
+        setIsSaving(false);
+        if (seqRef.current === seq) setSavePending(false);
+      }
+      if (!mountedRef.current) return;
+      if (!result.success) {
+        // Only the newest toggle may restore the switch; an older one settling
+        // late would flip it against a server a newer save already changed.
+        if (seqRef.current === seq) {
+          setDraft((current) => ({ ...current, enabled: !checked }));
+        }
+        reportFailure(result, latestRef.current.keys.updateFailed);
+        return;
+      }
+      toast.success(
+        latestRef.current.t(
+          checked
+            ? latestRef.current.keys.enabled
+            : latestRef.current.keys.disabled,
+        ),
+      );
+    },
+    [draft, reportFailure],
+  );
+
+  return { draft, isSaving, edit, toggleDay, setEnabled };
+}
+
+// -----------------------------------------------------------------------------
+// Pieces
+// -----------------------------------------------------------------------------
+
+/** On / Off / Never-fires chip beside the switch's label. */
+function StateChip({
+  enabled,
+  hasDays,
+  ns,
+}: {
+  enabled: boolean;
+  hasDays: boolean;
+  ns: string;
+}) {
+  const { t } = useTranslation("system-settings");
+  if (!enabled) {
+    return (
+      <Badge variant="muted">
+        <MinusCircleIcon className="size-3" aria-hidden="true" />
+        {t(`${ns}.rows.enabled.off`)}
+      </Badge>
+    );
+  }
+  if (!hasDays) {
+    return (
+      <Badge variant="warning">
+        <TriangleAlertIcon className="size-3" aria-hidden="true" />
+        {t(`${ns}.rows.enabled.no_day`)}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="success">
+      <CheckCircle2Icon className="size-3" aria-hidden="true" />
+      {t(`${ns}.rows.enabled.armed`)}
+    </Badge>
+  );
+}
+
+/** The seven-pill week. Fill carries selection; the rail spans its row. */
+function DayRail({
+  days,
+  onToggle,
+  label,
+  consequence,
+  railLabel,
+}: {
+  days: number[];
+  onToggle: (index: number) => void;
+  label: string;
+  consequence: string;
+  railLabel: string;
+}) {
+  const { t } = useTranslation("system-settings");
+  return (
+    <motion.div variants={staggerRowItem} className={ROW.RAIL_ROOT}>
+      <div className={ROW.TEXT}>
+        <span className={ROW.LABEL}>{label}</span>
+        <span className={ROW.CONSEQUENCE}>{consequence}</span>
+      </div>
+      <div className={DAY_PILL.RAIL} role="group" aria-label={railLabel}>
+        {DAY_KEYS.map((key, index) => {
+          const selected = days.includes(index);
+          return (
+            <button
+              key={key}
+              type="button"
+              aria-label={t(`${K}.days.${key}`)}
+              aria-pressed={selected}
+              onClick={() => onToggle(index)}
+              className={cn(
+                DAY_PILL.ROOT,
+                selected ? DAY_PILL.ON : DAY_PILL.OFF,
+                FOCUS_RING,
+              )}
+            >
+              {t(`${K}.days.${key}`)}
+            </button>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
+/** A labelled time field row. */
+function TimeRow({
+  id,
+  label,
+  consequence,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  consequence: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <motion.div variants={staggerRowItem} className={ROW.ROOT}>
+      <div className={ROW.TEXT}>
+        <label htmlFor={id} className={ROW.LABEL}>
+          {label}
+        </label>
+        <span className={ROW.CONSEQUENCE}>{consequence}</span>
+      </div>
+      <div className={ROW.CONTROL}>
+        <Input
+          id={id}
+          type="time"
+          host="container"
+          className={FIELD}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    </motion.div>
+  );
+}
+
+/** The switch row that every schedule block hangs off. */
+function EnableRow({
+  id,
+  ns,
+  checked,
+  hasDays,
+  onChange,
+}: {
+  id: string;
+  ns: string;
+  checked: boolean;
+  hasDays: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const { t } = useTranslation("system-settings");
+  return (
+    <motion.div variants={staggerRowItem} className={ROW.ROOT}>
+      <div className={ROW.TEXT}>
+        <div className={LABEL_LINE}>
+          <label htmlFor={id} className={ROW.LABEL}>
+            {t(`${ns}.rows.enabled.label`)}
+          </label>
+          <StateChip enabled={checked} hasDays={hasDays} ns={ns} />
+        </div>
+        <span className={ROW.CONSEQUENCE}>
+          {t(`${ns}.rows.enabled.consequence`)}
+        </span>
+      </div>
+      <div className={ROW.CONTROL}>
+        <Switch
+          id={id}
+          aria-describedby={AUTOSAVE_HINT_ID}
+          checked={checked}
+          onCheckedChange={onChange}
+          className={COARSE_TARGET}
+        />
+      </div>
+    </motion.div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Card
+// -----------------------------------------------------------------------------
 
 type ScheduledOperationsCardProps = Pick<
   UseSystemSettingsReturn,
@@ -44,7 +429,39 @@ type ScheduledOperationsCardProps = Pick<
   | "error"
   | "saveScheduledReboot"
   | "saveLowPower"
+  | "refresh"
 >;
+
+const REBOOT_FALLBACK: ScheduleConfig = {
+  enabled: false,
+  time: "04:00",
+  days: [],
+};
+
+const LOW_POWER_FALLBACK: LowPowerConfig = {
+  enabled: false,
+  start_time: "23:00",
+  end_time: "06:00",
+  days: [],
+};
+
+const REBOOT_KEYS: ToastKeys = {
+  enabled: `${K}.toast.enabled`,
+  disabled: `${K}.toast.disabled`,
+  saved: `${K}.toast.saved`,
+  saveFailed: `${K}.toast.save_failed`,
+  updateFailed: `${K}.toast.update_failed`,
+  unsaved: `${K}.toast.unsaved`,
+};
+
+const LOW_POWER_KEYS: ToastKeys = {
+  enabled: `${LP}.toast.enabled`,
+  disabled: `${LP}.toast.disabled`,
+  saved: `${LP}.toast.saved`,
+  saveFailed: `${LP}.toast.save_failed`,
+  updateFailed: `${LP}.toast.update_failed`,
+  unsaved: `${LP}.toast.unsaved`,
+};
 
 const ScheduledOperationsCard = ({
   scheduledReboot,
@@ -53,473 +470,306 @@ const ScheduledOperationsCard = ({
   error,
   saveScheduledReboot,
   saveLowPower,
+  refresh,
 }: ScheduledOperationsCardProps) => {
   const { t } = useTranslation("system-settings");
 
-  const dayLabels = [
-    t("scheduled_operations.day_sun"),
-    t("scheduled_operations.day_mon"),
-    t("scheduled_operations.day_tue"),
-    t("scheduled_operations.day_wed"),
-    t("scheduled_operations.day_thu"),
-    t("scheduled_operations.day_fri"),
-    t("scheduled_operations.day_sat"),
-  ];
-
-  // ─── Scheduled Reboot local state ──────────────────────────────────────────
-  const [rebootEnabled, setRebootEnabled] = useState(false);
-  const [rebootTime, setRebootTime] = useState("04:00");
-  const [rebootDays, setRebootDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
-
-  // ─── Low Power local state ─────────────────────────────────────────────────
-  const [lpEnabled, setLpEnabled] = useState(false);
-  const [lpStartTime, setLpStartTime] = useState("23:00");
-  const [lpEndTime, setLpEndTime] = useState("06:00");
-  const [lpDays, setLpDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
-
-  // ─── Debounce timer refs ───────────────────────────────────────────────────
-  const rebootSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lpSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // ─── Sync from hook data (render-time, not useEffect) ──────────────────────
-  const [prevReboot, setPrevReboot] = useState<ScheduleConfig | null>(null);
-  if (scheduledReboot && scheduledReboot !== prevReboot) {
-    setPrevReboot(scheduledReboot);
-    setRebootEnabled(scheduledReboot.enabled);
-    setRebootTime(scheduledReboot.time);
-    setRebootDays(scheduledReboot.days);
-  }
-
-  const [prevLowPower, setPrevLowPower] = useState<LowPowerConfig | null>(null);
-  if (lowPower && lowPower !== prevLowPower) {
-    setPrevLowPower(lowPower);
-    setLpEnabled(lowPower.enabled);
-    setLpStartTime(lowPower.start_time);
-    setLpEndTime(lowPower.end_time);
-    setLpDays(lowPower.days);
-  }
-
-  // ─── Cleanup timers on unmount ─────────────────────────────────────────────
-  useEffect(() => {
-    return () => {
-      if (rebootSaveTimerRef.current) clearTimeout(rebootSaveTimerRef.current);
-      if (lpSaveTimerRef.current) clearTimeout(lpSaveTimerRef.current);
-    };
-  }, []);
-
-  // ─── Debounced save helpers ────────────────────────────────────────────────
-  const debouncedRebootSave = useCallback(
-    (payload: SaveScheduledRebootPayload) => {
-      if (rebootSaveTimerRef.current) {
-        clearTimeout(rebootSaveTimerRef.current);
-      }
-      rebootSaveTimerRef.current = setTimeout(async () => {
-        const success = await saveScheduledReboot(payload);
-        if (success) {
-          toast.success(t("scheduled_operations.reboot_toast_saved"));
-        } else {
-          toast.error(t("scheduled_operations.reboot_toast_save_failed"));
-        }
-      }, 800);
-    },
-    [saveScheduledReboot, t],
+  const head = (
+    <CardHeader className={CARD_PAD}>
+      <CardTitle className={CARD_TITLE}>{t(`${K}.card.title`)}</CardTitle>
+      <CardDescription className={CARD_DESC}>
+        {t(`${K}.card.description`)}
+      </CardDescription>
+    </CardHeader>
   );
-
-  const debouncedLpSave = useCallback(
-    (payload: SaveLowPowerPayload) => {
-      if (lpSaveTimerRef.current) {
-        clearTimeout(lpSaveTimerRef.current);
-      }
-      lpSaveTimerRef.current = setTimeout(async () => {
-        const success = await saveLowPower(payload);
-        if (success) {
-          toast.success(t("scheduled_operations.low_power_toast_saved"));
-        } else {
-          toast.error(t("scheduled_operations.low_power_toast_save_failed"));
-        }
-      }, 800);
-    },
-    [saveLowPower, t],
-  );
-
-  // ===========================================================================
-  // Scheduled Reboot handlers
-  // ===========================================================================
-
-  const handleRebootEnabledChange = async (checked: boolean) => {
-    setRebootEnabled(checked);
-    if (rebootSaveTimerRef.current) {
-      clearTimeout(rebootSaveTimerRef.current);
-      rebootSaveTimerRef.current = null;
-    }
-    const success = await saveScheduledReboot({
-      action: "save_scheduled_reboot",
-      enabled: checked,
-      time: rebootTime,
-      days: rebootDays,
-    });
-    if (success) {
-      toast.success(
-        checked
-          ? t("scheduled_operations.reboot_toast_enabled")
-          : t("scheduled_operations.reboot_toast_disabled"),
-      );
-    } else {
-      setRebootEnabled(!checked);
-      toast.error(t("scheduled_operations.reboot_toast_update_failed"));
-    }
-  };
-
-  const handleRebootTimeChange = (value: string) => {
-    setRebootTime(value);
-    if (rebootEnabled) {
-      debouncedRebootSave({
-        action: "save_scheduled_reboot",
-        enabled: rebootEnabled,
-        time: value,
-        days: rebootDays,
-      });
-    }
-  };
-
-  const handleRebootDayToggle = (dayIndex: number) => {
-    const newDays = rebootDays.includes(dayIndex)
-      ? rebootDays.filter((d) => d !== dayIndex)
-      : [...rebootDays, dayIndex].sort();
-
-    setRebootDays(newDays);
-    if (rebootEnabled) {
-      debouncedRebootSave({
-        action: "save_scheduled_reboot",
-        enabled: rebootEnabled,
-        time: rebootTime,
-        days: newDays,
-      });
-    }
-  };
-
-  // ===========================================================================
-  // Low Power Mode handlers
-  // ===========================================================================
-
-  const handleLpEnabledChange = async (checked: boolean) => {
-    setLpEnabled(checked);
-    if (lpSaveTimerRef.current) {
-      clearTimeout(lpSaveTimerRef.current);
-      lpSaveTimerRef.current = null;
-    }
-    const success = await saveLowPower({
-      action: "save_low_power",
-      enabled: checked,
-      start_time: lpStartTime,
-      end_time: lpEndTime,
-      days: lpDays,
-    });
-    if (success) {
-      toast.success(
-        checked
-          ? t("scheduled_operations.low_power_toast_enabled")
-          : t("scheduled_operations.low_power_toast_disabled"),
-      );
-    } else {
-      setLpEnabled(!checked);
-      toast.error(t("scheduled_operations.low_power_toast_update_failed"));
-    }
-  };
-
-  const handleLpStartTimeChange = (value: string) => {
-    setLpStartTime(value);
-    if (lpEnabled) {
-      debouncedLpSave({
-        action: "save_low_power",
-        enabled: lpEnabled,
-        start_time: value,
-        end_time: lpEndTime,
-        days: lpDays,
-      });
-    }
-  };
-
-  const handleLpEndTimeChange = (value: string) => {
-    setLpEndTime(value);
-    if (lpEnabled) {
-      debouncedLpSave({
-        action: "save_low_power",
-        enabled: lpEnabled,
-        start_time: lpStartTime,
-        end_time: value,
-        days: lpDays,
-      });
-    }
-  };
-
-  const handleLpDayToggle = (dayIndex: number) => {
-    const newDays = lpDays.includes(dayIndex)
-      ? lpDays.filter((d) => d !== dayIndex)
-      : [...lpDays, dayIndex].sort();
-
-    setLpDays(newDays);
-    if (lpEnabled) {
-      debouncedLpSave({
-        action: "save_low_power",
-        enabled: lpEnabled,
-        start_time: lpStartTime,
-        end_time: lpEndTime,
-        days: newDays,
-      });
-    }
-  };
-
-  // ===========================================================================
-  // Render
-  // ===========================================================================
 
   if (isLoading) {
     return (
-      <Card className="@container/card">
-        <CardHeader>
-          <CardTitle>{t("scheduled_operations.card_title")}</CardTitle>
-          <CardDescription>
-            {t("scheduled_operations.card_description")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2">
-            <Skeleton className="h-5 w-36" />
-            <Separator />
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-44" />
-              <Skeleton className="h-6 w-28" />
+      <Card className={CARD_SHELL}>
+        {head}
+        <CardContent className={cn(CARD_PAD, CARD_BODY, "gap-3.5")}>
+          {/* The skeleton wears the real row boxes, so its height RESOLVES to
+              the loaded view's rather than being asserted against a floor. */}
+          <div className={cn(ROW_GROUP, GROUP_FILL)}>
+            <div className={ROW.ROOT}>
+              <div className={ROW.TEXT}>
+                <Skeleton className={cn(SKELETON.REBOOT.LABEL, "w-40")} />
+                <Skeleton
+                  className={cn(SKELETON.REBOOT.CONSEQUENCE, "w-full")}
+                />
+                <Skeleton
+                  className={cn(SKELETON.REBOOT.CONSEQUENCE_2, "w-3/4")}
+                />
+              </div>
+              <div className={ROW.CONTROL}>
+                <Skeleton className={SKELETON.REBOOT.SWITCH} />
+              </div>
             </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-24" />
-              <Skeleton className="h-8 w-32" />
+            <div className={ROW.ROOT}>
+              <div className={ROW.TEXT}>
+                <Skeleton className={cn(SKELETON.REBOOT.LABEL, "w-20")} />
+                <Skeleton className={cn(SKELETON.REBOOT.CONSEQUENCE, "w-3/5")} />
+              </div>
+              <div className={ROW.CONTROL}>
+                <Skeleton className={SKELETON.REBOOT.FIELD} />
+              </div>
             </div>
-            <Separator />
-            <Skeleton className="h-9 w-full" />
-            <Separator className="my-4" />
-            <Skeleton className="h-5 w-32" />
-            <Separator />
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-6 w-28" />
+            <div className={ROW.RAIL_ROOT}>
+              <div className={ROW.TEXT}>
+                <Skeleton className={cn(SKELETON.REBOOT.LABEL, "w-24")} />
+                <Skeleton className={cn(SKELETON.REBOOT.CONSEQUENCE, "w-4/5")} />
+              </div>
+              <div className={DAY_PILL.RAIL}>
+                {DAY_KEYS.map((key) => (
+                  <Skeleton key={key} className={SKELETON.REBOOT.DAY} />
+                ))}
+              </div>
             </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-24" />
-              <Skeleton className="h-8 w-32" />
+          </div>
+          <div className={cn(ROW_GROUP)}>
+            <div className={ROW.ROOT}>
+              <div className={ROW.TEXT}>
+                <Skeleton className={cn(SKELETON.REBOOT.LABEL, "w-36")} />
+                <Skeleton
+                  className={cn(SKELETON.REBOOT.CONSEQUENCE, "w-full")}
+                />
+                <Skeleton
+                  className={cn(SKELETON.REBOOT.CONSEQUENCE_2, "w-2/3")}
+                />
+              </div>
+              <div className={ROW.CONTROL}>
+                <Skeleton className={SKELETON.REBOOT.SWITCH} />
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-20" />
-              <Skeleton className="h-8 w-32" />
+            {[0, 1].map((i) => (
+              <div key={i} className={ROW.ROOT}>
+                <div className={ROW.TEXT}>
+                  <Skeleton className={cn(SKELETON.REBOOT.LABEL, "w-24")} />
+                  <Skeleton
+                    className={cn(SKELETON.REBOOT.CONSEQUENCE, "w-3/5")}
+                  />
+                </div>
+                <div className={ROW.CONTROL}>
+                  <Skeleton className={SKELETON.REBOOT.FIELD} />
+                </div>
+              </div>
+            ))}
+            <div className={ROW.RAIL_ROOT}>
+              <div className={ROW.TEXT}>
+                <Skeleton className={cn(SKELETON.REBOOT.LABEL, "w-24")} />
+                <Skeleton className={cn(SKELETON.REBOOT.CONSEQUENCE, "w-4/5")} />
+              </div>
+              <div className={DAY_PILL.RAIL}>
+                {DAY_KEYS.map((key) => (
+                  <Skeleton key={key} className={SKELETON.REBOOT.DAY} />
+                ))}
+              </div>
             </div>
-            <Separator />
-            <Skeleton className="h-9 w-full" />
+          </div>
+          {/* The autosave receipt strip. Absent, the card grows by the strip
+              and its gap the moment the data lands. */}
+          <div className={RECEIPT_ROW}>
+            <Skeleton className={SKELETON.REBOOT.RECEIPT} />
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (error && !scheduledReboot && !lowPower) {
+  // No schedule to show: a failed read, or an envelope carrying none. The form
+  // must not render, because its fields would be defaults and the switch would
+  // arm them.
+  if (!scheduledReboot || !lowPower) {
     return (
-      <Card className="@container/card">
-        <CardHeader>
-          <CardTitle>{t("scheduled_operations.card_title")}</CardTitle>
-          <CardDescription>
-            {t("scheduled_operations.card_description")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertTriangleIcon className="size-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+      <Card className={CARD_SHELL}>
+        {head}
+        <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+          <ConditionBlock
+            tone="destructive"
+            glyph={CircleAlertIcon}
+            ariaRole="alert"
+            title={t(`${K}.states.error.title`)}
+            description={t(`${K}.states.error.description`)}
+            onRetry={() => void refresh()}
+            retryLabel={t("actions.retry", { ns: "common" })}
+            className={CONDITION_PANEL.SCREEN}
+          />
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardTitle>{t("scheduled_operations.card_title")}</CardTitle>
-        <CardDescription>
-          {t("scheduled_operations.card_description")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <ScheduledOperationsForm
+      head={head}
+      scheduledReboot={scheduledReboot}
+      lowPower={lowPower}
+      error={error}
+      saveScheduledReboot={saveScheduledReboot}
+      saveLowPower={saveLowPower}
+    />
+  );
+};
+
+// -----------------------------------------------------------------------------
+// Form
+// -----------------------------------------------------------------------------
+// Mounted only once both schedules exist, so each block's draft starts from the
+// device's values and never from a seeded week the user did not choose.
+
+function ScheduledOperationsForm({
+  head,
+  scheduledReboot,
+  lowPower,
+  error,
+  saveScheduledReboot,
+  saveLowPower,
+}: {
+  head: React.ReactNode;
+  scheduledReboot: ScheduleConfig;
+  lowPower: LowPowerConfig;
+  error: string | null;
+  saveScheduledReboot: (
+    payload: SaveScheduledRebootPayload,
+  ) => Promise<SaveResult>;
+  saveLowPower: (payload: SaveLowPowerPayload) => Promise<SaveResult>;
+}) {
+  const { t } = useTranslation("system-settings");
+
+  const reboot = useAutosaveSchedule<ScheduleConfig>({
+    server: scheduledReboot,
+    fallback: REBOOT_FALLBACK,
+    keys: REBOOT_KEYS,
+    save: (draft) =>
+      saveScheduledReboot({
+        action: "save_scheduled_reboot",
+        enabled: draft.enabled,
+        time: draft.time,
+        days: draft.days,
+      }),
+  });
+
+  const lp = useAutosaveSchedule<LowPowerConfig>({
+    server: lowPower,
+    fallback: LOW_POWER_FALLBACK,
+    keys: LOW_POWER_KEYS,
+    save: (draft) =>
+      saveLowPower({
+        action: "save_low_power",
+        enabled: draft.enabled,
+        start_time: draft.start_time,
+        end_time: draft.end_time,
+        days: draft.days,
+      }),
+  });
+
+  const isSaving = reboot.isSaving || lp.isSaving;
+
+  return (
+    <Card className={CARD_SHELL}>
+      {head}
+      <CardContent className={cn(CARD_PAD, CARD_BODY, "gap-3.5")}>
+        {/* A refresh failed but the schedules are still cached: non-blocking,
+            so the card stays usable. */}
+        {error ? (
+          <div role="status" className={cn(NOTICE.BOX, NOTICE.STALE)}>
+            <TriangleAlertIcon className={NOTICE.GLYPH} aria-hidden="true" />
+            <span className={NOTICE.TEXT}>{t(`${K}.states.stale`)}</span>
+          </div>
+        ) : null}
+
+        {/* Nothing else tells AT that this card autosaves: there is no Save
+            button, and the receipt strip that says so on screen is decorative. */}
+        <span id={AUTOSAVE_HINT_ID} className="sr-only">
+          {t(`${K}.states.autosave`)}
+        </span>
+
+        {/* ── Scheduled reboot ────────────────────────────────────────── */}
+        <span className={SECTION_LABEL}>{t(`${K}.section`)}</span>
         <motion.div
-          className="grid gap-2"
           variants={staggerRows}
-          initial="hidden"
-          animate="visible"
+          className={cn(ROW_GROUP, GROUP_FILL)}
         >
-          {/* ─── Section A: Scheduled Reboot ─────────────────────────────── */}
-          <motion.p variants={staggerRowItem} className="font-semibold text-sm">{t("scheduled_operations.reboot_section_title")}</motion.p>
-          <Separator />
-
-          {/* Enable toggle */}
-          <motion.div variants={staggerRowItem} className="flex items-center justify-between">
-            <p className="font-semibold text-muted-foreground text-sm">
-              {t("scheduled_operations.reboot_enable_label")}
-            </p>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="scheduled-reboot"
-                checked={rebootEnabled}
-                onCheckedChange={handleRebootEnabledChange}
-              />
-              <Label htmlFor="scheduled-reboot">
-                {rebootEnabled ? t("state.enabled", { ns: "common" }) : t("state.disabled", { ns: "common" })}
-              </Label>
-            </div>
-          </motion.div>
-          <Separator />
-
-          {/* Reboot Time */}
-          <motion.div variants={staggerRowItem} className="flex items-center justify-between mt-4">
-            <Label className="font-semibold text-muted-foreground text-sm">
-              {t("scheduled_operations.reboot_time_label")}
-            </Label>
-            <Input
-              type="time"
-              className="w-32 h-8"
-              value={rebootTime}
-              onChange={(e) => handleRebootTimeChange(e.target.value)}
-            />
-          </motion.div>
-          <Separator />
-
-          {/* Repeat On (reboot) */}
-          <motion.fieldset variants={staggerRowItem} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
-            <legend className="font-semibold text-muted-foreground text-sm">
-              {t("scheduled_operations.reboot_repeat_label")}
-            </legend>
-            <div
-              className="flex flex-wrap gap-2 mt-2"
-              role="group"
-              aria-label={t("scheduled_operations.reboot_repeat_aria")}
-            >
-              {dayLabels.map((day, index) => (
-                <Toggle
-                  aria-label={day}
-                  key={day}
-                  size="sm"
-                  className="data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-blue-500 data-[state=on]:*:[svg]:stroke-blue-500"
-                  variant="outline"
-                  pressed={rebootDays.includes(index)}
-                  onPressedChange={() => handleRebootDayToggle(index)}
-                >
-                  <CircleIcon />
-                  {day}
-                </Toggle>
-              ))}
-            </div>
-          </motion.fieldset>
-
-          {/* ─── Visual break between sections ───────────────────────────── */}
-          <Separator className="my-4" />
-
-          {/* ─── Section B: Low Power Mode ───────────────────────────────── */}
-          <motion.div variants={staggerRowItem} className="flex items-center gap-1.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex"
-                  aria-label={t("scheduled_operations.low_power_info_aria")}
-                >
-                  <TbInfoCircleFilled className="size-5 text-info" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{t("scheduled_operations.low_power_tooltip")}</p>
-              </TooltipContent>
-            </Tooltip>
-            <p className="font-semibold text-sm">{t("scheduled_operations.low_power_section_title")}</p>
-          </motion.div>
-          <Separator />
-
-          {/* Enable toggle */}
-          <motion.div variants={staggerRowItem} className="flex items-center justify-between">
-            <p className="font-semibold text-muted-foreground text-sm">
-              {t("scheduled_operations.low_power_enable_label")}
-            </p>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="low-power-mode"
-                checked={lpEnabled}
-                onCheckedChange={handleLpEnabledChange}
-              />
-              <Label htmlFor="low-power-mode">
-                {lpEnabled ? t("state.enabled", { ns: "common" }) : t("state.disabled", { ns: "common" })}
-              </Label>
-            </div>
-          </motion.div>
-          <Separator />
-
-          {/* Start Time */}
-          <motion.div variants={staggerRowItem} className="flex flex-col gap-4 mt-4">
-            <div className="flex items-center justify-between">
-              <Label className="font-semibold text-muted-foreground text-sm">
-                {t("scheduled_operations.low_power_start_label")}
-              </Label>
-              <Input
-                type="time"
-                className="w-32 h-8"
-                value={lpStartTime}
-                onChange={(e) => handleLpStartTimeChange(e.target.value)}
-              />
-            </div>
-
-            {/* End Time */}
-            <div className="flex items-center justify-between">
-              <Label className="font-semibold text-muted-foreground text-sm">
-                {t("scheduled_operations.low_power_end_label")}
-              </Label>
-              <Input
-                type="time"
-                className="w-32 h-8"
-                value={lpEndTime}
-                onChange={(e) => handleLpEndTimeChange(e.target.value)}
-              />
-            </div>
-          </motion.div>
-          <Separator />
-
-          {/* Repeat On (low power) */}
-          <motion.fieldset variants={staggerRowItem} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
-            <legend className="font-semibold text-muted-foreground text-sm">
-              {t("scheduled_operations.low_power_repeat_label")}
-            </legend>
-            <div
-              className="flex flex-wrap gap-2 mt-2"
-              role="group"
-              aria-label={t("scheduled_operations.low_power_repeat_aria")}
-            >
-              {dayLabels.map((day, index) => (
-                <Toggle
-                  aria-label={day}
-                  key={day}
-                  size="sm"
-                  className="data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-blue-500 data-[state=on]:*:[svg]:stroke-blue-500"
-                  variant="outline"
-                  pressed={lpDays.includes(index)}
-                  onPressedChange={() => handleLpDayToggle(index)}
-                >
-                  <CircleIcon />
-                  {day}
-                </Toggle>
-              ))}
-            </div>
-          </motion.fieldset>
-
+          <EnableRow
+            id="scheduled-reboot"
+            ns={K}
+            checked={reboot.draft.enabled}
+            hasDays={reboot.draft.days.length > 0}
+            onChange={reboot.setEnabled}
+          />
+          <TimeRow
+            id="scheduled-reboot-time"
+            label={t(`${K}.rows.time.label`)}
+            consequence={t(`${K}.rows.time.consequence`)}
+            value={reboot.draft.time}
+            onChange={(time) => reboot.edit({ time })}
+          />
+          <DayRail
+            days={reboot.draft.days}
+            onToggle={reboot.toggleDay}
+            label={t(`${K}.rows.days.label`)}
+            consequence={t(`${K}.rows.days.consequence`)}
+            railLabel={t(`${K}.rows.days.rail`)}
+          />
         </motion.div>
+
+        {/* ── Low power window ────────────────────────────────────────── */}
+        <span className={SECTION_LABEL}>{t(`${LP}.section`)}</span>
+        <motion.div variants={staggerRows} className={ROW_GROUP}>
+          <EnableRow
+            id="low-power-mode"
+            ns={LP}
+            checked={lp.draft.enabled}
+            hasDays={lp.draft.days.length > 0}
+            onChange={lp.setEnabled}
+          />
+          <TimeRow
+            id="low-power-start"
+            label={t(`${LP}.rows.start.label`)}
+            consequence={t(`${LP}.rows.start.consequence`)}
+            value={lp.draft.start_time}
+            onChange={(start_time) => lp.edit({ start_time })}
+          />
+          <TimeRow
+            id="low-power-end"
+            label={t(`${LP}.rows.end.label`)}
+            consequence={t(`${LP}.rows.end.consequence`)}
+            value={lp.draft.end_time}
+            onChange={(end_time) => lp.edit({ end_time })}
+          />
+          <DayRail
+            days={lp.draft.days}
+            onToggle={lp.toggleDay}
+            label={t(`${LP}.rows.days.label`)}
+            consequence={t(`${LP}.rows.days.consequence`)}
+            railLabel={t(`${LP}.rows.days.rail`)}
+          />
+        </motion.div>
+
+        {/* The autosave receipt. Announcing the result is the toast's job, so
+            the strip itself is decorative. */}
+        <div className={RECEIPT_ROW} aria-hidden="true">
+          <span className="grid">
+            <span
+              className={cn(
+                SAVE_LAYER,
+                isSaving ? "opacity-0" : "opacity-100",
+              )}
+            >
+              <ClockIcon className="size-3.5" />
+              {t(`${K}.states.autosave`)}
+            </span>
+            <span
+              className={cn(SAVE_LAYER, isSaving ? "opacity-100" : "opacity-0")}
+            >
+              <Loader2Icon className="size-3.5 motion-safe:animate-spin" />
+              {t(`${K}.states.saving`)}
+            </span>
+          </span>
+        </div>
       </CardContent>
     </Card>
   );
-};
+}
 
 export default ScheduledOperationsCard;

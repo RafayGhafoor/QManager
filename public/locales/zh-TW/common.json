@@ -289,5 +289,311 @@
     "notice": {
       "stale": "顯示我們最後成功讀取到的事件。{{message}}"
     }
+  },
+  "aboutDevice": {
+    "page": {
+      "title": "關於裝置",
+      "description": "裝置識別資訊、位址，以及其上執行的軟體。"
+    },
+    "actions": {
+      "refresh": "重新整理",
+      "refreshing": "正在重新整理…",
+      "retry": "重試"
+    },
+    "band": {
+      "label": "識別資訊",
+      "not_responding": "無回應",
+      "unreachable": {
+        "title": "裝置未回應",
+        "detail": "來自 {{endpoint}} 的 {{reason}}。以下內容均未讀取。",
+        "no_reason": "無回應"
+      }
+    },
+    "tiles": {
+      "model": {
+        "eyebrow": "型號"
+      },
+      "firmware": {
+        "eyebrow": "模組韌體",
+        "caption": "建置於 {{date}}"
+      },
+      "host": {
+        "eyebrow": "主機系統",
+        "caption": "Linux {{kernel}}"
+      },
+      "internet": {
+        "eyebrow": "網際網路",
+        "reachable": "可連線",
+        "not_reachable": "無法連線",
+        "caption_reachable": "公用 {{address}}",
+        "caption_unreachable": "{{probe}} 無回應"
+      }
+    },
+    "modem": {
+      "title": "模組",
+      "description": "硬體識別資訊，以及各制式無線電所實作的 3GPP 版本。"
+    },
+    "addresses": {
+      "title": "位址",
+      "description": "本裝置在區域網路與電信業者網路中的位置。",
+      "provenance": "公用位址透過 {{probe}} 解析。破折號代表裝置未回報任何位址。"
+    },
+    "groups": {
+      "three_gpp": "3GPP 版本",
+      "local": "本機",
+      "wwan": "WWAN",
+      "public": "公用"
+    },
+    "rows": {
+      "manufacturer": "製造商",
+      "model": "型號",
+      "firmware": "韌體",
+      "openwrt_version": "OpenWrt 版本",
+      "build_date": "建置日期",
+      "imei": "IMEI",
+      "lte": "LTE",
+      "nr5g": "NR5G",
+      "device_ip": "裝置 IP",
+      "lan_subnet": "區域網路子網路",
+      "ipv4": "IPv4",
+      "ipv6": "IPv6"
+    },
+    "empty": {
+      "title": "未讀取到資料",
+      "modem": "這些數值來自裝置，而裝置未回應。",
+      "addresses": "位址由同一次請求讀取。"
+    },
+    "qmanager": {
+      "title": "關於 QManager",
+      "note": "你好！我是 Rus。QManager 是 QuecManager 的最新一代，採用比前代更新、更可靠的實作方式——同時仍將進階使用者的技術設定與新手適用的簡化介面結合在一起。特別感謝 iamromulan、clndwhr 與 Wutang Clan！",
+      "copyright": "© {{year}} QManager。保留一切權利。",
+      "repository": "GitHub 儲存庫",
+      "release_notes": "版本資訊",
+      "support": "支持本專案"
+    },
+    "errors": {
+      "fetch_failed": "無法讀取裝置資訊"
+    }
+  },
+  "support": {
+    "page": {
+      "title": "支援",
+      "description": "回報問題、向社群提問，或聯絡維護者。"
+    },
+    "help": {
+      "title": "取得協助",
+      "description": "四種途徑，依最常需要的順序排列。",
+      "bug": {
+        "label": "回報問題"
+      },
+      "community": {
+        "label": "向社群提問"
+      },
+      "email": {
+        "label": "寄信給維護者"
+      },
+      "release_notes": {
+        "label": "查看版本資訊",
+        "dest": "已安裝：{{version}}"
+      }
+    },
+    "community": {
+      "title": "社群",
+      "description": "Discord 上的 Cellular Modem Talk/Development。",
+      "body": "使用者在這裡分享設定、一起排除問題，並討論行動網路話題。掃描或直接開啟邀請連結。",
+      "open_invite": "開啟邀請連結",
+      "qr_alt": "QManager Discord 伺服器邀請 QR 碼"
+    },
+    "opens_new_tab": "在新分頁中開啟"
+  },
+  "donate": {
+    "dialog": {
+      "title": "支持本專案",
+      "description": "讓 QManager 繼續走下去。",
+      "body": "你好，我是 Rus。QManager 是我利用業餘時間免費維護的專案。如果它對你有幫助，一點小小的支持意義重大，也讓我能繼續做下去。",
+      "thanks": "謝謝你，你真好。💙"
+    },
+    "links": {
+      "group_label": "贊助管道",
+      "opens_new_tab": "在新分頁中開啟"
+    },
+    "band": {
+      "title": "支持本專案",
+      "body": "QManager 是一個業餘維護、完全免費的專案。如果它對你的裝置有幫助，一點小小的支持就能讓它繼續走下去——無論如何都不會有付費牆。"
+    }
+  },
+  "tailscale": {
+    "actions": {
+      "cancel": "取消",
+      "retry": "重試"
+    },
+    "page": {
+      "title": "Tailscale VPN",
+      "description": "您的 mesh VPN：這台數據機在 tailnet 上的狀態，以及還有誰在線上。",
+      "refresh": "重新整理",
+      "stale": "顯示我們最後成功讀取的狀態。{{message}}",
+      "unreadableTitle": "無法讀取 Tailscale 狀態",
+      "unreadable": "裝置沒有回應。"
+    },
+    "status": {
+      "aria": "Tailscale 狀態",
+      "running": "已連線",
+      "needsLogin": "需要登入",
+      "disconnected": "已斷線",
+      "serviceStopped": "服務已停止",
+      "notInstalled": "未安裝",
+      "unknown": "未知"
+    },
+    "band": {
+      "dash": "—",
+      "connectionEyebrow": "連線",
+      "version": "版本 {{version}}",
+      "versionUnknown": "版本未知",
+      "deviceEyebrow": "此裝置",
+      "deviceUnknown": "尚無 tailnet 位址",
+      "tailnetEyebrow": "Tailnet",
+      "magicDnsOn": "MagicDNS 已開啟",
+      "magicDnsOff": "MagicDNS 已關閉",
+      "peersEyebrow": "上線節點",
+      "exitNodes_one": "{{count}} 個出口節點",
+      "exitNodes_other": "{{count}} 個出口節點",
+      "noExitNode": "沒有出口節點"
+    },
+    "connection": {
+      "title": "連線",
+      "description": "此數據機是否加入 tailnet，以及加入後的行為方式。",
+      "version": "v{{version}}",
+      "connect": "連線",
+      "connecting": "連線中…",
+      "disconnect": "中斷連線",
+      "disconnecting": "中斷連線中…",
+      "startService": "啟動服務",
+      "starting": "啟動中…",
+      "stopService": "停止服務",
+      "stopping": "停止中…",
+      "logout": "登出",
+      "logoutDialogTitle": "登出 Tailscale？",
+      "logoutDialogDescription": "這會將此數據機從您的 tailnet 中移除。重新連線前需要再次登入。",
+      "authTitle": "登入以完成連線",
+      "authDescription": "開啟登入頁面並使用您的 Tailscale 帳號完成驗證。您核准後，數據機會立即加入 tailnet。",
+      "openLogin": "開啟登入頁面",
+      "authWaiting": "正在等待您登入",
+      "bootTitle": "開機自動啟動",
+      "bootDescription": "數據機重新啟動後自動啟動 Tailscale。",
+      "on": "開",
+      "off": "關",
+      "exitNodeTitle": "宣告為出口節點",
+      "exitNodeDescription": "允許其他裝置透過此數據機路由其網際網路流量。需要在 Tailscale 管理主控台中核准。",
+      "exitNodeLocked": "連線 Tailscale 後才能變更。"
+    },
+    "device": {
+      "title": "此裝置",
+      "description": "此數據機在 tailnet 上的識別方式。",
+      "hostname": "主機名稱",
+      "ipv4": "IPv4",
+      "ipv6": "IPv6",
+      "dnsName": "DNS 名稱",
+      "tailnet": "Tailnet",
+      "magicDns": "MagicDNS",
+      "relay": "DERP 中繼",
+      "emptyTitle": "尚未加入 tailnet",
+      "emptyDescription": "連線 Tailscale 後，此數據機的位址、DNS 名稱與中繼資訊會顯示在這裡。"
+    },
+    "peers": {
+      "title": "網路節點",
+      "description": "您 tailnet 上的其他裝置，以及是否可連線。",
+      "dash": "—",
+      "unnamed": "未命名裝置",
+      "exitNode": "出口節點",
+      "colDevice": "裝置",
+      "colAddress": "位址",
+      "colOs": "系統",
+      "colStatus": "狀態",
+      "colLastSeen": "最後上線",
+      "online": "上線",
+      "offline": "離線",
+      "seenNow": "現在",
+      "seenUnknown": "未知",
+      "seenJustNow": "剛剛",
+      "seenMinutes": "{{n}} 分鐘前",
+      "seenHours": "{{n}} 小時前",
+      "seenDays": "{{n}} 天前",
+      "countOnline": "{{online}} / {{total}} 上線",
+      "countExitNodes_one": "{{count}} 個出口節點",
+      "countExitNodes_other": "{{count}} 個出口節點",
+      "errorTitle": "無法載入節點清單",
+      "emptyTitle": "沒有其他裝置",
+      "emptyDescription": "此 tailnet 尚無其他裝置加入。從 Tailscale 管理後台新增裝置後，就會顯示在這裡。",
+      "offlineTitle": "未連線",
+      "offlineDescription": "連線 Tailscale 即可查看您 tailnet 上的其他裝置。"
+    },
+    "install": {
+      "title": "Tailscale",
+      "description": "免開放連接埠，即可從任何地方存取這台數據機的 mesh VPN。",
+      "conditionTitle": "尚未安裝 Tailscale",
+      "conditionDescription": "安裝會透過目前這條行動網路連線下載 Tailscale 安裝套件，因此會消耗您的流量，安裝期間連線也會變慢。",
+      "install": "安裝 Tailscale",
+      "installing": "安裝中…",
+      "checkAgain": "再次檢查",
+      "done": "Tailscale 已安裝。",
+      "failed": "安裝未完成。",
+      "manualLabel": "或透過命令列安裝",
+      "copyCommand": "複製安裝指令",
+      "logTitle": "安裝紀錄",
+      "logWaiting": "等待輸出…",
+      "chooseLabel": "選擇要安裝的版本",
+      "manualCommand": "opkg update && opkg install luci-app-tailscale-community-tiny",
+      "variant": {
+        "official": {
+          "title": "官方版",
+          "description": "最新版本，直接來自 Tailscale。佔用約 50 MB 磁碟空間。"
+        },
+        "tiny": {
+          "title": "Tiny",
+          "description": "輕量級社群套件。體積更小，但版本較舊。"
+        }
+      }
+    },
+    "danger": {
+      "title": "移除 Tailscale",
+      "description": "從此數據機解除安裝 Tailscale 套件及其防火牆規則。",
+      "uninstall": "解除安裝",
+      "removing": "移除中…",
+      "dialogTitle": "解除安裝 Tailscale？",
+      "dialogDescription": "這會從此數據機解除安裝 Tailscale 套件、其防火牆規則，以及所有連線狀態。之後重新啟動可清除殘留內容。",
+      "rebootTitle": "建議重新啟動",
+      "rebootDescription": "Tailscale 已移除。重新啟動可清除殘留的防火牆規則等內容。是否立即重新啟動？",
+      "rebootLater": "稍後重新啟動",
+      "rebootNow": "立即重新啟動",
+      "rebooting": "重新啟動中…"
+    },
+    "toast": {
+      "bootEnabled": "Tailscale 將於開機時啟動",
+      "bootDisabled": "Tailscale 將不會於開機時啟動",
+      "bootFailed": "無法變更開機啟動設定",
+      "connected": "正在連線 Tailscale",
+      "connectFailed": "無法建立連線",
+      "disconnected": "Tailscale 已中斷連線",
+      "disconnectFailed": "無法中斷連線",
+      "loggedOut": "已登出 Tailscale",
+      "logoutFailed": "無法登出",
+      "serviceStarted": "Tailscale 服務已啟動",
+      "serviceStartFailed": "無法啟動 Tailscale 服務",
+      "serviceStopped": "Tailscale 服務已停止",
+      "serviceStopFailed": "無法停止 Tailscale 服務",
+      "uninstalled": "Tailscale 已解除安裝",
+      "uninstallFailed": "無法解除安裝 Tailscale",
+      "copied": "指令已複製",
+      "copyFailed": "無法複製指令",
+      "exitNodeEnabled": "已宣告為出口節點",
+      "exitNodeDisabled": "已停止宣告為出口節點",
+      "exitNodeFailed": "無法變更出口節點宣告",
+      "installed": "Tailscale 已安裝",
+      "installFailed": "Tailscale 安裝未完成"
+    },
+    "mutex": {
+      "title": "已安裝其他 VPN",
+      "description": "同一時間只能安裝一個 VPN。請先在 <link>NetBird 頁面</link>解除安裝 {{other_vpn}}。"
+    }
   }
 }

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
-import { useTranslation, Trans } from "react-i18next";
+import * as React from "react";
+import { AlertCircleIcon } from "lucide-react";
 import { motion } from "motion/react";
-import { staggerRows, staggerRowItem } from "@/lib/motion";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+
 import {
   Card,
   CardContent,
@@ -11,373 +13,192 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { CheckCircle2Icon, DownloadIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-
+import { Switch } from "@/components/ui/switch";
 import type { UpdateInfo } from "@/hooks/use-software-update";
+import { staggerItem } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 
-// ─── Props ──────────────────────────────────────────────────────────────────
+import type { UpdateView } from "./derive";
+import {
+  AUTO_UPDATE_TIME,
+  CARD_CELL,
+  CARD_DESC,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_STACK,
+  CARD_TITLE,
+  FOCUS_RING_ON_CONTAINER,
+  GROUP_FILL,
+  NOTICE,
+  ROW,
+  ROW_GROUP,
+  SKELETON,
+  SWITCH_TARGET,
+} from "./shapes";
 
-interface UpdatePreferencesCardProps {
-  updateInfo: UpdateInfo | null;
-  isLoading: boolean;
-  isUpdating: boolean;
-  isDownloading: boolean;
-  downloadUpdate: (version: string) => Promise<void>;
-  togglePrerelease: (enabled: boolean) => Promise<void>;
-  saveAutoUpdate: (enabled: boolean, time: string) => Promise<void>;
+const K = "software_update.preferences";
+
+export interface UpdatePreferencesCardProps {
+  /** `derive.ts` owns what state the surface is in; the payload's shape does not. */
+  view: UpdateView;
+  info: UpdateInfo | null;
+  /** `isUpdating || isDownloading` — a run in flight owns the preferences. */
+  busy: boolean;
+  togglePrerelease: (enabled: boolean) => Promise<string | null>;
+  saveAutoUpdate: (enabled: boolean, time: string) => Promise<string | null>;
 }
 
-// ─── Component ──────────────────────────────────────────────────────────────
+/** The two rows, and what a save that failed was trying to change. */
+type PrefRow = "auto" | "prerelease";
 
-const AUTO_UPDATE_DEBOUNCE = 800;
+type PendingRow = PrefRow | null;
+
+/** `detail` is the device's own words; `null` means it failed without saying. */
+interface SaveFailure {
+  row: PrefRow;
+  detail: string | null;
+}
+
+function RowSkeleton(): React.JSX.Element {
+  return (
+    <div className={ROW.ROOT}>
+      <div className={ROW.TEXT}>
+        <Skeleton className={SKELETON.ROW.LABEL} />
+        <Skeleton className={SKELETON.ROW.CONSEQUENCE} />
+        <Skeleton className={SKELETON.ROW.CONSEQUENCE_2} />
+      </div>
+      <div className={ROW.CONTROL}>
+        <Skeleton className={SKELETON.ROW.SWITCH} />
+      </div>
+    </div>
+  );
+}
 
 export function UpdatePreferencesCard({
-  updateInfo,
-  isLoading,
-  isUpdating,
-  isDownloading,
-  downloadUpdate,
+  view,
+  info,
+  busy,
   togglePrerelease,
   saveAutoUpdate,
-}: UpdatePreferencesCardProps) {
+}: UpdatePreferencesCardProps): React.JSX.Element {
   const { t } = useTranslation("system-settings");
-  const [showInstallDialog, setShowInstallDialog] = useState(false);
-  const [selectedVersion, setSelectedVersion] = useState<string>("");
-  const [prereleaseToggling, setPrereleaseToggling] = useState(false);
-  const [autoUpdateToggling, setAutoUpdateToggling] = useState(false);
-  const [autoUpdateTime, setAutoUpdateTime] = useState("03:00");
-  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pending, setPending] = React.useState<PendingRow>(null);
+  const [saveError, setSaveError] = React.useState<SaveFailure | null>(null);
 
-  // Sync local time from server data
-  useEffect(() => {
-    if (updateInfo?.auto_update_time) {
-      setAutoUpdateTime(updateInfo.auto_update_time);
+  const autoLabelId = React.useId();
+  const prereleaseLabelId = React.useId();
+
+  // `""` is a failure the device gave no words for, so the test is against
+  // `null` and never against truthiness — the sentence is this card's anyway.
+  const settle = (row: PrefRow, failure: string | null, enabled: boolean) => {
+    if (failure !== null) {
+      setSaveError({ row, detail: failure || null });
+      toast.error(failure || t("software_update.toast.save_failed"));
+      return;
     }
-  }, [updateInfo?.auto_update_time]);
-
-  const handleTogglePrerelease = useCallback(
-    async (checked: boolean) => {
-      setPrereleaseToggling(true);
-      try {
-        await togglePrerelease(checked);
-        toast.success(
-          checked
-            ? t("software_update.toast_prerelease_enabled")
-            : t("software_update.toast_prerelease_disabled"),
-        );
-      } catch {
-        toast.error(t("software_update.toast_preference_failed"));
-      } finally {
-        setPrereleaseToggling(false);
-      }
-    },
-    [togglePrerelease, t],
-  );
-
-  const handleVersionInstall = useCallback(async () => {
-    setShowInstallDialog(false);
-    if (!selectedVersion) return;
-    try {
-      await downloadUpdate(selectedVersion);
-    } catch {
-      toast.error(t("software_update.toast_download_failed"));
-    }
-  }, [selectedVersion, downloadUpdate, t]);
-
-  const handleAutoUpdateToggle = useCallback(
-    async (checked: boolean) => {
-      setAutoUpdateToggling(true);
-      try {
-        await saveAutoUpdate(checked, autoUpdateTime);
-        toast.success(
-          checked
-            ? t("software_update.toast_auto_update_enabled")
-            : t("software_update.toast_auto_update_disabled"),
-        );
-      } catch {
-        toast.error(t("software_update.toast_preference_failed"));
-      } finally {
-        setAutoUpdateToggling(false);
-      }
-    },
-    [saveAutoUpdate, autoUpdateTime, t],
-  );
-
-  const handleAutoUpdateTimeChange = useCallback(
-    (newTime: string) => {
-      setAutoUpdateTime(newTime);
-      if (!updateInfo?.auto_update_enabled) return;
-
-      // Debounced save
-      if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
-      autoTimerRef.current = setTimeout(async () => {
-        try {
-          await saveAutoUpdate(true, newTime);
-          toast.success(t("software_update.toast_schedule_saved"));
-        } catch {
-          toast.error(t("software_update.toast_schedule_failed"));
-        }
-      }, AUTO_UPDATE_DEBOUNCE);
-    },
-    [saveAutoUpdate, updateInfo?.auto_update_enabled, t],
-  );
-
-  // Clean up debounce timer
-  useEffect(() => {
-    return () => {
-      if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
-    };
-  }, []);
-
-  // ── Loading skeleton ──────────────────────────────────────────────────
-  if (isLoading) {
-    return (
-      <Card className="@container/card">
-        <CardHeader>
-          <CardTitle>{t("software_update.prefs_card_title")}</CardTitle>
-          <CardDescription>
-            {t("software_update.prefs_card_description")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2">
-            <Separator />
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-36" />
-              <Skeleton className="h-6 w-12" />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-36" />
-              <Skeleton className="h-6 w-12" />
-            </div>
-            <Separator />
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="h-20 w-full rounded-lg" />
-          </div>
-        </CardContent>
-      </Card>
+    setSaveError(null);
+    toast.success(
+      t(`software_update.toast.${row}_${enabled ? "on" : "off"}`),
     );
-  }
+  };
 
-  const isReinstall = !!selectedVersion && selectedVersion === updateInfo?.current_version;
-  const currentVersion = updateInfo?.current_version ?? "";
+  const handleAuto = async (enabled: boolean) => {
+    setPending("auto");
+    const failure = await saveAutoUpdate(enabled, AUTO_UPDATE_TIME);
+    setPending(null);
+    settle("auto", failure, enabled);
+  };
+
+  const handlePrerelease = async (enabled: boolean) => {
+    setPending("prerelease");
+    const failure = await togglePrerelease(enabled);
+    setPending(null);
+    settle("prerelease", failure, enabled);
+  };
+
+  const locked = busy || pending !== null;
 
   return (
-    <>
-      <Card className="@container/card">
-        <CardHeader>
-          <CardTitle>{t("software_update.prefs_card_title")}</CardTitle>
-          <CardDescription>
-            {t("software_update.prefs_card_description")}
+    <motion.div variants={staggerItem} className={CARD_CELL}>
+      <Card className={CARD_SHELL}>
+        <CardHeader className={CARD_PAD}>
+          <CardTitle className={CARD_TITLE}>{t(`${K}.title`)}</CardTitle>
+          <CardDescription className={CARD_DESC}>
+            {t(`${K}.description`)}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <motion.div
-            className="grid gap-2"
-            variants={staggerRows}
-            initial="hidden"
-            animate="visible"
-          >
-            {/* ── Pre-release toggle ──────────────────────────────── */}
-            <Separator />
-            <motion.div variants={staggerRowItem}>
-              <Field orientation="horizontal">
-                <FieldLabel htmlFor="include-prerelease">
-                  {t("software_update.prerelease_label")}
-                </FieldLabel>
-                <Switch
-                  id="include-prerelease"
-                  checked={updateInfo?.include_prerelease ?? false}
-                  onCheckedChange={handleTogglePrerelease}
-                  disabled={prereleaseToggling || isUpdating}
-                />
-              </Field>
-            </motion.div>
 
-            {/* ── Automatic updates ─────────────────────────────── */}
-            <Separator />
-            <motion.div variants={staggerRowItem}>
-              <Field orientation="horizontal">
-                <FieldLabel htmlFor="auto-update">
-                  {t("software_update.auto_update_label")}
-                </FieldLabel>
-                <Switch
-                  id="auto-update"
-                  checked={updateInfo?.auto_update_enabled ?? false}
-                  onCheckedChange={handleAutoUpdateToggle}
-                  disabled={autoUpdateToggling || isUpdating}
-                />
-              </Field>
-            </motion.div>
-
-            {/* Time Configuration for Automatic Updates */}
-            {updateInfo?.auto_update_enabled && (
+        <CardContent className={cn(CARD_PAD, CARD_STACK)}>
+          <div className={cn(ROW_GROUP, GROUP_FILL)}>
+            {/* The view decides; the `info` test that follows is type narrowing. */}
+            {view !== "loading" && info ? (
               <>
-                <Separator />
-                <motion.div variants={staggerRowItem} className="flex flex-col gap-2">
-                  <p className="font-semibold text-sm">
-                    {t("software_update.update_time_title")}
-                  </p>
-
-                  <div className="flex flex-col @sm/card:flex-row @sm/card:items-center gap-2 @sm/card:justify-between rounded-lg border bg-muted/50 p-3">
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <label htmlFor="auto-update-time" className="text-xs font-medium text-muted-foreground">
-                        {t("software_update.update_at_label")}
-                      </label>
-                      <p className="text-xs text-muted-foreground">
-                        {t("software_update.update_at_description")}
-                      </p>
-                    </div>
-                    <Input
-                      id="auto-update-time"
-                      type="time"
-                      value={autoUpdateTime}
-                      onChange={(e) =>
-                        handleAutoUpdateTimeChange(e.target.value)
-                      }
-                      disabled={isUpdating || autoUpdateToggling}
-                      aria-label={t("software_update.update_time_aria")}
-                      className="w-28 shrink-0"
+                <div className={ROW.ROOT}>
+                  <div className={ROW.TEXT}>
+                    <span id={autoLabelId} className={ROW.LABEL}>
+                      {t(`${K}.auto.label`)}
+                    </span>
+                    <span className={ROW.CONSEQUENCE}>
+                      {t(`${K}.auto.description`)}
+                    </span>
+                  </div>
+                  <div className={ROW.CONTROL}>
+                    <Switch
+                      id="qm-update-auto"
+                      className={cn(SWITCH_TARGET, FOCUS_RING_ON_CONTAINER)}
+                      checked={info.auto_update_enabled === true}
+                      onCheckedChange={handleAuto}
+                      disabled={locked}
+                      aria-labelledby={autoLabelId}
                     />
                   </div>
-                </motion.div>
+                </div>
+
+                <div className={ROW.ROOT}>
+                  <div className={ROW.TEXT}>
+                    <span id={prereleaseLabelId} className={ROW.LABEL}>
+                      {t(`${K}.prerelease.label`)}
+                    </span>
+                    <span className={ROW.CONSEQUENCE}>
+                      {t(`${K}.prerelease.description`)}
+                    </span>
+                  </div>
+                  <div className={ROW.CONTROL}>
+                    <Switch
+                      id="qm-update-prerelease"
+                      className={cn(SWITCH_TARGET, FOCUS_RING_ON_CONTAINER)}
+                      checked={info.include_prerelease === true}
+                      onCheckedChange={handlePrerelease}
+                      disabled={locked}
+                      aria-labelledby={prereleaseLabelId}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <RowSkeleton />
+                <RowSkeleton />
               </>
             )}
+          </div>
 
-            {/* ── Version Management ──────────────────────────────── */}
-            <Separator />
-            <motion.div variants={staggerRowItem} className="flex flex-col gap-2">
-              <p className="font-semibold text-sm">{t("software_update.version_mgmt_title")}</p>
-              <div className="flex flex-col gap-2 rounded-lg border bg-muted/50 p-3">
-                <span className="text-xs text-muted-foreground">
-                  {t("software_update.version_select_hint")}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={selectedVersion}
-                    onValueChange={setSelectedVersion}
-                    disabled={isUpdating || isDownloading}
-                  >
-                    <SelectTrigger className="flex-1" aria-label={t("software_update.version_select_aria")}>
-                      <SelectValue placeholder={t("software_update.version_placeholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(updateInfo?.available_versions ?? []).map((v) => (
-                        <SelectItem
-                          key={v.tag}
-                          value={v.tag}
-                          disabled={!v.has_assets}
-                        >
-                          <div className="flex items-center justify-between gap-3 w-full">
-                            <span>{v.tag}</span>
-                            {v.is_current ? (
-                              <Badge variant="info">
-                                <CheckCircle2Icon className="size-3" aria-hidden="true" />
-                                {t("software_update.version_current_tag")}
-                              </Badge>
-                            ) : !v.has_assets ? (
-                              <span className="text-[10px] text-muted-foreground">
-                                {t("software_update.version_no_binary_tag")}
-                              </span>
-                            ) : v.asset_size ? (
-                              <span className="text-[10px] text-muted-foreground">
-                                {v.asset_size}
-                              </span>
-                            ) : null}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowInstallDialog(true)}
-                    disabled={!selectedVersion || isUpdating || isDownloading}
-                    className="shrink-0"
-                  >
-                    <DownloadIcon className="size-4" />
-                    {t("software_update.install_button")}
-                  </Button>
-                </div>
+          {saveError && (
+            <div role="alert" className={cn(NOTICE.BOX, NOTICE.DESTRUCTIVE)}>
+              <AlertCircleIcon className={NOTICE.GLYPH} aria-hidden="true" />
+              <div className={NOTICE.STACK}>
+                <p className={NOTICE.TEXT}>{t(`${K}.${saveError.row}.error`)}</p>
+                {saveError.detail && (
+                  <p className={NOTICE.DETAIL}>{saveError.detail}</p>
+                )}
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* ── Version install confirmation dialog ────────────────────── */}
-      <AlertDialog
-        open={showInstallDialog}
-        onOpenChange={setShowInstallDialog}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {isReinstall
-                ? t("software_update.install_dialog_reinstall_title")
-                : t("software_update.install_dialog_install_title", { version: selectedVersion })}
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div>
-                <p>
-                  {isReinstall ? (
-                    <Trans
-                      i18nKey="software_update.install_dialog_reinstall_description"
-                      ns="system-settings"
-                      values={{ version: selectedVersion }}
-                      components={{ strong: <strong /> }}
-                    />
-                  ) : (
-                    <Trans
-                      i18nKey="software_update.install_dialog_install_description"
-                      ns="system-settings"
-                      values={{ version: selectedVersion, current: currentVersion }}
-                      components={{ strong: <strong /> }}
-                    />
-                  )}
-                </p>
-                <p>{t("software_update.install_dialog_do_not_power_off")}</p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("actions.cancel", { ns: "common" })}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleVersionInstall}>
-              <DownloadIcon className="size-4" />
-              {isReinstall
-                ? t("software_update.install_dialog_reinstall_now")
-                : t("software_update.install_dialog_install_now")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    </motion.div>
   );
 }
+
+export default UpdatePreferencesCard;

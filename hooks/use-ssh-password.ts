@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { authFetch } from "@/lib/auth-fetch";
+import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type {
   SshPasswordChangeRequest,
   SshPasswordChangeResponse,
@@ -10,64 +12,42 @@ import type {
 // =============================================================================
 // useSshPassword — Mutation hook for changing the SSH root password
 // =============================================================================
-// Posts to /cgi-bin/quecmanager/system/ssh_password.sh. Returns true on
-// success, false on any failure (error message is populated in `error`).
+// Posts to /cgi-bin/quecmanager/system/ssh_password.sh. Resolves to a result
+// object rather than a bare boolean, so the caller toasts the device's reason
+// from the returned value and never from hook state read after an `await`.
 // The QManager web session is NOT affected by a successful change.
 // =============================================================================
 
 const CGI_ENDPOINT = "/cgi-bin/quecmanager/system/ssh_password.sh";
 
-function humanizeError(code: string, detail?: string): string {
-  switch (code) {
-    case "missing_fields":
-      return "Both current and new password are required.";
-    case "password_weak":
-      return detail || "New password does not meet the policy.";
-    case "invalid_password":
-      return "Current password is incorrect.";
-    case "shadow_unreadable":
-      return "Could not read system password file.";
-    case "no_password_set":
-      return "Root account has no password set. Set one from the device shell first.";
-    case "hash_parse_failed":
-      return "Unsupported password hash format on this device.";
-    case "hash_tool_missing":
-      return "Password validation tool is not installed on this device.";
-    case "passwd_failed":
-      return "Failed to apply the new password.";
-    case "method_not_allowed":
-      return "Unexpected request method.";
-    default:
-      return detail || "SSH password change failed.";
-  }
+export interface ChangeSshPasswordResult {
+  success: boolean;
+  /**
+   * The reason, already translated (`resolveErrorMessage`). Absent on success
+   * and when the failure carried no reason, so the caller shows its own line.
+   */
+  message?: string;
 }
 
 export interface UseSshPasswordReturn {
   changePassword: (
     currentPassword: string,
     newPassword: string,
-    enforceStrong: boolean
-  ) => Promise<boolean>;
+    enforceStrong: boolean,
+  ) => Promise<ChangeSshPasswordResult>;
   isPending: boolean;
-  error: string | null;
-  clearError: () => void;
 }
 
 export function useSshPassword(): UseSshPasswordReturn {
+  const { t } = useTranslation("errors");
   const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
 
   const changePassword = useCallback(
     async (
       currentPassword: string,
       newPassword: string,
-      enforceStrong: boolean
-    ): Promise<boolean> => {
-      setError(null);
+      enforceStrong: boolean,
+    ): Promise<ChangeSshPasswordResult> => {
       setIsPending(true);
 
       try {
@@ -84,27 +64,25 @@ export function useSshPassword(): UseSshPasswordReturn {
         });
 
         if (!resp.ok && resp.status !== 400 && resp.status !== 401) {
-          setError(`Request failed (HTTP ${resp.status}).`);
-          return false;
+          return { success: false };
         }
 
         const data = (await resp.json()) as SshPasswordChangeResponse;
 
         if (!data.success) {
-          setError(humanizeError(data.error, data.detail));
-          return false;
+          const message = resolveErrorMessage(t, data.error, data.detail, "");
+          return { success: false, message: message || undefined };
         }
 
-        return true;
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "SSH password change failed.");
-        return false;
+        return { success: true };
+      } catch {
+        return { success: false };
       } finally {
         setIsPending(false);
       }
     },
-    []
+    [t],
   );
 
-  return { changePassword, isPending, error, clearError };
+  return { changePassword, isPending };
 }

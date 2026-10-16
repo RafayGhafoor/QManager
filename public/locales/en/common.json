@@ -289,5 +289,311 @@
     "notice": {
       "stale": "Showing the last events we managed to read. {{message}}"
     }
+  },
+  "aboutDevice": {
+    "page": {
+      "title": "About Device",
+      "description": "Device identity, addresses, and the software running on it."
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "retry": "Retry"
+    },
+    "band": {
+      "label": "Identity",
+      "not_responding": "Not responding",
+      "unreachable": {
+        "title": "The device did not answer",
+        "detail": "{{reason}} from {{endpoint}}. Nothing below was read.",
+        "no_reason": "No response"
+      }
+    },
+    "tiles": {
+      "model": {
+        "eyebrow": "Model"
+      },
+      "firmware": {
+        "eyebrow": "Modem firmware",
+        "caption": "Built {{date}}"
+      },
+      "host": {
+        "eyebrow": "Host system",
+        "caption": "Linux {{kernel}}"
+      },
+      "internet": {
+        "eyebrow": "Internet",
+        "reachable": "Reachable",
+        "not_reachable": "Not reachable",
+        "caption_reachable": "Public {{address}}",
+        "caption_unreachable": "No answer from {{probe}}"
+      }
+    },
+    "modem": {
+      "title": "Modem",
+      "description": "Hardware identity and the 3GPP release each radio implements."
+    },
+    "addresses": {
+      "title": "Addresses",
+      "description": "Where this device sits on the LAN and on the carrier network.",
+      "provenance": "Public addresses are resolved through {{probe}}. An em dash means the device reports none."
+    },
+    "groups": {
+      "three_gpp": "3GPP release",
+      "local": "Local",
+      "wwan": "WWAN",
+      "public": "Public"
+    },
+    "rows": {
+      "manufacturer": "Manufacturer",
+      "model": "Model",
+      "firmware": "Firmware",
+      "openwrt_version": "OpenWrt version",
+      "build_date": "Build date",
+      "imei": "IMEI",
+      "lte": "LTE",
+      "nr5g": "NR5G",
+      "device_ip": "Device IP",
+      "lan_subnet": "LAN subnet",
+      "ipv4": "IPv4",
+      "ipv6": "IPv6"
+    },
+    "empty": {
+      "title": "Nothing read",
+      "modem": "These figures come from the device, and the device did not answer.",
+      "addresses": "Addresses are read from the same request."
+    },
+    "qmanager": {
+      "title": "About QManager",
+      "note": "Hey there! Rus here. QManager is the latest iteration of QuecManager, built with a newer and more reliable approach compared to its predecessor — while still combining technical settings for advanced users with a simplified UI for those just getting started. Special thanks to iamromulan, clndwhr, and Wutang Clan!",
+      "copyright": "© {{year}} QManager. All rights reserved.",
+      "repository": "GitHub repository",
+      "release_notes": "Release notes",
+      "support": "Support the project"
+    },
+    "errors": {
+      "fetch_failed": "Could not read the device information"
+    }
+  },
+  "support": {
+    "page": {
+      "title": "Support",
+      "description": "Report a bug, ask the community, or reach the maintainer."
+    },
+    "help": {
+      "title": "Get help",
+      "description": "Four routes, in the order most people need them.",
+      "bug": {
+        "label": "Report a bug"
+      },
+      "community": {
+        "label": "Ask the community"
+      },
+      "email": {
+        "label": "Email the maintainer"
+      },
+      "release_notes": {
+        "label": "Read the release notes",
+        "dest": "Installed: {{version}}"
+      }
+    },
+    "community": {
+      "title": "Community",
+      "description": "Cellular Modem Talk/Development on Discord.",
+      "body": "Users share configurations, troubleshoot together, and talk cellular networking. Scan or open the invite.",
+      "open_invite": "Open the invite",
+      "qr_alt": "QR code for the QManager Discord server invite"
+    },
+    "opens_new_tab": "opens in a new tab"
+  },
+  "donate": {
+    "dialog": {
+      "title": "Support the project",
+      "description": "Keep QManager going.",
+      "body": "Hi, I’m Rus. QManager is a side project I maintain for free. If you’ve found it useful, a small tip means a lot and keeps me going.",
+      "thanks": "Thanks for being awesome. 💙"
+    },
+    "links": {
+      "group_label": "Donation channels",
+      "opens_new_tab": "opens in a new tab"
+    },
+    "band": {
+      "title": "Support the project",
+      "body": "QManager is a side project, maintained for free. If it has been useful on your setup, a tip keeps it going — and there is no paywall coming either way."
+    }
+  },
+  "tailscale": {
+    "actions": {
+      "cancel": "Cancel",
+      "retry": "Try again"
+    },
+    "page": {
+      "title": "Tailscale VPN",
+      "description": "Your mesh VPN: what this modem is doing on the tailnet, and who else is on it.",
+      "refresh": "Refresh",
+      "stale": "Showing the last status we managed to read. {{message}}",
+      "unreadableTitle": "Could not read Tailscale status",
+      "unreadable": "The device did not answer."
+    },
+    "status": {
+      "aria": "Tailscale status",
+      "running": "Connected",
+      "needsLogin": "Needs login",
+      "disconnected": "Disconnected",
+      "serviceStopped": "Service stopped",
+      "notInstalled": "Not installed",
+      "unknown": "Unknown"
+    },
+    "band": {
+      "dash": "—",
+      "connectionEyebrow": "Connection",
+      "version": "Version {{version}}",
+      "versionUnknown": "Version unknown",
+      "deviceEyebrow": "This device",
+      "deviceUnknown": "No tailnet address yet",
+      "tailnetEyebrow": "Tailnet",
+      "magicDnsOn": "MagicDNS is on",
+      "magicDnsOff": "MagicDNS is off",
+      "peersEyebrow": "Peers online",
+      "exitNodes_one": "{{count}} exit node",
+      "exitNodes_other": "{{count}} exit nodes",
+      "noExitNode": "No exit node"
+    },
+    "connection": {
+      "title": "Connection",
+      "description": "Whether this modem joins the tailnet, and how it behaves once it does.",
+      "version": "v{{version}}",
+      "connect": "Connect",
+      "connecting": "Connecting…",
+      "disconnect": "Disconnect",
+      "disconnecting": "Disconnecting…",
+      "startService": "Start service",
+      "starting": "Starting…",
+      "stopService": "Stop service",
+      "stopping": "Stopping…",
+      "logout": "Log out",
+      "logoutDialogTitle": "Log out of Tailscale?",
+      "logoutDialogDescription": "This removes the modem from your tailnet. You will need to sign in again before it can reconnect.",
+      "authTitle": "Sign in to finish connecting",
+      "authDescription": "Open the login page and authenticate with your Tailscale account. The modem joins the tailnet as soon as you approve it.",
+      "openLogin": "Open login page",
+      "authWaiting": "Waiting for you to sign in",
+      "bootTitle": "Start on boot",
+      "bootDescription": "Bring Tailscale up automatically after the modem restarts.",
+      "on": "On",
+      "off": "Off",
+      "exitNodeTitle": "Advertise as exit node",
+      "exitNodeDescription": "Lets other devices route their internet traffic through this modem. You approve it in the Tailscale admin console.",
+      "exitNodeLocked": "Connect to Tailscale to change this."
+    },
+    "device": {
+      "title": "This device",
+      "description": "How the modem identifies itself on the tailnet.",
+      "hostname": "Hostname",
+      "ipv4": "IPv4",
+      "ipv6": "IPv6",
+      "dnsName": "DNS name",
+      "tailnet": "Tailnet",
+      "magicDns": "MagicDNS",
+      "relay": "DERP relay",
+      "emptyTitle": "Not on the tailnet",
+      "emptyDescription": "Connect Tailscale and this modem's address, DNS name and relay appear here."
+    },
+    "peers": {
+      "title": "Network peers",
+      "description": "The other devices on your tailnet, and whether they are reachable.",
+      "dash": "—",
+      "unnamed": "Unnamed device",
+      "exitNode": "Exit node",
+      "colDevice": "Device",
+      "colAddress": "Address",
+      "colOs": "OS",
+      "colStatus": "Status",
+      "colLastSeen": "Last seen",
+      "online": "Online",
+      "offline": "Offline",
+      "seenNow": "Now",
+      "seenUnknown": "Unknown",
+      "seenJustNow": "Just now",
+      "seenMinutes": "{{n}} min ago",
+      "seenHours": "{{n}} h ago",
+      "seenDays": "{{n}} d ago",
+      "countOnline": "{{online}} of {{total}} online",
+      "countExitNodes_one": "{{count}} exit node",
+      "countExitNodes_other": "{{count}} exit nodes",
+      "errorTitle": "Could not load peers",
+      "emptyTitle": "No other devices",
+      "emptyDescription": "Nothing else has joined this tailnet yet. Add a device from the Tailscale admin console and it shows up here.",
+      "offlineTitle": "Not connected",
+      "offlineDescription": "Connect Tailscale to see the other devices on your tailnet."
+    },
+    "install": {
+      "title": "Tailscale",
+      "description": "A mesh VPN for reaching this modem from anywhere, without opening a port.",
+      "conditionTitle": "Tailscale is not installed",
+      "conditionDescription": "Installing downloads the Tailscale packages over the same cellular link this session is running on, so it uses your data allowance and the connection will be slower while it runs.",
+      "install": "Install Tailscale",
+      "installing": "Installing…",
+      "checkAgain": "Check again",
+      "done": "Tailscale installed.",
+      "failed": "The install did not finish.",
+      "manualLabel": "Or install from a shell",
+      "copyCommand": "Copy the install command",
+      "logTitle": "Install log",
+      "logWaiting": "Waiting for output…",
+      "chooseLabel": "Choose a build to install",
+      "manualCommand": "opkg update && opkg install luci-app-tailscale-community-tiny",
+      "variant": {
+        "official": {
+          "title": "Official",
+          "description": "The latest build, straight from Tailscale. Takes about 50 MB on disk."
+        },
+        "tiny": {
+          "title": "Tiny",
+          "description": "A lightweight community package. Smaller, but an older version."
+        }
+      }
+    },
+    "danger": {
+      "title": "Remove Tailscale",
+      "description": "Uninstalls the Tailscale packages and firewall rules from this modem.",
+      "uninstall": "Uninstall",
+      "removing": "Removing…",
+      "dialogTitle": "Uninstall Tailscale?",
+      "dialogDescription": "This removes the Tailscale packages, its firewall rules, and all connection state from this modem. A reboot afterwards clears anything left behind.",
+      "rebootTitle": "Reboot recommended",
+      "rebootDescription": "Tailscale has been removed. Rebooting clears the leftover firewall rules and other artifacts. Reboot now?",
+      "rebootLater": "Reboot later",
+      "rebootNow": "Reboot now",
+      "rebooting": "Rebooting…"
+    },
+    "toast": {
+      "bootEnabled": "Tailscale will start on boot",
+      "bootDisabled": "Tailscale will not start on boot",
+      "bootFailed": "Could not change the boot setting",
+      "connected": "Connecting to Tailscale",
+      "connectFailed": "Could not start the connection",
+      "disconnected": "Tailscale disconnected",
+      "disconnectFailed": "Could not disconnect",
+      "loggedOut": "Logged out of Tailscale",
+      "logoutFailed": "Could not log out",
+      "serviceStarted": "Tailscale service started",
+      "serviceStartFailed": "Could not start the Tailscale service",
+      "serviceStopped": "Tailscale service stopped",
+      "serviceStopFailed": "Could not stop the Tailscale service",
+      "uninstalled": "Tailscale uninstalled",
+      "uninstallFailed": "Could not uninstall Tailscale",
+      "copied": "Command copied",
+      "copyFailed": "Could not copy the command",
+      "exitNodeEnabled": "Advertising as an exit node",
+      "exitNodeDisabled": "No longer advertising as an exit node",
+      "exitNodeFailed": "Could not change exit node advertising",
+      "installed": "Tailscale installed",
+      "installFailed": "The Tailscale install did not finish"
+    },
+    "mutex": {
+      "title": "Another VPN is installed",
+      "description": "Only one VPN can be installed at a time. Uninstall {{other_vpn}} from the <link>NetBird page</link> first."
+    }
   }
 }
