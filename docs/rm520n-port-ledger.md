@@ -153,6 +153,19 @@ Statuses here are from a grep-level survey. Every row still needs its own Phase 
 |---|---|---|---|
 | B4.1 | `/tmp` planted-path and symlink-write sweep for root writers (the class behind `ce155354` and `74e96458`) | TODO | Read-only recon first |
 
+### B5 — Follow-ups surfaced while porting (collected 2026-10-16)
+
+Target-side gaps that the merged rows found but left out of scope. Each names the row that found it.
+
+| ID | Follow-up | Status | Found by / notes |
+|---|---|---|---|
+| B5.1 | AT transport failure (lock timeout, broker down) read as success in ~12 CGIs: `ip_passthrough`, `mbn`, `imei`, `frequency/lock`, `tower/lock`, `cellular/settings`, `fplmn`, `network_priority`, `bands/lock`, `bands/current`, `cgi_at`, … | TODO | B1.7 (`5ee1ecef`) fixed the daemons only; see the B1.7 row for the full list |
+| B5.2 | `qmanager_low_power_check` decides at boot from the wall clock before it is corrected; the scenario worker can miss its minute after a clock step | TODO | B1.11 (`eb53a176`) |
+| B5.3 | Entering maintenance mode during a primary-SIM recheck can leave the failover record out of step | TODO | B2.5 (`9e9be036`) |
+| B5.4 | Config Backup does not carry `quality_thresholds` (B2.3) or `sites` (B3.1) | TODO | Add both sections to `config_backup_sections.sh` |
+| B5.5 | Events ring depth 50 → 300 and the `fetch_events.sh` serve limit were not ported | TODO | B1.10 / U4.5; decide with U4.7 or U4.10 |
+| B5.6 | Live checks still owed: U3.3 lockout ladder on-device; B2.1 watchcat only harness-tested (watchcat `enabled=0` on the test modem); B2.4 alert error toasts not tried in a browser; B3.1 Sites service deployed but stopped until a build installs it | TODO | One live verification pass on the test modem |
+
 ---
 
 ## Skipped wholesale (RM520N-only)
