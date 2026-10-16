@@ -724,14 +724,45 @@ execute_tier3() {
         return 0
     fi
 
-    # Verify SIM presence
+    # Verify SIM presence. AT+CPIN? right after AT+CFUN=1 can answer
+    # "+CME ERROR: 14" (SIM busy) while SIM init is still running, because
+    # wait_for_modem only waits for a bare AT. One failed read is routine, not
+    # proof the slot is empty, so retry 3x (1s apart) like the ICCID read above.
+    # qcmd prints a modem ERROR on stdout with rc=0; a transport failure (lock
+    # timeout, broker down) is rc!=0 with empty stdout. Only READY passes.
     local cpin_result
-    cpin_result=$(qcmd 'AT+CPIN?' 2>/dev/null)
-    if printf '%s' "$cpin_result" | grep -q 'ERROR'; then
-        qlog_error "TIER 3: No SIM in backup slot $CFG_BACKUP_SIM_SLOT, falling back"
-        sim_failover_fallback
-        return 0
-    fi
+    local cpin_rc
+    local cpin_try
+    local cpin_ready
+    cpin_result=""
+    cpin_rc=1
+    cpin_ready=0
+    for cpin_try in 1 2 3; do
+        cpin_result=$(qcmd 'AT+CPIN?' 2>/dev/null)
+        cpin_rc=$?
+        if [ "$cpin_rc" -eq 0 ] && printf '%s' "$cpin_result" | grep -q '^+CPIN: READY'; then
+            cpin_ready=1
+            break
+        fi
+        sleep 1
+    done
+
+    [ "$cpin_rc" -eq 0 ] || cpin_result=""
+    case "$cpin_ready:$cpin_result" in
+        1:*) ;;
+        *'+CPIN:'*)
+            # Present but not usable (PIN/PUK required): log the real state.
+            cpin_result=$(printf '%s' "$cpin_result" | grep '+CPIN:' | head -1 | tr -d '\r')
+            qlog_error "TIER 3: Backup slot $CFG_BACKUP_SIM_SLOT SIM not ready ($cpin_result), falling back"
+            sim_failover_fallback
+            return 0
+            ;;
+        *)
+            qlog_error "TIER 3: Could not confirm a SIM in backup slot $CFG_BACKUP_SIM_SLOT after 3 attempts (rc=$cpin_rc), falling back"
+            sim_failover_fallback
+            return 0
+            ;;
+    esac
 
     # Read new ICCID for logging
     local new_iccid_raw

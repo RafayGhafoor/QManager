@@ -562,7 +562,9 @@ After any SIM transition, reading the ICCID is attempted up to three times with 
 3. Stop the tower-failover daemon (its lock state is meaningless on the backup SIM).
 4. Golden Rule sequence: `AT+CFUN=0` → 2 s → `AT+QUIMSLOT=N` → 2 s → `AT+CFUN=1`.
 5. `wait_for_modem` (up to 60 s). On failure, call `sim_failover_fallback` and enter cooldown.
-6. `AT+CPIN?` SIM-presence guard — if the backup slot returns an error, call `sim_failover_fallback` and enter cooldown.
+6. `AT+CPIN?` SIM-presence guard: up to 3 reads, 1 s apart. The check passes only on `rc=0` and a `+CPIN: READY` line. Right after `AT+CFUN=1`, the modem can answer `+CME ERROR: 14` (SIM busy) while SIM init is still running, so one failed read is routine and not proof the slot is empty. A `+CPIN:` reply other than READY (PIN/PUK) is logged as that state. Anything else after 3 tries is "could not confirm". Both cases call `sim_failover_fallback` and enter cooldown.
+
+> ℹ️ NOTE: On this target `qcmd` prints a modem `ERROR` on stdout with rc=0, and a transport failure (lock timeout, broker down) exits non-zero with empty stdout. A bare `*ERROR*` match therefore catches modem errors but reads a transport failure as success. Daemon AT checks judge `"$rc:$result"` instead (watchcat Tier 3, `qmanager_tower_failover`, `qmanager_tower_schedule`).
 7. Enter cooldown with `cooldown_remaining = max(CFG_COOLDOWN, SIM_SETTLE_SECS)`.
 8. **Finalization via `finalize_sim_failover()`** — called from the success arm of BOTH `recovery_reason="unreachable"` and `recovery_reason="quality"` paths in `finish_cooldown`. The function is self-guarded (no-op unless `current_tier==3` && slot moved && `original_sim_slot != "null"`), so both arms may call it unconditionally. It: sets `sim_failover_active="true"`, writes `/tmp/qmanager_sim_failover` (including `original_iccid` and `reason` field — `"connectivity_failure"` or `"quality_degradation"`), calls `sim_db_add` on the backup ICCID (3×retry), auto-applies a matching custom profile (`auto_apply_profile … "watchdog"`), and records `last_recheck_time` to start the auto-failback clock.
 
