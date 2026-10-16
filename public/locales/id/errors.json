@@ -161,5 +161,9 @@
   "usbnet_failed": "Konfigurasi antarmuka jaringan USB gagal",
   "usb_mode_incompatible_for_verizon": "Profil Verizon memerlukan mode USB ECM atau RNDIS — ubah mode USB di pengaturan IP Passthrough sebelum mengaktifkan",
   "write_failed": "Gagal menulis konfigurasi ke penyimpanan",
-  "wrong_schema": "Versi skema cadangan tidak cocok dengan versi saat ini"
+  "wrong_schema": "Versi skema cadangan tidak cocok dengan versi saat ini",
+  "invalid_engine": "Pilih Cepat atau Lama.",
+  "broker_unavailable": "Mesin cepat tidak terpasang di perangkat ini.",
+  "apply_failed": "Pengaturan tidak dapat diterapkan.",
+  "not_available": "Fitur ini tidak tersedia di perangkat ini."
 }

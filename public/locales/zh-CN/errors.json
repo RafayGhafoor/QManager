@@ -161,5 +161,9 @@
   "lan_read_failed": "无法读取当前 LAN 设置",
   "lan_save_failed": "无法保存 LAN 设置",
   "write_failed": "将配置写入存储失败",
-  "wrong_schema": "备份架构版本与当前版本不匹配"
+  "wrong_schema": "备份架构版本与当前版本不匹配",
+  "invalid_engine": "请选择快速或传统。",
+  "broker_unavailable": "此设备未安装快速引擎。",
+  "apply_failed": "无法应用该设置。",
+  "not_available": "此设备不支持该功能。"
 }
