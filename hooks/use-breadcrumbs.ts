@@ -38,6 +38,7 @@ const routeNameMap: Record<string, string> = {
   events: 'Network Events',
   'connection-quality': 'Connection Quality',
   logs: 'Logs',
+  'system-health-check': 'System Health Check',
   'email-alerts': 'Email Alerts',
   watchdog: 'Watchdog',
   'video-optimizer': 'Video Optimizer',

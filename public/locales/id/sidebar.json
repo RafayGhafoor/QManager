@@ -45,6 +45,7 @@
     "connection_quality": "Kualitas Koneksi",
     "adaptive_polling": "Polling Adaptif",
     "logs": "Log",
+    "system_health_check": "Pemeriksaan Kesehatan Sistem",
     "software_update": "Pembaruan Perangkat Lunak",
     "at_terminal": "AT Terminal",
     "luci": "LuCI",

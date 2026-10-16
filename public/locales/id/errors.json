@@ -164,5 +164,9 @@
   "write_failed": "Gagal menulis konfigurasi ke penyimpanan",
   "wrong_schema": "Versi skema cadangan tidak cocok dengan versi saat ini",
   "apply_failed": "Pengaturan tidak dapat diterapkan.",
-  "not_available": "Fitur ini tidak tersedia di perangkat ini."
+  "not_available": "Fitur ini tidak tersedia di perangkat ini.",
+  "job_running": "Diagnostik sedang berjalan — tunggu hingga selesai",
+  "runner_missing": "Program pemeriksaan kesehatan belum terpasang",
+  "bundle_not_found": "Paket dukungan dari proses ini sudah tidak ada di perangkat",
+  "clear_failed": "Tidak dapat menghapus hasil diagnostik"
 }

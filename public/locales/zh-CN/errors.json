@@ -164,5 +164,9 @@
   "write_failed": "将配置写入存储失败",
   "wrong_schema": "备份架构版本与当前版本不匹配",
   "apply_failed": "无法应用该设置。",
-  "not_available": "此设备不支持该功能。"
+  "not_available": "此设备不支持该功能。",
+  "job_running": "诊断正在运行，请等待其完成",
+  "runner_missing": "未安装健康检查程序",
+  "bundle_not_found": "本次运行的支持包已不在设备上",
+  "clear_failed": "无法删除诊断结果"
 }

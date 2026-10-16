@@ -126,6 +126,10 @@ const navSystem: NavItem[] = [
     icon: "settings",
     items: [
       { t_key: "logs", url: "/system-settings/logs" },
+      {
+        t_key: "system_health_check",
+        url: "/system-settings/system-health-check",
+      },
       { t_key: "languages", url: "/system-settings/languages" },
       {
         t_key: "configuration_backup",

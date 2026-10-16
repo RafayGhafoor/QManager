@@ -164,5 +164,9 @@
   "write_failed": "Impossibile scrivere la configurazione nell'archivio",
   "wrong_schema": "La versione dello schema di backup non corrisponde alla versione corrente",
   "apply_failed": "Impossibile applicare l'impostazione.",
-  "not_available": "Questa funzione non è disponibile su questo dispositivo."
+  "not_available": "Questa funzione non è disponibile su questo dispositivo.",
+  "job_running": "Una diagnostica è in corso: attendi che finisca",
+  "runner_missing": "Il programma di controllo integrità non è installato",
+  "bundle_not_found": "Il pacchetto di supporto di questa esecuzione non è più sul dispositivo",
+  "clear_failed": "Impossibile rimuovere i risultati della diagnostica"
 }

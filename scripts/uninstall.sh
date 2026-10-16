@@ -540,6 +540,15 @@ remove_runtime_state() {
           /tmp/qmanager_update_new.tar.gz \
           2>/dev/null || true
 
+    # System Health Check: status, log, locks, job dirs and bundles
+    rm -f /tmp/qmanager_health_check.json \
+          /tmp/qmanager_health_check.json.tmp \
+          /tmp/qmanager_health_check.log \
+          /tmp/qmanager_health_check.lock \
+          /tmp/qmanager_health_check.run.lock \
+          2>/dev/null || true
+    rm -rf /tmp/qmanager_health_check_* 2>/dev/null || true
+
     # Language-pack install staging/download scratch dirs
     rm -rf /tmp/qmanager_lp_staging \
            /tmp/qmanager_lp_download \

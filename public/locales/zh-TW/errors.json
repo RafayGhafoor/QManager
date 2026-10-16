@@ -164,5 +164,9 @@
   "write_failed": "將設定寫入儲存失敗",
   "wrong_schema": "備份架構版本與當前版本不匹配",
   "apply_failed": "無法套用該設定。",
-  "not_available": "此裝置不支援該功能。"
+  "not_available": "此裝置不支援該功能。",
+  "job_running": "診斷正在執行，請等待其完成",
+  "runner_missing": "未安裝健康檢查程式",
+  "bundle_not_found": "本次執行的支援包已不在裝置上",
+  "clear_failed": "無法刪除診斷結果"
 }

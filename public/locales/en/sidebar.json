@@ -45,6 +45,7 @@
     "connection_quality": "Connection Quality",
     "adaptive_polling": "Adaptive Polling",
     "logs": "Logs",
+    "system_health_check": "System Health Check",
     "software_update": "Software Update",
     "at_terminal": "AT Terminal",
     "luci": "LuCI",

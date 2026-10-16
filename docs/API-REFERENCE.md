@@ -1366,6 +1366,30 @@ Commits UCI and drops `/tmp/qmanager_poller_reload`. The running poller applies 
 
 ---
 
+### POST `/system/health-check/run.sh`
+
+Start a System Health Check run. Auth-gated, POST only, idempotent. See [`docs/features/system-health-check.md`](features/system-health-check.md).
+
+**Response:** `{ "success": true, "job_id": "20261016-032530-d771", "started_at": 1792139044, "resumed": false }`. `resumed: true` means a run was already live and this POST joined it. A status left at `running` by a dead runner is rewritten to `status: "error"`, `error: "runner exited unexpectedly"` before a new run starts.
+
+**Error codes:** `runner_missing`, `method_not_allowed`.
+
+### GET `/system/health-check/status.sh`
+
+Returns the live status file verbatim: `job_id`, `status` (`running` | `complete` | `complete_no_bundle` | `error`), `started_at`, `finished_at`, `pid`, `summary {pass, fail, warn, skip, total}`, `tests[] {id, category, label, status, duration_ms, detail}` (test status `pending` | `running` | `pass` | `fail` | `warn` | `skip`), `tarball_path`, `tarball_size`, `error`. With no run: `{ "success": true, "status": "none", "tests": [], "summary": {…zeros} }`.
+
+`?test_id=<id>` returns `{ "success": true, "test_id", "output", "truncated" }` with the last 4096 bytes of that check's raw output. **Error codes:** `invalid_test_id`, `no_run`.
+
+### POST `/system/health-check/clear.sh`
+
+Deletes the status file, job directories and bundles. `{ "success": true, "cleared": true }`. **Error codes:** `job_running`, `runner_missing`, `clear_failed`.
+
+### GET `/system/health-check/download.sh?job_id=<id>`
+
+Streams the bundle as `application/gzip` with `Content-Length` and `Content-Disposition: attachment; filename="qmanager-health-check-<job>.tar.gz"`. Errors are JSON: 400 `invalid_job_id`, 404 `bundle_not_found`, 405 `method_not_allowed`; 401 when unauthenticated.
+
+---
+
 ### POST `/system/diagnostics.sh`
 
 Generate an on-demand plain-text diagnostics snapshot and return it inline for download. Auth-gated. Only POST is accepted. See [`docs/features/diagnostics.md`](../features/diagnostics.md) for the daemon–CGI contract, redaction invariants, and size-cap behaviour.
