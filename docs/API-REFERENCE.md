@@ -1124,6 +1124,37 @@ Merges both channels' NDJSON logs, tags each entry with `channel: "sms"|"email"`
 }
 ```
 
+### GET/POST `/monitoring/sites.sh`
+
+Sites monitor: per-site TCP-handshake latency from the `qmanager_sites` daemon, with history and a live "Now" mode. Full contract, buckets and invariants: [`docs/features/sites-monitor.md`](features/sites-monitor.md).
+
+**GET** `?range=now|1h|3h|6h|12h|24h|7d|30d|90d` (default `24h`; anything else → `invalid_range`). `range=now` renews the live lease (only while enabled), reads no history and returns `series: []`.
+
+```json
+{
+  "success": true,
+  "enabled": true,
+  "interval_sec": 300,
+  "checked_at": 1760000000,
+  "next_check_at": 1760000300,
+  "checking": false,
+  "live_at": null,
+  "wans": ["cellular"],
+  "summary": { "answered": 12, "total": 13 },
+  "sites": [
+    { "host": "google.com", "label": "google.com", "kind": "site",
+      "latest": { "ts": 1760000000, "ms": 41.3, "ok": true, "wan": "cellular" },
+      "series": [ { "ts": 1759998000, "ms": 43.1, "min": 38.2, "max": 61.0, "n": 4, "ok": 4 } ] }
+  ]
+}
+```
+
+`ms` is `null` for no answer; `latest` is `null` for a configured site not swept yet; `live_at` is set only on `range=now` with a live sample at most 6 s old.
+
+**POST** `{"action":"check_now"}` (also `?action=check_now`) → `{"success":true}`, or `disabled` / `flag_failed`.
+
+**POST** `{"action":"save","enabled":true,"interval_sec":300,"sites":[{"host":"youtube.com","label":"YouTube"}]}` → echoes the saved config `{"success":true,"enabled":…,"interval_sec":…,"sites":[…]}`. `interval_sec` is clamped to 60–3600; at most 32 sites; hosts are lower-cased, validated and deduped; labels are cleaned to printable, cut to 40 and fall back to the host. A bad field → `{"success":false,"error":"invalid_field","field":"sites","reason":"invalid host"}`; write failure → `save_failed`.
+
 ---
 
 ## Device
