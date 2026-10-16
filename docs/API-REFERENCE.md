@@ -268,7 +268,7 @@ Returns network events as a JSON array. `internet_lost`/`internet_restored` and 
   {
     "timestamp": 1710700000,
     "type": "band_change",
-    "message": "LTE band changed from B2 to B66",
+    "message": "LTE band settled on B66 (was B2) (PCI 101)",
     "severity": "info"
   }
 ]

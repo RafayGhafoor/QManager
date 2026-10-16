@@ -236,7 +236,16 @@ Network event detection (sourced by the poller). Detects state changes and appen
 - **Episode end:** after 300 s with no candidate change the episode closes with `CA settled on <bands>` (info) or `CA settled inactive` (warning).
 - **No observation:** an empty carrier list (`[]`) and the `deep` adaptive-polling tier (QCAINFO is skipped there, so the CA fields are stale). A blank never resets a counter.
 - **Cold start:** the first settled value after a poller start is adopted silently.
-- Band and PCI changes are not on `_ev_settle` yet (ledger B1.10).
+
+#### Band and PCI settle rules
+
+`band_change` / `pci_change` used a raw sample-to-sample inequality, so every rung of the modem's re-acquisition ladder after a drop (one or two samples per coverage band, then back) was logged, and a blank reading (`parse_serving_cell` blanks band and PCI whenever `AT+QENG` gives no usable line) was copied into the baseline, hiding the return leg. Channels `lte_band`, `lte_pci`, `nr_band`, `nr_pci` now go through a non-sticky `_ev_settle`:
+
+- **Settle:** a value must hold for 3 consecutive observations. Settling back onto the announced value (the ladder case) is silent. A real change reads `LTE band settled on B1 (was B3) (PCI 101)` ("settled on", not "changed from", because skipped rungs are not reported); PCI keeps `LTE PCC cell handoff on B1 (PCI: 101 -> 202)`.
+- **Churn:** 6 candidate changes within 300 s without settling emit one warning per window: `LTE band unstable (6 changes in the last 5 min)` / `LTE cell unstable (6 handoffs in the last 5 min)`, NR alike.
+- **No observation:** a blank band or PCI, and the NR channels while `nr_state` is not `connected` (counters freeze, so an NSA drop-and-reacquire onto the same band is silent; the `nr_anchor` events report the drop).
+- **Baseline:** `snapshot_event_state` keeps the last known good band and PCI across a blank, so `5G NR anchor lost (was n78)` keeps its clause.
+- The event ring stays at `MAX_EVENTS=50` (the source also raised it to 300; not ported).
 
 ### profile_mgr.sh
 
