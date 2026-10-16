@@ -84,7 +84,7 @@
     "sign_in_to_label": "Sign in to"
   },
   "overview": {
-    "title": "QManager",
+    "title": "Modem Overview",
     "tagline": "Live modem status",
     "login_button": "Sign in",
     "header": {
@@ -98,7 +98,7 @@
       "temperature": "Temperature"
     },
     "actions": {
-      "login": "Sign in",
+      "login": "Sign in to manage",
       "luci": "LuCI",
       "luci_aria": "Open LuCI advanced interface",
       "theme_toggle_aria": "Toggle theme",
@@ -127,7 +127,9 @@
       "count_one": "{{count}} active",
       "count_other": "{{count}} active",
       "bandwidth": "{{bandwidth}} MHz",
-      "rsrp_unit": "{{rsrp}} dBm"
+      "rsrp_unit": "{{rsrp}} dBm",
+      "section_count_one": "Carrier",
+      "section_count_other": "Carriers"
     },
     "metrics": {
       "rsrp": "RSRP",
@@ -150,7 +152,8 @@
       "good": "Good",
       "fair": "Fair",
       "poor": "Poor",
-      "none": "No signal"
+      "none": "No signal",
+      "bad": "Very weak"
     },
     "connection": {
       "connected": "Connected",
@@ -160,14 +163,14 @@
       "error": "Error",
       "disconnected": "Disconnected",
       "unknown": "Unknown",
-      "modem_unreachable": "Modem unreachable"
+      "modem_unreachable": "Offline"
     },
     "stale_indicator": "Data may be outdated",
     "redirecting_setup": "Redirecting to first-time setup…",
     "loading_status": "Loading modem status…",
     "empty": {
       "title": "Modem status unavailable",
-      "subtitle": "Log in for diagnostic details.",
+      "subtitle": "The modem has not reported in for a minute. It may be rebooting — the reading resumes on its own.",
       "fetch_error": "Couldn't reach the device.",
       "retry": "Try again"
     },
@@ -176,6 +179,18 @@
       "hours": "{{hours}}h {{minutes}}m",
       "minutes": "{{minutes}}m"
     },
-    "copyright": "© {{year}} QManager"
+    "copyright": "© {{year}} QManager",
+    "stale": {
+      "banner": "Readings are <age>{{age}}</age> old. The device may be busy."
+    },
+    "footer": {
+      "updated_ago": "updated {{age}} ago",
+      "retrying": "retrying every {{seconds}}s",
+      "signin_works": "signing in still works"
+    },
+    "loading_chip": "Reading",
+    "unreachable": {
+      "banner": "The modem isn't responding right now. It may be busy or restarting."
+    }
   }
 }

@@ -326,6 +326,44 @@ export interface RadioDetailsErrorResponse {
 
 // --- Utility Types -----------------------------------------------------------
 
+/** A serving-cell / per-carrier metric with a 3GPP reported range. */
+export type ServingMetric = "rsrp" | "rsrq" | "sinr" | "rssi";
+
+/**
+ * The 3GPP REPORTED range for each metric — the interval a real measurement can
+ * physically fall in. Anything outside it is not a bad reading, it is not a
+ * reading: an unavailable marker, a raw field in the wrong unit, or a parse
+ * that grabbed the wrong CSV column. (`AT+QCAINFO`'s LTE line reports RSSNR as
+ * a raw value, so `carrier_components[].sinr` can read 251 where the real SINR
+ * is 8 dB.)
+ *
+ * Ported from the RM520N source with the public splash (ledger U3.4). The
+ * source also folds this range into `SignalThresholds` so `getSignalQuality()`
+ * refuses out-of-range values itself; here only `normalizeMetricValue()` uses
+ * it, and the threshold change lands with the five-stop quality model.
+ */
+export const METRIC_RANGES: Record<ServingMetric, { min: number; max: number }> = {
+  rsrp: { min: -156, max: -31 }, // 36.133 / 38.133 RSRP reporting range
+  rsrq: { min: -43, max: 20 }, // 36.133 extended RSRQ range
+  sinr: { min: -23, max: 40 }, // 36.133 RS-SINR reporting range
+  rssi: { min: -120, max: -25 },
+};
+
+/**
+ * The single read boundary for a serving-cell / per-carrier value. Returns
+ * `null` for anything outside the physical range, so the value, its bar and
+ * its quality verdict all resolve through the one "not reported" path instead
+ * of disagreeing with each other.
+ */
+export function normalizeMetricValue(
+  value: number | null | undefined,
+  metric: ServingMetric,
+): number | null {
+  if (value === null || value === undefined || !Number.isFinite(value)) return null;
+  const { min, max } = METRIC_RANGES[metric];
+  return value < min || value > max ? null : value;
+}
+
 /** Signal quality thresholds for UI indicators */
 export interface SignalThresholds {
   excellent: number;

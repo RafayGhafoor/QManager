@@ -84,7 +84,7 @@
     "sign_in_to_label": "登录到"
   },
   "overview": {
-    "title": "QManager",
+    "title": "调制解调器概览",
     "tagline": "实时调制解调器状态",
     "login_button": "登录",
     "header": {
@@ -98,7 +98,7 @@
       "temperature": "温度"
     },
     "actions": {
-      "login": "登录",
+      "login": "登录以管理",
       "luci": "LuCI",
       "luci_aria": "打开 LuCI 高级界面",
       "theme_toggle_aria": "切换主题",
@@ -127,7 +127,9 @@
       "count_one": "{{count}} 个活跃",
       "count_other": "{{count}} 个活跃",
       "bandwidth": "{{bandwidth}} MHz",
-      "rsrp_unit": "{{rsrp}} dBm"
+      "rsrp_unit": "{{rsrp}} dBm",
+      "section_count_one": "载波",
+      "section_count_other": "载波"
     },
     "metrics": {
       "rsrp": "RSRP",
@@ -150,7 +152,8 @@
       "good": "良好",
       "fair": "一般",
       "poor": "较差",
-      "none": "无信号"
+      "none": "无信号",
+      "bad": "极弱"
     },
     "connection": {
       "connected": "已连接",
@@ -160,14 +163,14 @@
       "error": "错误",
       "disconnected": "未连接",
       "unknown": "未知",
-      "modem_unreachable": "无法连接到调制解调器"
+      "modem_unreachable": "离线"
     },
     "stale_indicator": "数据可能已过期",
     "redirecting_setup": "正在跳转到初次设置…",
     "loading_status": "正在加载调制解调器状态…",
     "empty": {
       "title": "调制解调器状态不可用",
-      "subtitle": "登录以查看诊断详情。",
+      "subtitle": "调制解调器已有一分钟未上报。它可能正在重启 — 读数将自动恢复。",
       "fetch_error": "无法连接到设备。",
       "retry": "重试"
     },
@@ -176,6 +179,18 @@
       "hours": "{{hours}}小时 {{minutes}}分钟",
       "minutes": "{{minutes}}分钟"
     },
-    "copyright": "© {{year}} QManager"
+    "copyright": "© {{year}} QManager",
+    "stale": {
+      "banner": "读数已过去 <age>{{age}}</age>。设备可能正忙。"
+    },
+    "footer": {
+      "updated_ago": "{{age}}前更新",
+      "retrying": "每 {{seconds}} 秒重试",
+      "signin_works": "仍可登录"
+    },
+    "loading_chip": "读取中",
+    "unreachable": {
+      "banner": "调制解调器目前没有响应。它可能正忙或正在重启。"
+    }
   }
 }

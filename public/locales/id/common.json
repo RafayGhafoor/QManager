@@ -84,7 +84,7 @@
     "sign_in_to_label": "Masuk ke"
   },
   "overview": {
-    "title": "QManager",
+    "title": "Ringkasan Modem",
     "tagline": "Status modem langsung",
     "login_button": "Masuk",
     "header": {
@@ -98,7 +98,7 @@
       "temperature": "Suhu"
     },
     "actions": {
-      "login": "Masuk",
+      "login": "Masuk untuk mengelola",
       "luci": "LuCI",
       "luci_aria": "Buka antarmuka lanjutan LuCI",
       "theme_toggle_aria": "Ganti tema",
@@ -127,7 +127,9 @@
       "count_one": "{{count}} aktif",
       "count_other": "{{count}} aktif",
       "bandwidth": "{{bandwidth}} MHz",
-      "rsrp_unit": "{{rsrp}} dBm"
+      "rsrp_unit": "{{rsrp}} dBm",
+      "section_count_one": "Pembawa",
+      "section_count_other": "Pembawa"
     },
     "metrics": {
       "rsrp": "RSRP",
@@ -150,7 +152,8 @@
       "good": "Baik",
       "fair": "Cukup",
       "poor": "Buruk",
-      "none": "Tidak ada sinyal"
+      "none": "Tidak ada sinyal",
+      "bad": "Sangat lemah"
     },
     "connection": {
       "connected": "Terhubung",
@@ -160,14 +163,14 @@
       "error": "Kesalahan",
       "disconnected": "Terputus",
       "unknown": "Tidak diketahui",
-      "modem_unreachable": "Modem tidak dapat dijangkau"
+      "modem_unreachable": "Offline"
     },
     "stale_indicator": "Data mungkin sudah kedaluwarsa",
     "redirecting_setup": "Mengalihkan ke pengaturan pertama…",
     "loading_status": "Memuat status modem…",
     "empty": {
       "title": "Status modem tidak tersedia",
-      "subtitle": "Masuk untuk detail diagnostik.",
+      "subtitle": "Modem belum melapor selama satu menit. Mungkin sedang memulai ulang — pembacaan akan pulih sendiri.",
       "fetch_error": "Tidak dapat menjangkau perangkat.",
       "retry": "Coba lagi"
     },
@@ -176,6 +179,18 @@
       "hours": "{{hours}}j {{minutes}}m",
       "minutes": "{{minutes}}m"
     },
-    "copyright": "© {{year}} QManager"
+    "copyright": "© {{year}} QManager",
+    "stale": {
+      "banner": "Pembacaan sudah <age>{{age}}</age> yang lalu. Perangkat mungkin sibuk."
+    },
+    "footer": {
+      "updated_ago": "diperbarui {{age}} lalu",
+      "retrying": "mencoba lagi setiap {{seconds}} dtk",
+      "signin_works": "masuk tetap bisa"
+    },
+    "loading_chip": "Membaca",
+    "unreachable": {
+      "banner": "Modem sedang tidak merespons. Mungkin sedang sibuk atau memulai ulang."
+    }
   }
 }

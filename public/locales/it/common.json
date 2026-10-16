@@ -84,7 +84,7 @@
     "sign_in_to_label": "Accedi a"
   },
   "overview": {
-    "title": "QManager",
+    "title": "Panoramica modem",
     "tagline": "Stato del modem in tempo reale",
     "login_button": "Accedi",
     "header": {
@@ -98,7 +98,7 @@
       "temperature": "Temperatura"
     },
     "actions": {
-      "login": "Accedi",
+      "login": "Accedi per gestire",
       "luci": "LuCI",
       "luci_aria": "Apri l'interfaccia avanzata LuCI",
       "theme_toggle_aria": "Cambia tema",
@@ -127,7 +127,9 @@
       "count_one": "{{count}} attiva",
       "count_other": "{{count}} attive",
       "bandwidth": "{{bandwidth}} MHz",
-      "rsrp_unit": "{{rsrp}} dBm"
+      "rsrp_unit": "{{rsrp}} dBm",
+      "section_count_one": "Portante",
+      "section_count_other": "Portanti"
     },
     "metrics": {
       "rsrp": "RSRP",
@@ -150,7 +152,8 @@
       "good": "Buono",
       "fair": "Discreto",
       "poor": "Scarso",
-      "none": "Nessun segnale"
+      "none": "Nessun segnale",
+      "bad": "Molto debole"
     },
     "connection": {
       "connected": "Connesso",
@@ -160,14 +163,14 @@
       "error": "Errore",
       "disconnected": "Disconnesso",
       "unknown": "Sconosciuto",
-      "modem_unreachable": "Modem irraggiungibile"
+      "modem_unreachable": "Offline"
     },
     "stale_indicator": "I dati potrebbero non essere aggiornati",
     "redirecting_setup": "Reindirizzamento alla configurazione iniziale…",
     "loading_status": "Caricamento dello stato del modem…",
     "empty": {
       "title": "Stato del modem non disponibile",
-      "subtitle": "Accedi per i dettagli diagnostici.",
+      "subtitle": "Il modem non risponde da un minuto. Potrebbe essere in riavvio — la lettura riprende da sola.",
       "fetch_error": "Impossibile raggiungere il dispositivo.",
       "retry": "Riprova"
     },
@@ -176,6 +179,18 @@
       "hours": "{{hours}}h {{minutes}}m",
       "minutes": "{{minutes}}m"
     },
-    "copyright": "© {{year}} QManager"
+    "copyright": "© {{year}} QManager",
+    "stale": {
+      "banner": "Le letture risalgono a <age>{{age}}</age> fa. Il dispositivo potrebbe essere occupato."
+    },
+    "footer": {
+      "updated_ago": "aggiornato {{age}} fa",
+      "retrying": "nuovo tentativo ogni {{seconds}}s",
+      "signin_works": "l'accesso funziona comunque"
+    },
+    "loading_chip": "Lettura",
+    "unreachable": {
+      "banner": "Il modem non risponde in questo momento. Potrebbe essere occupato o in fase di riavvio."
+    }
   }
 }
