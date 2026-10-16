@@ -500,7 +500,6 @@
     "inbox": {
       "title": "Kotak Masuk",
       "description": "Lihat dan kelola pesan SMS Anda.",
-      "storage_suffix": " — {{used}}/{{total}} pesan tersimpan",
       "table": {
         "headers": {
           "from": "Dari",
@@ -549,12 +548,12 @@
         "selected_info": "{{selected}} dari {{total}} dipilih"
       },
       "error": {
-        "title": "Gagal memuat pesan",
-        "description_prefix": "Gagal memuat pesan"
+        "title": "Gagal memuat pesan"
       },
       "view_dialog": {
         "title": "Pesan dari {{sender}}",
-        "timestamp_aria": "{{timestamp}}"
+        "timestamp_aria": "{{timestamp}}",
+        "heading": "Pesan"
       },
       "delete_single_confirm": {
         "title": "Hapus Pesan",
@@ -576,12 +575,9 @@
       },
       "toast": {
         "delete_success": "Pesan berhasil dihapus",
-        "delete_error": "Pesan gagal dihapus",
         "delete_all_success": "Semua pesan berhasil dihapus",
-        "delete_all_error": "Gagal menghapus pesan",
         "delete_selected_success_one": "{{count}} pesan terhapus",
         "delete_selected_success_other": "{{count}} pesan terhapus",
-        "delete_selected_error": "Gagal menghapus pesan yang dipilih",
         "mark_all_read_success": "Semua pesan ditandai sebagai dibaca"
       },
       "tabs": {
@@ -599,7 +595,8 @@
         "newest": "Terbaru dulu",
         "oldest": "Terlama dulu",
         "aria": "Urutan"
-      }
+      },
+      "description_storage": "{{used}} dari {{total}} pesan tersimpan."
     },
     "compose": {
       "title": "Pesan baru",
@@ -618,8 +615,7 @@
         "sending": "Mengirim…"
       },
       "toast": {
-        "success": "SMS berhasil terkirim",
-        "error": "SMS gagal terkirim"
+        "success": "SMS berhasil terkirim"
       }
     },
     "forwarding": {
@@ -636,12 +632,12 @@
         "target_description": "Setiap pesan baru dikirim ulang ke sini sebagai \"Dari <sender>: <message>\".",
         "validation_phone": "Masukkan nomor telepon yang valid (mis. +6281234567890).",
         "toast_save_success": "Pengaturan penerusan disimpan.",
-        "toast_save_error": "Tidak dapat menyimpan pengaturan penerusan.",
-        "error_load": "Tidak dapat memuat pengaturan penerusan"
+        "error_load": "Tidak dapat memuat pengaturan penerusan",
+        "target_hint_label": "Tentang pesan yang diteruskan"
       },
       "health": {
         "card_title": "Pengiriman & status",
-        "card_description": "Status penerusan langsung, pratinjau yang dilihat penerima, dan masalah pengiriman apa pun.",
+        "card_description": "Apakah pesan masuk sampai ke nomor Anda.",
         "state_active": "Aktif",
         "state_issue": "Pengiriman bermasalah",
         "state_off": "Penerusan nonaktif",
@@ -655,7 +651,6 @@
         "test_hint": "Mengirim tes ke nomor tersimpan Anda.",
         "test_disabled_hint": "Aktifkan penerusan dan simpan nomor untuk mengirim tes.",
         "toast_test_success": "Pesan tes terkirim ke nomor penerusan Anda.",
-        "toast_test_error": "Tidak dapat mengirim pesan tes.",
         "failures_title_one": "{{count}} pesan tidak dapat diteruskan",
         "failures_title_other": "{{count}} pesan tidak dapat diteruskan",
         "failures_description": "Penerusan tetap aktif untuk pesan baru. Pesan berikut dibatalkan setelah 3 kali percobaan gagal:",
@@ -663,8 +658,20 @@
         "failures_empty": "Tidak ada masalah pengiriman.",
         "clear_button": "Bersihkan peringatan",
         "toast_clear_success": "Dibersihkan.",
-        "toast_clear_error": "Tidak dapat membersihkan peringatan."
+        "preview_from": "Dari {{sender}}:"
+      },
+      "errors": {
+        "load_failed": "Modem tidak mengembalikan pengaturan penerusan. Coba lagi sebentar lagi.",
+        "save_failed": "Tidak dapat menyimpan pengaturan penerusan.",
+        "test_failed": "Tidak dapat mengirim pesan uji.",
+        "clear_failed": "Tidak dapat menghapus peringatan."
       }
+    },
+    "errors": {
+      "fetch": "Gagal memuat pesan",
+      "send": "SMS gagal terkirim",
+      "delete": "Pesan gagal dihapus",
+      "delete_all": "Semua pesan gagal dihapus"
     }
   },
   "cell_locking": {

@@ -500,7 +500,6 @@
     "inbox": {
       "title": "收件箱",
       "description": "查看和管理您的短信",
-      "storage_suffix": " — 已存储 {{used}}/{{total}} 条短信",
       "table": {
         "headers": {
           "from": "发件人",
@@ -549,12 +548,12 @@
         "selected_info": "已选择 {{selected}} / {{total}}"
       },
       "error": {
-        "title": "加载消息失败",
-        "description_prefix": "加载消息失败"
+        "title": "加载消息失败"
       },
       "view_dialog": {
         "title": "来自 {{sender}} 的消息",
-        "timestamp_aria": "{{timestamp}}"
+        "timestamp_aria": "{{timestamp}}",
+        "heading": "消息"
       },
       "delete_single_confirm": {
         "title": "删除消息",
@@ -576,12 +575,9 @@
       },
       "toast": {
         "delete_success": "消息已删除",
-        "delete_error": "删除消息失败",
         "delete_all_success": "所有消息已删除",
-        "delete_all_error": "删除消息失败",
         "delete_selected_success_one": "已删除 {{count}} 条消息",
         "delete_selected_success_other": "已删除 {{count}} 条消息",
-        "delete_selected_error": "删除选中的消息失败",
         "mark_all_read_success": "所有消息已标记为已读"
       },
       "tabs": {
@@ -599,7 +595,8 @@
         "newest": "最新优先",
         "oldest": "最早优先",
         "aria": "排序方式"
-      }
+      },
+      "description_storage": "已存储 {{used}} / {{total}} 条短信。"
     },
     "compose": {
       "title": "新短信",
@@ -618,8 +615,7 @@
         "sending": "发送中…"
       },
       "toast": {
-        "success": "短信发送成功",
-        "error": "发送短信失败"
+        "success": "短信发送成功"
       }
     },
     "forwarding": {
@@ -636,12 +632,12 @@
         "target_description": "每条新短信将以“来自 <发件人>：<内容>”的格式重新发送到此号码。",
         "validation_phone": "请输入有效的电话号码（例如 +8613800138000）。",
         "toast_save_success": "转发设置已保存。",
-        "toast_save_error": "无法保存转发设置。",
-        "error_load": "无法加载转发设置"
+        "error_load": "无法加载转发设置",
+        "target_hint_label": "关于转发的短信"
       },
       "health": {
         "card_title": "投递与状态",
-        "card_description": "实时转发状态、收件人看到的内容预览，以及任何投递问题。",
+        "card_description": "收到的短信是否正在送达您的号码。",
         "state_active": "运行正常",
         "state_issue": "投递存在问题",
         "state_off": "转发已关闭",
@@ -655,7 +651,6 @@
         "test_hint": "向您保存的号码发送测试。",
         "test_disabled_hint": "开启转发并保存号码后即可发送测试。",
         "toast_test_success": "测试短信已发送到您的转发号码。",
-        "toast_test_error": "无法发送测试短信。",
         "failures_title_one": "有 {{count}} 条短信转发失败",
         "failures_title_other": "有 {{count}} 条短信转发失败",
         "failures_description": "新短信仍会继续转发。以下短信在 3 次尝试后仍未成功：",
@@ -663,8 +658,20 @@
         "failures_empty": "没有投递问题。",
         "clear_button": "清除提醒",
         "toast_clear_success": "已清除。",
-        "toast_clear_error": "无法清除提醒。"
+        "preview_from": "来自 {{sender}}："
+      },
+      "errors": {
+        "load_failed": "调制解调器未返回转发设置，请稍后重试。",
+        "save_failed": "无法保存转发设置。",
+        "test_failed": "无法发送测试短信。",
+        "clear_failed": "无法清除警报。"
       }
+    },
+    "errors": {
+      "fetch": "加载消息失败",
+      "send": "发送短信失败",
+      "delete": "删除消息失败",
+      "delete_all": "删除全部消息失败"
     }
   },
   "cell_locking": {

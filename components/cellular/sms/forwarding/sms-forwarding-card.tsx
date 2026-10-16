@@ -14,20 +14,19 @@ import {
 } from "@/components/ui/card";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
   FieldSet,
 } from "@/components/ui/field";
-import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { CardFoot } from "@/components/ui/card-foot";
-import { AlertCircle, RefreshCcwIcon } from "lucide-react";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
+import { SegmentedField } from "@/components/ui/segmented-field";
+import { HintIcon } from "@/components/ui/hint-icon";
 import { DUR, EASE_STANDARD } from "@/lib/motion";
 import {
   type SmsForwardingData,
@@ -46,8 +45,7 @@ const PHONE_REGEX = /^\+?[1-9]\d{6,14}$/;
 
 const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
   const { t } = useTranslation("cellular");
-  const { data, isLoading, isSaving, isSendingTest, error, saveSettings, refresh } =
-    fwd;
+  const { data, isLoading, isSaving, isSendingTest, saveSettings } = fwd;
 
   const { saved, markSaved } = useSaveFlash();
   const formId = useId();
@@ -80,17 +78,15 @@ const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
     e.preventDefault();
     if (!canSave) return;
 
-    const success = await saveSettings({
+    const result = await saveSettings({
       enabled: isEnabled,
       target_phone: targetPhone,
     });
-    if (success) {
+    if (result.ok) {
       markSaved();
       toast.success(t("sms.forwarding.sms.toast_save_success"));
     } else {
-      // saveSettings returns a bare boolean, so the reason is not ours to show;
-      // the hook's `error` here would be this render's stale value.
-      toast.error(t("sms.forwarding.sms.toast_save_error"));
+      toast.error(result.error);
     }
   };
 
@@ -114,16 +110,15 @@ const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
         </CardHeader>
         <CardContent>
           <div className="grid gap-6">
-            {/* Enable toggle row */}
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-5 w-9 rounded-full" />
+            {/* Enable row */}
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-[2.625rem] w-32 rounded-pill" />
             </div>
             {/* Target field: label + input + helper */}
             <div className="grid gap-2">
               <Skeleton className="h-4 w-28" />
               <Skeleton className="h-9 w-full max-w-sm" />
-              <Skeleton className="h-3 w-48" />
             </div>
           </div>
         </CardContent>
@@ -137,37 +132,8 @@ const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
     );
   }
 
-  // --- Initial fetch error ---------------------------------------------------
-  if (!isLoading && error && !data) {
-    return (
-      <Card className="@container/card h-full">
-        <CardHeader>
-          <CardTitle>{t("sms.forwarding.sms.card_title")}</CardTitle>
-          <CardDescription>
-            {t("sms.forwarding.sms.card_description")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertCircle className="size-4" />
-            <AlertTitle>{t("sms.forwarding.sms.error_load")}</AlertTitle>
-            <AlertDescription>
-              <p>{error}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => refresh()}
-              >
-                <RefreshCcwIcon className="size-3.5" />
-                {t("actions.retry", { ns: "common" })}
-              </Button>
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-    );
-  }
+  // The page renders the read failure once, in place of both cards.
+  if (!data) return null;
 
   // --- Render ----------------------------------------------------------------
   return (
@@ -190,22 +156,34 @@ const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
           <FieldSet>
             <FieldGroup>
               {/* Enable toggle */}
-              <Field orientation="horizontal" className="w-fit">
-                <FieldLabel htmlFor="sms-forwarding-enabled">
-                  {t("sms.forwarding.sms.enable_label")}
-                </FieldLabel>
-                <Switch
-                  id="sms-forwarding-enabled"
-                  checked={isEnabled}
-                  onCheckedChange={setIsEnabled}
+              <Field>
+                <FieldLabel>{t("sms.forwarding.sms.enable_label")}</FieldLabel>
+                <SegmentedField
+                  value={isEnabled ? "on" : "off"}
+                  onValueChange={(v) => setIsEnabled(v === "on")}
+                  options={[
+                    { value: "off", label: t("common:state.off") },
+                    { value: "on", label: t("common:state.on") },
+                  ]}
+                  ariaLabel={t("sms.forwarding.sms.enable_label")}
+                  breakpoint="never"
+                  className="w-fit"
+                  glyph={(className) => (
+                    <MaterialSymbol name="check" size={16} className={className} />
+                  )}
                 />
               </Field>
 
               {/* Target phone */}
               <Field>
-                <FieldLabel htmlFor="sms-forwarding-target">
-                  {t("sms.forwarding.sms.target_label")}
-                </FieldLabel>
+                <div className="flex items-center gap-1.5">
+                  <FieldLabel htmlFor="sms-forwarding-target">
+                    {t("sms.forwarding.sms.target_label")}
+                  </FieldLabel>
+                  <HintIcon label={t("sms.forwarding.sms.target_hint_label")}>
+                    {t("sms.forwarding.sms.target_description")}
+                  </HintIcon>
+                </div>
                 <Input
                   id="sms-forwarding-target"
                   type="tel"
@@ -218,9 +196,7 @@ const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
                   required={isEnabled}
                   aria-invalid={!!phoneError}
                   aria-describedby={
-                    phoneError
-                      ? "sms-forwarding-target-error"
-                      : "sms-forwarding-target-desc"
+                    phoneError ? "sms-forwarding-target-error" : undefined
                   }
                   autoComplete="tel"
                 />
@@ -228,11 +204,7 @@ const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
                   <FieldError id="sms-forwarding-target-error">
                     {phoneError}
                   </FieldError>
-                ) : (
-                  <FieldDescription id="sms-forwarding-target-desc">
-                    {t("sms.forwarding.sms.target_description")}
-                  </FieldDescription>
-                )}
+                ) : null}
               </Field>
             </FieldGroup>
           </FieldSet>

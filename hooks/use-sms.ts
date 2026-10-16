@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { authFetch } from "@/lib/auth-fetch";
+import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type {
   SmsMessage,
   SmsStorage,
@@ -21,10 +23,16 @@ import type {
 
 const CGI_ENDPOINT = "/cgi-bin/quecmanager/cellular/sms.sh";
 
+const OK: SmsActionResult = { ok: true };
+const fail = (error: string): SmsActionResult => ({ ok: false, error });
+
 export interface SmsData {
   messages: SmsMessage[];
   storage: SmsStorage;
 }
+
+/** Mutation outcome: `error` is already translated and safe to toast. */
+export type SmsActionResult = { ok: true } | { ok: false; error: string };
 
 export interface UseSmsReturn {
   /** Current SMS data (null before first fetch) */
@@ -35,19 +43,20 @@ export interface UseSmsReturn {
   isSaving: boolean;
   /** Error message if any operation failed */
   error: string | null;
-  /** Send an SMS message. Returns true on success. */
-  sendSms: (phone: string, message: string) => Promise<boolean>;
-  /** Delete a message by its storage indexes. Returns true on success.
+  /** Send an SMS message. Resolves with the outcome. */
+  sendSms: (phone: string, message: string) => Promise<SmsActionResult>;
+  /** Delete a message by its storage indexes. Resolves with the outcome.
    *  `storage` selects which modem memory (ME / SM) the indexes live in;
    *  the backend deletes one storage per call. */
-  deleteSms: (indexes: number[], storage: "ME" | "SM") => Promise<boolean>;
-  /** Delete all messages. Returns true on success. */
-  deleteAllSms: () => Promise<boolean>;
+  deleteSms: (indexes: number[], storage: "ME" | "SM") => Promise<SmsActionResult>;
+  /** Delete all messages. Resolves with the outcome. */
+  deleteAllSms: () => Promise<SmsActionResult>;
   /** Re-fetch inbox data. Pass true for silent (no loading skeleton). */
   refresh: (silent?: boolean) => void;
 }
 
 export function useSms(): UseSmsReturn {
+  const { t } = useTranslation("cellular");
   const [data, setData] = useState<SmsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -79,7 +88,14 @@ export function useSms(): UseSmsReturn {
       if (!mountedRef.current) return;
 
       if (!json.success) {
-        setError(json.detail || json.error || "Failed to fetch SMS inbox");
+        setError(
+          resolveErrorMessage(
+            t,
+            json.error,
+            json.detail,
+            t("sms.errors.fetch"),
+          ),
+        );
         return;
       }
 
@@ -87,17 +103,15 @@ export function useSms(): UseSmsReturn {
         messages: json.messages || [],
         storage: json.storage || { used: 0, total: 0 },
       });
-    } catch (err) {
+    } catch {
       if (!mountedRef.current) return;
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch SMS inbox"
-      );
+      setError(t("sms.errors.fetch"));
     } finally {
       if (mountedRef.current && !silent) {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [t]);
 
   // Fetch on mount
   useEffect(() => {
@@ -108,7 +122,7 @@ export function useSms(): UseSmsReturn {
   // Send SMS
   // ---------------------------------------------------------------------------
   const sendSms = useCallback(
-    async (phone: string, message: string): Promise<boolean> => {
+    async (phone: string, message: string): Promise<SmsActionResult> => {
       setError(null);
       setIsSaving(true);
 
@@ -124,36 +138,43 @@ export function useSms(): UseSmsReturn {
         }
 
         const json: SmsActionResponse = await resp.json();
-        if (!mountedRef.current) return false;
+        if (!mountedRef.current) return fail(t("sms.errors.send"));
 
         if (!json.success) {
-          setError(json.detail || json.error || "Failed to send SMS");
-          return false;
+          const msg = resolveErrorMessage(
+            t,
+            json.error,
+            json.detail,
+            t("sms.errors.send"),
+          );
+          setError(msg);
+          return { ok: false, error: msg };
         }
 
         // Delayed silent re-fetch — modem needs a moment to process the sent message
         setTimeout(() => {
           if (mountedRef.current) fetchInbox(true);
         }, 1000);
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(err instanceof Error ? err.message : "Failed to send SMS");
-        return false;
+        return OK;
+      } catch {
+        const msg = t("sms.errors.send");
+        if (!mountedRef.current) return { ok: false, error: msg };
+        setError(msg);
+        return { ok: false, error: msg };
       } finally {
         if (mountedRef.current) {
           setIsSaving(false);
         }
       }
     },
-    [fetchInbox]
+    [fetchInbox, t]
   );
 
   // ---------------------------------------------------------------------------
   // Delete single message
   // ---------------------------------------------------------------------------
   const deleteSms = useCallback(
-    async (indexes: number[], storage: "ME" | "SM"): Promise<boolean> => {
+    async (indexes: number[], storage: "ME" | "SM"): Promise<SmsActionResult> => {
       setError(null);
       setIsSaving(true);
 
@@ -169,35 +190,40 @@ export function useSms(): UseSmsReturn {
         }
 
         const json: SmsActionResponse = await resp.json();
-        if (!mountedRef.current) return false;
+        if (!mountedRef.current) return fail(t("sms.errors.delete"));
 
         if (!json.success) {
-          setError(json.detail || json.error || "Failed to delete message");
-          return false;
+          const msg = resolveErrorMessage(
+            t,
+            json.error,
+            json.detail,
+            t("sms.errors.delete"),
+          );
+          setError(msg);
+          return { ok: false, error: msg };
         }
 
         // Silent re-fetch to update inbox
         await fetchInbox(true);
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(
-          err instanceof Error ? err.message : "Failed to delete message"
-        );
-        return false;
+        return OK;
+      } catch {
+        const msg = t("sms.errors.delete");
+        if (!mountedRef.current) return { ok: false, error: msg };
+        setError(msg);
+        return { ok: false, error: msg };
       } finally {
         if (mountedRef.current) {
           setIsSaving(false);
         }
       }
     },
-    [fetchInbox]
+    [fetchInbox, t]
   );
 
   // ---------------------------------------------------------------------------
   // Delete all messages
   // ---------------------------------------------------------------------------
-  const deleteAllSms = useCallback(async (): Promise<boolean> => {
+  const deleteAllSms = useCallback(async (): Promise<SmsActionResult> => {
     setError(null);
     setIsSaving(true);
 
@@ -213,30 +239,33 @@ export function useSms(): UseSmsReturn {
       }
 
       const json: SmsActionResponse = await resp.json();
-      if (!mountedRef.current) return false;
+      if (!mountedRef.current) return fail(t("sms.errors.delete_all"));
 
       if (!json.success) {
-        setError(
-          json.detail || json.error || "Failed to delete all messages"
+        const msg = resolveErrorMessage(
+          t,
+          json.error,
+          json.detail,
+          t("sms.errors.delete_all"),
         );
-        return false;
+        setError(msg);
+        return { ok: false, error: msg };
       }
 
       // Silent re-fetch to update inbox
       await fetchInbox(true);
-      return true;
-    } catch (err) {
-      if (!mountedRef.current) return false;
-      setError(
-        err instanceof Error ? err.message : "Failed to delete all messages"
-      );
-      return false;
+      return OK;
+    } catch {
+      const msg = t("sms.errors.delete_all");
+      if (!mountedRef.current) return { ok: false, error: msg };
+      setError(msg);
+      return { ok: false, error: msg };
     } finally {
       if (mountedRef.current) {
         setIsSaving(false);
       }
     }
-  }, [fetchInbox]);
+  }, [fetchInbox, t]);
 
   return {
     data,

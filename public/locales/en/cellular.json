@@ -500,7 +500,6 @@
     "inbox": {
       "title": "Inbox",
       "description": "View and manage your SMS messages",
-      "storage_suffix": " — {{used}}/{{total}} messages stored",
       "tabs": {
         "all": "All",
         "unread": "Unread",
@@ -555,12 +554,12 @@
         "selected_info": "{{selected}} of {{total}} selected"
       },
       "error": {
-        "title": "Failed to load messages",
-        "description_prefix": "Failed to load messages"
+        "title": "Failed to load messages"
       },
       "view_dialog": {
         "title": "Message from {{sender}}",
-        "timestamp_aria": "{{timestamp}}"
+        "timestamp_aria": "{{timestamp}}",
+        "heading": "Message"
       },
       "delete_single_confirm": {
         "title": "Delete Message",
@@ -582,12 +581,9 @@
       },
       "toast": {
         "delete_success": "Message deleted",
-        "delete_error": "Failed to delete message",
         "delete_all_success": "All messages deleted",
-        "delete_all_error": "Failed to delete messages",
         "delete_selected_success_one": "{{count}} message deleted",
         "delete_selected_success_other": "{{count}} messages deleted",
-        "delete_selected_error": "Failed to delete selected messages",
         "mark_all_read_success": "All messages marked as read"
       },
       "search": {
@@ -599,7 +595,8 @@
         "newest": "Newest first",
         "oldest": "Oldest first",
         "aria": "Sort order"
-      }
+      },
+      "description_storage": "{{used}} of {{total}} messages stored."
     },
     "compose": {
       "title": "New Message",
@@ -618,8 +615,7 @@
         "sending": "Sending…"
       },
       "toast": {
-        "success": "SMS sent successfully",
-        "error": "Failed to send SMS"
+        "success": "SMS sent successfully"
       }
     },
     "forwarding": {
@@ -636,12 +632,12 @@
         "target_description": "Each new message is resent here as \"From <sender>: <message>\".",
         "validation_phone": "Enter a valid phone number (e.g. +15551234567).",
         "toast_save_success": "Forwarding settings saved.",
-        "toast_save_error": "Couldn't save forwarding settings.",
-        "error_load": "Couldn't load forwarding settings"
+        "error_load": "Couldn't load forwarding settings",
+        "target_hint_label": "About forwarded messages"
       },
       "health": {
         "card_title": "Delivery & health",
-        "card_description": "Live relay status, a preview of what the recipient sees, and any delivery problems.",
+        "card_description": "Whether incoming messages are reaching your number.",
         "state_active": "Active",
         "state_issue": "Delivering with issues",
         "state_off": "Forwarding is off",
@@ -655,7 +651,6 @@
         "test_hint": "Sends a test to your saved number.",
         "test_disabled_hint": "Turn on forwarding and save a number to send a test.",
         "toast_test_success": "Test message sent to your forwarding number.",
-        "toast_test_error": "Couldn't send the test message.",
         "failures_title_one": "{{count}} message couldn't be forwarded",
         "failures_title_other": "{{count}} messages couldn't be forwarded",
         "failures_description": "Forwarding is still on for new messages. These were dropped after 3 failed attempts:",
@@ -663,8 +658,20 @@
         "failures_empty": "No delivery problems.",
         "clear_button": "Clear alerts",
         "toast_clear_success": "Cleared.",
-        "toast_clear_error": "Couldn't clear the alerts."
+        "preview_from": "From {{sender}}:"
+      },
+      "errors": {
+        "load_failed": "The modem didn't answer with the forwarding settings. Try again in a moment.",
+        "save_failed": "Couldn't save forwarding settings.",
+        "test_failed": "Couldn't send the test message.",
+        "clear_failed": "Couldn't clear the alerts."
       }
+    },
+    "errors": {
+      "fetch": "Failed to load messages",
+      "send": "Failed to send SMS",
+      "delete": "Failed to delete message",
+      "delete_all": "Failed to delete messages"
     }
   },
   "cell_locking": {

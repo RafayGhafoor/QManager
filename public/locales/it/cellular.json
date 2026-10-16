@@ -500,7 +500,6 @@
     "inbox": {
       "title": "Posta in arrivo",
       "description": "Visualizza e gestisci i tuoi messaggi SMS",
-      "storage_suffix": " — Messaggi {{used}}/{{total}} memorizzati",
       "table": {
         "headers": {
           "from": "Da",
@@ -549,12 +548,12 @@
         "selected_info": "{{selected}} di {{total}} selezionati"
       },
       "error": {
-        "title": "Impossibile caricare i messaggi",
-        "description_prefix": "Impossibile caricare i messaggi"
+        "title": "Impossibile caricare i messaggi"
       },
       "view_dialog": {
         "title": "Messaggio da {{sender}}",
-        "timestamp_aria": "{{timestamp}}"
+        "timestamp_aria": "{{timestamp}}",
+        "heading": "Messaggio"
       },
       "delete_single_confirm": {
         "title": "Elimina messaggio",
@@ -576,12 +575,9 @@
       },
       "toast": {
         "delete_success": "Messaggio eliminato",
-        "delete_error": "Impossibile eliminare il messaggio",
         "delete_all_success": "Tutti i messaggi cancellati",
-        "delete_all_error": "Impossibile eliminare i messaggi",
         "delete_selected_success_one": "{{count}} messaggio eliminato",
         "delete_selected_success_other": "{{count}} messaggi eliminati",
-        "delete_selected_error": "Impossibile eliminare i messaggi selezionati",
         "mark_all_read_success": "Tutti i messaggi sono stati segnati come letti"
       },
       "tabs": {
@@ -599,7 +595,8 @@
         "newest": "Prima i più recenti",
         "oldest": "Prima i meno recenti",
         "aria": "Ordine"
-      }
+      },
+      "description_storage": "{{used}} di {{total}} messaggi memorizzati."
     },
     "compose": {
       "title": "Nuovo messaggio",
@@ -618,8 +615,7 @@
         "sending": "Invio…"
       },
       "toast": {
-        "success": "SMS inviato con successo",
-        "error": "Impossibile inviare SMS"
+        "success": "SMS inviato con successo"
       }
     },
     "forwarding": {
@@ -636,12 +632,12 @@
         "target_description": "Ogni nuovo messaggio viene reinviato qui come \"Da <sender>: <message>\".",
         "validation_phone": "Inserisci un numero di telefono valido (es. +393331234567).",
         "toast_save_success": "Impostazioni di inoltro salvate.",
-        "toast_save_error": "Impossibile salvare le impostazioni di inoltro.",
-        "error_load": "Impossibile caricare le impostazioni di inoltro"
+        "error_load": "Impossibile caricare le impostazioni di inoltro",
+        "target_hint_label": "Informazioni sui messaggi inoltrati"
       },
       "health": {
         "card_title": "Consegna e stato",
-        "card_description": "Stato dell'inoltro in tempo reale, un'anteprima di ciò che vede il destinatario ed eventuali problemi di consegna.",
+        "card_description": "Se i messaggi in arrivo raggiungono il tuo numero.",
         "state_active": "Attivo · funzionante",
         "state_issue": "Consegna con problemi",
         "state_off": "Inoltro disattivato",
@@ -655,7 +651,6 @@
         "test_hint": "Invia un test al numero salvato.",
         "test_disabled_hint": "Attiva l'inoltro e salva un numero per inviare un test.",
         "toast_test_success": "Messaggio di test inviato al tuo numero di inoltro.",
-        "toast_test_error": "Impossibile inviare il messaggio di test.",
         "failures_title_one": "Impossibile inoltrare {{count}} messaggio",
         "failures_title_other": "Impossibile inoltrare {{count}} messaggi",
         "failures_description": "L'inoltro è ancora attivo per i nuovi messaggi. Questi sono stati scartati dopo 3 tentativi falliti:",
@@ -663,8 +658,20 @@
         "failures_empty": "Nessun problema di consegna.",
         "clear_button": "Cancella avvisi",
         "toast_clear_success": "Cancellato.",
-        "toast_clear_error": "Impossibile cancellare gli avvisi."
+        "preview_from": "Da {{sender}}:"
+      },
+      "errors": {
+        "load_failed": "Il modem non ha restituito le impostazioni di inoltro. Riprova tra poco.",
+        "save_failed": "Impossibile salvare le impostazioni di inoltro.",
+        "test_failed": "Impossibile inviare il messaggio di prova.",
+        "clear_failed": "Impossibile cancellare gli avvisi."
       }
+    },
+    "errors": {
+      "fetch": "Impossibile caricare i messaggi",
+      "send": "Impossibile inviare SMS",
+      "delete": "Impossibile eliminare il messaggio",
+      "delete_all": "Impossibile eliminare i messaggi"
     }
   },
   "cell_locking": {

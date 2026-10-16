@@ -1,10 +1,13 @@
 "use client";
 
-import React from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
 
+import { CONDITION_TONE } from "@/components/cellular/condition-screen";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -12,286 +15,244 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CardFoot } from "@/components/ui/card-foot";
 import {
-  CheckCircle2Icon,
-  Loader2,
-  MinusCircleIcon,
-  SendIcon,
-  TriangleAlertIcon,
-  XIcon,
-} from "lucide-react";
-import { DUR, EASE_STANDARD, EASE_QUICK } from "@/lib/motion";
+  MaterialSymbol,
+  type MaterialSymbolName,
+} from "@/components/ui/material-symbol";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DUR, EASE_QUICK } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 import { type UseSmsForwardingReturn } from "@/hooks/use-sms-forwarding";
 
 // =============================================================================
-// DeliveryHealthCard — the status companion to SmsForwardingCard. Reports the
-// live relay state, a preview of what the recipient receives, the test action
-// (verifies the SAVED path — the CGI reads the target from UCI), and the
-// daemon's delivery-failure history. Shares the lifted useSmsForwarding hook.
+// DeliveryHealthCard — the status card that leads the forwarding page
+// =============================================================================
+// Status first: this card reports the relay before the settings card below
+// changes it. A filled health chip carries the verdict, a receipt row names the
+// destination, a bubble previews what the recipient receives, and the foot
+// holds the test action (it verifies the SAVED path; the CGI reads the target
+// from the stored settings, not the draft). Delivery failures surface as a
+// destructive block until the user clears them. Shares the lifted
+// useSmsForwarding hook with the settings card.
 // =============================================================================
 
-// The preview teaches the relay FORMAT, so the "From" sender is a sample
-// inbound number — not the saved target, who is the one RECEIVING this bubble.
+// The preview teaches the relay FORMAT, so the sender is a sample inbound
+// number, not the saved target (who RECEIVES this bubble).
 const SAMPLE_SENDER = "+15550142";
+const K = "sms.forwarding.health";
 
 type Health = "active" | "issue" | "off" | "unconfigured";
 
-type Tone = "success" | "warning" | "muted";
-
-const ICON_WRAP_CLASS: Record<Tone, string> = {
-  success: "bg-success/15 text-success",
-  warning: "bg-warning/15 text-warning",
-  muted: "bg-muted text-muted-foreground",
+/** One glyph per state: `success` and `warning` containers are 1.03:1 apart,
+ *  so the glyph is the only channel separating them. */
+const HEALTH_CHIP: Record<
+  Health,
+  { variant: BadgeVariant; glyph: MaterialSymbolName }
+> = {
+  active: { variant: "success", glyph: "check_circle" },
+  issue: { variant: "warning", glyph: "warning" },
+  unconfigured: { variant: "warning", glyph: "edit" },
+  off: { variant: "muted", glyph: "do_not_disturb_on" },
 };
+
+const RECEIPT_ROW =
+  "flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm";
+
+function HealthHeader({ chip }: { chip?: ReactNode }) {
+  const { t } = useTranslation("cellular");
+  return (
+    <CardHeader>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-48 flex-1 flex-col gap-1.5">
+          <CardTitle>{t(`${K}.card_title`)}</CardTitle>
+          <CardDescription>{t(`${K}.card_description`)}</CardDescription>
+        </div>
+        {chip}
+      </div>
+    </CardHeader>
+  );
+}
 
 const DeliveryHealthCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
   const { t } = useTranslation("cellular");
-  const { data, isLoading, isSendingTest, isClearing, error, sendTest, clearFailures } =
-    fwd;
+  const {
+    data,
+    isLoading,
+    isSendingTest,
+    isClearing,
+    sendTest,
+    clearFailures,
+  } = fwd;
 
   const handleSendTest = async () => {
-    const success = await sendTest();
-    if (success) {
-      toast.success(t("sms.forwarding.health.toast_test_success"));
-    } else {
-      toast.error(error || t("sms.forwarding.health.toast_test_error"));
-    }
+    const result = await sendTest();
+    if (result.ok) toast.success(t(`${K}.toast_test_success`));
+    else toast.error(result.error);
   };
 
   const handleClear = async () => {
-    const success = await clearFailures();
-    if (success) {
-      toast.success(t("sms.forwarding.health.toast_clear_success"));
-    } else {
-      toast.error(error || t("sms.forwarding.health.toast_clear_error"));
-    }
+    const result = await clearFailures();
+    if (result.ok) toast.success(t(`${K}.toast_clear_success`));
+    else toast.error(result.error);
   };
 
-  // --- Loading skeleton ------------------------------------------------------
-  // Mirrors the real content geometry (focal row → preview box → test action)
-  // so the card holds its height and nothing snaps when data lands.
-  if (isLoading || !data) {
+  // --- Loading ----------------------------------------------------------------
+  if (isLoading) {
     return (
       <Card className="@container/card h-full">
-        <CardHeader>
-          <CardTitle>{t("sms.forwarding.health.card_title")}</CardTitle>
-          <CardDescription>
-            {t("sms.forwarding.health.card_description")}
-          </CardDescription>
-        </CardHeader>
+        <HealthHeader chip={<Skeleton className="h-5 w-24 rounded-pill" />} />
         <CardContent className="grid gap-5">
-          {/* Focal state + destination */}
-          <div className="flex items-start gap-3">
-            <Skeleton className="size-9 shrink-0 rounded-lg" />
-            <div className="grid flex-1 gap-1.5">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-44" />
-            </div>
+          <div className={RECEIPT_ROW}>
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-32" />
           </div>
-          {/* Recipient preview */}
-          <div className="grid gap-1.5">
+          <div className="grid gap-2">
             <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-12 w-full rounded-lg" />
+            <Skeleton className="h-11 w-full rounded-tile" />
           </div>
-          {/* Test action + hint */}
-          <div className="grid gap-1.5">
-            <Skeleton className="h-9 w-28" />
-            <Skeleton className="h-3 w-52" />
-          </div>
+          <Skeleton className="h-4 w-40" />
         </CardContent>
+        <CardFoot
+          className="px-6"
+          liveStatus={false}
+          aria-hidden="true"
+          status={<Skeleton className="h-4 w-48" />}
+          actions={<Skeleton className="h-[2.625rem] w-32 rounded-pill" />}
+        />
       </Card>
     );
   }
 
+  // The page renders the read failure once, in place of both cards.
+  if (!data) return null;
+
   const { enabled, target_phone } = data.settings;
   const failures = data.failures ?? [];
-  const failureCount = data.failure_count ?? failures.length;
 
-  // Single state machine drives the badge, the focal row, and the destination.
+  // One state machine drives the chip, the destination row and the test gate.
   const health: Health = !enabled
     ? "off"
     : !target_phone
       ? "unconfigured"
-      : failureCount > 0
+      : failures.length > 0 || data.failure_count > 0
         ? "issue"
         : "active";
-
-  const STATE: Record<
-    Health,
-    { tone: Tone; Icon: typeof CheckCircle2Icon; label: string }
-  > = {
-    active: {
-      tone: "success",
-      Icon: CheckCircle2Icon,
-      label: t("sms.forwarding.health.state_active"),
-    },
-    issue: {
-      tone: "warning",
-      Icon: TriangleAlertIcon,
-      label: t("sms.forwarding.health.state_issue"),
-    },
-    unconfigured: {
-      tone: "warning",
-      Icon: TriangleAlertIcon,
-      label: t("sms.forwarding.health.state_unconfigured"),
-    },
-    off: {
-      tone: "muted",
-      Icon: MinusCircleIcon,
-      label: t("sms.forwarding.health.state_off"),
-    },
-  };
-
-  const state = STATE[health];
-  const { Icon } = state;
+  const chip = HEALTH_CHIP[health];
   const canSendTest = enabled && !!target_phone && !isSendingTest;
+  const destructive = CONDITION_TONE.destructive;
 
-  // --- Render ----------------------------------------------------------------
   return (
     <Card className="@container/card h-full">
-      <CardHeader>
-        <CardTitle>{t("sms.forwarding.health.card_title")}</CardTitle>
-        <CardDescription>
-          {t("sms.forwarding.health.card_description")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <motion.div
-          className="grid gap-5"
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: DUR.standard, ease: EASE_STANDARD }}
-        >
-        {/* Focal state + destination */}
-        <div className="flex items-start gap-3">
-          <span
-            className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${ICON_WRAP_CLASS[state.tone]}`}
-          >
-            <Icon className="size-5" />
-          </span>
-          <div className="grid gap-0.5">
-            <p className="text-sm font-semibold leading-tight">{state.label}</p>
-            {target_phone ? (
-              <p className="text-sm text-muted-foreground">
-                {t("sms.forwarding.health.destination_label")}{" "}
-                <span className="font-mono text-foreground tabular-nums">
-                  {target_phone}
-                </span>
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {t("sms.forwarding.health.destination_none")}
-              </p>
-            )}
+      <HealthHeader
+        chip={
+          <Badge variant={chip.variant} className="flex-none">
+            <MaterialSymbol name={chip.glyph} size={12} />
+            {t(`${K}.state_${health}`)}
+          </Badge>
+        }
+      />
+      <CardContent className="grid gap-5">
+        {/* Destination: a receipt row, key left and value right. */}
+        {target_phone ? (
+          <div className={RECEIPT_ROW}>
+            <span className="text-muted-foreground">
+              {t(`${K}.destination_label`)}
+            </span>
+            <span className="font-mono font-medium tabular-nums">
+              {target_phone}
+            </span>
           </div>
-        </div>
-
-        {/* Recipient preview */}
-        <div className="grid gap-1.5">
-          <p className="text-xs font-medium text-muted-foreground">
-            {t("sms.forwarding.health.preview_label")}
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {t(`${K}.destination_none`)}
           </p>
-          <div className="rounded-lg border bg-muted/40 px-3 py-2">
+        )}
+
+        {/* What the recipient receives */}
+        <div className="grid gap-2">
+          <p className="text-xs font-medium text-muted-foreground">
+            {t(`${K}.preview_label`)}
+          </p>
+          <div className="rounded-tile bg-surface-container px-4 py-3">
             <p className="text-sm leading-snug">
-              <span className="font-mono text-muted-foreground">
-                From {SAMPLE_SENDER}:
+              <span className="font-mono text-on-surface-variant">
+                {t(`${K}.preview_from`, { sender: SAMPLE_SENDER })}
               </span>{" "}
-              <span className="text-foreground">
-                {t("sms.forwarding.health.preview_sample_body")}
-              </span>
+              <span>{t(`${K}.preview_sample_body`)}</span>
             </p>
           </div>
         </div>
 
-        {/* Test the saved relay path */}
-        <div className="grid gap-1.5">
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-fit"
-            disabled={!canSendTest}
-            onClick={handleSendTest}
-          >
-            {isSendingTest ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                {t("sms.forwarding.health.test_sending")}
-              </>
-            ) : (
-              <>
-                <SendIcon className="size-4" />
-                {t("sms.forwarding.health.test_button")}
-              </>
-            )}
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            {canSendTest
-              ? t("sms.forwarding.health.test_hint")
-              : t("sms.forwarding.health.test_disabled_hint")}
-          </p>
-        </div>
-
-        {/* Delivery failures */}
+        {/* Delivery failures, until the user clears them */}
         <AnimatePresence initial={false} mode="wait">
           {failures.length > 0 ? (
             <motion.div
               key="failures"
+              role="alert"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: DUR.quick, ease: EASE_QUICK }}
-              style={{ overflow: "hidden" }}
+              className="overflow-hidden"
             >
-              <Alert variant="destructive">
-                <TriangleAlertIcon className="size-4" />
-                <AlertTitle>
-                  {t("sms.forwarding.health.failures_title", {
-                    count: failures.length,
-                  })}
-                </AlertTitle>
-                <AlertDescription className="grid gap-2">
-                  <p>{t("sms.forwarding.health.failures_description")}</p>
-                  <ul className="grid gap-1 text-xs">
+              <div
+                className={cn(
+                  "flex items-start gap-3 rounded-tile px-4 py-3.5",
+                  destructive.container,
+                )}
+              >
+                <span
+                  className={cn(
+                    "grid size-8 flex-none place-items-center rounded-pill",
+                    destructive.disc,
+                  )}
+                >
+                  <MaterialSymbol name="error" size={18} filled />
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <p className="text-sm font-semibold">
+                    {t(`${K}.failures_title`, { count: failures.length })}
+                  </p>
+                  <p className="text-sm opacity-90">
+                    {t(`${K}.failures_description`)}
+                  </p>
+                  <ul className="grid gap-1.5 text-xs">
                     {failures.slice(0, 5).map((f, i) => (
                       <li
                         key={`${f.sender}-${f.timestamp}-${i}`}
                         className="flex flex-wrap items-baseline gap-x-2"
                       >
                         <span className="font-mono font-medium">
-                          {f.sender ||
-                            t("sms.forwarding.health.failures_unknown_sender")}
+                          {f.sender || t(`${K}.failures_unknown_sender`)}
                         </span>
-                        <span className="text-muted-foreground">
+                        <span className="tabular-nums opacity-80">
                           {f.timestamp}
                         </span>
-                        {f.last_error && (
-                          <span className="text-muted-foreground">
-                            — {f.last_error}
-                          </span>
-                        )}
+                        {f.last_error ? (
+                          <span className="opacity-80">({f.last_error})</span>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
-                  <Button
+                  <button
                     type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-1 w-fit"
                     disabled={isClearing}
                     onClick={handleClear}
-                  >
-                    {isClearing ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <XIcon className="size-3.5" />
+                    className={cn(
+                      "inline-flex h-9 w-fit items-center gap-1.5 rounded-pill px-4 text-sm font-semibold transition-colors duration-[var(--duration-quick)] ease-out focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+                      destructive.action,
                     )}
-                    {t("sms.forwarding.health.clear_button")}
-                  </Button>
-                </AlertDescription>
-              </Alert>
+                  >
+                    <MaterialSymbol
+                      name={isClearing ? "progress_activity" : "close"}
+                      size={16}
+                      className={isClearing ? "motion-safe:animate-spin" : undefined}
+                    />
+                    {t(`${K}.clear_button`)}
+                  </button>
+                </div>
+              </div>
             </motion.div>
           ) : (
             <motion.p
@@ -302,13 +263,37 @@ const DeliveryHealthCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
               transition={{ duration: DUR.quick, ease: EASE_QUICK }}
               className="flex items-center gap-1.5 text-sm text-muted-foreground"
             >
-              <CheckCircle2Icon className="size-3.5 text-success" />
-              {t("sms.forwarding.health.failures_empty")}
+              <MaterialSymbol name="check_circle" size={16} className="text-success-on-surface" />
+              {t(`${K}.failures_empty`)}
             </motion.p>
           )}
         </AnimatePresence>
-        </motion.div>
       </CardContent>
+
+      <CardFoot
+        className="px-6"
+        status={
+          canSendTest || isSendingTest
+            ? t(`${K}.test_hint`)
+            : t(`${K}.test_disabled_hint`)
+        }
+        actions={
+          <Button
+            type="button"
+            variant="tonal-neutral"
+            size="action"
+            disabled={!canSendTest}
+            onClick={handleSendTest}
+          >
+            <MaterialSymbol
+              name={isSendingTest ? "progress_activity" : "send"}
+              size={18}
+              className={isSendingTest ? "motion-safe:animate-spin" : undefined}
+            />
+            {isSendingTest ? t(`${K}.test_sending`) : t(`${K}.test_button`)}
+          </Button>
+        }
+      />
     </Card>
   );
 };
