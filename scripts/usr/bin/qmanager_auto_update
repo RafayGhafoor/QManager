@@ -27,6 +27,25 @@ VERSION_FILE="/etc/qmanager/VERSION"
 PID_FILE="/tmp/qmanager_update.pid"
 UPDATER="/usr/bin/qmanager_update"
 
+# --- Clock-step guard (issue #9) ---------------------------------------------
+# crond runs a job whose minute a boot-time clock step crosses; this worker can
+# end in an install + reboot, so it fails closed. See schedule_guard.sh.
+if [ -f /usr/lib/qmanager/schedule_guard.sh ]; then
+    . /usr/lib/qmanager/schedule_guard.sh
+    sched_time=$(uci -q get quecmanager.update.auto_update_time 2>/dev/null)
+    if ! _qm_validate_hhmm "$sched_time"; then
+        qlog_warn "Auto-update check skipped: schedule time unreadable ('$sched_time')"
+        exit 0
+    fi
+    if ! _qm_timer_fire_allowed "$sched_time"; then
+        qlog_warn "Auto-update check skipped: $QM_GUARD_REASON (clock-step guard)"
+        exit 0
+    fi
+else
+    qlog_warn "Auto-update check skipped: schedule_guard.sh missing, failing closed"
+    exit 0
+fi
+
 # --- Guard: skip if update already in progress -------------------------------
 
 if [ -f "$PID_FILE" ]; then

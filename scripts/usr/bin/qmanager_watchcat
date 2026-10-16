@@ -33,6 +33,7 @@ if [ -f /usr/lib/qmanager/qlog.sh ]; then
 else
     qlog_init() { :; }; qlog_debug() { :; }; qlog_info() { :; }
     qlog_warn() { :; }; qlog_error() { :; }; qlog_state_change() { :; }
+    mono_now() { awk '{print int($1)}' /proc/uptime 2>/dev/null || echo 0; }
 fi
 qlog_init "watchcat"
 
@@ -136,7 +137,8 @@ recovery_reason="unreachable"   # "unreachable" | "quality" — why current/last
 revert_settle_active="false"    # "true" while holding the post-revert SIM settle floor
 primary_recheck_active="false"  # "true" while holding the blind primary-recheck settle floor
 recheck_return_slot="null"      # backup slot to return to if a primary recheck fails
-last_recheck_time=0             # epoch of the last failover finalize / recheck; auto-failback clock
+last_recheck_time=0             # mono_now of the last failover finalize / recheck; auto-failback clock
+                                # (monotonic: a boot-time clock step must not make a recheck due at once)
 _recovery_marker_emitted=""     # "<tier>-<reason>" of the last emitted start marker; "" = none this episode
 ssr_hold="false"          # JSON bool literal for write_state
 last_ssr_detected="null"  # JSON null literal or monotonic-seconds integer
@@ -1086,7 +1088,7 @@ finalize_sim_failover() {
     fi
 
     # Start the auto-failback clock from the moment failover is confirmed.
-    last_recheck_time=$(date +%s)
+    last_recheck_time=$(mono_now)
 }
 
 # Initiate a BLIND recheck of the primary SIM: temporarily swap back to the
@@ -1182,7 +1184,7 @@ finish_cooldown() {
             failure_counter=0
             quality_breach_counter=0
             _recovery_marker_emitted=""
-            last_recheck_time=$(date +%s)
+            last_recheck_time=$(mono_now)
             state="monitor"
             rm -f "$RECOVERY_FLAG"
             return
@@ -1239,7 +1241,7 @@ finish_cooldown() {
         append_event "sim_failover" "Watchcat: primary SIM still unhealthy — staying on backup slot $recheck_return_slot" "info"
 
         # Restart the interval clock so the next recheck is one full interval away.
-        last_recheck_time=$(date +%s)
+        last_recheck_time=$(mono_now)
 
         # Benign post-swap settle: reuse the revert mechanism so the modem
         # stabilizes on backup WITHOUT escalation. Keep suppression (RECOVERY_FLAG
@@ -1463,7 +1465,7 @@ main() {
                 original_sim_iccid=$(jq -r '(.original_iccid) | if . == null then "" else tostring end' "$SIM_FAILOVER_FILE" 2>/dev/null)
                 # Start the auto-failback clock from boot-resume so a recheck is at
                 # most one interval away (not immediately on boot).
-                last_recheck_time=$(date +%s)
+                last_recheck_time=$(mono_now)
                 qlog_info "Resumed SIM failover state: slot $original_sim_slot → $current_sim_slot (verified)"
             else
                 qlog_warn "SIM failover file recorded slot $_sf_curr but modem is on slot ${_live_slot:-unknown} — clearing stale state"
@@ -1663,7 +1665,7 @@ main() {
         # is gated to once every CFG_PRIMARY_RECHECK_INTERVAL minutes. A real
         # recovery this cycle already moved state away from monitor, so it wins.
         if [ "$CFG_PRIMARY_RECHECK_ENABLED" = "1" ] && [ "$sim_failover_active" = "true" ] && [ "$state" = "monitor" ] && [ "$primary_recheck_active" = "false" ] && [ ! -f "$REVERT_FLAG" ]; then
-            _pr_now=$(date +%s)
+            _pr_now=$(mono_now)
             _pr_due=$((last_recheck_time + CFG_PRIMARY_RECHECK_INTERVAL * 60))
             if [ "$_pr_now" -ge "$_pr_due" ]; then
                 initiate_primary_recheck

@@ -47,6 +47,31 @@ if [ "$MODE" != "apply" ] && [ "$MODE" != "clear" ]; then
     exit 1
 fi
 
+# --- Clock-step guard (issue #9) ---------------------------------------------
+# crond runs a job whose minute a boot-time clock step crosses. Deny before any
+# config write or AT command. An unreadable schedule time means the config is
+# not readable, not "no schedule", so it denies too. See schedule_guard.sh.
+if [ -f /usr/lib/qmanager/schedule_guard.sh ]; then
+    . /usr/lib/qmanager/schedule_guard.sh
+    if [ "$MODE" = "apply" ]; then
+        sched_time=$(jq -r '.schedule.start_time // empty' "$TOWER_CONFIG_FILE" 2>/dev/null)
+    else
+        sched_time=$(jq -r '.schedule.end_time // empty' "$TOWER_CONFIG_FILE" 2>/dev/null)
+    fi
+    sched_days=$(jq -r '(.schedule.days // []) | map(tostring) | join(",")' "$TOWER_CONFIG_FILE" 2>/dev/null)
+    if ! _qm_validate_hhmm "$sched_time"; then
+        qlog_warn "Schedule $MODE skipped: schedule time unreadable ('$sched_time')"
+        exit 0
+    fi
+    if ! _qm_timer_fire_allowed "$sched_time" "$sched_days"; then
+        qlog_warn "Schedule $MODE skipped: $QM_GUARD_REASON (clock-step guard)"
+        exit 0
+    fi
+else
+    qlog_warn "Schedule $MODE skipped: schedule_guard.sh missing, failing closed"
+    exit 0
+fi
+
 # =============================================================================
 # APPLY MODE — Read config and send lock commands
 # =============================================================================

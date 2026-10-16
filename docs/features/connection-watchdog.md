@@ -624,7 +624,7 @@ The `cooldown_remaining` value in the state file reflects `SIM_SETTLE_SECS` (90 
 
 ### Auto-failback: blind primary-SIM recheck
 
-When `primary_recheck_enabled=1` and the daemon is in an active failover (`sim_failover_active="true"`), the main loop accrues time since `last_recheck_time` (epoch). On reaching `primary_recheck_interval` minutes, `initiate_primary_recheck()` fires — provided: state is `monitor`, no `primary_recheck_active` settle is already in progress, and no user-revert flag is pending (user revert takes precedence).
+When `primary_recheck_enabled=1` and the daemon is in an active failover (`sim_failover_active="true"`), the main loop accrues time since `last_recheck_time` (`mono_now`, seconds since boot: a boot-time clock step must not make a recheck due at once; see [scheduled-jobs.md](scheduled-jobs.md)). On reaching `primary_recheck_interval` minutes, `initiate_primary_recheck()` fires — provided: state is `monitor`, no `primary_recheck_active` settle is already in progress, and no user-revert flag is pending (user revert takes precedence).
 
 **`initiate_primary_recheck()` sequence:**
 

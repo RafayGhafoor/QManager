@@ -29,6 +29,26 @@ STATE_FILE="/tmp/qmanager_low_power_active"
 WATCHCAT_LOCK="/tmp/qmanager_watchcat.lock"
 
 if [ "$1" = "enter" ]; then
+    # Clock-step guard (issue #9): crond runs a job whose minute a boot-time
+    # clock step crosses, and a misfired enter cuts the radio until the exit
+    # time. Exit stays unguarded: restoring the radio is the safe direction.
+    if [ -f /usr/lib/qmanager/schedule_guard.sh ]; then
+        . /usr/lib/qmanager/schedule_guard.sh
+        lp_start=$(uci -q get quecmanager.settings.low_power_start 2>/dev/null)
+        lp_days=$(uci -q get quecmanager.settings.low_power_days 2>/dev/null)
+        if ! _qm_validate_hhmm "$lp_start"; then
+            qlog_info "Low power enter skipped: start time unreadable ('$lp_start')"
+            exit 0
+        fi
+        if ! _qm_timer_fire_allowed "$lp_start" "$lp_days"; then
+            qlog_info "Low power enter skipped: $QM_GUARD_REASON (clock-step guard)"
+            exit 0
+        fi
+    else
+        qlog_info "Low power enter skipped: schedule_guard.sh missing, failing closed"
+        exit 0
+    fi
+
     qlog_info "Entering low power mode"
 
     # Write timestamp so poller/UI know when low power started
