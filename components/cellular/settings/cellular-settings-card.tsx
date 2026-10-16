@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { Field, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
-import { RotateCcwIcon } from "lucide-react";
+import { CardFoot } from "@/components/ui/card-foot";
 import type { CellularSettings } from "@/types/cellular-settings";
 
 interface CellularSettingsCardProps {
@@ -39,6 +39,7 @@ const CellularSettingsCard = ({
 }: CellularSettingsCardProps) => {
   const { t } = useTranslation("cellular");
   const { saved, markSaved } = useSaveFlash();
+  const formId = useId();
   const [simSlot, setSimSlot] = useState<string>("");
   const [cfun, setCfun] = useState<string>("");
   const [modePref, setModePref] = useState<string>("");
@@ -59,6 +60,14 @@ const CellularSettingsCard = ({
     setNr5gMode(String(settings.nr5g_mode));
     setRoamPref(String(settings.roam_pref));
   }
+
+  const isDirty =
+    settings !== null &&
+    (Number(simSlot) !== settings.sim_slot ||
+      Number(cfun) !== settings.cfun ||
+      modePref !== settings.mode_pref ||
+      Number(nr5gMode) !== settings.nr5g_mode ||
+      Number(roamPref) !== settings.roam_pref);
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
@@ -143,12 +152,14 @@ const CellularSettingsCard = ({
                 <Skeleton className="h-9 w-full" />
               </div>
             </div>
-            <div className="flex gap-2">
-              <Skeleton className="h-9 w-28" />
-              <Skeleton className="h-9 w-9" />
-            </div>
           </div>
         </CardContent>
+        <CardFoot
+          className="px-6"
+          liveStatus={false}
+          aria-hidden="true"
+          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
+        />
       </Card>
     );
   }
@@ -162,7 +173,7 @@ const CellularSettingsCard = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="grid gap-4" onSubmit={handleSave}>
+        <form id={formId} className="grid gap-4" onSubmit={handleSave}>
           <div className="w-full">
             <FieldSet>
               <FieldGroup>
@@ -266,20 +277,37 @@ const CellularSettingsCard = ({
               </FieldGroup>
             </FieldSet>
           </div>
-          <div className="flex items-center gap-x-2">
-            <SaveButton type="submit" isSaving={isSaving} saved={saved} />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleReset}
-              disabled={isSaving}
-              aria-label={t("core_settings.basic.radio.reset_aria")}
-            >
-              <RotateCcwIcon />
-            </Button>
-          </div>
         </form>
       </CardContent>
+      <CardFoot
+        className="px-6"
+        status={
+          isDirty ? (
+            <span className="font-medium">{t("common:state.unsaved")}</span>
+          ) : null
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={handleReset}
+              disabled={!isDirty || isSaving}
+            >
+              {t("common:actions.discard")}
+            </Button>
+            <SaveButton
+              type="submit"
+              form={formId}
+              isSaving={isSaving}
+              saved={saved}
+              disabled={!isDirty}
+              size="action"
+            />
+          </>
+        }
+      />
     </Card>
   );
 };

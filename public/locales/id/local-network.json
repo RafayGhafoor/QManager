@@ -100,7 +100,6 @@
     "label_active_link_speed": "Kecepatan Link Aktif",
     "label_set_link_speed": "Atur Kecepatan Link",
     "aria_set_link_speed": "Atur kecepatan link",
-    "badge_saved": "Tersimpan!",
     "placeholder_link_speed": "Pilih kecepatan link",
     "select_label_link_speed": "Batas Kecepatan Link",
     "option_auto_max_speed": "Otomatis (Kecepatan Maks)",

@@ -52,6 +52,7 @@ import {
   ChevronsUpDown,
 } from "lucide-react";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { CardFoot } from "@/components/ui/card-foot";
 import KnownSimsRow from "@/components/system-settings/known-sims-row";
 import SshPasswordSection from "@/components/system-settings/ssh-password/ssh-password-section";
 import { motion } from "motion/react";
@@ -119,12 +120,14 @@ export default function SystemSettingsCard({
               <Skeleton className="h-5 w-24" />
               <Skeleton className="h-9 w-52" />
             </div>
-            <Separator />
-            <div className="flex justify-end">
-              <Skeleton className="h-9 w-32" />
-            </div>
           </div>
         </CardContent>
+        <CardFoot
+          className="px-6"
+          liveStatus={false}
+          aria-hidden="true"
+          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
+        />
       </Card>
     );
   }
@@ -255,6 +258,14 @@ function SystemSettingsForm({
     }
   }, []);
 
+  const handleDiscard = useCallback(() => {
+    if (!settings) return;
+    setTempUnit(settings.temp_unit);
+    setDistanceUnit(settings.distance_unit);
+    setZonename(settings.zonename);
+    setTimezone(settings.timezone);
+  }, [settings]);
+
   // --- Save handler (items 2-4) ---
   const handleSave = useCallback(async () => {
     if (!canSave) return;
@@ -272,7 +283,9 @@ function SystemSettingsForm({
       markSaved();
       toast.success(t("system.toast_saved"));
     } else {
-      toast.error(error || t("system.toast_failed"));
+      // saveSettings returns a bare boolean; the persistent Alert above carries
+      // the reason, and `error` read here would be this render's stale value.
+      toast.error(t("system.toast_failed"));
     }
   }, [
     canSave,
@@ -282,7 +295,6 @@ function SystemSettingsForm({
     distanceUnit,
     timezone,
     zonename,
-    error,
     markSaved,
     t,
   ]);
@@ -444,24 +456,11 @@ function SystemSettingsForm({
             </Popover>
           </motion.div>
 
-          {/* ── Save Button (units + timezone) ────────────────────── */}
-          {/* Kept directly under the settings it saves, above the SSH  */}
-          {/* accordion, so this card-level Save and the SSH form's own */}
-          {/* Change Password button never share the bottom edge.       */}
-          <Separator />
-          <motion.div variants={staggerRowItem} className="flex justify-end">
-            <SaveButton
-              onClick={handleSave}
-              isSaving={isSaving}
-              saved={saved}
-              disabled={!canSave}
-            />
-          </motion.div>
-
           {/* ── SSH Password (disclosed form) ─────────────────────── */}
           {/* Standard accordion: the row IS the trigger. Its own CGI   */}
-          {/* mutation (ssh_password.sh) is independent of the Save      */}
-          {/* button above — see SshPasswordSection.                    */}
+          {/* mutation (ssh_password.sh) is an inline sub-form,         */}
+          {/* independent of the card's CardFoot Save (units +          */}
+          {/* timezone) — see SshPasswordSection.                       */}
           <Separator />
           <motion.div variants={staggerRowItem}>
             <Accordion type="single" collapsible>
@@ -482,6 +481,34 @@ function SystemSettingsForm({
           </motion.div>
         </motion.div>
       </CardContent>
+      <CardFoot
+        className="px-6"
+        status={
+          isDirty ? (
+            <span className="font-medium">{t("common:state.unsaved")}</span>
+          ) : null
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={handleDiscard}
+              disabled={!isDirty || isSaving}
+            >
+              {t("common:actions.discard")}
+            </Button>
+            <SaveButton
+              onClick={handleSave}
+              isSaving={isSaving}
+              saved={saved}
+              disabled={!canSave}
+              size="action"
+            />
+          </>
+        }
+      />
     </Card>
   );
 }

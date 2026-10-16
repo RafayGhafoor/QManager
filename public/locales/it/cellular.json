@@ -730,7 +730,6 @@
         "select_all": "Seleziona tutto",
         "deselect_all": "Deseleziona tutto",
         "unlock_all_aria": "Sblocca tutte le bande",
-        "unlock_all_title": "Sblocca tutte le bande (reimposta)",
         "swap_view": "Passa alle bande {{target}}"
       },
       "card_live_region": "Applicazione del blocco del cinturino {{category_label}}…",
@@ -1498,7 +1497,6 @@
             "partner": "Reti di partner"
           }
         },
-        "reset_aria": "Ripristina i valori salvati",
         "toast": {
           "success": "Impostazioni del modem salvate",
           "error": "Impossibile salvare le impostazioni del modem",
@@ -1685,7 +1683,6 @@
           "option_active_suffix": " (Attivo)"
         },
         "save": "Salva impostazioni",
-        "reset_aria": "Ripristina i valori salvati",
         "reboot_dialog": {
           "title": "Riavvio obbligatorio",
           "description": "Le modifiche al profilo dell'operatore richiedono il riavvio del dispositivo per avere effetto. Desideri riavviare adesso?",
@@ -1722,7 +1719,6 @@
         "warning_aria": "IMEI avviso legale",
         "warning_content": "Le normative sulle modifiche IMEI variano in base al Paese. Controlla le leggi locali prima di modificare IMEI.",
         "write_button": "Scrivi IMEI",
-        "reset_aria": "Ripristina i valori salvati",
         "reboot_dialog": {
           "title": "Riavvio obbligatorio",
           "description": "Le modifiche di IMEI richiedono il riavvio del dispositivo per avere effetto. Desideri riavviare adesso?",
@@ -1750,7 +1746,6 @@
         "field_description": "Il passaggio al backup IMEI richiederà il riavvio del dispositivo per avere effetto.",
         "warning_aria": "IMEI avviso legale",
         "warning_content": "Le normative sulle modifiche IMEI variano in base al Paese. Controlla le leggi locali prima di modificare IMEI.",
-        "reset_aria": "Ripristina i valori salvati",
         "enable_dialog": {
           "title": "Backup IMEI Ripristino automatico",
           "description": "Quando il backup IMEI è abilitato, il dispositivo controllerà automaticamente il rifiuto di IMEI dopo ogni riavvio successivo a una modifica di IMEI. Se la rete rifiuta IMEI primario, il dispositivo passerà al backup IMEI e si riavvierà automaticamente.",
@@ -1803,7 +1798,6 @@
       },
       "drag_aria": "Trascina per riordinare",
       "priority_label": "Priorità {{number}}",
-      "reset_aria": "Ripristina i valori salvati",
       "toast": {
         "success": "Priorità di rete aggiornata",
         "error_fallback": "Impossibile impostare la priorità di rete",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useId, useState, useEffect, useMemo, useCallback } from "react";
 import { useTranslation, Trans } from "react-i18next";
 
 import {
@@ -23,6 +23,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { CardFoot } from "@/components/ui/card-foot";
+import { Button } from "@/components/ui/button";
 import { InfoIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useTtlSettings } from "@/hooks/use-ttl-settings";
@@ -93,6 +95,12 @@ const TTLSettingsCard = () => {
             <Skeleton className="h-10 w-full" />
           </div>
         </CardContent>
+        <CardFoot
+          className="px-6"
+          liveStatus={false}
+          aria-hidden="true"
+          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
+        />
       </Card>
     );
   }
@@ -132,6 +140,7 @@ function TTLForm({
 }) {
   const { t } = useTranslation("local-network");
   const { saved, markSaved } = useSaveFlash();
+  const formId = useId();
 
   // Form state initialized from data — no sync effect needed
   const [isEnabled, setIsEnabled] = useState(data?.isEnabled ?? false);
@@ -161,6 +170,13 @@ function TTLForm({
     }
   }, []);
 
+  const handleDiscard = useCallback(() => {
+    if (!data) return;
+    setIsEnabled(data.isEnabled);
+    setTtlValue(data.ttl > 0 ? String(data.ttl) : "");
+    setHlValue(data.hl > 0 ? String(data.hl) : "");
+  }, [data]);
+
   const handleSave = useCallback(async () => {
     const ttl = isEnabled ? parseInt(ttlValue || "0", 10) : 0;
     const hl = isEnabled ? parseInt(hlValue || "0", 10) : 0;
@@ -176,9 +192,9 @@ function TTLForm({
           : t("ttl.toast_success_disabled"),
       );
     } else {
-      toast.error(error || t("ttl.toast_error_apply"));
+      toast.error(t("ttl.toast_error_apply"));
     }
-  }, [isEnabled, ttlValue, hlValue, saveTtlHl, error, markSaved, t]);
+  }, [isEnabled, ttlValue, hlValue, saveTtlHl, markSaved, t]);
 
   return (
     <Card className="@container/card">
@@ -204,6 +220,7 @@ function TTLForm({
         )}
 
         <form
+          id={formId}
           className="grid gap-4"
           onSubmit={(e) => {
             e.preventDefault();
@@ -265,17 +282,43 @@ function TTLForm({
               )}
             </FieldGroup>
           </FieldSet>
-          <div>
+        </form>
+      </CardContent>
+      {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
+      <CardFoot
+        className="px-6"
+        status={
+          error && !isSaving ? (
+            <span className="text-destructive">
+              {error}
+            </span>
+          ) : isDirty && !isProfileControlled ? (
+            <span className="font-medium">{t("common:state.unsaved")}</span>
+          ) : null
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={handleDiscard}
+              disabled={!(isDirty && !isProfileControlled) || isSaving}
+            >
+              {t("common:actions.discard")}
+            </Button>
             <SaveButton
               type="submit"
+              form={formId}
               isSaving={isSaving}
               saved={saved}
               label={t("actions.apply", { ns: "common" })}
               disabled={isProfileControlled || !isDirty}
+              size="action"
             />
-          </div>
-        </form>
-      </CardContent>
+          </>
+        }
+      />
     </Card>
   );
 }

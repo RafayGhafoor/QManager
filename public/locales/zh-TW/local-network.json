@@ -100,7 +100,6 @@
     "label_active_link_speed": "當前鏈路速率",
     "label_set_link_speed": "設定鏈路速率",
     "aria_set_link_speed": "設定鏈路速率",
-    "badge_saved": "已儲存！",
     "placeholder_link_speed": "選擇鏈路速率",
     "select_label_link_speed": "鏈路速率限制",
     "option_auto_max_speed": "自動（最大速率）",

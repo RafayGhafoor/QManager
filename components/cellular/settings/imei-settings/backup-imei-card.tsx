@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent, type ChangeEvent } from "react";
+import { useId, useState, type FormEvent, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
@@ -42,7 +42,8 @@ import { TbInfoCircleFilled } from "react-icons/tb";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RotateCcwIcon, AlertTriangleIcon } from "lucide-react";
+import { AlertTriangleIcon } from "lucide-react";
+import { CardFoot } from "@/components/ui/card-foot";
 import type { BackupImeiConfig } from "@/types/imei-settings";
 
 interface BackupIMEICardProps {
@@ -62,6 +63,7 @@ const BackupIMEICard = ({
 }: BackupIMEICardProps) => {
   const { t } = useTranslation("cellular");
   const { saved, markSaved } = useSaveFlash();
+  const formId = useId();
   const [localEnabled, setLocalEnabled] = useState(false);
   const [localImei, setLocalImei] = useState("");
   const [showInfoDialog, setShowInfoDialog] = useState(false);
@@ -85,6 +87,9 @@ const BackupIMEICard = ({
   }
 
   const isValidImei = /^\d{15}$/.test(localImei);
+  const isDirty =
+    localEnabled !== (backupEnabled ?? false) ||
+    localImei !== (backupImei ?? "");
 
   const handleSwitchChange = (checked: boolean) => {
     if (checked) {
@@ -167,12 +172,14 @@ const BackupIMEICard = ({
               <Skeleton className="h-9 w-full" />
               <Skeleton className="h-3 w-72" />
             </div>
-            <div className="flex gap-2">
-              <Skeleton className="h-9 w-28" />
-              <Skeleton className="h-9 w-9" />
-            </div>
           </div>
         </CardContent>
+        <CardFoot
+          className="px-6"
+          liveStatus={false}
+          aria-hidden="true"
+          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
+        />
       </Card>
     );
   }
@@ -186,7 +193,7 @@ const BackupIMEICard = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="grid gap-4" onSubmit={handleSave}>
+        <form id={formId} className="grid gap-4" onSubmit={handleSave}>
           <FieldSet>
             <FieldGroup>
               <div className="grid gap-2">
@@ -257,23 +264,6 @@ const BackupIMEICard = ({
               </Field>
             </FieldGroup>
           </FieldSet>
-          <div className="flex items-center gap-x-2">
-            <SaveButton
-              type="submit"
-              isSaving={isSaving}
-              saved={saved}
-              disabled={localEnabled && !isValidImei}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleReset}
-              disabled={isSaving}
-              aria-label={t("core_settings.imei.backup_card.reset_aria")}
-            >
-              <RotateCcwIcon />
-            </Button>
-          </div>
         </form>
 
         {/* Informational dialog when enabling backup IMEI */}
@@ -298,6 +288,36 @@ const BackupIMEICard = ({
           </AlertDialogContent>
         </AlertDialog>
       </CardContent>
+      {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
+      <CardFoot
+        className="px-6"
+        status={
+          isDirty ? (
+            <span className="font-medium">{t("common:state.unsaved")}</span>
+          ) : null
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={handleReset}
+              disabled={!isDirty || isSaving}
+            >
+              {t("common:actions.discard")}
+            </Button>
+            <SaveButton
+              type="submit"
+              form={formId}
+              isSaving={isSaving}
+              saved={saved}
+              disabled={!isDirty || (localEnabled && !isValidImei)}
+              size="action"
+            />
+          </>
+        }
+      />
     </Card>
   );
 };

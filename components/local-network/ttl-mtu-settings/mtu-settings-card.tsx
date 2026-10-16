@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useId, useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -22,6 +22,8 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { CardFoot } from "@/components/ui/card-foot";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useMtuSettings } from "@/hooks/use-mtu-settings";
 
@@ -50,6 +52,12 @@ const MTUSettingsCard = () => {
             <Skeleton className="h-10 w-full" />
           </div>
         </CardContent>
+        <CardFoot
+          className="px-6"
+          liveStatus={false}
+          aria-hidden="true"
+          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
+        />
       </Card>
     );
   }
@@ -86,6 +94,7 @@ function MTUForm({
 }) {
   const { t } = useTranslation("local-network");
   const { saved, markSaved } = useSaveFlash();
+  const formId = useId();
 
   // Form state initialized from data — no sync effect needed
   const [isEnabled, setIsEnabled] = useState(data?.isEnabled ?? false);
@@ -116,6 +125,12 @@ function MTUForm({
     [data],
   );
 
+  const handleDiscard = useCallback(() => {
+    if (!data) return;
+    setIsEnabled(data.isEnabled);
+    setMtuValue(String(data.currentValue));
+  }, [data]);
+
   const handleSave = useCallback(async () => {
     if (!isEnabled) {
       const success = await disableMtu();
@@ -123,7 +138,7 @@ function MTUForm({
         markSaved();
         toast.success(t("mtu.toast_success_disabled"));
       } else {
-        toast.error(error || t("mtu.toast_error_apply"));
+        toast.error(t("mtu.toast_error_apply"));
       }
       return;
     }
@@ -136,9 +151,9 @@ function MTUForm({
       markSaved();
       toast.success(t("mtu.toast_success_enabled", { mtu }));
     } else {
-      toast.error(error || t("mtu.toast_error_apply"));
+      toast.error(t("mtu.toast_error_apply"));
     }
-  }, [isEnabled, mtuValue, saveMtu, disableMtu, error, markSaved, t]);
+  }, [isEnabled, mtuValue, saveMtu, disableMtu, markSaved, t]);
 
   return (
     <Card className="@container/card">
@@ -148,6 +163,7 @@ function MTUForm({
       </CardHeader>
       <CardContent>
         <form
+          id={formId}
           className="grid gap-4"
           onSubmit={(e) => {
             e.preventDefault();
@@ -192,17 +208,43 @@ function MTUForm({
               </Field>
             </FieldGroup>
           </FieldSet>
-          <div>
+        </form>
+      </CardContent>
+      {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
+      <CardFoot
+        className="px-6"
+        status={
+          error && !isSaving ? (
+            <span className="text-destructive">
+              {error}
+            </span>
+          ) : isDirty ? (
+            <span className="font-medium">{t("common:state.unsaved")}</span>
+          ) : null
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={handleDiscard}
+              disabled={!isDirty || isSaving}
+            >
+              {t("common:actions.discard")}
+            </Button>
             <SaveButton
               type="submit"
+              form={formId}
               isSaving={isSaving}
               saved={saved}
               label={t("actions.apply", { ns: "common" })}
-              disabled={!isDirty}
+              disabled={!isDirty || isMtuInvalid}
+              size="action"
             />
-          </div>
-        </form>
-      </CardContent>
+          </>
+        }
+      />
     </Card>
   );
 }

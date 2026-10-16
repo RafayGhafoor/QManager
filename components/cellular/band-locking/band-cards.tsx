@@ -4,11 +4,11 @@ import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { CardFoot } from "@/components/ui/card-foot";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -22,7 +22,6 @@ import {
   ArrowLeftRightIcon,
   LockIcon,
   LockOpenIcon,
-  RotateCcwIcon,
   ShieldIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -205,7 +204,9 @@ const BandCardsComponent = ({
         t("cell_locking.band_locking.toast.locked_success", { category_label: categoryLabel }),
       );
     } else {
-      toast.error(error || t("cell_locking.band_locking.toast.lock_error"));
+      // onLock returns a bare boolean; the shared `error` prop is this render's
+      // stale value, so the toast carries the fixed title only.
+      toast.error(t("cell_locking.band_locking.toast.lock_error"));
     }
   };
 
@@ -215,7 +216,7 @@ const BandCardsComponent = ({
     if (success) {
       toast.success(t("cell_locking.band_locking.toast.unlocked_success", { category_label: categoryLabel }));
     } else {
-      toast.error(error || t("cell_locking.band_locking.toast.unlock_error"));
+      toast.error(t("cell_locking.band_locking.toast.unlock_error"));
     }
   };
 
@@ -265,16 +266,17 @@ const BandCardsComponent = ({
           </motion.div>
         </CardContent>
 
-        <CardFooter className="flex flex-wrap items-center justify-between gap-2 mt-4">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-9 w-32" />
-            <Skeleton className="size-9 rounded-md" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-9 w-20" />
-            <Skeleton className="h-9 w-24" />
-          </div>
-        </CardFooter>
+        <CardFoot
+          className="px-6"
+          liveStatus={false}
+          aria-hidden="true"
+          actions={
+            <>
+              <Skeleton className="h-[2.625rem] w-24 rounded-pill" />
+              <Skeleton className="h-[2.625rem] w-48 rounded-pill" />
+            </>
+          }
+        />
       </Card>
     );
   }
@@ -417,44 +419,53 @@ const BandCardsComponent = ({
         }) : ""}
       </div>
 
-      <CardFooter className="flex flex-wrap items-center justify-between gap-2 mt-4">
-        <div className="flex items-center gap-2">
-          <SaveButton
-            onClick={handleLock}
-            isSaving={isLocking}
-            saved={saved}
-            label={t("cell_locking.band_locking.card_buttons.lock_selected")}
-            disabled={isDisabled || noneSelected || !hasChanges}
-          />
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={handleUnlockAll}
-            disabled={isDisabled || isAllUnlocked}
-            aria-label={t("cell_locking.band_locking.card_buttons.unlock_all_aria")}
-            title={t("cell_locking.band_locking.card_buttons.unlock_all_title")}
-          >
-            <RotateCcwIcon />
-          </Button>
-        </div>
-        {/* Quick actions row */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleSelectAll}
-            disabled={isDisabled}
-          >
-            {t("cell_locking.band_locking.card_buttons.select_all")}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleSelectNone}
-            disabled={isDisabled}
-          >
-            {t("cell_locking.band_locking.card_buttons.deselect_all")}
-          </Button>
-        </div>
-      </CardFooter>
+      <CardFoot
+        className="px-6"
+        status={
+          hasChanges && !isDisabled ? (
+            <span className="font-medium">{t("common:state.unsaved")}</span>
+          ) : null
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={handleSelectAll}
+              disabled={isDisabled}
+            >
+              {t("cell_locking.band_locking.card_buttons.select_all")}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={handleSelectNone}
+              disabled={isDisabled}
+            >
+              {t("cell_locking.band_locking.card_buttons.deselect_all")}
+            </Button>
+            <Button
+              type="button"
+              variant="tonal-neutral"
+              size="action"
+              onClick={handleUnlockAll}
+              disabled={isDisabled || isAllUnlocked}
+            >
+              {t("cell_locking.band_locking.card_buttons.unlock_all_aria")}
+            </Button>
+            <SaveButton
+              onClick={handleLock}
+              isSaving={isLocking}
+              saved={saved}
+              label={t("cell_locking.band_locking.card_buttons.lock_selected")}
+              disabled={isDisabled || noneSelected || !hasChanges}
+              size="action"
+            />
+          </>
+        }
+      />
     </Card>
   );
 };

@@ -821,5 +821,9 @@
         "version": "Versione di QManager registrata"
       }
     }
+  },
+  "adaptive_polling": {
+    "toast_saved": "Polling adattivo salvato.",
+    "toast_failed": "Impossibile salvare il polling adattivo."
   }
 }

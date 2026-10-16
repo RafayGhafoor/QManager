@@ -821,5 +821,9 @@
         "version": "Versi QManager tercatat"
       }
     }
+  },
+  "adaptive_polling": {
+    "toast_saved": "Polling adaptif disimpan.",
+    "toast_failed": "Tidak dapat menyimpan polling adaptif."
   }
 }

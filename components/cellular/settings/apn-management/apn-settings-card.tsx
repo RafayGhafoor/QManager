@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tag } from "@/components/ui/tag";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { CardFoot } from "@/components/ui/card-foot";
 import {
   GlobeIcon,
   PhoneCallIcon,
@@ -204,12 +205,15 @@ function ApnSettingsCardSkeleton() {
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-9 w-full" />
           </div>
-          <div className="flex gap-2">
-            <Skeleton className="h-9 w-28" />
-            <Skeleton className="h-9 w-36" />
-          </div>
         </div>
       </CardContent>
+      <CardFoot
+        className="px-6"
+        liveStatus={false}
+        aria-hidden="true"
+        status={<Skeleton className="h-4 w-48" />}
+        actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
+      />
     </Card>
   );
 }
@@ -230,6 +234,7 @@ export default function ApnSettingsCard({
 }: ApnSettingsCardProps) {
   const { t } = useTranslation("cellular");
   const { saved, markSaved } = useSaveFlash();
+  const formId = useId();
 
   // --- Form state (seeded from `apn`; reset when hook data arrives) ---
   const [apnValue, setApnValue] = useState(apn?.apn ?? "");
@@ -312,6 +317,20 @@ export default function ApnSettingsCard({
 
   const pendingType = pendingCid?.apn_type;
 
+  const isDirty =
+    apn !== null &&
+    (apnValue !== apn.apn ||
+      pdpType !== (apn.pdp_type || "ipv4v6") ||
+      cid !== String(apn.cid));
+
+  const handleDiscard = () => {
+    if (!apn) return;
+    setApnValue(apn.apn);
+    setPdpType(apn.pdp_type || "ipv4v6");
+    setCid(String(apn.cid));
+    setApnError("");
+  };
+
   return (
     <Card className="@container/card">
       <CardHeader>
@@ -319,7 +338,7 @@ export default function ApnSettingsCard({
         <CardDescription>{t("core_settings.apn.card.description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="grid gap-4" onSubmit={handleSubmit}>
+        <form id={formId} className="grid gap-4" onSubmit={handleSubmit}>
           {/* Live-status badge row */}
           <LiveStatusBadge
             active={active}
@@ -425,32 +444,51 @@ export default function ApnSettingsCard({
             </FieldGroup>
           </FieldSet>
 
-          {/* Actions */}
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <SaveButton
-                type="submit"
-                isSaving={isSaving}
-                saved={saved}
-                label={t("core_settings.apn.edit.save_button")}
-              />
-              {active !== 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setConfirmDeactivate(true)}
-                  disabled={isSaving}
-                >
-                  {t("core_settings.apn.carrier_default.button")}
-                </Button>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {t("core_settings.apn.save_connection_notice")}
-            </p>
-          </div>
         </form>
       </CardContent>
+      {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
+      <CardFoot
+        className="px-6"
+        status={
+          isDirty ? (
+            <span className="font-medium">{t("common:state.unsaved")}</span>
+          ) : (
+            t("core_settings.apn.save_connection_notice")
+          )
+        }
+        actions={
+          <>
+            {active !== 0 && (
+              <Button
+                type="button"
+                variant="tonal-neutral"
+                size="action"
+                onClick={() => setConfirmDeactivate(true)}
+                disabled={isSaving}
+              >
+                {t("core_settings.apn.carrier_default.button")}
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={handleDiscard}
+              disabled={!isDirty || isSaving}
+            >
+              {t("common:actions.discard")}
+            </Button>
+            <SaveButton
+              type="submit"
+              form={formId}
+              isSaving={isSaving}
+              saved={saved}
+              label={t("core_settings.apn.edit.save_button")}
+              size="action"
+            />
+          </>
+        }
+      />
 
       {/* Carrier-CID confirmation */}
       <AlertDialog

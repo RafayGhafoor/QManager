@@ -821,5 +821,9 @@
         "version": "QManager version recorded"
       }
     }
+  },
+  "adaptive_polling": {
+    "toast_saved": "Adaptive polling saved.",
+    "toast_failed": "Couldn't save adaptive polling."
   }
 }

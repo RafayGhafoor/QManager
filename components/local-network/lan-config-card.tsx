@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { TriangleAlertIcon } from "lucide-react";
@@ -29,7 +29,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { SaveButton } from "@/components/ui/save-button";
+import { CardFoot } from "@/components/ui/card-foot";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -118,6 +120,7 @@ const LanConfigCard = () => {
   const [ipInput, setIpInput] = useState("");
   const [prefix, setPrefix] = useState<number>(24);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const formId = useId();
 
   const [prevData, setPrevData] = useState(data);
   if (data && data !== prevData) {
@@ -138,6 +141,12 @@ const LanConfigCard = () => {
   const canApply = isValid && isDirty && !isSaving && !applied;
 
   const netmask = useMemo(() => prefixToNetmask(prefix), [prefix]);
+
+  const handleDiscard = useCallback(() => {
+    if (!data) return;
+    setIpInput(data.ipaddr);
+    setPrefix(data.prefix);
+  }, [data]);
 
   // --- Apply ------------------------------------------------------------------
   const handleApply = useCallback(async () => {
@@ -177,9 +186,14 @@ const LanConfigCard = () => {
               <Skeleton className="h-9 max-w-xs w-full" />
               <Skeleton className="h-3 w-48" />
             </div>
-            <Skeleton className="h-9 w-32" />
           </div>
         </CardContent>
+        <CardFoot
+          className="px-6"
+          liveStatus={false}
+          aria-hidden="true"
+          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
+        />
       </Card>
     );
   }
@@ -210,6 +224,7 @@ const LanConfigCard = () => {
               transition={{ duration: DUR.standard, ease: EASE_STANDARD }}
             >
               <form
+                id={formId}
                 className="grid gap-6"
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -282,30 +297,51 @@ const LanConfigCard = () => {
                     </Field>
                   </FieldGroup>
                 </FieldSet>
-
-                {error && !applied && (
-                  <p
-                    role="alert"
-                    className="inline-flex items-center gap-1.5 text-sm text-destructive"
-                  >
-                    <TriangleAlertIcon className="size-3.5 shrink-0" />
-                    {error}
-                  </p>
-                )}
-
-                <SaveButton
-                  type="submit"
-                  className="w-fit"
-                  isSaving={isSaving}
-                  saved={false}
-                  disabled={!canApply}
-                  label={t("lan_config.action_apply")}
-                />
               </form>
             </motion.div>
           )}
         </AnimatePresence>
       </CardContent>
+
+      {/* Hidden while the reconnect countdown owns the card. Outside the form so
+          `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
+      {!applied && (
+        <CardFoot
+          className="px-6"
+          status={
+            error ? (
+              <span className="inline-flex items-center gap-1.5 text-destructive">
+                <TriangleAlertIcon className="size-3.5 shrink-0" />
+                {error}
+              </span>
+            ) : isDirty ? (
+              <span className="font-medium">{tCommon("state.unsaved")}</span>
+            ) : null
+          }
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="action"
+                onClick={handleDiscard}
+                disabled={!isDirty || isSaving}
+              >
+                {tCommon("actions.discard")}
+              </Button>
+              <SaveButton
+                type="submit"
+                form={formId}
+                isSaving={isSaving}
+                saved={false}
+                disabled={!canApply}
+                label={t("lan_config.action_apply")}
+                size="action"
+              />
+            </>
+          }
+        />
+      )}
 
       {/* Confirm dialog — applying severs the LAN connection */}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
