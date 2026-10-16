@@ -227,165 +227,245 @@
     }
   },
   "watchdog": {
-    "page_title": "Watchdog",
-    "page_description": "Rileva e ripristina automaticamente le interruzioni di Internet con passaggi di ripristino crescenti.",
-    "settings_title": "Watchdog Impostazioni",
-    "settings_description": "Configurare il monitoraggio e il ripristino dell'integrità della connessione.",
-    "auto_disabled_alert": "Watchdog si è disabilitato dopo troppi riavvii in un'ora. Riattivalo di seguito una volta che la connessione è stabile.",
-    "enable_label": "Abilita Watchdog",
-    "failure_threshold_label": "Soglia di fallimento",
-    "failure_threshold_placeholder": "5",
-    "failure_threshold_description": "Quanti probe consecutivi falliti contano come disconnessione prima che inizi il ripristino.",
-    "failure_threshold_error": "Deve essere compreso tra 1 e 20",
-    "probe_interval_label": "Intervallo dei probe",
-    "probe_interval_description": "Con quale frequenza il modem controlla Internet. Condiviso con Qualità della connessione.",
-    "probe_interval_tooltip": "Il ripristino reagisce al controllo di connettività eseguito a questo intervallo. La scelta di un profilo imposta la stessa sensibilità della pagina Qualità della connessione; Personalizzato la sostituisce con un intervallo a tua scelta.",
-    "probe_interval_more_info_aria": "Maggiori informazioni sull'intervallo dei probe",
-    "probe_interval_custom": "Personalizzato",
-    "profile_sensitive": "Sensibile",
-    "profile_regular": "Normale",
-    "profile_relaxed": "Rilassato",
-    "profile_quiet": "Silenzioso",
-    "custom_interval_label": "Intervallo personalizzato (secondi)",
-    "custom_interval_placeholder": "8",
-    "custom_interval_description": "Sostituisce l'intervallo del profilo. 1–60 secondi.",
-    "custom_interval_error": "Deve essere compreso tra 1 e 60",
-    "declares_down_preview": "Dichiara la connessione interrotta dopo circa {{secs}} s.",
-    "declares_down_unknown": "Imposta un intervallo dei probe e una soglia di fallimento per vedere il tempo di rilevamento.",
-    "cooldown_label": "Periodo di raffreddamento (secondi)",
-    "cooldown_placeholder": "60",
-    "cooldown_description": "Tempo di attesa dopo ogni passaggio di ripristino prima di verificare nuovamente la connettività.",
-    "cooldown_error": "Deve essere compreso tra 10 e 300 secondi",
-    "max_reboots_label": "Numero massimo di riavvii all'ora",
-    "max_reboots_placeholder": "3",
-    "max_reboots_description": "Quanti riavvii del dispositivo sono consentiti all'ora prima che il watchdog si blocchi.",
-    "max_reboots_error": "Deve essere compreso tra 1 e 10",
-    "tier_1_description": "Chiede al modem di riconnettersi alla rete del tuo operatore. Il primo passaggio, il più delicato.",
-    "tier_2_description": "Spegne e riaccende la radio del modem per forzare una nuova connessione alla torre.",
-    "tier_3_description": "Passa alla SIM di backup quando la SIM primaria non riesce a tornare online.",
-    "tier_4_description": "Riavvia l'intero dispositivo. Utilizzato solo come ultima risorsa quando nient'altro funziona.",
-    "backup_sim_label": "Slot SIM di backup",
-    "backup_sim_placeholder": "Seleziona slot",
-    "backup_sim_slot_1": "Slot 1",
-    "backup_sim_slot_2": "Slot 2",
-    "backup_sim_description": "A quale slot SIM eseguire il failover quando viene attivato il Livello 3.",
-    "backup_sim_required_error": "Seleziona uno slot SIM di backup o disabilita il Livello 3.",
-    "tier_2_tooltip": "Saltato automaticamente quando il blocco della torre è attivo per preservare le celle bloccate.",
-    "tier_2_more_info_aria": "Maggiori informazioni",
-    "toast_save_success": "Watchdog impostazioni salvate",
-    "toast_save_error": "Impossibile salvare le impostazioni del watchdog",
-    "toast_sim_revert_success": "SIM ripristino richiesto. Il watchdog elaborerà la questione a breve.",
-    "toast_sim_revert_error": "Impossibile richiedere il ripristino di SIM",
-    "status_description": "Stato di integrità della connessione in tempo reale.",
-    "status_badge_monitoring": "Monitoraggio",
-    "status_badge_suspect": "Rilevamento problema",
-    "status_badge_recovery": "Recupero",
-    "status_badge_cooldown": "Raffreddamento",
-    "status_badge_locked": "Bloccato",
-    "status_badge_disabled": "Disabilitato",
-    "status_starting": "Watchdog si sta avviando. A breve inizierà il monitoraggio.",
-    "status_row_current_step": "Passaggio corrente",
-    "status_row_failed_checks": "Controlli falliti",
-    "status_row_cooldown": "Raffreddamento",
-    "status_row_total_recoveries": "Recuperi totali",
-    "status_row_reboots_this_hour": "Si riavvia quest'ora",
-    "status_row_last_recovery": "Ultimo recupero",
-    "tier_label_none": "—",
-    "tier_label_short": "Passo {{n}}",
-    "status_cooldown_remaining": "{{count}} rimanenti",
-    "status_sim_failover_message": "In esecuzione sul backup SIM (slot {{current_slot}}) dal {{switched_at}}. L'originale SIM era nello slot {{original_slot}}.",
-    "status_sim_failover_recently": "recentemente",
-    "status_sim_revert_button": "Ripristina originale SIM",
-    "status_sim_reverting": "Ripristino…",
-    "status_sim_revert_dialog_title": "Ripristinare l'originale SIM?",
-    "status_sim_revert_dialog_description": "In questo modo tornerai allo slot SIM {{original_slot}}. La tua connessione Internet si disconnetterà brevemente mentre il modem si riconnette.",
-    "status_sim_revert_cancel": "Annulla",
-    "status_sim_revert_confirm": "Ripristina SIM",
+    "page": {
+      "title": "Watchdog",
+      "description": "Monitora il collegamento a internet e percorre una sequenza di ripristino quando cade.",
+      "refresh": "Aggiorna",
+      "unreadableTitle": "Impossibile leggere le impostazioni del watchdog",
+      "unreadable": "Il modem non ha risposto.",
+      "retry": "Riprova"
+    },
+    "band": {
+      "checks": "Controlli falliti",
+      "recoveries": "Ripristini",
+      "reboots": "Riavvii",
+      "absent": "Non segnalato",
+      "checksCaption": "Prima che inizi il ripristino",
+      "cooldownCaption": "Nuovo controllo tra {{seconds}} secondi",
+      "recoveriesLast": "Passaggio {{tier}}, {{ago}}",
+      "recoveriesNone": "Nessuno finora",
+      "rebootsCaption": "Da quando il watchdog è partito",
+      "rebootsOff": "Passaggio di riavvio disattivo",
+      "aria": "Stato del watchdog",
+      "cooldownStep": "Passaggio {{tier}} eseguito. Nuovo controllo tra {{seconds}} s."
+    },
+    "phase": {
+      "off": {
+        "label": "Spento",
+        "blurb": "Il watchdog non sta monitorando la connessione."
+      },
+      "unknown": {
+        "label": "Sconosciuto",
+        "blurb": "Il modem non risponde, quindi non possiamo sapere cosa sta facendo il watchdog."
+      },
+      "starting": {
+        "label": "Avvio in corso",
+        "blurb": "Il servizio è stato appena abilitato e non ha ancora inviato alcun rapporto."
+      },
+      "not_running": {
+        "label": "Non segnalato",
+        "blurb": "Abilitato, ma il servizio non ha inviato rapporti dall'avvio."
+      },
+      "auto_disabled": {
+        "label": "Disattivato automaticamente",
+        "blurb": "Ha raggiunto il limite di riavvii. Riattivalo quando il collegamento è stabile."
+      },
+      "monitor": {
+        "label": "Monitoraggio",
+        "blurb": "La connessione è in buono stato. Monitoraggio delle interruzioni in corso."
+      },
+      "suspect": {
+        "label": "Verifica in corso",
+        "blurb": "Un controllo di connettività non è riuscito. Verifica in corso prima di agire."
+      },
+      "recovery": {
+        "label": "Ripristino in corso",
+        "blurb": "Esecuzione dei passaggi della sequenza di ripristino per ripristinare la connessione."
+      },
+      "cooldown": {
+        "label": "Cooldown",
+        "blurb": "In attesa che l'ultimo passaggio di ripristino si stabilizzi prima di ricontrollare."
+      },
+      "locked": {
+        "label": "In pausa",
+        "blurb": "È in corso un intervento di manutenzione, quindi il watchdog rimane in attesa."
+      },
+      "disabled": {
+        "label": "Disattivato",
+        "blurb": "Il servizio è in esecuzione ma disattivato."
+      },
+      "ssr_hold": {
+        "label": "In attesa",
+        "blurb": "Il baseband si sta riavviando da solo. Il ripristino attende che torni."
+      }
+    },
+    "master": {
+      "aria": "Abilita il watchdog della connessione"
+    },
+    "ladder": {
+      "title": "Sequenza di ripristino",
+      "description": "Provati in ordine, dal più delicato.",
+      "aria": "Sequenza di ripristino",
+      "status": {
+        "blocked": "Serve uno slot",
+        "running": "In esecuzione"
+      },
+      "tier1": {
+        "name": "Ripeti la registrazione alla rete",
+        "consequence": "Il collegamento cade per qualche secondo."
+      },
+      "tier2": {
+        "name": "Riavvia la radio",
+        "consequence": "Saltato quando è attivo un blocco della torre."
+      },
+      "tier3": {
+        "name": "Passa alla SIM di backup",
+        "consequence": "Resta sulla SIM di backup finché non torni indietro.",
+        "slotLabel": "Slot SIM di backup",
+        "slot": "Slot {{slot}}"
+      },
+      "tier4": {
+        "name": "Riavvia il dispositivo",
+        "consequence": "Offline per circa un minuto.",
+        "capLabel": "Numero massimo di riavvii all'ora",
+        "capLead": "Fino a",
+        "capUnit": "all'ora"
+      },
+      "tierAria": "Attiva questo passaggio di ripristino: {{name}}",
+      "failback": {
+        "name": "Torna alla SIM principale",
+        "consequence": "Riprova la principale; il collegamento cade brevemente a ogni tentativo.",
+        "lead": "Ogni",
+        "unit": "min",
+        "intervalLabel": "Intervallo di ricontrollo della SIM principale"
+      }
+    },
+    "detection": {
+      "title": "Rilevamento",
+      "description": "Quanto rapidamente un collegamento silenzioso viene considerato un'interruzione.",
+      "probe": {
+        "label": "Controlla ogni",
+        "short": "{{seconds}}s"
+      },
+      "threshold": {
+        "label": "Interruzione dopo",
+        "unit": "controlli falliti"
+      },
+      "cooldown": {
+        "label": "Attesa tra i passaggi",
+        "unit": "s"
+      },
+      "timeline": {
+        "eyebrow": "Se il collegamento cade",
+        "declaredStep": "Interruzione dichiarata, passaggio {{tier}}",
+        "declaredReboot": "Interruzione dichiarata, passaggio 4, riavvio",
+        "step": "Passaggio {{tier}}",
+        "reboot": "Passaggio 4, riavvio",
+        "about": "circa {{time}}",
+        "seconds": "{{s}} s",
+        "minutes": "{{m}} min",
+        "minutesSeconds": "{{m}} min {{s}} s",
+        "off": "Il watchdog è disattivo, quindi non viene eseguito nulla.",
+        "none": "Nessun passaggio è attivo, quindi non viene eseguito nulla.",
+        "invalid": "Inserisci valori di rilevamento validi per vedere la sequenza.",
+        "stopped": "Il passaggio 3 non ha uno slot, quindi la sequenza si ferma lì."
+      },
+      "quality": {
+        "label": "Attivazione per qualità",
+        "unit": "controlli",
+        "caption": "Oltre {{ms}} ms o {{pct}}% di perdita",
+        "link": "Soglie"
+      },
+      "ssr": {
+        "label": "Attesa riavvio baseband",
+        "unit": "s",
+        "caption": "Lascia terminare prima un riavvio automatico del modem"
+      }
+    },
+    "activity": {
+      "title": "Attività di ripristino",
+      "description": "Le azioni svolte dal watchdog, dalla più recente.",
+      "type": {
+        "recovery": "Ripristino",
+        "failover": "Failover SIM"
+      },
+      "day": {
+        "today": "Oggi",
+        "yesterday": "Ieri"
+      },
+      "time": {
+        "just_now": "Proprio adesso",
+        "minutes_one": "{{count}}m fa",
+        "minutes_other": "{{count}}m fa",
+        "hours_one": "{{count}}h fa",
+        "hours_other": "{{count}}h fa",
+        "days_one": "{{count}}d fa",
+        "days_other": "{{count}}d fa"
+      },
+      "empty": {
+        "title": "Nessuna attività di ripristino",
+        "description": "I passaggi di ripristino e i failover SIM compaiono qui quando il watchdog interviene su un'interruzione. Le attività più vecchie escono dal registro eventi del modem."
+      },
+      "error": {
+        "title": "Impossibile caricare l'attività di ripristino",
+        "retry": "Riprova"
+      },
+      "allEvents": "Tutti gli eventi"
+    },
+    "save": {
+      "discard": "Scarta",
+      "action": "Salva",
+      "clean": "Tutte le modifiche sono state salvate",
+      "dirty": "Modifiche non salvate",
+      "blockedIn": "Controlla {{fields}} prima di salvare",
+      "toastOk": "Impostazioni del watchdog salvate",
+      "toastFail": "Impossibile salvare le impostazioni del watchdog",
+      "confirmReboot": {
+        "title": "Consentire al watchdog di riavviare il modem?",
+        "body": "Salvando, il watchdog potrà riavviare il modem da solo quando tutti i passaggi più leggeri hanno fallito. Questa pagina non sarà raggiungibile per circa un minuto, mentre il modem si riavvia.",
+        "cap": "I riavvii sono limitati a {{cap}} all'ora. Al raggiungimento del limite il watchdog si disattiva finché non lo riattivi.",
+        "cancel": "Annulla",
+        "action": "Consenti i riavvii"
+      }
+    },
+    "errors": {
+      "failThreshold": "Deve essere compreso tra 1 e 20",
+      "probeInterval": "Deve essere compreso tra 1 e 60 secondi",
+      "cooldown": "Deve essere compreso tra 10 e 300 secondi",
+      "maxReboots": "Deve essere compreso tra 1 e 10",
+      "backupSim": "Scegli uno slot SIM di backup per abilitare il failover",
+      "qualityConsecutive": "Deve essere tra 1 e 60",
+      "ssrGrace": "Deve essere tra 10 e 120 secondi",
+      "recheckInterval": "Deve essere tra 5 e 1440 minuti"
+    },
+    "failover": {
+      "title": "In esecuzione sulla SIM di backup",
+      "body": "Passato allo slot {{current}} {{since}}. La SIM originale si trova nello slot {{original}}.",
+      "recently": "di recente",
+      "revert": "Ripristina la SIM originale",
+      "reverting": "Ripristino…",
+      "confirmTitle": "Ripristinare la SIM originale?",
+      "confirmBody": "Questo torna alla SIM nello slot {{original}}. La connessione a internet si interromperà brevemente mentre il modem si riconnette.",
+      "cancel": "Annulla",
+      "confirm": "Ripristina SIM",
+      "requested": "Ripristino della SIM richiesto. Il watchdog lo elaborerà a breve.",
+      "failed": "Impossibile richiedere il ripristino della SIM"
+    },
+    "strip": {
+      "title": "Controlli",
+      "noReply": "{{n}} senza risposta",
+      "average": "{{ms}} ms di media",
+      "ago": "{{minutes}} min fa",
+      "now": "Ora",
+      "empty": "Nessun dato di controllo dal modem",
+      "aria": "{{total}} controlli, {{missed}} senza risposta"
+    },
     "sim_swap_title": "Rilevata nuova carta SIM",
     "sim_swap_with_profile": "Il profilo <strong>{{profile_name}}</strong> corrisponde a questo SIM.",
     "sim_swap_no_profile": "Nessun profilo corrispondente trovato.",
     "sim_swap_apply_button": "Applica profilo",
     "sim_swap_dismiss_button": "Ignora",
-    "sim_swap_dismiss_aria": "Ignora la notifica di scambio SIM",
-    "quality_more_info_aria": "Maggiori informazioni sul monitoraggio della qualità della connessione",
-    "quality_tooltip": "Latenza e perdita vengono lette come medie su finestra e confrontate con le soglie impostate nella pagina Qualità della connessione. Una violazione deve persistere per il numero impostato di campioni consecutivi prima che venga eseguito il ripristino.",
-    "quality_enable_label": "Abilita monitoraggio qualità",
-    "quality_thresholds_readonly_title": "Il ripristino agisce sulle tue soglie di qualità",
-    "quality_thresholds_link": "Qualità della connessione",
-    "quality_latency_readonly_label": "Latenza oltre",
-    "quality_loss_readonly_label": "Perdita oltre",
-    "quality_thresholds_shared_note": "Impostate nella pagina Qualità della connessione. Le stesse soglie attivano anche gli eventi in Attività recenti.",
-    "quality_consecutive_label": "Violazioni consecutive",
-    "quality_consecutive_placeholder": "5",
-    "quality_consecutive_description": "Quanti controlli consecutivi devono violare una soglia prima che venga eseguito il ripristino.",
-    "quality_consecutive_error": "Deve essere un numero compreso tra 1 e 60.",
-    "overview_description": "Stato di salute della connessione in tempo reale e azioni di ripristino eseguite.",
-    "quality_off_hint": "Disattivato — il ripristino si attiva solo sulla raggiungibilità.",
-    "state_off_title": "Watchdog disattivato",
-    "state_off_subtitle": "Attivalo per monitorare la salute della connessione e ripristinarla automaticamente.",
-    "state_starting_title": "Avvio in corso",
-    "state_blurb_monitor": "Connessione integra. In attesa di interruzioni.",
-    "state_blurb_suspect": "Un controllo è appena fallito. Conferma in corso prima di agire.",
-    "state_blurb_recovery": "Esecuzione di un passaggio di ripristino per ristabilire la connessione.",
-    "state_blurb_cooldown": "In attesa di verificare se l'ultimo passaggio ha funzionato.",
-    "state_blurb_locked": "In pausa durante la manutenzione del modem.",
-    "state_blurb_disabled": "Interrotto dopo ripetuti riavvii.",
-    "tier_1_name": "Nuova registrazione di rete",
-    "tier_2_name": "Riavvia radio del modem",
-    "tier_3_name": "Passa alla SIM di backup",
-    "tier_4_name": "Riavvia dispositivo",
-    "save_unsaved": "Modifiche non salvate",
-    "save_discard": "Annulla",
-    "save_fix_errors": "Correggi prima i campi evidenziati.",
-    "save_all_saved": "Tutte le modifiche salvate",
-    "tab_quality": "Qualità connessione",
-    "status_badge_ssr_hold": "Ripristino autonomo del modem in corso",
-    "state_blurb_ssr_hold": "Il modem sta riavviando il firmware radio. Il ripristino è in attesa affinché possa riprendersi da solo.",
-    "ssr_aware_label": "Attendi il ripristino autonomo della radio",
-    "ssr_aware_description": "Quando il modem riavvia brevemente il proprio firmware radio, lascia che si ripristini prima che vengano eseguiti i passaggi di ripristino.",
-    "ssr_aware_tooltip": "Alcuni modem riavviano brevemente il firmware radio e si ripristinano da soli in pochi secondi. Quando ciò viene rilevato, il watchdog attende invece di forzare una riconnessione, che potrebbe prolungare l'interruzione. Se la connessione non è tornata dopo la finestra di tolleranza, i passaggi di ripristino vengono eseguiti normalmente.",
-    "ssr_aware_more_info_aria": "Ulteriori informazioni sull'attesa del ripristino autonomo della radio",
-    "ssr_grace_label": "Finestra di tolleranza (secondi)",
-    "ssr_grace_placeholder": "45",
-    "ssr_grace_description": "Per quanto tempo lasciare che il modem si ripristini da solo prima che i passaggi di ripristino possano intervenire.",
-    "ssr_grace_error": "Deve essere un numero compreso tra 10 e 120.",
-    "primary_recheck_label": "Ritorno automatico alla SIM primaria",
-    "primary_recheck_description": "Passa periodicamente alla SIM primaria per verificare se funziona di nuovo, e torna ad essa automaticamente quando lo fa.",
-    "primary_recheck_tooltip": "Il modem può usare una sola SIM alla volta, quindi l'unico modo per sapere se la SIM primaria funziona di nuovo è tornare ad essa e testarla. Ogni verifica interrompe brevemente la connessione — se la primaria è ancora inattiva, il watchdog torna alla SIM di backup. Lascia questa opzione disattivata se preferisci tornare manualmente.",
-    "primary_recheck_more_info_aria": "Ulteriori informazioni sul ritorno automatico alla SIM primaria",
-    "primary_recheck_interval_label": "Ricontrolla ogni (minuti)",
-    "primary_recheck_interval_placeholder": "30",
-    "primary_recheck_interval_description": "Con quale frequenza testare la SIM primaria mentre si utilizza il backup. Ogni verifica interrompe brevemente la connessione.",
-    "primary_recheck_interval_error": "Deve essere un numero compreso tra 5 e 1440.",
-    "status_live_title": "Stato in tempo reale",
-    "status_row_quality_breaches": "Violazioni qualità",
-    "status_state_announce": "Stato watchdog: {{state}}",
-    "hero_ladder_label": "Scala di ripristino",
-    "hero_ladder_step_enabled": "{{name}}: attivo",
-    "hero_ladder_step_disabled": "{{name}}: disattivato",
-    "hero_ladder_step_running": "{{name}}: in esecuzione",
-    "tab_detection": "Rilevamento",
-    "tab_recovery": "Ripristino",
-    "tab_has_errors_aria": "Questa scheda contiene campi che richiedono attenzione",
-    "probe_interval_effective": "Effettivo: controlla la connessione ogni {{secs}}s.",
-    "quality_on_hint": "Attivo — il ripristino si avvia anche quando latenza o perdita di pacchetti restano oltre le soglie.",
-    "save_fix_errors_in": "Correggi i campi evidenziati in {{tabs}} prima di salvare.",
-    "save_saved_flash": "Modifiche salvate",
-    "save_button": "Salva modifiche",
-    "save_saving": "Salvataggio…",
-    "activity_title": "Attività di ripristino",
-    "activity_description": "Tentativi di ripristino e failover SIM registrati dal watchdog.",
-    "activity_refresh_aria": "Aggiorna attività di ripristino",
-    "activity_load_error": "Impossibile caricare l’attività di ripristino.",
-    "activity_retry": "Riprova",
-    "activity_col_event": "Evento",
-    "activity_col_detail": "Dettaglio",
-    "activity_col_time": "Ora",
-    "activity_empty_title": "Nessuna attività di ripristino",
-    "activity_empty_message": "Quando il watchdog esegue un passo di ripristino o passa a una SIM di backup, comparirà qui.",
-    "activity_page_status": "Pagina {{page}} di {{total}}",
-    "activity_prev_aria": "Pagina precedente",
-    "activity_next_aria": "Pagina successiva"
+    "sim_swap_dismiss_aria": "Ignora la notifica di scambio SIM"
   },
   "tailscale": {
     "page_title": "TailscaleVPN",

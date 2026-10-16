@@ -1098,7 +1098,7 @@ Merges both channels' NDJSON logs, tags each entry with `channel: "sms"|"email"`
 
 ### GET/POST `/monitoring/watchdog.sh`
 
-> ℹ️ NOTE: The sample below predates the current shape. The live GET returns `settings`, then top-level `probe_profile`, `interval_override`, `effective_interval`, `interval_sec`, `fail_secs`, `recover_secs`, `quality_thresholds`, `status`, `sim_failover`, `sim_swap`, `auto_disabled`. See [`docs/features/connection-watchdog.md`](features/connection-watchdog.md) for the authoritative envelope.
+> ℹ️ NOTE: The sample below predates the current shape. The live GET returns `settings`, then top-level `probe_profile`, `interval_override`, `effective_interval`, `interval_sec`, `fail_secs`, `recover_secs`, `quality_thresholds`, `status`, `sim_failover`, `sim_swap`, `auto_disabled`. POST `save_settings` writes only the keys present (an absent key, `backup_sim_slot` included, is left untouched) and accepts `probe_interval` (int 1-60, written to `ping_profile.interval_override` only when it changed; ledger U4.6). See [`docs/features/connection-watchdog.md`](features/connection-watchdog.md) for the authoritative envelope.
 
 **GET Response:**
 ```json

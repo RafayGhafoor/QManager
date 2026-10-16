@@ -227,165 +227,245 @@
     }
   },
   "watchdog": {
-    "page_title": "看門狗",
-    "page_description": "透過分級恢復步驟自動檢測並從網路中斷中恢復。",
-    "settings_title": "看門狗設定",
-    "settings_description": "設定連線健康監測與恢復。",
-    "auto_disabled_alert": "一小時內重啟次數過多，看門狗已自行停用。請在連線恢復穩定後，在下方重新啟用。",
-    "enable_label": "啟用看門狗",
-    "failure_threshold_label": "失敗閾值",
-    "failure_threshold_placeholder": "5",
-    "failure_threshold_description": "連續多少次探測失敗即判定為斷線，然後開始恢復。",
-    "failure_threshold_error": "必須在 1–20 之間",
-    "probe_interval_label": "探測間隔",
-    "probe_interval_description": "數據機檢查網際網路的頻率。與連線質量共享。",
-    "probe_interval_tooltip": "恢復會回應以此間隔執行的連通性檢測。選擇某個設定檔會採用與連線質量頁面相同的靈敏度；自訂則用你自己的間隔將其覆蓋。",
-    "probe_interval_more_info_aria": "關於探測間隔的更多資訊",
-    "probe_interval_custom": "自訂",
-    "profile_sensitive": "靈敏",
-    "profile_regular": "常規",
-    "profile_relaxed": "寬鬆",
-    "profile_quiet": "安靜",
-    "custom_interval_label": "自訂間隔（秒）",
-    "custom_interval_placeholder": "8",
-    "custom_interval_description": "覆蓋設定檔的間隔。1–60 秒。",
-    "custom_interval_error": "必須在 1–60 之間",
-    "declares_down_preview": "約 {{secs}} 秒後判定連線中斷。",
-    "declares_down_unknown": "設定探測間隔和失敗閾值以查看偵測時間。",
-    "cooldown_label": "冷卻時間（秒）",
-    "cooldown_placeholder": "60",
-    "cooldown_description": "每次恢復步驟後，再次檢測連通性前的等待時間。",
-    "cooldown_error": "必須在 10–300 秒之間",
-    "max_reboots_label": "每小時最大重啟次數",
-    "max_reboots_placeholder": "3",
-    "max_reboots_description": "每小時允許的裝置重啟次數，超過後看門狗會自行鎖定。",
-    "max_reboots_error": "必須在 1–10 之間",
-    "tier_1_description": "重啟 WAN 介面。恢復最快，影響最小。",
-    "tier_2_description": "使用 AT+CFUN 迴圈讓調變解調器重新註冊網路。",
-    "tier_3_description": "當主 SIM 無法恢復時，切換到備用 SIM 槽。",
-    "tier_4_description": "重啟裝置。僅在其他所有層級均失敗後使用。",
-    "backup_sim_label": "備用 SIM 槽",
-    "backup_sim_placeholder": "選擇卡槽",
-    "backup_sim_slot_1": "卡槽 1",
-    "backup_sim_slot_2": "卡槽 2",
-    "backup_sim_description": "Tier 3 觸發時要切換到的 SIM 槽。",
-    "backup_sim_required_error": "請選擇備用 SIM 槽，或關閉 Tier 3。",
-    "tier_2_tooltip": "在鐵塔鎖定啟用時自動跳過，以保留已鎖定的小區。",
-    "tier_2_more_info_aria": "更多資訊",
-    "toast_save_success": "看門狗設定已儲存",
-    "toast_save_error": "儲存看門狗設定失敗",
-    "toast_sim_revert_success": "已請求 SIM 還原，看門狗稍後將處理。",
-    "toast_sim_revert_error": "請求 SIM 還原失敗",
-    "status_description": "實時連線健康狀態。",
-    "status_badge_monitoring": "監測中",
-    "status_badge_suspect": "檢測問題中",
-    "status_badge_recovery": "恢復中",
-    "status_badge_cooldown": "冷卻中",
-    "status_badge_locked": "已鎖定",
-    "status_badge_disabled": "已停用",
-    "status_starting": "看門狗正在啟動，稍後將開始監測。",
-    "status_row_current_step": "當前步驟",
-    "status_row_failed_checks": "失敗檢測數",
-    "status_row_cooldown": "冷卻",
-    "status_row_total_recoveries": "累計恢復次數",
-    "status_row_reboots_this_hour": "本小時重啟次數",
-    "status_row_last_recovery": "上次恢復",
-    "tier_label_none": "—",
-    "tier_label_short": "第 {{n}} 步",
-    "status_cooldown_remaining": "剩餘 {{count}} 秒",
-    "status_sim_failover_message": "正在使用備用 SIM（卡槽 {{current_slot}}），自 {{switched_at}} 起切換。原始 SIM 在卡槽 {{original_slot}}。",
-    "status_sim_failover_recently": "剛才",
-    "status_sim_revert_button": "恢復到原始 SIM",
-    "status_sim_reverting": "恢復中…",
-    "status_sim_revert_dialog_title": "恢復到原始 SIM？",
-    "status_sim_revert_dialog_description": "將切換回 SIM 卡槽 {{original_slot}}。調變解調器重新連線期間網路會短暫中斷。",
-    "status_sim_revert_cancel": "取消",
-    "status_sim_revert_confirm": "恢復 SIM",
+    "page": {
+      "title": "看門狗",
+      "description": "監控網際網路連線，在中斷時依恢復階梯逐步處理。",
+      "refresh": "重新整理",
+      "unreadableTitle": "無法讀取看門狗設定",
+      "unreadable": "數據機沒有回應。",
+      "retry": "重試"
+    },
+    "band": {
+      "checks": "失敗偵測",
+      "recoveries": "恢復",
+      "reboots": "重啟",
+      "absent": "未回報",
+      "checksCaption": "開始恢復前",
+      "cooldownCaption": "{{seconds}} 秒後重新偵測",
+      "recoveriesLast": "第 {{tier}} 步，{{ago}}",
+      "recoveriesNone": "尚無記錄",
+      "rebootsCaption": "自看門狗啟動起",
+      "rebootsOff": "重啟步驟已關閉",
+      "aria": "看門狗狀態",
+      "cooldownStep": "第 {{tier}} 步已執行，{{seconds}} 秒後重新偵測。"
+    },
+    "phase": {
+      "off": {
+        "label": "已關閉",
+        "blurb": "看門狗未監控連線。"
+      },
+      "unknown": {
+        "label": "未知",
+        "blurb": "數據機沒有回應，因此無法得知看門狗目前的狀態。"
+      },
+      "starting": {
+        "label": "啟動中",
+        "blurb": "服務剛啟用，尚未回報狀態。"
+      },
+      "not_running": {
+        "label": "未回報",
+        "blurb": "已啟用，但服務自開機以來尚未回報。"
+      },
+      "auto_disabled": {
+        "label": "已自動關閉",
+        "blurb": "已達到重啟次數上限。待連線穩定後再重新開啟。"
+      },
+      "monitor": {
+        "label": "監控中",
+        "blurb": "連線狀況良好，正在監控是否發生斷線。"
+      },
+      "suspect": {
+        "label": "檢查中",
+        "blurb": "剛才有一次連線檢查失敗，正在確認後才會採取行動。"
+      },
+      "recovery": {
+        "label": "恢復中",
+        "blurb": "正在依序執行恢復步驟，以恢復連線。"
+      },
+      "cooldown": {
+        "label": "冷卻中",
+        "blurb": "正在等待上一個恢復步驟生效，然後再重新偵測。"
+      },
+      "locked": {
+        "label": "已暫停",
+        "blurb": "有維護作業正在進行，看門狗暫時不會採取行動。"
+      },
+      "disabled": {
+        "label": "已停用",
+        "blurb": "服務正在執行，但功能已關閉。"
+      },
+      "ssr_hold": {
+        "label": "等待中",
+        "blurb": "基頻正在自行重新啟動，復原作業會等待其恢復。"
+      }
+    },
+    "master": {
+      "aria": "啟用連線看門狗"
+    },
+    "ladder": {
+      "title": "恢復階梯",
+      "description": "按順序嘗試，從最溫和的方式開始。",
+      "aria": "恢復階梯",
+      "status": {
+        "blocked": "需要插槽",
+        "running": "正在執行"
+      },
+      "tier1": {
+        "name": "重新註冊到網路",
+        "consequence": "連線會中斷幾秒鐘。"
+      },
+      "tier2": {
+        "name": "重新啟動無線電",
+        "consequence": "鎖定基地台時跳過。"
+      },
+      "tier3": {
+        "name": "切換到備用 SIM 卡",
+        "consequence": "將使用備用卡運作，直到您切回。",
+        "slotLabel": "備用 SIM 卡插槽",
+        "slot": "插槽 {{slot}}"
+      },
+      "tier4": {
+        "name": "重啟裝置",
+        "consequence": "離線約一分鐘。",
+        "capLabel": "每小時最大重啟次數",
+        "capLead": "最多",
+        "capUnit": "次/小時"
+      },
+      "tierAria": "啟用此恢復步驟：{{name}}",
+      "failback": {
+        "name": "切回主要 SIM 卡",
+        "consequence": "定期重試主要 SIM 卡，每次嘗試都會短暫斷線。",
+        "lead": "每",
+        "unit": "分鐘",
+        "intervalLabel": "主要 SIM 卡複查間隔"
+      }
+    },
+    "detection": {
+      "title": "偵測",
+      "description": "靜默連線多久後會被判定為斷線。",
+      "probe": {
+        "label": "探測間隔",
+        "short": "{{seconds}}秒"
+      },
+      "threshold": {
+        "label": "斷線判定",
+        "unit": "次探測失敗"
+      },
+      "cooldown": {
+        "label": "步驟間隔",
+        "unit": "秒"
+      },
+      "timeline": {
+        "eyebrow": "連線中斷時",
+        "declaredStep": "判定斷線，執行第 {{tier}} 步",
+        "declaredReboot": "判定斷線，執行第 4 步：重啟",
+        "step": "第 {{tier}} 步",
+        "reboot": "第 4 步：重啟",
+        "about": "約 {{time}}",
+        "seconds": "{{s}} 秒",
+        "minutes": "{{m}} 分鐘",
+        "minutesSeconds": "{{m}} 分 {{s}} 秒",
+        "off": "看門狗已關閉，不會執行任何步驟。",
+        "none": "沒有啟用任何步驟，不會執行任何操作。",
+        "invalid": "輸入有效的偵測數值即可預覽時間線。",
+        "stopped": "第 3 步沒有插槽，恢復流程將止步於此。"
+      },
+      "quality": {
+        "label": "品質觸發",
+        "unit": "次",
+        "caption": "延遲超過 {{ms}} ms 或封包遺失超過 {{pct}}%",
+        "link": "臨界值"
+      },
+      "ssr": {
+        "label": "基頻重新啟動等待",
+        "unit": "秒",
+        "caption": "先等待模組自行重新啟動完成"
+      }
+    },
+    "activity": {
+      "title": "恢復活動",
+      "description": "看門狗執行過的操作，最新優先。",
+      "type": {
+        "recovery": "恢復",
+        "failover": "SIM 卡故障轉移"
+      },
+      "day": {
+        "today": "今天",
+        "yesterday": "昨天"
+      },
+      "time": {
+        "just_now": "剛剛",
+        "minutes_one": "{{count}} 分鐘前",
+        "minutes_other": "{{count}} 分鐘前",
+        "hours_one": "{{count}} 小時前",
+        "hours_other": "{{count}} 小時前",
+        "days_one": "{{count}} 天前",
+        "days_other": "{{count}} 天前"
+      },
+      "empty": {
+        "title": "尚無恢復活動",
+        "description": "當看門狗處理斷線時，恢復步驟和 SIM 卡切換會顯示在這裡。較早的活動會從數據機事件記錄中滾出。"
+      },
+      "error": {
+        "title": "無法載入恢復活動",
+        "retry": "重試"
+      },
+      "allEvents": "全部事件"
+    },
+    "save": {
+      "discard": "捨棄",
+      "action": "儲存",
+      "clean": "所有變更已儲存",
+      "dirty": "有未儲存的變更",
+      "blockedIn": "儲存前請檢查 {{fields}}",
+      "toastOk": "看門狗設定已儲存",
+      "toastFail": "無法儲存看門狗設定",
+      "confirmReboot": {
+        "title": "允許看門狗重啟數據機？",
+        "body": "儲存後，當所有更溫和的步驟都失敗時，看門狗可以自行重啟數據機。此頁面會消失約一分鐘，等待數據機恢復。",
+        "cap": "每小時最多重啟 {{cap}} 次。達到上限後，看門狗會自行關閉，直到您重新開啟。",
+        "cancel": "取消",
+        "action": "允許重啟"
+      }
+    },
+    "errors": {
+      "failThreshold": "必須介於 1 到 20 之間",
+      "probeInterval": "必須介於 1 到 60 秒之間",
+      "cooldown": "必須介於 10 到 300 秒之間",
+      "maxReboots": "必須介於 1 到 10 之間",
+      "backupSim": "選擇備用 SIM 卡插槽以啟用故障轉移",
+      "qualityConsecutive": "必須介於 1 到 60 之間",
+      "ssrGrace": "必須介於 10 到 120 秒之間",
+      "recheckInterval": "必須介於 5 到 1440 分鐘之間"
+    },
+    "failover": {
+      "title": "目前使用備用 SIM 卡",
+      "body": "已切換到插槽 {{current}}，{{since}}。原始 SIM 卡位於插槽 {{original}}。",
+      "recently": "最近",
+      "revert": "還原至原始 SIM 卡",
+      "reverting": "正在還原…",
+      "confirmTitle": "還原至原始 SIM 卡？",
+      "confirmBody": "這將切換回 SIM 卡插槽 {{original}}。數據機重新連線期間，網路會短暫中斷。",
+      "cancel": "取消",
+      "confirm": "還原 SIM 卡",
+      "requested": "已請求還原 SIM 卡。看門狗將盡快處理。",
+      "failed": "無法請求還原 SIM 卡"
+    },
+    "strip": {
+      "title": "探測",
+      "noReply": "{{n}} 次無回應",
+      "average": "平均 {{ms}} 毫秒",
+      "ago": "{{minutes}} 分鐘前",
+      "now": "現在",
+      "empty": "數據機沒有探測資料",
+      "aria": "{{total}} 次探測，{{missed}} 次無回應"
+    },
     "sim_swap_title": "檢測到新 SIM 卡",
     "sim_swap_with_profile": "檢測到新 SIM 卡。設定檔 <strong>{{profile_name}}</strong> 匹配此 SIM。",
     "sim_swap_no_profile": "檢測到新 SIM 卡。未找到匹配的設定檔。",
     "sim_swap_apply_button": "套用設定檔",
     "sim_swap_dismiss_button": "關閉",
-    "sim_swap_dismiss_aria": "關閉 SIM 更換通知",
-    "quality_more_info_aria": "關於連線質量監控的更多資訊",
-    "quality_tooltip": "延遲和丟包以視窗平均值讀取，並與你在連線質量頁面設定的閾值進行比較。違規必須在設定的連續樣本數內持續，才會執行恢復。",
-    "quality_enable_label": "啟用質量監控",
-    "quality_thresholds_readonly_title": "恢復依據你的質量閾值",
-    "quality_thresholds_link": "連線質量",
-    "quality_latency_readonly_label": "延遲超過",
-    "quality_loss_readonly_label": "丟包超過",
-    "quality_thresholds_shared_note": "在連線質量頁面設定。相同的閾值也會觸發最近活動事件。",
-    "quality_consecutive_label": "連續違規次數",
-    "quality_consecutive_placeholder": "5",
-    "quality_consecutive_description": "在執行恢復之前，必須連續多少次檢查違反上限。",
-    "quality_consecutive_error": "必須是介於 1 到 60 之間的數字。",
-    "overview_description": "即時連線健康狀況及已執行的恢復操作。",
-    "quality_off_hint": "已關閉 — 僅在無法連線時觸發恢復。",
-    "state_off_title": "看門狗已關閉",
-    "state_off_subtitle": "開啟後即可監控連線健康並自動恢復。",
-    "state_starting_title": "正在啟動",
-    "state_blurb_monitor": "連線正常，正在監視中斷。",
-    "state_blurb_suspect": "剛有一次檢測失敗，正在確認。",
-    "state_blurb_recovery": "正在執行恢復步驟以恢復連線。",
-    "state_blurb_cooldown": "正在等待確認上一步是否生效。",
-    "state_blurb_locked": "數據機維護期間已暫停。",
-    "state_blurb_disabled": "因多次重啟已停止。",
-    "tier_1_name": "網路重新註冊",
-    "tier_2_name": "重啟數據機射頻",
-    "tier_3_name": "切換到備用 SIM",
-    "tier_4_name": "重啟裝置",
-    "save_unsaved": "未儲存的更改",
-    "save_discard": "放棄",
-    "save_fix_errors": "請先修正高亮的欄位。",
-    "save_all_saved": "所有更改已儲存",
-    "tab_quality": "連線質量",
-    "status_badge_ssr_hold": "等待數據機自行恢復",
-    "state_blurb_ssr_hold": "數據機正在重啟射頻韌體。暫緩恢復操作，讓其自行恢復。",
-    "ssr_aware_label": "等待射頻自恢復完成",
-    "ssr_aware_description": "當數據機短暫重啟其射頻韌體時，等待其自行恢復後再執行任何恢復步驟。",
-    "ssr_aware_tooltip": "部分數據機會短暫重啟射頻韌體，並在數秒內自行恢復。檢測到此情況時，看門狗將等待而非強制重新連線，否則可能延長中斷時間。如果連線在寬限窗口結束後仍未恢復，恢復步驟將照常執行。",
-    "ssr_aware_more_info_aria": "關於等待射頻自恢復的更多資訊",
-    "ssr_grace_label": "寬限窗口（秒）",
-    "ssr_grace_placeholder": "45",
-    "ssr_grace_description": "在恢復步驟介入之前，允許數據機自行恢復的時長。",
-    "ssr_grace_error": "必須是介於 10 到 120 之間的數字。",
-    "primary_recheck_label": "自動回切至主要 SIM",
-    "primary_recheck_description": "定期切回主要 SIM 以確認其是否恢復正常，若確認正常則自動返回使用。",
-    "primary_recheck_tooltip": "數據機一次只能使用一張 SIM，因此唯一能確認主要 SIM 是否恢復的方法是切回並測試。每次檢測都會短暫中斷連線 — 若主要 SIM 仍無法使用，看門狗會切回備用 SIM。如果您偏好手動切換，請關閉此功能。",
-    "primary_recheck_more_info_aria": "更多關於自動回切至主要 SIM 的資訊",
-    "primary_recheck_interval_label": "重新檢測間隔（分鐘）",
-    "primary_recheck_interval_placeholder": "30",
-    "primary_recheck_interval_description": "使用備用 SIM 期間，測試主要 SIM 的頻率。每次檢測都會短暫中斷連線。",
-    "primary_recheck_interval_error": "必須是介於 5 到 1440 之間的數字。",
-    "status_live_title": "即時狀態",
-    "status_row_quality_breaches": "品質超標次數",
-    "status_state_announce": "看門狗狀態：{{state}}",
-    "hero_ladder_label": "復原階梯",
-    "hero_ladder_step_enabled": "{{name}}：已啟用",
-    "hero_ladder_step_disabled": "{{name}}：已停用",
-    "hero_ladder_step_running": "{{name}}：正在執行",
-    "tab_detection": "偵測",
-    "tab_recovery": "復原",
-    "tab_has_errors_aria": "此索引標籤有需要處理的欄位",
-    "probe_interval_effective": "實際：每 {{secs}} 秒檢查一次連線。",
-    "quality_on_hint": "已開啟 — 當延遲或封包遺失持續超過門檻時，也會觸發復原。",
-    "save_fix_errors_in": "儲存前請修正 {{tabs}} 中反白的欄位。",
-    "save_saved_flash": "變更已儲存",
-    "save_button": "儲存變更",
-    "save_saving": "儲存中…",
-    "activity_title": "復原活動",
-    "activity_description": "看門狗記錄的復原嘗試與 SIM 容錯移轉。",
-    "activity_refresh_aria": "重新整理復原活動",
-    "activity_load_error": "無法載入復原活動。",
-    "activity_retry": "重試",
-    "activity_col_event": "事件",
-    "activity_col_detail": "詳細資料",
-    "activity_col_time": "時間",
-    "activity_empty_title": "尚無復原活動",
-    "activity_empty_message": "當看門狗執行復原步驟或切換至備用 SIM 時，將會顯示在此處。",
-    "activity_page_status": "第 {{page}} 頁，共 {{total}} 頁",
-    "activity_prev_aria": "上一頁",
-    "activity_next_aria": "下一頁"
+    "sim_swap_dismiss_aria": "關閉 SIM 更換通知"
   },
   "tailscale": {
     "page_title": "Tailscale VPN",

@@ -26,7 +26,7 @@
 | Tier-3 settle floor | `SIM_SETTLE_SECS=90` s (hard-coded constant — not a UCI key); applies to both forward Tier-3 swap and user-requested revert |
 | Reboot? | Tier 4 only (deferred via `sleep 1 && reboot` after state write) |
 | Frontend hook | `hooks/use-watchdog-settings.ts` |
-| Frontend card | `components/monitoring/watchdog/watchdog-settings-card.tsx` |
+| Frontend cards | `components/monitoring/watchdog/` bento: `status-band.tsx`, `ladder-card.tsx`, `detection-card.tsx`, `recovery-activity-card.tsx` (per-card saves through `watchdog-foot.tsx`) |
 
 ---
 
@@ -193,7 +193,7 @@ The watchdog is the **sole writer** of `ping_profile.interval_override`. When an
 
 **Effective interval resolution** (`conn_state_resolve`, used by `qmanager_ping` and both CGIs): `interval_override` if set, else the profile→seconds map: `sensitive=1`, `regular=2`, `relaxed=5`, `quiet=10`. The GET response from `watchdog.sh` exposes `interval_override` (raw), `effective_interval` (resolved) and, since ledger B2.1, numeric `interval_sec` (same value as `effective_interval`), `fail_secs` and `recover_secs` from `conn_state_cadence` (UCI, correct while the daemon is down). The GET response from `ping_profile.sh` surfaces the same set. These are the fields the Watchdog bento (ledger U4.6) and Connection Quality (U4.7) consume.
 
-> ℹ️ NOTE: The RM520N fork's `watchdog.sh` POST also writes `probe_interval` (`3fb535ba`). That was not ported; the target POST is unchanged (it still accepts `probe_profile` / `interval_override`) and the port is deferred to ledger U4.6.
+**`probe_interval` POST (ledger U4.6, ports `rm520n` `3fb535ba` in intent).** The Detection card sends the effective cadence as `probe_interval` (int 1-60). The CGI compares it with `conn_state_cadence`'s `CQ_CFG_INTERVAL_SEC`: an unchanged value writes nothing (so a save never touches cadence by accident); a changed value sets `ping_profile.interval_override`, or deletes it when the value equals the profile's own interval (`CQ_CFG_PROFILE_INTERVAL_SEC`), and touches `/tmp/qmanager_ping_reload`. `probe_interval` is ignored when the same POST carries `interval_override`. The Watchdog page no longer writes `probe_profile`; choosing a profile is Connection Quality's job. Verified on the RM551E 2026-10-16 (unchanged, changed, back to the profile value, 0 rejected; UCI restored byte-identical).
 
 > ⚠️ WARNING: Only the watchdog writes `interval_override`. `ping_profile.sh` POST never touches this key — it writes only `profile`/targets and touches the ping reload flag. Hand-editing UCI or calling `ping_profile.sh` POST cannot override the interval; only a watchdog save can.
 
@@ -375,7 +375,7 @@ Written atomically via `STATE_TMP` → `mv`. The CGI GET passes the full file co
 
 > ℹ️ NOTE: `revert_settle_active` is an in-process shell variable only — it is NOT written to the state file. The UI sees the settle as a normal `cooldown` state with `cooldown_remaining` set to `SIM_SETTLE_SECS` (90 s); there is no separate field to distinguish a post-revert settle from a post-recovery cooldown in the state file.
 
-> ℹ️ NOTE: The poller re-emits a `watchcat` object into `status.json`, but it does NOT yet carry `quality_breach_count`, `quality_enabled`, `last_recovery_reason`, `ssr_hold`, or `last_ssr_detected`. The Live Status hero (`watchdog-status-card.tsx`) reads `state` from the poller's re-emit via `useModemStatus` (the poller passes `.state` verbatim, so `"ssr_hold"` flows from daemon → state file → poller → `modemStatus.watchcat.state` → the hero without any poller change), but reads `quality_breach_count` from the hook's separately-polled `status` field (the CGI GET's full state-file passthrough), since that field never reaches the poller re-emit.
+> ℹ️ NOTE: The poller re-emits a `watchcat` object into `status.json`, but it does NOT yet carry `quality_breach_count`, `quality_enabled`, `last_recovery_reason`, `ssr_hold`, or `last_ssr_detected`. The status card (`status-band.tsx`) reads `state` from the poller's re-emit via `useModemStatus` (the poller passes `.state` verbatim, so `"ssr_hold"` flows from daemon to state file to poller to `modemStatus.watchcat.state` without any poller change). Since U4.6 nothing on the page reads `quality_breach_count`.
 
 ---
 
@@ -433,7 +433,41 @@ Returns current UCI settings, live daemon state, SIM failover state, SIM swap de
 
 Three actions are supported.
 
-**`save_settings`** — validate and write all settings fields to UCI, touch the reload flag, and restart or stop the daemon as appropriate. When the probe interval changed (i.e. `probe_profile` or `interval_override` differs from the current UCI value), the CGI also touches `/tmp/qmanager_ping_reload` so the running ping daemon picks up the new interval within one probe cycle.
+**`save_settings`** — validate and write the settings fields **present in the body** to UCI, touch the reload flag, and restart or stop the daemon as appropriate. Every key is optional: an absent key leaves its UCI value untouched, which is what lets each bento card send only its own fields (since U4.6 this includes `backup_sim_slot`, which used to be cleared whenever the key was missing). When the probe interval changed (`probe_profile`, `interval_override` or `probe_interval`), the CGI also touches `/tmp/qmanager_ping_reload` so the running ping daemon picks up the new interval within one probe cycle.
+
+The page sends one card at a time. Ladder card:
+
+```json
+{
+  "action": "save_settings",
+  "enabled": true,
+  "tier1_enabled": true,
+  "tier2_enabled": true,
+  "tier3_enabled": false,
+  "tier4_enabled": true,
+  "backup_sim_slot": null,
+  "primary_recheck_enabled": false,
+  "primary_recheck_interval": 30,
+  "max_reboots_per_hour": 3
+}
+```
+
+Detection card:
+
+```json
+{
+  "action": "save_settings",
+  "probe_interval": 10,
+  "fail_threshold": 5,
+  "cooldown": 60,
+  "quality_enabled": true,
+  "quality_consecutive": 5,
+  "ssr_aware": true,
+  "ssr_grace": 45
+}
+```
+
+The older full-body form (every key, plus `check_interval`, `probe_profile`, `interval_override`) is still accepted:
 
 ```json
 {
@@ -483,7 +517,8 @@ Send `"interval_override": null` to clear a custom override and revert to the pr
 | `check_interval` | int 5–60 |
 | `cooldown` | int 10–300 |
 | `max_reboots_per_hour` | int 1–10 |
-| `backup_sim_slot` | 1 or 2, or null/absent to clear |
+| `backup_sim_slot` | 1 or 2 to set; JSON `null` to clear; absent leaves it untouched |
+| `probe_interval` | int 1–60; written only when it differs from the current cadence (see Probe-interval ownership keys) |
 | `quality_consecutive` | int 1–60 |
 | `ssr_grace` | int 10–120 |
 | `ssr_aware` | boolean |
@@ -648,71 +683,44 @@ When `primary_recheck_enabled=1` and the daemon is in an active failover (`sim_f
 
 ## Frontend Files
 
-The page was rebuilt (July 2026) from a grid of grouped cards into the
-**status-first single-column anatomy** (see `DESIGN.md`'s "Status-First
-Feature Page" canon, first established for RG520 Watchdog+Alerts): page header → read-only **Live Status**
-hero → one tabbed **Settings** card (Detection / Quality / Recovery) with a
-sticky save bar → a new **Recovery Activity** log. Because the backend save is
-still atomic (one `save_settings` POST), a single `useWatchdogForm` instance
-owns the whole form; the Save / Discard pair lives only in the settings card's
-sticky footer and commits every pending change across all three tabs, not just
-the visible one.
+The page is the RM520N fork's **compact bento with per-card saves** (ledger U4.6, ported from `rm520n` `91a78420` + `cb0d701e` + `baa10530` on 2026-10-16; it replaced the July 2026 status-first page with its tabbed settings card and sticky save bar). Order: page header with a Refresh pill, then the SIM-failover banner (only while on the backup SIM), the **status card**, **Recovery ladder** (7fr) beside **Detection** (5fr) at equal height (stacking below `@4xl/main`), and **Recovery activity**. Every editable card commits its own draft from its own `CardFoot` (Card-Foot Apply Rule); there is no page-level save.
 
 | File | Purpose |
 |---|---|
-| `hooks/use-watchdog-settings.ts` | Fetch (30s poll) + save + SIM-dismiss/revert; types `WatchdogSettings`, `WatchdogLiveStatus` |
-| `components/monitoring/watchdog/watchdog.tsx` | Page coordinator: owns `useWatchdogSettings`, remounts the form on a settings signature, renders the three-card column + the `PageSkeleton` (status/settings/activity skeletons mirror the live geometry) |
-| `components/monitoring/watchdog/use-watchdog-form.ts` | Single form-state coordinator: all 16 fields, validation (mirrors CGI ranges), dirty check, `submit`, `discard` |
-| `components/monitoring/watchdog/watchdog-status-card.tsx` | Live Status hero. Four render branches — loading / off / settling / live — keyed off **saved** settings + daemon truth, never the form's dirty draft (Saved-State Honesty). Master toggle lives in `CardAction` and applies only on Save. Reads `useModemStatus` (5s poll) for daemon truth and the hook's 30s-polled `settings`/`status` for saved config and the state-file passthrough. |
-| `components/monitoring/watchdog/watchdog-settings-card.tsx` | Tabbed settings card (Detection / Quality / Recovery) with the sticky save bar; owns per-tab error dots, focus-first-invalid-field-on-blocked-save, and the four-state `SaveStatus` line |
-| `components/monitoring/watchdog/watchdog-recovery-activity-card.tsx` | Paginated (6/page) history table: client-side filters the shared Network Events feed (`useRecentActivities`) down to `watchcat_recovery` + `sim_failover` event types; in-table empty state, manual refresh action, staggered-row entrance via `lib/motion` tokens |
-| `components/monitoring/watchdog/sim-swap-banner.tsx` | SIM swap / SIM failover toast (rendered globally in `app-layout.tsx`) |
+| `hooks/use-watchdog-settings.ts` | Fetch (30 s poll) + save + SIM revert. `WatchdogSettings` folds the GET's `interval_sec` in as `probe_interval`. `saveSettings` RETURNS `WatchdogSaveResult { ok, message, field }` (the reason through `resolveErrorMessage`, CGI `reason` as detail), so toasts never read stale hook `error` state. Live state is not surfaced here. |
+| `hooks/use-modem-status.ts` | Poller snapshot (5 s on this page) for `watchcat`, `sim_failover` and `connectivity.latency_history`. Its `receivedAtMs` (browser clock at arrival) feeds the grace gate. |
+| `components/monitoring/watchdog/watchdog.tsx` | Page coordinator and the three data states: skeletons from `shapes.ts`, a destructive condition block with Retry when the settings read fails, the surface |
+| `components/monitoring/watchdog/derive.ts` | The one derived model: `derivePhase` (12 phases: the daemon's 7 states, including the target-only `ssr_hold`, plus `off` / `unknown` / `starting` / `not_running` / `auto_disabled`), `deriveBand`, `deriveStrip`, `deriveTimeline`, `useTimeAgo`, `useGraceGate` |
+| `components/monitoring/watchdog/shapes.ts` | Geometry and tone contract; skeletons import the same constants |
+| `components/monitoring/watchdog/use-watchdog-form.ts` | Two scoped drafts over saved truth (`ladder`, `detection`). Edits overlay settings, so one card's save keeps the other card's half-edit. A card POSTs **only its own keys** (see the CGI section). One save at a time; per-card `SaveButton` flash; `grantsRebootAuthority` |
+| `components/monitoring/watchdog/watchdog-foot.tsx` | One card's `CardFoot`: status on the left (clean, unsaved, or blocked naming the fields), Discard + `SaveButton` on the right. The Ladder foot gates the save behind the reboot-authority `AlertDialog` (`baa10530`) |
+| `components/monitoring/watchdog/status-band.tsx` | Status card: phase disc, title and blurb, three figures (failed checks, recoveries, reboots), the 60-slot probe strip. Reports SAVED truth only; auto-disabled folds in as a phase |
+| `components/monitoring/watchdog/ladder-card.tsx` | Master On/Off in the header, four rungs as `SegmentedField`s (step 3 is one Slot 1 / Slot 2 / Off pill), step 3's companion row **Switch back to the primary SIM** (target-only auto-failback: minutes field + On/Off, inert unless step 3 is armed), step 4's reboot cap. The running tier promotes to `primary-container` |
+| `components/monitoring/watchdog/detection-card.tsx` | Receipt rows: Probe every (segmented, a Select below `lg`; a saved off-list cadence gets its own segment), Down after, Wait between steps, then the target-only **Quality trigger** (bad-check count + On/Off; the caption shows the shared thresholds and links to `/monitoring/connection-quality`) and **Baseband restart hold** (`ssr_aware` + `ssr_grace`). Below them, the derived outage timeline from both drafts |
+| `components/monitoring/watchdog/recovery-activity-card.tsx` | Newest five `watchcat_recovery` / `sim_failover` events from `useRecentActivities`, day-grouped 52px rows; "All events" goes to `/monitoring/events` |
+| `components/monitoring/watchdog/banners.tsx` | `FailoverBanner`: running on the backup SIM, with the Revert `AlertDialog` |
+| `components/monitoring/watchdog/sim-swap-banner.tsx` | SIM swap toast (rendered globally in `app-layout.tsx`); unchanged |
 
-Deleted in the rebuild: `watchdog-overview-card.tsx`, `watchdog-triggers-card.tsx`, `watchdog-recovery-ladder.tsx` — their responsibilities were absorbed into `watchdog-status-card.tsx` (hero + read-only ladder stepper) and `watchdog-settings-card.tsx` (tabbed trigger + ladder settings).
+Deleted by U4.6: `watchdog-status-card.tsx`, `watchdog-settings-card.tsx`, `watchdog-recovery-activity-card.tsx`.
 
-### Saved-State Honesty (Live Status hero)
+### Saved-state honesty
 
-`watchdog-status-card.tsx` branches on `settings.enabled` (the **saved** UCI value from the 30s-polled hook) and `modemStatus.watchcat?.enabled` (daemon truth from `useModemStatus`) — never on `form.isEnabled`, which can be a dirty, unsaved toggle position. This produces four branches:
+The status card and the ladder's "Running now" marker read saved settings plus poller truth, never the draft. Flipping the master pill is a draft edit until the Ladder card saves. `unknown` (poller unreachable, or stale with a plausible clock) outranks every live state. After a save enables the watchdog, `useGraceGate` holds `starting` for 60 s (measured on `receivedAtMs`, not a render-time `Date.now()`) before calling it `not_running`.
 
-1. **Loading** — `useModemStatus` still loading and no `watchcat` object yet.
-2. **Off** — `settings.enabled` is false. Shown even if the form's master switch is currently flipped on but not yet saved.
-3. **Settling** — `settings.enabled` is true but the daemon hasn't reported state yet (just enabled, still starting).
-4. **Live** — the daemon is reporting; renders the full state tile (via `STATE_META`, one branch per `WatchcatState` including `ssr_hold`), the counter strip, the read-only ladder stepper, and the SIM-failover revert alert when applicable.
+### Per-card save rules
 
-**Why:** flipping the enable Switch in the UI is a form edit like any other field — it does not take effect until Save. A hero that reacts to the dirty toggle would show "Off" or "Starting" before the user has committed anything, which is misleading. The hero always answers "what is actually running," and the master Switch itself lives in the hero's `CardAction` purely as a convenience — it still only applies on Save.
+- A card sends only its own keys; the other card's saved values are never echoed, so a stale page cannot overwrite a cadence or slot changed elsewhere.
+- A blocked save names the fields in the foot (`Intl.ListFormat`), and a click on the blocked Save focuses the first one.
+- Toasts: `watchdog.save.toastOk` on success; `watchdog.save.toastFail` plus the returned reason as `description` on failure. A failed save keeps the draft dirty.
+- Reboot authority is confirmed at SAVE when the draft newly has master AND step 4 on (a stock device seeds step 4 armed under a master that is off).
 
-### Quality-breach live stat (closes a prior gap)
+### Types and i18n
 
-The counter strip now includes a `status_row_quality_breaches` stat sourced from `liveStatus?.quality_breach_count` (the CGI GET's full state-file passthrough, `hooks/use-watchdog-settings.ts`'s `status` field — not the poller's `watchcat` re-emit, which still omits this field, see the Daemon State File note above). The stat entry is conditionally spread into the `stats` array only `when typeof liveStatus?.quality_breach_count === "number"`, so older daemon versions that omit the field simply don't render the row rather than showing a misleading `0`. This resolves the "quality breach counter in the status card is a follow-up" gap noted in an earlier revision of this doc.
+`WatchcatState` in `types/modem-status.ts` has `"ssr_hold"` as a union member; the poller passes the daemon's `.state` verbatim. The poller's `watchcat` re-emit does not carry `quality_breach_count`, `ssr_hold` or `last_recovery_reason`, so the bento shows no quality-breach figure (the July 2026 page read it from the CGI passthrough; the fork's status card has three figures and the port keeps them).
 
-### Accessibility
+`monitoring:watchdog.*` was rewritten from the fork's `common:watchdog.*` subtree (all five packs taken from the fork, then the target-only keys `phase.ssr_hold`, `detection.quality`, `detection.ssr`, `ladder.failback` and their `errors.*` added in all five). The `sim_swap_*` keys used by `sim-swap-banner.tsx` are kept. On/Off labels come from `common:state.on` / `common:state.off`.
 
-- **State-change announcement:** an `sr-only` element with `role="status" aria-live="polite"` inside the Live Status card announces `watchdog.status_state_announce` with the current state label whenever `stateKey` changes, so a screen-reader user learns about a `monitor → suspect → recovery` transition without needing to re-read the visual hero.
-- **Error navigation:** `watchdog-settings-card.tsx` tracks per-field `HTMLElement` refs (`registerField`/`fieldRefs`). A blocked Save (`form.hasValidationErrors` or either "custom value required but empty" case) switches to the first tab holding an error and, one animation frame later (`requestAnimationFrame`, never a render-phase ref read — React Compiler's ref-access-in-render lint rule flags that), calls `.focus({ preventScroll: true })` + `.scrollIntoView` on the offending field. Each `TabsTrigger` also carries a small destructive dot (`aria-label="watchdog.tab_has_errors_aria"`) whenever any field on that tab is invalid, so the error is visible before the user even opens the tab.
-- **Sticky save bar `SaveStatus`:** a four-state truthful line ("blocked — fix errors in tab X", "unsaved changes", "saving…", "" when clean) driven by `isDirty` + `blocked` + `isSaving`, so the bar never claims a save happened when it didn't or hides a validation block behind a generic disabled button.
-
-**`WatchdogSettings`** (in `hooks/use-watchdog-settings.ts`):
-- `max_failures` renamed to `fail_threshold` (int, 1–20).
-- `latency_ceiling_ms` and `loss_ceiling_pct` **removed** — thresholds now come from the shared `quality_thresholds` object surfaced from the GET.
-- Added `probe_profile: PingProfile`, `interval_override: number | null`, `effectiveInterval: number` (derived client-side from `interval_override` ?? profile→seconds map), and `qualityThresholds: QualityThresholdsSettings` (read from the GET's `quality_thresholds` passthrough; changes to it are saved via `useQualityThresholds`, not the watchdog save).
-- `ssr_aware: boolean` and `ssr_grace: number` remain unchanged.
-- Added `primary_recheck_enabled: boolean` and `primary_recheck_interval: number` (int, 5–1440 minutes). The form validates the interval range and blocks save when `primary_recheck_enabled=true` but no valid interval is entered.
-
-**`WatchdogLiveStatus`** added optional `ssr_hold?: boolean` and `last_ssr_detected?: number | null`. These are typed optional because older daemon versions will not emit them. The existing optional fields `quality_breach_count`, `quality_enabled`, and `last_recovery_reason` follow the same rule — consumers must handle their absence.
-
-**`WatchcatState`** in `types/modem-status.ts` has `"ssr_hold"` as a union member. The poller passes the daemon's `.state` field verbatim, so `"ssr_hold"` reaches `modemStatus.watchcat.state` without any poller-side change.
-
-**Probe-interval Select (Detection tab):** The Detection tab of the settings card gained a probe-interval Select showing the 4 named profiles plus a "Custom" option that reveals a numeric Input (1–60 s). Choosing a profile writes `probe_profile`; choosing Custom writes `interval_override`. A derived live preview ("Declares the connection down after about Ns") is displayed below the threshold controls, where N = `effectiveInterval × fail_threshold`.
-
-**Connection Sensitivity alert:** `connectivity-sensitivity-card.tsx` shows an informational Alert when `interval_override` is set, explaining that the watchdog is enforcing a custom probe interval and that the profile choice becomes the fallback once the override is cleared. The profile Tabs are NOT disabled — they remain interactive so the user can pre-select a profile to fall back to. The daemon ignores the profile while an override is active.
-
-**`use-quality-thresholds.ts`** was updated to flatten `latency.custom_ms` / `loss.custom_pct` onto the POST body when `preset=custom`.
-
-**SSR-aware gate control (Recovery tab):** The gate control lives in the Recovery tab of `watchdog-settings-card.tsx`. It renders a Switch (`ssr_aware`) with a `TbInfoCircleFilled` tooltip, and when the Switch is on, an animated-in grace-seconds `Input` field (range 10–120). This surface is disabled when the master watchdog switch is off (`masterOff`).
-
-**SSR hold hero state (Live Status card):** `STATE_META["ssr_hold"]` in `watchdog-status-card.tsx` uses `tone: "info"`, `ActivityIcon`, and `pulse: true`. The badge reads "Letting Modem Self-Recover" and the blurb explains the modem is restarting its radio firmware. Info tone is deliberate — this is calm, expected behaviour, not a destructive state.
-
-**i18n:** `public/locales/{en,id,it,zh-CN,zh-TW}/monitoring.json` are at full parity for the `watchdog.*` namespace — 159 keys per locale after the July 2026 status-first rebuild (29 keys were added for the new hero/settings/activity anatomy — including `status_live_title`, `status_state_announce`, `status_row_quality_breaches`, `hero_ladder_*`, `tab_has_errors_aria`, `save_fix_errors_in`, `tier_label_short`/`tier_label_none`, `state_starting_title` — and a legacy set of 27 keys orphaned by the same rebuild, e.g. `triggers_title`, `status_title`, `recovery_steps_title`, `check_interval_*`, `tier_label_1..4`, `tier_1_enable_label..tier_4_enable_label`, `error_load`, was removed from all five locales). No `fallbackLng` gap remains for this namespace.
+**Connection Sensitivity alert:** `connectivity-sensitivity-card.tsx` shows an informational Alert when `interval_override` is set, explaining that the watchdog is enforcing a custom probe interval and that the profile choice becomes the fallback once the override is cleared.
 
 ---
 
@@ -727,8 +735,6 @@ The counter strip now includes a `status_row_quality_breaches` stat sourced from
 - **Detection is not instantaneous.** The status.json `avg_latency_ms` and `packet_loss_pct` values are windowed averages over ~60 poller samples. A brief spike will be absorbed by the window. Only a sustained degradation lasting across `quality_consecutive × check_interval` seconds (on top of the poller's averaging window) will trigger quality recovery.
 
 - **`custom` preset requires explicit save to take effect.** If you change `latency_custom_ms` or `loss_custom_pct` in UCI directly without also writing `latency_preset=custom`, `resolve_quality_thresholds()` will use the named preset and ignore the custom value. Always save via `quality_thresholds.sh` POST to keep the preset and custom value in sync.
-
-- **Quality breach counter is now live in the status card (resolved).** `watchdog-status-card.tsx` reads `quality_breach_count` from the hook's `status` field — the CGI GET's full `/tmp/qmanager_watchcat.json` passthrough — NOT from the poller's `watchcat` re-emit in `status.json`, which still omits this field. The stat is spread into the counter strip only when the field is a `number`, so older daemon builds that predate this field simply don't render the row instead of showing a false `0`.
 
 - **Stale poller = NO-SIGNAL, not healthy.** If `qmanager_poller` is dead or crashed, `status.json` goes stale. The quality trigger treats this as no-signal and freezes the breach counter. This is correct behavior, but it means a dead poller silently disables quality triggering. Check `/tmp/qmanager_status.json` root `.timestamp` if the quality trigger appears to not be evaluating. Note: the poller's Adaptive Polling deep tier (see [`docs/features/adaptive-polling.md`](../adaptive-polling.md)) does not affect the watchdog — `write_cache` and `read_ping_data` run at the 2 s base cadence in all tiers regardless of AT-read gating, so `.timestamp` and `.connectivity` stay fresh even while the device is deep-idle.
 
