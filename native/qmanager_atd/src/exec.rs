@@ -71,7 +71,115 @@ pub fn clear_stale_long_flag(lock: &LockFile, log: &Logger) {
     }
 }
 
+fn log_drained(log: &Logger, drained: &[u8], cmd: &str) {
+    let d = String::from_utf8_lossy(drained);
+    let d: String = d.chars().take(120).filter(|&c| c != '\r').map(|c| if c == '\n' { ' ' } else { c }).collect();
+    log.debug(&format!("drained stale/URC before {cmd}: {d}"));
+}
+
+/// The one AtError -> error-code mapping, shared by AT requests and SMS ops.
+fn map_error(log: &Logger, cmd: &str, e: AtError) -> Code {
+    match e {
+        AtError::Timeout => {
+            log.error(&format!("Command killed by deadline: {cmd}"));
+            Code::CommandTimeout
+        }
+        AtError::NotReady => {
+            log.error(&format!("Channel not ready for: {cmd}"));
+            Code::ModemNotReady
+        }
+        // The channel went away under us (SSR / glink reset): the modem is
+        // restarting, the command was not at fault.
+        e @ AtError::Eof => {
+            log.error(&format!("Channel lost during: {cmd} ({e:?})"));
+            Code::ModemNotReady
+        }
+        AtError::Io(e) if crate::channel::is_reset(&e) => {
+            log.error(&format!("Channel reset during: {cmd} ({e:?})"));
+            Code::ModemNotReady
+        }
+        e => {
+            log.error(&format!("Command failed: {cmd} ({e:?})"));
+            Code::CommandFailed
+        }
+    }
+}
+
+/// Several exchanges under one hold of the modem lock (an SMS operation).
+/// Every exchange is bounded by its own timeout and by the session's end.
+pub struct Session<'s, D: Device> {
+    ch: &'s mut Channel<D>,
+    log: &'s Logger,
+    end: Instant,
+}
+
+impl<D: Device> Session<'_, D> {
+    fn bound(&self, timeout: Duration) -> Option<Instant> {
+        let now = Instant::now();
+        (now < self.end).then(|| (now + timeout).min(self.end))
+    }
+
+    /// One AT exchange. Replies are not logged: SMS listings carry message
+    /// bodies (one-time codes), which must not land in the log.
+    pub fn at(&mut self, cmd: &str, timeout: Duration) -> Result<Vec<u8>, Code> {
+        let Some(deadline) = self.bound(timeout) else {
+            self.log.error(&format!("SMS session out of time before: {cmd}"));
+            return Err(Code::CommandTimeout);
+        };
+        let r = self.ch.exchange(cmd, deadline);
+        if !self.ch.last_drained.is_empty() {
+            log_drained(self.log, &self.ch.last_drained, cmd);
+        }
+        r.map_err(|e| map_error(self.log, cmd, e))
+    }
+
+    /// A prompt exchange (AT+CMGS): `payload` is written after the `> ` prompt.
+    pub fn at_prompt(&mut self, cmd: &str, payload: &[u8], prompt: Duration, timeout: Duration) -> Result<Vec<u8>, Code> {
+        let Some(deadline) = self.bound(timeout) else {
+            self.log.error(&format!("SMS session out of time before: {cmd}"));
+            return Err(Code::CommandTimeout);
+        };
+        let r = self.ch.exchange_prompt(cmd, payload, Instant::now() + prompt, deadline);
+        r.map_err(|e| map_error(self.log, cmd, e))
+    }
+}
+
+/// Longest an SMS session may hold the modem. Kept under the client's 340 s
+/// reply timeout so a long multipart send never looks like a frozen broker.
+pub const SESSION_LIMIT: Duration = Duration::from_secs(270);
+
 impl<D: Device> Executor<'_, D> {
+    /// Runs `f` under one acquisition of the modem lock, with the same gate and
+    /// budget as a short AT command (scan_in_progress, modem_busy, queue time
+    /// counted against the 5 s budget).
+    pub fn session<T>(
+        &mut self,
+        label: &str,
+        waited: Duration,
+        f: impl FnOnce(&mut Session<'_, D>) -> T,
+    ) -> Result<T, Code> {
+        if long_running() {
+            self.log.log(crate::log::Level::Debug, "LOCK: Blocked by long command");
+            return Err(Code::ScanInProgress);
+        }
+        if waited > LOCK_WAIT_SHORT {
+            self.log.error(&format!("Lock acquisition failed for: {label} (queued {}ms)", waited.as_millis()));
+            return Err(Code::ModemBusy);
+        }
+        let _held = match self.lock.acquire(LOCK_WAIT_SHORT - waited) {
+            Some(h) => h,
+            None => {
+                self.log.error(&format!("Lock acquisition failed for: {label}"));
+                return Err(Code::ModemBusy);
+            }
+        };
+        let _ = write_nofollow(PID_FILE, format!("{}\n", std::process::id()).as_bytes());
+        let mut s = Session { ch: &mut *self.ch, log: self.log, end: Instant::now() + SESSION_LIMIT };
+        let out = f(&mut s);
+        let _ = std::fs::remove_file(PID_FILE);
+        Ok(out)
+    }
+
     pub fn run(&mut self, cmd: &str) -> Outcome {
         self.run_after(cmd, Duration::ZERO)
     }
@@ -118,35 +226,12 @@ impl<D: Device> Executor<'_, D> {
         let outcome = match self.ch.exchange(cmd, deadline_for(cmd, long)) {
             Ok(raw) => {
                 if !self.ch.last_drained.is_empty() {
-                    let d = String::from_utf8_lossy(&self.ch.last_drained);
-                    let d: String = d.chars().take(120).filter(|&c| c != '\r').map(|c| if c == '\n' { ' ' } else { c }).collect();
-                    self.log.debug(&format!("drained stale/URC before {cmd}: {d}"));
+                    log_drained(self.log, &self.ch.last_drained, cmd);
                 }
                 self.log.at_cmd(cmd, &String::from_utf8_lossy(&raw), true);
                 Outcome::Ok(raw)
             }
-            Err(AtError::Timeout) => {
-                self.log.error(&format!("Command killed by deadline: {cmd}"));
-                Outcome::Err(Code::CommandTimeout)
-            }
-            Err(AtError::NotReady) => {
-                self.log.error(&format!("Channel not ready for: {cmd}"));
-                Outcome::Err(Code::ModemNotReady)
-            }
-            // The channel went away under us (SSR / glink reset): the modem is
-            // restarting, the command was not at fault.
-            Err(e @ AtError::Eof) => {
-                self.log.error(&format!("Channel lost during: {cmd} ({e:?})"));
-                Outcome::Err(Code::ModemNotReady)
-            }
-            Err(AtError::Io(e)) if crate::channel::is_reset(&e) => {
-                self.log.error(&format!("Channel reset during: {cmd} ({e:?})"));
-                Outcome::Err(Code::ModemNotReady)
-            }
-            Err(e) => {
-                self.log.error(&format!("Command failed: {cmd} ({e:?})"));
-                Outcome::Err(Code::CommandFailed)
-            }
+            Err(e) => Outcome::Err(map_error(self.log, cmd, e)),
         };
 
         if long {
