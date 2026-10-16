@@ -100,11 +100,6 @@
     "chart_description": "This chart shows the {{signal_type}} signal strength over recent history.",
     "fluctuation_note": "Values may fluctuate due to environmental factors and network conditions."
   },
-  "latency": {
-    "title": "Internet Latency and Speed Test",
-    "chart_latency": "Internet RTT",
-    "chart_packetloss": "Packetloss"
-  },
   "speedtest": {
     "section_label": "Speed Test",
     "start_button_aria": "Start speed test",
@@ -140,7 +135,13 @@
     "view_result_link": "View on Speedtest.net",
     "bytes_transferred": "{{bytes}} transferred",
     "try_again_button": "Try Again",
-    "run_again_button": "Run Again"
+    "run_again_button": "Run Again",
+    "unit_mbps": "Mbps",
+    "unit_ms": "ms",
+    "time_just_now": "just now",
+    "time_minutes_ago": "{{count}} min ago",
+    "time_hours_ago": "{{count}} hr ago",
+    "time_days_ago": "{{count}} d ago"
   },
   "scc": {
     "title": "Secondary Carriers",
@@ -317,5 +318,37 @@
     "unit_s": "s",
     "unit_pct": "%",
     "unmeasured": "—"
+  },
+  "connection_quality": {
+    "title": "Connection Quality",
+    "description": "How steady the link has been over the last half hour, plus the latest speed test.",
+    "internet": "Internet",
+    "dns": "DNS lookup",
+    "unit_ms": "ms",
+    "unit_pct": "%",
+    "probing": "Probing",
+    "reach_label": "Reachability",
+    "reach_responsive": "Responsive",
+    "reach_degraded": "Degraded",
+    "reach_unreachable": "Unreachable",
+    "reach_unknown": "Not measured",
+    "reach_aria": "Reachability, {{minutes}} minutes, oldest first",
+    "jitter_label": "Jitter",
+    "jitter_now": "{{value}} ms now",
+    "jitter_no_reading": "No reading",
+    "jitter_aria": "Jitter, {{minutes}} minutes, oldest first",
+    "axis_now": "Now",
+    "axis_reach_one": "{{count}} min ago",
+    "axis_reach_other": "{{count}} min ago",
+    "axis_reach_none": "No history yet",
+    "axis_reach_sub_minute": "< 1 min",
+    "footer_typical": "Typical",
+    "footer_worst": "Worst",
+    "footer_loss": "Loss",
+    "empty_title": "Nothing is probing",
+    "empty_description": "Connection probing isn't running, so there is no latency, jitter or loss to report.",
+    "empty_action": "Open Connection Quality",
+    "error_title": "Can't reach the modem",
+    "error_description": "The modem's status couldn't be read, so there is no quality reading to show."
   }
 }

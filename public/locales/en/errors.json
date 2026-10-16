@@ -173,5 +173,9 @@
   "invalid_range": "Unknown time range",
   "disabled": "The monitor is turned off",
   "flag_failed": "Couldn't start the check",
-  "invalid_field": "A setting has an invalid value"
+  "invalid_field": "A setting has an invalid value",
+  "invalid_target": "That probe target isn't a valid address.",
+  "invalid_preset": "That preset isn't recognized.",
+  "invalid_custom_latency": "Enter a latency limit from 1 to 10000 ms.",
+  "invalid_custom_loss": "Enter a loss limit from 0 to 100%."
 }

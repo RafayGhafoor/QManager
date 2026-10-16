@@ -596,5 +596,121 @@
     "reboot_later_button": "Reboot Later",
     "reboot_now_button": "Reboot Now",
     "rebooting_label": "Rebooting…"
+  },
+  "connection_quality": {
+    "page": {
+      "title": "Connection Quality",
+      "description": "The endpoints the modem pings and the limits that turn a slow link into an event."
+    },
+    "targets": {
+      "title": "Probe Targets",
+      "description": "Pinged in order until one answers, to tell whether the internet is up.",
+      "restore": "Restore defaults",
+      "unsaved": "Unsaved",
+      "save": "Save Probe Targets",
+      "leg": {
+        "ipv4": "IPv4 target",
+        "ipv6": "IPv6 fallback target"
+      },
+      "error": {
+        "title": "Can't read the probe targets",
+        "body": "The saved targets are still in use.",
+        "retry": "Retry"
+      },
+      "toast": {
+        "saved": "Probe targets saved.",
+        "failed": "Couldn't save the probe targets."
+      },
+      "validation": {
+        "empty": "Enter a target.",
+        "too_long": "Use {{max}} characters or fewer.",
+        "spaces": "Spaces are not allowed.",
+        "disallowed": "Contains characters that are not allowed.",
+        "ipv4_invalid": "Enter an IPv4 address or hostname.",
+        "ipv6_invalid": "Not a valid IPv6 address.",
+        "ipv6_colon": "An IPv6 address contains a colon."
+      },
+      "verdict": {
+        "ipv4": "IPv4 answering",
+        "ipv6": "IPv6 answering",
+        "none": "No answer",
+        "unknown": "Not reporting"
+      },
+      "group": {
+        "sensitivity": "Sensitivity",
+        "ipv4": "IPv4",
+        "ipv6": "IPv6 fallback"
+      },
+      "fallback_hint": "Pinged only when the IPv4 target doesn't answer, so an IPv6-only connection isn't read as an outage.",
+      "fallback_hint_label": "About the IPv6 fallback",
+      "interval": {
+        "label": "Probe interval",
+        "value": "Every {{seconds}} s",
+        "override": "Every {{seconds}} s (set by Watchdog)"
+      },
+      "failed": "Couldn't save",
+      "profile": {
+        "sensitive": "Sensitive",
+        "regular": "Regular",
+        "relaxed": "Relaxed",
+        "quiet": "Quiet"
+      }
+    },
+    "thresholds": {
+      "title": "Quality Thresholds",
+      "description": "When a slow or lossy link is logged as a network event.",
+      "latency": {
+        "title": "Latency"
+      },
+      "loss": {
+        "title": "Packet loss"
+      },
+      "preset": {
+        "standard": "Standard",
+        "tolerant": "Tolerant",
+        "very_tolerant": "Very tolerant",
+        "custom": "Custom"
+      },
+      "unsaved": "Unsaved",
+      "save": "Save Thresholds",
+      "error": {
+        "title": "Can't read the quality thresholds",
+        "body": "The saved limits are still in use.",
+        "retry": "Retry"
+      },
+      "toast": {
+        "saved": "Quality thresholds saved.",
+        "failed": "Couldn't save the quality thresholds."
+      },
+      "row": {
+        "flags": "Flags after",
+        "now": "Right now",
+        "limit": "Limit"
+      },
+      "flags": {
+        "latency_one": "{{count}} sample over {{ms}} ms",
+        "latency_other": "{{count}} samples over {{ms}} ms",
+        "loss_one": "{{count}} sample at {{pct}}% or more",
+        "loss_other": "{{count}} samples at {{pct}}% or more",
+        "pending": "Enter a limit"
+      },
+      "now": {
+        "latency": "{{ms}} ms",
+        "loss": "{{pct}}%",
+        "no_reply": "No reply",
+        "collecting": "Collecting",
+        "over_latency": "Over the {{ms}} ms limit",
+        "over_loss": "Over the {{pct}}% limit"
+      },
+      "default_chip": "Built-in defaults",
+      "failed": "Couldn't save",
+      "unit": {
+        "latency": "ms",
+        "loss": "%"
+      },
+      "validation": {
+        "range": "Enter a whole number from {{min}} to {{max}}."
+      }
+    }
   }
 }

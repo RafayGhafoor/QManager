@@ -173,5 +173,9 @@
   "invalid_range": "Rentang waktu tidak dikenal",
   "disabled": "Pemantauan dimatikan",
   "flag_failed": "Tidak dapat memulai pemeriksaan",
-  "invalid_field": "Ada pengaturan dengan nilai tidak valid"
+  "invalid_field": "Ada pengaturan dengan nilai tidak valid",
+  "invalid_target": "Target probe itu bukan alamat yang valid.",
+  "invalid_preset": "Preset itu tidak dikenali.",
+  "invalid_custom_latency": "Masukkan batas latensi dari 1 sampai 10000 ms.",
+  "invalid_custom_loss": "Masukkan batas kehilangan paket dari 0 sampai 100%."
 }

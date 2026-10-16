@@ -173,5 +173,9 @@
   "invalid_range": "未知的時間範圍",
   "disabled": "監控已關閉",
   "flag_failed": "無法開始檢查",
-  "invalid_field": "某項設定的值無效"
+  "invalid_field": "某項設定的值無效",
+  "invalid_target": "該探測目標不是有效位址。",
+  "invalid_preset": "無法識別該預設。",
+  "invalid_custom_latency": "請輸入 1 到 10000 毫秒之間的延遲門檻。",
+  "invalid_custom_loss": "請輸入 0 到 100% 之間的封包遺失門檻。"
 }

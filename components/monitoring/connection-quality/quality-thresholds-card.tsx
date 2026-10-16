@@ -1,9 +1,17 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import * as React from "react";
 import { toast } from "sonner";
-import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
+import {
+  CheckIcon,
+  CircleAlertIcon,
+  InfoIcon,
+  RefreshCwIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -11,561 +19,436 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CardFoot } from "@/components/ui/card-foot";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangleIcon } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
-import { MetaPanel, MetaPair } from "@/components/ui/meta-panel";
-
-import { useQualityThresholds } from "@/hooks/use-quality-thresholds";
+import {
+  SEGMENTED,
+  SegmentedField,
+  type SegmentedOption,
+} from "@/components/ui/segmented-field";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useModemStatus } from "@/hooks/use-modem-status";
+import type { UseQualityThresholdsReturn } from "@/hooks/use-quality-thresholds";
+import { cn } from "@/lib/utils";
 import {
   QUALITY_PRESETS,
   type QualityPreset,
-  type QualityNamedPreset,
   type QualityThresholdsSettings,
 } from "@/types/modem-status";
-import { staggerRows, staggerRowItem } from "@/lib/motion";
 
-// ─── Preset metadata (named presets only; `custom` is user-entered) ──────────
+import { ConditionBlock } from "./condition-block";
+import {
+  ALERT_INK,
+  CARD_BODY,
+  CARD_DESC,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_TITLE,
+  CONDITION,
+  CUSTOM_DEBOUNCE,
+  CUSTOM_FIELD,
+  CUSTOM_RANGE,
+  DELTA,
+  EYEBROW,
+  FAILED,
+  GROUP,
+  METRIC_HEAD,
+  PRESET_LIMIT,
+  ROW,
+  ROW_STACK,
+  SKELETON_LOCAL,
+} from "./shapes";
 
-interface PresetMeta {
-  label: string;
-  blurb: string;
-  threshold: number;
-  debounce: number;
-}
+// Quality Thresholds: the cuts that turn a slow or lossy link into an event.
+// Neither restarts anything; recovery is the Watchdog's job.
 
-const LATENCY_META: Record<QualityNamedPreset, PresetMeta> = {
-  standard: {
-    label: "Standard",
-    blurb: "Good cellular. Flags any sustained latency over 150 ms.",
-    threshold: 150,
-    debounce: 3,
-  },
-  tolerant: {
-    label: "Tolerant",
-    blurb: "Average cellular. Allows occasional spikes before flagging.",
-    threshold: 250,
-    debounce: 3,
-  },
-  "very-tolerant": {
-    label: "Very Tolerant",
-    blurb: "Poor signal areas. Only flags when latency stays high for a while.",
-    threshold: 500,
-    debounce: 2,
-  },
+const K = "connection_quality.thresholds";
+
+type Metric = "latency" | "loss";
+type Tone = "ok" | "warn" | "bad";
+
+/** `very-tolerant` is a value, not a key: i18next leaves have no hyphens. */
+const PRESET_KEY: Record<QualityPreset, string> = {
+  standard: "standard",
+  tolerant: "tolerant",
+  "very-tolerant": "very_tolerant",
+  custom: "custom",
 };
 
-const LOSS_META: Record<QualityNamedPreset, PresetMeta> = {
-  standard: {
-    label: "Standard",
-    blurb: "Tight quality bar. Flags loss above 15 %.",
-    threshold: 15,
-    debounce: 3,
-  },
-  tolerant: {
-    label: "Tolerant",
-    blurb: "Acceptable on cellular under load. Won't fire from short bursts.",
-    threshold: 30,
-    debounce: 3,
-  },
-  "very-tolerant": {
-    label: "Very Tolerant",
-    blurb: "Severe drops only — useful in poor signal areas.",
-    threshold: 50,
-    debounce: 2,
-  },
-};
+const renderCheckGlyph = (className: string) => (
+  <CheckIcon size={SEGMENTED.GLYPH} className={className} aria-hidden="true" />
+);
 
-const PRESET_LABEL: Record<QualityPreset, string> = {
-  standard: "Standard",
-  tolerant: "Tolerant",
-  "very-tolerant": "Very Tolerant",
-  custom: "Custom",
-};
-
-const LATENCY_CUSTOM_MIN = 1;
-const LATENCY_CUSTOM_MAX = 10000;
-const LOSS_CUSTOM_MIN = 0;
-const LOSS_CUSTOM_MAX = 100;
-
-const isNamed = (p: QualityPreset): p is QualityNamedPreset => p !== "custom";
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function formatLatency(ms: number | null | undefined): string {
-  if (ms === null || ms === undefined) return "—";
-  return `${Math.round(ms)} ms`;
+/** One decimal under a whole percent step, none on a whole one. */
+function formatPct(pct: number): string {
+  return Number.isInteger(pct) ? String(pct) : pct.toFixed(1);
 }
 
-function formatLoss(pct: number | null | undefined): string {
-  if (pct === null || pct === undefined) return "—";
-  return `${pct} %`;
+/** The custom field's text as an in-range integer, or null. */
+function parseCustom(metric: Metric, raw: string): number | null {
+  if (!/^[0-9]+$/.test(raw.trim())) return null;
+  const n = Number(raw.trim());
+  const { min, max } = CUSTOM_RANGE[metric];
+  return n >= min && n <= max ? n : null;
 }
 
-function intInRange(raw: string, min: number, max: number): boolean {
-  const n = Number(raw);
-  return !(raw === "" || isNaN(n) || !Number.isInteger(n) || n < min || n > max);
+/** The saved custom number for a metric, or null when none is stored. */
+function savedCustom(metric: Metric, saved: QualityThresholdsSettings): number | null {
+  const v = metric === "latency" ? saved.latency.custom_ms : saved.loss.custom_pct;
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
-// ─── Component ──────────────────────────────────────────────────────────────
+/** The limit a draft resolves to, as the poller would resolve it. */
+function resolveLimit(
+  metric: Metric,
+  preset: QualityPreset,
+  custom: number | null,
+): { limit: number | null; debounce: number } {
+  if (preset === "custom") return { limit: custom, debounce: CUSTOM_DEBOUNCE };
+  return PRESET_LIMIT[metric][preset];
+}
 
-export default function QualityThresholdsCard() {
-  const { thresholds, isDefault, isLoading, error, isSaving, saveError, save } =
-    useQualityThresholds();
-  const { data: modemStatus } = useModemStatus();
-  const { saved, markSaved } = useSaveFlash();
+// -----------------------------------------------------------------------------
+// One metric: eyebrow + preset pill, the custom limit, "Flags after", "Right now"
+// -----------------------------------------------------------------------------
 
-  // SSR-safe stable ids for tablist <-> visible-label association (WCAG 1.3.1).
-  const latencyLabelId = useId();
-  const lossLabelId = useId();
+interface MetricBlockProps {
+  metric: Metric;
+  preset: QualityPreset;
+  onSelect: (preset: QualityPreset) => void;
+  customText: string;
+  onCustomChange: (text: string) => void;
+  customInvalid: boolean;
+  /** The poller's reading, or `null` for "not measured". Never a zero. */
+  live: number | null;
+}
 
-  const [selected, setSelected] = useState<QualityThresholdsSettings | undefined>(
-    thresholds,
-  );
+function MetricBlock({
+  metric,
+  preset,
+  onSelect,
+  customText,
+  onCustomChange,
+  customInvalid,
+  live,
+}: MetricBlockProps) {
+  const { t } = useTranslation("monitoring");
+  const title = t(`${K}.${metric}.title`);
+  const custom = parseCustom(metric, customText);
+  const { limit, debounce } = resolveLimit(metric, preset, custom);
+  const fieldId = React.useId();
+  const errorId = `${fieldId}-error`;
+  const { min, max } = CUSTOM_RANGE[metric];
 
-  // Sync local state when the saved thresholds arrive (or change after a save).
-  // "Store previous value in state" pattern per React docs — no effects, which
-  // the React Compiler lint requires.
-  const [prevSavedKey, setPrevSavedKey] = useState<string | null>(null);
-  if (thresholds) {
-    const savedKey = [
-      thresholds.latency.preset,
-      thresholds.latency.custom_ms ?? "",
-      thresholds.loss.preset,
-      thresholds.loss.custom_pct ?? "",
-    ].join("|");
-    if (prevSavedKey !== savedKey) {
-      setPrevSavedKey(savedKey);
-      setSelected(thresholds);
+  const options: SegmentedOption<QualityPreset>[] = QUALITY_PRESETS.map((p) => ({
+    value: p,
+    label: t(`${K}.preset.${PRESET_KEY[p]}`),
+  }));
+
+  const flags =
+    limit === null ? (
+      <span className={ROW.QUIET}>{t(`${K}.flags.pending`)}</span>
+    ) : metric === "latency" ? (
+      t(`${K}.flags.latency`, { count: debounce, ms: limit })
+    ) : (
+      t(`${K}.flags.loss`, { count: debounce, pct: limit })
+    );
+
+  // Latency is amber over the cut and red past twice it; loss marks only at the cut, red.
+  let tone: Tone = "ok";
+  if (live !== null && limit !== null) {
+    if (metric === "latency") {
+      tone = live > limit * 2 ? "bad" : live > limit ? "warn" : "ok";
+    } else {
+      tone = live >= limit ? "bad" : "ok";
     }
   }
 
-  const isDirty = useMemo(() => {
-    if (!thresholds || !selected) return false;
-    return (
-      selected.latency.preset !== thresholds.latency.preset ||
-      selected.loss.preset !== thresholds.loss.preset ||
-      (selected.latency.preset === "custom" &&
-        (selected.latency.custom_ms ?? null) !==
-          (thresholds.latency.custom_ms ?? null)) ||
-      (selected.loss.preset === "custom" &&
-        (selected.loss.custom_pct ?? null) !==
-          (thresholds.loss.custom_pct ?? null))
+  const now =
+    live === null ? (
+      <span className={ROW.QUIET}>
+        {t(metric === "latency" ? `${K}.now.no_reply` : `${K}.now.collecting`)}
+      </span>
+    ) : (
+      <>
+        {metric === "latency"
+          ? t(`${K}.now.latency`, { ms: Math.round(live) })
+          : t(`${K}.now.loss`, { pct: formatPct(live) })}
+        {tone === "ok" || limit === null ? null : (
+          <>
+            <TriangleAlertIcon aria-hidden="true" className={cn(ROW.ALERT, ALERT_INK[tone])} />
+            <span className="sr-only">
+              {metric === "latency"
+                ? t(`${K}.now.over_latency`, { ms: limit })
+                : t(`${K}.now.over_loss`, { pct: limit })}
+            </span>
+          </>
+        )}
+      </>
     );
-  }, [thresholds, selected]);
 
-  const latencyCustomStr =
-    selected?.latency.custom_ms != null ? String(selected.latency.custom_ms) : "";
-  const lossCustomStr =
-    selected?.loss.custom_pct != null ? String(selected.loss.custom_pct) : "";
+  return (
+    <div className={GROUP}>
+      <div className={METRIC_HEAD}>
+        <span className={cn(EYEBROW, "mr-auto")}>{title}</span>
+        <SegmentedField
+          value={preset}
+          onValueChange={onSelect}
+          options={options}
+          ariaLabel={title}
+          breakpoint="lg"
+          glyph={renderCheckGlyph}
+        />
+      </div>
+      <dl className={ROW_STACK}>
+        {preset === "custom" ? (
+          <div className="flex flex-col gap-1">
+            <div className={ROW.ROOT}>
+              <dt className={ROW.KEY}>
+                <label htmlFor={fieldId}>{t(`${K}.row.limit`)}</label>
+              </dt>
+              <dd className={CUSTOM_FIELD.WRAP}>
+                <Input
+                  id={fieldId}
+                  className={CUSTOM_FIELD.INPUT}
+                  value={customText}
+                  onChange={(e) => onCustomChange(e.target.value)}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  aria-invalid={customInvalid}
+                  aria-describedby={customInvalid ? errorId : undefined}
+                />
+                <span className={CUSTOM_FIELD.UNIT}>{t(`${K}.unit.${metric}`)}</span>
+              </dd>
+            </div>
+            {customInvalid ? (
+              <span id={errorId} role="alert" className="text-destructive-on-surface px-4 text-xs leading-relaxed">
+                {t(`${K}.validation.range`, { min, max })}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+        <div className={ROW.ROOT}>
+          <dt className={ROW.KEY}>{t(`${K}.row.flags`)}</dt>
+          <dd className={ROW.VALUE}>{flags}</dd>
+        </div>
+        <div className={ROW.ROOT}>
+          <dt className={ROW.KEY}>{t(`${K}.row.now`)}</dt>
+          <dd className={ROW.VALUE}>{now}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
 
-  const latencyCustomError =
-    selected?.latency.preset === "custom" &&
-    latencyCustomStr !== "" &&
-    !intInRange(latencyCustomStr, LATENCY_CUSTOM_MIN, LATENCY_CUSTOM_MAX)
-      ? `Must be ${LATENCY_CUSTOM_MIN}–${LATENCY_CUSTOM_MAX} ms`
-      : null;
-  const lossCustomError =
-    selected?.loss.preset === "custom" &&
-    lossCustomStr !== "" &&
-    !intInRange(lossCustomStr, LOSS_CUSTOM_MIN, LOSS_CUSTOM_MAX)
-      ? `Must be ${LOSS_CUSTOM_MIN}–${LOSS_CUSTOM_MAX} %`
-      : null;
-  const customMissing =
-    (selected?.latency.preset === "custom" && latencyCustomStr === "") ||
-    (selected?.loss.preset === "custom" && lossCustomStr === "");
+// -----------------------------------------------------------------------------
+// The loaded form
+// -----------------------------------------------------------------------------
 
+interface Draft {
+  latency?: QualityPreset;
+  loss?: QualityPreset;
+  latencyText?: string;
+  lossText?: string;
+}
+
+interface ThresholdsFormProps {
+  quality: UseQualityThresholdsReturn;
+  thresholds: QualityThresholdsSettings;
+}
+
+function ThresholdsForm({ quality, thresholds }: ThresholdsFormProps) {
+  const { t } = useTranslation("monitoring");
+  const { saved: flashed, markSaved } = useSaveFlash();
+  const { data: status } = useModemStatus();
+
+  // The draft holds only what the user CHANGED; the saved value shows through.
+  const [draft, setDraft] = React.useState<Draft>({});
+  const [failed, setFailed] = React.useState(false);
+
+  const latency = draft.latency ?? thresholds.latency.preset;
+  const loss = draft.loss ?? thresholds.loss.preset;
+  const savedLatencyCustom = savedCustom("latency", thresholds);
+  const savedLossCustom = savedCustom("loss", thresholds);
+  // A custom field opens on the saved number, else on the tolerant cut as a start.
+  const latencyText =
+    draft.latencyText ?? String(savedLatencyCustom ?? PRESET_LIMIT.latency.tolerant.limit);
+  const lossText = draft.lossText ?? String(savedLossCustom ?? PRESET_LIMIT.loss.tolerant.limit);
+
+  const latencyCustom = parseCustom("latency", latencyText);
+  const lossCustom = parseCustom("loss", lossText);
+  const latencyInvalid = latency === "custom" && latencyCustom === null;
+  const lossInvalid = loss === "custom" && lossCustom === null;
+
+  const dirty =
+    latency !== thresholds.latency.preset ||
+    loss !== thresholds.loss.preset ||
+    (latency === "custom" && latencyCustom !== savedLatencyCustom) ||
+    (loss === "custom" && lossCustom !== savedLossCustom);
+  // Built-in defaults are not on the device yet, so saving them is a real write.
   const canSave =
-    isDirty &&
-    !isSaving &&
-    !latencyCustomError &&
-    !lossCustomError &&
-    !customMissing;
+    (dirty || quality.isDefault) && !quality.isSaving && !latencyInvalid && !lossInvalid;
+
+  // The cut is compared against the windowed average, so "Right now" reads the same.
+  // NEVER `??` a 0 in: a null loss is under the poller's sample floor.
+  const liveLatency = status?.connectivity?.avg_latency_ms ?? null;
+  const liveLoss = status?.connectivity?.packet_loss_pct ?? null;
+
+  const select = (metric: Metric) => (preset: QualityPreset) => {
+    setDraft((prev) => ({ ...prev, [metric]: preset }));
+    setFailed(false);
+  };
+  const editCustom = (metric: Metric) => (text: string) => {
+    setDraft((prev) => ({ ...prev, [`${metric}Text`]: text }));
+    setFailed(false);
+  };
 
   const handleSave = async () => {
-    if (!canSave || !selected) return;
-    try {
-      await save(selected);
+    if (!canSave) return;
+    const next: QualityThresholdsSettings = {
+      latency:
+        latency === "custom" ? { preset: latency, custom_ms: latencyCustom } : { preset: latency },
+      loss: loss === "custom" ? { preset: loss, custom_pct: lossCustom } : { preset: loss },
+    };
+    const result = await quality.save(next);
+    if (result.ok) {
+      setDraft({});
+      setFailed(false);
       markSaved();
-      toast.success("Quality thresholds updated");
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Failed to save";
-      toast.error(msg);
+      toast.success(t(`${K}.toast.saved`));
+    } else {
+      setFailed(true);
+      toast.error(result.error ?? t(`${K}.toast.failed`));
     }
-  };
-
-  // ── Loading skeleton ────────────────────────────────────────────────────
-  if (isLoading) {
-    return (
-      <Card className="@container/card">
-        <CardHeader>
-          <CardTitle>Latency &amp; Loss Thresholds</CardTitle>
-          <CardDescription>
-            When QManager flags slow latency or packet loss — used for events and
-            for Watchdog quality recovery.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-5">
-            {/* Latency: label → segmented control → preview panel */}
-            <div className="grid gap-3">
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-10 w-full rounded-md" />
-              <Skeleton className="h-[4.5rem] w-full rounded-lg" />
-            </div>
-            <Separator />
-            {/* Packet loss: same shape */}
-            <div className="grid gap-3">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-10 w-full rounded-md" />
-              <Skeleton className="h-[4.5rem] w-full rounded-lg" />
-            </div>
-            <div className="flex justify-end">
-              <Skeleton className="h-9 w-32" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // ── Error variant ──────────────────────────────────────────────────────
-  if (error && !thresholds) {
-    return (
-      <Card className="@container/card">
-        <CardHeader>
-          <CardTitle>Latency &amp; Loss Thresholds</CardTitle>
-          <CardDescription>
-            When QManager flags slow latency or packet loss — used for events and
-            for Watchdog quality recovery.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertTriangleIcon className="size-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!selected) return null;
-
-  const liveLatency = modemStatus?.connectivity?.avg_latency_ms ?? null;
-  const liveLoss = modemStatus?.connectivity?.packet_loss_pct ?? null;
-
-  // Effective threshold for the live OK/warn glyph.
-  const latThreshold = isNamed(selected.latency.preset)
-    ? LATENCY_META[selected.latency.preset].threshold
-    : (selected.latency.custom_ms ?? null);
-  const lossThreshold = isNamed(selected.loss.preset)
-    ? LOSS_META[selected.loss.preset].threshold
-    : (selected.loss.custom_pct ?? null);
-
-  const latencyOk =
-    liveLatency === null || latThreshold === null || liveLatency <= latThreshold;
-  const lossOk =
-    liveLoss === null || lossThreshold === null || liveLoss < lossThreshold;
-
-  const onLatencyPreset = (v: QualityPreset) => {
-    setSelected((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, latency: { ...prev.latency, preset: v } };
-      // Seed the custom field from the previous named threshold so it isn't blank.
-      if (v === "custom" && next.latency.custom_ms == null) {
-        const seedFrom = isNamed(prev.latency.preset)
-          ? LATENCY_META[prev.latency.preset].threshold
-          : LATENCY_META.tolerant.threshold;
-        next.latency.custom_ms = seedFrom;
-      }
-      return next;
-    });
-  };
-
-  const onLossPreset = (v: QualityPreset) => {
-    setSelected((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, loss: { ...prev.loss, preset: v } };
-      if (v === "custom" && next.loss.custom_pct == null) {
-        const seedFrom = isNamed(prev.loss.preset)
-          ? LOSS_META[prev.loss.preset].threshold
-          : LOSS_META.tolerant.threshold;
-        next.loss.custom_pct = seedFrom;
-      }
-      return next;
-    });
   };
 
   return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardTitle>Latency &amp; Loss Thresholds</CardTitle>
-        <CardDescription>
-          When QManager flags slow latency or packet loss — used for Recent
-          Activities events and for Watchdog quality recovery.
-        </CardDescription>
+    <>
+      <MetricBlock
+        metric="latency"
+        preset={latency}
+        onSelect={select("latency")}
+        customText={latencyText}
+        onCustomChange={editCustom("latency")}
+        customInvalid={latencyInvalid}
+        live={liveLatency}
+      />
+      <MetricBlock
+        metric="loss"
+        preset={loss}
+        onSelect={select("loss")}
+        customText={lossText}
+        onCustomChange={editCustom("loss")}
+        customInvalid={lossInvalid}
+        live={liveLoss}
+      />
+
+      <CardFoot
+        className="mt-auto"
+        status={
+          failed ? (
+            <span className={FAILED.ROOT}>
+              <TriangleAlertIcon className={FAILED.GLYPH} aria-hidden="true" />
+              {t(`${K}.failed`)}
+            </span>
+          ) : dirty ? (
+            <span className={DELTA}>{t(`${K}.unsaved`)}</span>
+          ) : quality.isDefault ? (
+            <Badge variant="info">
+              <InfoIcon className="size-3" aria-hidden="true" />
+              {t(`${K}.default_chip`)}
+            </Badge>
+          ) : null
+        }
+        actions={
+          <SaveButton
+            onClick={handleSave}
+            isSaving={quality.isSaving}
+            saved={flashed}
+            label={t(`${K}.save`)}
+            disabled={!canSave}
+            size="action"
+          />
+        }
+      />
+    </>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Loading
+// -----------------------------------------------------------------------------
+
+function ThresholdsSkeleton() {
+  return (
+    <>
+      {[0, 1].map((block) => (
+        <div key={block} className={GROUP}>
+          <div className={METRIC_HEAD}>
+            {/* Inside the eyebrow's own line box, so the head keeps its loaded height. */}
+            <span className={cn(EYEBROW, "mr-auto")}>
+              <Skeleton className={cn(SKELETON_LOCAL.EYEBROW, "inline-block w-16 align-middle")} />
+            </span>
+            <Skeleton className={SKELETON_LOCAL.SEGMENT} />
+          </div>
+          <div className={ROW_STACK}>
+            {[0, 1].map((row) => (
+              <div key={row} className={ROW.ROOT} aria-hidden="true">
+                <Skeleton className={cn(SKELETON_LOCAL.ROW_TEXT, "w-20")} />
+                <Skeleton className={cn(SKELETON_LOCAL.ROW_TEXT, "w-28")} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      <CardFoot
+        className="mt-auto"
+        liveStatus={false}
+        actions={<Skeleton className={SKELETON_LOCAL.ACTION} />}
+      />
+    </>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Card
+// -----------------------------------------------------------------------------
+
+export interface QualityThresholdsCardProps {
+  quality: UseQualityThresholdsReturn;
+}
+
+export default function QualityThresholdsCard({ quality }: QualityThresholdsCardProps) {
+  const { t } = useTranslation("monitoring");
+
+  return (
+    <Card className={CARD_SHELL}>
+      <CardHeader className={CARD_PAD}>
+        <CardTitle as="h2" className={CARD_TITLE}>
+          {t(`${K}.title`)}
+        </CardTitle>
+        <CardDescription className={CARD_DESC}>{t(`${K}.description`)}</CardDescription>
       </CardHeader>
-      <CardContent>
-        {saveError && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertTriangleIcon className="size-4" />
-            <AlertDescription>{saveError}</AlertDescription>
-          </Alert>
+
+      <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+        {quality.isLoading ? (
+          <ThresholdsSkeleton />
+        ) : !quality.thresholds ? (
+          <ConditionBlock
+            tone="destructive"
+            icon={CircleAlertIcon}
+            ariaRole="alert"
+            title={t(`${K}.error.title`)}
+            description={t(`${K}.error.body`)}
+            onAction={() => void quality.refresh()}
+            actionLabel={t(`${K}.error.retry`)}
+            actionIcon={RefreshCwIcon}
+            className={CONDITION.SCREEN}
+          />
+        ) : (
+          <ThresholdsForm quality={quality} thresholds={quality.thresholds} />
         )}
-
-        <motion.div
-          className="grid gap-5"
-          variants={staggerRows}
-          initial="hidden"
-          animate="visible"
-        >
-          {/* ── Latency row ─────────────────────────────────────────── */}
-          <motion.div variants={staggerRowItem} className="grid gap-3">
-            <span id={latencyLabelId} className="text-sm font-medium">
-              Latency
-            </span>
-
-            <Tabs
-              value={selected.latency.preset}
-              onValueChange={(v) => {
-                if (v && (QUALITY_PRESETS as readonly string[]).includes(v)) {
-                  onLatencyPreset(v as QualityPreset);
-                }
-              }}
-            >
-              <TabsList
-                className="grid w-full grid-cols-4"
-                aria-labelledby={latencyLabelId}
-              >
-                {QUALITY_PRESETS.map((p) => (
-                  <TabsTrigger key={p} value={p}>
-                    {PRESET_LABEL[p]}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-
-            {selected.latency.preset === "custom" ? (
-              <div className="grid gap-1.5">
-                <Label htmlFor="latency-custom">Latency threshold (ms)</Label>
-                <Input
-                  id="latency-custom"
-                  type="number"
-                  inputMode="numeric"
-                  min={LATENCY_CUSTOM_MIN}
-                  max={LATENCY_CUSTOM_MAX}
-                  placeholder="e.g. 350"
-                  className="tabular-nums @sm/card:max-w-[14rem]"
-                  value={latencyCustomStr}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    setSelected((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            latency: {
-                              ...prev.latency,
-                              custom_ms: raw === "" ? null : Number(raw),
-                            },
-                          }
-                        : prev,
-                    );
-                  }}
-                  aria-invalid={latencyCustomError !== null}
-                  aria-describedby={
-                    latencyCustomError
-                      ? "latency-custom-err"
-                      : "latency-custom-desc"
-                  }
-                />
-                {latencyCustomError ? (
-                  <p id="latency-custom-err" role="alert" className="text-destructive text-xs">
-                    {latencyCustomError}
-                  </p>
-                ) : (
-                  <p id="latency-custom-desc" className="text-muted-foreground text-xs">
-                    Flag latency above this (windowed average), {LATENCY_CUSTOM_MIN}–
-                    {LATENCY_CUSTOM_MAX} ms.
-                  </p>
-                )}
-                <MetaPanel title="Custom" blurb="Your own latency limit.">
-                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
-                    <MetaPair
-                      label="Threshold"
-                      value={
-                        selected.latency.custom_ms != null
-                          ? `${selected.latency.custom_ms} ms`
-                          : "—"
-                      }
-                    />
-                    <MetaPair
-                      label="Current"
-                      value={formatLatency(liveLatency)}
-                      glyph={liveLatency === null ? null : latencyOk ? "ok" : "warn"}
-                    />
-                  </div>
-                </MetaPanel>
-              </div>
-            ) : (
-              <MetaPanel
-                title={LATENCY_META[selected.latency.preset].label}
-                blurb={LATENCY_META[selected.latency.preset].blurb}
-              >
-                <div className="mt-2 grid grid-cols-3 gap-x-3 gap-y-1">
-                  <MetaPair
-                    label="Threshold"
-                    value={`${LATENCY_META[selected.latency.preset].threshold} ms`}
-                  />
-                  <MetaPair
-                    label="Debounce"
-                    value={`${LATENCY_META[selected.latency.preset].debounce} samples`}
-                  />
-                  <MetaPair
-                    label="Current"
-                    value={formatLatency(liveLatency)}
-                    glyph={liveLatency === null ? null : latencyOk ? "ok" : "warn"}
-                  />
-                </div>
-              </MetaPanel>
-            )}
-          </motion.div>
-
-          <Separator />
-
-          {/* ── Packet loss row ─────────────────────────────────────── */}
-          <motion.div variants={staggerRowItem} className="grid gap-3">
-            <span id={lossLabelId} className="text-sm font-medium">
-              Packet loss
-            </span>
-
-            <Tabs
-              value={selected.loss.preset}
-              onValueChange={(v) => {
-                if (v && (QUALITY_PRESETS as readonly string[]).includes(v)) {
-                  onLossPreset(v as QualityPreset);
-                }
-              }}
-            >
-              <TabsList
-                className="grid w-full grid-cols-4"
-                aria-labelledby={lossLabelId}
-              >
-                {QUALITY_PRESETS.map((p) => (
-                  <TabsTrigger key={p} value={p}>
-                    {PRESET_LABEL[p]}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-
-            {selected.loss.preset === "custom" ? (
-              <div className="grid gap-1.5">
-                <Label htmlFor="loss-custom">Packet loss threshold (%)</Label>
-                <Input
-                  id="loss-custom"
-                  type="number"
-                  inputMode="numeric"
-                  min={LOSS_CUSTOM_MIN}
-                  max={LOSS_CUSTOM_MAX}
-                  placeholder="e.g. 25"
-                  className="tabular-nums @sm/card:max-w-[14rem]"
-                  value={lossCustomStr}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    setSelected((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            loss: {
-                              ...prev.loss,
-                              custom_pct: raw === "" ? null : Number(raw),
-                            },
-                          }
-                        : prev,
-                    );
-                  }}
-                  aria-invalid={lossCustomError !== null}
-                  aria-describedby={
-                    lossCustomError ? "loss-custom-err" : "loss-custom-desc"
-                  }
-                />
-                {lossCustomError ? (
-                  <p id="loss-custom-err" role="alert" className="text-destructive text-xs">
-                    {lossCustomError}
-                  </p>
-                ) : (
-                  <p id="loss-custom-desc" className="text-muted-foreground text-xs">
-                    Flag loss at or above this, {LOSS_CUSTOM_MIN}–{LOSS_CUSTOM_MAX} %.
-                  </p>
-                )}
-                <MetaPanel title="Custom" blurb="Your own packet-loss limit.">
-                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
-                    <MetaPair
-                      label="Threshold"
-                      value={
-                        selected.loss.custom_pct != null
-                          ? `${selected.loss.custom_pct} %`
-                          : "—"
-                      }
-                    />
-                    <MetaPair
-                      label="Current"
-                      value={formatLoss(liveLoss)}
-                      glyph={liveLoss === null ? null : lossOk ? "ok" : "warn"}
-                    />
-                  </div>
-                </MetaPanel>
-              </div>
-            ) : (
-              <MetaPanel
-                title={LOSS_META[selected.loss.preset].label}
-                blurb={LOSS_META[selected.loss.preset].blurb}
-              >
-                <div className="mt-2 grid grid-cols-3 gap-x-3 gap-y-1">
-                  <MetaPair
-                    label="Threshold"
-                    value={`${LOSS_META[selected.loss.preset].threshold} %`}
-                  />
-                  <MetaPair
-                    label="Debounce"
-                    value={`${LOSS_META[selected.loss.preset].debounce} samples`}
-                  />
-                  <MetaPair
-                    label="Current"
-                    value={formatLoss(liveLoss)}
-                    glyph={liveLoss === null ? null : lossOk ? "ok" : "warn"}
-                  />
-                </div>
-              </MetaPanel>
-            )}
-          </motion.div>
-
-          {isDefault && (
-            <motion.p
-              variants={staggerRowItem}
-              className="text-muted-foreground text-xs"
-            >
-              Using default thresholds — pick Standard to flag smaller spikes.
-            </motion.p>
-          )}
-
-          {/* ── Save button ──────────────────────────────────────────── */}
-          <motion.div variants={staggerRowItem} className="flex justify-end">
-            <SaveButton
-              onClick={handleSave}
-              isSaving={isSaving}
-              saved={saved}
-              disabled={!canSave}
-            />
-          </motion.div>
-        </motion.div>
       </CardContent>
     </Card>
   );

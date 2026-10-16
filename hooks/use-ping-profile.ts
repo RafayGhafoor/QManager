@@ -1,23 +1,28 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { authFetch } from "@/lib/auth-fetch";
+import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type { PingProfile } from "@/types/modem-status";
 
 // =============================================================================
 // usePingProfile — read/write the ping-daemon sensitivity profile + targets
 // =============================================================================
-// GET  → { success: true, profile, target_ipv4, target_ipv6 }
+// GET  → { success: true, profile, target_ipv4, target_ipv6, interval_override,
+//          effective_interval, interval_sec, fail_secs, recover_secs }
 // POST → { action: "save", profile, target_ipv4, target_ipv6 }
-//        success: { success: true, ... }
+//        success: { success: true }
 //        failure: { success: false, error, detail }
 //
-// The daemon probes via ICMP: the IPv4 DNS target is pinged first; the IPv6
-// target is only used when the IPv4 probe fails, so an IPv6-only bearer never
-// reads as "down". Targets are bare hosts/IP literals (no URL scheme).
+// The daemon probes via ICMP: the IPv4 target is pinged first; the IPv6 target
+// is only used when the IPv4 probe fails, so an IPv6-only bearer never reads as
+// "down". Targets are bare hosts/IP literals (no URL scheme).
 //
-// Save rejects on failure so the calling card's try/catch can toast the error;
-// it also stores the message in `saveError` for the inline alert.
+// `save` never throws: it returns a `PingProfileSaveResult` whose `error` is the
+// translated backend reason (or null for the caller's generic copy). Read it
+// from the result, never from hook state after the await (stale closure).
 //
 // CGI: /cgi-bin/quecmanager/system/ping_profile.sh
 // =============================================================================
@@ -29,147 +34,142 @@ interface PingProfileGetResponse {
   profile?: PingProfile;
   target_ipv4?: string;
   target_ipv6?: string;
-  // Probe interval is owned jointly with the Watchdog: when the Watchdog sets a
-  // Custom interval it writes `interval_override`, which wins over the profile's
-  // derived interval. The Sensitivity card reflects this read-only.
+  /** Custom probe interval set by the Watchdog; it wins over the profile. */
   interval_override?: number | null;
   effective_interval?: number;
+  interval_sec?: number;
+  fail_secs?: number;
+  recover_secs?: number;
   error?: string;
   detail?: string;
 }
 
-interface PingProfileSaveResponse {
-  success: boolean;
-  error?: string;
-  detail?: string;
-}
-
-export interface SavePingProfileArgs {
+export interface PingProfileSettings {
   profile: PingProfile;
+  /** IPv4 address or hostname, pinged first. */
   target_ipv4: string;
+  /** IPv6 literal, the fallback for IPv6-only connections. */
   target_ipv6: string;
 }
 
-export interface UsePingProfileReturn {
-  profile: PingProfile | undefined;
-  /** IPv4 DNS server the daemon pings first. */
-  targetIpv4: string | undefined;
-  /** IPv6 DNS server, used as the fallback for IPv6-only connections. */
-  targetIpv6: string | undefined;
-  /** Custom probe interval set by the Watchdog; null = none (use profile). */
+export interface PingProfileCadence {
+  /** Effective probe interval in seconds (override applied). */
+  intervalSec: number | null;
+  /** The profile's time-to-fail in seconds. */
+  failSecs: number | null;
+  /** The profile's time-to-recover in seconds. */
+  recoverSecs: number | null;
+  /** Watchdog override in seconds; null = the profile's own interval. */
   intervalOverride: number | null;
-  /** Effective probe interval in seconds (override if set, else profile). */
-  effectiveInterval: number | undefined;
-  isLoading: boolean;
+}
+
+export interface PingProfileSaveResult {
+  ok: boolean;
+  /** Translated backend reason; null means use the caller's generic copy. */
   error: string | null;
+}
+
+export interface UsePingProfileReturn {
+  /** The saved settings; null until the first GET lands (or when it failed). */
+  settings: PingProfileSettings | null;
+  cadence: PingProfileCadence | null;
+  isLoading: boolean;
+  /** True when the last GET failed. */
+  loadFailed: boolean;
   isSaving: boolean;
-  saveError: string | null;
-  save: (args: SavePingProfileArgs) => Promise<void>;
+  save: (next: PingProfileSettings) => Promise<PingProfileSaveResult>;
+  refresh: () => Promise<void>;
+}
+
+const num = (v: unknown): number | null =>
+  typeof v === "number" && Number.isFinite(v) ? v : null;
+
+function failure(t: TFunction, json: { error?: unknown; detail?: unknown }): PingProfileSaveResult {
+  const code = typeof json.error === "string" && json.error !== "" ? json.error : null;
+  const message = code ? resolveErrorMessage(t, code, undefined, "") : "";
+  return { ok: false, error: message || null };
 }
 
 export function usePingProfile(): UsePingProfileReturn {
-  const [profile, setProfile] = useState<PingProfile | undefined>(undefined);
-  const [targetIpv4, setTargetIpv4] = useState<string | undefined>(undefined);
-  const [targetIpv6, setTargetIpv6] = useState<string | undefined>(undefined);
-  const [intervalOverride, setIntervalOverride] = useState<number | null>(null);
-  const [effectiveInterval, setEffectiveInterval] = useState<
-    number | undefined
-  >(undefined);
+  const { t } = useTranslation("errors");
+  const [settings, setSettings] = useState<PingProfileSettings | null>(null);
+  const [cadence, setCadence] = useState<PingProfileCadence | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   const mountedRef = useRef(true);
 
   const fetchProfile = useCallback(async () => {
     try {
       const response = await authFetch(ENDPOINT);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const json: PingProfileGetResponse = await response.json();
       if (!mountedRef.current) return;
 
-      if (!json.success) {
-        setError(json.detail || json.error || "Failed to load ping profile");
-        setIsLoading(false);
+      if (!json.success || !json.profile) {
+        setLoadFailed(true);
         return;
       }
 
-      setProfile(json.profile);
-      setTargetIpv4(json.target_ipv4);
-      setTargetIpv6(json.target_ipv6);
-      setIntervalOverride(json.interval_override ?? null);
-      setEffectiveInterval(json.effective_interval);
-      setError(null);
-      setIsLoading(false);
-    } catch (err) {
-      if (!mountedRef.current) return;
-      const message =
-        err instanceof Error ? err.message : "Failed to load ping profile";
-      setError(message);
-      setIsLoading(false);
+      setSettings({
+        profile: json.profile,
+        target_ipv4: json.target_ipv4 ?? "",
+        target_ipv6: json.target_ipv6 ?? "",
+      });
+      setCadence({
+        intervalSec: num(json.interval_sec) ?? num(json.effective_interval),
+        failSecs: num(json.fail_secs),
+        recoverSecs: num(json.recover_secs),
+        intervalOverride: num(json.interval_override),
+      });
+      setLoadFailed(false);
+    } catch {
+      if (mountedRef.current) setLoadFailed(true);
+    } finally {
+      if (mountedRef.current) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
     mountedRef.current = true;
-    fetchProfile();
+    void fetchProfile();
     return () => {
       mountedRef.current = false;
     };
   }, [fetchProfile]);
 
-  const save = useCallback(async (args: SavePingProfileArgs) => {
-    setIsSaving(true);
-    setSaveError(null);
-    try {
-      const response = await authFetch(ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "save",
-          profile: args.profile,
-          target_ipv4: args.target_ipv4,
-          target_ipv6: args.target_ipv6,
-        }),
-      });
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    await fetchProfile();
+  }, [fetchProfile]);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  const save = useCallback(
+    async (next: PingProfileSettings): Promise<PingProfileSaveResult> => {
+      setIsSaving(true);
+      try {
+        const response = await authFetch(ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "save", ...next }),
+        });
+        if (!response.ok) return { ok: false, error: null };
+        const json = await response.json();
+        if (!json?.success) return failure(t, json ?? {});
+        // The saved profile changes the cadence: re-read it from the CGI.
+        if (mountedRef.current) {
+          setSettings(next);
+          void fetchProfile();
+        }
+        return { ok: true, error: null };
+      } catch {
+        return { ok: false, error: null };
+      } finally {
+        if (mountedRef.current) setIsSaving(false);
       }
+    },
+    [t, fetchProfile],
+  );
 
-      const json: PingProfileSaveResponse = await response.json();
-      if (!json.success) {
-        throw new Error(json.detail || json.error || "Failed to save");
-      }
-
-      if (mountedRef.current) {
-        // Reflect the just-saved values so dirty detection settles.
-        setProfile(args.profile);
-        setTargetIpv4(args.target_ipv4);
-        setTargetIpv6(args.target_ipv6);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to save";
-      if (mountedRef.current) setSaveError(message);
-      throw err instanceof Error ? err : new Error(message);
-    } finally {
-      if (mountedRef.current) setIsSaving(false);
-    }
-  }, []);
-
-  return {
-    profile,
-    targetIpv4,
-    targetIpv6,
-    intervalOverride,
-    effectiveInterval,
-    isLoading,
-    error,
-    isSaving,
-    saveError,
-    save,
-  };
+  return { settings, cadence, isLoading, loadFailed, isSaving, save, refresh };
 }

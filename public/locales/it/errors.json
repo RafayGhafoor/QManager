@@ -173,5 +173,9 @@
   "invalid_range": "Intervallo di tempo sconosciuto",
   "disabled": "Il monitoraggio è disattivato",
   "flag_failed": "Impossibile avviare il controllo",
-  "invalid_field": "Un'impostazione ha un valore non valido"
+  "invalid_field": "Un'impostazione ha un valore non valido",
+  "invalid_target": "Questa destinazione non è un indirizzo valido.",
+  "invalid_preset": "Questa preimpostazione non è riconosciuta.",
+  "invalid_custom_latency": "Inserisci un limite di latenza da 1 a 10000 ms.",
+  "invalid_custom_loss": "Inserisci un limite di perdita da 0 al 100%."
 }

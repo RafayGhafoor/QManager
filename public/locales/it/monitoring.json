@@ -596,5 +596,121 @@
     "reboot_later_button": "Riavvia più tardi",
     "reboot_now_button": "Riavvia ora",
     "rebooting_label": "Riavvio…"
+  },
+  "connection_quality": {
+    "page": {
+      "title": "Qualità della connessione",
+      "description": "Gli endpoint a cui il modem invia ping e i limiti che trasformano una connessione lenta in un evento."
+    },
+    "targets": {
+      "title": "Destinazioni delle sonde",
+      "description": "Interrogati in ordine finché uno risponde, per capire se internet è raggiungibile.",
+      "restore": "Ripristina i valori predefiniti",
+      "unsaved": "Non salvato",
+      "save": "Salva le destinazioni",
+      "leg": {
+        "ipv4": "Destinazione IPv4",
+        "ipv6": "Destinazione IPv6 di riserva"
+      },
+      "error": {
+        "title": "Impossibile leggere le destinazioni delle sonde",
+        "body": "Restano in uso le destinazioni salvate.",
+        "retry": "Riprova"
+      },
+      "toast": {
+        "saved": "Destinazioni delle sonde salvate.",
+        "failed": "Impossibile salvare le destinazioni delle sonde."
+      },
+      "validation": {
+        "empty": "Inserisci una destinazione.",
+        "too_long": "Usa al massimo {{max}} caratteri.",
+        "spaces": "Gli spazi non sono ammessi.",
+        "disallowed": "Contiene caratteri non ammessi.",
+        "ipv4_invalid": "Inserisci un indirizzo IPv4 o un nome host.",
+        "ipv6_invalid": "Non è un indirizzo IPv6 valido.",
+        "ipv6_colon": "Un indirizzo IPv6 contiene i due punti."
+      },
+      "verdict": {
+        "ipv4": "IPv4 risponde",
+        "ipv6": "IPv6 risponde",
+        "none": "Nessuna risposta",
+        "unknown": "Nessun dato"
+      },
+      "group": {
+        "sensitivity": "Sensibilità",
+        "ipv4": "IPv4",
+        "ipv6": "Riserva IPv6"
+      },
+      "fallback_hint": "Interrogata solo quando la destinazione IPv4 non risponde, così una connessione solo IPv6 non viene scambiata per un'interruzione.",
+      "fallback_hint_label": "Informazioni sulla riserva IPv6",
+      "interval": {
+        "label": "Intervallo delle sonde",
+        "value": "Ogni {{seconds}} s",
+        "override": "Ogni {{seconds}} s (impostato dal Watchdog)"
+      },
+      "failed": "Salvataggio non riuscito",
+      "profile": {
+        "sensitive": "Sensibile",
+        "regular": "Normale",
+        "relaxed": "Rilassato",
+        "quiet": "Silenzioso"
+      }
+    },
+    "thresholds": {
+      "title": "Soglie di qualità",
+      "description": "Quando una connessione lenta o con perdite viene registrata come evento di rete.",
+      "latency": {
+        "title": "Latenza"
+      },
+      "loss": {
+        "title": "Perdita pacchetti"
+      },
+      "preset": {
+        "standard": "Standard",
+        "tolerant": "Tollerante",
+        "very_tolerant": "Molto tollerante",
+        "custom": "Personalizzato"
+      },
+      "unsaved": "Non salvato",
+      "save": "Salva le soglie",
+      "error": {
+        "title": "Impossibile leggere le soglie di qualità",
+        "body": "Restano in uso i limiti salvati.",
+        "retry": "Riprova"
+      },
+      "toast": {
+        "saved": "Soglie di qualità salvate.",
+        "failed": "Impossibile salvare le soglie di qualità."
+      },
+      "row": {
+        "flags": "Segnala dopo",
+        "now": "Adesso",
+        "limit": "Limite"
+      },
+      "flags": {
+        "latency_one": "{{count}} campione oltre {{ms}} ms",
+        "latency_other": "{{count}} campioni oltre {{ms}} ms",
+        "loss_one": "{{count}} campione al {{pct}}% o più",
+        "loss_other": "{{count}} campioni al {{pct}}% o più",
+        "pending": "Inserisci un limite"
+      },
+      "now": {
+        "latency": "{{ms}} ms",
+        "loss": "{{pct}}%",
+        "no_reply": "Nessuna risposta",
+        "collecting": "Raccolta in corso",
+        "over_latency": "Oltre il limite di {{ms}} ms",
+        "over_loss": "Oltre il limite del {{pct}}%"
+      },
+      "default_chip": "Valori predefiniti",
+      "failed": "Salvataggio non riuscito",
+      "unit": {
+        "latency": "ms",
+        "loss": "%"
+      },
+      "validation": {
+        "range": "Inserisci un numero intero da {{min}} a {{max}}."
+      }
+    }
   }
 }

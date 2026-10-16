@@ -100,11 +100,6 @@
     "chart_description": "Questo grafico mostra la potenza del segnale {{signal_type}} nella cronologia recente.",
     "fluctuation_note": "I valori possono variare a causa di fattori ambientali e condizioni della rete."
   },
-  "latency": {
-    "title": "Latenza Internet e test di velocità",
-    "chart_latency": "RTT Internet",
-    "chart_packetloss": "Perdita di pacchetti"
-  },
   "speedtest": {
     "section_label": "Prova di velocità",
     "start_button_aria": "Avvia il test di velocità",
@@ -140,7 +135,13 @@
     "view_result_link": "Visualizza su Speedtest.net",
     "bytes_transferred": "{{bytes}} trasferito",
     "try_again_button": "Riprova",
-    "run_again_button": "Corri di nuovo"
+    "run_again_button": "Corri di nuovo",
+    "unit_mbps": "Mbps",
+    "unit_ms": "ms",
+    "time_just_now": "adesso",
+    "time_minutes_ago": "{{count}} min fa",
+    "time_hours_ago": "{{count}} h fa",
+    "time_days_ago": "{{count}} g fa"
   },
   "scc": {
     "title": "Portatori secondari",
@@ -317,5 +318,37 @@
     "unit_s": "s",
     "unit_pct": "%",
     "unmeasured": "—"
+  },
+  "connection_quality": {
+    "title": "Qualità della connessione",
+    "description": "Quanto è stato stabile il collegamento nell'ultima mezz'ora, più l'ultimo speed test.",
+    "internet": "Internet",
+    "dns": "Risoluzione DNS",
+    "unit_ms": "ms",
+    "unit_pct": "%",
+    "probing": "Sonda",
+    "reach_label": "Raggiungibilità",
+    "reach_responsive": "Reattivo",
+    "reach_degraded": "Instabile",
+    "reach_unreachable": "Irraggiungibile",
+    "reach_unknown": "Non misurato",
+    "reach_aria": "Raggiungibilità, {{minutes}} minuti, dal più vecchio",
+    "jitter_label": "Jitter",
+    "jitter_now": "{{value}} ms ora",
+    "jitter_no_reading": "Nessuna lettura",
+    "jitter_aria": "Jitter, {{minutes}} minuti, dal più vecchio",
+    "axis_now": "Ora",
+    "axis_reach_one": "{{count}} min fa",
+    "axis_reach_other": "{{count}} min fa",
+    "axis_reach_none": "Nessuno storico",
+    "axis_reach_sub_minute": "< 1 min",
+    "footer_typical": "Tipica",
+    "footer_worst": "Peggiore",
+    "footer_loss": "Perdita",
+    "empty_title": "Nessuna sonda attiva",
+    "empty_description": "Il controllo della connessione non è attivo, quindi non ci sono latenza, jitter o perdita da mostrare.",
+    "empty_action": "Apri Qualità della connessione",
+    "error_title": "Modem non raggiungibile",
+    "error_description": "Non è stato possibile leggere lo stato del modem, quindi non c'è alcuna lettura di qualità da mostrare."
   }
 }

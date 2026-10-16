@@ -100,11 +100,6 @@
     "chart_description": "Grafik ini menunjukkan kekuatan sinyal {{signal_type}} dalam riwayat terkini.",
     "fluctuation_note": "Nilai mungkin berfluktuasi karena faktor lingkungan dan kondisi jaringan."
   },
-  "latency": {
-    "title": "Latensi Internet dan Tes Kecepatan",
-    "chart_latency": "RTT Internet",
-    "chart_packetloss": "Packet Loss"
-  },
   "speedtest": {
     "section_label": "Tes Kecepatan",
     "start_button_aria": "Mulai tes kecepatan",
@@ -140,7 +135,13 @@
     "view_result_link": "Lihat di Speedtest.net",
     "bytes_transferred": "{{bytes}} ditransfer",
     "try_again_button": "Coba Lagi",
-    "run_again_button": "Jalankan Lagi"
+    "run_again_button": "Jalankan Lagi",
+    "unit_mbps": "Mbps",
+    "unit_ms": "ms",
+    "time_just_now": "baru saja",
+    "time_minutes_ago": "{{count}} mnt lalu",
+    "time_hours_ago": "{{count}} jam lalu",
+    "time_days_ago": "{{count}} hr lalu"
   },
   "scc": {
     "title": "Carrier Sekunder",
@@ -317,5 +318,37 @@
     "unit_s": "dtk",
     "unit_pct": "%",
     "unmeasured": "—"
+  },
+  "connection_quality": {
+    "title": "Kualitas Koneksi",
+    "description": "Seberapa stabil koneksi selama setengah jam terakhir, beserta hasil uji kecepatan terbaru.",
+    "internet": "Internet",
+    "dns": "Pencarian DNS",
+    "unit_ms": "ms",
+    "unit_pct": "%",
+    "probing": "Memeriksa",
+    "reach_label": "Keterjangkauan",
+    "reach_responsive": "Responsif",
+    "reach_degraded": "Tidak Stabil",
+    "reach_unreachable": "Tidak terjangkau",
+    "reach_unknown": "Tidak diukur",
+    "reach_aria": "Keterjangkauan, {{minutes}} menit, dari yang terlama",
+    "jitter_label": "Jitter",
+    "jitter_now": "{{value}} ms sekarang",
+    "jitter_no_reading": "Tidak ada data",
+    "jitter_aria": "Jitter, {{minutes}} menit, dari yang terlama",
+    "axis_now": "Sekarang",
+    "axis_reach_one": "{{count}} menit lalu",
+    "axis_reach_other": "{{count}} menit lalu",
+    "axis_reach_none": "Belum ada riwayat",
+    "axis_reach_sub_minute": "< 1 menit",
+    "footer_typical": "Umumnya",
+    "footer_worst": "Terburuk",
+    "footer_loss": "Loss",
+    "empty_title": "Tidak ada pemeriksaan",
+    "empty_description": "Pemeriksaan koneksi tidak berjalan, jadi tidak ada latensi, jitter, atau loss yang bisa ditampilkan.",
+    "empty_action": "Buka Kualitas Koneksi",
+    "error_title": "Modem tidak dapat dijangkau",
+    "error_description": "Status modem tidak dapat dibaca, jadi belum ada data kualitas yang bisa ditampilkan."
   }
 }

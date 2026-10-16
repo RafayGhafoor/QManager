@@ -100,11 +100,6 @@
     "chart_description": "此图表显示最近的 {{signal_type}} 信号强度。",
     "fluctuation_note": "数值可能因环境因素和网络状况而波动。"
   },
-  "latency": {
-    "title": "互联网延迟与速度测试",
-    "chart_latency": "互联网 RTT",
-    "chart_packetloss": "丢包率"
-  },
   "speedtest": {
     "section_label": "速度测试",
     "start_button_aria": "开始速度测试",
@@ -140,7 +135,13 @@
     "view_result_link": "在 Speedtest.net 上查看",
     "bytes_transferred": "已传输 {{bytes}}",
     "try_again_button": "重试",
-    "run_again_button": "再次运行"
+    "run_again_button": "再次运行",
+    "unit_mbps": "Mbps",
+    "unit_ms": "毫秒",
+    "time_just_now": "刚刚",
+    "time_minutes_ago": "{{count}} 分钟前",
+    "time_hours_ago": "{{count}} 小时前",
+    "time_days_ago": "{{count}} 天前"
   },
   "scc": {
     "title": "辅助载波",
@@ -317,5 +318,37 @@
     "unit_s": "s",
     "unit_pct": "%",
     "unmeasured": "—"
+  },
+  "connection_quality": {
+    "title": "连接质量",
+    "description": "过去半小时内链路的稳定程度，以及最近一次测速结果。",
+    "internet": "互联网",
+    "dns": "DNS 查询",
+    "unit_ms": "ms",
+    "unit_pct": "%",
+    "probing": "探测目标",
+    "reach_label": "可达性",
+    "reach_responsive": "响应正常",
+    "reach_degraded": "不稳定",
+    "reach_unreachable": "无法访问",
+    "reach_unknown": "未测量",
+    "reach_aria": "可达性，{{minutes}} 分钟，从最早开始",
+    "jitter_label": "抖动",
+    "jitter_now": "当前 {{value}} ms",
+    "jitter_no_reading": "无读数",
+    "jitter_aria": "抖动，{{minutes}} 分钟，从最早开始",
+    "axis_now": "现在",
+    "axis_reach_one": "{{count}} 分钟前",
+    "axis_reach_other": "{{count}} 分钟前",
+    "axis_reach_none": "暂无历史记录",
+    "axis_reach_sub_minute": "< 1 分钟",
+    "footer_typical": "典型",
+    "footer_worst": "最差",
+    "footer_loss": "丢包",
+    "empty_title": "未在探测",
+    "empty_description": "连接探测未运行，因此没有延迟、抖动或丢包数据可显示。",
+    "empty_action": "打开连接质量",
+    "error_title": "无法连接调制解调器",
+    "error_description": "无法读取调制解调器状态，因此没有质量读数可显示。"
   }
 }
