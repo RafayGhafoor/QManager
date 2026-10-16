@@ -166,6 +166,12 @@ flock_wait() {
 #
 # Uses subshell + FD 9 redirect: ( flock 9; ...; ) 9>"$LOCK_FILE"
 # Lock is auto-released when the subshell exits.
+#
+# Every child launched inside the locked subshell gets `9>&-`. BusyBox
+# `timeout` forks a once-per-second watcher that would otherwise inherit FD 9
+# and keep the flock held ~1s after a ~6ms AT exchange. The subshell still
+# holds FD 9 for the full exchange, so serialization and SAFETY_TIMEOUT are
+# unchanged; only the post-command lock leak goes away.
 # =============================================================================
 
 if is_long_command "$COMMAND"; then
@@ -183,11 +189,11 @@ if is_long_command "$COMMAND"; then
             echo $$ > "$PID_FILE"
 
             # Warm-up: flush residual buffer + confirm modem responsive
-            atcli_smd11 'AT' > /dev/null 2>&1 || { rm -f "$PID_FILE"; exit 3; }
+            atcli_smd11 'AT' > /dev/null 2>&1 9>&- || { rm -f "$PID_FILE"; exit 3; }
 
             # Real command — atcli_smd11 self-times. Outer timeout is a last
             # resort in case the binary itself wedges.
-            timeout "$SAFETY_TIMEOUT" atcli_smd11 "$COMMAND" 2>/dev/null
+            timeout "$SAFETY_TIMEOUT" atcli_smd11 "$COMMAND" 2>/dev/null 9>&-
             cmd_rc=$?
             rm -f "$PID_FILE"
             exit $cmd_rc
@@ -243,7 +249,7 @@ else
                 exit 2
             fi
             echo $$ > "$PID_FILE"
-            timeout "$SAFETY_TIMEOUT" atcli_smd11 "$COMMAND" 2>/dev/null
+            timeout "$SAFETY_TIMEOUT" atcli_smd11 "$COMMAND" 2>/dev/null 9>&-
             cmd_rc=$?
             rm -f "$PID_FILE"
             exit $cmd_rc
@@ -262,7 +268,7 @@ else
                         exit 2
                     fi
                     echo $$ > "$PID_FILE"
-                    timeout "$SAFETY_TIMEOUT" atcli_smd11 "$COMMAND" 2>/dev/null
+                    timeout "$SAFETY_TIMEOUT" atcli_smd11 "$COMMAND" 2>/dev/null 9>&-
                     cmd_rc=$?
                     rm -f "$PID_FILE"
                     exit $cmd_rc
