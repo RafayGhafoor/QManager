@@ -509,6 +509,9 @@ remove_runtime_state() {
           /tmp/qmanager_refresh_policy_band \
           /tmp/qmanager_supported_bands.env \
           /tmp/qmanager_long_running \
+          /tmp/qmanager_*scan_result.json \
+          /tmp/qmanager_*scan_error \
+          /tmp/qmanager_*scan_*.tmp \
           /tmp/qmanager_low_power_active \
           /tmp/qmanager_reboot_pending.json \
           /tmp/qmanager_reboot_storm_hour \

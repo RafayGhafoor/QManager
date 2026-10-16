@@ -304,10 +304,14 @@ _ev_net_context() {
 # Snapshot current state into prev_ev_* variables (called once after first parse)
 snapshot_event_state() {
     prev_ev_network_type="$network_type"
-    prev_ev_lte_band="$lte_band"
-    prev_ev_lte_pci="$lte_pci"
-    prev_ev_nr_band="$nr_band"
-    prev_ev_nr_pci="$nr_pci"
+    # Band and PCI keep their last known good value across a blank reading:
+    # parse_serving_cell blanks them whenever AT+QENG gives no usable line
+    # (every service drop), and copying that blank destroyed the baseline (the
+    # "was ..." clause of "5G NR anchor lost" went empty exactly then).
+    prev_ev_lte_band="${lte_band:-$prev_ev_lte_band}"
+    prev_ev_lte_pci="${lte_pci:-$prev_ev_lte_pci}"
+    prev_ev_nr_band="${nr_band:-$prev_ev_nr_band}"
+    prev_ev_nr_pci="${nr_pci:-$prev_ev_nr_pci}"
     prev_ev_nr_state="$nr_state"
     prev_ev_modem_reachable="$modem_reachable"
     # prev_ev_internet is owned by detect_data_connection_events.
@@ -643,28 +647,31 @@ detect_events() {
     # Section 2: Band Changes events
     # =====================================================================
 
-    # --- LTE band change ---
-    if [ -n "$lte_band" ] && [ -n "$prev_ev_lte_band" ] && \
-       [ "$lte_band" != "$prev_ev_lte_band" ]; then
+    # Band and PCI go through _ev_settle: on a drop the modem walks a ladder of
+    # coverage bands for a sample or two each before settling back, and a raw
+    # sample-to-sample inequality reported every rung (and, with blanks in the
+    # baseline, dropped the return leg). A blank is no observation. Messages
+    # say "settled on X (was Y)" because the intermediate rungs are skipped.
+    local _rc
+
+    # --- LTE band change (settle-debounced) ---
+    _ev_settle lte_band "$lte_band"; _rc=$?
+    if [ "$_rc" -eq 0 ]; then
         local lte_band_detail=""
-        if [ -n "$lte_pci" ]; then
-            if [ -n "$prev_ev_lte_pci" ] && [ "$lte_pci" != "$prev_ev_lte_pci" ]; then
-                lte_band_detail=" (PCI: $prev_ev_lte_pci -> $lte_pci)"
-            else
-                lte_band_detail=" (PCI $lte_pci)"
-            fi
-        fi
-        append_event "band_change" \
-            "LTE band changed from $prev_ev_lte_band to $lte_band${lte_band_detail}" "info"
+        [ -n "$lte_pci" ] && lte_band_detail=" (PCI $lte_pci)"
+        append_event "band_change"             "LTE band settled on ${_EV_SETTLED_TO} (was ${_EV_SETTLED_FROM})${lte_band_detail}" "info"
+    elif [ "$_rc" -eq 2 ]; then
+        append_event "band_change"             "LTE band unstable (${_EV_FLAP_N} changes in the last $((EV_FLAP_WINDOW / 60)) min)" "warning"
     fi
 
-    # --- LTE PCI change (PCC cell handoff) ---
-    if [ -n "$lte_pci" ] && [ -n "$prev_ev_lte_pci" ] && \
-       [ "$lte_pci" != "$prev_ev_lte_pci" ]; then
+    # --- LTE PCI change (PCC cell handoff, settle-debounced) ---
+    _ev_settle lte_pci "$lte_pci"; _rc=$?
+    if [ "$_rc" -eq 0 ]; then
         local lte_pci_ctx=""
         [ -n "$lte_band" ] && lte_pci_ctx=" on $lte_band"
-        append_event "pci_change" \
-            "LTE PCC cell handoff${lte_pci_ctx} (PCI: $prev_ev_lte_pci -> $lte_pci)" "info"
+        append_event "pci_change"             "LTE PCC cell handoff${lte_pci_ctx} (PCI: ${_EV_SETTLED_FROM} -> ${_EV_SETTLED_TO})" "info"
+    elif [ "$_rc" -eq 2 ]; then
+        append_event "pci_change"             "LTE cell unstable (${_EV_FLAP_N} handoffs in the last $((EV_FLAP_WINDOW / 60)) min)" "warning"
     fi
 
     # --- NR state change (5G anchor gained/lost) ---
@@ -681,30 +688,32 @@ detect_events() {
         fi
     fi
 
-    # --- NR band change ---
-    if [ "$nr_state" = "connected" ] && \
-       [ -n "$nr_band" ] && [ -n "$prev_ev_nr_band" ] && \
-       [ "$nr_band" != "$prev_ev_nr_band" ]; then
-        local nr_band_detail=""
-        if [ -n "$nr_pci" ]; then
-            if [ -n "$prev_ev_nr_pci" ] && [ "$nr_pci" != "$prev_ev_nr_pci" ]; then
-                nr_band_detail=" (PCI: $prev_ev_nr_pci -> $nr_pci)"
-            else
-                nr_band_detail=" (PCI $nr_pci)"
-            fi
-        fi
-        append_event "band_change" \
-            "NR band changed from $prev_ev_nr_band to $nr_band${nr_band_detail}" "info"
+    # --- NR band / PCI changes (settle-debounced) ---
+    # While the NR anchor is down there is nothing to observe: feed a blank so
+    # the counters freeze rather than reset, and an NSA drop-and-reacquire onto
+    # the same band stays silent (the anchor events above report the drop).
+    local _nr_band_obs="" _nr_pci_obs=""
+    if [ "$nr_state" = "connected" ]; then
+        _nr_band_obs="$nr_band"
+        _nr_pci_obs="$nr_pci"
     fi
 
-    # --- NR PCI change (PCC) ---
-    if [ "$nr_state" = "connected" ] && \
-       [ -n "$nr_pci" ] && [ -n "$prev_ev_nr_pci" ] && \
-       [ "$nr_pci" != "$prev_ev_nr_pci" ]; then
+    _ev_settle nr_band "$_nr_band_obs"; _rc=$?
+    if [ "$_rc" -eq 0 ]; then
+        local nr_band_detail=""
+        [ -n "$nr_pci" ] && nr_band_detail=" (PCI $nr_pci)"
+        append_event "band_change"             "NR band settled on ${_EV_SETTLED_TO} (was ${_EV_SETTLED_FROM})${nr_band_detail}" "info"
+    elif [ "$_rc" -eq 2 ]; then
+        append_event "band_change"             "NR band unstable (${_EV_FLAP_N} changes in the last $((EV_FLAP_WINDOW / 60)) min)" "warning"
+    fi
+
+    _ev_settle nr_pci "$_nr_pci_obs"; _rc=$?
+    if [ "$_rc" -eq 0 ]; then
         local nr_pci_ctx=""
         [ -n "$nr_band" ] && nr_pci_ctx=" on $nr_band"
-        append_event "pci_change" \
-            "NR PCC cell handoff${nr_pci_ctx} (PCI: $prev_ev_nr_pci -> $nr_pci)" "info"
+        append_event "pci_change"             "NR PCC cell handoff${nr_pci_ctx} (PCI: ${_EV_SETTLED_FROM} -> ${_EV_SETTLED_TO})" "info"
+    elif [ "$_rc" -eq 2 ]; then
+        append_event "pci_change"             "NR cell unstable (${_EV_FLAP_N} handoffs in the last $((EV_FLAP_WINDOW / 60)) min)" "warning"
     fi
 
     # --- CA changes (sticky settle, see _ev_ca_check) ---

@@ -268,7 +268,7 @@ Returns network events as a JSON array. `internet_lost`/`internet_restored` and 
   {
     "timestamp": 1710700000,
     "type": "band_change",
-    "message": "LTE band changed from B2 to B66",
+    "message": "LTE band settled on B66 (was B2) (PCI 101)",
     "severity": "info"
   }
 ]
@@ -328,29 +328,34 @@ Execute a raw AT command.
 
 ### POST `/at_cmd/cell_scan_start.sh`
 
-Start the cell scanner daemon.
+Start the cell scanner worker (`AT+QSCAN=3,1`, 30 to 180 s).
 
 **Response:**
 ```json
-{ "success": true }
+{ "success": true, "pid": 12345 }
 ```
+
+**Errors:** `already_running` (a cell scan is in flight; the page attaches to it), `other_scan_running` (a neighbour scan holds the modem; never reused as `already_running`, which would attach the page to a run of the other kind), `modem_busy` (`/tmp/qmanager_long_running` set by another long command), `start_failed` (worker missing or died at once).
+
+**Singleton:** both start endpoints share `/tmp/qmanager_scan.lock`. The CGI opens it read-only on fd 7, takes `flock -x -n 7` and spawns the worker, which inherits fd 7, so the lock is held for the worker's run (and any child still on the modem) and released by the kernel on exit or SIGKILL. Acquire-then-spawn is atomic, so two near-simultaneous POSTs cannot both start. The PID files only identify which scan holds the lock (the CGI writes the PID from `$!`; a same-kind start that finds no PID yet re-reads after 0.3 s). Never unlink the lock file while a scan can run.
 
 ### GET `/at_cmd/cell_scan_status.sh`
 
-Get cell scan results.
+Get cell scan status and results.
 
 **Response:**
 ```json
-{
-  "success": true,
-  "status": "complete",
-  "cells": [...]
-}
+{ "status": "idle" }
+{ "status": "running" }
+{ "status": "complete", "results": [...] }
+{ "status": "error", "message": "AT+QSCAN command failed (exit=1)" }
 ```
+
+The GET is read-only: the error file is not consumed (every poll reports it until the next start clears it), and the result is checked before the error, so a newer result is never hidden by a stale error.
 
 ### POST `/at_cmd/neighbour_scan_start.sh` / GET `neighbour_scan_status.sh`
 
-Same pattern as cell scanner for neighbor cells.
+Same pattern and shared lock as the cell scanner (`other_scan_running` while a full sweep runs). The worker reads LTE (`AT+QENG="neighbourcell"`) and NR (`AT+QNWCFG="nr5g_meas_info"`) separately; if one leg fails and the other found no cells it reports an error naming the leg ("Results are incomplete") rather than `complete` with `[]`, and a leg failing with `modem_busy` / `scan_in_progress` is reported as a busy modem. One failed leg with rows from the other still returns those rows.
 
 ### POST `/at_cmd/speedtest_start.sh` / GET `speedtest_status.sh` / GET `speedtest_check.sh`
 

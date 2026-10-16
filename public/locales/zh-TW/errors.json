@@ -123,6 +123,7 @@
   "not_configured": "服務尚未設定",
   "not_found": "找不到請求的專案",
   "not_installed": "未安裝必需的服務",
+  "other_scan_running": "另一項掃描正在使用調變解調器。請等待其完成後再試。",
   "other_vpn_installed": "已安裝另一個 VPN 服務",
   "parse_failed": "解析命令響應失敗",
   "partial_apply": "配置已部分套用，但部分步驟失敗 — 請檢視套用進度瞭解詳情",

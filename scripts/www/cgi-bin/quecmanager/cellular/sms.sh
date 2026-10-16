@@ -50,6 +50,10 @@ cgi_handle_options
 # char device or return interleaved data.
 _SMS_LOCK_FILE="/var/lock/qmanager.lock"
 _SMS_LOCK_WAIT=10
+# Lock-timeout exit code. 99 is clear of sms_tool's own 0/1/2 (a real send
+# failure exits 2), exec failures 126/127 and signal codes 128+N, so a busy
+# lock is never reported as a send failure (or an empty inbox).
+_SMS_LOCK_TIMEOUT_RC=99
 
 # BusyBox-compatible flock with timeout (polling loop).
 # Usage: _sms_flock_wait <fd> <timeout_seconds>
@@ -87,7 +91,7 @@ _sms_run() {
     _sms_err="/tmp/qmanager_sms_err.$$"
 
     (
-        _sms_flock_wait 9 "$_SMS_LOCK_WAIT" || exit 2
+        _sms_flock_wait 9 "$_SMS_LOCK_WAIT" || exit "$_SMS_LOCK_TIMEOUT_RC"
         _sms_out=$(sms_tool -d /dev/smd11 "$@" 2>"$_sms_err")
         _sms_rc=$?
 
@@ -122,7 +126,14 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     # Helper-free inline read: pull {"msg":[...]} for one storage and tag each
     # message with its storage. Falls back to [] on any parse failure.
     # 1a. Read ME storage.
+    #     A lock timeout here means the whole endpoint is stuck behind another
+    #     AT user: report modem_busy rather than an empty inbox.
     me_json=$(_sms_run -s ME recv -j)
+    if [ $? -eq "$_SMS_LOCK_TIMEOUT_RC" ]; then
+        qlog_error "SMS recv: could not acquire AT lock"
+        jq -n '{"success":false,"error":"modem_busy","detail":"Could not acquire AT lock"}'
+        exit 0
+    fi
     if [ -n "$me_json" ]; then
         me_msgs=$(printf '%s' "$me_json" | jq 'if .msg == null then [] else .msg end' 2>/dev/null)
         [ -z "$me_msgs" ] && me_msgs="[]"
@@ -257,6 +268,12 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         qlog_info "Sending SMS to $PHONE (raw: $RAW_PHONE)"
         result=$(_sms_run send "$PHONE" "$MESSAGE")
         rc=$?
+
+        if [ $rc -eq "$_SMS_LOCK_TIMEOUT_RC" ]; then
+            qlog_error "SMS send: could not acquire AT lock"
+            jq -n '{"success":false,"error":"modem_busy","detail":"Could not acquire AT lock"}'
+            exit 0
+        fi
 
         if [ $rc -ne 0 ]; then
             qlog_error "sms_tool send failed (rc=$rc): $result"
