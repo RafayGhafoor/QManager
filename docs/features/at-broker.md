@@ -145,6 +145,72 @@ and `install.sh` stops the daemon before replacing it, so the format has no
 cross-version compatibility path; an old client against a new daemon is
 refused, not executed.
 
+## SMS in the broker (`qsms`) — added, callers not migrated yet
+
+Since 2026-10-16 the broker also speaks SMS natively, so eventually only the
+broker opens `/dev/smd11`. **Nothing calls it yet:** `cellular/sms.sh`,
+`qmanager_sms_forward`, `sms_alerts.sh`, `sms_forwarding.sh`,
+`qmanager_sms_storage` and `qmanager_health_check` still use `sms_tool`, which
+keeps working beside the broker (it opens smd11 itself under the same lock).
+`install.sh` does not create the `qsms` link yet.
+
+- **Client:** `/usr/bin/qsms` → `qmanager_atd` (argv[0] `qsms` is always a
+  client, whatever its arguments, since message text may be `-d`). Commands:
+  `qsms list [ME|SM|all]` (default ME), `qsms status [ME|SM|all]` (default
+  all), `qsms send <number> <text>`, `qsms delete <ME|SM> <idx,...|all>`.
+  stdout is one JSON line; rc 0 on success, 1 on failure. Same transport as
+  `qcmd`: socket first, in-process only if the request never reached the
+  broker, never run twice, frozen-broker restart at 340 s.
+- **Wire format:** `SMS <nbytes> <sent_ms>\n` + the arguments joined by NUL
+  (argv can't contain NUL, so any text round-trips). Cap 64 KB (AT requests
+  keep 8 KB). Reply `RES <0|1> <nbytes>\n<json>` or `ERR <code>\n`. The broker
+  re-validates the arguments (`sms::parse_args`).
+- **One lock hold per operation** (`exec::Session`): the same long-flag gate,
+  5 s lock budget and queue-time accounting as a short AT command, and a 270 s
+  session cap (under the client's 340 s reply timeout). Every exchange keeps
+  the channel invariants above.
+- **CPMS is always restored.** `list`, `status` and `delete` select storage
+  with `AT+CPMS="<mem>"` and always finish with `AT+CPMS="ME","ME","ME"`, even
+  after a failure (a failed restore adds `"warning":"cpms_restore_failed"`).
+- **Send:** `AT+CMGF=0`, then per part `AT+CMGS=<n>`, wait for the `> `
+  prompt (bytes, not a line, 10 s), write the hex + Ctrl-Z, read to the final
+  code (60 s per part), so the `OK` after `+CMGS:` is consumed. No prompt:
+  ESC cancels and the channel is resynced. Stops at the first failed part.
+- **Codec** (`pdu.rs`, 23.040/23.038): DELIVER only (stored SUBMITs and
+  status reports from `AT+CMGL=4` are skipped and counted); sender never gets
+  a `+` (consumers fingerprint on bare digits); timestamp `MM/DD/YY HH:MM:SS`
+  sender-local, timezone ignored, exactly as `sms_tool`; GSM7 with the full
+  extension table (€), UCS2 with surrogate pairs, 8-bit as hex; concat IE
+  00 and 08 (full 16-bit reference). Submit picks GSM7 when every character
+  fits (extension = 2 septets), else UCS2; 160/70 single, 153/67 per part,
+  never splitting an ESC or surrogate pair, at most 255 parts, TOA 0x91 for
+  `+` or ≥6 digits. The legacy encoder's extra-octet, `+` and `?` bugs are not
+  reproduced.
+- **JSON:** `list` → `{"success":true,"msg":[{"index","storage","stat",
+  "sender","timestamp",["reference","part","total",]"encoding","content"}],
+  "skipped":N[,"storage_errors":{"SM":"+CMS ERROR: …"}]}` (an unusable SIM
+  store doesn't hide ME with `all`). `status` → `{"success":true,"storage",
+  "used","total"}` or `{"storages":[…]}`. `send` → `{"success":true,"parts",
+  "refs":[…]}`. `delete` → `{"deleted":[…],"failed":[…]}` or, for `all`,
+  `{"deleted":N,"remaining":0}` (via `AT+CMGD=<first>,4` with a per-index
+  fallback, indexes from `AT+CMGD=?`; covers indexes past 49, which
+  `sms_tool delete all` missed). Errors: `{"success":false,"error":<code>,
+  "detail"?}` with `modem_busy`, `modem_not_ready`, `scan_in_progress`,
+  `command_timeout`, `command_failed`, `send_failed` (detail = `+CMS ERROR: n`),
+  `delete_failed`, `bad_number`, `message_too_long`, `bad_args`.
+- **Privacy:** SMS replies, numbers and bodies are never logged; the log
+  gets one line per operation (`SMS list ME+SM: ok in 222ms`).
+
+**Parity on the RM551E (2026-10-16):** 105 live messages (97 ME, 8 SM):
+sender, timestamp, part, total and content equal `sms_tool recv -j` for
+105/105; reference differs on 4, all 16-bit references whose low byte is what
+`sms_tool` reported. `status` equals `sms_tool status` for ME and SM.
+`AT+CPMS?` reads ME,ME,ME after every op. `qsms list all` takes about 0.24 s
+against 0.29 s for the two `sms_tool` reads. In-process fallback output is
+byte-identical. The 57 `qcmd` parity outputs (9 commands raw and `-j` with rc,
+no argument) are byte-identical to the previous broker. Send and delete are
+covered by fake-modem tests only (86 crate tests).
+
 ## Invariants (and why they exist)
 
 - **The smd11 fd stays blocking.** Verified on the device: glink_pkt rejects

@@ -72,6 +72,13 @@ pub trait Device: AsRawFd {}
 impl Device for File {}
 impl Device for std::os::unix::net::UnixStream {}
 
+enum Prompt {
+    /// The prompt arrived; holds any bytes read after it.
+    Ready(Vec<u8>),
+    /// A final result code arrived instead (the whole reply).
+    Refused(Vec<u8>),
+}
+
 pub struct Channel<D: Device> {
     opener: Box<dyn Fn() -> io::Result<D> + Send>,
     dev: Option<D>,
@@ -289,8 +296,12 @@ impl<D: Device> Channel<D> {
     /// Reads until a complete line that is a final result code. Returns every
     /// byte up to and including that line, exactly as atcli printed it.
     fn read_reply(&mut self, deadline: Instant) -> Result<Vec<u8>, AtError> {
+        self.read_reply_from(Vec::with_capacity(512), deadline)
+    }
+
+    /// `read_reply`, continuing from bytes already read after a prompt.
+    fn read_reply_from(&mut self, mut acc: Vec<u8>, deadline: Instant) -> Result<Vec<u8>, AtError> {
         let fd = self.fd()?;
-        let mut acc: Vec<u8> = Vec::with_capacity(512);
         let mut line_start = 0usize;
         let mut buf = [0u8; 4096];
         loop {
@@ -356,6 +367,87 @@ impl<D: Device> Channel<D> {
             }
             Err(_) => Err(AtError::NotReady),
         }
+    }
+
+    /// Reads until the `> ` input prompt (it ends no line, so it is matched as
+    /// bytes, not as a line) or a final result code (the modem refused the
+    /// command). The prompt must arrive by `deadline`.
+    fn read_prompt(&mut self, deadline: Instant) -> Result<Prompt, AtError> {
+        let fd = self.fd()?;
+        let mut acc: Vec<u8> = Vec::with_capacity(128);
+        let mut line_start = 0usize;
+        let mut buf = [0u8; 1024];
+        loop {
+            while let Some(rel) = acc[line_start..].iter().position(|&b| b == b'\n') {
+                let end = line_start + rel + 1;
+                if is_terminator(&acc[line_start..end]) {
+                    if end < acc.len() {
+                        self.pending.extend_from_slice(&acc[end..]);
+                    }
+                    acc.truncate(end);
+                    return Ok(Prompt::Refused(acc));
+                }
+                line_start = end;
+            }
+            if let Some(p) = acc.windows(2).position(|w| w == b"> ") {
+                // Anything after the prompt (a URC) belongs to what follows.
+                return Ok(Prompt::Ready(acc.split_off(p + 2)));
+            }
+            let left = match remaining(deadline) {
+                Some(d) => d,
+                None => return Err(AtError::Timeout),
+            };
+            match poll_fd(fd, libc::POLLIN, left) {
+                Ok(false) => continue,
+                Ok(true) => {}
+                Err(e) => return Err(self.fail_io(e)),
+            }
+            match raw_read(fd, &mut buf) {
+                Ok(0) => return Err(self.fail_eof()),
+                Ok(n) => acc.extend_from_slice(&buf[..n]),
+                Err(e) if would_block(&e) => {}
+                Err(e) => return Err(self.fail_io(e)),
+            }
+        }
+    }
+
+    /// A two-stage exchange (AT+CMGS in PDU mode): write `cmd`, wait for the
+    /// `> ` prompt by `prompt_deadline`, then write `payload` + Ctrl-Z and read
+    /// to the final result code (so the OK after +CMGS: is consumed). A refusal
+    /// before the prompt (ERROR, +CMS ERROR) is returned as the reply. With no
+    /// prompt the modem may still be waiting for input, so ESC cancels it and
+    /// the channel is resynced before its next use. Nothing follows Ctrl-Z: a
+    /// trailing CRLF would only be read as an empty command line.
+    pub fn exchange_prompt(
+        &mut self,
+        cmd: &str,
+        payload: &[u8],
+        prompt_deadline: Instant,
+        deadline: Instant,
+    ) -> Result<Vec<u8>, AtError> {
+        if self.dirty {
+            self.resync()?;
+        }
+        self.last_drained = self.drain(Duration::ZERO)?;
+        let mut line = Vec::with_capacity(cmd.len() + 2);
+        line.extend_from_slice(cmd.as_bytes());
+        line.extend_from_slice(b"\r\n");
+        self.send(&line, deadline)?;
+        let rest = match self.read_prompt(prompt_deadline.min(deadline)) {
+            Ok(Prompt::Ready(rest)) => rest,
+            Ok(Prompt::Refused(reply)) => return Ok(reply),
+            Err(AtError::Timeout) => {
+                let _ = self.send(&[0x1B], Instant::now() + Duration::from_secs(2));
+                self.dirty = true;
+                return Err(AtError::Timeout);
+            }
+            Err(e) => return Err(e),
+        };
+        let mut body = Vec::with_capacity(payload.len() + 1);
+        body.extend_from_slice(payload);
+        body.push(0x1A);
+        self.send(&body, deadline)?;
+        self.read_reply_from(rest, deadline)
     }
 
     /// One AT exchange. The caller holds the modem lock.
@@ -556,6 +648,101 @@ mod tests {
         for _ in 0..3 {
             assert_eq!(ch.exchange("AT+CSQ", soon(800)).unwrap(), b"AT+CSQ\r\r\nOK\r\n");
         }
+    }
+
+    /// A fake modem for AT+CMGS: answers `AT+CMGS=` with `prompt` (None = no
+    /// prompt), records the payload up to Ctrl-Z and answers it with `result`.
+    /// Every other line gets OK. Records "ESC" when it sees 0x1B.
+    fn cmgs_modem(prompt: Option<&'static [u8]>, result: &'static [u8]) -> (Channel<UnixStream>, Arc<Mutex<Vec<String>>>) {
+        let (near, mut far) = UnixStream::pair().unwrap();
+        near.set_nonblocking(true).unwrap();
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let seen2 = seen.clone();
+        thread::spawn(move || {
+            let mut buf = [0u8; 1024];
+            let mut acc: Vec<u8> = Vec::new();
+            let mut in_pdu = false;
+            loop {
+                let n = match far.read(&mut buf) {
+                    Ok(0) | Err(_) => return,
+                    Ok(n) => n,
+                };
+                acc.extend_from_slice(&buf[..n]);
+                loop {
+                    if let Some(p) = acc.iter().position(|&b| b == 0x1B) {
+                        acc.drain(..=p);
+                        in_pdu = false;
+                        seen2.lock().unwrap().push("ESC".into());
+                        continue;
+                    }
+                    if in_pdu {
+                        let Some(p) = acc.iter().position(|&b| b == 0x1A) else { break };
+                        let pdu = String::from_utf8_lossy(&acc[..p]).to_string();
+                        acc.drain(..=p);
+                        in_pdu = false;
+                        seen2.lock().unwrap().push(format!("PDU {pdu}"));
+                        let _ = far.write_all(result);
+                        continue;
+                    }
+                    let Some(p) = acc.windows(2).position(|w| w == b"\r\n") else { break };
+                    let cmd = String::from_utf8_lossy(&acc[..p]).to_string();
+                    acc.drain(..p + 2);
+                    seen2.lock().unwrap().push(cmd.clone());
+                    if cmd.starts_with("AT+CMGS=") {
+                        let _ = far.write_all(format!("{cmd}\r\r\n").as_bytes());
+                        if let Some(pr) = prompt {
+                            let _ = far.write_all(pr);
+                            in_pdu = pr.ends_with(b"> ");
+                        }
+                    } else {
+                        let _ = far.write_all(format!("{cmd}\r\r\nOK\r\n").as_bytes());
+                    }
+                }
+            }
+        });
+        let slot = Mutex::new(Some(near));
+        let ch = Channel::new(Box::new(move || slot.lock().unwrap().take().ok_or_else(|| io::Error::other("x"))));
+        (ch, seen)
+    }
+
+    #[test]
+    fn cmgs_waits_for_prompt_then_sends_pdu_and_ctrl_z() {
+        let (mut ch, seen) = cmgs_modem(Some(b"> "), b"\r\n+CMGS: 17\r\n\r\nOK\r\n");
+        let r = ch.exchange_prompt("AT+CMGS=13", b"00110005812143F50000B002C834", soon(500), soon(1000)).unwrap();
+        let r = String::from_utf8_lossy(&r).to_string();
+        assert!(r.contains("+CMGS: 17") && r.ends_with("OK\r\n"), "{r:?}");
+        assert_eq!(seen.lock().unwrap()[1], "PDU 00110005812143F50000B002C834");
+        // The trailing OK was consumed: the next caller gets only its own reply.
+        assert_eq!(ch.exchange("AT+NEXT", soon(500)).unwrap(), b"AT+NEXT\r\r\nOK\r\n");
+        assert!(ch.last_drained.is_empty(), "{:?}", ch.last_drained);
+    }
+
+    #[test]
+    fn cms_error_after_pdu_is_the_reply() {
+        let (mut ch, _) = cmgs_modem(Some(b"> "), b"\r\n+CMS ERROR: 500\r\n");
+        let r = ch.exchange_prompt("AT+CMGS=13", b"00", soon(500), soon(1000)).unwrap();
+        assert!(r.ends_with(b"+CMS ERROR: 500\r\n"));
+    }
+
+    #[test]
+    fn refusal_before_the_prompt_is_returned_without_sending_the_pdu() {
+        let (mut ch, seen) = cmgs_modem(Some(b"+CMS ERROR: 302\r\n"), b"");
+        let r = ch.exchange_prompt("AT+CMGS=13", b"00", soon(500), soon(1000)).unwrap();
+        assert!(r.ends_with(b"+CMS ERROR: 302\r\n"));
+        assert!(!seen.lock().unwrap().iter().any(|c| c.starts_with("PDU")));
+    }
+
+    #[test]
+    fn missing_prompt_cancels_with_esc_and_resyncs() {
+        let (mut ch, seen) = cmgs_modem(None, b"");
+        let t = Instant::now();
+        assert!(matches!(ch.exchange_prompt("AT+CMGS=13", b"00", soon(200), soon(5000)), Err(AtError::Timeout)));
+        assert!(t.elapsed() < Duration::from_millis(1500));
+        assert_eq!(ch.exchange("AT+NEXT", soon(1000)).unwrap(), b"AT+NEXT\r\r\nOK\r\n");
+        let s = seen.lock().unwrap().clone();
+        let esc = s.iter().position(|c| c == "ESC").expect("ESC sent");
+        let at = s.iter().position(|c| c == "AT").expect("resync AT");
+        assert!(esc < at, "{s:?}");
     }
 
     #[test]
