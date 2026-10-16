@@ -92,9 +92,74 @@ function connect(): Promise<Client> {
   return connecting;
 }
 
-type ExecResult = { stdout: string; stderr: string; exit_code: number | null; timed_out?: boolean; truncated?: boolean };
+type Orphan = { pid: number; state: string; cmd: string };
+type ExecResult = {
+  stdout: string; stderr: string; exit_code: number | null;
+  timed_out?: boolean; cancelled?: boolean; truncated?: boolean; orphans?: Orphan[];
+};
 
-function execOnce(c: Client, command: string, timeoutS: number, stdin?: string): Promise<ExecResult> {
+// Process-tree containment. The device has no setsid/pkill and dropbear does
+// not give exec channels their own session, so every command runs with a
+// random QM_MCP_RUN=<token> in its environment. Descendants inherit it, and
+// it stays visible in /proc/<pid>/environ even after a child is reparented to
+// init, so `grep -lsF` over /proc finds the whole tree. The kill freezes the
+// tree (STOP) before signalling so nothing can fork its way out.
+const MARK_TIMEOUT = "__QM_MCP_TIMEOUT__";
+const MARK_ORPHAN = "__QM_MCP_ORPHAN__";
+
+function treeFns(tok: string): string {
+  return (
+    `qm_pids() { grep -lsF 'QM_MCP_RUN=${tok}' /proc/[0-9]*/environ 2>/dev/null | sed 's#^/proc/##;s#/environ$##'; }; ` +
+    `qm_kill() { p=$(qm_pids); [ -n "$p" ] || return 0; kill -STOP $p 2>/dev/null; p="$p $(qm_pids)"; ` +
+    `kill -TERM $p 2>/dev/null; kill -CONT $p 2>/dev/null; sleep 1; p=$(qm_pids); [ -n "$p" ] && kill -KILL $p 2>/dev/null; sleep 0.2; }; ` +
+    // Survivors after SIGKILL are D-state (e.g. stuck in a glink read) or zombies.
+    `qm_report() { for p in $(qm_pids); do s=$(cut -d' ' -f3 /proc/$p/stat 2>/dev/null); ` +
+    `c=$(tr '\\0' ' ' < /proc/$p/cmdline 2>/dev/null); echo "${MARK_ORPHAN} $p $s $c" >&2; done; }; `
+  );
+}
+
+// Wrap a command so the device itself enforces the budget: a watchdog sleeps
+// timeoutS, then kills the tagged tree. This holds even if the SSH channel or
+// the bridge dies. stdin is /dev/null unless the caller supplied input.
+function wrap(command: string, tok: string, timeoutS: number, withStdin: boolean): string {
+  const mk = `/tmp/.qm_mcp_to_${tok}`;
+  return (
+    treeFns(tok) +
+    (withStdin ? `exec 3<&0; QM_MCP_RUN=${tok} sh -c ${sq(command)} <&3 3<&- & ` : `QM_MCP_RUN=${tok} sh -c ${sq(command)} </dev/null & `) +
+    `qm_pid=$!; ` +
+    `( sleep ${timeoutS}; : > ${mk}; qm_kill ) </dev/null >/dev/null 2>&1 & qm_wd=$!; ` +
+    `wait $qm_pid; qm_rc=$?; ` +
+    `if [ -f ${mk} ]; then wait $qm_wd; rm -f ${mk}; echo ${MARK_TIMEOUT} >&2; qm_report; exit 124; fi; ` +
+    // Freeze the watchdog so it cannot fork mid-teardown, then drop it and its sleep.
+    `kill -STOP $qm_wd 2>/dev/null; kill -KILL $(pgrep -P $qm_wd) $qm_wd 2>/dev/null; wait $qm_wd 2>/dev/null; ` +
+    `exit $qm_rc`
+  );
+}
+
+// Kill a run's tree from a fresh channel (client backstop, cancellation,
+// shutdown) and report anything that survived.
+async function killTree(tok: string): Promise<Orphan[]> {
+  const c = await connect();
+  const r = await execOnce(c, treeFns(tok) + `qm_kill; qm_report`, 15).catch(() => null);
+  return r ? parseOrphans(r.stderr).orphans : [];
+}
+
+function parseOrphans(stderr: string): { rest: string; orphans: Orphan[]; timedOut: boolean } {
+  const orphans: Orphan[] = [];
+  let timedOut = false;
+  const rest = stderr.split("\n").filter((l) => {
+    if (l === MARK_TIMEOUT) { timedOut = true; return false; }
+    const m = l.match(new RegExp(`^${MARK_ORPHAN} (\\d+) (\\S*) ?(.*)$`));
+    if (!m) return true;
+    orphans.push({ pid: Number(m[1]), state: m[2], cmd: m[3].trim() });
+    return false;
+  }).join("\n");
+  return { rest, orphans, timedOut };
+}
+
+const activeRuns = new Set<string>();
+
+function execOnce(c: Client, command: string, timeoutS: number, stdin?: string, signal?: AbortSignal): Promise<ExecResult> {
   return new Promise((res, rej) => {
     c.exec(command, (err, ch: ClientChannel) => {
       if (err) return rej(err);
@@ -105,11 +170,20 @@ function execOnce(c: Client, command: string, timeoutS: number, stdin?: string):
       let truncated = false;
       let code: number | null = null;
       let timedOut = false;
-      const timer = setTimeout(() => {
-        timedOut = true;
+      let cancelled = false;
+      let done = false;
+      // Dropbear does not confirm a channel close while the remote process is
+      // alive, so after aborting we finish without waiting for "close"; the
+      // caller then kills the tree from a fresh channel.
+      const abort = () => {
         try { ch.signal("KILL"); } catch {}
         try { ch.close(); } catch {}
-      }, timeoutS * 1000);
+        setTimeout(finish, 1000);
+      };
+      const timer = setTimeout(() => { timedOut = true; abort(); }, timeoutS * 1000);
+      const onAbort = () => { cancelled = true; abort(); };
+      if (signal?.aborted) onAbort();
+      else signal?.addEventListener("abort", onAbort, { once: true });
       ch.on("data", (d: Buffer) => {
         if (outLen < MAX_OUTPUT_BYTES) out.push(d); else truncated = true;
         outLen += d.length;
@@ -119,36 +193,76 @@ function execOnce(c: Client, command: string, timeoutS: number, stdin?: string):
         errLen += d.length;
       });
       ch.on("exit", (c2: number | null) => { code = c2; });
-      ch.on("close", () => {
+      function finish() {
+        if (done) return;
+        done = true;
         clearTimeout(timer);
+        signal?.removeEventListener("abort", onAbort);
         const r: ExecResult = {
           stdout: redact(Buffer.concat(out).subarray(0, MAX_OUTPUT_BYTES).toString("utf8")),
           stderr: redact(Buffer.concat(errb).subarray(0, MAX_OUTPUT_BYTES).toString("utf8")),
-          exit_code: timedOut ? null : code,
+          exit_code: timedOut || cancelled ? null : code,
         };
         if (timedOut) r.timed_out = true;
+        if (cancelled) r.cancelled = true;
         if (truncated) r.truncated = true;
         res(r);
-      });
+      }
+      ch.on("close", finish);
       if (stdin !== undefined) ch.end(stdin);
       else ch.end();
     });
   });
 }
 
-// Run a command, reconnecting once if the connection dropped underneath us.
-async function run(command: string, timeoutS = DEFAULT_TIMEOUT_S, stdin?: string): Promise<ExecResult> {
-  const t = Math.min(Math.max(timeoutS, 1), MAX_TIMEOUT_S);
-  for (let attempt = 0; ; attempt++) {
-    const c = await connect();
-    try {
-      return await execOnce(c, command, t, stdin);
-    } catch (e) {
-      if (conn === c) { conn = null; try { c.end(); } catch {} }
-      if (attempt >= 1) throw e;
+// Run a command inside the containment wrapper, reconnecting once if the
+// connection dropped underneath us. The device watchdog fires at timeoutS; the
+// client timer is a backstop a few seconds later that kills the tree itself.
+async function run(command: string, timeoutS = DEFAULT_TIMEOUT_S, stdin?: string, signal?: AbortSignal): Promise<ExecResult> {
+  const t = Math.min(Math.max(Math.ceil(timeoutS), 1), MAX_TIMEOUT_S);
+  const tok = randomBytes(8).toString("hex");
+  const cmd = wrap(command, tok, t, stdin !== undefined);
+  activeRuns.add(tok);
+  try {
+    for (let attempt = 0; ; attempt++) {
+      const c = await connect();
+      try {
+        const r = await execOnce(c, cmd, t + 8, stdin, signal);
+        const p = parseOrphans(r.stderr);
+        r.stderr = p.rest;
+        if (p.timedOut) { r.timed_out = true; r.exit_code = null; }
+        if (r.timed_out || r.cancelled) {
+          // Device watchdog already reported survivors; otherwise kill from here.
+          r.orphans = p.timedOut ? p.orphans : await killTree(tok);
+        }
+        return r;
+      } catch (e) {
+        if (conn === c) { conn = null; try { c.end(); } catch {} }
+        if (attempt >= 1) throw e;
+      }
     }
+  } finally {
+    activeRuns.delete(tok);
   }
 }
+
+// On bridge shutdown, kill whatever is still running on the device.
+let shuttingDown = false;
+async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  const toks = [...activeRuns];
+  if (toks.length && conn) {
+    await Promise.race([
+      Promise.all(toks.map((t) => killTree(t))),
+      new Promise((r) => setTimeout(r, 5000)),
+    ]);
+  }
+  process.exit(0);
+}
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+process.stdin.on("close", shutdown);
 
 // ---------------------------------------------------------------- guard rails
 
@@ -190,26 +304,117 @@ const sq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
 // ---------------------------------------------------------------- server
 
-const server = new McpServer({ name: "modem", version: "0.1.0" });
+const server = new McpServer({ name: "modem", version: "0.2.0" });
 
 server.registerTool(
   "modem_exec",
   {
     description:
       "Run a shell command on the live QManager test modem (BusyBox /bin/sh over a persistent SSH connection). " +
-      "Returns {stdout, stderr, exit_code}. Destructive commands (reboot, AT+CFUN=1,1, firstboot, factory reset, rm -rf /, opkg remove) are refused unless confirm:true.",
+      "Returns {stdout, stderr, exit_code}. stdin is /dev/null unless `stdin` is given, so interactive tools (REPLs, prompts) get EOF instead of hanging; " +
+      "drive a REPL by passing its input, e.g. stdin:\"nw_reg\\nquit\\n\". The timeout is enforced on the device: when timeout_s expires the whole remote " +
+      "process tree (including backgrounded children) is stopped, sent TERM, then KILL, and the result has timed_out:true, partial output, and " +
+      "orphans:[{pid,state,cmd}] for anything that survived (normally empty; D-state processes cannot be killed). Cancelling the call kills the tree too. " +
+      "Background jobs left running after a command finishes normally are not killed. " +
+      "Destructive commands (reboot, AT+CFUN=1,1, firstboot, factory reset, rm -rf /, opkg remove) are refused unless confirm:true.",
     inputSchema: {
       command: z.string().min(1),
-      timeout_s: z.number().positive().max(MAX_TIMEOUT_S).optional().describe(`default ${DEFAULT_TIMEOUT_S}`),
+      timeout_s: z.number().positive().max(MAX_TIMEOUT_S).optional().describe(`default ${DEFAULT_TIMEOUT_S}; enforced on-device`),
+      stdin: z.string().optional().describe("Input fed to the command, then EOF. Omit for /dev/null."),
       confirm: z.boolean().optional().describe("Bypass the deny-list; only with explicit user approval"),
     },
   },
-  async ({ command, timeout_s, confirm }) => {
-    const rule = denied(command);
+  async ({ command, timeout_s, stdin, confirm }, extra) => {
+    const rule = denied(command) ?? (stdin !== undefined ? denied(stdin) : null);
     if (rule && !confirm) return refusal(rule);
     try {
-      const r = await run(command, timeout_s);
-      return json(r, !!r.timed_out);
+      const r = await run(command, timeout_s, stdin, extra.signal);
+      return json(r, !!r.timed_out || !!r.cancelled);
+    } catch (e) { return fail(e); }
+  },
+);
+
+// Pids of the bridge's own plumbing: this run's tree (env token) and every
+// bridge wrapper shell (token in argv). Processes merely started by an earlier
+// run, e.g. a nohup'd job, stay visible and killable.
+const SELF_PIDS =
+  `x=" $( { grep -lsF "QM_MCP_RUN=$QM_MCP_RUN" /proc/[0-9]*/environ; grep -lsF QM_MCP_RUN= /proc/[0-9]*/cmdline; } ` +
+  `| sed 's#^/proc/##;s#/[a-z]*$##' | tr '\\n' ' ') "; `;
+
+// BusyBox ps, minus the bridge's own plumbing.
+const PS_SCRIPT =
+  SELF_PIDS +
+  `ps -o pid,ppid,stat,args | sed 1d | while read p pp s c; do case "$x" in *" $p "*) continue;; esac; echo "$p $pp $s $c"; done`;
+
+server.registerTool(
+  "modem_ps",
+  {
+    description:
+      "List processes on the modem (works without procps/pkill). Returns [{pid, ppid, state, cmd}], optionally filtered by a case-sensitive substring of the command line. " +
+      "Kernel threads show as [name].",
+    inputSchema: {
+      pattern: z.string().optional().describe("substring to match against the full command line"),
+    },
+  },
+  async ({ pattern }, extra) => {
+    try {
+      const r = await run(PS_SCRIPT, 20, undefined, extra.signal);
+      if (r.exit_code !== 0) return json(r, true);
+      const rows = r.stdout.split("\n").filter(Boolean).map((l) => {
+        const m = l.match(/^(\d+) (\d+) (\S+) (.*)$/);
+        return m ? { pid: Number(m[1]), ppid: Number(m[2]), state: m[3], cmd: m[4].trim() } : null;
+      }).filter((x): x is { pid: number; ppid: number; state: string; cmd: string } => !!x && (!pattern || x.cmd.includes(pattern)));
+      return json(rows);
+    } catch (e) { return fail(e); }
+  },
+);
+
+server.registerTool(
+  "modem_kill",
+  {
+    description:
+      "Kill processes on the modem by pid or by command-line pattern (pgrep -f regex + kill; the device has no pkill). " +
+      "Signal defaults to TERM, then KILL for anything still alive after 1 s (escalate:false to send only the given signal). " +
+      "PID 1 is never touched; more than 5 pattern matches need confirm:true. Returns {matched:[{pid,cmd}], survivors:[...]}.",
+    inputSchema: {
+      pid: z.number().int().positive().optional(),
+      pattern: z.string().min(1).optional().describe("regex matched against the full command line (pgrep -f)"),
+      signal: z.enum(["TERM", "KILL", "INT", "HUP", "STOP", "CONT"]).optional(),
+      escalate: z.boolean().optional().describe("default true: KILL survivors of TERM after 1 s"),
+      confirm: z.boolean().optional().describe("Allow more than 5 matches or a deny-listed pattern"),
+    },
+  },
+  async ({ pid, pattern, signal, escalate, confirm }, extra) => {
+    if ((pid === undefined) === (pattern === undefined)) return fail("pass exactly one of pid or pattern");
+    if (pid === 1) return fail("refusing to signal PID 1 (procd)");
+    if (pattern !== undefined) {
+      const rule = denied(pattern);
+      if (rule && !confirm) return refusal(rule);
+    }
+    const sig = signal ?? "TERM";
+    const esc = escalate ?? true;
+    // Pattern matches exclude the bridge's own plumbing (whose argv contains
+    // the pattern) and PID 1.
+    const select = pid !== undefined
+      ? `ps_=${pid}; [ -d /proc/${pid} ] || ps_=`
+      : SELF_PIDS + `ps_=; for p in $(pgrep -f ${sq(pattern!)}); do [ "$p" = 1 ] && continue; case "$x" in *" $p "*) continue;; esac; ps_="$ps_ $p"; done`;
+    const show = `for p in $1; do [ -d /proc/$p ] && echo "$2 $p $(tr '\\0' ' ' < /proc/$p/cmdline 2>/dev/null)"; done`;
+    const cmd =
+      `show() { ${show}; }; ${select}; show "$ps_" M; ` +
+      `n=$(echo $ps_ | wc -w); if [ "$n" -gt 5 ] && [ "${confirm ? 1 : 0}" != 1 ]; then echo TOO_MANY >&2; exit 3; fi; ` +
+      `[ -n "$ps_" ] || exit 0; kill -${sig} $ps_ 2>/dev/null; ` +
+      (esc && sig === "TERM" ? `sleep 1; for p in $ps_; do [ -d /proc/$p ] && kill -KILL $p 2>/dev/null; done; sleep 0.2; ` : `sleep 0.2; `) +
+      `show "$ps_" S; exit 0`;
+    try {
+      const r = await run(cmd, 20, undefined, extra.signal);
+      const rows = (tag: string) => r.stdout.split("\n").filter((l) => l.startsWith(tag + " ")).map((l) => {
+        const m = l.match(/^\S+ (\d+) ?(.*)$/)!;
+        return { pid: Number(m[1]), cmd: m[2].trim() };
+      });
+      if (r.exit_code === 3) return json({ refused: "more than 5 matches; re-call with confirm:true if intended", matched: rows("M") }, true);
+      if (r.exit_code !== 0) return json(r, true);
+      const survivors = rows("S");
+      return json({ signal: sig, matched: rows("M"), survivors }, survivors.length > 0 && sig !== "STOP" && sig !== "CONT");
     } catch (e) { return fail(e); }
   },
 );
@@ -223,10 +428,10 @@ server.registerTool(
       max_bytes: z.number().int().positive().max(MAX_OUTPUT_BYTES).optional().describe("default 65536"),
     },
   },
-  async ({ path, max_bytes }) => {
+  async ({ path, max_bytes }, extra) => {
     const n = max_bytes ?? 65536;
     try {
-      const r = await run(`[ -f ${sq(path)} ] || { echo "not a file: ${path.replace(/["$`\\]/g, "")}" >&2; exit 2; }; wc -c < ${sq(path)}; head -c ${n} ${sq(path)}`);
+      const r = await run(`[ -f ${sq(path)} ] || { echo "not a file: ${path.replace(/["$`\\]/g, "")}" >&2; exit 2; }; wc -c < ${sq(path)}; head -c ${n} ${sq(path)}`, DEFAULT_TIMEOUT_S, undefined, extra.signal);
       if (r.exit_code !== 0) return json(r, true);
       const nl = r.stdout.indexOf("\n");
       const size = Number(r.stdout.slice(0, nl).trim());
@@ -249,7 +454,7 @@ server.registerTool(
       confirm: z.boolean().optional().describe("Bypass the deny-list for content; only with explicit user approval"),
     },
   },
-  async ({ path, content, mode, mkdir, confirm }) => {
+  async ({ path, content, mode, mkdir, confirm }, extra) => {
     const body = content.replace(/\r\n?/g, "\n");
     const isSh = /\.sh$/.test(path) || body.startsWith("#!/bin/sh");
     const rule = isSh ? denied(body) : null;
@@ -261,7 +466,7 @@ server.registerTool(
       `${mkdir ? `mkdir -p ${parent} && ` : ""}cat > ${p} && chmod ${m} ${p} && wc -c < ${p}` +
       (isSh ? ` && { sh -n ${p} 2>&1 && echo SYNTAX_OK || echo SYNTAX_FAIL; }` : "");
     try {
-      const r = await run(cmd, 60, body);
+      const r = await run(cmd, 60, body, extra.signal);
       if (r.exit_code !== 0) return json(r, true);
       const lines = r.stdout.trimEnd().split("\n");
       const bytes = Number(lines[0]);
@@ -289,7 +494,7 @@ server.registerTool(
       timeout_s: z.number().positive().max(MAX_TIMEOUT_S).optional(),
     },
   },
-  async ({ endpoint, method, body, timeout_s }) => {
+  async ({ endpoint, method, body, timeout_s }, extra) => {
     const ep = endpoint.replace(/^\/+/, "").replace(/^cgi-bin\/quecmanager\//, "");
     if (/(^|\/)\.\.(\/|$)/.test(ep)) return fail("endpoint may not contain ..");
     const m = method ?? (body !== undefined ? "POST" : "GET");
@@ -303,7 +508,7 @@ server.registerTool(
       `-w '\\n__HTTP_STATUS__%{http_code}' ${sq(`http://127.0.0.1/cgi-bin/quecmanager/${ep}`)}`;
     const cmd = `mkdir -p /tmp/qmanager_sessions && date +%s > ${sess}; ${curl}; rc=$?; rm -f ${sess}; exit $rc`;
     try {
-      const r = await run(cmd, t + 5, payload);
+      const r = await run(cmd, t + 5, payload, extra.signal);
       const idx = r.stdout.lastIndexOf("\n__HTTP_STATUS__");
       const status = idx >= 0 ? Number(r.stdout.slice(idx + 16).trim()) : null;
       const raw = idx >= 0 ? r.stdout.slice(0, idx) : r.stdout;

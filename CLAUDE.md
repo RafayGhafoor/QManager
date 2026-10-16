@@ -101,7 +101,8 @@ A live test modem is reachable on the LAN; **SSH credentials live in `.env`** (`
 
 **Prefer the modem bridge** (`mcp__modem__*`, a local MCP server at `tools/modem-mcp/`, registered in `.mcp.json`). It holds one persistent SSH connection, reads `.env` itself (secrets never enter the transcript), auto-reconnects and enforces per-call timeouts:
 
-- `modem_exec(command, timeout_s?)` returns `{stdout, stderr, exit_code}` (default 30 s, max 600 s).
+- `modem_exec(command, timeout_s?, stdin?)` returns `{stdout, stderr, exit_code}` (default 30 s, max 600 s). stdin is `/dev/null` unless `stdin` is passed (drive a REPL with e.g. `stdin: "quit\n"`; `qmi_simple_ril_test` ignores EOF). The timeout is enforced on the device: the whole process tree is killed and the result carries `timed_out: true` plus `orphans` (survivors, normally empty). Cancelling a call kills the tree too.
+- `modem_ps(pattern?)` / `modem_kill(pid | pattern, signal?)` list and kill processes without `pkill`; PID 1 is refused, and more than 5 pattern matches need `confirm: true`.
 - `modem_read(path, max_bytes?)` returns the file content and its real size.
 - `modem_write(path, content, mode?, mkdir?)` streams content into `cat > path` (no SFTP or base64 needed), strips CRLF, chmods (755 for `.sh`), runs `sh -n` on shell scripts and returns the byte count plus the syntax result. This replaces the chunked base64 deploy.
 - `modem_cgi(endpoint, method?, body?)` curls `http://127.0.0.1/cgi-bin/quecmanager/<endpoint>` on-device with a throwaway session it mints and deletes, so authed endpoints work.
