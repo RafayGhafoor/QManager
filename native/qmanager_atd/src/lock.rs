@@ -30,7 +30,8 @@ impl LockFile {
             .create(true)
             .truncate(false)
             .mode(0o644)
-            .custom_flags(libc::O_CLOEXEC)
+            // /var/lock is 1777 on the device: never follow a planted symlink.
+            .custom_flags(crate::safefs::NOFOLLOW)
             .open(path)?;
         Ok(LockFile { file })
     }

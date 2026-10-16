@@ -39,7 +39,9 @@ pub enum AtError {
     Timeout,
     /// The device returned EOF (e.g. baseband SSR).
     Eof,
-    Io(io::Error),
+    // Read only through Debug in the "Command failed" log line; the dead-code
+    // lint ignores derived impls, so silence it rather than drop the detail.
+    Io(#[allow(dead_code)] io::Error),
     /// Resync failed even after reopening the device.
     NotReady,
 }

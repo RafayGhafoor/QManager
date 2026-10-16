@@ -3,6 +3,7 @@
 
 use std::fs::{self, OpenOptions};
 use std::io::Write;
+use std::os::unix::fs::OpenOptionsExt;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Level {
@@ -79,7 +80,15 @@ impl Logger {
             std::process::id(),
             msg
         );
-        if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&self.path) {
+        // /tmp is 1777 and rotation briefly leaves the path absent: never follow
+        // a symlink planted there.
+        if let Ok(mut f) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .mode(0o644)
+            .custom_flags(crate::safefs::NOFOLLOW)
+            .open(&self.path)
+        {
             let _ = f.write_all(line.as_bytes());
         }
     }

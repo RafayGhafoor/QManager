@@ -7,6 +7,7 @@ use crate::classify;
 use crate::lock::LockFile;
 use crate::log::Logger;
 use crate::output::Code;
+use crate::safefs::{one_line, write_nofollow};
 use std::time::{Duration, Instant};
 
 pub const LONG_FLAG: &str = "/tmp/qmanager_long_running";
@@ -60,10 +61,10 @@ impl<D: Device> Executor<'_, D> {
                 return Outcome::Err(Code::ModemBusy);
             }
         };
-        let _ = std::fs::write(PID_FILE, format!("{}\n", std::process::id()));
+        let _ = write_nofollow(PID_FILE, format!("{}\n", std::process::id()).as_bytes());
 
         if long {
-            let _ = std::fs::write(LONG_FLAG, format!("{cmd}\n"));
+            let _ = write_nofollow(LONG_FLAG, format!("{}\n", one_line(cmd)).as_bytes());
             self.log.info(&format!("Long command started: {cmd}"));
             // Warm-up flush, like qcmd:191-192. A failure here is modem_not_ready.
             if let Err(e) = self.ch.exchange("AT", Instant::now() + Duration::from_secs(3)) {

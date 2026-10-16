@@ -18,6 +18,7 @@ mod lock;
 mod log;
 mod output;
 mod proto;
+mod safefs;
 
 use channel::{open_smd, Channel};
 use exec::{Executor, Outcome};
@@ -25,6 +26,7 @@ use lock::LockFile;
 use log::Logger;
 use output::{json_error, json_success, shell_capture, Code};
 use std::io::{Read, Write};
+use std::os::unix::io::AsRawFd;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::time::Duration;
 
@@ -66,16 +68,20 @@ fn run_daemon() -> i32 {
         }
     };
     let _ = std::fs::remove_file(proto::SOCKET_PATH);
-    let listener = match UnixListener::bind(proto::SOCKET_PATH) {
+    // Root-only from the instant it exists: /dev/smd11 is crw------- root, and
+    // uhttpd runs CGIs as root, so no legitimate caller needs more. Setting the
+    // umask before bind (not chmod after) leaves no window where the socket is
+    // reachable by other users. /var/run is root:root 0755.
+    let old_mask = unsafe { libc::umask(0o177) };
+    let bound = UnixListener::bind(proto::SOCKET_PATH);
+    unsafe { libc::umask(old_mask) };
+    let listener = match bound {
         Ok(l) => l,
         Err(e) => {
             log.error(&format!("cannot bind {}: {e}", proto::SOCKET_PATH));
             return 1;
         }
     };
-    // CGIs run as the uhttpd user; let any local caller connect (the modem lock,
-    // not socket perms, is the serialisation boundary).
-    let _ = std::fs::set_permissions(proto::SOCKET_PATH, std::os::unix::fs::PermissionsExt::from_mode(0o666));
     log.info(&format!("broker up, listening on {}", proto::SOCKET_PATH));
 
     let mut ch = new_channel();
@@ -88,7 +94,33 @@ fn run_daemon() -> i32 {
     0
 }
 
+/// The connecting peer's uid, from the kernel (cannot be spoofed by the peer).
+fn peer_uid(stream: &UnixStream) -> Option<u32> {
+    let mut cred: libc::ucred = unsafe { std::mem::zeroed() };
+    let mut len = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
+    let r = unsafe {
+        libc::getsockopt(
+            stream.as_raw_fd(),
+            libc::SOL_SOCKET,
+            libc::SO_PEERCRED,
+            &mut cred as *mut libc::ucred as *mut libc::c_void,
+            &mut len,
+        )
+    };
+    (r == 0).then_some(cred.uid)
+}
+
 fn serve(mut stream: UnixStream, ch: &mut Channel<std::fs::File>, lock: &LockFile, log: &Logger) {
+    // Defense in depth behind the 0600 socket: only root may drive the modem,
+    // the same boundary /dev/smd11 itself enforces.
+    match peer_uid(&stream) {
+        Some(0) => {}
+        other => {
+            log.warn(&format!("rejected AT request from non-root peer (uid {other:?})"));
+            let _ = stream.write_all(&proto::encode_reply(&proto::Reply::Err(Code::CommandFailed)));
+            return;
+        }
+    }
     let _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
     let mut buf = Vec::new();
     let mut tmp = [0u8; 4096];
