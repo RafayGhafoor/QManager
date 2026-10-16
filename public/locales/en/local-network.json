@@ -84,35 +84,75 @@
     "bypass_aria": "Toggle hotspot bypass (TTL and hop-limit 64)"
   },
   "ethernet": {
-    "page_title": "Ethernet Status Information",
-    "page_description": "View detailed information about your device's Ethernet status, including connection status, speed, and other relevant metrics.",
-    "card_title": "Ethernet Status",
-    "card_description": "Current Ethernet link status, speed, and duplex settings.",
-    "error_unable_to_reach": "Unable to reach device",
-    "error_load_failed": "Could not load ethernet status from the device.",
-    "toast_speed_updated": "Link speed limit updated",
-    "toast_error_set_speed": "Failed to set link speed limit",
-    "aria_refresh": "Refresh ethernet status",
-    "label_link_status": "Link Status",
-    "badge_connected": "Connected",
-    "badge_disconnected": "Disconnected",
-    "label_auto_negotiation": "Auto-negotiation",
-    "label_active_link_speed": "Active Link Speed",
-    "label_set_link_speed": "Set Link Speed",
-    "aria_set_link_speed": "Set Link Speed",
-    "placeholder_link_speed": "Select a link speed",
-    "select_label_link_speed": "Link Speed Limit",
-    "option_auto_max_speed": "Auto (Max Speed)",
-    "option_speed_10": "10 Mbps",
-    "option_speed_100": "100 Mbps",
-    "option_speed_1000": "1000 Mbps",
-    "option_speed_2500": "2500 Mbps",
-    "label_duplex": "Duplex",
-    "alt_device_icon": "Device Icon"
+    "page": {
+      "title": "Ethernet Status",
+      "description": "Monitor the ethernet link, limit its speed and set the LAN gateway.",
+      "refresh": "Refresh"
+    },
+    "strip": {
+      "label": "Ethernet port",
+      "unresponsive": "Not responding",
+      "unavailable_title": "Couldn't read the ethernet port",
+      "unavailable_body": "Retrying every 10 seconds. Nothing has been changed.",
+      "absent_title": "No ethernet controller",
+      "absent_body": "This device has no ethernet port, so there is nothing to report or configure."
+    },
+    "tiles": {
+      "link": {
+        "label": "Link state",
+        "value_up": "Connected",
+        "value_down": "Disconnected",
+        "value_unknown": "Unknown",
+        "caption_up": "Cable connected to the host port",
+        "caption_down": "No cable detected on the host port",
+        "caption_unknown": "Waiting for link state"
+      },
+      "speed": {
+        "label": "Negotiated rate",
+        "caption": "Negotiated with the peer",
+        "caption_ceiling": "Of {{ceiling}} the port supports",
+        "caption_down": "Needs an active link"
+      },
+      "duplex": {
+        "label": "Duplex",
+        "caption": "Transmit and receive at once",
+        "caption_down": "Needs an active link",
+        "value_full": "Full",
+        "value_half": "Half"
+      },
+      "negotiation": {
+        "label": "Negotiation",
+        "value_auto": "Automatic",
+        "value_forced": "Forced",
+        "value_unknown": "Unknown",
+        "caption_auto": "No speed limit set",
+        "caption_limited": "Limited to {{speed}}"
+      }
+    },
+    "settings": {
+      "title": "Link speed limit",
+      "description": "Force the ethernet port to a fixed speed instead of letting it negotiate one.",
+      "row_label": "Speed limit",
+      "placeholder": "Select speed",
+      "option_auto": "Auto (max)",
+      "option_10": "10 Mbps",
+      "option_100": "100 Mbps",
+      "option_1000": "1 Gbps",
+      "option_2500": "2.5 Gbps",
+      "consequence": "Applying drops the link for a few seconds while the port renegotiates. You are on that link.",
+      "consequence_applying": "The link is down while the port renegotiates. This page confirms the new speed itself.",
+      "consequence_unresponsive": "The modem stopped answering, so this control is held until the next successful read.",
+      "consequence_unread": "The modem hasn't answered yet, so there is nothing to change until the first read lands.",
+      "consequence_absent": "There is no ethernet port to configure on this device.",
+      "toast_success": "Link speed updated",
+      "toast_error": "Failed to set link speed",
+      "toast_confirm_error": "Couldn't confirm the new speed. Check the link.",
+      "apply": "Apply speed"
+    }
   },
   "lan_config": {
     "card_title": "LAN Address",
-    "card_description": "Set the router's LAN IP address (the gateway your devices use) and the subnet size for the br-lan network.",
+    "card_description": "Set the router's LAN IP address (the gateway your devices use) and the size of the local network.",
     "label_gateway": "Gateway IP Address",
     "help_gateway": "The router's own address on the LAN. Devices use it as their default gateway.",
     "label_subnet": "Subnet Mask",
