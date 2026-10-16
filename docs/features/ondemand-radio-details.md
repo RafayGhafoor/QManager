@@ -108,6 +108,9 @@ AT reads issued, in order:
 3. `AT+QNWCFG="nr5g_time_advance"` (+ `AT+QNWCFG="nr5g_mimo_layers"` if SA) — NR TA and SA MIMO
 4. `AT+QNWCFG="lte_time_advance"` (+ `AT+QNWCFG="lte_mimo_layers"` if LTE or NSA) — LTE TA and LTE/NSA MIMO
 
+**CGCONTRDP parsing (`parse_at.sh` `parse_cgcontrdp`):** the reply is normalised (`tr '' '
+'`) so CR-glued records split, the record is the one whose CID matches the active `+QMAP: "WWAN"` mux, and fields are read **by comma position** (3GPP: 3 = APN, 6 = primary DNS, 7 = secondary DNS), never by counting quoted tokens. The gateway (field 5) is bare on one record and quoted on the next, and an IMS-style record carries P-CSCF addresses after the DNS fields, so quote-counting read a quoted gateway or the P-CSCF pair as DNS. Quotes are stripped per field, and each DNS field may hold an adjacent `"<v4>" "<v6>"` pair; tokens are classified by octet count (4 = IPv4, 16 = dotted IPv6, colon-hex fallback) into the `_v4` / `_v6` fields, so an IPv6-only context now fills `primary_dns_v6` / `secondary_dns_v6`.
+
 ### `ondemand_dataplane_refresh()`
 
 A lighter variant for apply paths: reads only `AT+CGCONTRDP;+QMAP="WWAN"` (APN / DNS / WAN IP) — no MIMO, no timing advance, no serving-cell probe. Returns 0 if the read succeeded, 1 otherwise.
