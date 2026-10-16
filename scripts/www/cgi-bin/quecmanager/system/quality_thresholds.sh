@@ -1,18 +1,29 @@
 #!/bin/sh
 . /usr/lib/qmanager/cgi_base.sh
+# Single alert wait resolver (cq_alert_after_min). Guarded: BusyBox ash exits
+# when `.` cannot find its file.
+if [ -f /usr/lib/qmanager/conn_state.sh ]; then
+    . /usr/lib/qmanager/conn_state.sh
+else
+    cq_alert_after_min() { CQ_ALERT_AFTER_MIN=5; }
+fi
 # =============================================================================
 # quality_thresholds.sh — CGI: Connection Quality Thresholds (GET + POST)
 # =============================================================================
-# GET:  Returns the latency + loss presets. When the UCI section is ABSENT the
-#       endpoint reports the tolerant/tolerant default with isDefault=true (the
-#       absence IS the "default" signal — the section is never seeded).
+# GET:  Returns the latency + loss presets and the alert wait. When neither
+#       preset is stored the endpoint reports tolerant/tolerant with
+#       isDefault=true (the absence IS the "default" signal; the section can
+#       exist holding only alert_after_min, written by monitoring/alerts.sh).
 # POST: action=save — validates both presets, creates the section if absent,
 #       persists, then drops /tmp/qmanager_quality_reload so the poller re-maps
 #       the presets to its QUALITY_* event-threshold globals within one cycle.
 #
-# Config: UCI quecmanager.quality_thresholds.{latency_preset,loss_preset}
-#   latency_preset ∈ standard | tolerant | very-tolerant
-#   loss_preset    ∈ standard | tolerant | very-tolerant
+# Config: UCI quecmanager.quality_thresholds.{latency_preset,loss_preset,
+#         alert_after_min}
+#   latency_preset ∈ standard | tolerant | very-tolerant | custom
+#   loss_preset    ∈ standard | tolerant | very-tolerant | custom
+#   alert_after_min  optional on POST, 1-60 minutes: the ONE outage wait every
+#                    alert channel uses (absent = resolved by cq_alert_after_min)
 # The poller (resolve_quality_thresholds) owns the preset->numeric mapping.
 #
 # Endpoint: GET/POST /cgi-bin/quecmanager/system/quality_thresholds.sh
@@ -46,7 +57,11 @@ validate_int() {
 if [ "$REQUEST_METHOD" = "GET" ]; then
     qlog_info "Fetching quality thresholds"
 
-    if uci -q get quecmanager.quality_thresholds >/dev/null 2>&1; then
+    cq_alert_after_min
+    alert_after_min="$CQ_ALERT_AFTER_MIN"
+
+    if uci -q get quecmanager.quality_thresholds.latency_preset >/dev/null 2>&1 || \
+       uci -q get quecmanager.quality_thresholds.loss_preset >/dev/null 2>&1; then
         latency_preset=$(uci -q get quecmanager.quality_thresholds.latency_preset 2>/dev/null)
         [ -z "$latency_preset" ] && latency_preset="tolerant"
         loss_preset=$(uci -q get quecmanager.quality_thresholds.loss_preset 2>/dev/null)
@@ -72,19 +87,22 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             --arg loss "$loss_preset" \
             --argjson lat_custom "$latency_custom_json" \
             --argjson loss_custom "$loss_custom_json" \
+            --argjson wait "$alert_after_min" \
             '{success: true,
               thresholds: {
                 latency: {preset: $lat, custom_ms: $lat_custom},
                 loss: {preset: $loss, custom_pct: $loss_custom}
               },
+              alert_after_min: $wait,
               isDefault: false}'
     else
         # Section absent — report the default with isDefault=true.
-        jq -n '{success: true,
+        jq -n --argjson wait "$alert_after_min" '{success: true,
                 thresholds: {
                   latency: {preset: "tolerant", custom_ms: null},
                   loss: {preset: "tolerant", custom_pct: null}
                 },
+                alert_after_min: $wait,
                 isDefault: true}'
     fi
     exit 0
@@ -111,6 +129,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
     LOSS_PRESET=$(printf '%s' "$POST_DATA" | jq -r '.loss_preset // empty')
     LATENCY_CUSTOM=$(printf '%s' "$POST_DATA" | jq -r '.latency_custom_ms | if . == null then empty else tostring end')
     LOSS_CUSTOM=$(printf '%s' "$POST_DATA" | jq -r '.loss_custom_pct | if . == null then empty else tostring end')
+    ALERT_AFTER=$(printf '%s' "$POST_DATA" | jq -r '.alert_after_min | if . == null then empty else tostring end')
 
     # --- Validate both against the 4-value allowlist (custom added in Pass A) ---
     case "$LATENCY_PRESET" in
@@ -142,6 +161,12 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         fi
     fi
 
+    # --- Optional single alert wait (absent = unchanged) ---
+    if [ -n "$ALERT_AFTER" ] && ! validate_int "$ALERT_AFTER" 1 60; then
+        cgi_error "invalid_threshold" "alert_after_min must be an integer 1-60"
+        exit 0
+    fi
+
     # --- Persist (create section if absent) + signal poller AND watchdog ---
     if ! uci -q get quecmanager.quality_thresholds >/dev/null 2>&1; then
         uci set quecmanager.quality_thresholds=quality_thresholds
@@ -160,6 +185,10 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         uci set quecmanager.quality_thresholds.loss_custom_pct="$LOSS_CUSTOM"
     else
         uci -q delete quecmanager.quality_thresholds.loss_custom_pct 2>/dev/null
+    fi
+
+    if [ -n "$ALERT_AFTER" ]; then
+        uci set quecmanager.quality_thresholds.alert_after_min="$ALERT_AFTER"
     fi
 
     uci commit quecmanager

@@ -14,6 +14,7 @@
 #   conn_state_is_up    fresh read with reachable=true
 #   conn_state_resolve  profile name + override -> cadence (pure, no UCI)
 #   conn_state_cadence  same, reading quecmanager.ping_profile.* from UCI
+#   cq_alert_after_min  the single alert wait (minutes) into CQ_ALERT_AFTER_MIN
 #
 # All helper state is global and prefixed _cq_ (no `local`, so it can be
 # called from any scope).
@@ -189,4 +190,43 @@ conn_state_cadence() {
     _cq_cfg_prof=$(uci -q get quecmanager.ping_profile.profile 2>/dev/null)
     _cq_cfg_ovr=$(uci -q get quecmanager.ping_profile.interval_override 2>/dev/null)
     conn_state_resolve "$_cq_cfg_prof" "$_cq_cfg_ovr"
+}
+
+# ---------------------------------------------------------------------------
+# The single alert wait (minutes), owned by Connection Quality
+# ---------------------------------------------------------------------------
+# An outage sends nothing on any channel unless it lasted this long.
+CQ_SMS_CONFIG="${CQ_SMS_CONFIG:-/etc/qmanager/sms_alerts.json}"
+CQ_EMAIL_CONFIG="${CQ_EMAIL_CONFIG:-/etc/qmanager/email_alerts.json}"
+CQ_ALERT_AFTER_MIN=5
+
+# _cq_wait_ok <value>: integer 1-1440.
+_cq_wait_ok() {
+    case "$1" in ''|*[!0-9]*) return 1 ;; esac
+    [ "$1" -ge 1 ] 2>/dev/null && [ "$1" -le 1440 ] 2>/dev/null
+}
+
+# _cq_wait_from_json <file>: adopts the file's threshold_minutes when it is a valid number.
+_cq_wait_from_json() {
+    [ -f "$1" ] || return 1
+    command -v jq >/dev/null 2>&1 || return 1
+    _cq_w=$(jq -r '(try .threshold_minutes catch null) | if type == "number" then tostring else "" end' \
+        "$1" 2>/dev/null </dev/null)
+    _cq_wait_ok "$_cq_w" || return 1
+    CQ_ALERT_AFTER_MIN="$_cq_w"
+}
+
+# cq_alert_after_min: resolves CQ_ALERT_AFTER_MIN. Order: UCI
+# quecmanager.quality_thresholds.alert_after_min, else the SMS then email
+# threshold_minutes (where the wait lived before it moved here), else 5.
+cq_alert_after_min() {
+    CQ_ALERT_AFTER_MIN=5
+    _cq_w=$(uci -q get quecmanager.quality_thresholds.alert_after_min 2>/dev/null)
+    if _cq_wait_ok "$_cq_w"; then
+        CQ_ALERT_AFTER_MIN="$_cq_w"
+        return 0
+    fi
+    _cq_wait_from_json "$CQ_SMS_CONFIG" && return 0
+    _cq_wait_from_json "$CQ_EMAIL_CONFIG" && return 0
+    return 0
 }

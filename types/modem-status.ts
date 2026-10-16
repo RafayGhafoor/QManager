@@ -488,6 +488,9 @@ export interface ConnectivityStatus {
   dns_lookup_ms?: number | null;
   /** Resolver the lookup was timed against. null when unknown. Absent on an older poller. */
   dns_resolver?: string | null;
+  /** The configured Connection Quality cuts the poller grades against: `status`
+      is "degraded" at loss_pct or above. Absent on an older poller. */
+  thresholds?: { latency_ms: number; loss_pct: number };
 }
 
 // --- Connection Quality Settings ---------------------------------------------

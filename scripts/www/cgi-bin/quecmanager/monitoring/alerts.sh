@@ -1,5 +1,12 @@
 #!/bin/sh
 . /usr/lib/qmanager/cgi_base.sh
+# Single alert wait resolver (cq_alert_after_min). Guarded: BusyBox ash exits
+# when `.` cannot find its file.
+if [ -f /usr/lib/qmanager/conn_state.sh ]; then
+    . /usr/lib/qmanager/conn_state.sh
+else
+    cq_alert_after_min() { CQ_ALERT_AFTER_MIN=5; }
+fi
 # =============================================================================
 # alerts.sh — CGI Endpoint: Centralized Connection Alerts (GET + POST)
 # =============================================================================
@@ -23,6 +30,12 @@
 #   /etc/qmanager/email_alerts.json  {enabled, sender_email, recipient_email,
 #                                     app_password, threshold_minutes}
 #   /etc/qmanager/alert_routing.json {version, events:{...}}  (NEW, additive)
+#
+# The outage wait is ONE value owned by Connection Quality (UCI
+# quecmanager.quality_thresholds.alert_after_min, resolved by conn_state.sh
+# cq_alert_after_min). The per-channel threshold_minutes fields keep their
+# shape: GET reports the single wait for every channel, a POSTed per-channel
+# value writes it, and the channel files mirror it for Config Backup.
 #
 # Install location: /www/cgi-bin/quecmanager/monitoring/alerts.sh
 # =============================================================================
@@ -101,11 +114,9 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     if [ -f "$SMS_CONFIG" ]; then
         sms_enabled=$(jq -r '(.enabled) | if . == null then "false" else tostring end' "$SMS_CONFIG" 2>/dev/null)
         sms_phone=$(jq -r '.recipient_phone // ""' "$SMS_CONFIG" 2>/dev/null)
-        sms_thr=$(jq -r '.threshold_minutes // 5' "$SMS_CONFIG" 2>/dev/null)
         [ -n "$sms_phone" ] && sms_configured="true"
     fi
     case "$sms_enabled" in true|false) ;; *) sms_enabled="false" ;; esac
-    case "$sms_thr" in ''|*[!0-9]*) sms_thr="5" ;; esac
 
     # --- Email channel ---
     email_enabled="false"
@@ -118,13 +129,16 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         email_enabled=$(jq -r '(.enabled) | if . == null then "false" else tostring end' "$EMAIL_CONFIG" 2>/dev/null)
         email_sender=$(jq -r '.sender_email // ""' "$EMAIL_CONFIG" 2>/dev/null)
         email_recipient=$(jq -r '.recipient_email // ""' "$EMAIL_CONFIG" 2>/dev/null)
-        email_thr=$(jq -r '.threshold_minutes // 5' "$EMAIL_CONFIG" 2>/dev/null)
         _pw=$(jq -r '.app_password // ""' "$EMAIL_CONFIG" 2>/dev/null)
         [ -n "$_pw" ] && email_pw_set="true"
         [ -n "$email_sender" ] && [ -n "$email_recipient" ] && [ -n "$_pw" ] && email_configured="true"
     fi
     case "$email_enabled" in true|false) ;; *) email_enabled="false" ;; esac
-    case "$email_thr" in ''|*[!0-9]*) email_thr="5" ;; esac
+
+    # One wait, reported as every channel's threshold_minutes.
+    cq_alert_after_min
+    sms_thr="$CQ_ALERT_AFTER_MIN"
+    email_thr="$CQ_ALERT_AFTER_MIN"
 
     if command -v msmtp >/dev/null 2>&1; then
         msmtp_installed="true"
@@ -230,13 +244,17 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
         sms_enabled=$(printf '%s' "$POST_DATA" | jq -r 'if (.sms.enabled) == null then "false" else (.sms.enabled | tostring) end')
         sms_phone=$(printf '%s' "$POST_DATA" | jq -r '.sms.recipient_phone // ""')
-        sms_thr=$(printf '%s' "$POST_DATA" | jq -r '.sms.threshold_minutes // 5')
+        # A channel that omits threshold_minutes keeps the current single wait.
+        cq_alert_after_min
+        cur_wait="$CQ_ALERT_AFTER_MIN"
+
+        sms_thr=$(printf '%s' "$POST_DATA" | jq -r --arg d "$cur_wait" '.sms.threshold_minutes // $d')
 
         email_enabled=$(printf '%s' "$POST_DATA" | jq -r 'if (.email.enabled) == null then "false" else (.email.enabled | tostring) end')
         email_sender=$(printf '%s' "$POST_DATA" | jq -r '.email.sender_email // ""')
         email_recipient=$(printf '%s' "$POST_DATA" | jq -r '.email.recipient_email // ""')
         email_pw=$(printf '%s' "$POST_DATA" | jq -r '.email.app_password // empty')
-        email_thr=$(printf '%s' "$POST_DATA" | jq -r '.email.threshold_minutes // 5')
+        email_thr=$(printf '%s' "$POST_DATA" | jq -r --arg d "$cur_wait" '.email.threshold_minutes // $d')
 
         # --- Validate both thresholds (non-numeric guard, then 1-60 range) ---
         for _t in "$sms_thr" "$email_thr"; do
@@ -251,6 +269,15 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
                 exit 0
             fi
         done
+
+        # The per-channel fields set the ONE wait: the last one that differs from
+        # the current value wins (an unchanged field never overwrites an edit).
+        new_wait="$cur_wait"
+        for _t in "$sms_thr" "$email_thr"; do
+            [ "$_t" != "$cur_wait" ] && new_wait="$_t"
+        done
+        sms_thr="$new_wait"
+        email_thr="$new_wait"
 
         # --- Validate SMS phone only when enabling ---
         if [ "$sms_enabled" = "true" ]; then
@@ -306,6 +333,15 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         r_cl_email="false"
 
         mkdir -p /etc/qmanager
+
+        # --- Write the single wait into the Connection Quality section ---
+        if [ "$new_wait" != "$cur_wait" ] ||            ! uci -q get quecmanager.quality_thresholds.alert_after_min >/dev/null 2>&1; then
+            uci -q get quecmanager.quality_thresholds >/dev/null 2>&1 ||                 uci set quecmanager.quality_thresholds=quality_thresholds
+            if ! uci set quecmanager.quality_thresholds.alert_after_min="$new_wait" ||                ! uci commit quecmanager; then
+                cgi_error "write_failed" "Failed to write the alert wait"
+                exit 0
+            fi
+        fi
 
         # --- Write SMS config (shape preserved for Config Backup's strict gate) ---
         if ! printf '%s' "$POST_DATA" | jq -n \

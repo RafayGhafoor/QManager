@@ -13,21 +13,24 @@
 #   qlog.sh (mono_now, qlog_*) -> events.sh -> email_alerts.sh -> sms_alerts.sh
 #   -> alert_routing.sh -> alert_engine.sh
 # The engine reads globals owned by those libs at call time:
-#   conn_internet_available / conn_during_recovery  (poller, from ping.json)
-#   _sa_enabled / _sa_threshold_minutes             (sms_alerts.sh)
-#   _ea_enabled / _ea_threshold_minutes             (email_alerts.sh)
+#   ev_link_state                                   (events.sh detector)
+#   conn_internet_available / conn_during_recovery  (poller; reboot delivery only)
+#   CQ_ALERT_AFTER_MIN / cq_alert_after_min         (conn_state.sh, the one wait)
+#   _sa_enabled / _ea_enabled                       (channel libs)
 #   alert_route_enabled / alert_routing_load        (alert_routing.sh)
 #   sms_alert_emit / email_alert_emit               (channel libs)
 #
-# Signal source [guardrail 1]: ICMP reachability (conn_internet_available)
-#   ONLY — never service_status / registration state.
-# Debounce [guardrail 2]: wall-clock downtime threshold, but elapsed time is
-#   measured with the MONOTONIC clock (mono_now, the same clock ping.json's
-#   .mono uses), NOT wall-clock epoch. A NITZ clock-step during an SSR-driven
-#   outage therefore cannot corrupt the timer — mirrors the watchdog's
-#   clock-step hardening.
-# Suppression [guardrail 3]: bails on low-power OR watchdog recovery churn,
-#   for BOTH channels (email used to miss the conn_during_recovery gate).
+# Signal source [guardrail 1]: the events.sh detector's ev_link_state
+#   (detect_data_connection_events, earlier in the same cycle). The engine has
+#   no edge detector of its own, so the Activity feed and the channels can
+#   never disagree about an outage. Never service_status / registration state.
+# Debounce [guardrail 2]: ONE wait for every channel (alert_after_min, owned
+#   by Connection Quality), measured with the MONOTONIC clock (mono_now, the
+#   same clock ping.json's .mono uses), NOT wall-clock epoch. A NITZ clock-step
+#   during an SSR-driven outage therefore cannot corrupt the timer.
+# Suppression [guardrail 3]: bails on low-power. A watchdog recovery does not
+#   freeze the outage machine; the SMS lib's rc 2 ("not registered") retries a
+#   send made during a CFUN cycle. Reboot delivery is still held mid-recovery.
 # =============================================================================
 
 [ -n "$_ALERT_ENGINE_LOADED" ] && return 0
@@ -89,7 +92,8 @@ alert_engine_init() {
     _ae_sms_lost_sent="0"
     _ae_email_lost_sent="0"
     alert_routing_load
-    qlog_info "Alert engine initialized"
+    _ae_resolve_wait
+    qlog_info "Alert engine initialized (wait=${CQ_ALERT_AFTER_MIN:-5}m)"
 }
 
 # --- Per-channel accessors (2 channels only; case dispatch avoids eval) -------
@@ -102,18 +106,19 @@ _ae_channel_enabled() {
     esac
 }
 
-# Threshold in SECONDS (minutes * 60), guarded against non-numeric config.
-_ae_channel_threshold_secs() {
-    local _ae_thr
-    _ae_thr=5
-    case "$1" in
-        sms)   _ae_thr="$_sa_threshold_minutes" ;;
-        email) _ae_thr="$_ea_threshold_minutes" ;;
+# Re-resolve the single wait (CQ_ALERT_AFTER_MIN, conn_state.sh): at init, at
+# outage start and on any config reload.
+_ae_resolve_wait() {
+    command -v cq_alert_after_min >/dev/null 2>&1 && cq_alert_after_min
+    return 0
+}
+
+# The one wait in SECONDS, the same for every channel; 300 on garbage.
+_ae_wait_secs() {
+    case "${CQ_ALERT_AFTER_MIN:-}" in
+        ''|*[!0-9]*|0) echo 300 ;;
+        *) echo $(( CQ_ALERT_AFTER_MIN * 60 )) ;;
     esac
-    case "$_ae_thr" in
-        ''|*[!0-9]*) _ae_thr=5 ;;
-    esac
-    echo $(( _ae_thr * 60 ))
 }
 
 # Marker get/set. Getters run in $(...) subshells (read-only, safe). Setters
@@ -143,46 +148,42 @@ alert_engine_check() {
     if [ -f "$_AE_SMS_RELOAD" ]; then
         rm -f "$_AE_SMS_RELOAD"
         _sa_read_config 2>/dev/null
-        qlog_info "Alert engine: SMS channel config reloaded (enabled=$_sa_enabled)"
+        _ae_resolve_wait
+        qlog_info "Alert engine: SMS channel config reloaded (enabled=$_sa_enabled wait=${CQ_ALERT_AFTER_MIN:-5}m)"
     fi
     if [ -f "$_AE_EMAIL_RELOAD" ]; then
         rm -f "$_AE_EMAIL_RELOAD"
         _ea_read_config 2>/dev/null
-        qlog_info "Alert engine: email channel config reloaded (enabled=$_ea_enabled)"
+        _ae_resolve_wait
+        qlog_info "Alert engine: email channel config reloaded (enabled=$_ea_enabled wait=${CQ_ALERT_AFTER_MIN:-5}m)"
     fi
     if [ -f "$_AE_ROUTING_RELOAD" ]; then
         alert_routing_load
         qlog_info "Alert engine: routing reloaded"
     fi
 
-    # --- 2. Suppression gates [guardrail 3] — both channels, one place -------
-    # Low-power mode: no radio work of any kind.
+    # --- 2. Suppression gate [guardrail 3]: low-power mode, no radio work ----
     [ -f "$_AE_LOW_POWER" ] && return 0
-    # Watchdog recovery churn: stale lte/nr state during AT+COPS/AT+CFUN. Outage
-    # state persists across this guard (mono timer keeps its start), so a
-    # qualifying restored message still fires on the first cycle after recovery.
-    [ "$conn_during_recovery" = "true" ] && return 0
 
-    # --- 3. Signal source [guardrail 1]: ICMP reachability only --------------
-    # Unknown/stale ping data → leave outage state untouched (don't start or
-    # clear an outage on unknown data). The monotonic elapsed math naturally
-    # catches up on the next non-null cycle.
-    case "$conn_internet_available" in
-        null|"") return 0 ;;
-    esac
-
-    # --- 4. Post-recovery reboot alert (separate one-shot path) --------------
-    # NOT part of the outage state machine — a reboot has no outage window. It
-    # is placed after the suppression + ping-null guards above so it inherits
-    # the low-power / recovery-churn suppression. Cheap early-out when there is
-    # no staged pending file (the common case).
-    _ae_reboot_check
-
-    if [ "$conn_internet_available" = "false" ]; then
-        _ae_handle_down
-    elif [ "$conn_internet_available" = "true" ]; then
-        _ae_handle_up
+    # --- 3. Post-recovery reboot alert (separate one-shot path) --------------
+    # NOT part of the outage state machine — a reboot has no outage window.
+    # Held during watchdog recovery churn and on stale ping data. Cheap
+    # early-out when there is no staged pending file (the common case).
+    if [ "$conn_during_recovery" != "true" ]; then
+        case "$conn_internet_available" in
+            true|false) _ae_reboot_check ;;
+        esac
     fi
+
+    # --- 4. Signal source [guardrail 1]: the events.sh detector --------------
+    # ev_link_state is decided once per cycle by detect_data_connection_events
+    # (ICMP reachability only). "" = stale/unknown: a running outage is left
+    # untouched and nothing new starts. A watchdog recovery no longer freezes
+    # the engine, so an outage the watchdog fixes is still alerted.
+    case "${ev_link_state:-}" in
+        down) _ae_handle_down ;;
+        up)   _ae_handle_up ;;
+    esac
     return 0
 }
 
@@ -204,7 +205,8 @@ _ae_handle_down() {
         _ae_email_armed="0"
         _ae_sms_lost_sent="0"
         _ae_email_lost_sent="0"
-        qlog_info "Alert engine: outage started (mono=$_ae_outage_start_mono)"
+        _ae_resolve_wait
+        qlog_info "Alert engine: outage started (mono=$_ae_outage_start_mono wait=${CQ_ALERT_AFTER_MIN:-5}m)"
     fi
 
     # Elapsed via the MONOTONIC clock [guardrail 2] — immune to NITZ steps.
@@ -214,7 +216,7 @@ _ae_handle_down() {
 
     for _ae_ch in sms email; do
         _ae_channel_enabled "$_ae_ch" || continue
-        _ae_thr=$(_ae_channel_threshold_secs "$_ae_ch")
+        _ae_thr=$(_ae_wait_secs)
         [ "$_ae_elapsed" -ge "$_ae_thr" ] || continue
 
         # Crossed this channel's threshold → arm it. Arming is independent of

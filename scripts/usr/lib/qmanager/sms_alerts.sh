@@ -21,6 +21,10 @@
 [ -n "$_SMS_ALERTS_LOADED" ] && return 0
 _SMS_ALERTS_LOADED=1
 
+# Single alert wait resolver (cq_alert_after_min). Guarded: BusyBox ash exits
+# when `.` cannot find its file.
+[ -f /usr/lib/qmanager/conn_state.sh ] && . /usr/lib/qmanager/conn_state.sh
+
 # --- Constants ---------------------------------------------------------------
 _SA_CONFIG="/etc/qmanager/sms_alerts.json"
 _SA_LOG_FILE="/tmp/qmanager_sms_log.json"
@@ -117,6 +121,11 @@ _sa_read_config() {
     _sa_enabled=$(jq -r '(.enabled) | if . == null then "false" else tostring end' "$_SA_CONFIG" 2>/dev/null)
     _sa_recipient=$(jq -r '.recipient_phone // ""' "$_SA_CONFIG" 2>/dev/null)
     _sa_threshold_minutes=$(jq -r '.threshold_minutes // 5' "$_SA_CONFIG" 2>/dev/null)
+    # The wait is one value owned by Connection Quality; the channel key is a fallback.
+    if command -v cq_alert_after_min >/dev/null 2>&1; then
+        cq_alert_after_min
+        _sa_threshold_minutes="$CQ_ALERT_AFTER_MIN"
+    fi
 
     if [ "$_sa_enabled" != "true" ]; then
         _sa_enabled="false"

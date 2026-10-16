@@ -112,6 +112,8 @@ prev_ev_carrier_components=""
 # Data connection quality event debounce state
 ev_high_lat_streak=0
 ev_high_loss_streak=0
+ev_lat_clear_streak=0
+ev_loss_clear_streak=0
 ev_lat_alerted=false
 ev_loss_alerted=false
 
@@ -1161,8 +1163,10 @@ read_ping_data() {
     if [ "$conn_during_recovery" = "true" ]; then
         conn_status="recovery"
     elif [ "$conn_internet_available" = "true" ]; then
+        # Degraded = loss at or above the configured Connection Quality cut
+        # (was a hard-coded 10 %). Latency alone never makes the link degraded.
         local loss="${conn_packet_loss:-0}"
-        if [ "$loss" -ge 10 ] 2>/dev/null; then
+        if [ "$loss" -ge "${QUALITY_LOSS_THRESHOLD:-30}" ] 2>/dev/null; then
             conn_status="degraded"
         else
             conn_status="connected"
@@ -1402,6 +1406,8 @@ write_cache() {
         --argjson hist_int "${conn_history_interval:-2}" \
         --argjson hist_size "${CONN_HISTORY_SIZE:-60}" \
         --argjson during_rec "${conn_during_recovery:-false}" \
+        --argjson thr_lat "${QUALITY_LAT_THRESHOLD:-250}" \
+        --argjson thr_loss "${QUALITY_LOSS_THRESHOLD:-30}" \
         --argjson wc_enabled "${wc_enabled:-false}" \
         --arg wc_state "${wc_state:-disabled}" \
         --argjson wc_tier "${wc_current_tier:-0}" \
@@ -1500,6 +1506,7 @@ write_cache() {
                 ping_target: $ping_tgt, latency_history: $lat_hist,
                 history_interval_sec: $hist_int, history_size: $hist_size,
                 during_recovery: $during_rec, profile: $conn_profile,
+                thresholds: {latency_ms: $thr_lat, loss_pct: $thr_loss},
                 dns_lookup_ms: $dns_ms,
                 dns_resolver: (if $dns_res == "" then null else $dns_res end),
                 last_family: $conn_last_family
@@ -1555,7 +1562,9 @@ poll_cycle() {
     if [ -f "$QUALITY_RELOAD_FLAG" ]; then
         resolve_quality_thresholds
         rm -f "$QUALITY_RELOAD_FLAG"
-        qlog_info "Reloaded quality thresholds: lat=${QUALITY_LAT_THRESHOLD}ms/${QUALITY_LAT_DEBOUNCE} loss=${QUALITY_LOSS_THRESHOLD}%/${QUALITY_LOSS_DEBOUNCE}"
+        # The single alert wait lives in the same UCI section.
+        command -v cq_alert_after_min >/dev/null 2>&1 && cq_alert_after_min
+        qlog_info "Reloaded quality thresholds: lat=${QUALITY_LAT_THRESHOLD}ms/${QUALITY_LAT_DEBOUNCE} loss=${QUALITY_LOSS_THRESHOLD}%/${QUALITY_LOSS_DEBOUNCE} wait=${CQ_ALERT_AFTER_MIN:-5}m"
     fi
 
     # Live reload of adaptive-backoff config when adaptive_polling.sh drops it.
@@ -1572,9 +1581,12 @@ poll_cycle() {
     update_proc_metrics
     read_ping_data
     read_dns_data
-    # One centralized engine drives both SMS + email downtime alerts, reading
-    # the conn_* globals read_ping_data just set. Replaces the two per-channel
-    # check_*_alert calls; suppression + debounce + routing live inside it.
+    # The ONE link/quality detector (events.sh): logs internet_lost/restored and
+    # the quality pairs, and sets ev_link_state for the alert engine below.
+    detect_data_connection_events
+    # One centralized engine drives both SMS + email downtime alerts, following
+    # the detector's ev_link_state. Replaces the two per-channel check_*_alert
+    # calls; suppression + the single wait + routing live inside it.
     alert_engine_check
 
     # --- SIM-switch quiesce (mtime-bounded) ---------------------------------
