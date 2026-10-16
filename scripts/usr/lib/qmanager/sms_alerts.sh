@@ -3,7 +3,7 @@
 # sms_alerts.sh - SMS Alert Library for QManager
 # =============================================================================
 # Sourced by qmanager_poller and CGI scripts. Detects prolonged internet
-# downtime and sends SMS notifications via sms_tool on the modem AT channel.
+# downtime and sends SMS notifications via qsms (the qmanager_atd SMS client).
 #
 # Behavior summary:
 # - When downtime exceeds threshold, attempt a "Connection down" SMS.
@@ -15,7 +15,7 @@
 # Config:  /etc/qmanager/sms_alerts.json
 # Log:     /tmp/qmanager_sms_log.json (NDJSON, max 100 entries)
 # Reload:  /tmp/qmanager_sms_reload
-# Lock:    /var/lock/qmanager.lock (shared with qcmd, the AT broker)
+# Lock:    none here; qsms/qmanager_atd takes /var/lock/qmanager.lock
 # =============================================================================
 
 [ -n "$_SMS_ALERTS_LOADED" ] && return 0
@@ -29,22 +29,10 @@ _SMS_ALERTS_LOADED=1
 _SA_CONFIG="/etc/qmanager/sms_alerts.json"
 _SA_LOG_FILE="/tmp/qmanager_sms_log.json"
 _SA_RELOAD_FLAG="/tmp/qmanager_sms_reload"
-# Shared with qcmd (the AT broker) so sms_tool send/recv/delete/status
-# serializes against every other process touching /dev/smd11.
-_SA_LOCK_FILE="/var/lock/qmanager.lock"
-_SA_SMS_TOOL="/usr/bin/sms_tool"
-_SA_AT_DEVICE="/dev/smd11"
+# SMS transport: /usr/bin/qsms -> qmanager_atd. The broker serializes on
+# /var/lock/qmanager.lock itself, so this lib never takes that lock.
+_SA_QSMS="/usr/bin/qsms"
 _SA_MAX_LOG=100
-
-# =============================================================================
-# _sa_strip_noise - Filter tcgetattr/tcsetattr diagnostic lines from sms_tool
-# =============================================================================
-# sms_tool prints these to stdout/stderr whenever /dev/smd11 is a char device
-# rather than a real TTY. They are harmless but pollute JSON parsing and
-# user-visible output. Always apply to any sms_tool output before use.
-_sa_strip_noise() {
-    grep -v -e '^tcgetattr(' -e '^tcsetattr(' -e 'Inappropriate ioctl for device$'
-}
 
 # --- State (populated by sms_alerts_init / _sa_read_config) ------------------
 # Downtime tracking now lives in alert_engine.sh; this lib only owns the
@@ -53,61 +41,6 @@ _sa_strip_noise() {
 _sa_enabled="false"
 _sa_recipient=""
 _sa_threshold_minutes=5
-
-# =============================================================================
-# _sa_flock_wait - BusyBox-compatible flock with timeout (polling loop)
-# =============================================================================
-# Usage: _sa_flock_wait <fd> <timeout_seconds>
-# Returns: 0 = lock acquired, non-zero = timed out
-_sa_flock_wait() {
-    _fd="$1"
-    _wait="$2"
-    _elapsed=0
-
-    while [ "$_elapsed" -lt "$_wait" ]; do
-        if flock -x -n "$_fd" 2>/dev/null; then
-            return 0
-        fi
-        sleep 1
-        _elapsed=$((_elapsed + 1))
-    done
-
-    flock -x -n "$_fd" 2>/dev/null
-}
-
-# =============================================================================
-# _sa_sms_locked - Run sms_tool under shared AT lock
-# =============================================================================
-# Always targets /dev/smd11.
-#
-# NOTE: stderr is captured to a temp file, NOT merged with stdout via 2>&1.
-# Merging is unsafe because sms_tool's cleanup `failed tcsetattr(...):
-# Inappropriate ioctl for device` error can land mid-stdout when the payload
-# exceeds the ~4 KB block buffer (typical for `recv -j`), gluing itself onto
-# a JSON chunk and defeating line-based noise filtering. On success we
-# return pure stdout; on failure we return stderr with known noise stripped.
-_sa_sms_locked() {
-    [ -e "$_SA_LOCK_FILE" ] || : > "$_SA_LOCK_FILE"
-    _sa_err="/tmp/qmanager_sa_err.$$"
-
-    (
-        _sa_flock_wait 9 10 || exit 99
-        _sa_out=$("$_SA_SMS_TOOL" -d "$_SA_AT_DEVICE" "$@" 2>"$_sa_err")
-        _sa_rc=$?
-        if [ "$_sa_rc" -eq 0 ]; then
-            printf '%s' "$_sa_out"
-        else
-            _sa_err_clean=$(_sa_strip_noise < "$_sa_err" 2>/dev/null)
-            if [ -n "$_sa_err_clean" ]; then
-                printf '%s' "$_sa_err_clean"
-            else
-                printf '%s' "$_sa_out"
-            fi
-        fi
-        rm -f "$_sa_err"
-        exit "$_sa_rc"
-    ) 9<"$_SA_LOCK_FILE"
-}
 
 # =============================================================================
 # _sa_read_config - Read settings from config JSON
@@ -190,7 +123,8 @@ sms_alerts_init() {
 # Returns:
 #   0 = message sent
 #   1 = attempted but failed (terminal — engine will not retry)
-#   2 = not ready to attempt, retry next cycle (SMS modem not yet registered)
+#   2 = not ready, retry next cycle (SMS modem not yet registered, or every
+#       send attempt found the modem busy: qsms modem_busy/scan_in_progress)
 #
 # The connection_lost registration gate reproduces the old pending-path outer
 # guard: when the modem is not registered we return 2 WITHOUT calling
@@ -243,11 +177,14 @@ sms_alert_emit() {
             ;;
     esac
 
-    if _sa_do_send "$_sae_body"; then
+    _sa_do_send "$_sae_body"
+    _sae_rc=$?
+    if [ "$_sae_rc" -eq 0 ]; then
         _sa_log_event "$_sae_trigger" "sent" "$_sa_recipient"
         return 0
     fi
     _sa_log_event "$_sae_trigger" "failed" "$_sa_recipient"
+    [ "$_sae_rc" -eq 2 ] && return 2
     return 1
 }
 
@@ -260,9 +197,10 @@ _sa_do_send() {
     max_attempts=3
     retry_delay=5
     _last_err=""
+    _all_busy=1
 
-    if [ ! -x "$_SA_SMS_TOOL" ]; then
-        qlog_error "SMS alerts: sms_tool not found at $_SA_SMS_TOOL"
+    if [ ! -x "$_SA_QSMS" ]; then
+        qlog_error "SMS alerts: qsms not found at $_SA_QSMS"
         return 1
     fi
 
@@ -281,26 +219,31 @@ _sa_do_send() {
 
         # $_sa_recipient is already normalized (no leading +) by the CGI
         # save_settings handler and by sms_alerts_init's boot migration.
-        send_out=$(_sa_sms_locked send "$_sa_recipient" "$body" 2>&1)
+        # qsms takes the modem lock itself (never wrap it in flock) and
+        # answers one JSON line: rc 0 sent, rc 1 {"success":false,"error":..}.
+        send_out=$("$_SA_QSMS" send "$_sa_recipient" "$body" 2>/dev/null)
         rc=$?
 
         if [ "$rc" -eq 0 ]; then
-            qlog_info "SMS alerts: sms_tool send succeeded on attempt $attempt"
+            qlog_info "SMS alerts: send succeeded on attempt $attempt"
             return 0
         fi
 
-        # _sa_sms_locked already strips tcgetattr noise; just fall back to a
-        # generic message if the stripped output is empty.
-        # rc 99 is the lock-timeout sentinel (clear of sms_tool's own 0/1/2).
-        if [ "$rc" -eq 99 ]; then
-            send_out="could not acquire AT lock"
-        fi
-        [ -z "$send_out" ] && send_out="sms_tool send failed (rc=$rc)"
-        _last_err="$send_out"
-        qlog_warn "SMS alerts: sms_tool send failed on attempt $attempt/$max_attempts (rc=$rc) — $send_out"
+        _sa_code=$(printf '%s' "$send_out" | jq -r 'if .error == null then empty else .error end' 2>/dev/null)
+        _sa_detail=$(printf '%s' "$send_out" | jq -r 'if .detail == null then empty else (.detail | tostring) end' 2>/dev/null)
+        case "$_sa_code" in
+            modem_busy|scan_in_progress) ;;
+            *) _all_busy=0 ;;
+        esac
+        _last_err="${_sa_code:-rc=$rc}${_sa_detail:+: $_sa_detail}"
+        qlog_warn "SMS alerts: send failed on attempt $attempt/$max_attempts — $_last_err"
     done
 
     qlog_error "SMS alerts: all ${max_attempts} send attempts failed for $_sa_recipient — last_err: ${_last_err:-<no output>}"
+    # A modem that was busy on every attempt that reached qsms is "not ready"
+    # (rc 2, retry next cycle). Attempts that were all skipped for
+    # registration leave _last_err empty and stay terminal, as before.
+    [ "$_all_busy" -eq 1 ] && [ -n "$_last_err" ] && return 2
     return 1
 }
 

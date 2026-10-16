@@ -879,7 +879,7 @@
       "bin": {
         "atd": "qmanager_atd AT 代理程式",
         "qcmd": "qcmd 連結到 qmanager_atd",
-        "sms_tool": "sms_tool 程式",
+        "qsms": "qsms 連結到 qmanager_atd",
         "jq": "jq",
         "curl": "curl",
         "openssl": "openssl",

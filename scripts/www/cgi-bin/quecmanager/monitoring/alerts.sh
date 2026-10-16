@@ -290,8 +290,8 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
                 exit 0
             fi
         fi
-        # Strip a single leading + before storing — sms_tool rejects it, so the
-        # SMS lib never has to. PRESERVE this exactly.
+        # Strip a single leading + before storing (stored numbers are bare digits,
+        # the contract the SMS lib relies on). PRESERVE this exactly.
         sms_phone=$(printf '%s' "$sms_phone" | sed 's/^+//')
 
         # --- Preserve stored password when the client omits it ---
@@ -440,7 +440,7 @@ MSMTPEOF
                 if _sa_send_test_sms; then
                     cgi_success
                 else
-                    cgi_error "send_failed" "sms_tool send failed — check logread for details"
+                    cgi_error "send_failed" "SMS send failed — check logread for details"
                 fi
                 exit 0
                 ;;

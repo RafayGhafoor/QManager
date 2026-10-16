@@ -879,7 +879,7 @@
       "bin": {
         "atd": "Biner broker AT qmanager_atd",
         "qcmd": "qcmd terhubung ke qmanager_atd",
-        "sms_tool": "Biner sms_tool",
+        "qsms": "qsms terhubung ke qmanager_atd",
         "jq": "jq",
         "curl": "curl",
         "openssl": "openssl",

@@ -28,11 +28,9 @@ RELOAD_FLAG="/tmp/qmanager_sms_forward_reload"
 FAILURES_FILE="/tmp/qmanager_sms_forward_failures.json"
 INITD="/etc/init.d/qmanager_sms_forward"
 
-# Shared AT lock (serializes sms_tool against qcmd, the AT broker, and other SMS).
-_SF_LOCK_FILE="/var/lock/qmanager.lock"
-_SF_LOCK_WAIT=10
-_SF_SMS_TOOL="/usr/bin/sms_tool"
-_SF_AT_DEVICE="/dev/smd11"
+# SMS transport: /usr/bin/qsms -> qmanager_atd (one JSON line, rc 0/1). The
+# broker serializes on /var/lock/qmanager.lock itself; never wrap it in flock.
+_SF_QSMS="/usr/bin/qsms"
 
 # Validation: E.164-ish — optional +, first digit 1-9, total 7-15 digits.
 # Reused verbatim from monitoring/sms_alerts.sh.
@@ -48,44 +46,19 @@ _validate_phone() {
     return 0
 }
 
-# BusyBox-compatible flock with timeout (polling loop).
-_sf_flock_wait() {
-    _fd="$1"
-    _wait="$2"
-    _elapsed=0
-    while [ "$_elapsed" -lt "$_wait" ]; do
-        if flock -x -n "$_fd" 2>/dev/null; then
-            return 0
-        fi
-        sleep 1
-        _elapsed=$((_elapsed + 1))
-    done
-    flock -x -n "$_fd" 2>/dev/null
-}
-
-# Run sms_tool under the shared lock. stderr -> temp file (never 2>&1) so noise
-# can't land mid-output. On success returns stdout; on failure returns
-# noise-stripped stderr.
+# Run one qsms command. On success prints its JSON; on failure prints a human
+# message ("<code>: <detail>") built from the failure envelope.
 _sf_sms_run() {
-    [ -e "$_SF_LOCK_FILE" ] || : > "$_SF_LOCK_FILE" 2>/dev/null
-    _sf_err="/tmp/qmanager_sms_fwd_cgi_err.$$"
-    (
-        _sf_flock_wait 9 "$_SF_LOCK_WAIT" || exit 2
-        _sf_out=$("$_SF_SMS_TOOL" -d "$_SF_AT_DEVICE" "$@" 2>"$_sf_err")
-        _sf_rc=$?
-        if [ "$_sf_rc" -eq 0 ]; then
-            printf '%s' "$_sf_out"
-        else
-            _sf_err_clean=$(grep -v -e '^tcgetattr(' -e '^tcsetattr(' -e 'Inappropriate ioctl for device$' < "$_sf_err" 2>/dev/null)
-            if [ -n "$_sf_err_clean" ]; then
-                printf '%s' "$_sf_err_clean"
-            else
-                printf '%s' "$_sf_out"
-            fi
-        fi
-        rm -f "$_sf_err"
-        exit "$_sf_rc"
-    ) 9<"$_SF_LOCK_FILE"
+    _sf_out=$("$_SF_QSMS" "$@" 2>/dev/null)
+    _sf_rc=$?
+    if [ "$_sf_rc" -eq 0 ]; then
+        printf '%s' "$_sf_out"
+        return 0
+    fi
+    _sf_code=$(printf '%s' "$_sf_out" | jq -r 'if .error == null then empty else .error end' 2>/dev/null)
+    _sf_detail=$(printf '%s' "$_sf_out" | jq -r 'if .detail == null then empty else (.detail | tostring) end' 2>/dev/null)
+    printf '%s' "${_sf_code:-qsms failed (rc=$_sf_rc)}${_sf_detail:+: $_sf_detail}"
+    return 1
 }
 
 # =============================================================================

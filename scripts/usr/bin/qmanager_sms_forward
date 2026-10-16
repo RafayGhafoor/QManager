@@ -6,10 +6,10 @@
 # to a configured target phone number as "From <sender>: <content>".
 #
 # Design notes (load-bearing):
-#   - Talks to /dev/smd11 via the bundled sms_tool, ALWAYS under the shared
-#     /var/lock/qmanager.lock so it serializes against qcmd (the AT broker) and the
-#     SMS CGI. The lock is held per sms_tool call (read pass, then each send),
-#     not across the multi-second send-retry loop.
+#   - Talks to the modem only through qsms (/usr/bin/qsms -> qmanager_atd, the
+#     AT broker), which serializes on /var/lock/qmanager.lock itself. One qsms
+#     call per read pass and per send attempt; never wrap qsms in flock on
+#     that lock (the broker would wait on us until modem_busy).
 #   - Fingerprints messages with the SAME djb2 scheme the frontend read-state
 #     uses (djb2 over "storage|sender|timestamp|content"), so seen-tracking is
 #     stable and consistent with the UI. See docs/features/sms.md.
@@ -26,7 +26,7 @@
 # State:  /tmp/qmanager_sms_forward_seen (one fingerprint per line, tmpfs)
 #
 # Install location: /usr/bin/qmanager_sms_forward
-# Dependencies: sms_tool, jq, awk, flock (busybox), uci
+# Dependencies: qsms (qmanager_atd), qcmd, jq, awk, uci
 # =============================================================================
 
 # --- Logging -----------------------------------------------------------------
@@ -54,66 +54,14 @@ RELOAD_FLAG="/tmp/qmanager_sms_forward_reload"
 SEEN_FILE="/tmp/qmanager_sms_forward_seen"
 FAILURES_FILE="/tmp/qmanager_sms_forward_failures.json"
 FAILURES_TMP="/tmp/qmanager_sms_forward_failures.json.tmp"
-LOCK_FILE="/var/lock/qmanager.lock"
-LOCK_WAIT=10
-
-# sms_tool transport (hard-wired to /dev/smd11, like sms.sh / sms_alerts.sh).
-SMS_TOOL="/usr/bin/sms_tool"
-AT_DEVICE="/dev/smd11"
+# SMS transport: the broker's SMS client (one JSON line on stdout, rc 0/1).
+QSMS="/usr/bin/qsms"
 
 MAX_FAILURES=20
 
 # =============================================================================
 # HELPERS
 # =============================================================================
-
-# --- BusyBox-compatible flock with timeout (polling loop) --------------------
-# Usage: sf_flock_wait <fd> <timeout_seconds>
-sf_flock_wait() {
-    _fd="$1"
-    _wait="$2"
-    _elapsed=0
-    while [ "$_elapsed" -lt "$_wait" ]; do
-        if flock -x -n "$_fd" 2>/dev/null; then
-            return 0
-        fi
-        sleep 1
-        _elapsed=$((_elapsed + 1))
-    done
-    flock -x -n "$_fd" 2>/dev/null
-}
-
-# --- Strip sms_tool's harmless char-device noise -----------------------------
-sf_strip_noise() {
-    grep -v -e '^tcgetattr(' -e '^tcsetattr(' -e 'Inappropriate ioctl for device$'
-}
-
-# --- Run sms_tool under the shared AT lock -----------------------------------
-# stderr is captured to a temp file (NOT 2>&1) so noise can never land mid-JSON
-# when a recv -j payload exceeds the stdout block buffer. On success returns
-# pure stdout; on failure returns noise-stripped stderr.
-sf_sms_locked() {
-    [ -e "$LOCK_FILE" ] || : > "$LOCK_FILE" 2>/dev/null
-    _sf_err="/tmp/qmanager_sms_forward_err.$$"
-
-    (
-        sf_flock_wait 9 "$LOCK_WAIT" || exit 2
-        _sf_out=$("$SMS_TOOL" -d "$AT_DEVICE" "$@" 2>"$_sf_err")
-        _sf_rc=$?
-        if [ "$_sf_rc" -eq 0 ]; then
-            printf '%s' "$_sf_out"
-        else
-            _sf_err_clean=$(sf_strip_noise < "$_sf_err" 2>/dev/null)
-            if [ -n "$_sf_err_clean" ]; then
-                printf '%s' "$_sf_err_clean"
-            else
-                printf '%s' "$_sf_out"
-            fi
-        fi
-        rm -f "$_sf_err"
-        exit "$_sf_rc"
-    ) 9<"$LOCK_FILE"
-}
 
 # --- Load config from UCI ----------------------------------------------------
 load_config() {
@@ -175,38 +123,23 @@ sf_fingerprint() {
 }
 
 # --- Read + merge inbound messages from ME and SM into one JSON array --------
-# Mirrors the sms.sh merge: tag each storage, concat, group multi-part by
-# sender|reference|storage, pass singles through. Output is a JSON array of
-# {sender, content, timestamp, storage}. On any failure prints "[]".
+# Mirrors the sms.sh merge: group multi-part by sender|reference|storage, pass
+# singles through. Output is a JSON array of {sender, content, timestamp,
+# storage}. qsms tags every message with its storage and restores ME,ME,ME
+# routing itself. On a failed read prints nothing and returns 1, so a busy
+# modem is never mistaken for an empty inbox (which would seed or skip).
 sf_read_inbox() {
-    # Re-assert routing so future incoming SMS land in ME (255 slots).
-    sf_sms_locked at 'AT+CPMS="ME","ME","ME"' >/dev/null 2>&1
-
-    _me=$(sf_sms_locked -s ME recv -j)
-    if [ -n "$_me" ]; then
-        _me=$(printf '%s' "$_me" | jq 'if .msg == null then [] else .msg end' 2>/dev/null)
+    _list=$("$QSMS" list all 2>/dev/null)
+    _lrc=$?
+    if [ "$_lrc" -ne 0 ]; then
+        _lerr=$(printf '%s' "$_list" | jq -r 'if .error == null then empty else (.error | tostring) end' 2>/dev/null)
+        qlog_warn "SMS forward: inbox read failed (${_lerr:-rc=$_lrc}); skipping cycle"
+        return 1
     fi
-    printf '%s' "$_me" | jq empty 2>/dev/null || _me="[]"
-    [ -z "$_me" ] && _me="[]"
-    _me=$(printf '%s' "$_me" | jq 'map(. + {storage:"ME"})' 2>/dev/null)
-    [ -z "$_me" ] && _me="[]"
 
-    _sm=$(sf_sms_locked -s SM recv -j)
-    if [ -n "$_sm" ]; then
-        _sm=$(printf '%s' "$_sm" | jq 'if .msg == null then [] else .msg end' 2>/dev/null)
-    fi
-    printf '%s' "$_sm" | jq empty 2>/dev/null || _sm="[]"
-    [ -z "$_sm" ] && _sm="[]"
-    _sm=$(printf '%s' "$_sm" | jq 'map(. + {storage:"SM"})' 2>/dev/null)
-    [ -z "$_sm" ] && _sm="[]"
-
-    # A `-s SM` read flips mem1 to SM; re-assert ME so a bare recv elsewhere
-    # keeps reading modem storage.
-    sf_sms_locked at 'AT+CPMS="ME","ME","ME"' >/dev/null 2>&1
-
-    _raw=$(printf '%s\n%s' "$_me" "$_sm" | jq -s 'add' 2>/dev/null)
+    _raw=$(printf '%s' "$_list" | jq -c 'if .msg == null then [] else .msg end' 2>/dev/null)
     [ -z "$_raw" ] && _raw="[]"
-    printf '%s' "$_raw" | jq empty 2>/dev/null || _raw="[]"
+    printf '%s' "$_raw" | jq empty 2>/dev/null || return 1
 
     _merged=$(printf '%s' "$_raw" | jq -c '
         [.[] | select(has("reference") | not) |
@@ -278,7 +211,7 @@ sf_record_failure() {
 # --- Send one forwarded message with 3-attempt / 5s-retry --------------------
 # Mirrors sms_alerts.sh:_sa_do_send. Re-checks registration each attempt via
 # AT+CREG/CGREG. Returns 0 on success; on failure prints the last error to
-# stdout and returns 1. Each send re-acquires the shared lock (per call).
+# stdout and returns 1. Each attempt is one qsms call (the broker locks).
 sf_send_with_retry() {
     _send_target="$1"
     _send_body="$2"
@@ -287,8 +220,8 @@ sf_send_with_retry() {
     _retry_delay=5
     _last_err=""
 
-    if [ ! -x "$SMS_TOOL" ]; then
-        printf '%s' "sms_tool not found at $SMS_TOOL"
+    if [ ! -x "$QSMS" ]; then
+        printf '%s' "qsms not found at $QSMS"
         return 1
     fi
 
@@ -305,7 +238,7 @@ sf_send_with_retry() {
             continue
         fi
 
-        _out=$(sf_sms_locked send "$_send_target" "$_send_body" 2>&1)
+        _out=$("$QSMS" send "$_send_target" "$_send_body" 2>/dev/null)
         _rc=$?
 
         if [ "$_rc" -eq 0 ]; then
@@ -313,9 +246,11 @@ sf_send_with_retry() {
             return 0
         fi
 
-        [ -z "$_out" ] && _out="sms_tool send failed (rc=$_rc)"
-        _last_err="$_out"
-        qlog_warn "SMS forward: send failed attempt $_attempt/$_max_attempts (rc=$_rc) — $_out"
+        # Failure envelope: {"success":false,"error":<code>[,"detail":...]}.
+        _code=$(printf '%s' "$_out" | jq -r 'if .error == null then empty else .error end' 2>/dev/null)
+        _detail=$(printf '%s' "$_out" | jq -r 'if .detail == null then empty else (.detail | tostring) end' 2>/dev/null)
+        _last_err="${_code:-qsms send failed (rc=$_rc)}${_detail:+: $_detail}"
+        qlog_warn "SMS forward: send failed attempt $_attempt/$_max_attempts — $_last_err"
     done
 
     printf '%s' "$_last_err"
@@ -357,10 +292,11 @@ sf_mark_seen() {
 # =============================================================================
 
 # Process one inbox snapshot. $1 = seeding ("1" to record-only, no forwarding).
+# Returns 1 when the inbox could not be read (nothing was processed).
 process_cycle() {
     _seeding="$1"
 
-    _inbox=$(sf_read_inbox)
+    _inbox=$(sf_read_inbox) || return 1
     _count=$(printf '%s' "$_inbox" | jq 'length' 2>/dev/null)
     case "$_count" in
         ''|*[!0-9]*) _count=0 ;;
@@ -418,6 +354,10 @@ process_cycle() {
             qlog_error "SMS forward: all attempts failed forwarding from ${_sender} — ${_err}"
         fi
     done
+
+    # Explicit: a read that succeeded is success, whatever the loop's last
+    # command returned (the seeding caller deletes SEEN_FILE on non-zero).
+    return 0
 }
 
 # =============================================================================
@@ -472,7 +412,9 @@ main() {
         if [ ! -f "$SEEN_FILE" ]; then
             : > "$SEEN_FILE"
             qlog_info "SMS forward: seeding seen-set from existing inbox (no forwarding)"
-            process_cycle 1
+            # A failed read must not leave an empty seen-set behind, or the
+            # next cycle would forward the whole existing inbox. Re-seed later.
+            process_cycle 1 || rm -f "$SEEN_FILE"
         else
             process_cycle 0
         fi

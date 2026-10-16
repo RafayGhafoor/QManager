@@ -1,6 +1,6 @@
 #!/bin/sh
 # =============================================================================
-# at_engine.sh — qcmd link + host AT port (port-bridge) control
+# at_engine.sh — qcmd/qsms links + host AT port (port-bridge) control
 # =============================================================================
 # Sourced by /etc/init.d/qmanager_atd, system/host_at_ports.sh and install.sh.
 # See docs/features/at-broker.md.
@@ -10,6 +10,11 @@
 #   broker socket and falling back to an in-process exchange when the daemon
 #   is down, so AT keeps working without the daemon. The output contract is
 #   the one every caller has always parsed (echo + body + OK).
+#
+# qsms: /usr/bin/qsms is a second SYMLINK to qmanager_atd. Run as qsms it is
+#   the SMS client (list / status / send / delete, one JSON line on stdout),
+#   same socket-then-in-process transport as qcmd. The broker takes the modem
+#   lock itself, so callers must NOT wrap qsms in flock on qmanager.lock.
 #
 # Host AT ports (UCI quecmanager.ports.host_at = 1 | 0, default 1):
 #   The vendor port-bridged service relays the USB/PCIe host AT ports into the
@@ -26,6 +31,7 @@ _AT_ENGINE_LOADED=1
 
 ATE_BROKER_BIN="/usr/bin/qmanager_atd"
 ATE_LINK="/usr/bin/qcmd"
+ATE_SMS_LINK="/usr/bin/qsms"
 ATE_SOCK="/var/run/qmanager_atd.sock"
 PB_INIT="/etc/init.d/port-bridged"
 
@@ -39,14 +45,15 @@ at_broker_running() {
     [ -S "$ATE_SOCK" ] && pidof qmanager_atd >/dev/null 2>&1
 }
 
-# Atomically repoint /usr/bin/qcmd. ln -sf would unlink then create, leaving a
-# moment with no qcmd at all; a temp link + rename(2) never does. The rename
-# also replaces a regular file an old install left at that path.
+# Atomically repoint a client link ($1 = link path) at $2. ln -sf would unlink
+# then create, leaving a moment with no link at all; a temp link + rename(2)
+# never does. The rename also replaces a regular file an old install left at
+# that path. Temp names are /usr/bin/.qcmd.<pid> / .qsms.<pid>.
 _ate_link_to() {
-    _ate_tmp="/usr/bin/.qcmd.$$"
+    _ate_tmp="${1%/*}/.${1##*/}.$$"
     rm -f "$_ate_tmp"
-    ln -s "$1" "$_ate_tmp" || return 1
-    if ! mv -f "$_ate_tmp" "$ATE_LINK"; then
+    ln -s "$2" "$_ate_tmp" || return 1
+    if ! mv -f "$_ate_tmp" "$1"; then
         rm -f "$_ate_tmp"
         return 1
     fi
@@ -56,7 +63,13 @@ _ate_link_to() {
 # Point /usr/bin/qcmd at qmanager_atd. Idempotent.
 at_qcmd_link() {
     [ -L "$ATE_LINK" ] && [ "$(readlink "$ATE_LINK" 2>/dev/null)" = "qmanager_atd" ] && return 0
-    _ate_link_to "qmanager_atd"
+    _ate_link_to "$ATE_LINK" "qmanager_atd"
+}
+
+# Point /usr/bin/qsms at qmanager_atd. Idempotent.
+at_qsms_link() {
+    [ -L "$ATE_SMS_LINK" ] && [ "$(readlink "$ATE_SMS_LINK" 2>/dev/null)" = "qmanager_atd" ] && return 0
+    _ate_link_to "$ATE_SMS_LINK" "qmanager_atd"
 }
 
 # --- Host AT ports (port-bridge) ---------------------------------------------

@@ -244,9 +244,9 @@ _ae_handle_down() {
 
         _ae_channel_emit "$_ae_ch" connection_lost "$_ae_elapsed"
         _ae_rc=$?
-        # rc 2 = "not ready" (e.g. SMS modem not yet registered) — leave the
+        # rc 2 = "not ready" (SMS modem not registered, or busy) — leave the
         # marker clear so we retry next cycle without burning a send attempt.
-        # rc 0 (sent) or rc 1 (registered but sms_tool failed) are both terminal.
+        # rc 0 (sent) or rc 1 (registered but the qsms send failed) are terminal.
         if [ "$_ae_rc" != "2" ]; then
             _ae_set_lost_sent "$_ae_ch" "1"
         fi

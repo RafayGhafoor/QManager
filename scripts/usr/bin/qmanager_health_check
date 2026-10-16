@@ -21,6 +21,7 @@ STATUS_LOCK="/tmp/qmanager_health_check.lock"
 RUN_LOCK="/tmp/qmanager_health_check.run.lock"
 LOG_FILE="/tmp/qmanager_health_check.log"
 QCMD="/usr/bin/qcmd"
+QSMS="/usr/bin/qsms"
 QCMD_TIMEOUT=28
 CONF_DIR="/etc/qmanager"
 
@@ -230,7 +231,7 @@ _catalog() {
     cat <<EOF
 bin.atd|binaries|qmanager_atd AT broker binary|t_bin_atd
 bin.qcmd|binaries|qcmd links to qmanager_atd|t_bin_qcmd
-bin.sms_tool|binaries|sms_tool binary|t_bin_sms_tool
+bin.qsms|binaries|qsms links to qmanager_atd|t_bin_qsms
 bin.jq|binaries|jq|t_bin_jq
 bin.curl|binaries|curl|t_bin_curl
 bin.openssl|binaries|openssl|t_bin_openssl
@@ -326,32 +327,36 @@ _bin_required() {
 }
 
 t_bin_atd()      { _bin_required /usr/bin/qmanager_atd; }
-t_bin_sms_tool() { _bin_required /usr/bin/sms_tool; }
 t_bin_jq()       { _bin_required /usr/bin/jq --version; }
 t_bin_curl()     { _bin_required /usr/bin/curl --version; }
 t_bin_openssl()  { _bin_required /usr/bin/openssl version; }
 t_bin_nft()      { _bin_required /usr/sbin/nft --version; }
 t_bin_ethtool()  { _bin_required /usr/sbin/ethtool --version; }
 
-t_bin_qcmd() {
+# $1 = a multicall client link that must point at qmanager_atd (qcmd, qsms).
+_bin_atd_link() {
+    local link="$1"
     local target
-    if [ -L "$QCMD" ]; then
-        target=$(readlink "$QCMD")
-        echo "$QCMD -> $target" >> "$OUT"
+    if [ -L "$link" ]; then
+        target=$(readlink "$link")
+        echo "$link -> $target" >> "$OUT"
         case "$target" in
             qmanager_atd|/usr/bin/qmanager_atd)
                 if [ -x /usr/bin/qmanager_atd ]; then echo "pass|-> qmanager_atd"
                 else echo "fail|link target qmanager_atd missing"; fi ;;
             *) echo "fail|links to $target, expected qmanager_atd" ;;
         esac
-    elif [ -e "$QCMD" ]; then
-        ls -l "$QCMD" >> "$OUT" 2>&1
+    elif [ -e "$link" ]; then
+        ls -l "$link" >> "$OUT" 2>&1
         echo "fail|regular file, not a link to qmanager_atd"
     else
-        echo "$QCMD: not found" >> "$OUT"
+        echo "$link: not found" >> "$OUT"
         echo "fail|missing"
     fi
 }
+
+t_bin_qcmd() { _bin_atd_link "$QCMD"; }
+t_bin_qsms() { _bin_atd_link "$QSMS"; }
 
 t_bin_msmtp() {
     local en="no"
@@ -607,7 +612,7 @@ t_sms_lock() {
         return
     fi
     # Non-blocking tries only: never queue for the modem lock ahead of the
-    # broker or sms_tool (BusyBox flock has no -w anyway).
+    # broker (BusyBox flock has no -w anyway).
     local i=0
     while [ "$i" -lt 5 ]; do
         if flock -n -x "$l" true 7>&- 8>&- 9>&- 2>>"$OUT"; then
