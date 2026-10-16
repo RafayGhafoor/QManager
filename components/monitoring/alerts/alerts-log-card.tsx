@@ -36,7 +36,12 @@ import {
 import { cn } from "@/lib/utils";
 import { useAlertsLog } from "@/hooks/use-alerts-log";
 import type { AlertLogEntry, RebootHistoryEntry } from "@/types/alerts";
-import { CHANNEL_META, REBOOT_CAUSE_META, REBOOT_TONE_BADGE } from "./constants";
+import {
+  CHANNEL_META,
+  REBOOT_CAUSE_META,
+  REBOOT_TONE_BADGE,
+  triggerLabelKey,
+} from "./constants";
 
 const MotionTableRow = motion.create(TableRow);
 
@@ -290,6 +295,7 @@ export function AlertsLogCard({
                   }
 
                   const { entry } = row;
+                  const triggerKey = triggerLabelKey(entry.trigger);
                   const ChannelIcon =
                     CHANNEL_META[entry.channel]?.icon ?? BellIcon;
                   return (
@@ -298,7 +304,9 @@ export function AlertsLogCard({
                         {entry.timestamp}
                       </TableCell>
                       <TableCell className="min-w-0 text-sm">
-                        <span className="block truncate">{entry.trigger}</span>
+                        <span className="block truncate">
+                          {triggerKey ? t(triggerKey) : entry.trigger}
+                        </span>
                         <span className="text-muted-foreground block truncate font-mono text-xs @md/card:hidden">
                           {entry.recipient}
                         </span>

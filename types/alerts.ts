@@ -109,10 +109,23 @@ export interface AlertsSavePayload {
 export interface AlertLogEntry {
   /** Pre-formatted timestamp string, displayed as-is (as the legacy logs did). */
   timestamp: string;
+  /** A trigger key (an `AlertEventKey` or "test"). Rows logged before the keys
+   *  carry free English text, which renders as logged. */
   trigger: string;
   status: "sent" | "failed";
   recipient: string;
   channel: AlertChannel;
+}
+
+// ─── Save / test / uninstall outcome ─────────────────────────────────────────
+
+/** A mutation's outcome. `error` is already translated (resolveErrorMessage) and
+ *  `code` is the CGI error slug; both null on success. Read them from the
+ *  returned result, never from hook state after the await (stale closure). */
+export interface AlertsMutationResult {
+  ok: boolean;
+  error: string | null;
+  code: string | null;
 }
 
 // ─── Ordered event list for rendering the matrix ─────────────────────────────

@@ -3,12 +3,14 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { authFetch } from "@/lib/auth-fetch";
+import type { TFunction } from "i18next";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type { InstallResult } from "@/types/video-optimizer";
 import type {
   AlertsState,
   AlertsSavePayload,
   AlertChannel,
+  AlertsMutationResult,
 } from "@/types/alerts";
 
 // =============================================================================
@@ -23,6 +25,23 @@ import type {
 
 const CGI_ENDPOINT = "/cgi-bin/quecmanager/monitoring/alerts.sh";
 
+// Mutation outcomes. A null `error` on failure means "use the caller's own
+// generic copy" (a transport failure has no translatable slug).
+const SUCCEEDED: AlertsMutationResult = { ok: true, error: null, code: null };
+const UNMOUNTED: AlertsMutationResult = { ok: false, error: null, code: null };
+const TRANSPORT_FAILED: AlertsMutationResult = { ok: false, error: null, code: null };
+
+/** A CGI failure envelope → translated message plus the raw slug. An unknown
+ *  slug yields null, so the caller's generic copy shows, never English detail. */
+function failedResult(
+  t: TFunction,
+  json: { error?: unknown; detail?: unknown },
+): AlertsMutationResult {
+  const code = typeof json.error === "string" && json.error !== "" ? json.error : null;
+  const message = code ? resolveErrorMessage(t, code, undefined, "") : "";
+  return { ok: false, error: message || null, code };
+}
+
 export interface UseAlertsReturn {
   state: AlertsState | null;
   isLoading: boolean;
@@ -30,11 +49,12 @@ export interface UseAlertsReturn {
   testingChannel: AlertChannel | null;
   isUninstalling: boolean;
   installResult: InstallResult;
+  /** Load failures only; a mutation returns its failure in its own result. */
   error: string | null;
-  saveSettings: (payload: AlertsSavePayload) => Promise<boolean>;
-  sendTest: (channel: AlertChannel) => Promise<boolean>;
+  saveSettings: (payload: AlertsSavePayload) => Promise<AlertsMutationResult>;
+  sendTest: (channel: AlertChannel) => Promise<AlertsMutationResult>;
   runInstall: () => Promise<void>;
-  uninstall: () => Promise<boolean>;
+  uninstall: () => Promise<AlertsMutationResult>;
   refresh: () => void;
 }
 
@@ -117,8 +137,7 @@ export function useAlerts(): UseAlertsReturn {
   // Save (one atomic POST covering both channels + routing)
   // ---------------------------------------------------------------------------
   const saveSettings = useCallback(
-    async (payload: AlertsSavePayload): Promise<boolean> => {
-      setError(null);
+    async (payload: AlertsSavePayload): Promise<AlertsMutationResult> => {
       setIsSaving(true);
       try {
         const resp = await authFetch(CGI_ENDPOINT, {
@@ -129,26 +148,14 @@ export function useAlerts(): UseAlertsReturn {
         if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
 
         const json = await resp.json();
-        if (!mountedRef.current) return false;
+        if (!mountedRef.current) return UNMOUNTED;
 
-        if (!json.success) {
-          setError(
-            resolveErrorMessage(
-              t,
-              json.error,
-              json.detail,
-              "Failed to save settings",
-            ),
-          );
-          return false;
-        }
+        if (!json.success) return failedResult(t, json);
 
         await fetchState(true);
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(err instanceof Error ? err.message : "Failed to save settings");
-        return false;
+        return SUCCEEDED;
+      } catch {
+        return TRANSPORT_FAILED;
       } finally {
         if (mountedRef.current) setIsSaving(false);
       }
@@ -160,8 +167,7 @@ export function useAlerts(): UseAlertsReturn {
   // Per-channel test send (real path, gated on saved config by the caller)
   // ---------------------------------------------------------------------------
   const sendTest = useCallback(
-    async (channel: AlertChannel): Promise<boolean> => {
-      setError(null);
+    async (channel: AlertChannel): Promise<AlertsMutationResult> => {
       setTestingChannel(channel);
       try {
         const resp = await authFetch(CGI_ENDPOINT, {
@@ -172,24 +178,12 @@ export function useAlerts(): UseAlertsReturn {
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
         const json = await resp.json();
-        if (!mountedRef.current) return false;
+        if (!mountedRef.current) return UNMOUNTED;
 
-        if (!json.success) {
-          setError(
-            resolveErrorMessage(
-              t,
-              json.error,
-              json.detail,
-              "Failed to send test",
-            ),
-          );
-          return false;
-        }
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(err instanceof Error ? err.message : "Failed to send test");
-        return false;
+        if (!json.success) return failedResult(t, json);
+        return SUCCEEDED;
+      } catch {
+        return TRANSPORT_FAILED;
       } finally {
         if (mountedRef.current) setTestingChannel(null);
       }
@@ -252,7 +246,7 @@ export function useAlerts(): UseAlertsReturn {
     }
   }, [pollInstallStatus]);
 
-  const uninstall = useCallback(async (): Promise<boolean> => {
+  const uninstall = useCallback(async (): Promise<AlertsMutationResult> => {
     setIsUninstalling(true);
     try {
       const resp = await authFetch(CGI_ENDPOINT, {
@@ -262,19 +256,12 @@ export function useAlerts(): UseAlertsReturn {
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const json = await resp.json();
-      if (!json.success) {
-        setError(
-          resolveErrorMessage(t, json.error, json.detail, "Failed to uninstall"),
-        );
-        return false;
-      }
+      if (!mountedRef.current) return UNMOUNTED;
+      if (!json.success) return failedResult(t, json);
       await fetchState(true);
-      return true;
-    } catch (err) {
-      if (mountedRef.current) {
-        setError(err instanceof Error ? err.message : "Failed to uninstall");
-      }
-      return false;
+      return SUCCEEDED;
+    } catch {
+      return TRANSPORT_FAILED;
     } finally {
       if (mountedRef.current) setIsUninstalling(false);
     }

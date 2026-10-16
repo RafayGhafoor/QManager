@@ -66,6 +66,12 @@ _AE_REBOOT_WINDOW=300
 # money). Suppressed for the rest of the hour via a mono-stamped marker.
 _AE_REBOOT_STORM_THRESHOLD=3
 _AE_REBOOT_STORM_FLAG="/tmp/qmanager_reboot_storm_hour"
+# A wall clock below this is still in the 1970 boot window (NITZ/ntpd not stepped
+# yet): classifying then compares crash.log against a bogus boot epoch and writes
+# a 1970 row into the ledger, so detection holds until the clock passes it.
+_AE_SANE_EPOCH=1700000000
+# Boot id seen changed while the clock was unset; retried each cycle (see below).
+_ae_boot_unresolved=""
 
 # --- State (poller-process memory, module scope) -----------------------------
 # _ae_outage_active     : "0" idle / "1" outage in progress
@@ -160,6 +166,13 @@ alert_engine_check() {
     if [ -f "$_AE_ROUTING_RELOAD" ]; then
         alert_routing_load
         qlog_info "Alert engine: routing reloaded"
+    fi
+
+    # --- 1b. A reboot detected before the clock was set: retry once it is -----
+    # Ahead of the suppression gate: this records the reboot, it sends nothing.
+    if [ -n "$_ae_boot_unresolved" ] && _ae_clock_sane; then
+        qlog_info "Alert engine: clock set, classifying the held reboot"
+        alert_engine_reboot_detect
     fi
 
     # --- 2. Suppression gate [guardrail 3]: low-power mode, no radio work ----
@@ -392,11 +405,20 @@ _ae_reboot_emit_storm() {
     fi
 }
 
+# _ae_clock_sane — 0 iff the wall clock has left the 1970 boot window.
+_ae_clock_sane() {
+    local _now
+    _now=$(date +%s 2>/dev/null)
+    case "$_now" in ''|*[!0-9]*) return 1 ;; esac
+    [ "$_now" -ge "$_AE_SANE_EPOCH" ]
+}
+
 # =============================================================================
 # alert_engine_reboot_detect — ONE-SHOT boot_id compare + pending stage
 # =============================================================================
-# Called once from the poller's main() after alert_engine_init (libs loaded).
-# Detection lives here (not in the outage machine) so all reboot state sits in
+# Called once from the poller's main() after alert_engine_init (libs loaded),
+# and again from alert_engine_check only while a reboot is held for an unset
+# clock (_ae_boot_unresolved). Detection lives here (not in the outage machine) so all reboot state sits in
 # one place. A bare procd respawn of the poller sees an unchanged boot_id and
 # stages nothing; a real reboot changes boot_id and stages a fresh pending file.
 alert_engine_reboot_detect() {
@@ -428,13 +450,20 @@ alert_engine_reboot_detect() {
     #
     # _boot_epoch is deliberately WALL-CLOCK (now - uptime): it exists only to be
     # compared against the wall-clock epochs in crash.log, so both sides must use
-    # the same clock. There is no NITZ/ntpd-readiness gate here — if the wall
-    # clock has not yet been corrected at poller startup, boot_epoch can be off,
-    # which at worst mislabels a genuine planned reboot as "unplanned" (the
-    # in-window breadcrumb is missed). That is benign: detection still fires once
-    # per boot, the ledger + storm counting are unaffected, and the only cost is
-    # a single mislabeled cause on the alert/history. A monotonic clock cannot be
-    # used here because crash.log breadcrumbs are wall-clock stamped.
+    # the same clock (crash.log breadcrumbs are wall-clock stamped, so a monotonic
+    # clock cannot be used). Until NITZ/ntpd sets the clock it still reads 1970:
+    # the in-window breadcrumb would be missed (a planned reboot labelled
+    # "unplanned") and the post-facto "unplanned" row would carry a 1970 epoch.
+    # So hold: leave the id uncommitted (a respawn in the window re-detects it)
+    # and let alert_engine_check retry once the clock is sane.
+    if ! _ae_clock_sane; then
+        if [ "$_ae_boot_unresolved" != "$_live_id" ]; then
+            qlog_info "Alert engine: boot_id changed, clock not set yet, holding reboot classification"
+        fi
+        _ae_boot_unresolved="$_live_id"
+        return 0
+    fi
+    _ae_boot_unresolved=""
     _boot_epoch=$(( $(date +%s) - $(mono_now) ))
     _cause=$(_ae_classify_reboot "$_boot_epoch")
 

@@ -164,12 +164,14 @@ export function AlertsSettingsCard({
       }
       return;
     }
-    const ok = await hook.saveSettings(form.buildPayload());
-    if (ok) {
+    // The failure reason comes from the returned result: hook state read after
+    // the await is a stale closure and always fell through to the generic copy.
+    const result = await hook.saveSettings(form.buildPayload());
+    if (result.ok) {
       form.markSaved();
       toast.success(t("alerts.toast_save_success"));
     } else {
-      toast.error(hook.error || t("alerts.toast_save_error"));
+      toast.error(result.error ?? t("alerts.toast_save_error"));
     }
   };
 
@@ -191,9 +193,13 @@ export function AlertsSettingsCard({
     hook.testingChannel === null;
 
   const handleTest = async (channel: AlertChannel) => {
-    const ok = await hook.sendTest(channel);
-    if (ok) toast.success(t(`alerts.toast_test_${channel}_success`));
-    else toast.error(hook.error || t(`alerts.toast_test_${channel}_error`));
+    const result = await hook.sendTest(channel);
+    if (result.ok) toast.success(t(`alerts.toast_test_${channel}_success`));
+    // send_failed means something different per channel, so it keeps the
+    // channel's own copy rather than the shared errors-catalog line.
+    else if (result.code === "send_failed" || result.error === null)
+      toast.error(t(`alerts.toast_test_${channel}_error`));
+    else toast.error(result.error);
     onTested();
   };
 
@@ -528,11 +534,12 @@ export function AlertsSettingsCard({
                         <AlertDialogAction
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           onClick={async () => {
-                            const ok = await hook.uninstall();
-                            if (ok) toast.success(t("alerts.toast_uninstalled"));
+                            const result = await hook.uninstall();
+                            if (result.ok)
+                              toast.success(t("alerts.toast_uninstalled"));
                             else
                               toast.error(
-                                hook.error || t("alerts.toast_uninstall_error"),
+                                result.error ?? t("alerts.toast_uninstall_error"),
                               );
                           }}
                         >

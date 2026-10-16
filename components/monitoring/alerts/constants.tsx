@@ -48,6 +48,16 @@ export const EVENT_META: Record<AlertEventKey, EventMeta> = {
   reboot: { icon: RotateCcwIcon, key: "reboot" },
 };
 
+/** The i18n key naming a logged trigger (`alerts.*`), or null when the row
+ *  predates trigger keys and carries free text, which then renders as logged. */
+export function triggerLabelKey(trigger: string): string | null {
+  if (trigger === "test") return "alerts.trigger_test";
+  if (Object.prototype.hasOwnProperty.call(EVENT_META, trigger)) {
+    return `alerts.event_${EVENT_META[trigger as AlertEventKey].key}_name`;
+  }
+  return null;
+}
+
 // ─── Reboot-cause presentation (icon + tone + i18n key) ──────────────────────
 // Tone is a status role, never a brand accent: `unplanned` earns attention
 // (warning), `watchdog` reads as an automated recovery (info), `user` is the

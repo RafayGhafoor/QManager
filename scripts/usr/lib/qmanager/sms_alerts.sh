@@ -202,7 +202,7 @@ sms_alert_emit() {
     local _sae_count="$4"
     local _sae_dur
     local _sae_body
-    local _sae_trigger
+    local _sae_trigger="$_sae_event"   # the log names the trigger key; the UI translates it
     local _sae_phrase
 
     _sae_dur=$(_sa_format_duration "$_sae_secs")
@@ -214,11 +214,9 @@ sms_alert_emit() {
                 return 2
             fi
             _sae_body="[QManager] Connection down for ${_sae_dur}"
-            _sae_trigger="Connection down for ${_sae_dur}"
             ;;
         connection_restored)
             _sae_body="[QManager] Connection recovered after ${_sae_dur}"
-            _sae_trigger="Connection recovered after ${_sae_dur}"
             ;;
         reboot)
             # Reboot alerts are delivered post-recovery (userspace was dead at
@@ -230,7 +228,6 @@ sms_alert_emit() {
             fi
             if [ "$_sae_cause" = "storm" ]; then
                 _sae_body="[QManager] Modem is reboot-looping (${_sae_count} reboots in the last hour). Check power/firmware."
-                _sae_trigger="Reboot loop (${_sae_count}/hr)"
             else
                 case "$_sae_cause" in
                     watchdog) _sae_phrase="watchdog recovered the connection" ;;
@@ -238,7 +235,6 @@ sms_alert_emit() {
                     *)        _sae_phrase="unexpected - power or firmware" ;;
                 esac
                 _sae_body="[QManager] Modem rebooted ~${_sae_dur} ago (${_sae_phrase}) - now back online."
-                _sae_trigger="Reboot (${_sae_cause}) ~${_sae_dur} ago"
             fi
             ;;
         *)
@@ -311,11 +307,11 @@ _sa_send_test_sms() {
     body="[QManager] Test SMS from your modem"
 
     if _sa_do_send "$body"; then
-        _sa_log_event "Test SMS" "sent" "$_sa_recipient"
+        _sa_log_event "test" "sent" "$_sa_recipient"
         return 0
     fi
 
-    _sa_log_event "Test SMS" "failed" "$_sa_recipient"
+    _sa_log_event "test" "failed" "$_sa_recipient"
     return 1
 }
 
@@ -338,12 +334,13 @@ _sa_log_event() {
 
     count=$(wc -l < "$_SA_LOG_FILE" 2>/dev/null || echo 0)
     if [ "$count" -gt "$_SA_MAX_LOG" ]; then
-        tmp="${_SA_LOG_FILE}.tmp"
+        # The poller and a CGI test send can both trim: a per-process temp, then copy
+        # through the same inode (never mv over it), so neither clobbers the other.
+        tmp="${_SA_LOG_FILE}.tmp.$$"
         if tail -n "$_SA_MAX_LOG" "$_SA_LOG_FILE" > "$tmp" 2>/dev/null; then
-            mv "$tmp" "$_SA_LOG_FILE" 2>/dev/null || rm -f "$tmp"
-        else
-            rm -f "$tmp"
+            cat "$tmp" > "$_SA_LOG_FILE" 2>/dev/null
         fi
+        rm -f "$tmp"
     fi
 }
 

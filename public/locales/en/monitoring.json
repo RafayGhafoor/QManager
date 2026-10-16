@@ -71,6 +71,7 @@
     "event_connection_restored_desc": "The internet came back after an outage.",
     "event_reboot_name": "Modem rebooted",
     "event_reboot_desc": "The modem restarted. Sent once it's back online, with the reason.",
+    "trigger_test": "Test message",
 
     "reboot_cause_watchdog": "Watchdog",
     "reboot_cause_user": "Planned",

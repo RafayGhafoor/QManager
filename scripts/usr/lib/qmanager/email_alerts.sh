@@ -108,7 +108,6 @@ email_alert_emit() {
     local dur_text
     local html
     local subject
-    local trigger_text
     local attempt
     local max_attempts
     local retry_delay
@@ -134,16 +133,13 @@ email_alert_emit() {
         if [ "$cause" = "storm" ]; then
             subject="Modem Reboot Loop"
             html=$(_ea_build_reboot_html "storm" "$dur_text" "$count")
-            trigger_text="Reboot loop (${count}/hr)"
         else
             subject="Modem Rebooted"
             html=$(_ea_build_reboot_html "$cause" "$dur_text" "")
-            trigger_text="Reboot (${cause}) ~${dur_text} ago"
         fi
     else
         subject="Connection Recovered"
         html=$(_ea_build_recovery_html "$start_time" "$dur_text" "$_ea_threshold_minutes")
-        trigger_text="Connection recovered (down ${dur_text})"
     fi
 
     # Send with retry — DNS may not be ready immediately after recovery.
@@ -160,7 +156,7 @@ email_alert_emit() {
         fi
 
         if _ea_do_send "$subject" "$html"; then
-            _ea_log_event "$trigger_text" "sent" "$_ea_recipient"
+            _ea_log_event "$event" "sent" "$_ea_recipient"
             return 0
         fi
 
@@ -168,7 +164,7 @@ email_alert_emit() {
     done
 
     qlog_error "Email alerts: all $max_attempts send attempts failed"
-    _ea_log_event "$trigger_text" "failed" "$_ea_recipient"
+    _ea_log_event "$event" "failed" "$_ea_recipient"
     return 1
 }
 
@@ -180,10 +176,10 @@ _ea_send_test_email() {
     html=$(_ea_build_test_html)
 
     if _ea_do_send "Test Alert" "$html"; then
-        _ea_log_event "Test email" "sent" "$_ea_recipient"
+        _ea_log_event "test" "sent" "$_ea_recipient"
         return 0
     else
-        _ea_log_event "Test email" "failed" "$_ea_recipient"
+        _ea_log_event "test" "failed" "$_ea_recipient"
         return 1
     fi
 }
@@ -205,6 +201,8 @@ _ea_do_send() {
         return 1
     fi
 
+    # --timeout bounds each network wait, so a dead link cannot stall the poller cycle.
+    # On the command line rather than in msmtprc, so configs written before it apply too.
     {
         printf "From: %s\r\n" "$_ea_sender"
         printf "To: %s\r\n" "$_ea_recipient"
@@ -213,7 +211,7 @@ _ea_do_send() {
         printf "Content-Type: text/html; charset=UTF-8\r\n"
         printf "\r\n"
         printf "%s" "$html_body"
-    } | msmtp -C "$_EA_MSMTP_CONFIG" "$_ea_recipient" 2>/tmp/msmtp_last_err.log
+    } | msmtp --timeout=30 -C "$_EA_MSMTP_CONFIG" "$_ea_recipient" 2>/tmp/msmtp_last_err.log
 
     local rc=$?
     if [ $rc -eq 0 ]; then
@@ -248,12 +246,13 @@ _ea_log_event() {
     local count
     count=$(wc -l < "$_EA_LOG_FILE" 2>/dev/null || echo 0)
     if [ "$count" -gt "$_EA_MAX_LOG" ]; then
-        local tmp="${_EA_LOG_FILE}.tmp"
+        # The poller and a CGI test send can both trim: a per-process temp, then copy
+        # through the same inode (never mv over it), so neither clobbers the other.
+        local tmp="${_EA_LOG_FILE}.tmp.$$"
         if tail -n "$_EA_MAX_LOG" "$_EA_LOG_FILE" > "$tmp" 2>/dev/null; then
-            mv "$tmp" "$_EA_LOG_FILE" 2>/dev/null || rm -f "$tmp"
-        else
-            rm -f "$tmp"
+            cat "$tmp" > "$_EA_LOG_FILE" 2>/dev/null
         fi
+        rm -f "$tmp"
     fi
 }
 
