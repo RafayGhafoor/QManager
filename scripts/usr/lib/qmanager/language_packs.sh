@@ -17,10 +17,12 @@
 
 [ -n "$_LP_LIB_LOADED" ] && return 0
 _LP_LIB_LOADED=1
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 
 LP_LOCALES_DIR="/www/locales"
-LP_STAGING_DIR="/tmp/qmanager_lp_staging"
-LP_DOWNLOAD_DIR="/tmp/qmanager_lp_download"
+# B4.1: download/staging live under the root-only run dir (verify-then-extract swap)
+LP_STAGING_DIR="/var/run/qmanager/lp_staging"
+LP_DOWNLOAD_DIR="/var/run/qmanager/lp_download"
 LP_PROGRESS_FILE="/tmp/qmanager_language_install.json"
 LP_PID_FILE="/var/run/qmanager_language_install.pid"
 LP_CANCEL_FILE="/tmp/qmanager_language_install.cancel"

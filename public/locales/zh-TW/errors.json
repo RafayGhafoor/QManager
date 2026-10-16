@@ -139,6 +139,7 @@
   "select_failed": "網路模式選擇失敗",
   "send_failed": "訊息傳送失敗",
   "service_running": "服務正在執行 — 請先停止它",
+  "session_failed": "無法建立工作階段，請重新登入。",
   "setup_required": "需要初始設定 — 請先設定密碼",
   "shadow_unreadable": "無法讀取密碼檔案（許可權問題）",
   "sim_mismatch": "當前 SIM 與設定預期的 SIM 不匹配",

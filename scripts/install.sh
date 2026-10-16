@@ -268,11 +268,11 @@ run_atd_qcmd() {
     local seconds="$1"
     local bin="$2"
     local cmd="$3"
-    local dir="/tmp/qm_atd_qcmd.$$"
+    local dir
     local rc=0
 
-    rm -rf "$dir"
-    mkdir -p "$dir" || return 1
+    # mktemp -d: a fresh root 0700 dir, never one another user planted (B4.1).
+    dir=$(mktemp -d /tmp/qm_atd_qcmd.XXXXXX 2>/dev/null) || return 1
     if ! ln -s "$bin" "$dir/qcmd"; then
         rm -rf "$dir"
         return 1
@@ -1261,7 +1261,9 @@ install_backend() {
     fi
 
     # --- Required runtime directories ---
-    mkdir -p "$CONF_DIR/profiles" "$SESSION_DIR" "$UPDATES_DIR" /var/lock
+    # The session dir is not pre-created: cgi_auth.sh makes it root-owned on
+    # first login and refuses one another user created first (B4.1).
+    mkdir -p "$CONF_DIR/profiles" "$UPDATES_DIR" /var/lock
 
     # Sites monitor rollups: daemon-written hourly JSONL, CGI read-only. The device
     # has no `install` applet; the explicit chown/chmod also fix a re-install.

@@ -532,7 +532,10 @@ remove_runtime_state() {
           /var/run/qmanager_language_install.pid \
           2>/dev/null || true
 
-    # Staged update artifacts
+    # Root-only scratch (B4.1): staged/extracted updates, download and work dirs
+    rm -rf /var/run/qmanager 2>/dev/null || true
+
+    # Staged update artifacts (pre-B4.1 /tmp names, kept for legacy devices)
     rm -f /tmp/qmanager_staged.tar.gz \
           /tmp/qmanager_staged_version \
           /tmp/qmanager_staged_sha256.txt \

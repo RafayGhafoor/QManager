@@ -1,5 +1,6 @@
 #!/bin/sh
 . /usr/lib/qmanager/cgi_base.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 # =============================================================================
 # lock.sh — CGI Endpoint: Apply Band Lock
 # =============================================================================
@@ -122,8 +123,8 @@ fi
 if [ "$failover_enabled" = "true" ] && [ -x "$FAILOVER_SCRIPT" ]; then
     # Kill any existing watcher (latest lock is the one we monitor)
     if [ -f "$FAILOVER_PID_FILE" ]; then
-        old_pid=$(cat "$FAILOVER_PID_FILE" 2>/dev/null | tr -d ' \n\r')
-        if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+        old_pid=$(qm_read_pid "$FAILOVER_PID_FILE" qmanager_band_failover)
+        if [ -n "$old_pid" ]; then
             kill "$old_pid" 2>/dev/null
             qlog_debug "Killed previous failover watcher (PID=$old_pid)"
         fi

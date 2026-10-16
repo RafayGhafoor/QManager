@@ -26,6 +26,9 @@ CONF_DIR="/etc/qmanager"
 
 export PATH="/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 
+# B4.1: root-safe /tmp helpers (root-owned job dir). Missing lib: the job fails closed.
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+
 _is_running_pid() {
     case "$1" in ''|*[!0-9]*) return 1 ;; esac
     [ "$1" -gt 0 ] || return 1
@@ -1092,13 +1095,18 @@ _build_bundle() {
     _redact_tree "$stage"
     _build_report_json "$stage"
     _redact_tree "$stage"
-    rm -f "$TARBALL.tmp"
-    if tar -czf "$TARBALL.tmp" -C "$JOB_DIR" bundle && [ -s "$TARBALL.tmp" ]; then
-        mv "$TARBALL.tmp" "$TARBALL"
+    rm -f "$JOB_DIR/bundle.tar.gz.tmp"
+    if tar -czf "$JOB_DIR/bundle.tar.gz.tmp" -C "$JOB_DIR" bundle && [ -s "$JOB_DIR/bundle.tar.gz.tmp" ]; then
+        # B4.1: built inside the root dir, renamed over any planted file
+        # 0600 first: if a dir is planted between rm and mv, mv lands the
+        # bundle inside it, and it must not be readable there.
+        chmod 600 "$JOB_DIR/bundle.tar.gz.tmp"
+        rm -rf "$TARBALL"
+        mv "$JOB_DIR/bundle.tar.gz.tmp" "$TARBALL"
         rm -rf "$stage"
         return 0
     fi
-    rm -f "$TARBALL.tmp"
+    rm -f "$JOB_DIR/bundle.tar.gz.tmp"
     rm -rf "$stage"
     return 1
 }
@@ -1125,6 +1133,11 @@ trap '_on_signal TERM' TERM
 trap '_on_signal INT' INT
 trap '_on_exit' EXIT
 
+# B4.1: job dir must be root-owned; a /tmp dir another user made first is not trusted
+if ! type qm_root_dir >/dev/null 2>&1 || ! qm_root_dir "$JOB_DIR" 0700; then
+    echo "ERROR: cannot create root-owned $JOB_DIR" >&2
+    exit 1
+fi
 mkdir -p "$TESTS_DIR" || { echo "ERROR: cannot create $TESTS_DIR" >&2; exit 1; }
 
 CATALOG_JSON=$(_catalog_json)

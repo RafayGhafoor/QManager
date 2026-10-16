@@ -215,10 +215,12 @@ echo "Using release: $TAG"
 # --- Download and verify -----------------------------------------------------
 
 BASE="https://github.com/${REPO}/releases/download/${TAG}"
-WORK_DIR="/tmp/qmanager-bootstrap"
-
-rm -rf "$WORK_DIR"
-mkdir -p "$WORK_DIR"
+# mktemp -d: a fresh root 0700 dir. A fixed /tmp name could be pre-created by
+# another user, who would then own the tree that install.sh runs from.
+WORK_DIR=$(mktemp -d /tmp/qmanager-bootstrap.XXXXXX 2>/dev/null) || {
+    echo "Cannot create a private work directory in /tmp" >&2
+    exit 1
+}
 
 cleanup() {
     rm -rf "$WORK_DIR"

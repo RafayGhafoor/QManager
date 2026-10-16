@@ -8,6 +8,7 @@
 # opkg dependency issues on custom firmware.
 
 . /usr/lib/qmanager/qlog.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 
 qlog_init "dpi_install"
 
@@ -15,7 +16,8 @@ RESULT_FILE="/tmp/qmanager_dpi_install.json"
 PID_FILE="/tmp/qmanager_dpi_install.pid"
 INSTALL_DIR="/usr/bin"
 NFQWS_BIN="$INSTALL_DIR/nfqws"
-TMP_DIR="/tmp/qmanager_dpi_download"
+# B4.1: root-owned work dir under /var/run (the binary is extracted and installed as root)
+TMP_DIR="/var/run/qmanager/dpi_download"
 GITHUB_API="https://api.github.com/repos/bol-van/zapret/releases/latest"
 
 # Write PID for singleton check
@@ -115,7 +117,11 @@ qlog_info "Found release $release_tag: $tarball_url"
 write_result "running" "Downloading zapret $release_tag..." ""
 
 # Step 3: Download tarball
-mkdir -p "$TMP_DIR"
+if ! type qm_root_dir >/dev/null 2>&1 || ! qm_run_dir >/dev/null || ! qm_root_dir "$TMP_DIR" 0700; then
+    qlog_error "Cannot create root-owned work dir $TMP_DIR"
+    write_result "error" "Download failed" "Could not prepare work directory"
+    exit 1
+fi
 tarball="$TMP_DIR/zapret.tar.gz"
 
 if ! curl -s -L -o "$tarball" "$tarball_url" 2>/dev/null; then

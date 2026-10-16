@@ -479,6 +479,7 @@ tower_spawn_failover_watcher() {
 # PID file ensures only one re-apply process runs at a time.
 # =============================================================================
 
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 MTU_REAPPLY_PID="/tmp/qmanager_mtu_reapply.pid"
 MTU_FILE="/etc/firewall.user.mtu"
 
@@ -491,8 +492,9 @@ mtu_reapply_after_bounce() {
     # Kill any previous re-apply process
     if [ -f "$MTU_REAPPLY_PID" ]; then
         local old_pid
-        old_pid=$(cat "$MTU_REAPPLY_PID" 2>/dev/null | tr -d ' \n\r')
-        if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+        # B4.1: the worker is a subshell, so the pid is its caller's (a qmanager_* daemon/worker)
+        old_pid=$(qm_read_pid "$MTU_REAPPLY_PID" qmanager_)
+        if [ -n "$old_pid" ]; then
             kill "$old_pid" 2>/dev/null
         fi
         rm -f "$MTU_REAPPLY_PID"
@@ -525,7 +527,7 @@ _mtu_sleep_ms() {
 _mtu_reapply_worker() {
     # Worker writes its own PID first — eliminates the race window between
     # fork in mtu_reapply_after_bounce and a second caller's guard check.
-    echo $$ > "$MTU_REAPPLY_PID"
+    echo $$ | qm_atomic_write "$MTU_REAPPLY_PID"
 
     # Wait for an rmnet_data interface with carrier=1, then keep watching
     # MTU until it stays at the expected value for two consecutive reads.

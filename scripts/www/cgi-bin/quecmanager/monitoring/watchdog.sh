@@ -1,5 +1,6 @@
 #!/bin/sh
 . /usr/lib/qmanager/cgi_base.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 # =============================================================================
 # watchdog.sh — CGI Endpoint: Watchdog Settings & Status (GET + POST)
 # =============================================================================
@@ -531,7 +532,8 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         if [ -f "$SIM_SWAP_FLAG" ]; then
             tmp_json=$(jq -c '.dismissed = true' "$SIM_SWAP_FLAG" 2>/dev/null)
             if [ -n "$tmp_json" ]; then
-                printf '%s\n' "$tmp_json" > "$SIM_SWAP_FLAG"
+                # B4.1: root-owned rewrite, not write-through of a planted file
+                printf '%s\n' "$tmp_json" | qm_atomic_write "$SIM_SWAP_FLAG"
             fi
         fi
         echo '{"success":true}'
@@ -543,7 +545,8 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
     # -------------------------------------------------------------------------
     if [ "$ACTION" = "revert_sim" ]; then
         qlog_info "User requesting SIM revert"
-        touch "$REVERT_FLAG"
+        # B4.1: root-owned flag (the daemon ignores any other)
+        : | qm_atomic_write "$REVERT_FLAG"
         echo '{"success":true,"message":"SIM revert requested. The watchcat will process this shortly."}'
         exit 0
     fi

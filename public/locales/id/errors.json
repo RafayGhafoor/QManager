@@ -144,6 +144,7 @@
   "select_failed": "Gagal memilih mode jaringan",
   "send_failed": "Gagal mengirim pesan",
   "service_running": "Layanan sedang berjalan — hentikan terlebih dahulu",
+  "session_failed": "Tidak dapat memulai sesi. Coba masuk lagi.",
   "setup_required": "Pengaturan awal diperlukan — atur kata sandi terlebih dahulu",
   "shadow_unreadable": "Tidak dapat membaca file kata sandi (masalah izin)",
   "sim_mismatch": "SIM aktif tidak cocok dengan SIM yang diharapkan profil",

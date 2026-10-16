@@ -597,8 +597,11 @@ auto_apply_profile() {
     # read. The old behavior (pure skip) silently lost a rapid back-to-back
     # switch when a stale worker was still applying the previous SIM's profile.
     if ! profile_check_lock; then
-        printf '%s\t%s\n' "$current_iccid" "$caller" > "${PROFILE_PENDING_APPLY_FILE}.tmp" 2>/dev/null \
-            && mv "${PROFILE_PENDING_APPLY_FILE}.tmp" "$PROFILE_PENDING_APPLY_FILE" 2>/dev/null
+        # B4.1: mktemp sibling, not a fixed .tmp name a planted file could occupy
+        _pa_tmp=$(mktemp "${PROFILE_PENDING_APPLY_FILE}.XXXXXX" 2>/dev/null)
+        printf '%s\t%s\n' "$current_iccid" "$caller" > "$_pa_tmp" 2>/dev/null \
+            && mv -f "$_pa_tmp" "$PROFILE_PENDING_APPLY_FILE" 2>/dev/null \
+            || rm -f "$_pa_tmp" 2>/dev/null
         qlog_info "[$caller] Apply already running (PID $_profile_lock_pid); queued pending re-apply for ICCID ...$iccid_suffix" 2>/dev/null
         return 0
     fi

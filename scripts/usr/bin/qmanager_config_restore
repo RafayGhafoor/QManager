@@ -25,6 +25,7 @@ if [ -f /usr/lib/qmanager/events.sh ]; then
 else
     append_event() { :; }
 fi
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 if [ -f /usr/lib/qmanager/config_backup_sections.sh ]; then
     . /usr/lib/qmanager/config_backup_sections.sh
 else
@@ -66,7 +67,8 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # --- Validate input ---
-if [ ! -f "$INPUT_FILE" ]; then
+# B4.1: the payload drives root config writes; only a root-owned file is trusted
+if ! type qm_trusted_file >/dev/null 2>&1 || ! qm_trusted_file "$INPUT_FILE"; then
     qlog_error "Input file not found: $INPUT_FILE"
     exit 1
 fi

@@ -42,7 +42,9 @@ if [ "$STATE_STATUS" = "applying" ]; then
         if [ -n "$APPLY_PID" ] && ! kill -0 "$APPLY_PID" 2>/dev/null; then
             # Process died but state says "applying" — correct to "failed"
             tmp=$(jq '.status = "failed"' "$STATE_FILE" 2>/dev/null) && {
-                printf '%s\n' "$tmp" > "${STATE_FILE}.tmp" && mv "${STATE_FILE}.tmp" "$STATE_FILE"
+                # B4.1: mktemp sibling instead of a fixed .tmp name
+                _st_tmp=$(mktemp "${STATE_FILE}.XXXXXX" 2>/dev/null)
+                printf '%s\n' "$tmp" > "$_st_tmp" && mv -f "$_st_tmp" "$STATE_FILE" || rm -f "$_st_tmp"
             }
             rm -f "$PID_FILE"
         fi
@@ -50,7 +52,8 @@ if [ "$STATE_STATUS" = "applying" ]; then
         # No PID file but state says "applying" — process exited and cleaned up
         # but never wrote a final state. Mark as failed.
         tmp=$(jq '.status = "failed"' "$STATE_FILE" 2>/dev/null) && {
-            printf '%s\n' "$tmp" > "${STATE_FILE}.tmp" && mv "${STATE_FILE}.tmp" "$STATE_FILE"
+            _st_tmp=$(mktemp "${STATE_FILE}.XXXXXX" 2>/dev/null)
+            printf '%s\n' "$tmp" > "$_st_tmp" && mv -f "$_st_tmp" "$STATE_FILE" || rm -f "$_st_tmp"
         }
     fi
 fi

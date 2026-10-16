@@ -139,6 +139,7 @@
   "select_failed": "网络模式选择失败",
   "send_failed": "消息发送失败",
   "service_running": "服务正在运行 — 请先停止它",
+  "session_failed": "无法建立会话，请重新登录。",
   "setup_required": "需要初始设置 — 请先设置密码",
   "shadow_unreadable": "无法读取密码文件（权限问题）",
   "sim_mismatch": "当前 SIM 与配置预期的 SIM 不匹配",

@@ -35,6 +35,7 @@ else
     qlog_warn() { :; }; qlog_error() { :; }; qlog_state_change() { :; }
     mono_now() { awk '{print int($1)}' /proc/uptime 2>/dev/null || echo 0; }
 fi
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 qlog_init "watchcat"
 
 # --- Events (for append_event) -----------------------------------------------
@@ -1071,7 +1072,7 @@ finalize_sim_failover() {
         --arg orig_iccid "$original_sim_iccid" \
         --arg iccid "$curr_iccid" \
         '{active:true, original_slot:$orig, current_slot:$curr, switched_at:$ts, reason:$reason, original_iccid:$orig_iccid, current_iccid:$iccid}' \
-        > "$SIM_FAILOVER_FILE"
+        | qm_atomic_write "$SIM_FAILOVER_FILE"
 
     # Mark this failover SIM as known so the poller's boot-time SIM swap detector
     # treats it as expected (not a physical user swap).
@@ -1230,7 +1231,7 @@ finish_cooldown() {
             --arg orig_iccid "$original_sim_iccid" \
             --arg iccid "$_bk_iccid" \
             '{active:true, original_slot:$orig, current_slot:$curr, switched_at:$ts, reason:$reason, original_iccid:$orig_iccid, current_iccid:$iccid}' \
-            > "$SIM_FAILOVER_FILE"
+            | qm_atomic_write "$SIM_FAILOVER_FILE"
         if [ -n "$_bk_iccid" ]; then
             sim_db_add "$_bk_iccid"
         fi
@@ -1355,6 +1356,12 @@ finish_cooldown() {
 
 check_revert_request() {
     [ -f "$REVERT_FLAG" ] || return 1
+    # B4.1: act only on a root-owned flag; a planted one is dropped
+    if ! qm_trusted_file "$REVERT_FLAG"; then
+        qlog_warn "Ignoring untrusted SIM revert flag (not root-owned)"
+        rm -f "$REVERT_FLAG"
+        return 1
+    fi
 
     # Finalized failover — safe to revert now.
     if [ "$sim_failover_active" = "true" ]; then
@@ -1445,6 +1452,14 @@ main() {
     # live slot matches what the file records. If the modem is on a
     # different slot than recorded, clear the file rather than carry stale
     # state forward.
+    # B4.1: trust the failover state only when root-owned; otherwise drop it
+    if command -v qm_trusted_file >/dev/null 2>&1 \
+            && { [ -e "$SIM_FAILOVER_FILE" ] || [ -L "$SIM_FAILOVER_FILE" ]; }; then
+        if ! qm_trusted_file "$SIM_FAILOVER_FILE"; then
+            qlog_warn "Ignoring untrusted SIM failover file (not root-owned) - removing"
+            rm -f "$SIM_FAILOVER_FILE"
+        fi
+    fi
     if [ -f "$SIM_FAILOVER_FILE" ]; then
         local sf_active_val
         sf_active_val=$(jq -r '(.active) | if . == null then "false" else tostring end' "$SIM_FAILOVER_FILE" 2>/dev/null)

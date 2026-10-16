@@ -1,5 +1,6 @@
 #!/bin/sh
 . /usr/lib/qmanager/cgi_base.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 # =============================================================================
 # failover_toggle.sh — CGI Endpoint: Toggle Band Failover
 # =============================================================================
@@ -58,8 +59,9 @@ else
 
     # Kill any running watcher to prevent unexpected failovers
     if [ -f "$FAILOVER_PID_FILE" ]; then
-        old_pid=$(cat "$FAILOVER_PID_FILE" 2>/dev/null | tr -d ' \n\r')
-        if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+        # B4.1: kill only a root-owned pidfile whose pid is the failover daemon
+        old_pid=$(qm_read_pid "$FAILOVER_PID_FILE" qmanager_band_failover)
+        if [ -n "$old_pid" ]; then
             kill -9 "$old_pid" 2>/dev/null
             qlog_warn "Killed active failover watcher (PID=$old_pid) due to toggle OFF"
         fi

@@ -1,5 +1,6 @@
 #!/bin/sh
 . /usr/lib/qmanager/cgi_base.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 # Single alert wait resolver (cq_alert_after_min). Guarded: BusyBox ash exits
 # when `.` cannot find its file.
 if [ -f /usr/lib/qmanager/conn_state.sh ]; then
@@ -479,7 +480,7 @@ MSMTPEOF
     # install — install msmtp via opkg (background)
     # -------------------------------------------------------------------------
     if [ "$ACTION" = "install" ]; then
-        if [ -f "$MSMTP_INSTALL_PID" ] && kill -0 "$(cat "$MSMTP_INSTALL_PID" 2>/dev/null)" 2>/dev/null; then
+        if qm_read_pid "$MSMTP_INSTALL_PID" alerts.sh >/dev/null; then
             cgi_error "already_running" "Installation already in progress"
             exit 0
         fi
@@ -491,25 +492,25 @@ MSMTPEOF
         qlog_info "Starting msmtp installation via opkg"
 
         (
-            echo $$ > "$MSMTP_INSTALL_PID"
+            echo $$ | qm_atomic_write "$MSMTP_INSTALL_PID"
             trap 'rm -f "$MSMTP_INSTALL_PID"' EXIT
 
-            printf '{"success":true,"status":"running","message":"Updating package lists..."}' > "$MSMTP_INSTALL_RESULT"
+            printf '{"success":true,"status":"running","message":"Updating package lists..."}' | qm_atomic_write "$MSMTP_INSTALL_RESULT"
             if ! opkg update >/dev/null 2>&1; then
-                printf '{"success":false,"status":"error","message":"Failed to update package lists","detail":"Check internet connection and opkg feeds"}' > "$MSMTP_INSTALL_RESULT"
+                printf '{"success":false,"status":"error","message":"Failed to update package lists","detail":"Check internet connection and opkg feeds"}' | qm_atomic_write "$MSMTP_INSTALL_RESULT"
                 exit 1
             fi
 
-            printf '{"success":true,"status":"running","message":"Installing msmtp..."}' > "$MSMTP_INSTALL_RESULT"
+            printf '{"success":true,"status":"running","message":"Installing msmtp..."}' | qm_atomic_write "$MSMTP_INSTALL_RESULT"
             if ! opkg install msmtp >/dev/null 2>&1; then
-                printf '{"success":false,"status":"error","message":"opkg install failed","detail":"Package may not be available for this architecture"}' > "$MSMTP_INSTALL_RESULT"
+                printf '{"success":false,"status":"error","message":"opkg install failed","detail":"Package may not be available for this architecture"}' | qm_atomic_write "$MSMTP_INSTALL_RESULT"
                 exit 1
             fi
 
             if command -v msmtp >/dev/null 2>&1; then
-                printf '{"success":true,"status":"complete","message":"msmtp installed successfully"}' > "$MSMTP_INSTALL_RESULT"
+                printf '{"success":true,"status":"complete","message":"msmtp installed successfully"}' | qm_atomic_write "$MSMTP_INSTALL_RESULT"
             else
-                printf '{"success":false,"status":"error","message":"Package installed but binary not found"}' > "$MSMTP_INSTALL_RESULT"
+                printf '{"success":false,"status":"error","message":"Package installed but binary not found"}' | qm_atomic_write "$MSMTP_INSTALL_RESULT"
             fi
         ) </dev/null >/dev/null 2>&1 &
 

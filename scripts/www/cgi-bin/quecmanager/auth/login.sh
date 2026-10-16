@@ -80,6 +80,10 @@ if is_setup_required; then
     qlog_info "First-time password configured"
 
     _token=$(qm_create_session)
+    if [ -z "$_token" ]; then
+        cgi_error "session_failed" "Could not create a session"
+        exit 0
+    fi
     qm_set_session_cookies "$_token"
     cgi_headers
     jq -n '{"success":true}'
@@ -115,6 +119,11 @@ fi
 qm_clear_attempts
 qm_cleanup_sessions
 _token=$(qm_create_session)
+if [ -z "$_token" ]; then
+    qlog_error "Login: session directory is not root-owned; refusing to create a session"
+    cgi_error "session_failed" "Could not create a session"
+    exit 0
+fi
 qlog_info "Successful login"
 
 qm_set_session_cookies "$_token"
