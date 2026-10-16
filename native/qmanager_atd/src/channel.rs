@@ -33,6 +33,27 @@ pub fn is_terminator(line: &[u8]) -> bool {
     TERMINATORS.iter().any(|t| line.starts_with(t))
 }
 
+/// Errors that mean the channel itself went away (baseband SSR, glink reset),
+/// not that the command was bad. Seen on the RM551E during an SSR: ECONNRESET
+/// on read and EBUSY on open/read. The caller reports these as modem_not_ready.
+pub fn is_reset(e: &io::Error) -> bool {
+    matches!(
+        e.raw_os_error(),
+        Some(
+            libc::ECONNRESET
+                | libc::ENETRESET
+                | libc::ECONNABORTED
+                | libc::EPIPE
+                | libc::EBUSY
+                | libc::ENODEV
+                | libc::ENXIO
+                | libc::ENOENT
+                | libc::ENOTCONN
+                | libc::ESHUTDOWN
+        )
+    )
+}
+
 #[derive(Debug)]
 pub enum AtError {
     /// No final result code before the deadline.
@@ -175,6 +196,25 @@ impl<D: Device> Channel<D> {
         self.pending.clear();
     }
 
+    /// Any I/O error on the fd: drop it and make the next exchange reopen and
+    /// prove the channel (AT -> OK) first. Keeping the fd would be wrong: the
+    /// daemon holds one fd for its lifetime, and glink can keep failing a fd
+    /// that was reset under it (SSR), which would fail every later command
+    /// until restart. Only for errors from calls that have returned, so no
+    /// thread can still be using the fd number (a wedged write uses forget).
+    fn fail_io(&mut self, e: io::Error) -> AtError {
+        self.close();
+        self.dirty = true;
+        AtError::Io(e)
+    }
+
+    /// EOF from the device: same recovery as an I/O error.
+    fn fail_eof(&mut self) -> AtError {
+        self.close();
+        self.dirty = true;
+        AtError::Eof
+    }
+
     fn fd(&mut self) -> Result<RawFd, AtError> {
         if self.dev.is_none() {
             // A stalled open (SSR) is "not ready", not a command failure.
@@ -202,16 +242,13 @@ impl<D: Device> Channel<D> {
             match poll_fd(fd, libc::POLLIN, quiet) {
                 Ok(false) => break,
                 Ok(true) => {}
-                Err(e) => return Err(AtError::Io(e)),
+                Err(e) => return Err(self.fail_io(e)),
             }
             match raw_read(fd, &mut buf) {
-                Ok(0) => {
-                    self.close();
-                    return Err(AtError::Eof);
-                }
+                Ok(0) => return Err(self.fail_eof()),
                 Ok(n) => out.extend_from_slice(&buf[..n]),
                 Err(e) if would_block(&e) => break,
-                Err(e) => return Err(AtError::Io(e)),
+                Err(e) => return Err(self.fail_io(e)),
             }
         }
         Ok(out)
@@ -232,7 +269,8 @@ impl<D: Device> Channel<D> {
                 self.established = true;
                 Ok(())
             }
-            Ok(Err(e)) => Err(AtError::Io(e)),
+            // The write thread has returned, so closing the fd is safe.
+            Ok(Err(e)) => Err(self.fail_io(e)),
             Err(_) => {
                 // The write is wedged inside the driver. Abandon this fd WITHOUT
                 // closing it: closing would free the fd number for reuse while
@@ -280,16 +318,13 @@ impl<D: Device> Channel<D> {
             match poll_fd(fd, libc::POLLIN, left) {
                 Ok(false) => continue,
                 Ok(true) => {}
-                Err(e) => return Err(AtError::Io(e)),
+                Err(e) => return Err(self.fail_io(e)),
             }
             match raw_read(fd, &mut buf) {
-                Ok(0) => {
-                    self.close();
-                    return Err(AtError::Eof);
-                }
+                Ok(0) => return Err(self.fail_eof()),
                 Ok(n) => acc.extend_from_slice(&buf[..n]),
                 Err(e) if would_block(&e) => {}
-                Err(e) => return Err(AtError::Io(e)),
+                Err(e) => return Err(self.fail_io(e)),
             }
         }
     }
@@ -459,6 +494,76 @@ mod tests {
         let mut ch: Channel<UnixStream> =
             Channel::new(Box::new(move || slot.lock().unwrap().take().ok_or_else(|| io::Error::other("x"))));
         assert_eq!(ch.exchange("AT", soon(1000)).unwrap(), b"AT\r\r\nOK\r\n");
+    }
+
+    /// A fake modem that answers every line with `<cmd>\r\r\nOK\r\n`.
+    fn healthy_dev() -> UnixStream {
+        let (near, mut far) = UnixStream::pair().unwrap();
+        near.set_nonblocking(true).unwrap();
+        thread::spawn(move || {
+            let mut buf = [0u8; 256];
+            let mut acc = Vec::new();
+            loop {
+                let n = match far.read(&mut buf) {
+                    Ok(0) | Err(_) => return,
+                    Ok(n) => n,
+                };
+                acc.extend_from_slice(&buf[..n]);
+                while let Some(p) = acc.windows(2).position(|w| w == b"\r\n") {
+                    let c = String::from_utf8_lossy(&acc[..p]).to_string();
+                    acc.drain(..p + 2);
+                    let _ = far.write_all(format!("{c}\r\r\nOK\r\n").as_bytes());
+                }
+            }
+        });
+        near
+    }
+
+    /// Channel whose first open yields `broken`, every later open a healthy fake.
+    fn first_open_broken(broken: UnixStream) -> Channel<UnixStream> {
+        let first = Mutex::new(Some(broken));
+        Channel::new(Box::new(move || Ok(first.lock().unwrap().take().unwrap_or_else(healthy_dev))))
+    }
+
+    #[test]
+    fn reset_fd_is_dropped_and_the_next_call_reopens() {
+        // glink reset under an open fd (SSR): the peer goes away with our
+        // command unread, so the read fails with ECONNRESET.
+        let (near, far) = UnixStream::pair().unwrap();
+        near.set_nonblocking(true).unwrap();
+        thread::spawn(move || {
+            let mut p = libc::pollfd { fd: far.as_raw_fd(), events: libc::POLLIN, revents: 0 };
+            unsafe { libc::poll(&mut p, 1, 2000) };
+            drop(far);
+        });
+        let mut ch = first_open_broken(near);
+        match ch.exchange("AT+CSQ", soon(800)) {
+            Err(AtError::Io(e)) => assert!(is_reset(&e), "{e:?}"),
+            other => panic!("expected a reset error, got {:?}", other.map(|_| ())),
+        }
+        assert_eq!(ch.exchange("AT+CSQ", soon(800)).unwrap(), b"AT+CSQ\r\r\nOK\r\n");
+    }
+
+    #[test]
+    fn fd_that_keeps_failing_is_not_reused() {
+        // A fd that errors on every write (EPIPE) must not be kept: before
+        // the fix the daemon failed every later command on it until restart.
+        let (near, far) = UnixStream::pair().unwrap();
+        near.set_nonblocking(true).unwrap();
+        drop(far);
+        let mut ch = first_open_broken(near);
+        assert!(ch.exchange("AT+CSQ", soon(500)).is_err());
+        for _ in 0..3 {
+            assert_eq!(ch.exchange("AT+CSQ", soon(800)).unwrap(), b"AT+CSQ\r\r\nOK\r\n");
+        }
+    }
+
+    #[test]
+    fn reset_errnos_are_classified() {
+        for code in [libc::ECONNRESET, libc::EBUSY, libc::EPIPE, libc::ENETRESET] {
+            assert!(is_reset(&io::Error::from_raw_os_error(code)));
+        }
+        assert!(!is_reset(&io::Error::from_raw_os_error(libc::EINVAL)));
     }
 
     #[test]

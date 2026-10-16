@@ -52,6 +52,13 @@ crate's unit tests:
   - **AT `ERROR` is rc 0** with `ERROR` in stdout, not a failure.
   - rc 1 with `ERROR: <code>` on stderr (raw mode) means one of: `modem_busy`,
     `modem_not_ready`, `scan_in_progress`, `command_timeout`, `command_failed`.
+  - The broker's mapping: lock budget spent (including time queued in the
+    broker) is `modem_busy`; the channel lost or reset under a command (EOF,
+    `ECONNRESET`, `ENETRESET`, `EBUSY`, `EPIPE`, … — `channel::is_reset`, what an
+    SSR produces) or a failed resync is `modem_not_ready`; no terminator before
+    the deadline is `command_timeout`; anything else is `command_failed`.
+  - A closed stdout never crashes the client: write errors are ignored like
+    the shell's `echo`, and the exit code still reports the AT result.
   - No argument: the legacy `no_command` JSON on stderr, rc 1.
 - **Long-command behaviour:**
   - Commands classed long (QSCAN, QSCANFREQ, QFOTADL, COPS=0, COPS=2, plus
@@ -65,10 +72,21 @@ crate's unit tests:
 Both the daemon and the in-process fallback run the same `exec::Executor`, so
 there is a single behaviour, not two:
 
-1. **Long-flag gate** (short commands only).
+1. **Long-flag gate** (short commands only). The *client* checks it before
+   it connects, so a short command answers `scan_in_progress` at once instead
+   of queueing behind a scan in the single-threaded broker. The executor
+   checks it again when the request is served.
 2. **`flock` on `/var/lock/qmanager.lock`.** This uses the same 100 ms grain
    and the same 5 s (short) / 10 s (long) budgets as `qcmd.sh`. It is also why
    `sms_tool`, which opens `/dev/smd11` directly under this lock, keeps working.
+   - The broker serves one request at a time, so waiting in its accept queue
+     *is* waiting for the modem. Each request carries its send time
+     (`CLOCK_MONOTONIC`), and the queue time is taken off the lock budget: a
+     caller never waits longer in total than `qcmd.sh` would have, and a
+     request already past its budget answers `modem_busy` without running.
+   - A request whose caller has gone (killed by a CGI timeout or a `timeout`
+     wrapper while queued, seen as `POLLHUP`) is dropped, not run, like a
+     legacy `qcmd` killed while waiting for the lock.
 3. **Zero-wait drain** of anything stale in the channel, such as a late reply
    or a URC. Drained bytes are logged, never returned.
 4. **Write** the command plus `\r\n`.
@@ -85,9 +103,30 @@ necessary, and otherwise returns `modem_not_ready`. A late reply can therefore
 never leak into the next caller's output, which legacy `qcmd` could not
 guarantee.
 
-**The client** first tries the socket. On any transport failure (no socket,
-`ECONNREFUSED`, a malformed reply) it runs the same exchange in-process. AT
-therefore never depends on the daemon being up.
+**After an I/O error or EOF** on the channel, the fd is closed and the
+channel marked dirty, so the next exchange reopens `/dev/smd11` and proves it
+with `AT` → `OK` first. The daemon holds one fd for its whole life; keeping a
+fd that errored would make recovery depend on glink healing that fd (on the
+RM551E it did after one `ENETRESET`, but nothing guarantees it), and procd
+never restarts a daemon that has not exited.
+
+**The client** first tries the socket. It falls back to the same exchange
+in-process **only when the request never reached the broker** (no socket,
+`ECONNREFUSED`, or a failed write — a short body is refused, see below). Once
+the request is delivered, a lost reply (broker died, 340 s reply timeout,
+malformed reply) is reported as `command_failed` / `command_timeout`, never
+re-run: the broker may already have executed it, and running `COPS=2` or a
+`QCFG` write twice is worse than one honest error. AT therefore never depends
+on the daemon being up, and a command never runs twice.
+
+**Wire format** (`proto.rs`): `REQ <nbytes> <sent_ms>\n<command>`, reply
+`OK <nbytes>\n<raw>` or `ERR <code>\n`. The broker reads the request to EOF
+within 2 s and refuses (`command_failed`, logged `refused request`) anything
+that times out, exceeds 8 KB, or whose body is not exactly `nbytes`, so a
+truncated command never reaches the modem. Client and daemon are one binary
+and `install.sh` stops the daemon before replacing it, so the format has no
+cross-version compatibility path; an old client against a new daemon is
+refused, not executed.
 
 ## Invariants (and why they exist)
 
@@ -117,6 +156,13 @@ therefore never depends on the daemon being up.
     `O_NOFOLLOW`. A planted symlink is unlinked and the file recreated with
     `O_EXCL`.
   - Paths are unchanged, so other scripts keep reading them.
+- **A stale long flag is cleared at broker start.** A broker killed during a
+  scan (engine switch, `kill`) leaves `/tmp/qmanager_long_running` behind, and
+  every short command would answer `scan_in_progress` until the main service
+  restarts. On start the broker removes the flag only if it is at least 15 s
+  old **and** the modem lock is free: `qcmd.sh` writes the flag *before* it
+  waits (up to 10 s) for the lock, so a younger flag may belong to a live
+  legacy caller.
 - **Log lines match `qlog.sh`.**
   - Format: `[YYYY-MM-DD HH:MM:SS] LEVEL [component:pid] msg`, with the same
     256 KB / 2-file rotation.
@@ -209,8 +255,25 @@ Every path goes through `install.sh`; the OTA updater runs it too.
 - **Switches:** engine broker → legacy → broker and host-AT off → on
   round-trip; invalid input is rejected.
 
-**Not exercised on the device:** a forced timeout and resync. There is no safe
-way to make the modem hang, so it is covered by the crate's socketpair tests.
+**Error-handling hardening (2026-10-16, same day):** a review found six gaps,
+all fixed and re-validated on the RM551E:
+
+- Parity re-run 31/31 (12 static commands raw and `-j`, 6 live by shape, no
+  argument), both through the daemon and in-process with the daemon stopped.
+- Lock held 7 s with two callers queued: both answer `modem_busy` at about
+  5 s (the second no longer waits 5 s + 5 s). A caller killed while queued is
+  logged `caller gone before its turn, not run`.
+- Long flag set: a short command answers `scan_in_progress` in 10 ms. A fresh
+  flag survives a broker restart; a 60 s old one is cleared at start.
+- A closed stdout pipe: rc 0, no abort. An old-format request is refused.
+- Field evidence for the channel fix: at 14:46 the pre-fix broker hit a real
+  `ENETRESET` on its long-lived fd and reported `command_failed`. It now
+  reports `modem_not_ready` and reopens. The "fd never heals" case is covered
+  by the crate's socketpair tests (30 total).
+
+**Not exercised on the device:** a forced timeout and resync, and a real SSR
+against the hardened broker. There is no safe way to cause either, so they are
+covered by the crate's socketpair tests.
 
 ## Rollback
 

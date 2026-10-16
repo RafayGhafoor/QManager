@@ -3,7 +3,10 @@
 //! header line then the command bytes; the daemon replies with a status line
 //! then the raw AT bytes.
 //!
-//! Request:  `REQ <json|raw>\n` then the exact command string (no trailing LF).
+//! Request:  `REQ <nbytes> <sent_ms>\n` then exactly nbytes of command (no
+//!           trailing LF). `sent_ms` is CLOCK_MONOTONIC (system-wide) when the
+//!           client sent it, so the daemon knows how long it sat in the queue.
+//!           A body shorter or longer than nbytes is refused, never executed.
 //! Reply OK: `OK <nbytes>\n` then nbytes of raw AT output.
 //! Reply ER: `ERR <code>\n` (nothing after).
 //!
@@ -19,20 +22,44 @@ pub enum Reply {
     Err(Code),
 }
 
-pub fn encode_request(cmd: &str) -> Vec<u8> {
-    let mut v = Vec::with_capacity(cmd.len() + 8);
-    v.extend_from_slice(b"REQ\n");
+/// Milliseconds on CLOCK_MONOTONIC, shared by every process on the host.
+pub fn mono_ms() -> u64 {
+    let mut ts: libc::timespec = unsafe { std::mem::zeroed() };
+    unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut ts) };
+    ts.tv_sec as u64 * 1000 + ts.tv_nsec as u64 / 1_000_000
+}
+
+pub fn encode_request(cmd: &str, sent_ms: u64) -> Vec<u8> {
+    let mut v = format!("REQ {} {}\n", cmd.len(), sent_ms).into_bytes();
     v.extend_from_slice(cmd.as_bytes());
     v
 }
 
-/// Splits a fully-read request buffer into the command bytes.
-pub fn decode_request(buf: &[u8]) -> Option<&str> {
+pub struct Request<'a> {
+    pub cmd: &'a str,
+    pub sent_ms: u64,
+}
+
+/// Splits a fully-read request buffer. None unless the header is well formed
+/// and the body is exactly the announced length: a truncated or padded request
+/// must never reach the modem.
+pub fn decode_request(buf: &[u8]) -> Option<Request<'_>> {
     let nl = buf.iter().position(|&b| b == b'\n')?;
-    if &buf[..nl] != b"REQ" {
+    let header = std::str::from_utf8(&buf[..nl]).ok()?;
+    let mut it = header.split(' ');
+    if it.next()? != "REQ" {
         return None;
     }
-    std::str::from_utf8(&buf[nl + 1..]).ok()
+    let len: usize = it.next()?.parse().ok()?;
+    let sent_ms: u64 = it.next()?.parse().ok()?;
+    if it.next().is_some() {
+        return None;
+    }
+    let body = &buf[nl + 1..];
+    if body.len() != len {
+        return None;
+    }
+    Some(Request { cmd: std::str::from_utf8(body).ok()?, sent_ms })
 }
 
 pub fn encode_reply(reply: &Reply) -> Vec<u8> {
@@ -73,8 +100,21 @@ mod tests {
     #[test]
     fn request_round_trips_with_newlines_in_command() {
         // AT commands don't contain \n, but be robust anyway.
-        let r = encode_request("AT+QENG=\"servingcell\"");
-        assert_eq!(decode_request(&r), Some("AT+QENG=\"servingcell\""));
+        let r = encode_request("AT+QENG=\"servingcell\"\nX", 42);
+        let d = decode_request(&r).unwrap();
+        assert_eq!(d.cmd, "AT+QENG=\"servingcell\"\nX");
+        assert_eq!(d.sent_ms, 42);
+    }
+
+    #[test]
+    fn truncated_or_padded_request_is_refused() {
+        let r = encode_request("AT+QCFG=\"band\",0,1", 7);
+        assert!(decode_request(&r[..r.len() - 3]).is_none());
+        let mut padded = r.clone();
+        padded.extend_from_slice(b"X");
+        assert!(decode_request(&padded).is_none());
+        assert!(decode_request(b"REQ\nAT").is_none());
+        assert!(decode_request(b"REQ 2\nAT").is_none());
     }
 
     #[test]

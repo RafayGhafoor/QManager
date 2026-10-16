@@ -42,19 +42,60 @@ fn deadline_for(cmd: &str, long: bool) -> Instant {
     Instant::now() + d
 }
 
+/// Legacy qcmd writes the long flag before it waits for the lock (up to
+/// LOCK_WAIT_LONG), so a flag younger than this may belong to a caller that is
+/// still waiting, not to a dead one.
+const STALE_FLAG_AGE: Duration = Duration::from_secs(15);
+
+/// True while a long command holds the modem (the scan_in_progress gate).
+pub fn long_running() -> bool {
+    std::path::Path::new(LONG_FLAG).exists()
+}
+
+/// Removes a long flag left by a holder that died mid-command (killed broker,
+/// engine switch during a scan). Without this every short command answers
+/// scan_in_progress until the main service restarts. Safe only when nobody
+/// holds the modem lock and the flag is old enough not to be a legacy caller
+/// still waiting for it.
+pub fn clear_stale_long_flag(lock: &LockFile, log: &Logger) {
+    let age = match std::fs::symlink_metadata(LONG_FLAG).and_then(|m| m.modified()) {
+        Ok(t) => t.elapsed().unwrap_or(Duration::ZERO),
+        Err(_) => return,
+    };
+    if age < STALE_FLAG_AGE {
+        return;
+    }
+    if let Some(_held) = lock.acquire(Duration::ZERO) {
+        if std::fs::remove_file(LONG_FLAG).is_ok() {
+            log.warn(&format!("Removed stale long-command flag (age {}s, modem lock free)", age.as_secs()));
+        }
+    }
+}
+
 impl<D: Device> Executor<'_, D> {
     pub fn run(&mut self, cmd: &str) -> Outcome {
+        self.run_after(cmd, Duration::ZERO)
+    }
+
+    /// `waited` is how long the caller already queued for this exchange (time
+    /// in the broker's accept queue). It counts against the lock budget, so a
+    /// request waits no longer in total than legacy qcmd waited for the lock.
+    pub fn run_after(&mut self, cmd: &str, waited: Duration) -> Outcome {
         let long = classify::is_long(cmd);
 
         // A long command is in progress: short commands fast-reject, exactly
         // like legacy qcmd's LONG_FLAG branch.
-        if !long && std::path::Path::new(LONG_FLAG).exists() {
+        if !long && long_running() {
             self.log.log(crate::log::Level::Debug, &format!("LOCK: Blocked by long command"));
             return Outcome::Err(Code::ScanInProgress);
         }
 
         let budget = if long { LOCK_WAIT_LONG } else { LOCK_WAIT_SHORT };
-        let _held = match self.lock.acquire(budget) {
+        if waited > budget {
+            self.log.error(&format!("Lock acquisition failed for: {cmd} (queued {}ms)", waited.as_millis()));
+            return Outcome::Err(Code::ModemBusy);
+        }
+        let _held = match self.lock.acquire(budget - waited) {
             Some(h) => h,
             None => {
                 self.log.error(&format!("Lock acquisition failed for: {cmd}"));
@@ -93,6 +134,16 @@ impl<D: Device> Executor<'_, D> {
                 self.log.error(&format!("Channel not ready for: {cmd}"));
                 Outcome::Err(Code::ModemNotReady)
             }
+            // The channel went away under us (SSR / glink reset): the modem is
+            // restarting, the command was not at fault.
+            Err(e @ AtError::Eof) => {
+                self.log.error(&format!("Channel lost during: {cmd} ({e:?})"));
+                Outcome::Err(Code::ModemNotReady)
+            }
+            Err(AtError::Io(e)) if crate::channel::is_reset(&e) => {
+                self.log.error(&format!("Channel reset during: {cmd} ({e:?})"));
+                Outcome::Err(Code::ModemNotReady)
+            }
             Err(e) => {
                 self.log.error(&format!("Command failed: {cmd} ({e:?})"));
                 Outcome::Err(Code::CommandFailed)
@@ -105,5 +156,24 @@ impl<D: Device> Executor<'_, D> {
         }
         let _ = std::fs::remove_file(PID_FILE);
         outcome
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::net::UnixStream;
+
+    #[test]
+    fn request_queued_past_the_lock_budget_is_busy_and_never_sent() {
+        let p = std::env::temp_dir().join(format!("qatd-exec-lock-{}", std::process::id()));
+        let lock = LockFile::open(p.to_str().unwrap()).unwrap();
+        let log = Logger::new("test");
+        // Opening the channel at all would mean the command reached the modem.
+        let mut ch: Channel<UnixStream> = Channel::new(Box::new(|| panic!("command was sent")));
+        let mut ex = Executor { ch: &mut ch, lock: &lock, log: &log };
+        let out = ex.run_after("AT+CSQ", LOCK_WAIT_SHORT + Duration::from_millis(1));
+        assert!(matches!(out, Outcome::Err(Code::ModemBusy)));
+        let _ = std::fs::remove_file(p);
     }
 }
