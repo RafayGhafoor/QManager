@@ -1504,6 +1504,23 @@ main() {
             primary_recheck_active="false"
             _recovery_marker_emitted=""
             ssr_hold_clear
+
+            # Entering LOCKED mid-cooldown abandons a Tier-3 swap the cooldown never
+            # confirmed: the modem stays on the backup SIM with no failover record,
+            # a revert request waits forever and the next outage skips Tier 3
+            # (backup == current). Revert it now, as an unrestored Tier 3 is. A Tier 3
+            # that aborted before the swap leaves current_sim_slot "null": no revert. Not
+            # on LOCKED entry: the lock holder owns the modem until here.
+            if [ "$sim_failover_active" != "true" ] && [ "$original_sim_slot" != "null" ] && [ "$current_sim_slot" != "null" ] && [ "$current_sim_slot" != "$original_sim_slot" ]; then
+                qlog_warn "LOCKED exit: unconfirmed Tier 3 swap on slot $current_sim_slot, reverting to slot $original_sim_slot"
+                touch "$RECOVERY_FLAG"
+                sim_failover_fallback
+                revert_settle_active="true"
+                recovery_reason="unreachable"
+                cooldown_remaining="$SIM_SETTLE_SECS"
+                state="cooldown"
+                qlog_info "Entering post-revert SIM settle for ${SIM_SETTLE_SECS}s"
+            fi
         fi
 
         # --- COOLDOWN state ---

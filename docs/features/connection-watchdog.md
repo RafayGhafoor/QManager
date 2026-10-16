@@ -612,6 +612,12 @@ After `sim_failover_fallback` completes during a user revert, the daemon enters 
 
 `revert_settle_active` is also cleared on LOCKED-state entry (along with the rest of the recovery state) so a maintenance window cannot strand the daemon in a phantom settle.
 
+### Unconfirmed swap on LOCKED exit
+
+Entering LOCKED during a Tier-3 cooldown abandons the recovery before `finalize_sim_failover` runs. Without a guard, the modem stays on the backup SIM with `sim_failover_active="false"` and `original_sim_slot` still set. A revert request then sits in the "swap mid-flight" branch forever, and the next outage skips Tier 3 because the backup slot equals the current slot. So on LOCKED **exit**, an unconfirmed swap (`sim_failover_active != "true"`, `original_sim_slot != "null"`, slot moved) is reverted with `sim_failover_fallback`, then held for `SIM_SETTLE_SECS` as a revert settle. It is not reverted on entry, because the lock holder (cell scan, profile apply, maintenance lock) owns the modem until the lock clears.
+
+A stale-ping cooldown (3 stale re-reads) does not need this guard. It is treated as a recovery failure, and `_cooldown_handle_failure` already reverts a Tier-3 swap before escalating. (The RM520N fork returned to monitor there and needed `ba4df3b3`.)
+
 The `cooldown_remaining` value in the state file reflects `SIM_SETTLE_SECS` (90 s) during a revert settle, so the UI countdown is honest.
 
 ### Auto-failback: blind primary-SIM recheck
