@@ -112,10 +112,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         qlog_info "Writing IMEI: $NEW_IMEI"
 
         # Write IMEI to modem NVM
-        result=$(qcmd "AT+EGMR=1,7,\"${NEW_IMEI}\"" 2>/dev/null)
-        case "$result" in
-            *ERROR*)
-                qlog_error "Failed to write IMEI: $result"
+        at_exec "AT+EGMR=1,7,\"${NEW_IMEI}\""
+        case $? in
+            1) cgi_error "modem_error" "Modem did not answer the IMEI write"; exit 0 ;;
+            2)
+                qlog_error "Failed to write IMEI: $AT_RAW"
                 cgi_error "egmr_failed" "Failed to write IMEI to modem"
                 exit 0
                 ;;

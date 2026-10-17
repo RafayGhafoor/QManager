@@ -51,7 +51,9 @@ get_log_sources() {
     [ -f "$LOG_FILE" ] && echo "$LOG_FILE"
 }
 
-# Collect unique component names from log sources
+# Collect unique component names from log sources. Only the [component:PID]
+# block in field position counts ("[YYYY-MM-DD HH:MM:SS] LEVEL [comp:PID] msg"):
+# an unanchored "[...:" match picked up the timestamp and bracketed message text.
 get_components() {
     local sources="$1"
     if [ -z "$sources" ]; then
@@ -59,8 +61,8 @@ get_components() {
         return
     fi
     # shellcheck disable=SC2086
-    grep -h -o '\[[^:]*:' $sources 2>/dev/null | \
-        sed 's/\[//;s/:$//' | sort -u | \
+    sed -n 's/^\[[^]]*\] *[A-Z][A-Z]* *\[\([^]:[]*\):[^]]*\].*/\1/p' $sources 2>/dev/null | \
+        sort -u | \
         jq -R -s 'split("\n") | map(select(length > 0))'
 }
 
@@ -129,7 +131,6 @@ parse_logs() {
         rest = substr($0, ts_end + 2)
 
         # Extract level (first word after ] )
-        match(rest, /^[[:space:]]*([A-Z]+)/, _)
         n = split(rest, parts, /[[:space:]]+/)
         if (n < 1) next
         level = parts[1]
@@ -234,20 +235,15 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     components=$(get_components "$SOURCES")
     stats=$(get_stats)
 
-    entry_count=0
     if [ -n "$entries" ]; then
-        entry_count=$(printf '%s' "$entries" | wc -l)
-    fi
-
-    if [ -n "$entries" ]; then
+        # total is counted by jq: wc -l on the unterminated NDJSON undercounted by one.
         printf '%s' "$entries" | jq -s \
             --argjson stats "$stats" \
             --argjson components "$components" \
-            --argjson total "$entry_count" \
             '{
                 success: true,
                 entries: .,
-                total: $total,
+                total: length,
                 stats: $stats,
                 available_components: $components
             }'

@@ -108,9 +108,11 @@ if [ -n "$imei_rejected" ]; then
 
     # Write backup IMEI
     result=$(qcmd "AT+EGMR=1,7,\"${backup_imei}\"" 2>/dev/null)
-    case "$result" in
-        *ERROR*)
-            qlog_error "Failed to write backup IMEI: $result"
+    rc=$?
+    # rc!=0 or an empty reply is a transport failure: never reboot with the IMEI unwritten.
+    case "$rc:$result" in
+        0:*ERROR*|0:|[!0]*)
+            qlog_error "Failed to write backup IMEI: rc=$rc ${result:-no reply}"
             rm -f "$CHECK_PENDING"
             exit 1
             ;;

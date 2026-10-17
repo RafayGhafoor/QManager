@@ -33,8 +33,11 @@ cgi_handle_options
 # Parses AT+QMAP="MPDN_RULE" response.
 # Fields: "MPDN_rule", index, enabled, pdnIndex, interfaceType, ipType
 # If any rule has enabled=1, NIC is "lan_bind4", otherwise "lan".
+# Returns 1 (no output) on a transport failure; a modem ERROR reply falls
+# through to "lan" as before.
 get_nic() {
-    mpdn_out=$(qcmd "AT+QMAP=\"MPDN_RULE\"" 2>/dev/null)
+    mpdn_out=$(qcmd "AT+QMAP=\"MPDN_RULE\"" 2>/dev/null) || return 1
+    [ -z "$mpdn_out" ] && return 1
     has_enabled=$(printf '%s' "$mpdn_out" | \
         grep '+QMAP: "MPDN_rule"' | \
         awk -F',' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $3); if ($3 == "1") print "yes"}' | \
@@ -52,7 +55,10 @@ get_nic() {
 if [ "$REQUEST_METHOD" = "GET" ]; then
     qlog_info "Reading DNS configuration"
 
-    nic=$(get_nic)
+    nic=$(get_nic) || {
+        cgi_error "modem_error" "Failed to read the modem LAN binding"
+        exit 0
+    }
     qlog_debug "Determined NIC: $nic"
 
     # Read current IPv4 DNS from UCI dhcp_option (format: "6,dns1,dns2,...")

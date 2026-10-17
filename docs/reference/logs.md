@@ -69,6 +69,8 @@ The line format `qlog.sh` writes, and the only format `logs.sh` can parse, is:
 [2026-09-06 01:02:03] INFO  [poller:1234] Cycle complete
 ```
 
+`available_components` is taken only from the `[component:PID]` block in field position, using an anchored `sed`. The old unanchored `[...:` match also picked up the timestamp and bracketed message text (ledger B5.8). `total` is the entry count from `jq length`. `wc -l` on the unterminated NDJSON was one short.
+
 A line that does not start with `[` is skipped outright, and a line whose level word is not
 one of the four is dropped by the awk pass. That is why `LogLevel` is a **closed union** in
 `types/system-logs.ts`: widening it on the client would be a lie until the backend widens too.

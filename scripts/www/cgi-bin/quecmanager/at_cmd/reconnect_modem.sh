@@ -1,5 +1,6 @@
 #!/bin/sh
 . /usr/lib/qmanager/cgi_base.sh
+. /usr/lib/qmanager/cgi_at.sh
 # =============================================================================
 # reconnect_modem.sh — CGI Endpoint: Force Modem Network Reconnect
 # =============================================================================
@@ -12,6 +13,7 @@
 # Response: {"success": true}
 #       or: {"success": false, "error": "reconnect_deregister_failed", "detail": "..."}
 #       or: {"success": false, "error": "reconnect_reregister_failed", "detail": "..."}
+#       or: {"success": false, "error": "modem_error", "detail": "..."} (modem did not answer)
 #
 # Install location: /www/cgi-bin/quecmanager/at_cmd/reconnect_modem.sh
 # =============================================================================
@@ -29,10 +31,16 @@ fi
 
 # --- Step 1: Deregister (AT+COPS=2) ------------------------------------------
 qlog_info "Reconnect: sending AT+COPS=2 (deregister)"
-DEREGISTER_RESULT=$(qcmd -j "AT+COPS=2")
+at_exec "AT+COPS=2"
+DEREGISTER_RC=$?
 
-if ! printf '%s' "$DEREGISTER_RESULT" | jq -e '.success == true' >/dev/null 2>&1; then
-    DETAIL=$(printf '%s' "$DEREGISTER_RESULT" | jq -r '.detail // .response // "No detail"')
+if [ "$DEREGISTER_RC" -eq 1 ]; then
+    qlog_error "Reconnect: deregister got no modem reply"
+    cgi_error "modem_error" "Modem did not answer the deregister command"
+    exit 0
+elif [ "$DEREGISTER_RC" -ne 0 ]; then
+    DETAIL=$(printf '%s' "$AT_RAW" | tr -d '\r' | tr '\n' ' ')
+    [ -z "$DETAIL" ] && DETAIL="No detail"
     qlog_error "Reconnect: deregister failed — $DETAIL"
     jq -n \
         --arg error "reconnect_deregister_failed" \
@@ -48,10 +56,16 @@ sleep 2
 
 # --- Step 3: Re-register (AT+COPS=0) -----------------------------------------
 qlog_info "Reconnect: sending AT+COPS=0 (auto-select)"
-REREGISTER_RESULT=$(qcmd -j "AT+COPS=0")
+at_exec "AT+COPS=0"
+REREGISTER_RC=$?
 
-if ! printf '%s' "$REREGISTER_RESULT" | jq -e '.success == true' >/dev/null 2>&1; then
-    DETAIL=$(printf '%s' "$REREGISTER_RESULT" | jq -r '.detail // .response // "No detail"')
+if [ "$REREGISTER_RC" -eq 1 ]; then
+    qlog_error "Reconnect: re-register got no modem reply — modem is stuck deregistered!"
+    cgi_error "modem_error" "Modem did not answer the re-register command"
+    exit 0
+elif [ "$REREGISTER_RC" -ne 0 ]; then
+    DETAIL=$(printf '%s' "$AT_RAW" | tr -d '\r' | tr '\n' ' ')
+    [ -z "$DETAIL" ] && DETAIL="No detail"
     qlog_error "Reconnect: re-register failed — modem is stuck deregistered! $DETAIL"
     jq -n \
         --arg error "reconnect_reregister_failed" \

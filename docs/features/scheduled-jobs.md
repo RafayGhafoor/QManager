@@ -43,7 +43,12 @@ Replay verified on the RM551E (2026-10-16), live library sourced: a 04:00 job re
 
 `qmanager_watchcat` times the auto-failback primary recheck (`last_recheck_time`) with `mono_now` (seconds since boot), not epoch. A boot-time clock step can no longer make a recheck, which is a real outage, due at once after a resume from `/tmp/qmanager_sim_failover`.
 
-## Known gaps
+## Boot-time low power check (ledger B5.2)
 
-- `qmanager_low_power_check` decides at boot from the wall clock, which may still be the stale sysfixtime value at that moment.
-- The scenario worker cannot match its minute, so a late clock step (after 300 s uptime) can still apply a scenario off-schedule. Scenario apply is non-destructive (mode preference plus band locks).
+`qmanager_low_power_check` runs once at boot and is not cron-fired, so it has no minute to match. It waits, polling every 10 s for up to 900 s, until the guard's first two legs hold (`_qm_clock_sane` and `_qm_boot_settled`). Only then does it read the clock and decide. If they never hold, or `schedule_guard.sh` is missing, it changes nothing and exits: staying online is the safe direction, and the cron enter/exit jobs take over at the next window edge.
+
+`AT+CFUN=0` is judged on `"$rc:$result"`: rc != 0, an empty reply or `ERROR` means the radio is still on. Then both paths (`qmanager_low_power enter` and the boot check) remove the state file and the watchdog lock instead of claiming low power. `qmanager_low_power exit` retries `AT+CFUN=1` up to 3 times, 2 s apart, and clears the flags either way so the watchdog can recover a radio that is still off.
+
+## Scenario catch-up fires (ledger B5.2)
+
+The scenario worker has no single HH:MM, so the guard cannot match its minute. A forward clock step after the 300 s uptime floor made crond run every crossed transition, oldest first, and the last one to finish won. The worker now resolves the timeline for now (`scenario_block_for_now`) and applies only when that equals its target. Of the crossed fires, only the current block's own transition matches, and an on-time fire always does. A skipped fire logs a warning naming both scenarios. A block that names a deleted scenario cannot be compared, so the worker's `balanced` fallback decides.

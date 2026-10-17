@@ -33,7 +33,14 @@ CMD_GAP=0.2   # Gap between AT commands (seconds) — kept for POST if needed
 qlog_info "Querying current modem settings for profile form"
 
 # --- Compound AT: fetch all settings in one call ---
-raw=$(qcmd 'AT+CGDCONT?;+CGSN;+QCCID;+CGPADDR;+QMAP="WWAN"' 2>/dev/null)
+# Transport failure (rc 1) is an error, not an empty form; a modem ERROR (rc 2)
+# keeps the partial-parse behaviour.
+at_exec 'AT+CGDCONT?;+CGSN;+QCCID;+CGPADDR;+QMAP="WWAN"'
+if [ $? -eq 1 ]; then
+    cgi_error "modem_error" "Failed to read current modem settings"
+    exit 0
+fi
+raw="$AT_RAW"
 
 # --- 1. APN profiles from +CGDCONT: lines ---
 cgdcont_lines=$(printf '%s\n' "$raw" | grep '+CGDCONT:')

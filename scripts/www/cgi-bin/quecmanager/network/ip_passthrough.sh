@@ -191,38 +191,36 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         # --- Step 1: Apply MPDN_RULE passthrough setting ---
         case "$PASSTHROUGH_MODE" in
             disabled)
-                result=$(qcmd 'AT+QMAP="MPDN_rule",0' 2>/dev/null)
-                case "$result" in
-                    *ERROR*)
-                        qlog_error "MPDN_rule disable failed: $result"
+                at_exec 'AT+QMAP="MPDN_rule",0'
+                case $? in
+                    1) cgi_error "modem_error" "Modem did not answer the MPDN_rule reset"; exit 0 ;;
+                    2)
+                        qlog_error "MPDN_rule disable failed: $AT_RAW"
                         cgi_error "mpdn_rule_failed" "Failed to reset MPDN_rule"
                         exit 0
                         ;;
                 esac
                 sleep "$CMD_GAP"
                 # WAC reset — required when disabling passthrough
-                result=$(qcmd 'AT+QMAPWAC=1' 2>/dev/null)
-                case "$result" in
-                    *ERROR*)
-                        qlog_warn "QMAPWAC=1 returned error (non-fatal): $result"
-                        ;;
-                esac
+                at_exec 'AT+QMAPWAC=1' || qlog_warn "QMAPWAC=1 failed (non-fatal): $AT_RAW"
                 ;;
             eth)
-                result=$(qcmd "AT+QMAP=\"MPDN_rule\",0,1,0,1,1,\"${TARGET_MAC}\"" 2>/dev/null)
-                case "$result" in
-                    *ERROR*)
-                        qlog_error "MPDN_rule ETH failed: $result"
+                at_exec "AT+QMAP=\"MPDN_rule\",0,1,0,1,1,\"${TARGET_MAC}\""
+                case $? in
+                    1) cgi_error "modem_error" "Modem did not answer the MPDN_rule write"; exit 0 ;;
+                    2)
+                        qlog_error "MPDN_rule ETH failed: $AT_RAW"
                         cgi_error "mpdn_rule_failed" "Failed to set ETH passthrough rule"
                         exit 0
                         ;;
                 esac
                 ;;
             usb)
-                result=$(qcmd "AT+QMAP=\"MPDN_rule\",0,1,0,3,1,\"${TARGET_MAC}\"" 2>/dev/null)
-                case "$result" in
-                    *ERROR*)
-                        qlog_error "MPDN_rule USB failed: $result"
+                at_exec "AT+QMAP=\"MPDN_rule\",0,1,0,3,1,\"${TARGET_MAC}\""
+                case $? in
+                    1) cgi_error "modem_error" "Modem did not answer the MPDN_rule write"; exit 0 ;;
+                    2)
+                        qlog_error "MPDN_rule USB failed: $AT_RAW"
                         cgi_error "mpdn_rule_failed" "Failed to set USB passthrough rule"
                         exit 0
                         ;;
@@ -233,10 +231,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         sleep "$CMD_GAP"
 
         # --- Step 2: Apply IPPT_NAT mode ---
-        result=$(qcmd "AT+QMAP=\"IPPT_NAT\",${IPPT_NAT}" 2>/dev/null)
-        case "$result" in
-            *ERROR*)
-                qlog_error "IPPT_NAT failed: $result"
+        at_exec "AT+QMAP=\"IPPT_NAT\",${IPPT_NAT}"
+        case $? in
+            1) cgi_error "modem_error" "Modem did not answer the IPPT_NAT write"; exit 0 ;;
+            2)
+                qlog_error "IPPT_NAT failed: $AT_RAW"
                 cgi_error "ippt_nat_failed" "Failed to set IPPT NAT mode"
                 exit 0
                 ;;
@@ -245,10 +244,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         sleep "$CMD_GAP"
 
         # --- Step 3: Apply USB modem protocol ---
-        result=$(qcmd "AT+QCFG=\"usbnet\",${USB_MODE}" 2>/dev/null)
-        case "$result" in
-            *ERROR*)
-                qlog_error "QCFG usbnet failed: $result"
+        at_exec "AT+QCFG=\"usbnet\",${USB_MODE}"
+        case $? in
+            1) cgi_error "modem_error" "Modem did not answer the QCFG usbnet write"; exit 0 ;;
+            2)
+                qlog_error "QCFG usbnet failed: $AT_RAW"
                 cgi_error "usbnet_failed" "Failed to set USB modem protocol"
                 exit 0
                 ;;
@@ -262,10 +262,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
             disabled) dns_cmd='AT+QMAP="DHCPV4DNS","disable"' ;;
         esac
 
-        result=$(qcmd "$dns_cmd" 2>/dev/null)
-        case "$result" in
-            *ERROR*)
-                qlog_error "DHCPV4DNS failed: $result"
+        at_exec "$dns_cmd"
+        case $? in
+            1) cgi_error "modem_error" "Modem did not answer the DHCPV4DNS write"; exit 0 ;;
+            2)
+                qlog_error "DHCPV4DNS failed: $AT_RAW"
                 cgi_error "dhcpv4dns_failed" "Failed to set DNS offloading"
                 exit 0
                 ;;

@@ -1,5 +1,6 @@
 #!/bin/sh
 . /usr/lib/qmanager/cgi_base.sh
+. /usr/lib/qmanager/cgi_at.sh
 # =============================================================================
 # status.sh — CGI Endpoint: Get Frequency Lock Status
 # =============================================================================
@@ -33,8 +34,14 @@ fi
 # Compound AT: fetch both frequency lock states in one call
 # =============================================================================
 qlog_debug "Querying frequency lock states"
-raw=$(qcmd 'AT+QNWCFG="lte_earfcn_lock";+QNWCFG="nr5g_earfcn_lock"' 2>/dev/null)
-[ -z "$raw" ] && qlog_warn "Frequency lock compound query returned empty response"
+# Transport failure (rc 1) is an error, not "no locks"; a modem ERROR (rc 2)
+# keeps the empty-parse behaviour.
+at_exec 'AT+QNWCFG="lte_earfcn_lock";+QNWCFG="nr5g_earfcn_lock"'
+if [ $? -eq 1 ]; then
+    cgi_error "modem_error" "Failed to read frequency lock status"
+    exit 0
+fi
+raw="$AT_RAW"
 
 # --- LTE frequency lock ---
 lte_freq_locked="false"

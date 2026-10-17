@@ -57,8 +57,18 @@ if [ "$1" = "enter" ]; then
     # Prevent watchdog from interfering during low power
     touch "$WATCHCAT_LOCK"
 
-    # Disable modem radio
-    qcmd 'AT+CFUN=0'
+    # Disable modem radio. rc!=0 or an empty reply is a transport failure (lock
+    # timeout, broker down); ERROR is the modem's no. Either way the radio is
+    # still on, so don't hold the watchdog off or report low power.
+    result=$(qcmd 'AT+CFUN=0' 2>/dev/null)
+    rc=$?
+    case "$rc:$result" in
+        0:*ERROR*|0:|[!0]*)
+            qlog_info "Low power enter failed (rc=$rc), radio left on"
+            rm -f "$STATE_FILE" "$WATCHCAT_LOCK"
+            exit 1
+            ;;
+    esac
 
     qlog_info "Low power mode active — modem radio disabled"
 
@@ -70,8 +80,24 @@ elif [ "$1" = "exit" ]; then
 
     qlog_info "Exiting low power mode"
 
-    # Re-enable modem radio
-    qcmd 'AT+CFUN=1'
+    # Re-enable modem radio. A lost CFUN=1 (lock timeout) left the radio off
+    # until the next reboot, so retry; the flags are cleared either way so the
+    # watchdog can recover a radio that is still off.
+    tries=0
+    while :; do
+        tries=$((tries + 1))
+        result=$(qcmd 'AT+CFUN=1' 2>/dev/null)
+        rc=$?
+        case "$rc:$result" in
+            0:*ERROR*|0:|[!0]*) ;;
+            *) break ;;
+        esac
+        if [ "$tries" -ge 3 ]; then
+            qlog_info "Low power exit: CFUN=1 failed after $tries tries (rc=$rc), leaving recovery to the watchdog"
+            break
+        fi
+        sleep 2
+    done
 
     # Allow modem to settle
     sleep 3

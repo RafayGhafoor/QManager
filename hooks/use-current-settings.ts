@@ -57,10 +57,16 @@ export function useCurrentSettings(
         throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
       }
 
-      const data: CurrentModemSettings = await resp.json();
+      const data: CurrentModemSettings | { success: false; error?: string } =
+        await resp.json();
       if (!mountedRef.current) return;
 
-      setSettings(data);
+      // The CGI answers an error envelope when the modem does not reply.
+      if ("success" in data && data.success === false) {
+        throw new Error("Failed to query current modem settings");
+      }
+
+      setSettings(data as CurrentModemSettings);
     } catch (err) {
       if (!mountedRef.current) return;
       setError(
