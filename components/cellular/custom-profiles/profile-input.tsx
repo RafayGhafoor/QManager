@@ -14,11 +14,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CardFoot } from "@/components/ui/card-foot";
+import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { SegmentedField } from "@/components/ui/segmented-field";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
+import { transitionStandard } from "@/lib/motion";
 
 import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
@@ -46,15 +52,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-  FileDownIcon,
-  Loader2Icon,
-  PlusIcon,
-  SquarePenIcon,
-  XIcon,
-} from "lucide-react";
 
 import type {
   ProfileFormData,
@@ -81,14 +79,11 @@ import {
 // useScenarioList — the backend validates that scenario refs are known.
 const MAX_WINDOWS = 2;
 
-// System EXPO ease-out — the silky settle used across QManager motion.
-const EXPO = [0.16, 1, 0.3, 1] as const;
-
 // Wizard tab order — the "Next" button walks the user forward through these.
 const TAB_ORDER = ["identity", "network", "scenario", "review"] as const;
 
 // One wizard step. Slides in from the direction of travel (+ forward, - back)
-// and fades, on the system EXPO curve. Reduced motion shows it instantly.
+// and fades, on the standard transition. Reduced motion shows it instantly.
 const WizardPanel = ({
   dir,
   children,
@@ -99,9 +94,10 @@ const WizardPanel = ({
   const reduceMotion = useMotionReduced();
   return (
     <motion.div
+      className="max-w-3xl"
       initial={reduceMotion ? false : { opacity: 0, x: dir * 12 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={reduceMotion ? { duration: 0 } : { duration: 0.22, ease: EXPO }}
+      transition={reduceMotion ? { duration: 0 } : transitionStandard}
     >
       {children}
     </motion.div>
@@ -131,9 +127,62 @@ interface ScheduleWindow {
 interface ProfileInputProps {
   sim: UseSimProfilesReturn;
   currentSettings: UseCurrentSettingsReturn;
+  /** null = new profile, otherwise the profile being edited */
   editingId: string | null;
-  onDoneEditing: () => void;
+  /** Called after a successful save (the page returns to the registry). */
+  onDone: () => void;
+  /** Called by Cancel (the page returns to the registry, draft dropped). */
+  onCancel: () => void;
 }
+
+/**
+ * Stable fingerprint of the editable draft (window ids excluded). Compared with
+ * the loaded baseline to decide whether the footer shows "Unsaved changes".
+ */
+function draftKey(f: {
+  name: string;
+  simIccid: string;
+  mnoId: string;
+  apn: string;
+  pdp: string;
+  cid: string;
+  imei: string;
+  ttl: string;
+  hl: string;
+  defaultScenario: string;
+  scheduleEnabled: boolean;
+  windows: { scenario: string; start: string; end: string }[];
+}): string {
+  return JSON.stringify([
+    f.name,
+    f.simIccid,
+    f.mnoId,
+    f.apn,
+    f.pdp,
+    f.cid,
+    f.imei,
+    f.ttl,
+    f.hl,
+    f.defaultScenario,
+    f.scheduleEnabled,
+    f.windows.map((w) => [w.scenario, w.start, w.end]),
+  ]);
+}
+
+const BLANK_DRAFT_KEY = draftKey({
+  name: "",
+  simIccid: "",
+  mnoId: MNO_CUSTOM_ID,
+  apn: "",
+  pdp: "ipv4v6",
+  cid: "1",
+  imei: "",
+  ttl: "",
+  hl: "",
+  defaultScenario: "balanced",
+  scheduleEnabled: false,
+  windows: [],
+});
 
 // UI PDP token <-> backend PDP token.
 const PDP_TO_BACKEND: Record<string, string> = {
@@ -161,7 +210,8 @@ const ProfileInputComponent = ({
   sim,
   currentSettings,
   editingId,
-  onDoneEditing,
+  onDone,
+  onCancel,
 }: ProfileInputProps) => {
   const { t } = useTranslation("cellular");
   const router = useRouter();
@@ -171,6 +221,10 @@ const ProfileInputComponent = ({
   const [tab, setTab] = React.useState("identity");
   const [tabDir, setTabDir] = React.useState(1);
   const [submitting, setSubmitting] = React.useState(false);
+  const [attempted, setAttempted] = React.useState(false);
+  const [baseline, setBaseline] = React.useState<string | null>(null);
+  const { saved, markSaved } = useSaveFlash();
+  const formId = React.useId();
   const reduceMotion = useMotionReduced();
 
   // Route every tab change through here so the wizard panel knows which way it
@@ -219,12 +273,6 @@ const ProfileInputComponent = ({
   const isEditing = editingId !== null;
   const isReview = tab === "review";
 
-  // Required fields = everything except Preferred IMEI / TTL / HL. The selects
-  // (MNO, IP protocol, CID, default scenario) always carry a value, so only the
-  // three free-text identity/network fields can actually be blank.
-  const requiredFilled =
-    name.trim() !== "" && simIccid.trim() !== "" && apn.trim() !== "";
-
   // An ICCID may belong to only one profile — a second profile on the same SIM
   // would make activation ambiguous. Block save when the trimmed ICCID collides
   // with another stored profile (ignore the row being edited).
@@ -235,21 +283,27 @@ const ProfileInputComponent = ({
       (p) => p.id !== editingId && (p.sim_iccid ?? "").trim() === trimmedIccid,
     );
 
-  const resetForm = React.useCallback(() => {
-    setName("");
-    setSimIccid("");
-    setMnoId(MNO_CUSTOM_ID);
-    setApn("");
-    setPdp("ipv4v6");
-    setCid("1");
-    setImei("");
-    setTtl("");
-    setHl("");
-    setDefaultScenario("balanced");
-    setScheduleEnabled(false);
-    setWindows([]);
-    setTab("identity");
-  }, []);
+  // Inline validation: required-field errors appear only after a submit
+  // attempt; the duplicate-ICCID collision shows as soon as it exists.
+  const nameError = attempted && name.trim() === "";
+  const iccidMissing = attempted && trimmedIccid === "";
+  const apnError = attempted && apn.trim() === "";
+
+  const currentKey = draftKey({
+    name,
+    simIccid,
+    mnoId,
+    apn,
+    pdp,
+    cid,
+    imei,
+    ttl,
+    hl,
+    defaultScenario,
+    scheduleEnabled,
+    windows,
+  });
+  const dirty = currentKey !== (isEditing ? baseline : BLANK_DRAFT_KEY);
 
   // --- Edit-mode prefill ----------------------------------------------------
   const { getProfile } = sim;
@@ -258,25 +312,40 @@ const ProfileInputComponent = ({
     let cancelled = false;
     getProfile(editingId).then((p) => {
       if (cancelled || !p) return;
-      setName(p.name);
-      setSimIccid(p.sim_iccid);
-      setMnoId(mnoIdForLabel(p.mno));
-      setApn(p.settings.apn.name);
-      setCid(String(p.settings.apn.cid));
-      setPdp(PDP_FROM_BACKEND[p.settings.apn.pdp_type] ?? "ipv4v6");
-      setImei(p.settings.imei);
-      setTtl(p.settings.ttl ? String(p.settings.ttl) : "");
-      setHl(p.settings.hl ? String(p.settings.hl) : "");
-      setDefaultScenario(p.scenario.default);
-      setScheduleEnabled(p.scenario.schedule.enabled);
-      setWindows(
-        p.scenario.schedule.blocks.map((b) => ({
-          id: nextId.current++,
+      const loaded = {
+        name: p.name,
+        simIccid: p.sim_iccid,
+        mnoId: mnoIdForLabel(p.mno),
+        apn: p.settings.apn.name,
+        pdp: PDP_FROM_BACKEND[p.settings.apn.pdp_type] ?? "ipv4v6",
+        cid: String(p.settings.apn.cid),
+        imei: p.settings.imei,
+        ttl: p.settings.ttl ? String(p.settings.ttl) : "",
+        hl: p.settings.hl ? String(p.settings.hl) : "",
+        defaultScenario: p.scenario.default,
+        scheduleEnabled: p.scenario.schedule.enabled,
+        windows: p.scenario.schedule.blocks.map((b) => ({
           scenario: b.scenario,
           start: b.start,
           end: b.end,
         })),
+      };
+      setName(loaded.name);
+      setSimIccid(loaded.simIccid);
+      setMnoId(loaded.mnoId);
+      setApn(loaded.apn);
+      setCid(loaded.cid);
+      setPdp(loaded.pdp);
+      setImei(loaded.imei);
+      setTtl(loaded.ttl);
+      setHl(loaded.hl);
+      setDefaultScenario(loaded.defaultScenario);
+      setScheduleEnabled(loaded.scheduleEnabled);
+      setWindows(
+        loaded.windows.map((b) => ({ id: nextId.current++, ...b })),
       );
+      setBaseline(draftKey(loaded));
+      setAttempted(false);
       setTab("identity");
     });
     return () => {
@@ -370,7 +439,9 @@ const ProfileInputComponent = ({
       setCid(String(active.cid));
       setPdp(PDP_FROM_BACKEND[active.pdp_type] ?? "ipv4v6");
     }
-    toast.success(t("custom_profiles.form.loaded_from_sim"));
+    toast.success(t("custom_profiles.form.loaded_from_sim"), {
+      id: "profile-load-from-sim",
+    });
   }, [settings, t]);
 
   React.useEffect(() => {
@@ -400,6 +471,24 @@ const ProfileInputComponent = ({
     : apn.trim() !== ""
       ? APN_CUSTOM_VALUE
       : "";
+
+  const apnNameField = (
+    <Field>
+      <FieldLabel>{t("custom_profiles.form.fields.apn_name_label")}</FieldLabel>
+      <Input
+        placeholder={t("custom_profiles.form.fields.apn_name_placeholder")}
+        className="font-mono"
+        value={apn}
+        onChange={(e) => setApn(e.target.value)}
+        aria-invalid={apnError || undefined}
+      />
+      {apnError && (
+        <FieldError>
+          {t("custom_profiles.form.fields.apn_name_required")}
+        </FieldError>
+      )}
+    </Field>
+  );
 
   const handleApnSelect = (value: string) => {
     if (value === APN_CUSTOM_VALUE) return; // display-only; keep typed APN
@@ -440,49 +529,36 @@ const ProfileInputComponent = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      toast.error(t("custom_profiles.form.fields.profile_name_required"));
-      changeTab("identity");
-      return;
-    }
-    if (!simIccid.trim()) {
-      toast.error(t("custom_profiles.form.fields.sim_iccid_required"));
-      changeTab("identity");
-      return;
-    }
-    if (duplicateIccid) {
-      toast.error(t("custom_profiles.form.fields.sim_iccid_duplicate"));
+    if (!isReview) return;
+    setAttempted(true);
+    // Jump to the tab holding the first invalid field; the inline error is
+    // already visible there (attempted is now true).
+    if (!name.trim() || !trimmedIccid || duplicateIccid) {
       changeTab("identity");
       return;
     }
     if (!apn.trim()) {
-      toast.error(t("custom_profiles.form.fields.apn_name_required"));
       changeTab("network");
       return;
     }
     setSubmitting(true);
     const data = buildFormData();
-    const ok = isEditing
+    const result = isEditing
       ? await sim.updateProfile(editingId, data)
-      : (await sim.createProfile(data)) !== null;
+      : await sim.createProfile(data);
     setSubmitting(false);
 
-    if (ok) {
+    if (result.ok) {
+      markSaved();
       toast.success(
         isEditing
           ? t("custom_profiles.form.profile_updated")
           : t("custom_profiles.form.profile_added"),
       );
-      resetForm();
-      onDoneEditing();
+      onDone();
     } else {
-      toast.error(sim.error || t("custom_profiles.form.save_failed"));
+      toast.error(result.error);
     }
-  };
-
-  const handleClear = () => {
-    resetForm();
-    onDoneEditing();
   };
 
   return (
@@ -500,7 +576,7 @@ const ProfileInputComponent = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit}>
+        <form id={formId} onSubmit={handleSubmit} noValidate>
           <FieldGroup>
             <Tabs value={tab} onValueChange={changeTab} className="w-full">
               <TabsList>
@@ -520,21 +596,25 @@ const ProfileInputComponent = ({
               <TabsContent value="identity">
                <WizardPanel dir={tabDir}>
                 <FieldSet>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <FieldDescription>
                       {t("custom_profiles.form.sections.identity_desc")}
                     </FieldDescription>
                     <Button
-                      variant="secondary"
+                      variant="tonal-neutral"
                       size="sm"
                       type="button"
                       onClick={handleLoadFromSim}
                       disabled={loadingSim}
                     >
                       {loadingSim ? (
-                        <Loader2Icon className="animate-spin" />
+                        <MaterialSymbol
+                          name="progress_activity"
+                          size={16}
+                          className="motion-safe:animate-spin"
+                        />
                       ) : (
-                        <FileDownIcon />
+                        <MaterialSymbol name="download" size={16} />
                       )}
                       {t("custom_profiles.form.load_from_sim")}
                     </Button>
@@ -548,10 +628,15 @@ const ProfileInputComponent = ({
                         placeholder={t(
                           "custom_profiles.form.fields.profile_name_placeholder",
                         )}
-                        required
                         value={name}
                         onChange={(e) => setName(e.target.value)}
+                        aria-invalid={nameError || undefined}
                       />
+                      {nameError && (
+                        <FieldError>
+                          {t("custom_profiles.form.fields.profile_name_required")}
+                        </FieldError>
+                      )}
                     </Field>
                     <Field>
                       <FieldLabel>
@@ -561,17 +646,22 @@ const ProfileInputComponent = ({
                         placeholder={t(
                           "custom_profiles.form.sim_iccid_placeholder_inline",
                         )}
+                        className="font-mono"
                         value={simIccid}
                         onChange={(e) => setSimIccid(e.target.value)}
-                        aria-invalid={duplicateIccid || undefined}
+                        aria-invalid={duplicateIccid || iccidMissing || undefined}
                       />
-                      <FieldDescription
-                        className={duplicateIccid ? "text-destructive" : undefined}
-                      >
-                        {duplicateIccid
-                          ? t("custom_profiles.form.fields.sim_iccid_duplicate")
-                          : t("custom_profiles.form.sim_iccid_hint_inline")}
-                      </FieldDescription>
+                      {duplicateIccid || iccidMissing ? (
+                        <FieldError>
+                          {duplicateIccid
+                            ? t("custom_profiles.form.fields.sim_iccid_duplicate")
+                            : t("custom_profiles.form.fields.sim_iccid_required")}
+                        </FieldError>
+                      ) : (
+                        <FieldDescription>
+                          {t("custom_profiles.form.sim_iccid_hint_inline")}
+                        </FieldDescription>
+                      )}
                     </Field>
                     <FieldSeparator />
                     <Field>
@@ -615,20 +705,8 @@ const ProfileInputComponent = ({
                   </FieldDescription>
                   <FieldGroup>
                     {hasSavedApn ? (
-                      <div className="grid grid-cols-2 gap-4">
-                        <Field>
-                          <FieldLabel>
-                            {t("custom_profiles.form.fields.apn_name_label")}
-                          </FieldLabel>
-                          <Input
-                            placeholder={t(
-                              "custom_profiles.form.fields.apn_name_placeholder",
-                            )}
-                            required
-                            value={apn}
-                            onChange={(e) => setApn(e.target.value)}
-                          />
-                        </Field>
+                      <div className="grid grid-cols-1 gap-4 @xl/card:grid-cols-2">
+                        {apnNameField}
                         <Field>
                           <FieldLabel>
                             {t("custom_profiles.form.fields.reuse_apn_label")}
@@ -664,21 +742,9 @@ const ProfileInputComponent = ({
                         </Field>
                       </div>
                     ) : (
-                      <Field>
-                        <FieldLabel>
-                          {t("custom_profiles.form.fields.apn_name_label")}
-                        </FieldLabel>
-                        <Input
-                          placeholder={t(
-                            "custom_profiles.form.fields.apn_name_placeholder",
-                          )}
-                          required
-                          value={apn}
-                          onChange={(e) => setApn(e.target.value)}
-                        />
-                      </Field>
+                      apnNameField
                     )}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 @xl/card:grid-cols-2">
                       <Field>
                         <FieldLabel>
                           {t("custom_profiles.form.fields.ip_protocol_label")}
@@ -753,6 +819,7 @@ const ProfileInputComponent = ({
                         placeholder={t(
                           "custom_profiles.form.fields.imei_label",
                         )}
+                        className="font-mono"
                         value={imei}
                         onChange={(e) => setImei(e.target.value)}
                       />
@@ -761,7 +828,7 @@ const ProfileInputComponent = ({
                       </FieldDescription>
                     </Field>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 @xl/card:grid-cols-2">
                       <Field>
                         <FieldLabel>
                           {t("custom_profiles.form.fields.ttl_label")}
@@ -771,6 +838,7 @@ const ProfileInputComponent = ({
                             "custom_profiles.form.fields.ttl_label",
                           )}
                           inputMode="numeric"
+                          className="tabular-nums"
                           value={ttl}
                           onChange={(e) => setTtl(e.target.value)}
                         />
@@ -785,6 +853,7 @@ const ProfileInputComponent = ({
                             "custom_profiles.form.fields.hl_label",
                           )}
                           inputMode="numeric"
+                          className="tabular-nums"
                           value={hl}
                           onChange={(e) => setHl(e.target.value)}
                         />
@@ -827,7 +896,7 @@ const ProfileInputComponent = ({
                           </SelectGroup>
                           <SelectSeparator />
                           <SelectItem value={CREATE_SCENARIO_VALUE}>
-                            <PlusIcon className="size-4" />
+                            <MaterialSymbol name="add" size={16} />
                             {t("custom_profiles.form.create_scenario_option")}
                           </SelectItem>
                         </SelectContent>
@@ -838,19 +907,27 @@ const ProfileInputComponent = ({
                     </Field>
 
                     {/* Schedule opt-in. */}
-                    <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
                       <div className="grid gap-0.5">
-                        <Label htmlFor="schedule-enabled">
+                        <Label>
                           {t("custom_profiles.form.schedule_inline_label")}
                         </Label>
                         <span className="text-muted-foreground text-xs">
                           {t("custom_profiles.form.schedule_inline_hint")}
                         </span>
                       </div>
-                      <Switch
-                        id="schedule-enabled"
-                        checked={scheduleEnabled}
-                        onCheckedChange={setScheduleEnabled}
+                      <SegmentedField
+                        value={scheduleEnabled ? "on" : "off"}
+                        onValueChange={(v) => setScheduleEnabled(v === "on")}
+                        options={[
+                          { value: "off", label: t("state.off", { ns: "common" }) },
+                          { value: "on", label: t("state.on", { ns: "common" }) },
+                        ]}
+                        ariaLabel={t("custom_profiles.form.schedule_inline_label")}
+                        breakpoint="never"
+                        glyph={(cls) => (
+                          <MaterialSymbol name="check" size={16} className={cls} />
+                        )}
                       />
                     </div>
 
@@ -858,7 +935,7 @@ const ProfileInputComponent = ({
                     {scheduleEnabled && (
                       <div className="flex flex-col gap-3">
                         {windows.length === 0 ? (
-                          <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-center text-sm">
+                          <div className="text-muted-foreground rounded-card bg-surface-container p-4 text-center text-sm">
                             {t("custom_profiles.form.windows_empty")}
                           </div>
                         ) : (
@@ -878,13 +955,11 @@ const ProfileInputComponent = ({
                                   : { opacity: 0, height: 0 }
                               }
                               transition={
-                                reduceMotion
-                                  ? { duration: 0 }
-                                  : { duration: 0.25, ease: EXPO }
+                                reduceMotion ? { duration: 0 } : transitionStandard
                               }
                               className="overflow-hidden"
                             >
-                            <div className="bg-muted/30 rounded-lg border p-3">
+                            <div className="rounded-card bg-surface-container p-3">
                               <div className="mb-3 flex items-center justify-between">
                                 <span className="text-sm font-medium">
                                   {t("custom_profiles.form.window_label", {
@@ -902,7 +977,7 @@ const ProfileInputComponent = ({
                                     { index: i + 1 },
                                   )}
                                 >
-                                  <XIcon />
+                                  <MaterialSymbol name="close" size={16} />
                                 </Button>
                               </div>
                               <div className="flex flex-col gap-3">
@@ -938,7 +1013,7 @@ const ProfileInputComponent = ({
                                     </SelectContent>
                                   </Select>
                                 </Field>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 gap-3 @xl/card:grid-cols-2">
                                   <Field>
                                     <FieldLabel htmlFor={`window-start-${w.id}`}>
                                       {t("custom_profiles.form.window_from")}
@@ -988,12 +1063,12 @@ const ProfileInputComponent = ({
                           </span>
                           <Button
                             type="button"
-                            variant="outline"
+                            variant="tonal-neutral"
                             size="sm"
                             onClick={addWindow}
                             disabled={atCap}
                           >
-                            <PlusIcon />
+                            <MaterialSymbol name="add" size={16} />
                             {t("custom_profiles.form.add_window")}
                           </Button>
                         </div>
@@ -1025,7 +1100,7 @@ const ProfileInputComponent = ({
                           value:
                             simIccid.trim() ||
                             t("custom_profiles.form.review.all_sims"),
-                          numeric: simIccid.trim() !== "",
+                          mono: simIccid.trim() !== "",
                         },
                         {
                           label: t("custom_profiles.form.review.operator"),
@@ -1042,6 +1117,7 @@ const ProfileInputComponent = ({
                         {
                           label: t("custom_profiles.form.review.apn"),
                           value: apn.trim() || null,
+                          mono: true,
                         },
                         {
                           label: t("custom_profiles.form.review.ip_protocol"),
@@ -1065,6 +1141,7 @@ const ProfileInputComponent = ({
                             "custom_profiles.form.review.preferred_imei",
                           ),
                           value: imei.trim() || null,
+                          mono: true,
                         },
                         {
                           label: t("custom_profiles.form.review.ttl_hl"),
@@ -1128,42 +1205,76 @@ const ProfileInputComponent = ({
                </WizardPanel>
               </TabsContent>
             </Tabs>
-            <FieldSeparator />
-            <Field orientation="horizontal">
-              {/*
-                Distinct keys are LOAD-BEARING, not cosmetic. Without them React
-                reconciles these two buttons by position and reuses the same
-                <button> DOM node, mutating its `type` from "button" to "submit"
-                in place. Because React 18 flushes the "Next" click synchronously,
-                that mutation lands BEFORE the browser performs the click's
-                default action — so the browser sees a submit button and submits
-                the form, silently saving the profile on every Next→Review step.
-                Separate keys force a remount: the clicked node stays type="button"
-                for its whole life, so no stray submit fires.
-              */}
-              {isReview ? (
-                <Button
-                  key="profile-submit"
-                  type="submit"
-                  disabled={submitting || !requiredFilled || duplicateIccid}
-                >
-                  {submitting && <Loader2Icon className="animate-spin" />}
-                  {isEditing
-                    ? t("custom_profiles.form.submit_edit")
-                    : t("custom_profiles.form.submit_add")}
-                </Button>
-              ) : (
-                <Button key="profile-next" type="button" onClick={goNext}>
-                  {t("custom_profiles.form.next")}
-                </Button>
-              )}
-              <Button variant="outline" type="button" onClick={handleClear}>
-                {t("custom_profiles.form.clear")}
-              </Button>
-            </Field>
           </FieldGroup>
         </form>
       </CardContent>
+
+      <CardFoot
+        className="px-6"
+        status={
+          duplicateIccid ? (
+            <span className="text-destructive inline-flex items-center gap-1.5">
+              <MaterialSymbol name="error" size={16} />
+              {t("custom_profiles.form.fields.sim_iccid_duplicate")}
+            </span>
+          ) : dirty ? (
+            t("state.unsaved", { ns: "common" })
+          ) : null
+        }
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              size="action"
+              type="button"
+              onClick={onCancel}
+            >
+              {t("actions.cancel", { ns: "common" })}
+            </Button>
+            {/*
+              Distinct keys are LOAD-BEARING, not cosmetic. Without them React
+              reconciles these two buttons by position and reuses the same
+              <button> DOM node, mutating its `type` from "button" to "submit"
+              in place. Because React 18 flushes the "Next" click synchronously,
+              that mutation lands BEFORE the browser performs the click's
+              default action, so the browser sees a submit button and submits
+              the form, silently saving the profile on every Next to Review
+              step. Separate keys force a remount: the clicked node stays
+              type="button" for its whole life, so no stray submit fires.
+            */}
+            {isReview ? (
+              <SaveButton
+                key="profile-submit"
+                type="submit"
+                form={formId}
+                size="action"
+                isSaving={submitting}
+                saved={saved}
+                label={
+                  isEditing
+                    ? t("custom_profiles.form.submit_edit")
+                    : t("custom_profiles.form.submit_add")
+                }
+                blockedReason={
+                  duplicateIccid
+                    ? t("custom_profiles.form.fields.sim_iccid_duplicate")
+                    : null
+                }
+              />
+            ) : (
+              <Button
+                key="profile-next"
+                type="button"
+                variant="tonal-neutral"
+                size="action"
+                onClick={goNext}
+              >
+                {t("custom_profiles.form.next")}
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* Verizon brick-guard — selecting Verizon warns before committing. */}
       <AlertDialog open={verizonDialogOpen} onOpenChange={setVerizonDialogOpen}>
@@ -1177,7 +1288,7 @@ const ProfileInputComponent = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>
+            <AlertDialogCancel variant="ghost">
               {t("custom_profiles.form.verizon_inline.dialog_cancel")}
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => applyMno(pendingMnoRef.current)}>
@@ -1197,6 +1308,8 @@ interface SummaryRow {
   label: string;
   value: string | null;
   numeric?: boolean;
+  /** An opaque string you compare (ICCID, IMEI, APN): JetBrains Mono. */
+  mono?: boolean;
 }
 
 const SummarySection = ({
@@ -1220,7 +1333,7 @@ const SummarySection = ({
         className="text-muted-foreground hover:text-foreground h-7 gap-1.5 px-2"
         onClick={onEdit}
       >
-        <SquarePenIcon className="size-3.5" />
+        <MaterialSymbol name="edit" size={14} />
         {t("custom_profiles.form.review_edit_aria")}
       </Button>
     </div>
@@ -1235,9 +1348,11 @@ const SummarySection = ({
             className={
               row.value === null
                 ? "text-muted-foreground/60"
-                : row.numeric
-                  ? "text-right font-medium tabular-nums"
-                  : "text-right font-medium"
+                : row.mono
+                  ? "text-right font-mono font-medium break-all"
+                  : row.numeric
+                    ? "text-right font-medium tabular-nums"
+                    : "text-right font-medium"
             }
           >
             {row.value ?? t("custom_profiles.form.review.not_set")}

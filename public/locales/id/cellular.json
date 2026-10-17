@@ -2,8 +2,7 @@
   "custom_profiles": {
     "page": {
       "title": "Profil SIM Kustom",
-      "description": "Gabungkan pengaturan APN, IMEI, dan TTL/HL ke dalam profil sekali klik",
-      "error_load_failed": "Gagal memuat profil. Periksa koneksi dan coba lagi."
+      "description": "Gabungkan pengaturan APN, IMEI, dan TTL/HL ke dalam profil sekali klik"
     },
     "view": {
       "title": "Profil Tersimpan",
@@ -19,9 +18,10 @@
       "mismatch_note": "SIM di modem tidak cocok dengan ICCID profil ini. Perangkat tetap menggunakan pengaturan saat ini hingga SIM yang cocok dipasang.",
       "toast": {
         "deactivated": "{{name}} dinonaktifkan",
-        "deactivate_error": "Gagal menonaktifkan profil",
         "deleted": "{{name}} dihapus",
-        "delete_error": "Gagal menghapus profil"
+        "activated": "{{name}} aktif",
+        "activated_partial": "{{name}} aktif dengan beberapa langkah dilewati",
+        "activate_error": "Tidak dapat mengaktifkan profil."
       },
       "delete_title": "Hapus “{{name}}”?"
     },
@@ -206,11 +206,10 @@
       "save_failed": "Gagal menyimpan profil",
       "profile_added": "Profil ditambahkan",
       "profile_updated": "Profil diperbarui",
-      "submit_add": "Kirim",
+      "submit_add": "Tambah profil",
       "submit_edit": "Simpan perubahan",
       "cancel": "Batal",
       "next": "Berikutnya",
-      "clear": "Bersihkan",
       "tab_network": "Jaringan",
       "network_desc": "Cara modem terhubung ke jaringan data operator.",
       "identity_load_hint": "Beri nama profil ini dan pilih operator yang dituju.",
@@ -294,7 +293,7 @@
         "imei": "IMEI",
         "mpdn_rule": "Perutean Data"
       },
-      "reboot_notice": "Modem sedang memulai ulang untuk menerapkan perubahan IMEI. Dashboard akan tersambung kembali secara otomatis.",
+      "reboot_notice": "Perubahan IMEI berlaku setelah mulai ulang. Mulai ulang dari banner saat Anda siap.",
       "step_state_unchanged": "Tidak berubah",
       "preparing": "Menyiapkan…",
       "step_progress": "Langkah {{current}} dari {{total}}",
@@ -304,7 +303,11 @@
       "partial_sub": "Beberapa langkah dilewati. Tinjau detail di bawah.",
       "failed_headline": "Aktivasi gagal",
       "failed_sub": "Modem tidak sepenuhnya dikonfigurasi ulang.",
-      "details_label": "Langkah"
+      "details_label": "Langkah",
+      "errors": {
+        "start_failed": "Tidak dapat memulai penerapan profil.",
+        "not_started": "Penerapan profil tidak dimulai. Silakan coba lagi."
+      }
     },
     "verizon_warning": {
       "title": "Verizon memerlukan aturan routing data khusus",
@@ -318,18 +321,18 @@
       "ip_v4": "IPv4",
       "ip_v6": "IPv6",
       "ip_dual": "IPv4v6",
-      "apn": "APN {{name}}",
       "apn_default": "APN Default",
       "cid": "CID {{cid}}",
       "ttl": "TTL {{value}}",
       "hl": "HL {{value}}",
       "imei_override": "Penggantian IMEI",
-      "mpdn_locked": "MPDN terkunci"
+      "mpdn_locked": "MPDN terkunci",
+      "apn_prefix": "APN "
     },
     "empty_state": {
       "title": "Tidak ada profil",
       "description": "Kelola profil SIM kustom Anda di sini.",
-      "description_full": "Anda belum membuat profil SIM kustom. Gunakan formulir untuk membuat profil pertama Anda.",
+      "description_full": "Buat profil untuk menyimpan pengaturan APN, IMEI, dan TTL untuk SIM dan menerapkannya sekaligus.",
       "refresh": "Muat Ulang",
       "card_title": "Profil SIM Kustom",
       "card_description": "Bundel APN, IMEI, dan pengaturan TTL yang diterapkan ke modem dalam satu langkah.",
@@ -362,12 +365,22 @@
       "bound_sim": "Terikat ke SIM {{iccid}}",
       "detail_unavailable": "Tidak dapat memuat pengaturan profil ini.",
       "only_active_hint": "Satu-satunya profil Anda adalah yang sedang aktif. Buat profil lain untuk berpindah pengaturan."
+    },
+    "registry": {
+      "add": "Profil baru",
+      "error_title": "Tidak dapat memuat profil Anda"
+    },
+    "errors": {
+      "load_failed": "Modem tidak mengembalikan profil tersimpan. Coba lagi sebentar lagi.",
+      "save_failed": "Tidak dapat menyimpan profil.",
+      "delete_failed": "Tidak dapat menghapus profil.",
+      "deactivate_failed": "Tidak dapat menonaktifkan profil."
     }
   },
   "scenarios": {
     "page": {
       "title": "Skenario Koneksi",
-      "description": "Kelola dan sesuaikan skenario koneksi untuk profil seluler Anda guna mengoptimalkan kinerja dan keandalan jaringan."
+      "description": "Alihkan radio di antara pengaturan jaringan yang tersimpan."
     },
     "default_balanced_name": "Seimbang",
     "default_balanced_description": "Pemilihan band otomatis",
@@ -389,16 +402,15 @@
         "description": "Apakah kamu yakin untuk menghapus \"{{name}}\"? Tindakan ini tidak dapat dibatalkan.",
         "confirm": "Hapus",
         "deleting": "Menghapus…"
-      }
+      },
+      "band_lock": "Kunci band"
     },
     "add_button": {
-      "label": "Buat Skenario",
-      "description": "Tambahkan konfigurasi kustom"
+      "label": "Skenario baru"
     },
     "active_config_card": {
       "configuration": "{{name}} konfigurasi",
       "status": {
-        "applying": "Menerapkan…",
         "active": "Aktif",
         "not_active": "Tidak Aktif"
       },
@@ -416,8 +428,9 @@
         "nrsa_nsa": "5G SA / NSA",
         "bands_auto": "Auto"
       },
-      "edit_aria": "Edit pengaturan skenario",
-      "activate": "Aktifkan"
+      "activate": "Aktifkan",
+      "edit": "Ubah",
+      "running_note": "Skenario ini sedang berjalan."
     },
     "add_dialog": {
       "title": "Skenario Koneksi Baru",
@@ -434,62 +447,54 @@
         "sa_bands_placeholder": "Contoh., 41, 78",
         "nsa_bands_label": "Kunci Band NR5G-NSA",
         "nsa_bands_placeholder": "Contoh., 41, 78",
-        "theme_label": "Tema Kartu",
-        "preview_label": "Pratinjau",
         "preview_placeholder": "Konfigurasi kustom"
       },
       "buttons": {
-        "create": "Buat Skenario",
-        "creating": "Membuat…"
+        "create": "Buat Skenario"
       },
       "toast": {
-        "success": "Skenario berhasil dibuat.",
-        "error": "Skenario gagal dibuat"
+        "success": "Skenario berhasil dibuat."
       }
     },
     "edit_dialog": {
       "title": "Edit Konfigurasi",
       "fields": {
-        "name_label": "Nama Skenario",
-        "name_placeholder": "Nama Skenario",
-        "description_label": "Deskripsi",
-        "description_placeholder": "Deskripsi Skenario",
-        "network_mode_label": "Mode Jaringan",
-        "network_mode_aria": "Mode Jaringan",
         "optimization_label": "Label Optimasi",
-        "optimization_placeholder": "contoh: Latensi, Throughput, Kustom",
-        "lte_bands_label": "Kunci Band LTE",
-        "lte_bands_placeholder": "contoh: 1, 3, 7, 28 (kosong = Otomatis)",
-        "sa_bands_label": "Kunci Band NR5G-SA",
-        "sa_bands_placeholder": "e.g., 41, 78",
-        "nsa_bands_label": "Kunci BandNR5G-NSA",
-        "nsa_bands_placeholder": "Contoh: 41, 78",
-        "theme_label": "Tema Kartu",
-        "preview_label": "Pratinjau",
-        "preview_placeholder": "Konfigurasi kustom"
+        "optimization_placeholder": "contoh: Latensi, Throughput, Kustom"
       },
       "buttons": {
-        "save": "Simpan Perubahan",
-        "saving": "Menyimpan…"
+        "save": "Simpan Perubahan"
       },
       "toast": {
-        "success": "Memperbarui Skenario.",
-        "error": "Gagal Memperbarui Skenario."
+        "success": "Memperbarui Skenario."
       }
     },
     "activation_toast": {
-      "success": "Beralih ke {{name}} Skenario.",
-      "error": "Gagal mengaktifkan {{name}} Skenario."
+      "success": "Beralih ke {{name}} Skenario."
     },
     "deletion_toast": {
-      "success": "Skenario berhasil dihapus.",
-      "error": "Skenario gagal dihapus."
+      "success": "Skenario berhasil dihapus."
     },
     "schedule_lock": {
       "badge": "Terjadwal",
       "hint": "Nonaktifkan jadwal profil ini untuk memilih skenario secara manual.",
       "next_change": "Perubahan berikutnya pukul {{time}}",
       "blocked_toast": "Skenario koneksi dikendalikan oleh jadwal profil aktif. Matikan jadwal untuk mengubahnya secara manual."
+    },
+    "list_card": {
+      "title": "Skenario",
+      "description": "Pilih skenario untuk melihat konfigurasinya.",
+      "error_title": "Tidak dapat memuat skenario Anda"
+    },
+    "dialog": {
+      "description": "Biarkan kolom band kosong agar modem yang memilih.",
+      "name_required": "Beri nama skenario."
+    },
+    "errors": {
+      "load_failed": "Modem tidak mengembalikan skenario Anda. Coba lagi sebentar lagi.",
+      "activate_failed": "Tidak dapat mengaktifkan skenario.",
+      "save_failed": "Tidak dapat menyimpan skenario.",
+      "delete_failed": "Tidak dapat menghapus skenario."
     }
   },
   "sms": {

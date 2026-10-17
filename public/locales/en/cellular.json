@@ -2,8 +2,7 @@
   "custom_profiles": {
     "page": {
       "title": "Custom SIM Profile",
-      "description": "Bundle APN, IMEI, and TTL/HL settings into one-click profiles.",
-      "error_load_failed": "Could not load profiles. Check the connection and try again."
+      "description": "Bundle APN, IMEI, and TTL/HL settings into one-click profiles."
     },
     "view": {
       "title": "Saved Profiles",
@@ -19,9 +18,10 @@
       "mismatch_note": "The SIM in the modem does not match this profile's ICCID. The device keeps its current settings until a matching SIM is inserted.",
       "toast": {
         "deactivated": "{{name}} deactivated",
-        "deactivate_error": "Failed to deactivate profile",
         "deleted": "{{name}} deleted",
-        "delete_error": "Failed to delete profile"
+        "activated": "{{name}} is active",
+        "activated_partial": "{{name}} is active with some steps skipped",
+        "activate_error": "Couldn't activate the profile."
       },
       "delete_title": "Delete “{{name}}”?"
     },
@@ -35,7 +35,7 @@
       "status_badge": {
         "active": "Active",
         "inactive": "Inactive",
-        "sim_mismatch": "SIM Mismatch"
+        "sim_mismatch": "SIM mismatch"
       },
       "pagination": {
         "total_one": "{{count}} profile total",
@@ -206,11 +206,10 @@
       "save_failed": "Failed to save profile",
       "profile_added": "Profile added",
       "profile_updated": "Profile updated",
-      "submit_add": "Submit",
+      "submit_add": "Add profile",
       "submit_edit": "Save changes",
       "cancel": "Cancel",
       "next": "Next",
-      "clear": "Clear",
       "tab_network": "Network",
       "network_desc": "How the modem connects to the carrier data network.",
       "identity_load_hint": "Name this profile and pick the carrier it is for.",
@@ -294,7 +293,7 @@
         "imei": "IMEI",
         "mpdn_rule": "Data Routing"
       },
-      "reboot_notice": "Modem is restarting to apply IMEI change. Dashboard will reconnect automatically.",
+      "reboot_notice": "The IMEI change takes effect after a reboot. Reboot from the banner when you are ready.",
       "step_state_unchanged": "Unchanged",
       "preparing": "Preparing…",
       "step_progress": "Step {{current}} of {{total}}",
@@ -304,7 +303,11 @@
       "partial_sub": "Some steps were skipped. Review the details below.",
       "failed_headline": "Activation failed",
       "failed_sub": "The modem was not fully reconfigured.",
-      "details_label": "Steps"
+      "details_label": "Steps",
+      "errors": {
+        "start_failed": "Could not start the profile apply.",
+        "not_started": "The profile apply did not start. Please try again."
+      }
     },
     "verizon_warning": {
       "title": "Verizon requires a special data routing rule",
@@ -317,7 +320,7 @@
     "empty_state": {
       "title": "No Custom Profiles",
       "description": "Manage your custom SIM profiles here.",
-      "description_full": "You have not created any custom SIM profiles yet. Use the form to create your first profile.",
+      "description_full": "Create a profile to save APN, IMEI and TTL settings for a SIM and apply them in one step.",
       "refresh": "Refresh",
       "card_title": "Custom SIM Profiles",
       "card_description": "Saved bundles of APN, IMEI, and TTL settings applied to the modem in one step.",
@@ -330,13 +333,13 @@
       "ip_v4": "IPv4",
       "ip_v6": "IPv6",
       "ip_dual": "IPv4v6",
-      "apn": "APN {{name}}",
       "apn_default": "Default APN",
       "cid": "CID {{cid}}",
       "ttl": "TTL {{value}}",
       "hl": "HL {{value}}",
       "imei_override": "IMEI override",
-      "mpdn_locked": "MPDN locked"
+      "mpdn_locked": "MPDN locked",
+      "apn_prefix": "APN "
     },
     "active_card": {
       "none_title": "No active profile",
@@ -362,12 +365,22 @@
     "card": {
       "label_iccid": "SIM",
       "label_updated": "Updated"
+    },
+    "registry": {
+      "add": "New profile",
+      "error_title": "Couldn't load your profiles"
+    },
+    "errors": {
+      "load_failed": "The modem didn't answer with your saved profiles. Try again in a moment.",
+      "save_failed": "Couldn't save the profile.",
+      "delete_failed": "Couldn't delete the profile.",
+      "deactivate_failed": "Couldn't deactivate the profile."
     }
   },
   "scenarios": {
     "page": {
       "title": "Connection Scenarios",
-      "description": "Manage and customize connection scenarios for your cellular profiles to optimize network performance and reliability."
+      "description": "Switch the radio between saved network setups."
     },
     "default_balanced_name": "Balanced",
     "default_balanced_description": "Auto band selection",
@@ -389,16 +402,15 @@
         "description": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
         "confirm": "Delete",
         "deleting": "Deleting…"
-      }
+      },
+      "band_lock": "Band lock"
     },
     "add_button": {
-      "label": "Create Scenario",
-      "description": "Add custom configuration"
+      "label": "New scenario"
     },
     "active_config_card": {
       "configuration": "{{name}} Configuration",
       "status": {
-        "applying": "Applying…",
         "active": "Active",
         "not_active": "Not Active"
       },
@@ -416,8 +428,9 @@
         "nrsa_nsa": "5G SA / NSA",
         "bands_auto": "Auto"
       },
-      "edit_aria": "Edit scenario settings",
-      "activate": "Activate"
+      "activate": "Activate",
+      "edit": "Edit",
+      "running_note": "This scenario is running now."
     },
     "add_dialog": {
       "title": "New Connection Scenario",
@@ -434,62 +447,54 @@
         "sa_bands_placeholder": "e.g., 41, 78",
         "nsa_bands_label": "NR5G-NSA Band Lock",
         "nsa_bands_placeholder": "e.g., 41, 78",
-        "theme_label": "Card Theme",
-        "preview_label": "Preview",
         "preview_placeholder": "Custom configuration"
       },
       "buttons": {
-        "create": "Create Scenario",
-        "creating": "Creating…"
+        "create": "Create Scenario"
       },
       "toast": {
-        "success": "Scenario created successfully.",
-        "error": "Failed to create scenario."
+        "success": "Scenario created successfully."
       }
     },
     "edit_dialog": {
       "title": "Edit Configuration",
       "fields": {
-        "name_label": "Scenario Name",
-        "name_placeholder": "Scenario name",
-        "description_label": "Description",
-        "description_placeholder": "Scenario description",
-        "network_mode_label": "Network Mode",
-        "network_mode_aria": "Network Mode",
         "optimization_label": "Optimization Label",
-        "optimization_placeholder": "e.g., Latency, Throughput, Custom",
-        "lte_bands_label": "LTE Band Lock",
-        "lte_bands_placeholder": "e.g., 1, 3, 7, 28 (empty = Auto)",
-        "sa_bands_label": "NR5G-SA Band Lock",
-        "sa_bands_placeholder": "e.g., 41, 78",
-        "nsa_bands_label": "NR5G-NSA Band Lock",
-        "nsa_bands_placeholder": "e.g., 41, 78",
-        "theme_label": "Card Theme",
-        "preview_label": "Preview",
-        "preview_placeholder": "Custom configuration"
+        "optimization_placeholder": "e.g., Latency, Throughput, Custom"
       },
       "buttons": {
-        "save": "Save Changes",
-        "saving": "Saving…"
+        "save": "Save Changes"
       },
       "toast": {
-        "success": "Scenario updated.",
-        "error": "Failed to update scenario."
+        "success": "Scenario updated."
       }
     },
     "activation_toast": {
-      "success": "Switched to {{name}} scenario.",
-      "error": "Failed to activate {{name}} scenario."
+      "success": "Switched to {{name}} scenario."
     },
     "deletion_toast": {
-      "success": "Scenario deleted.",
-      "error": "Failed to delete scenario."
+      "success": "Scenario deleted."
     },
     "schedule_lock": {
       "badge": "Scheduled",
       "hint": "Disable this profile's schedule to choose a scenario manually.",
       "next_change": "Next change at {{time}}",
       "blocked_toast": "Connection scenario is controlled by the active profile's schedule. Turn off the schedule to change it manually."
+    },
+    "list_card": {
+      "title": "Scenarios",
+      "description": "Select a scenario to see its configuration.",
+      "error_title": "Couldn't load your scenarios"
+    },
+    "dialog": {
+      "description": "Leave a band field empty to let the modem choose.",
+      "name_required": "Give the scenario a name."
+    },
+    "errors": {
+      "load_failed": "The modem didn't answer with your scenarios. Try again in a moment.",
+      "activate_failed": "Couldn't activate the scenario.",
+      "save_failed": "Couldn't save the scenario.",
+      "delete_failed": "Couldn't delete the scenario."
     }
   },
   "sms": {

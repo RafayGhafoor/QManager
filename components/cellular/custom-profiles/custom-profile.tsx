@@ -1,53 +1,73 @@
 "use client";
 
 import React from "react";
-
+import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
+
+import { CellularPageHeader } from "@/components/cellular/page-header";
+import { useCurrentSettings } from "@/hooks/use-current-settings";
+import { useSimProfiles } from "@/hooks/use-sim-profiles";
+import { DUR, EASE_STANDARD } from "@/lib/motion";
 import ProfileInputComponent from "./profile-input";
 import ProfileViewComponent from "./profile-view";
-import { useSimProfiles } from "@/hooks/use-sim-profiles";
-import { useCurrentSettings } from "@/hooks/use-current-settings";
 
-// -----------------------------------------------------------------------------
+// =============================================================================
 // Custom SIM Profiles — coordinator
-// -----------------------------------------------------------------------------
-// Owns the shared data layer so the two cards stay in sync: the left card
-// (add/edit) and the right card (saved list) both read one `useSimProfiles`
-// instance, so creating/updating a profile on the left immediately refreshes
-// the list on the right. `useCurrentSettings` is fetched once on mount — its
-// live ICCID drives the SIM-mismatch badge in the list and prefills the form's
-// "Load from SIM" action. `editingId` is the Edit hand-off: a row's Edit menu
-// flips the left card into edit mode for that profile.
+// =============================================================================
+// One card per view: the REGISTRY (every saved profile) or the EDITOR (one
+// profile, new or existing), never both side by side. The editor commits from
+// its CardFoot and returns here on save or cancel.
+//
+// One `useSimProfiles` instance is shared by both views so a save refreshes
+// the registry it returns to. `useCurrentSettings` is fetched once: its live
+// ICCID drives the registry's SIM-mismatch chip and the editor's Load from SIM.
+// =============================================================================
+
+type View = { kind: "registry" } | { kind: "editor"; id: string | null };
+
 const CustomProfileComponent = () => {
   const { t } = useTranslation("cellular");
 
   const sim = useSimProfiles();
   const currentSettings = useCurrentSettings(true);
-  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [view, setView] = React.useState<View>({ kind: "registry" });
+
+  const toRegistry = () => setView({ kind: "registry" });
 
   return (
-    <div className="@container/main mx-auto p-2">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">
-          {t("custom_profiles.page.title")}
-        </h1>
-        <p className="text-muted-foreground">
-          {t("custom_profiles.page.description")}
-        </p>
-      </div>
-      <div className="grid grid-cols-1 @3xl/main:grid-cols-2 grid-flow-row gap-4">
-        <ProfileInputComponent
-          sim={sim}
-          currentSettings={currentSettings}
-          editingId={editingId}
-          onDoneEditing={() => setEditingId(null)}
-        />
+    <div className="@container/main mx-auto flex flex-col gap-5 p-2">
+      <CellularPageHeader
+        title={t("custom_profiles.page.title")}
+        description={t("custom_profiles.page.description")}
+      />
+
+      {/* The registry stays mounted (hidden) while the editor is open, so
+          returning to it never re-runs the detail prefetch and its skeleton. */}
+      <div hidden={view.kind === "editor"}>
         <ProfileViewComponent
           sim={sim}
           currentIccid={currentSettings.settings?.iccid ?? null}
-          onEdit={setEditingId}
+          onEdit={(id) => setView({ kind: "editor", id })}
+          onAdd={() => setView({ kind: "editor", id: null })}
         />
       </div>
+
+      {view.kind === "editor" ? (
+        <motion.div
+          key={view.id ?? "new"}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: DUR.quick, ease: EASE_STANDARD }}
+        >
+          <ProfileInputComponent
+            sim={sim}
+            currentSettings={currentSettings}
+            editingId={view.id}
+            onDone={toRegistry}
+            onCancel={toRegistry}
+          />
+        </motion.div>
+      ) : null}
     </div>
   );
 };

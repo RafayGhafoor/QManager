@@ -2,8 +2,7 @@
   "custom_profiles": {
     "page": {
       "title": "自訂 SIM 設定檔",
-      "description": "將 APN、IMEI 和 TTL/HL 設定打包為一鍵式設定檔。",
-      "error_load_failed": "無法載入設定檔。請檢查連線並重試。"
+      "description": "將 APN、IMEI 和 TTL/HL 設定打包為一鍵式設定檔。"
     },
     "view": {
       "title": "已儲存的設定檔",
@@ -19,9 +18,10 @@
       "mismatch_note": "modem 中的 SIM 卡與此設定檔的 ICCID 不匹配。在插入匹配的 SIM 卡之前，裝置將保持當前設定。",
       "toast": {
         "deactivated": "已停用 {{name}}",
-        "deactivate_error": "停用設定檔失敗",
         "deleted": "已刪除 {{name}}",
-        "delete_error": "刪除設定檔失敗"
+        "activated": "{{name}} 已啟用",
+        "activated_partial": "{{name}} 已啟用，部分步驟已略過",
+        "activate_error": "無法啟用設定。"
       },
       "delete_title": "刪除“{{name}}”？"
     },
@@ -206,11 +206,10 @@
       "save_failed": "儲存設定檔失敗",
       "profile_added": "已新增設定檔",
       "profile_updated": "已更新設定檔",
-      "submit_add": "提交",
+      "submit_add": "新增設定",
       "submit_edit": "儲存更改",
       "cancel": "取消",
       "next": "下一步",
-      "clear": "清除",
       "tab_network": "網路",
       "network_desc": "modem 連線到運營商資料網路的方式。",
       "identity_load_hint": "為此設定檔命名並選擇適用的運營商。",
@@ -294,7 +293,7 @@
         "imei": "IMEI",
         "mpdn_rule": "資料路由"
       },
-      "reboot_notice": "調變解調器正在重啟以套用 IMEI 變更，儀表板將自動重新連線。",
+      "reboot_notice": "IMEI 變更將在重啟後生效。準備好後，可透過橫幅重啟。",
       "step_state_unchanged": "無變化",
       "preparing": "準備中…",
       "step_progress": "第 {{current}} / {{total}} 步",
@@ -304,7 +303,11 @@
       "partial_sub": "部分步驟已跳過。請檢視下方詳情。",
       "failed_headline": "啟用失敗",
       "failed_sub": "數據機未完全重新配置。",
-      "details_label": "步驟"
+      "details_label": "步驟",
+      "errors": {
+        "start_failed": "無法開始套用設定檔。",
+        "not_started": "設定檔套用未啟動，請重試。"
+      }
     },
     "verizon_warning": {
       "title": "Verizon 需要特殊的資料路由規則",
@@ -317,7 +320,7 @@
     "empty_state": {
       "title": "暫無自訂設定檔",
       "description": "在此管理您的自訂 SIM 設定檔。",
-      "description_full": "您尚未建立任何自訂 SIM 設定檔。請使用表單建立您的第一個設定檔。",
+      "description_full": "建立設定檔，儲存 SIM 的 APN、IMEI 與 TTL 設定，並一步套用。",
       "refresh": "重新整理",
       "card_title": "自訂 SIM 設定檔",
       "card_description": "將 APN、IMEI 和 TTL 設定打包，一步套用到數據機。",
@@ -330,13 +333,13 @@
       "ip_v4": "IPv4",
       "ip_v6": "IPv6",
       "ip_dual": "IPv4v6",
-      "apn": "APN {{name}}",
       "apn_default": "預設 APN",
       "cid": "CID {{cid}}",
       "ttl": "TTL {{value}}",
       "hl": "HL {{value}}",
       "imei_override": "IMEI 覆蓋",
-      "mpdn_locked": "MPDN 已鎖定"
+      "mpdn_locked": "MPDN 已鎖定",
+      "apn_prefix": "APN "
     },
     "active_card": {
       "none_title": "無活動配置",
@@ -362,12 +365,22 @@
     "card": {
       "label_iccid": "SIM",
       "label_updated": "更新時間"
+    },
+    "registry": {
+      "add": "新增設定",
+      "error_title": "無法載入您的設定"
+    },
+    "errors": {
+      "load_failed": "數據機未回傳已儲存的設定，請稍後再試。",
+      "save_failed": "無法儲存設定。",
+      "delete_failed": "無法刪除設定。",
+      "deactivate_failed": "無法停用設定。"
     }
   },
   "scenarios": {
     "page": {
       "title": "連線場景",
-      "description": "管理和自訂您的蜂窩設定檔連線場景，以最佳化網路效能和可靠性。"
+      "description": "在已儲存的網路設定之間切換無線電。"
     },
     "default_balanced_name": "均衡",
     "default_balanced_description": "自動選擇頻段",
@@ -389,16 +402,15 @@
         "description": "確定要刪除「{{name}}」嗎？此操作不可撤銷。",
         "confirm": "刪除",
         "deleting": "刪除中…"
-      }
+      },
+      "band_lock": "頻段鎖定"
     },
     "add_button": {
-      "label": "建立場景",
-      "description": "新增自訂設定"
+      "label": "新增場景"
     },
     "active_config_card": {
       "configuration": "{{name}} 設定",
       "status": {
-        "applying": "套用中…",
         "active": "活動",
         "not_active": "未啟用"
       },
@@ -416,8 +428,9 @@
         "nrsa_nsa": "5G SA / NSA",
         "bands_auto": "自動"
       },
-      "edit_aria": "編輯場景設定",
-      "activate": "啟用"
+      "activate": "啟用",
+      "edit": "編輯",
+      "running_note": "此場景目前正在執行。"
     },
     "add_dialog": {
       "title": "新建連線場景",
@@ -434,62 +447,54 @@
         "sa_bands_placeholder": "例如：41, 78",
         "nsa_bands_label": "NR5G-NSA 頻段鎖定",
         "nsa_bands_placeholder": "例如：41, 78",
-        "theme_label": "卡片主題",
-        "preview_label": "預覽",
         "preview_placeholder": "自訂設定"
       },
       "buttons": {
-        "create": "建立場景",
-        "creating": "建立中…"
+        "create": "建立場景"
       },
       "toast": {
-        "success": "場景建立成功。",
-        "error": "建立場景失敗。"
+        "success": "場景建立成功。"
       }
     },
     "edit_dialog": {
       "title": "編輯設定",
       "fields": {
-        "name_label": "場景名稱",
-        "name_placeholder": "場景名稱",
-        "description_label": "描述",
-        "description_placeholder": "場景描述",
-        "network_mode_label": "網路模式",
-        "network_mode_aria": "網路模式",
         "optimization_label": "最佳化標籤",
-        "optimization_placeholder": "例如：低延遲、高吞吐量、自訂",
-        "lte_bands_label": "LTE 頻段鎖定",
-        "lte_bands_placeholder": "例如：1, 3, 7, 28（留空 = 自動）",
-        "sa_bands_label": "NR5G-SA 頻段鎖定",
-        "sa_bands_placeholder": "例如：41, 78",
-        "nsa_bands_label": "NR5G-NSA 頻段鎖定",
-        "nsa_bands_placeholder": "例如：41, 78",
-        "theme_label": "卡片主題",
-        "preview_label": "預覽",
-        "preview_placeholder": "自訂設定"
+        "optimization_placeholder": "例如：低延遲、高吞吐量、自訂"
       },
       "buttons": {
-        "save": "儲存變更",
-        "saving": "儲存中…"
+        "save": "儲存變更"
       },
       "toast": {
-        "success": "場景已更新。",
-        "error": "更新場景失敗。"
+        "success": "場景已更新。"
       }
     },
     "activation_toast": {
-      "success": "已切換到 {{name}} 場景。",
-      "error": "啟用 {{name}} 場景失敗。"
+      "success": "已切換到 {{name}} 場景。"
     },
     "deletion_toast": {
-      "success": "場景已刪除。",
-      "error": "刪除場景失敗。"
+      "success": "場景已刪除。"
     },
     "schedule_lock": {
       "badge": "已計劃",
       "hint": "關閉此配置的計劃以手動選擇場景。",
       "next_change": "下次切換於 {{time}}",
       "blocked_toast": "連線場景由活動配置的計劃控制。請關閉計劃以手動更改。"
+    },
+    "list_card": {
+      "title": "場景",
+      "description": "選擇一個場景以檢視其設定。",
+      "error_title": "無法載入您的場景"
+    },
+    "dialog": {
+      "description": "頻段欄位留空即由數據機自動選擇。",
+      "name_required": "請為場景命名。"
+    },
+    "errors": {
+      "load_failed": "數據機未回傳您的場景，請稍後再試。",
+      "activate_failed": "無法啟用場景。",
+      "save_failed": "無法儲存場景。",
+      "delete_failed": "無法刪除場景。"
     }
   },
   "sms": {

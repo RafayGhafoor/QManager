@@ -1,28 +1,23 @@
 "use client";
 
 import React from "react";
+import { motion } from "motion/react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
 import {
+  CONDITION_TONE,
+  ConditionScreen,
+} from "@/components/cellular/condition-screen";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tag } from "@/components/ui/tag";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,19 +29,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  CalendarClockIcon,
-  CheckCircle2Icon,
-  Loader2Icon,
-  MinusCircleIcon,
-  MoreVerticalIcon,
-  PencilIcon,
-  PlayIcon,
-  PowerIcon,
-  RouteIcon,
-  Trash2Icon,
-  TriangleAlertIcon,
-} from "lucide-react";
-
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  MaterialSymbol,
+  type MaterialSymbolName,
+} from "@/components/ui/material-symbol";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tag } from "@/components/ui/tag";
+import { staggerRowItem, staggerRows } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import EmptyProfileComponent from "./empty-profile";
 import { ApplyProgressDialog } from "./apply-progress-dialog";
@@ -61,31 +56,29 @@ import {
 } from "@/types/sim-profile";
 import { setPendingReboot } from "@/lib/reboot/pending";
 
-// -----------------------------------------------------------------------------
-// Profile view — the live "Saved Profiles" list.
-// -----------------------------------------------------------------------------
-// Wired to the backend via the shared `useSimProfiles` instance (passed from the
-// coordinator) plus `useProfileApply` for activation. The card wraps the whole
-// list (Card-Wrapped Surface Rule); profiles render as a vertical stack of
-// self-contained rows, not a grid of nested cards, because this card already
-// lives in one column of the page's 2-col grid.
+// =============================================================================
+// ProfileViewComponent — the registry: every saved Custom SIM Profile
+// =============================================================================
+// One of the page's two views (the other is the editor). One card holds the
+// whole roster; each profile is one `surface-container` row (the card's one
+// inner container), the active profile first.
 //
-// Data-shape note: list.sh returns summaries only (no APN/TTL/HL/IMEI), so each
-// row lazy-loads the full profile via get.sh to populate its config pills, with
-// a skeleton in the gap. SIM-mismatch is derived client-side by comparing the
-// profile's stored ICCID against the live SIM ICCID — empty ICCID is
-// SIM-agnostic and never mismatches.
-
-// Cap how many rows stagger so a long roster never plays a long page-load
-// cascade. Beyond this index, rows enter together at the cap delay.
-const STAGGER_STEP_MS = 40;
-const STAGGER_MAX_ROWS = 4;
+// Identity (the carrier preset, the config: APN, CID, PDP, TTL, HL) is `Tag`s.
+// Facts that change what the modem does (an IMEI override, Verizon's MPDN
+// lock) are Fact-Is-Info `info` badges with their own glyphs, shown only when
+// they apply. Status is the filled chip on the row's right edge.
+//
+// Data-shape note: list.sh returns summaries only, so every profile's full
+// config is prefetched in parallel and ONE skeleton is held until all are in
+// (rows never shimmer twice). SIM mismatch is derived client-side: only the
+// active profile with a stored ICCID that differs from the live SIM.
+//
+// Activation opens the Sequenced Pipeline Dialog first; its outcome toasts
+// once on close, and a needed reboot defers to the persistent banner.
+// =============================================================================
 
 type ProfileStatus = "active" | "mismatch" | "inactive";
 
-// Status is derived at render time, never stored. Matches the proven
-// deriveProfileState logic: a profile is only "mismatch" while it is the active
-// one AND carries an ICCID that no longer matches the inserted SIM.
 function deriveStatus(
   isActive: boolean,
   profileIccid: string,
@@ -98,70 +91,107 @@ function deriveStatus(
   return "active";
 }
 
+/** No two states share a glyph (success and warning containers are 1.03:1). */
+const STATUS_CHIP: Record<
+  ProfileStatus,
+  { variant: BadgeVariant; glyph: MaterialSymbolName; key: string }
+> = {
+  active: {
+    variant: "success",
+    glyph: "check_circle",
+    key: "custom_profiles.table.status_badge.active",
+  },
+  mismatch: {
+    variant: "warning",
+    glyph: "warning",
+    key: "custom_profiles.table.status_badge.sim_mismatch",
+  },
+  inactive: {
+    variant: "muted",
+    glyph: "do_not_disturb_on",
+    key: "custom_profiles.table.status_badge.inactive",
+  },
+};
+
+const ROW =
+  "flex flex-col gap-3 rounded-tile bg-surface-container px-4 py-3.5 @3xl/card:px-5";
+
 interface ProfileViewProps {
   sim: UseSimProfilesReturn;
   /** Live SIM ICCID from current_settings.sh, for mismatch detection. */
   currentIccid: string | null;
-  /** Hand a profile to the left card for editing. */
+  /** Open the editor on a saved profile. */
   onEdit: (id: string) => void;
+  /** Open the editor on a new profile. */
+  onAdd: () => void;
 }
 
-const ProfileViewComponent = ({ sim, currentIccid, onEdit }: ProfileViewProps) => {
+const ProfileViewComponent = ({
+  sim,
+  currentIccid,
+  onEdit,
+  onAdd,
+}: ProfileViewProps) => {
   const { t } = useTranslation("cellular");
-  const { profiles, activeProfileId, isLoading, getProfile } = sim;
+  const { profiles, activeProfileId, isLoading, error, getProfile } = sim;
   const { deleteProfile, deactivateProfile, refresh } = sim;
   const { nameForId } = useScenarioList();
 
   const { applyProfile, applyState, error: applyError, reset } =
     useProfileApply();
-  // The progress dialog is the apply surface now: opening it on Activate means
-  // the user always sees step-by-step progress instead of an indefinite button
-  // spinner. The dialog itself only allows close on a terminal state.
   const [applyOpen, setApplyOpen] = React.useState(false);
-
-  const [pendingDelete, setPendingDelete] = React.useState<ProfileSummary | null>(
-    null,
-  );
+  const [pendingDelete, setPendingDelete] =
+    React.useState<ProfileSummary | null>(null);
 
   const handleActivate = (id: string) => {
     setApplyOpen(true);
     applyProfile(id);
   };
 
-  // On dialog close: refresh the list if the apply landed, and defer the
-  // IMEI-change reboot. Read requires_reboot BEFORE reset() clears applyState.
+  // On close (only reachable at a terminal state): one toast for the outcome,
+  // refresh the list if it landed, and defer an IMEI-change reboot. Read the
+  // state BEFORE reset() clears it.
   const handleApplyClose = () => {
     const finished = applyState?.status;
+    const name = applyState?.profile_name ?? "";
     const needsReboot = applyState?.requires_reboot === true;
     const succeeded = finished === "complete" || finished === "partial";
+    const failure =
+      applyError ?? t("custom_profiles.view.toast.activate_error");
 
     setApplyOpen(false);
     reset();
 
     if (succeeded) {
+      toast.success(
+        t(
+          finished === "partial"
+            ? "custom_profiles.view.toast.activated_partial"
+            : "custom_profiles.view.toast.activated",
+          { name },
+        ),
+      );
       refresh();
       if (needsReboot) setPendingReboot("imei");
+    } else if (finished === "failed") {
+      toast.error(failure);
     }
   };
 
-  // A terminal apply state means the dialog's close affordance is live; until
-  // then the Activate button shows a small spinner for affordance only.
   const applyTerminal =
     applyState?.status === "complete" ||
     applyState?.status === "partial" ||
     applyState?.status === "failed";
 
   const handleDeactivate = async (profile: ProfileSummary) => {
-    const { success, requiresReboot } = await deactivateProfile();
-    if (success) {
+    const result = await deactivateProfile();
+    if (result.ok) {
       toast.success(
         t("custom_profiles.view.toast.deactivated", { name: profile.name }),
       );
-      if (requiresReboot) setPendingReboot("verizon_revert");
+      if (result.requiresReboot) setPendingReboot("verizon_revert");
     } else {
-      toast.error(
-        sim.error || t("custom_profiles.view.toast.deactivate_error"),
-      );
+      toast.error(result.error);
     }
   };
 
@@ -169,42 +199,30 @@ const ProfileViewComponent = ({ sim, currentIccid, onEdit }: ProfileViewProps) =
     if (!pendingDelete) return;
     const target = pendingDelete;
     setPendingDelete(null);
-    const ok = await deleteProfile(target.id);
-    if (ok)
+    const result = await deleteProfile(target.id);
+    if (result.ok) {
       toast.success(
         t("custom_profiles.view.toast.deleted", { name: target.name }),
       );
-    else
-      toast.error(sim.error || t("custom_profiles.view.toast.delete_error"));
+    } else {
+      toast.error(result.error);
+    }
   };
 
   // ---- Detail hydration -----------------------------------------------------
-  // list.sh returns summaries only (no APN/CID/PDP/TTL/HL/IMEI). Letting each
-  // row lazy-load its own config produced a SECOND shimmer after the list
-  // skeleton had already cleared. Instead we prefetch every profile's full
-  // config up front and hold the single list skeleton until they are all in —
-  // one loading state on page load, and rows arrive fully populated. The effect
-  // re-runs whenever the backend hands back a fresh `profiles` array (initial
-  // load, create, edit, delete, activate); since `detailsHydrated` is only ever
-  // set true, those later runs refresh in the background without re-flashing
-  // the skeleton. Keyed on `profiles` (not a roster-signature ref) so React
-  // StrictMode's mount/cleanup/mount cycle always lands on a run that resolves.
+  // One skeleton for the summary fetch AND the detail prefetch; later runs
+  // (after create, edit, delete, activate) refresh in the background because
+  // `detailsHydrated` only ever turns true.
   const [details, setDetails] = React.useState<Record<string, SimProfile>>({});
   const [detailsHydrated, setDetailsHydrated] = React.useState(false);
 
   React.useEffect(() => {
-    // Don't hydrate until the summary fetch has actually returned. While the
-    // initial list is still loading, `profiles` is transiently [] — treating
-    // that as "hydrated" would clear the skeleton early and let the pills pop
-    // in a beat after the rows. Keep the skeleton up until isLoading settles.
     if (isLoading) return;
-
     if (profiles.length === 0) {
       setDetails({});
       setDetailsHydrated(true);
       return;
     }
-
     let cancelled = false;
     Promise.all(profiles.map((p) => getProfile(p.id))).then((results) => {
       if (cancelled) return;
@@ -220,77 +238,93 @@ const ProfileViewComponent = ({ sim, currentIccid, onEdit }: ProfileViewProps) =
     };
   }, [profiles, getProfile, isLoading]);
 
-  // One skeleton, gated on BOTH the summary fetch and the detail prefetch.
   const showSkeleton =
     (isLoading && profiles.length === 0) ||
     (profiles.length > 0 && !detailsHydrated);
+  // A failed list read with nothing to show: say so, never "no profiles yet".
+  const showError = !isLoading && profiles.length === 0 && error !== null;
 
-  // Active profile leads; the rest keep backend order.
-  const ordered = React.useMemo(() => {
-    return [...profiles].sort((a, b) => {
-      const aActive = a.id === activeProfileId ? 0 : 1;
-      const bActive = b.id === activeProfileId ? 0 : 1;
-      return aActive - bActive;
-    });
-  }, [profiles, activeProfileId]);
+  const ordered = React.useMemo(
+    () =>
+      [...profiles].sort(
+        (a, b) =>
+          (a.id === activeProfileId ? 0 : 1) -
+          (b.id === activeProfileId ? 0 : 1),
+      ),
+    [profiles, activeProfileId],
+  );
 
   return (
     <Card className="@container/card">
       <CardHeader>
-        <CardTitle>{t("custom_profiles.view.title")}</CardTitle>
-        <CardDescription>
-          {t("custom_profiles.view.subtitle")}
-        </CardDescription>
-        {profiles.length > 0 && (
-          <CardAction>
-            <Tag variant="neutral" className="tabular-nums">
-              {profiles.length}
-            </Tag>
-          </CardAction>
-        )}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-48 flex-1 flex-col gap-1.5">
+            <CardTitle>{t("custom_profiles.view.title")}</CardTitle>
+            <CardDescription>
+              {profiles.length > 0
+                ? t("custom_profiles.view.count", {
+                    count: profiles.length,
+                  })
+                : t("custom_profiles.view.subtitle")}
+            </CardDescription>
+          </div>
+          {profiles.length > 0 ? (
+            <Button size="action" onClick={onAdd}>
+              <MaterialSymbol name="add" size={18} />
+              {t("custom_profiles.registry.add")}
+            </Button>
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent>
         {showSkeleton ? (
           <ListSkeleton />
+        ) : showError ? (
+          <ConditionScreen
+            tone="destructive"
+            glyph="error"
+            ariaRole="alert"
+            title={t("custom_profiles.registry.error_title")}
+            description={error ?? ""}
+            onRetry={refresh}
+            retryLabel={t("actions.retry", { ns: "common" })}
+            className="rounded-tile py-10"
+          />
         ) : profiles.length === 0 ? (
-          <EmptyProfileComponent />
+          <EmptyProfileComponent onAdd={onAdd} />
         ) : (
-          // Cap the list height so a long roster scrolls instead of stretching
-          // the card past its sibling. The active profile is sorted to the top,
-          // so it stays in view; the -mr/pr pair gives the scrollbar a gutter
-          // without nudging the rows. Below the cap, height is natural (no
-          // scrollbar appears until the rows actually overflow).
-          <div className="-mr-2 max-h-128 overflow-x-hidden overflow-y-auto pr-2 [scrollbar-width:thin]">
-            <div className="flex flex-col gap-3">
-              {ordered.map((profile, i) => (
-                <ProfileRow
-                  key={profile.id}
-                  summary={profile}
-                  status={deriveStatus(
-                    profile.id === activeProfileId,
-                    profile.sim_iccid,
-                    currentIccid,
-                  )}
-                  index={i}
-                  scenarioName={nameForId(profile.scenario.default)}
-                  busy={
-                    applyOpen &&
-                    !applyTerminal &&
-                    applyState?.profile_id === profile.id
-                  }
-                  full={details[profile.id] ?? null}
-                  onActivate={() => handleActivate(profile.id)}
-                  onDeactivate={() => handleDeactivate(profile)}
-                  onEdit={() => onEdit(profile.id)}
-                  onDelete={() => setPendingDelete(profile)}
-                />
-              ))}
-            </div>
-          </div>
+          <motion.div
+            className="flex flex-col gap-2.5"
+            variants={staggerRows}
+            initial="hidden"
+            animate="visible"
+          >
+            {ordered.map((profile) => (
+              <ProfileRow
+                key={profile.id}
+                summary={profile}
+                status={deriveStatus(
+                  profile.id === activeProfileId,
+                  profile.sim_iccid,
+                  currentIccid,
+                )}
+                scenarioName={nameForId(profile.scenario.default)}
+                busy={
+                  applyOpen &&
+                  !applyTerminal &&
+                  applyState?.profile_id === profile.id
+                }
+                full={details[profile.id] ?? null}
+                onActivate={() => handleActivate(profile.id)}
+                onDeactivate={() => handleDeactivate(profile)}
+                onEdit={() => onEdit(profile.id)}
+                onDelete={() => setPendingDelete(profile)}
+              />
+            ))}
+          </motion.div>
         )}
       </CardContent>
 
-      {/* Delete confirmation — destructive, so it always asks first. */}
       <AlertDialog
         open={pendingDelete !== null}
         onOpenChange={(open) => !open && setPendingDelete(null)}
@@ -310,17 +344,13 @@ const ProfileViewComponent = ({ sim, currentIccid, onEdit }: ProfileViewProps) =
             <AlertDialogCancel>
               {t("custom_profiles.view.delete_keep")}
             </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20"
-            >
+            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
               {t("custom_profiles.table.actions_menu.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Apply pipeline progress — the restored Sequenced Pipeline Dialog. */}
       <ApplyProgressDialog
         open={applyOpen}
         applyState={applyState}
@@ -332,12 +362,12 @@ const ProfileViewComponent = ({ sim, currentIccid, onEdit }: ProfileViewProps) =
 };
 
 // -----------------------------------------------------------------------------
-// Profile row — one self-contained panel in the stacked list.
+// One profile. Narrow: a stacked block. Wide: identity and config on the left,
+// status and the action on the right edge (every element on two edges).
 // -----------------------------------------------------------------------------
 const ProfileRow = ({
   summary,
   status,
-  index,
   scenarioName,
   busy,
   full,
@@ -348,10 +378,8 @@ const ProfileRow = ({
 }: {
   summary: ProfileSummary;
   status: ProfileStatus;
-  index: number;
   scenarioName: string;
   busy: boolean;
-  /** Full config, prefetched by the view so the row arrives populated. */
   full: SimProfile | null;
   onActivate: () => void;
   onDeactivate: () => void;
@@ -361,68 +389,84 @@ const ProfileRow = ({
   const { t } = useTranslation("cellular");
   const isActive = status !== "inactive";
   const scheduled = summary.scenario.schedule.enabled;
-
   const verizonMpdn = summary.mno === "Verizon";
+  const chip = STATUS_CHIP[status];
+  const warning = CONDITION_TONE.warning;
 
   return (
-    <div
-      style={{
-        animationDelay: `${Math.min(index, STAGGER_MAX_ROWS) * STAGGER_STEP_MS}ms`,
-        animationDuration: "300ms",
-        animationTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-      }}
-      className={cn(
-        "flex flex-col gap-3 rounded-lg border p-3",
-        "transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
-        "animate-in fade-in-0 slide-in-from-bottom-2 fill-mode-both motion-reduce:animate-none",
-        status === "active" && "border-success/40 bg-success/5",
-        status === "mismatch" && "border-warning/40 bg-warning/5",
-        status === "inactive" && "bg-muted/20",
-      )}
-    >
-      {/* Identity + status + overflow */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="grid min-w-0 gap-0.5">
-          <div className="flex items-center gap-1.5">
-            {status === "active" && (
-              // Live-ping: a solid dot with a pulsing halo behind it (the
-              // system pulse-ring keyframe, disabled under reduced motion).
-              // Calmer and more "alive" than a hard opacity blink.
-              <span className="relative flex size-1.5 shrink-0" aria-hidden>
-                <span className="bg-success/50 animate-pulse-ring absolute inline-flex size-full rounded-full" />
-                <span className="bg-success relative inline-flex size-1.5 rounded-full" />
-              </span>
-            )}
+    <motion.div variants={staggerRowItem} className={ROW}>
+      <div className="flex flex-col gap-3 @3xl/card:flex-row @3xl/card:items-start @3xl/card:justify-between">
+        {/* Identity, scenario binding and config */}
+        <div className="flex min-w-0 flex-col gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="truncate text-sm font-semibold">
               {summary.name}
             </span>
+            {summary.mno ? <Tag variant="neutral">{summary.mno}</Tag> : null}
           </div>
-          <span className="text-muted-foreground truncate text-xs">
-            {summary.mno}
-          </span>
+          <div className="flex items-center gap-1.5 text-xs text-on-surface-variant">
+            <MaterialSymbol
+              name={scheduled ? "schedule" : "route"}
+              size={14}
+              className="flex-none"
+            />
+            <span className="truncate">
+              {scheduled
+                ? t("custom_profiles.view.scenario_scheduled", {
+                    scenario: scenarioName,
+                  })
+                : t("custom_profiles.view.scenario_always_on", {
+                    scenario: scenarioName,
+                  })}
+            </span>
+          </div>
+          {full ? (
+            <ConfigPills profile={full} verizonMpdn={verizonMpdn} />
+          ) : null}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
-          <StatusBadge status={status} />
+        {/* Status, the one action, the overflow menu */}
+        <div className="flex flex-none flex-wrap items-center gap-2 @3xl/card:justify-end">
+          <Badge variant={chip.variant}>
+            <MaterialSymbol name={chip.glyph} size={12} />
+            {t(chip.key)}
+          </Badge>
+          {isActive ? (
+            <Button variant="tonal-neutral" size="sm" onClick={onDeactivate}>
+              <MaterialSymbol name="power_settings_new" size={16} />
+              {t("custom_profiles.table.actions_menu.deactivate")}
+            </Button>
+          ) : (
+            <Button size="sm" onClick={onActivate} disabled={busy}>
+              <MaterialSymbol
+                name={busy ? "progress_activity" : "play_arrow"}
+                size={16}
+                className={busy ? "motion-safe:animate-spin" : undefined}
+              />
+              {busy
+                ? t("custom_profiles.view.activating")
+                : t("custom_profiles.table.actions_menu.activate")}
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                size="icon"
-                className="text-muted-foreground size-7"
+                size="icon-sm"
+                className="text-on-surface-variant"
                 aria-label={t("custom_profiles.table.actions_menu.open_menu")}
               >
-                <MoreVerticalIcon className="size-4" />
+                <MaterialSymbol name="more_vert" size={18} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem onClick={onEdit}>
-                <PencilIcon className="size-4" />
+                <MaterialSymbol name="edit" size={16} />
                 {t("custom_profiles.table.actions_menu.edit")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={onDelete}>
-                <Trash2Icon className="size-4" />
+                <MaterialSymbol name="delete" size={16} />
                 {t("custom_profiles.table.actions_menu.delete")}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -430,102 +474,31 @@ const ProfileRow = ({
         </div>
       </div>
 
-      {/* Scenario binding line */}
-      <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-        {scheduled ? (
-          <CalendarClockIcon className="size-3.5 shrink-0" />
-        ) : (
-          <RouteIcon className="size-3.5 shrink-0" />
-        )}
-        <span className="truncate">
-          {scheduled
-            ? t("custom_profiles.view.scenario_scheduled", {
-                scenario: scenarioName,
-              })
-            : t("custom_profiles.view.scenario_always_on", {
-                scenario: scenarioName,
-              })}
-        </span>
-      </div>
-
-      {/* Config readout — prefetched by the view, so the pills arrive with the
-          row as part of its entrance rather than as a second loading state. */}
-      {full && <ConfigPills profile={full} verizonMpdn={verizonMpdn} />}
-
-      {/* SIM mismatch note — only when the active profile no longer matches the SIM */}
-      {status === "mismatch" && (
-        <div className="text-warning bg-warning/10 flex items-start gap-2 rounded-md p-2 text-xs">
-          <TriangleAlertIcon className="mt-px size-3.5 shrink-0" />
+      {status === "mismatch" ? (
+        <div
+          role="status"
+          className={cn(
+            "flex items-start gap-2 rounded-field px-3 py-2 text-xs",
+            warning.container,
+          )}
+        >
+          <MaterialSymbol name="sim_card" size={16} className="flex-none" />
           <span>{t("custom_profiles.view.mismatch_note")}</span>
         </div>
-      )}
+      ) : null}
 
-      {/* Action */}
-      <div className="flex items-center justify-between gap-3 pt-0.5">
-        <span className="text-muted-foreground text-[11px]">
-          {t("custom_profiles.card.label_updated")}{" "}
-          {formatProfileDate(summary.updated_at)}
-        </span>
-        {isActive ? (
-          <Button variant="secondary" size="sm" onClick={onDeactivate}>
-            <PowerIcon className="size-4" />
-            {t("custom_profiles.table.actions_menu.deactivate")}
-          </Button>
-        ) : (
-          <Button size="sm" onClick={onActivate} disabled={busy}>
-            {busy ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : (
-              <PlayIcon className="size-4" />
-            )}
-            {busy
-              ? t("custom_profiles.view.activating")
-              : t("custom_profiles.table.actions_menu.activate")}
-          </Button>
-        )}
-      </div>
-    </div>
+      <span className="text-[11px] text-on-surface-variant tabular-nums">
+        {t("custom_profiles.card.label_updated")}{" "}
+        {formatProfileDate(summary.updated_at)}
+      </span>
+    </motion.div>
   );
 };
 
 // -----------------------------------------------------------------------------
-// Status badge — filled tonal chip + size-3 glyph (DESIGN.md > Status chips).
+// Config readout: identity is Tags; facts that change the modem's behaviour
+// are Fact-Is-Info badges, each with its own glyph, shown only when they apply.
 // -----------------------------------------------------------------------------
-const StatusBadge = ({ status }: { status: ProfileStatus }) => {
-  if (status === "active") {
-    return (
-      <Badge variant="success">
-        <CheckCircle2Icon className="size-3" aria-hidden="true" />
-        Active
-      </Badge>
-    );
-  }
-  if (status === "mismatch") {
-    return (
-      <Badge variant="warning">
-        <TriangleAlertIcon className="size-3" aria-hidden="true" />
-        SIM Mismatch
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="muted">
-      <MinusCircleIcon className="size-3" aria-hidden="true" />
-      Inactive
-    </Badge>
-  );
-};
-
-// -----------------------------------------------------------------------------
-// Config pills — outline metadata tags describing what a profile does. They
-// say what the profile IS, not whether anything is well, so they are `Tag`s.
-// -----------------------------------------------------------------------------
-const Pill = ({ children }: { children: React.ReactNode }) => (
-  <Tag variant="neutral" className="tabular-nums">
-    {children}
-  </Tag>
-);
-
 const PDP_PILL_KEY: Record<PdpType, string> = {
   IP: "custom_profiles.pills.ip_v4",
   IPV6: "custom_profiles.pills.ip_v6",
@@ -543,69 +516,76 @@ const ConfigPills = ({
   const { apn, imei, ttl, hl } = profile.settings;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <Pill>
-        {apn.name.trim()
-          ? t("custom_profiles.pills.apn", { name: apn.name })
-          : t("custom_profiles.pills.apn_default")}
-      </Pill>
-      <Pill>{t("custom_profiles.pills.cid", { cid: apn.cid })}</Pill>
-      <Pill>
+      <Tag variant="neutral">
+        {apn.name.trim() ? (
+          <>
+            {t("custom_profiles.pills.apn_prefix")}
+            <span className="font-mono">{apn.name}</span>
+          </>
+        ) : (
+          t("custom_profiles.pills.apn_default")
+        )}
+      </Tag>
+      <Tag variant="neutral" className="tabular-nums">
+        {t("custom_profiles.pills.cid", { cid: apn.cid })}
+      </Tag>
+      <Tag variant="neutral">
         {PDP_PILL_KEY[apn.pdp_type] ? t(PDP_PILL_KEY[apn.pdp_type]) : apn.pdp_type}
-      </Pill>
-      {ttl > 0 && <Pill>{t("custom_profiles.pills.ttl", { value: ttl })}</Pill>}
-      {hl > 0 && <Pill>{t("custom_profiles.pills.hl", { value: hl })}</Pill>}
-      {imei.trim() !== "" && (
-        <Pill>{t("custom_profiles.pills.imei_override")}</Pill>
-      )}
-      {verizonMpdn && (
-        <Pill>{t("custom_profiles.pills.mpdn_locked")}</Pill>
-      )}
+      </Tag>
+      {ttl > 0 ? (
+        <Tag variant="neutral" className="tabular-nums">
+          {t("custom_profiles.pills.ttl", { value: ttl })}
+        </Tag>
+      ) : null}
+      {hl > 0 ? (
+        <Tag variant="neutral" className="tabular-nums">
+          {t("custom_profiles.pills.hl", { value: hl })}
+        </Tag>
+      ) : null}
+      {imei.trim() !== "" ? (
+        <Badge variant="info">
+          <MaterialSymbol name="fingerprint" size={12} />
+          {t("custom_profiles.pills.imei_override")}
+        </Badge>
+      ) : null}
+      {verizonMpdn ? (
+        <Badge variant="info">
+          <MaterialSymbol name="alt_route" size={12} />
+          {t("custom_profiles.pills.mpdn_locked")}
+        </Badge>
+      ) : null}
     </div>
   );
 };
 
 // -----------------------------------------------------------------------------
-// Loading affordance — built from the shared Skeleton primitive (the app-wide
-// loading standard), shaped to the populated row so there is no reflow when
-// content lands. Reduced motion is handled by the Skeleton component itself.
+// Skeleton: the row shape, imported from `ROW` so the two cannot drift.
 // -----------------------------------------------------------------------------
 const SkeletonRow = () => (
-  <div className="flex flex-col gap-3 rounded-lg border p-3">
-    {/* Identity + status + overflow */}
-    <div className="flex items-start justify-between gap-3">
-      <div className="grid gap-1.5">
-        <Skeleton className="h-3.5 w-32" />
-        <Skeleton className="h-3 w-16" />
+  <div className={ROW}>
+    <div className="flex flex-col gap-3 @3xl/card:flex-row @3xl/card:justify-between">
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-4 w-36" />
+        <Skeleton className="h-3 w-44" />
+        <div className="flex gap-1.5">
+          <Skeleton className="h-5 w-24 rounded-pill" />
+          <Skeleton className="h-5 w-12 rounded-pill" />
+          <Skeleton className="h-5 w-16 rounded-pill" />
+        </div>
       </div>
-      <div className="flex items-center gap-1.5">
-        <Skeleton className="h-5 w-16" />
-        <Skeleton className="size-7" />
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-5 w-16 rounded-pill" />
+        <Skeleton className="h-8 w-24 rounded-pill" />
       </div>
     </div>
-    {/* Scenario binding line */}
-    <div className="flex items-center gap-1.5">
-      <Skeleton className="size-3.5 shrink-0 rounded-full" />
-      <Skeleton className="h-3 w-40" />
-    </div>
-    {/* Config pills */}
-    <div className="flex flex-wrap items-center gap-1.5">
-      <Skeleton className="h-5 w-24" />
-      <Skeleton className="h-5 w-12" />
-      <Skeleton className="h-5 w-16" />
-    </div>
-    {/* Action */}
-    <div className="flex items-center justify-between pt-0.5">
-      <Skeleton className="h-3 w-28" />
-      <Skeleton className="h-8 w-24" />
-    </div>
+    <Skeleton className="h-3 w-28" />
   </div>
 );
 
 const ListSkeleton = () => (
-  <div className="flex flex-col gap-3">
-    {[0, 1].map((i) => (
-      <SkeletonRow key={i} />
-    ))}
+  <div className="flex flex-col gap-2.5">
+    <SkeletonRow />
+    <SkeletonRow />
   </div>
 );
 

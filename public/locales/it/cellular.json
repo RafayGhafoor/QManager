@@ -2,8 +2,7 @@
   "custom_profiles": {
     "page": {
       "title": "Profilo SIM personalizzato",
-      "description": "Raggruppa le impostazioni APN, IMEI e TTL/HL in profili con un clic.",
-      "error_load_failed": "Impossibile caricare i profili. Verifica la connessione e riprova."
+      "description": "Raggruppa le impostazioni APN, IMEI e TTL/HL in profili con un clic."
     },
     "view": {
       "title": "Profili salvati",
@@ -19,9 +18,10 @@
       "mismatch_note": "La SIM nel modem non corrisponde all'ICCID di questo profilo. Il dispositivo mantiene le impostazioni attuali finché non viene inserita una SIM corrispondente.",
       "toast": {
         "deactivated": "{{name}} disattivato",
-        "deactivate_error": "Impossibile disattivare il profilo",
         "deleted": "{{name}} eliminato",
-        "delete_error": "Impossibile eliminare il profilo"
+        "activated": "{{name}} è attivo",
+        "activated_partial": "{{name}} è attivo con alcuni passaggi saltati",
+        "activate_error": "Impossibile attivare il profilo."
       },
       "delete_title": "Eliminare “{{name}}”?"
     },
@@ -35,7 +35,7 @@
       "status_badge": {
         "active": "Attivo",
         "inactive": "Inattivo",
-        "sim_mismatch": "SIM Mancata corrispondenza"
+        "sim_mismatch": "SIM non corrispondente"
       },
       "pagination": {
         "total_one": "{{count}} totale profilo",
@@ -206,11 +206,10 @@
       "save_failed": "Impossibile salvare il profilo",
       "profile_added": "Profilo aggiunto",
       "profile_updated": "Profilo aggiornato",
-      "submit_add": "Invia",
+      "submit_add": "Aggiungi profilo",
       "submit_edit": "Salva modifiche",
       "cancel": "Annulla",
       "next": "Avanti",
-      "clear": "Cancella",
       "tab_network": "Rete",
       "network_desc": "Come il modem si connette alla rete dati dell'operatore.",
       "identity_load_hint": "Assegna un nome a questo profilo e scegli l'operatore a cui è destinato.",
@@ -294,7 +293,7 @@
         "imei": "IMEI",
         "mpdn_rule": "Instradamento dati"
       },
-      "reboot_notice": "Il modem si sta riavviando per applicare la modifica IMEI. La dashboard si ricollegherà automaticamente.",
+      "reboot_notice": "La modifica dell'IMEI avrà effetto dopo un riavvio. Riavvia dal banner quando sei pronto.",
       "step_state_unchanged": "Invariato",
       "preparing": "Preparazione…",
       "step_progress": "Passaggio {{current}} di {{total}}",
@@ -304,7 +303,11 @@
       "partial_sub": "Alcuni passaggi sono stati saltati. Controlla i dettagli sotto.",
       "failed_headline": "Attivazione non riuscita",
       "failed_sub": "Il modem non è stato riconfigurato completamente.",
-      "details_label": "Passaggi"
+      "details_label": "Passaggi",
+      "errors": {
+        "start_failed": "Impossibile avviare l'applicazione del profilo.",
+        "not_started": "L'applicazione del profilo non è partita. Riprova."
+      }
     },
     "verizon_warning": {
       "title": "Verizon richiede una regola di routing dei dati speciale",
@@ -318,18 +321,18 @@
       "ip_v4": "IPv4",
       "ip_v6": "IPv6",
       "ip_dual": "IPv4v6",
-      "apn": "APN {{name}}",
       "apn_default": "APN predefinito",
       "cid": "CID {{cid}}",
       "ttl": "TTL {{value}}",
       "hl": "HL {{value}}",
       "imei_override": "Override IMEI",
-      "mpdn_locked": "MPDN bloccato"
+      "mpdn_locked": "MPDN bloccato",
+      "apn_prefix": "APN "
     },
     "empty_state": {
       "title": "Nessun profilo personalizzato",
       "description": "Gestisci i tuoi profili SIM personalizzati qui.",
-      "description_full": "Non hai ancora creato alcun profilo SIM personalizzato. Utilizza il modulo per creare il tuo primo profilo.",
+      "description_full": "Crea un profilo per salvare le impostazioni APN, IMEI e TTL di una SIM e applicarle in un solo passaggio.",
       "refresh": "Aggiorna",
       "card_title": "Profili SIM personalizzati",
       "card_description": "Pacchetti di impostazioni APN, IMEI e TTL applicati al modem in un solo passaggio.",
@@ -362,12 +365,22 @@
       "bound_sim": "Associato alla SIM {{iccid}}",
       "detail_unavailable": "Impossibile caricare le impostazioni di questo profilo.",
       "only_active_hint": "Il tuo unico profilo è quello attivo. Creane un altro per passare da una configurazione all'altra."
+    },
+    "registry": {
+      "add": "Nuovo profilo",
+      "error_title": "Impossibile caricare i tuoi profili"
+    },
+    "errors": {
+      "load_failed": "Il modem non ha restituito i profili salvati. Riprova tra poco.",
+      "save_failed": "Impossibile salvare il profilo.",
+      "delete_failed": "Impossibile eliminare il profilo.",
+      "deactivate_failed": "Impossibile disattivare il profilo."
     }
   },
   "scenarios": {
     "page": {
       "title": "Scenari di connessione",
-      "description": "Gestisci e personalizza gli scenari di connessione per i tuoi profili cellulari per ottimizzare le prestazioni e l'affidabilità della rete."
+      "description": "Passa la radio tra le configurazioni di rete salvate."
     },
     "default_balanced_name": "Equilibrato",
     "default_balanced_description": "Selezione automatica della banda",
@@ -389,16 +402,15 @@
         "description": "Sei sicuro di voler eliminare \"{{name}}\"? Questa azione non può essere annullata.",
         "confirm": "Elimina",
         "deleting": "Eliminazione…"
-      }
+      },
+      "band_lock": "Blocco bande"
     },
     "add_button": {
-      "label": "Crea scenario",
-      "description": "Aggiungi configurazione personalizzata"
+      "label": "Nuovo scenario"
     },
     "active_config_card": {
       "configuration": "{{name}} Configurazione",
       "status": {
-        "applying": "Applicazione…",
         "active": "Attivo",
         "not_active": "Non attivo"
       },
@@ -416,8 +428,9 @@
         "nrsa_nsa": "5G SA/NSA",
         "bands_auto": "Automatico"
       },
-      "edit_aria": "Modifica le impostazioni dello scenario",
-      "activate": "Attiva"
+      "activate": "Attiva",
+      "edit": "Modifica",
+      "running_note": "Questo scenario è in esecuzione ora."
     },
     "add_dialog": {
       "title": "Nuovo scenario di connessione",
@@ -434,62 +447,54 @@
         "sa_bands_placeholder": "ad esempio, 41, 78",
         "nsa_bands_label": "Blocco cinturino NR5G-NSA",
         "nsa_bands_placeholder": "ad esempio, 41, 78",
-        "theme_label": "Tema della carta",
-        "preview_label": "Anteprima",
         "preview_placeholder": "Configurazione personalizzata"
       },
       "buttons": {
-        "create": "Crea scenario",
-        "creating": "Creazione…"
+        "create": "Crea scenario"
       },
       "toast": {
-        "success": "Scenario creato con successo.",
-        "error": "Impossibile creare lo scenario."
+        "success": "Scenario creato con successo."
       }
     },
     "edit_dialog": {
       "title": "Modifica configurazione",
       "fields": {
-        "name_label": "Nome dello scenario",
-        "name_placeholder": "Nome dello scenario",
-        "description_label": "Descrizione",
-        "description_placeholder": "Descrizione dello scenario",
-        "network_mode_label": "Modalità di rete",
-        "network_mode_aria": "Modalità di rete",
         "optimization_label": "Etichetta di ottimizzazione",
-        "optimization_placeholder": "ad esempio, Latenza, Velocità effettiva, Personalizzata",
-        "lte_bands_label": "LTE Blocco cinturino",
-        "lte_bands_placeholder": "ad esempio, 1, 3, 7, 28 (vuoto = Auto)",
-        "sa_bands_label": "Blocco cinturino NR5G-SA",
-        "sa_bands_placeholder": "ad esempio, 41, 78",
-        "nsa_bands_label": "Blocco cinturino NR5G-NSA",
-        "nsa_bands_placeholder": "ad esempio, 41, 78",
-        "theme_label": "Tema della carta",
-        "preview_label": "Anteprima",
-        "preview_placeholder": "Configurazione personalizzata"
+        "optimization_placeholder": "ad esempio, Latenza, Velocità effettiva, Personalizzata"
       },
       "buttons": {
-        "save": "Salva modifiche",
-        "saving": "Salvataggio…"
+        "save": "Salva modifiche"
       },
       "toast": {
-        "success": "Scenario aggiornato.",
-        "error": "Impossibile aggiornare lo scenario."
+        "success": "Scenario aggiornato."
       }
     },
     "activation_toast": {
-      "success": "Passato allo scenario {{name}}.",
-      "error": "Impossibile attivare lo scenario {{name}}."
+      "success": "Passato allo scenario {{name}}."
     },
     "deletion_toast": {
-      "success": "Scenario eliminato.",
-      "error": "Impossibile eliminare lo scenario."
+      "success": "Scenario eliminato."
     },
     "schedule_lock": {
       "badge": "Pianificato",
       "hint": "Disattiva la pianificazione del profilo per scegliere uno scenario manualmente.",
       "next_change": "Prossimo cambio alle {{time}}",
       "blocked_toast": "Lo scenario di connessione è gestito dalla pianificazione del profilo attivo. Disattivala per cambiarlo manualmente."
+    },
+    "list_card": {
+      "title": "Scenari",
+      "description": "Seleziona uno scenario per vederne la configurazione.",
+      "error_title": "Impossibile caricare i tuoi scenari"
+    },
+    "dialog": {
+      "description": "Lascia vuoto un campo banda per lasciare la scelta al modem.",
+      "name_required": "Dai un nome allo scenario."
+    },
+    "errors": {
+      "load_failed": "Il modem non ha restituito i tuoi scenari. Riprova tra poco.",
+      "activate_failed": "Impossibile attivare lo scenario.",
+      "save_failed": "Impossibile salvare lo scenario.",
+      "delete_failed": "Impossibile eliminare lo scenario."
     }
   },
   "sms": {

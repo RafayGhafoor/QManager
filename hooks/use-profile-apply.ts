@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { authFetch } from "@/lib/auth-fetch";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type { ProfileApplyState, ApplyStatus } from "@/types/sim-profile";
@@ -20,6 +20,9 @@ import type { ProfileApplyState, ApplyStatus } from "@/types/sim-profile";
 //   const { applyState, isApplying, applyProfile, reset } = useProfileApply();
 // =============================================================================
 
+/** Translate a `cellular` key outside React (the hook has no `t`). */
+const tr = (key: string) => i18next.t(key, { ns: "cellular" });
+
 const CGI_BASE = "/cgi-bin/quecmanager/profiles";
 const POLL_INTERVAL_MS = 500;
 
@@ -37,7 +40,6 @@ export interface UseProfileApplyReturn {
 }
 
 export function useProfileApply(): UseProfileApplyReturn {
-  const { t } = useTranslation("errors");
   const [applyState, setApplyState] = useState<ProfileApplyState | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,7 +101,7 @@ export function useProfileApply(): UseProfileApplyReturn {
           if (idleStartPollsRef.current >= MAX_IDLE_START_POLLS) {
             awaitingStartRef.current = false;
             idleStartPollsRef.current = 0;
-            setError("Apply did not start. Please try again.");
+            setError(tr("custom_profiles.apply_dialog.errors.not_started"));
             stopPolling();
           }
           return;
@@ -153,7 +155,7 @@ export function useProfileApply(): UseProfileApplyReturn {
         });
 
         if (!resp.ok) {
-          setError("Failed to start profile apply (HTTP error)");
+          setError(tr("custom_profiles.apply_dialog.errors.start_failed"));
           return;
         }
 
@@ -166,7 +168,14 @@ export function useProfileApply(): UseProfileApplyReturn {
             startPolling();
             return;
           }
-          setError(resolveErrorMessage(t, data.error, data.detail, "Failed to start apply"));
+          setError(
+            resolveErrorMessage(
+              i18next.t.bind(i18next),
+              data.error,
+              data.detail,
+              tr("custom_profiles.apply_dialog.errors.start_failed"),
+            ),
+          );
           return;
         }
 
@@ -174,15 +183,13 @@ export function useProfileApply(): UseProfileApplyReturn {
         // worker's first state write so a transient "idle" doesn't end the loop.
         awaitingStartRef.current = true;
         startPolling();
-      } catch (err) {
+      } catch {
         if (mountedRef.current) {
-          setError(
-            err instanceof Error ? err.message : "Failed to start profile apply"
-          );
+          setError(tr("custom_profiles.apply_dialog.errors.start_failed"));
         }
       }
     },
-    [startPolling, t]
+    [startPolling]
   );
 
   // ---------------------------------------------------------------------------
