@@ -8,10 +8,10 @@ Route: `/cellular/custom-profiles`. Stores named modem configuration bundles (AP
 |---|---|
 | Page route | `/cellular/custom-profiles` |
 | Coordinator | `components/cellular/custom-profiles/custom-profile.tsx` |
-| Left card (form) | `components/cellular/custom-profiles/profile-input.tsx` |
-| Right card (list) | `components/cellular/custom-profiles/profile-view.tsx` |
+| Editor view (form) | `components/cellular/custom-profiles/profile-input.tsx` |
+| Registry view (list) | `components/cellular/custom-profiles/profile-view.tsx` |
 | Empty state | `components/cellular/custom-profiles/empty-profile.tsx` |
-| Shared override banner | `components/cellular/custom-profiles/profile-override-alert.tsx` |
+| Apply dialog | `components/cellular/custom-profiles/apply-progress-dialog.tsx` |
 | List hook | `hooks/use-sim-profiles.ts` |
 | Apply hook | `hooks/use-profile-apply.ts` |
 | Settings hook | `hooks/use-current-settings.ts` |
@@ -26,20 +26,20 @@ Route: `/cellular/custom-profiles`. Stores named modem configuration bundles (AP
 | Pending re-apply marker | `/tmp/qmanager_profile_pending_apply` (ICCID + caller, tab-separated; latest-wins) |
 | SIM-switch quiesce flag | `/tmp/qmanager_sim_switch_active` (producer `cellular/settings.sh`, consumer `qmanager_poller`, mtime-bounded 60s) |
 
-## Page Layout — 2-Column Card Surface
+## Page Layout — One Card per View
 
-The feature is a single page at `/cellular/custom-profiles/` (`app/cellular/custom-profiles/page.tsx`). There are no sub-routes, no URL parameters, and no dialog-based editor. The URL never changes while creating or editing a profile.
+The feature is a single page at `/cellular/custom-profiles/` (`app/cellular/custom-profiles/page.tsx`). There are no sub-routes and no URL parameters; the URL never changes while creating or editing a profile.
 
-The coordinator (`custom-profile.tsx`) owns the shared data layer and renders two cards side-by-side in a responsive 2-column grid (`grid-cols-1 @3xl/main:grid-cols-2`):
+The coordinator (`custom-profile.tsx`) renders `CellularPageHeader` and then exactly one card at a time. It holds `view = { kind: "registry" } | { kind: "editor"; id: string | null }` (`id` null = new profile):
 
-- **Left card — `profile-input.tsx`** — the Add/Edit form.
-- **Right card — `profile-view.tsx`** — the Saved Profiles list.
+- **Registry — `profile-view.tsx`** — the Saved Profiles card. A **New profile** button in its header opens the editor with `id: null`; **Edit** in a row's menu opens it with that row's id.
+- **Editor — `profile-input.tsx`** — the Add/Edit form. It receives `onDone` (after a successful save) and `onCancel`, both of which return to the registry.
 
-The coordinator instantiates one `useSimProfiles()` and one `useCurrentSettings(true)` and passes them to both cards. A single `editingId: string | null` state is the Edit hand-off: when the user clicks Edit on a row in the right card, `setEditingId(id)` flips the left card into edit mode.
+The registry stays mounted (wrapped in `hidden`) while the editor is open, so returning to it never re-runs its detail prefetch and skeleton. The editor is keyed by `id ?? "new"` and fades in with the `quick` motion token.
 
-The page header (`h1` + muted description) is i18n-wired via `custom_profiles.page.title` and `custom_profiles.page.description`. Both cards are now fully internationalized: `profile-input.tsx`, `profile-view.tsx`, and `empty-profile.tsx` are all wired to the `cellular` namespace `custom_profiles.*` tree. 292 `custom_profiles.*` keys exist across en/id/it/zh-CN with full parity.
+The coordinator instantiates one `useSimProfiles()` and one `useCurrentSettings(true)` and passes them to both views. `currentSettings.settings?.iccid` drives the registry's SIM-mismatch chip and the editor's Load from SIM. The header is wired to `custom_profiles.page.title` / `custom_profiles.page.description`. There is no `ProfileOverrideAlert` (`profile-override-alert.tsx` and the `scenario-binding/` folder were deleted); the override gates elsewhere use `Banner role="override"`.
 
-## Left Card — Add / Edit Profile (`profile-input.tsx`)
+## Editor — Add / Edit Profile (`profile-input.tsx`)
 
 The card title flips between "Add Profile" (when `editingId` is null) and "Edit Profile" (when `editingId` is set). All form state is controlled React — no library form state.
 
@@ -54,9 +54,11 @@ The form body is a shadcn `Tabs` with four tabs, all freely clickable:
 | `scenario` | Default Scenario, optional schedule with up to 2 daily windows |
 | `review` | Live read-only summary across all tabs |
 
-Submit and Cancel buttons sit below the tabs, always visible.
+The editor commits from `CardFoot` (Card-Foot Apply Rule), not from buttons under the tabs. Status on the left: the duplicate-ICCID error, else "Unsaved changes". Actions on the right: Cancel (ghost, calls `onCancel`), then **Next** (`tonal-neutral`) on the first three tabs or the `SaveButton` on Review (wired with `form={formId}` so Enter still submits; blocked while the ICCID is a duplicate).
 
-> ⚠️ INVARIANT: The footer button morphs between "Next" (`type="button"`, advances the tab) and the Submit button (`type="submit"`) depending on whether the Review tab is active. These two `<Button>`s **must carry distinct `key`s** (`profile-next` / `profile-submit`). Without them React reconciles by position, reuses the same `<button>` DOM node, and mutates `type` in place; because React 18 flushes the "Next" click synchronously, the node becomes `type="submit"` *before* the browser performs the click's default action — silently submitting (saving) the profile on every Next→Review step. Do not remove the keys.
+**Validation is inline.** Required-field errors appear on the fields after a submit attempt, and the editor jumps to the first tab holding an invalid field. There are no validation toasts. The duplicate-ICCID collision shows as soon as it exists. The schedule on/off control is a `SegmentedField`.
+
+> ⚠️ INVARIANT: The footer button morphs between "Next" (`type="button"`, advances the tab) and the Submit button (`type="submit"`) depending on whether the Review tab is active. These two buttons (the `tonal-neutral` Next and the Review `SaveButton`) **must carry distinct `key`s** (`profile-next` / `profile-submit`). Without them React reconciles by position, reuses the same `<button>` DOM node, and mutates `type` in place; because React 18 flushes the "Next" click synchronously, the node becomes `type="submit"` *before* the browser performs the click's default action — silently submitting (saving) the profile on every Next→Review step. Do not remove the keys.
 
 ### MNO Presets and Verizon Guard
 
@@ -84,7 +86,7 @@ This is a frontend-only feature: the form still emits the standard flat `apn_nam
 
 This is the third APN pre-fill source alongside MNO presets (`constants/mno-presets.ts`) and Load from SIM (`currentSettings.refresh()`).
 
-**i18n keys** (all four locales: en, id, it, zh-CN):
+**i18n keys** (all five locales: en, id, it, zh-CN, zh-TW):
 
 | Key | Purpose |
 |---|---|
@@ -94,7 +96,7 @@ This is the third APN pre-fill source alongside MNO presets (`constants/mno-pres
 
 ### Edit-Mode Prefill
 
-When `editingId` is set, a `useEffect` calls `sim.getProfile(editingId)` (which hits `get.sh`) and populates all form fields. The PDP type maps through `PDP_FROM_BACKEND` on load and `PDP_TO_BACKEND` on submit — the UI tokens are `ipv4/ipv6/ipv4v6`; the backend tokens are `IP/IPV6/IPV4V6`.
+When `editingId` is set, a `useEffect` calls `sim.getProfile(editingId)` (which hits `get.sh`) and populates all form fields (`getProfile` no longer writes the hook's `error`; that channel is the list read only). The PDP type maps through `PDP_FROM_BACKEND` on load and `PDP_TO_BACKEND` on submit — the UI tokens are `ipv4/ipv6/ipv4v6`; the backend tokens are `IP/IPV6/IPV4V6`.
 
 ### Schedule Windows
 
@@ -124,15 +126,17 @@ The Scenario tab supports up to **2** daily schedule windows (hard cap: `MAX_WIN
 
 `stripScenarioKeys(form.scenario)` strips the `_key` client-only fields before POST. See [scenario-profile-binding.md](scenario-profile-binding.md) for the full `_key` invariant.
 
-## Right Card — Saved Profiles (`profile-view.tsx`)
+## Registry — Saved Profiles (`profile-view.tsx`)
 
-Renders the `ProfileSummary[]` from `useSimProfiles()`. Profiles are sorted so the active one always leads.
+Renders the `ProfileSummary[]` from `useSimProfiles()`. Profiles are sorted so the active one always leads. Each row shows: name + MNO `Tag`, the scenario line, the config readout, a translated status chip (active / SIM mismatch / inactive), and a mismatch note when the SIM differs. States: skeleton (summary fetch plus detail prefetch), an error state (`ConditionScreen` with retry when the list read fails; `sim.error` is the list-read error only), and an empty state with a New profile action (`empty-profile.tsx`).
 
-### Pills Require Per-Row `get.sh` — Critical Invariant
+**Hook contract (`hooks/use-sim-profiles.ts`).** `createProfile` resolves `{ ok: true; id } | { ok: false; error }`; `updateProfile` and `deleteProfile` resolve `{ ok, error }`; `deactivateProfile` resolves `{ ok: true; requiresReboot } | { ok: false; error }`. `error` is already translated (`resolveErrorMessage`) and handlers toast the returned reason.
 
-`list.sh` returns summaries only — `ProfileSummary` has no `settings` field (no APN name, CID, PDP type, TTL, HL, IMEI). Each `ProfileRow` lazy-loads the full `SimProfile` via `sim.getProfile(id)` (which hits `get.sh`) to populate its config pills. A `PillsSkeleton` renders in the gap while the fetch is in flight. The fetch re-runs when `summary.updated_at` changes, so an edit immediately refreshes the pill display.
+### Config Readout Requires `get.sh` Detail — Critical Invariant
 
-Config pills shown: `APN <name>`, `CID <n>`, `<PDP type>`, `TTL <n>` (omitted when 0), `HL <n>` (omitted when 0), `IMEI override` (info tone, shown when non-empty), `MPDN locked` (info tone, shown when MNO is Verizon).
+`list.sh` returns summaries only — `ProfileSummary` has no `settings` field (no APN name, CID, PDP type, TTL, HL, IMEI). The registry prefetches the full `SimProfile` of every row via `sim.getProfile(id)` (which hits `get.sh`) in one `Promise.all` and holds a single skeleton until summaries and details have hydrated (`detailsHydrated` only ever turns true, so later refreshes after create, edit, delete or activate happen in the background without a second shimmer).
+
+Config readout: neutral `Tag`s for `APN <name>` (the name in mono), `CID <n>`, `<PDP type>`, `TTL <n>` (omitted when 0) and `HL <n>` (omitted when 0); Fact-Is-Info `info` `Badge`s with their own glyphs, shown only when they apply: `IMEI override` (`fingerprint`, when the IMEI is non-empty) and `MPDN locked` (`alt_route`, when the MNO is Verizon).
 
 ### SIM Mismatch Is Client-Side — Critical Invariant
 
@@ -140,24 +144,20 @@ Status for each row is derived at render time via `deriveStatus(isActive, profil
 
 ### Activate / Deactivate
 
-**Activate** calls `handleActivate(id)`, which sets `applyOpen = true` then calls `useProfileApply().applyProfile(id)`. Opening the dialog first means the user sees the progress surface immediately rather than a button spinner hanging until the first poll lands. The `ApplyProgressDialog` (`components/cellular/custom-profiles/apply-progress-dialog.tsx`) — the Sequenced Pipeline Dialog — is the apply surface: status hero (glyph + determinate fill) on top, per-step ledger beneath. The dialog only allows close at a terminal state (`complete`, `partial`, `failed`).
+**Activate** calls `handleActivate(id)`, which sets `applyOpen = true` then calls `useProfileApply().applyProfile(id)`. Opening the dialog first means the user sees the progress surface immediately rather than a button spinner hanging until the first poll lands. The `ApplyProgressDialog` (`components/cellular/custom-profiles/apply-progress-dialog.tsx`) — the Sequenced Pipeline Dialog — is the apply surface: a hero disc on the role's strong fill with a determinate step-count bar on top (it counts real steps, matching the Config Restore dialog), per-step ledger beneath. The dialog closes only at a terminal state (`complete`, `partial`, `failed`). The reboot notice says the change takes effect after a reboot from the banner; the dialog never reboots.
 
 On dialog close (`handleApplyClose`):
 - Reads `applyState.status` and `applyState.requires_reboot` BEFORE calling `reset()` (reset clears the state).
 - If `complete` or `partial` → `refresh()`. If `requires_reboot` is true → `setPendingReboot("imei")`.
-- If `failed` → the dialog showed the error inline; no toast.
+- Then ONE toast fires for the outcome: `complete` → "activated" (`view.toast.activated`), `partial` → "activated with skips" (`view.toast.activated_partial`), `failed` → the error (`applyError`, falling back to `view.toast.activate_error`). The dialog also shows the failure inline.
 
-While the apply is in flight (not terminal) and `applyState.profile_id` matches the row, the Activate button shows a `Loader2Icon` spinner as a secondary affordance — the dialog is the primary signal. Deactivate and Delete still use `sonner` toasts.
+While the apply is in flight (not terminal) and `applyState.profile_id` matches the row, the Activate button shows a `progress_activity` spinner as a secondary affordance — the dialog is the primary signal. Deactivate and Delete use `sonner` toasts from the returned result.
 
 **Deactivate** calls `sim.deactivateProfile()`. On success → `toast.success`. If `requiresReboot` is true (Verizon MPDN revert) → `setPendingReboot("verizon_revert")`. The deferred-reboot banner (`usePendingReboot`) picks up both sources. Deactivation also resets the Connection Scenario to Balanced (`mode_pref` → `AUTO`) — the radio is no longer left locked to the deactivated profile's network mode. See [`docs/features/scenario-profile-binding.md`](scenario-profile-binding.md) — "Teardown at Every Clear Site" for the full reset path. On the **non-Verizon path**, deactivation also calls `reapply_active_apn_slot` from `apn_mgr.sh` to restore the APN-Management active slot. If `active != 0` and the slot has a non-empty APN, a COPS detach/attach cycle is run to reapply it. If `active == 0` (the user previously chose carrier-default by disabling all APN profiles), `reapply_active_apn_slot` is a no-op — the carrier default is preserved and not overridden. The Verizon path skips this step because a pending reboot is already set; the poller's boot APN reconcile restores the active slot after reboot. See [`docs/features/apn-management.md`](apn-management.md) for the full slot-resolution contract.
 
 **Delete** → `AlertDialog` confirm → `sim.deleteProfile(id)` → `toast.success/error`.
 
-**Edit** → calls `onEdit(id)` (coordinator's `setEditingId`), which flips the left card into edit mode. There is no dialog; the URL does not change.
-
-## `profile-override-alert.tsx` — Shared Banner (Not Part of the Registry)
-
-`components/cellular/custom-profiles/profile-override-alert.tsx` is a standalone presentational component consumed by `apn-management/apn-settings.tsx` and other override gates to show the "Managed by Custom SIM Profile" warning banner. It is not part of the Custom SIM Profiles registry UI. Do not delete it when refactoring the profiles page.
+**Edit** → calls `onEdit(id)`, which sets the coordinator's `view` to `{ kind: "editor", id }`. There is no dialog; the URL does not change.
 
 ## Apply Pipeline
 
@@ -275,7 +275,7 @@ The installer now guards against this: `install_file()` compares `wc -c` of sour
 
 ## i18n Status
 
-All components are fully internationalized. `custom-profile.tsx`, `profile-input.tsx`, `profile-view.tsx`, `apply-progress-dialog.tsx`, and `empty-profile.tsx` are all wired to the `cellular` namespace. 292 `custom_profiles.*` keys exist across en/id/it/zh-CN with full parity. Key subtrees added in the most recent pass: `custom_profiles.view.*`, `custom_profiles.form.*` (including `form.review.*`, `form.verizon_inline.*`, `form.pdp_inline.*`, and `form.fields.reuse_apn_{label,placeholder,custom}`), `custom_profiles.apply_dialog.*`, `custom_profiles.pills.*`, and `custom_profiles.card.*`.
+All components are fully internationalized. `custom-profile.tsx`, `profile-input.tsx`, `profile-view.tsx`, `apply-progress-dialog.tsx`, and `empty-profile.tsx` are all wired to the `cellular` namespace. `custom_profiles.*` keys exist in all five locales (en, id, it, zh-CN, zh-TW). Key subtrees added in the most recent pass: `custom_profiles.view.*`, `custom_profiles.form.*` (including `form.review.*`, `form.verizon_inline.*`, `form.pdp_inline.*`, and `form.fields.reuse_apn_{label,placeholder,custom}`), `custom_profiles.apply_dialog.*`, `custom_profiles.pills.*`, and `custom_profiles.card.*`.
 
 ## Poller Quiesce During a SIM Switch — `/tmp/qmanager_sim_switch_active`
 

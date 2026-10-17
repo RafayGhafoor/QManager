@@ -26,7 +26,7 @@ NR-DC bands are **fully lockable** via the same apply path as LTE/NSA/SA. On-dev
 | Reboot on lock? | No |
 | Types | `types/band-locking.ts`, `types/modem-status.ts` |
 | Hook | `hooks/use-band-locking.ts` |
-| Component | `components/cellular/band-locking/band-locking.tsx` + `band-cards.tsx` |
+| Component | `components/cellular/band-locking/band-locking.tsx` (coordinator) + `band-status-card.tsx` + `band-grid-card.tsx` + `shapes.ts` |
 | Backend scripts | `scripts/www/cgi-bin/quecmanager/bands/` |
 | Parse lib | `scripts/usr/lib/qmanager/parse_at.sh` — `parse_policy_band` |
 | Failover daemon | `scripts/usr/bin/qmanager_band_failover` |
@@ -95,36 +95,50 @@ line=$(printf '%s\n' "$result" | grep '+QNWPREFCFG:.*"lte_band"' | head -1)
 
 ## Universe vs. Marker vs. Locked: Three Band Layers
 
-The Band Locking page works with three distinct band sets. Confusing any two of them causes subtle bugs (failover resets to the wrong set, or the UI shows an incorrect checkbox universe).
+The Band Locking page works with three distinct band sets. Confusing any two of them causes subtle bugs (failover resets to the wrong set, or the UI shows an incorrect chip universe).
 
 | Layer | Source | AT command / file | When queried | `status.json` fields | UI role |
 |---|---|---|---|---|---|
-| **HW universe** | `/etc/qmanager/supported_bands_hw.env` (spec sheet) | — (no AT command; static file) | Sourced at poller boot | `device.hw_lte_bands`, `device.hw_nsa_nr5g_bands`, `device.hw_sa_nr5g_bands` | Checkbox universe — all bands the modem hardware can use |
-| **Policy marker** | `AT+QNWPREFCFG="policy_band"` | On boot + SIM swap | `/tmp/qmanager_supported_bands.env` cache → `device.supported_*_bands` | `device.supported_{lte,nsa_nr5g,sa_nr5g,nrdc_nr5g}_bands` | Subset of the HW universe the current SIM/network actually uses — coloring only |
+| **HW universe** | `/etc/qmanager/supported_bands_hw.env` (spec sheet) | — (no AT command; static file) | Sourced at poller boot | `device.hw_lte_bands`, `device.hw_nsa_nr5g_bands`, `device.hw_sa_nr5g_bands` | Chip universe — all bands the modem hardware can use |
+| **Policy marker** | `AT+QNWPREFCFG="policy_band"` | On boot + SIM swap | `/tmp/qmanager_supported_bands.env` cache → `device.supported_*_bands` | `device.supported_{lte,nsa_nr5g,sa_nr5g,nrdc_nr5g}_bands` | Subset of the HW universe the current SIM/network actually uses — grouping only |
 | **Currently locked** | per-category registers via `current.sh` | On demand (`current.sh`) | Not cached — always live | (not emitted in status.json) | What the modem is restricted to right now |
 
 **Why three layers exist:** `policy_band` was the original universe source but it can narrow when a SIM or firmware limits the advertised set. The static HW spec file ensures the UI always shows the full physical capability — bands the modem can use even if the current SIM doesn't announce them. The policy set then serves as a visual marker only.
 
 **Why `hw_*` does NOT feed failover.** `qmanager_band_failover` resets to the `supported_*` (policy_band) set — the set the modem has confirmed it can register on with the current SIM. Resetting to the full HW universe could include bands the SIM never activates, leaving the modem unable to re-register. `hw_*` is additive/display-only; it never enters the write path.
 
-**Boot fallback.** If `/etc/qmanager/supported_bands_hw.env` is missing (pre-upgrade device that hasn't re-run install), the poller falls back to the `boot_supported_*` (policy_band) values for all three HW fields. The page degrades to the old single-layer behavior: every band checkbox uses the policy set as its universe, and no yellow bands appear. The fallback is self-healing — it resolves on the next `install.sh` run.
+**Boot fallback.** If `/etc/qmanager/supported_bands_hw.env` is missing (pre-upgrade device that hasn't re-run install), the poller falls back to the `boot_supported_*` (policy_band) values for all three HW fields. The page degrades to the old single-layer behavior: every band chip uses the policy set as its universe, and no "Not used by your network" group appears. The fallback is self-healing — it resolves on the next `install.sh` run.
 
-**NR-DC has no dedicated HW field.** `device.supported_nrdc_nr5g_bands` is still sourced from `policy_band` only. The NR-DC card borrows `hw_sa_nr5g_bands` as its checkbox universe (NR-DC bands are NR bands ⊆ the SA set), falling back to `supported_nrdc_nr5g_bands` on pre-upgrade devices.
+**NR-DC has no dedicated HW field.** `device.supported_nrdc_nr5g_bands` is still sourced from `policy_band` only. The NR-DC card borrows `hw_sa_nr5g_bands` as its chip universe (NR-DC bands are NR bands ⊆ the SA set), falling back to `supported_nrdc_nr5g_bands` on pre-upgrade devices.
 
-### UI Two-Tone Coloring
+### UI Band Chips and Policy Grouping
 
 `band-locking.tsx` derives two props per lockable card:
 
-- `supportedBands` — set to `hwBands` (from `device.hw_*`, falling back to `device.supported_*` when absent). This is the checkbox universe.
-- `policyBands` — set to the `device.supported_*` value for that category. Used **only** for coloring.
+- `supportedBands` — set to `hwBands` (from `device.hw_*`, falling back to `device.supported_*` when absent). This is the chip universe.
+- `policyBands` — set to the `device.supported_*` value for that category. Used **only** for grouping.
 
-Inside `band-cards.tsx`, a band checkbox renders in **primary** (Signal Indigo) when it is in `policyBands` ("network/SIM uses this band") and in **warning/yellow** when it is in `supportedBands` but not `policyBands` ("modem supports it, network/SIM doesn't use it"). A two-swatch legend (`cell_locking.band_locking.legend.used` / `cell_locking.band_locking.legend.unused`) is shown only when a card has at least one yellow band.
+Band chips are not checkboxes. Two facts ride two channels (`shapes.ts`): **fill** = selected in the local draft, **inset ring** = configured on the modem now (from `current.sh`). A pending add (fill, no ring) and a pending removal (ring, no fill) are therefore visible before Apply.
 
-**Critical:** `onUnlockAll`, the "all unlocked" detection, and the count badge in the card header (`X / Y locked`) all measure against the full `supportedBands` universe — NOT the `policyBands` set. "Unlock all" (the reset button) locks the entire hardware-spec universe for that category, not just the policy-confirmed bands.
+Bands in `policyBands` render first. Bands in `supportedBands` but not `policyBands` are no longer tinted yellow (a warning tone is a verdict, and "unused here" is not a fault); they render as a second labelled group "Not used by your network" (`legend.unused_group`) with a `HintIcon` (`legend.unused_hint`) explaining that locking only to those can leave the user without service. The group shows only when at least one such band exists.
 
-> ⚠️ WARNING: The modem may reject locking bands that lie outside its current policy set. A Reset that includes yellow (modem-supported-but-policy-unused) bands can therefore fail at the modem. This is an accepted tradeoff — the user can see every band they chose to lock rather than having policy silently shrink the display.
+**Critical:** `onUnlockAll`, the "all unlocked" detection and the `X of Y` ratios all measure against the full `supportedBands` universe, NOT the `policyBands` set. "Unlock all" writes the entire hardware-spec universe for that category, not just the policy-confirmed bands.
 
-**NR-DC card:** `band-locking.tsx` sets `supportedBands` for NR-DC to `hwBands.sa_nr5g` (NR-DC bands are NR bands ⊆ the SA set), falling back to `policyBands.nrdc_nr5g` on pre-upgrade devices. Its `policyBands` prop is `device.supported_nrdc_nr5g_bands` — bands in the policy set render in primary; bands in the SA HW universe but not the NR-DC policy set render in yellow. The legend appears when any yellow band is present. The card uses the same footer controls (Lock, Unlock all, Select all, Deselect all) as LTE/NSA/SA.
+> ⚠️ WARNING: The modem may reject locking bands that lie outside its current policy set. An Unlock all that includes policy-unused bands can therefore fail at the modem. This is an accepted tradeoff — the user can see every band they chose to lock rather than having policy silently shrink the display.
+
+**NR-DC card:** `band-locking.tsx` sets `supportedBands` for NR-DC to `hwBands.sa_nr5g`, falling back to `policyBands.nrdc_nr5g` on pre-upgrade devices. Its `policyBands` prop is `device.supported_nrdc_nr5g_bands`; bands in the SA HW universe but not the NR-DC policy set land in the "Not used by your network" group. The card has the same footer controls as LTE/NSA/SA.
+
+### Page Layout and Hook Contract
+
+Top to bottom: `CellularPageHeader` with a Refresh button; a read-failure `ConditionScreen` (retry gated exactly like Refresh); the scenario-override `Banner role="override"` while a non-Balanced scenario owns the bands (cards are gated); `BandStatusCard`; then the LTE and NSA cards and the shared SA / NR-DC slot card (`BandGridCard`).
+
+**Status card.** On-air carrier tiles, a per-category lock-posture rail (each row scrolls to its card and, for SA / NR-DC, switches the slot), and the failover row: a `SegmentedField` Off/On plus a filled status chip (disabled / ready / checking / fallback active). A failed read freezes the cards in an "unavailable" posture rather than showing "0 of N".
+
+**Hook (`hooks/use-band-locking.ts`).**
+- `lockBands`, `unlockAll` and `toggleFailover` return `BandActionResult = { ok: true } | { ok: false; error: string }`; `error` is already resolved through `resolveErrorMessage`. Every mutation toasts the **returned** reason. A per-card write failure also shows in that card's `CardFoot` status (the coordinator scopes it by category).
+- `readError` is a separate channel for the `current.sh` read; a write that succeeded never lands there.
+- `refresh()` returns `Promise<boolean>` and sets `isRefreshing`; it never sets the skeleton `isLoading`. A refresh failure toasts (`toast.refresh_error`) since it belongs to no card.
+- `FailoverState.watcher_running` is optional (only `failover_status.sh` reports it). Refresh is blocked while any write or the failover watcher runs (`current.sh` takes the AT lock, and the watcher reads a failed check as "no carrier").
 
 ### Static HW Spec File
 
@@ -138,13 +152,13 @@ Inside `band-cards.tsx`, a band checkbox renders in **primary** (Signal Indigo) 
 
 ## Policy-Band Re-Read on SIM Swap
 
-`policy_band` was previously queried only at poller boot and cached for the poller's lifetime. A SIM swap can narrow or widen the policy set (different SIMs may expose different band subsets). To keep the yellow/primary UI split accurate after a swap, `cellular/settings.sh` drops the flag `/tmp/qmanager_refresh_policy_band` after a successful SIM swap.
+`policy_band` was previously queried only at poller boot and cached for the poller's lifetime. A SIM swap can narrow or widen the policy set (different SIMs may expose different band subsets). To keep the policy grouping accurate after a swap, `cellular/settings.sh` drops the flag `/tmp/qmanager_refresh_policy_band` after a successful SIM swap.
 
 The poller's `poll_cycle` checks for this flag after the `LONG_FLAG` early-return block. When present, it consumes the flag (`rm -f`) and calls the new `refresh_policy_band()` helper, which re-queries `AT+QNWPREFCFG="policy_band"`, re-parses, and rewrites `/tmp/qmanager_supported_bands.env` and the relevant `device.supported_*` fields in the next `status.json` write.
 
 **The HW universe is NOT re-read on SIM swap.** `/etc/qmanager/supported_bands_hw.env` is hardware-spec, not SIM-dependent; sourcing it again would be redundant and waste an AT round-trip.
 
-**Why the re-read is harmless even when redundant.** `policy_band` reflects modem hardware capabilities and is hardware-fixed in most deployments. The re-read typically returns the same set. The invariant noted in the previous version of this doc — "never changes at runtime" — holds for normal use, but the re-read is cheap insurance for edge cases (SIM firmware/carrier provisioning that narrows the advertised set) and ensures the yellow/primary split is always fresh after a swap.
+**Why the re-read is harmless even when redundant.** `policy_band` reflects modem hardware capabilities and is hardware-fixed in most deployments. The re-read typically returns the same set. The invariant noted in the previous version of this doc — "never changes at runtime" — holds for normal use, but the re-read is cheap insurance for edge cases (SIM firmware/carrier provisioning that narrows the advertised set) and ensures the grouping is always fresh after a swap.
 
 **Flag placement in `poll_cycle`.** The flag is consumed after the `LONG_FLAG` early-return on purpose: a long-running cell scan short-circuits `poll_cycle` before reaching the flag check. The flag survives until the next normal cycle, guaranteeing it is eventually processed without interrupting a scan.
 
@@ -179,7 +193,7 @@ boot_supported_sa_nr5g_bands="..."
 boot_supported_nrdc_nr5g_bands="..."
 ```
 
-**Stale-cache tolerance (pre-NR-DC):** A cache written before NR-DC support was added will lack the fourth line. Its absence means the NR-DC card checkbox universe falls back to an empty set until the next cold boot clears `/tmp` and the poller rewrites the full cache. Self-healing.
+**Stale-cache tolerance (pre-NR-DC):** A cache written before NR-DC support was added will lack the fourth line. Its absence means the NR-DC card chip universe falls back to an empty set until the next cold boot clears `/tmp` and the poller rewrites the full cache. Self-healing.
 
 **Cache rewrite on SIM swap:** Since `refresh_policy_band()` rewrites the same cache file, the env cache now reflects the current SIM's policy set rather than only the boot-time set. The `hw_*` binds are emitted from the in-memory variables sourced at boot; they are not re-read from disk on swap.
 
@@ -187,18 +201,18 @@ boot_supported_nrdc_nr5g_bands="..."
 
 ## SA ⇄ NR-DC Swap UX
 
-The Band Locking page uses three cards. LTE and NSA NR5G are fixed. The third slot is shared between SA NR5G and NR-DC; only one is visible at a time.
+The Band Locking page uses three category cards (below the status card). LTE and NSA NR5G are fixed. The third slot is shared between SA NR5G and NR-DC; only one is visible at a time.
 
 **How it works:**
 
 - `BandLockingComponent` holds a `saSlotView` state (`"sa_nr5g" | "nrdc_nr5g"`), initialized to `"sa_nr5g"`.
-- The third `BandCardsComponent` receives `key={saSlotView}`. Changing `saSlotView` remounts the card completely.
-- An `ArrowLeftRight` button in the card header calls `onSwapView()` which toggles `saSlotView` to the other value.
+- The third `BandGridCard` is rendered with `key={category}` (the visible slot category). Changing `saSlotView` remounts the card completely.
+- A swap button in the card header calls `onSwapView()` which toggles `saSlotView` to the other value; a status-card rail row for SA or NR-DC also sets it.
 - The swap button label and tooltip show the *target* mode (what you will switch to), not the current mode.
 
-**Why remount rather than re-render:** Remounting resets checkbox state from the new mode's locked band list, rather than showing the previous mode's checked bands in the new category's checkbox grid. It also replays the card's entrance animation, giving a clear "mode changed" cue without any additional animation logic.
+**Why remount rather than re-render:** Remounting resets the draft selection from the new mode's locked band list, rather than showing the previous mode's selected bands in the new category's chip grid. It also replays the card's entrance animation, giving a clear "mode changed" cue without any additional animation logic.
 
-**Behavioral note:** Swapping does not send any AT command. It only changes which category is displayed and which band set is loaded. For both SA and NR-DC, the user presses Save to apply changes. NR-DC uses identical card controls to SA — Lock, Unlock all, Select all, Deselect all. The `readOnly` prop and "View only" badge branch have been removed from `band-cards.tsx` as dead code (the `card_badges.view_only` i18n key is retained but currently unused).
+**Behavioral note:** Swapping does not send any AT command. It only changes which category is displayed and which band set is loaded. For both SA and NR-DC, the user presses Save to apply changes. NR-DC uses identical card controls to SA — Lock, Unlock all, Select all, Deselect all. The old `readOnly` / "View only" branch left with `band-cards.tsx`, and the `card_badges.view_only` key no longer exists.
 
 ---
 
@@ -268,12 +282,12 @@ Do not change any of these guards to permit sending an empty or `,0` band list.
 
 When failover is enabled, `lock.sh` spawns `qmanager_band_failover` (double-forked, detached) after each successful lock. The watcher:
 
-1. Sleeps 5 seconds to let the modem settle after the band change.
+1. Sleeps 5 seconds (the failover tooltip says "about 5 seconds") to let the modem settle after the band change.
 2. Queries `AT+QCAINFO`. If any `+QCAINFO:` line is present, signal is OK and the watcher exits.
 3. If no carrier data is returned, it reads the LTE/NSA/SA/NR-DC supported band sets from `status.json` (falling back to the env cache) and resets each category to its full supported set. NR-DC is reset via `AT+QNWPREFCFG="nrdc_nr5g_band",${all_nrdc}` using `.device.supported_nrdc_nr5g_bands` (env fallback: `boot_supported_nrdc_nr5g_bands`).
 4. Writes the `/tmp/qmanager_band_failover` flag: `"activated"` on full success, `"partial"` if any category's reset AT command failed.
 
-The UI reads `failover_status.sh` to surface the `activated` flag as a banner.
+The UI reads `failover_status.sh` to surface the `activated` flag as the status chip's "Fallback active" state, and `watcher_running` as "Checking".
 
 **Lock supersedes failover:** On a new lock, `lock.sh` removes the `/tmp/qmanager_band_failover` activation flag and kills any running watcher before spawning a fresh one. The most recent lock is always the one being monitored.
 
@@ -281,19 +295,24 @@ The UI reads `failover_status.sh` to surface the `activated` flag as a banner.
 
 ## i18n
 
-All four locales (`public/locales/{en,id,it,zh-CN}/cellular.json`) carry these band-locking keys:
+All five locales (`public/locales/{en,id,it,zh-CN,zh-TW}/cellular.json`) carry the band-locking keys under `cell_locking.band_locking.*`:
 
 | Key path | Purpose |
 |---|---|
-| `cell_locking.band_locking.cards.nrdc_nr5g.title` | Card title ("NR-DC Bands") |
-| `cell_locking.band_locking.cards.nrdc_nr5g.description` | Card description |
-| `cell_locking.band_locking.card_category_label.nrdc_nr5g` | Swap button label (shows target mode) |
-| `cell_locking.band_locking.card_buttons.swap_view` | Swap button tooltip template (`"Switch to {{target}}"`) |
-| `cell_locking.band_locking.card_badges.view_only` | "View only" badge — key retained in all locales but currently unused (NR-DC is now lockable) |
-| `cell_locking.band_locking.legend.used` | Legend swatch label — bands the network/SIM uses (primary color) |
-| `cell_locking.band_locking.legend.unused` | Legend swatch label — "Supported by modem" (warning/yellow). Previously included "· not used by network"; that clause was removed in all four locales to keep the label concise. |
+| `page.title` / `page.description` | Page header |
+| `actions.refresh`, `refreshing`, `refresh_blocked_watcher` | Refresh button, live-region text, blocked-while-watcher reason |
+| `read_error_title`, `errors.{read_failed,no_bands,no_supported,lock_failed,failover_failed}` | Read-failure screen and returned write reasons |
+| `scenario_gate_title`, `scenario_gate_note` | Scenario-override banner |
+| `settings_card.*` | Failover row: label, tooltip (about 5 s), `status.{disabled,ready,fallback,monitoring}`, `toast.{failover_enabled,failover_disabled}` |
+| `cards.<category>.{title,description}` | Per-category card copy (incl. `nrdc_nr5g`) |
+| `card_category_label.<category>`, `card_buttons.{lock_selected,select_all,deselect_all,unlock_all,swap_view}` | Swap target label and footer buttons |
+| `card_badges.*`, `card_empty`, `card.{empty_title,unavailable_note,pending_one,pending_other}` | Ratios, posture chips, empty and unavailable states, unsaved-change count |
+| `toast.{locked_success,unlocked_success,refresh_error}` | Confirmations |
+| `legend.{selected,live,unused_group,unused_hint_label,unused_hint}` | Chip key and the "Not used by your network" group |
+| `a11y.{band_live,band_selected,band_unselected}` | Chip accessible names |
+| `status.*` | Status card: on-air tiles, lock-posture rail, subtitles |
 
-The legend row renders only when a card has at least one yellow band (i.e., when `hw_*` is populated and differs from the policy set). On a pre-upgrade device where `hw_*` is absent, the legend is hidden and all bands render in the primary color as before.
+The "Not used by your network" group renders only when a card has at least one band outside the policy set (i.e., when `hw_*` is populated and differs from the policy set). On a pre-upgrade device where `hw_*` is absent, no group appears.
 
 ---
 
