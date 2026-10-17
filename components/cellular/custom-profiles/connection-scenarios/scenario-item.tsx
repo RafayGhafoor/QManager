@@ -20,8 +20,9 @@ import type { ScenarioConfig } from "@/types/connection-scenario";
 // and a band-lock marker when the scenario pins bands). Selecting a tile only
 // shows its configuration in the Selected-scenario card; activation is the
 // explicit commit there. The selected tile is promoted one container step to
-// `primary-container` (Highlight-by-Container) and its disc to the strong
-// `primary` fill; the running scenario carries a filled `success` chip.
+// `primary-container` (Highlight-by-Container); every disc sits on the strong
+// `primary` fill (Glyph-Disc Rule). The running scenario carries a filled
+// `success` chip.
 //
 // The persisted `gradient` field is passed through untouched by the page and
 // never read here.
@@ -80,12 +81,7 @@ export const ScenarioItem = ({
         <div className="flex items-start justify-between gap-2">
           <span
             aria-hidden="true"
-            className={cn(
-              "grid size-10 flex-none place-items-center rounded-pill",
-              isSelected
-                ? "bg-primary text-primary-foreground"
-                : "bg-surface-container-high text-on-surface-variant",
-            )}
+            className="grid size-10 flex-none place-items-center rounded-pill bg-primary text-primary-foreground"
           >
             <MaterialSymbol name={scenario.glyph} size={20} filled />
           </span>
