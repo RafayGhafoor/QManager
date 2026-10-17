@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { cn } from "@/lib/utils";
+import { motion } from "motion/react";
+import { transitionStandard } from "@/lib/motion";
 
 import type {
   ProfileApplyState,
@@ -75,21 +77,20 @@ function isTraversed(status: ApplyStepStatus): boolean {
   return status === "done" || status === "skipped";
 }
 
-/** Hero disc: filled role container with its own ink. */
+/** Hero disc: the role's STRONG fill (Glyph-Disc Rule). `info` is the brand. */
 const TONE_DISC: Record<Tone, string> = {
-  info: "bg-info-container text-on-info-container",
-  success: "bg-success-container text-on-success-container",
-  warning: "bg-warning-container text-on-warning-container",
-  destructive: "bg-destructive-container text-on-destructive-container",
+  info: "bg-primary text-primary-foreground",
+  success: "bg-success text-success-foreground",
+  warning: "bg-warning text-warning-foreground",
+  destructive: "bg-destructive text-destructive-foreground",
 };
 
-/** One step dot. */
-const DOT: Record<ApplyStepStatus, string> = {
-  done: "bg-primary",
-  running: "bg-primary motion-safe:animate-pulse",
-  pending: "bg-surface-container-high",
-  failed: "bg-destructive",
-  skipped: "bg-on-surface-variant/40",
+/** The progress fill, in the same role as the hero. */
+const TONE_FILL: Record<Tone, string> = {
+  info: "bg-primary",
+  success: "bg-success",
+  warning: "bg-warning",
+  destructive: "bg-destructive",
 };
 
 /** The large hero glyph for the current overall state. Each state its own glyph. */
@@ -98,7 +99,7 @@ function HeroGlyph({ tone, status }: { tone: Tone; status: string }) {
     status === "complete"
       ? "check_circle"
       : status === "partial"
-        ? "do_not_disturb_on"
+        ? "warning"
         : status === "failed"
           ? "cancel"
           : "progress_activity";
@@ -247,7 +248,10 @@ export function ApplyProgressDialog({
             )}
           </div>
 
-          {/* Step dots: one per step, no determinate bar. */}
+          {/* Determinate fill: steps traversed over total, transform-only
+              (scaleX). Kept over the Loader-and-Dots Rule for the same reason
+              as the Config Restore pipeline (U4.11.6): it counts real steps,
+              not elapsed time. */}
           {dotCount > 0 && (
             <div
               role="img"
@@ -258,22 +262,14 @@ export function ApplyProgressDialog({
                 ),
                 total: dotCount,
               })}
-              className="flex items-center justify-center gap-1.5"
+              className="relative h-1.5 w-full overflow-hidden rounded-pill bg-surface-container-high"
             >
-              {Array.from({ length: dotCount }, (_, idx) => {
-                const st = steps[idx]
-                  ? effectiveStatus(steps[idx].status, applyState?.status)
-                  : "pending";
-                return (
-                  <span
-                    key={idx}
-                    className={cn(
-                      "size-2 rounded-pill transition-colors duration-[var(--duration-standard)] ease-standard motion-reduce:transition-none",
-                      DOT[st],
-                    )}
-                  />
-                );
-              })}
+              <motion.div
+                className={cn("h-full w-full origin-left rounded-pill", TONE_FILL[tone])}
+                initial={false}
+                animate={{ scaleX: Math.min(doneCount / dotCount, 1) }}
+                transition={transitionStandard}
+              />
             </div>
           )}
         </div>
