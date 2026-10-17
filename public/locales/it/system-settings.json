@@ -879,7 +879,7 @@
       "bin": {
         "atd": "Binario del broker AT qmanager_atd",
         "qcmd": "qcmd punta a qmanager_atd",
-        "sms_tool": "Binario sms_tool",
+        "qsms": "qsms punta a qmanager_atd",
         "jq": "jq",
         "curl": "curl",
         "openssl": "openssl",

@@ -4,30 +4,27 @@
 # sms.sh — CGI Endpoint: SMS Center (GET + POST), storage-aware
 # =============================================================================
 # GET:  Returns all received SMS messages (merged across ME + SM storage) and
-#       combined storage status via sms_tool.
+#       combined storage status via qsms.
 # POST: Sends, deletes individual (storage-aware), or deletes all SMS messages.
 #
-# STORAGE ROUTING (the load-bearing fix):
+# STORAGE ROUTING:
 #   The modem routes incoming SMS by CPMS mem3. On the RM551E it defaults to
-#   mem3=SM (SIM), so new messages land in SIM storage while sms_tool reads
-#   ME (modem) by default — the inbox shows empty while real messages sit on
-#   the SIM. We:
-#     1. Self-heal routing on every GET via AT+CPMS="ME","ME","ME" so mem3=ME
-#        (255 slots) catches future incoming.
-#     2. Read BOTH ME and SM, tag each message with its storage, and merge so
-#        the historical SIM messages surface and stay individually deletable.
-#     3. A boot-time daemon (qmanager_sms_storage) re-asserts the same routing
-#        even if the SMS page is never opened.
-#   NOTE: the `-s <storage>` read flips mem1; we re-assert ME at the end of GET
-#   so a bare `sms_tool recv` elsewhere keeps reading ME.
+#   mem3=SM (SIM), so new messages would land in SIM storage. qsms (the SMS
+#   client of the qmanager_atd broker) selects each storage per operation and
+#   ALWAYS restores AT+CPMS="ME","ME","ME" afterwards, so every GET/POST also
+#   re-asserts ME routing. We read BOTH ME and SM, tag each message with its
+#   storage, and merge so historical SIM messages stay visible and
+#   individually deletable. qmanager_sms_storage sets the same routing at boot.
 #
-# External tool (bundled; hard-wired to /dev/smd11):
-#   sms_tool -d /dev/smd11 [-s ME|SM] recv -j   -> JSON: {"msg":[...]}
-#   sms_tool -d /dev/smd11 send <phone> <msg>   -> Send an SMS
-#   sms_tool -d /dev/smd11 [-s ME|SM] delete <index> -> Delete one message
-#   sms_tool -d /dev/smd11 delete all           -> Delete all (ME) messages
-#   sms_tool -d /dev/smd11 [-s ME|SM] status    -> Storage status (plain text)
-#   sms_tool -d /dev/smd11 at '<AT command>'    -> Raw AT passthrough
+# Transport (/usr/bin/qsms -> qmanager_atd; one JSON line on stdout, rc 0/1):
+#   qsms list all                 -> {"success":true,"msg":[{index,storage,...}]}
+#   qsms status all               -> {"success":true,"storages":[{storage,used,total}]}
+#   qsms send <phone> <msg>       -> {"success":true,"parts":N,"refs":[...]}
+#   qsms delete <ME|SM> <i,j,..>  -> {"success":..,"deleted":[..],"failed":[..]}
+#   qsms delete <ME|SM> all       -> {"success":..,"deleted":N,"remaining":0}
+#   Failure: {"success":false,"error":<code>[,"detail":...]}
+#   The broker takes /var/lock/qmanager.lock itself: never wrap qsms in flock
+#   on that lock (the broker would wait on us until modem_busy).
 #
 # POST body: { "action": "send"|"delete"|"delete_all", ... }
 #   action=send:       { "action":"send", "phone":"...", "message":"..." }
@@ -43,72 +40,35 @@ qlog_init "cgi_sms"
 cgi_headers
 cgi_handle_options
 
-# --- Shared AT lock ----------------------------------------------------------
-# Shared with qcmd (the AT broker) so sms_tool calls serialize against every
-# other process touching /dev/smd11. Without this, an inbox fetch can collide
-# with a concurrent qcmd call from the poller/watchcat and either block on the
-# char device or return interleaved data.
-_SMS_LOCK_FILE="/var/lock/qmanager.lock"
-_SMS_LOCK_WAIT=10
-# Lock-timeout exit code. 99 is clear of sms_tool's own 0/1/2 (a real send
-# failure exits 2), exec failures 126/127 and signal codes 128+N, so a busy
-# lock is never reported as a send failure (or an empty inbox).
-_SMS_LOCK_TIMEOUT_RC=99
-
-# BusyBox-compatible flock with timeout (polling loop).
-# Usage: _sms_flock_wait <fd> <timeout_seconds>
-_sms_flock_wait() {
-    _fd="$1"
-    _wait="$2"
-    _elapsed=0
-    while [ "$_elapsed" -lt "$_wait" ]; do
-        if flock -x -n "$_fd" 2>/dev/null; then
-            return 0
-        fi
-        sleep 1
-        _elapsed=$((_elapsed + 1))
-    done
-    flock -x -n "$_fd" 2>/dev/null
+# --- qsms wrapper ------------------------------------------------------------
+# stdout is the JSON envelope (also on failure); stderr is dropped.
+_sms_q() {
+    /usr/bin/qsms "$@" 2>/dev/null
 }
 
-# --- sms_tool wrapper --------------------------------------------------------
-# Always talks to /dev/smd11. Wrapped in the shared /var/lock/qmanager.lock so
-# every call serializes against qcmd (the AT broker).
-#
-# sms_tool writes harmless tcgetattr/tcsetattr diagnostics to stderr because
-# /dev/smd11 is a char device, not a real TTY. We MUST NOT merge stderr into
-# stdout with 2>&1, because when the JSON payload is larger than the stdout
-# block buffer (~4 KB), partial flushes interleave the cleanup error line
-# INTO the middle of the JSON stream. Line-based filtering then sees the
-# JSON bytes glued onto `...Inappropriate ioctl for device` and drops the
-# whole chunk (see sms_alerts.sh for the same fix).
-#
-# Instead: capture stderr to a temp file and stdout into a variable. On
-# success return pure stdout (JSON is intact). On failure return stderr
-# with the known noise lines stripped so the UI sees a meaningful message.
-_sms_run() {
-    [ -e "$_SMS_LOCK_FILE" ] || : > "$_SMS_LOCK_FILE" 2>/dev/null
-    _sms_err="/tmp/qmanager_sms_err.$$"
+# Echo the envelope's error code ("" when absent / not JSON).
+_sms_err_code() {
+    printf '%s' "$1" | jq -r 'if .error == null then empty else .error end' 2>/dev/null
+}
 
-    (
-        _sms_flock_wait 9 "$_SMS_LOCK_WAIT" || exit "$_SMS_LOCK_TIMEOUT_RC"
-        _sms_out=$(sms_tool -d /dev/smd11 "$@" 2>"$_sms_err")
-        _sms_rc=$?
+# Echo a human detail for a failed envelope: detail, else the code, else $2.
+_sms_err_detail() {
+    _d=$(printf '%s' "$1" | jq -r 'if .detail != null then (.detail | tostring) elif .error != null then (.error | tostring) else empty end' 2>/dev/null)
+    [ -n "$_d" ] || _d="$2"
+    printf '%s' "$_d"
+}
 
-        if [ "$_sms_rc" -eq 0 ]; then
-            printf '%s' "$_sms_out"
-        else
-            _sms_err_clean=$(grep -v -e '^tcgetattr(' -e '^tcsetattr(' -e 'Inappropriate ioctl for device$' < "$_sms_err" 2>/dev/null)
-            if [ -n "$_sms_err_clean" ]; then
-                printf '%s' "$_sms_err_clean"
-            else
-                printf '%s' "$_sms_out"
-            fi
-        fi
+# True when a failure means "another AT user holds the modem". Reported as
+# modem_busy, exactly like the old lock timeout.
+_sms_is_busy() {
+    case "$1" in
+        modem_busy|scan_in_progress) return 0 ;;
+    esac
+    return 1
+}
 
-        rm -f "$_sms_err"
-        exit "$_sms_rc"
-    ) 9<"$_SMS_LOCK_FILE"
+_sms_busy_reply() {
+    jq -n '{"success":false,"error":"modem_busy","detail":"Could not acquire AT lock"}'
 }
 
 # =============================================================================
@@ -117,47 +77,28 @@ _sms_run() {
 if [ "$REQUEST_METHOD" = "GET" ]; then
     qlog_info "Fetching SMS inbox and status (ME + SM)"
 
-    # 0. Self-heal incoming routing: force CPMS mem1/mem2/mem3 = ME so future
-    #    incoming SMS land in modem (ME) storage instead of the SIM (SM).
-    #    Single-quote the AT string so the inner double quotes reach sms_tool.
-    #    Output is ignored on purpose — this is best-effort routing.
-    _sms_run at 'AT+CPMS="ME","ME","ME"' >/dev/null 2>&1
-
-    # Helper-free inline read: pull {"msg":[...]} for one storage and tag each
-    # message with its storage. Falls back to [] on any parse failure.
-    # 1a. Read ME storage.
-    #     A lock timeout here means the whole endpoint is stuck behind another
-    #     AT user: report modem_busy rather than an empty inbox.
-    me_json=$(_sms_run -s ME recv -j)
-    if [ $? -eq "$_SMS_LOCK_TIMEOUT_RC" ]; then
-        qlog_error "SMS recv: could not acquire AT lock"
-        jq -n '{"success":false,"error":"modem_busy","detail":"Could not acquire AT lock"}'
+    # 1. Read ME + SM in one broker operation. Each message already carries
+    #    its storage. An unusable SIM store is reported in .storage_errors and
+    #    does not hide ME.
+    list_json=$(_sms_q list all)
+    list_rc=$?
+    if [ "$list_rc" -ne 0 ]; then
+        code=$(_sms_err_code "$list_json")
+        if _sms_is_busy "$code"; then
+            qlog_error "SMS list: modem busy ($code)"
+            _sms_busy_reply
+            exit 0
+        fi
+        detail=$(_sms_err_detail "$list_json" "qsms list failed (rc=$list_rc)")
+        qlog_error "SMS list failed: $detail"
+        jq -n --arg error "${code:-command_failed}" --arg detail "$detail" \
+            '{"success":false,"error":$error,"detail":$detail}'
         exit 0
     fi
-    if [ -n "$me_json" ]; then
-        me_msgs=$(printf '%s' "$me_json" | jq 'if .msg == null then [] else .msg end' 2>/dev/null)
-        [ -z "$me_msgs" ] && me_msgs="[]"
-    else
-        me_msgs="[]"
-    fi
-    printf '%s' "$me_msgs" | jq empty 2>/dev/null || me_msgs="[]"
-    me_msgs=$(printf '%s' "$me_msgs" | jq 'map(. + {storage:"ME"})' 2>/dev/null)
-    [ -z "$me_msgs" ] && me_msgs="[]"
+    list_errs=$(printf '%s' "$list_json" | jq -c 'if .storage_errors == null then empty else .storage_errors end' 2>/dev/null)
+    [ -n "$list_errs" ] && qlog_warn "SMS list storage errors: $list_errs"
 
-    # 1b. Read SM (SIM) storage — this is where the historical messages sit.
-    sm_json=$(_sms_run -s SM recv -j)
-    if [ -n "$sm_json" ]; then
-        sm_msgs=$(printf '%s' "$sm_json" | jq 'if .msg == null then [] else .msg end' 2>/dev/null)
-        [ -z "$sm_msgs" ] && sm_msgs="[]"
-    else
-        sm_msgs="[]"
-    fi
-    printf '%s' "$sm_msgs" | jq empty 2>/dev/null || sm_msgs="[]"
-    sm_msgs=$(printf '%s' "$sm_msgs" | jq 'map(. + {storage:"SM"})' 2>/dev/null)
-    [ -z "$sm_msgs" ] && sm_msgs="[]"
-
-    # 1c. Concatenate the two tagged arrays into one raw pool.
-    raw_msgs=$(printf '%s\n%s' "$me_msgs" "$sm_msgs" | jq -s 'add' 2>/dev/null)
+    raw_msgs=$(printf '%s' "$list_json" | jq -c 'if .msg == null then [] else .msg end' 2>/dev/null)
     [ -z "$raw_msgs" ] && raw_msgs="[]"
     printf '%s' "$raw_msgs" | jq empty 2>/dev/null || raw_msgs="[]"
 
@@ -167,9 +108,9 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     #    - Each output object carries its storage so delete can target the
     #      right memory (ME vs SM).
     #    - Singles (no "reference") pass through, also carrying storage.
-    #    Ordered newest-first by timestamp (indexes are now per-storage, so a
-    #    raw index sort would interleave the two pools incorrectly).
-    #    sms_tool emits "MM/DD/YY HH:MM:SS" (zero-padded, fixed width). A plain
+    #    Ordered newest-first by timestamp (indexes are per-storage, so a raw
+    #    index sort would interleave the two pools incorrectly).
+    #    qsms emits "MM/DD/YY HH:MM:SS" (zero-padded, fixed width). A plain
     #    string sort of that key mis-orders across month/year boundaries
     #    (12/31/25 would sort AFTER 01/01/26). Reorder the fixed-width slices
     #    into a sortable "YYMMDD HH:MM:SS" key before sorting, then reverse for
@@ -195,29 +136,21 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     [ -z "$messages" ] && messages="[]"
     printf '%s' "$messages" | jq empty 2>/dev/null || messages="[]"
 
-    # 3. Combined storage status: sum used and total across ME + SM.
-    # sms_tool status prints "Storage type: ME, used: 0, total: 255" (word
-    # format, NOT N/M). Match the "used:"/"total:" tokens directly.
-    me_status_raw=$(_sms_run -s ME status)
-    me_used=$(printf '%s' "$me_status_raw" | grep -o 'used: [0-9]*' | grep -o '[0-9]*')
-    me_total=$(printf '%s' "$me_status_raw" | grep -o 'total: [0-9]*' | grep -o '[0-9]*')
-    [ -z "$me_used" ] && me_used=0
-    [ -z "$me_total" ] && me_total=0
+    # 3. Combined storage status: sum used and total across ME + SM. If the
+    #    combined query fails (e.g. no usable SIM store), fall back to ME
+    #    alone so the inbox still renders (SM counts as 0/0, as before).
+    if status_json=$(_sms_q status all); then
+        storage_used=$(printf '%s' "$status_json" | jq '[.storages[]?.used // 0] | add // 0' 2>/dev/null)
+        storage_total=$(printf '%s' "$status_json" | jq '[.storages[]?.total // 0] | add // 0' 2>/dev/null)
+    else
+        status_json=$(_sms_q status ME)
+        storage_used=$(printf '%s' "$status_json" | jq '.used // 0' 2>/dev/null)
+        storage_total=$(printf '%s' "$status_json" | jq '.total // 0' 2>/dev/null)
+    fi
+    case "$storage_used" in ''|*[!0-9]*) storage_used=0 ;; esac
+    case "$storage_total" in ''|*[!0-9]*) storage_total=0 ;; esac
 
-    sm_status_raw=$(_sms_run -s SM status)
-    sm_used=$(printf '%s' "$sm_status_raw" | grep -o 'used: [0-9]*' | grep -o '[0-9]*')
-    sm_total=$(printf '%s' "$sm_status_raw" | grep -o 'total: [0-9]*' | grep -o '[0-9]*')
-    [ -z "$sm_used" ] && sm_used=0
-    [ -z "$sm_total" ] && sm_total=0
-
-    storage_used=$((me_used + sm_used))
-    storage_total=$((me_total + sm_total))
-
-    # 4. Re-assert ME routing: the `-s SM` read above flipped mem1 to SM, so a
-    #    bare `sms_tool recv` (e.g. from sms_alerts) would otherwise read SM.
-    _sms_run at 'AT+CPMS="ME","ME","ME"' >/dev/null 2>&1
-
-    # 5. Build JSON response.
+    # 4. Build JSON response.
     jq -n \
         --argjson messages "$messages" \
         --argjson used "$storage_used" \
@@ -266,18 +199,19 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         PHONE=$(printf '%s' "$RAW_PHONE" | sed 's/^+//')
 
         qlog_info "Sending SMS to $PHONE (raw: $RAW_PHONE)"
-        result=$(_sms_run send "$PHONE" "$MESSAGE")
+        result=$(_sms_q send "$PHONE" "$MESSAGE")
         rc=$?
 
-        if [ $rc -eq "$_SMS_LOCK_TIMEOUT_RC" ]; then
-            qlog_error "SMS send: could not acquire AT lock"
-            jq -n '{"success":false,"error":"modem_busy","detail":"Could not acquire AT lock"}'
-            exit 0
-        fi
-
         if [ $rc -ne 0 ]; then
-            qlog_error "sms_tool send failed (rc=$rc): $result"
-            jq -n --arg detail "$result" \
+            code=$(_sms_err_code "$result")
+            if _sms_is_busy "$code"; then
+                qlog_error "SMS send: modem busy ($code)"
+                _sms_busy_reply
+                exit 0
+            fi
+            detail=$(_sms_err_detail "$result" "qsms send failed (rc=$rc)")
+            qlog_error "SMS send failed (${code:-rc=$rc}): $detail"
+            jq -n --arg detail "$detail" \
                 '{"success":false,"error":"send_failed","detail":$detail}'
             exit 0
         fi
@@ -289,7 +223,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
     # --- action: delete ------------------------------------------------------
     # Accepts "indexes": [n, ...] — deletes all storage slots for a (possibly
-    # merged multi-part) message.
+    # merged multi-part) message, in one qsms call.
     if [ "$ACTION" = "delete" ]; then
         INDEXES_JSON=$(printf '%s' "$POST_DATA" | jq -c 'if .indexes == null then empty else .indexes end' 2>/dev/null)
 
@@ -300,7 +234,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
         # Storage target: which memory the indexes live in. Defaults to ME and
         # is constrained to exactly ME or SM so it can never inject other args
-        # into the sms_tool call.
+        # into the qsms call.
         STORAGE=$(printf '%s' "$POST_DATA" | jq -r 'if .storage == null then "ME" else .storage end' 2>/dev/null)
         case "$STORAGE" in
             ME|SM) : ;;
@@ -308,23 +242,47 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         esac
 
         qlog_info "Deleting SMS indexes from $STORAGE: $INDEXES_JSON"
+        # Only plain non-negative integers reach qsms; anything else counts as
+        # one failed delete.
         fail_count=0
-        idx_tmp="/tmp/qmanager_sms_idx.tmp"
-        printf '%s' "$INDEXES_JSON" | jq -r '.[]' > "$idx_tmp"
-        while read -r idx; do
-            result=$(_sms_run -s "$STORAGE" delete "$idx")
+        idx_list=""
+        idx_count=0
+        # No globbing while splitting the jq output (an index of "*" must
+        # stay a literal invalid index, not expand to file names).
+        set -f
+        for idx in $(printf '%s' "$INDEXES_JSON" | jq -r '.[]?' 2>/dev/null); do
+            case "$idx" in
+                *[!0-9]*)
+                    qlog_warn "Skipping invalid SMS index: $idx"
+                    fail_count=$((fail_count + 1))
+                    ;;
+                *)
+                    idx_list="${idx_list:+$idx_list,}$idx"
+                    idx_count=$((idx_count + 1))
+                    ;;
+            esac
+        done
+        set +f
+
+        if [ -n "$idx_list" ]; then
+            result=$(_sms_q delete "$STORAGE" "$idx_list")
             rc=$?
             if [ $rc -ne 0 ]; then
-                qlog_warn "Failed to delete index $idx from $STORAGE: $result"
-                fail_count=$((fail_count + 1))
+                code=$(_sms_err_code "$result")
+                if _sms_is_busy "$code"; then
+                    qlog_error "SMS delete: modem busy ($code)"
+                    _sms_busy_reply
+                    exit 0
+                fi
+                # Per-index failures are listed in .failed; anything else
+                # (transport error) means every requested index failed.
+                failed=$(printf '%s' "$result" | jq -r 'if (.failed | type) == "array" then (.failed | length) else empty end' 2>/dev/null)
+                case "$failed" in
+                    ''|*[!0-9]*) failed=$idx_count ;;
+                esac
+                qlog_warn "SMS delete from $STORAGE: $failed index(es) failed: $(_sms_err_detail "$result" "rc=$rc")"
+                fail_count=$((fail_count + failed))
             fi
-        done < "$idx_tmp"
-        rm -f "$idx_tmp"
-
-        # A `-s SM` delete leaves modem mem1=SM; re-assert ME so a bare `recv`
-        # elsewhere (e.g. sms_alerts) keeps reading modem storage.
-        if [ "$STORAGE" = "SM" ]; then
-            _sms_run at 'AT+CPMS="ME","ME","ME"' >/dev/null 2>&1
         fi
 
         if [ "$fail_count" -gt 0 ]; then
@@ -339,25 +297,27 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
     fi
 
     # --- action: delete_all --------------------------------------------------
+    # qsms clears every index the store reports (not just 0..49).
     if [ "$ACTION" = "delete_all" ]; then
         qlog_info "Deleting all SMS messages (ME + SM)"
 
-        me_result=$(_sms_run delete all)
+        me_result=$(_sms_q delete ME all)
         me_rc=$?
-        sm_result=$(_sms_run -s SM delete all)
+        sm_result=$(_sms_q delete SM all)
         sm_rc=$?
 
         if [ $me_rc -ne 0 ] || [ $sm_rc -ne 0 ]; then
-            qlog_error "sms_tool delete all failed (me_rc=$me_rc sm_rc=$sm_rc): ME='$me_result' SM='$sm_result'"
+            me_detail="ok"
+            sm_detail="ok"
+            [ $me_rc -ne 0 ] && me_detail=$(_sms_err_detail "$me_result" "rc=$me_rc")
+            [ $sm_rc -ne 0 ] && sm_detail=$(_sms_err_detail "$sm_result" "rc=$sm_rc")
+            qlog_error "SMS delete all failed (me_rc=$me_rc sm_rc=$sm_rc): ME='$me_detail' SM='$sm_detail'"
             jq -n \
-                --arg me_detail "$me_result" \
-                --arg sm_detail "$sm_result" \
+                --arg me_detail "$me_detail" \
+                --arg sm_detail "$sm_detail" \
                 '{"success":false,"error":"delete_all_failed","detail":("ME: " + $me_detail + " | SM: " + $sm_detail)}'
             exit 0
         fi
-
-        # Re-assert ME routing: the `-s SM` call flipped mem1 to SM.
-        _sms_run at 'AT+CPMS="ME","ME","ME"' >/dev/null 2>&1
 
         qlog_info "All SMS messages deleted (ME + SM)"
         cgi_success

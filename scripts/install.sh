@@ -21,7 +21,7 @@
 #   scripts/                    Backend shell tree
 #     etc/init.d/               Init.d service scripts
 #     etc/qmanager/             Default config files
-#     usr/bin/                  Daemons and utilities (qmanager_*, qcmd, ...)
+#     usr/bin/                  Daemons and utilities (qmanager_*, qcmd, qsms, ...)
 #     usr/lib/qmanager/         Shared shell libraries
 #     www/cgi-bin/quecmanager/  CGI API endpoints
 #   dependencies/               Bundled binaries (sms_tool, qmanager_atd)
@@ -1064,7 +1064,7 @@ seed_uci_defaults() {
 
     uci commit quecmanager 2>/dev/null || warn "uci commit quecmanager failed"
 
-    # Point /usr/bin/qcmd at qmanager_atd (atomic symlink swap). Must run after
+    # Point /usr/bin/qcmd + /usr/bin/qsms at qmanager_atd (atomic symlink swap). Must run after
     # install_backend + install_bundled_binaries.
     if [ -f "$LIB_DIR/at_engine.sh" ]; then
         . "$LIB_DIR/at_engine.sh"
@@ -1073,8 +1073,13 @@ seed_uci_defaults() {
         else
             warn "Could not repoint $BIN_DIR/qcmd — AT commands may be unavailable"
         fi
+        if at_qsms_link; then
+            info "qsms -> $(readlink "$BIN_DIR/qsms" 2>/dev/null)"
+        else
+            warn "Could not link $BIN_DIR/qsms — SMS may be unavailable"
+        fi
     else
-        warn "at_engine.sh missing — /usr/bin/qcmd not repointed"
+        warn "at_engine.sh missing — /usr/bin/qcmd and /usr/bin/qsms not linked"
     fi
 }
 

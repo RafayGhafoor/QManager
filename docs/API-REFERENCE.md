@@ -507,7 +507,7 @@ Start speed test, check results, and check if speedtest binary is available.
 
 ### GET/POST `/cellular/sms.sh`
 
-SMS inbox and send functionality. Backed by `sms_tool -d /dev/smd11`, serialized against `qcmd` (the AT broker) via the shared `/var/lock/qmanager.lock`. The `-d /dev/smd11` flag is belt-and-suspenders: the patched binary already defaults to `/dev/smd11` and guards termios calls via `isatty()`. See [`docs/features/sms.md`](features/sms.md) for binary patch details and the shared-lock contract.
+SMS inbox and send functionality. Backed by `qsms` (`/usr/bin/qsms`, a symlink to the `qmanager_atd` AT broker), which takes `/var/lock/qmanager.lock` itself for each operation. GET is one `qsms list all` plus `qsms status all`; a busy modem returns `{"success":false,"error":"modem_busy","detail":"Could not acquire AT lock"}` and any other list failure returns `{"success":false,"error":"<code or command_failed>","detail":"..."}`. See [`docs/features/sms.md`](features/sms.md) for the `qsms` contract and the broker-owned-lock rule.
 
 **GET Response:**
 ```json
@@ -539,17 +539,21 @@ Multi-part messages (same sender + reference) are merged into a single entry; `i
 }
 ```
 
-Phone-number handling: the endpoint strips a leading `+` before calling `sms_tool` and does nothing else. There is no IMSI lookup, no MCC-to-country-code table, and no local-number rewriting — users are responsible for providing the full international number (with or without a leading `+`).
+Phone-number handling: the endpoint strips a leading `+` before calling `qsms send` and does nothing else. Send failures return `send_failed` with the `qsms` detail; a busy modem returns `modem_busy`. There is no IMSI lookup, no MCC-to-country-code table, and no local-number rewriting — users are responsible for providing the full international number (with or without a leading `+`).
 
 **POST (delete one or more storage slots):**
 ```json
 { "action": "delete", "indexes": [0, 1] }
 ```
 
+Indexes are validated as plain non-negative integers and sent in one `qsms delete <storage> i,j,k` call (optional `storage`: `ME` default or `SM`). Failures return `partial_failure`; a busy modem returns `modem_busy`.
+
 **POST (delete everything):**
 ```json
 { "action": "delete_all" }
 ```
+
+Clears ME then SM. Failure returns `delete_all_failed` with details formatted `ME: ... | SM: ...`.
 
 ### GET/POST `/cellular/sms_forwarding.sh`
 
@@ -568,7 +572,7 @@ Manages the SMS forwarding daemon (settings + failure state). See [`docs/feature
     {
       "sender": "+14155550100",
       "timestamp": "06/07/26 14:33:11",
-      "last_error": "sms_tool send failed (rc=1)"
+      "last_error": "send_failed: +CMS ERROR: 500"
     }
   ],
   "failure_count": 1
@@ -1077,7 +1081,7 @@ Unified endpoint for the centralized Alerts page — replaces the four retired e
 }
 ```
 Validation notes:
-- `recipient_phone` accepts E.164 with or without a leading `+`; the CGI strips a leading `+` exactly once before writing `sms_alerts.json` — **storage and GET responses always return raw digits**. The send path passes the value verbatim to `sms_tool`.
+- `recipient_phone` accepts E.164 with or without a leading `+`; the CGI strips a leading `+` exactly once before writing `sms_alerts.json` — **storage and GET responses always return raw digits**. The send path passes the value verbatim to `qsms send`.
 - `threshold_minutes` is **one value shared by both channels** (the single alert wait, UCI `quality_thresholds.alert_after_min`). GET reports that wait as each channel's `threshold_minutes`. On POST, a channel that omits it keeps the current wait; if both are posted, the last one that differs from the current wait wins. Range is `1..60`. The CGI writes the UCI key (creating the section if absent) and mirrors the value into both channel files. See [`docs/features/alerts.md`](features/alerts.md#one-alert-wait-for-every-channel).
 - `app_password` is only sent when the user typed a new one; an empty/omitted value preserves the currently-stored password.
 - `routing.events.connection_lost.email` is **always clamped to `false` server-side** regardless of what is posted — email cannot deliver while the internet is down. This is the capability layer, not a routing preference; see the feature doc.
@@ -1087,7 +1091,7 @@ Validation notes:
 ```json
 { "action": "send_test", "channel": "sms" }
 ```
-`channel` is `"sms"` or `"email"`. Requires that channel be `enabled` (not just filled in). SMS failures return `"error":"send_failed"` with detail `"sms_tool send failed — check logread for details"`; full context is logged via `qlog_error`.
+`channel` is `"sms"` or `"email"`. Requires that channel be `enabled` (not just filled in). SMS failures return `"error":"send_failed"` with detail `"SMS send failed — check logread for details"`; full context is logged via `qlog_error`.
 
 **POST (mailer lifecycle):**
 ```json

@@ -5,8 +5,8 @@
 //
 // Backend endpoint: GET/POST /cgi-bin/quecmanager/cellular/sms.sh
 //
-// Note: The SmsMessage shape matches the JSON output of `sms_tool -j recv`.
-// Verify field names against actual device output and adjust if needed.
+// Note: sms.sh builds SmsMessage from `qsms list all` (the qmanager_atd SMS
+// client), merging multi-part messages per storage.
 // =============================================================================
 
 /** A single (possibly merged multi-part) SMS message */

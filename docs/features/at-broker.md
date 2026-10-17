@@ -83,7 +83,8 @@ there is a single behaviour, not two:
      client takes the reply instead. Long commands do not watch.
 2. **`flock` on `/var/lock/qmanager.lock`.** This uses the same 100 ms grain
    and the same 5 s (short) / 10 s (long) budgets as the original shell `qcmd`. It is also why
-   `sms_tool`, which opens `/dev/smd11` directly under this lock, keeps working.
+   the legacy `sms_tool`, which opens `/dev/smd11` directly under this lock,
+   still works beside the broker (no QManager caller uses it any more).
    - The broker serves one request at a time, so waiting in its accept queue
      *is* waiting for the modem. Each request carries its send time
      (`CLOCK_MONOTONIC`), and the queue time is taken off the lock budget: a
@@ -145,14 +146,28 @@ and `install.sh` stops the daemon before replacing it, so the format has no
 cross-version compatibility path; an old client against a new daemon is
 refused, not executed.
 
-## SMS in the broker (`qsms`) — added, callers not migrated yet
+## SMS in the broker (`qsms`)
 
-Since 2026-10-16 the broker also speaks SMS natively, so eventually only the
-broker opens `/dev/smd11`. **Nothing calls it yet:** `cellular/sms.sh`,
-`qmanager_sms_forward`, `sms_alerts.sh`, `sms_forwarding.sh`,
-`qmanager_sms_storage` and `qmanager_health_check` still use `sms_tool`, which
-keeps working beside the broker (it opens smd11 itself under the same lock).
-`install.sh` does not create the `qsms` link yet.
+Since 2026-10-16 the broker also speaks SMS natively, so only the broker
+opens `/dev/smd11`. **Every SMS caller uses `qsms`** (phase 3):
+`cellular/sms.sh`, `qmanager_sms_forward`, `sms_alerts.sh`,
+`sms_forwarding.sh`, `qmanager_sms_storage` (`qsms status ME`, then
+`qcmd 'AT+CPMS="ME","ME","ME"'`) and `qmanager_health_check` (`bin.qsms` link
+check). `install.sh` links `/usr/bin/qsms` with `at_qsms_link`. `sms_tool` is
+still shipped but nothing calls it; phase 4 removes it. Caller contracts are
+in [`sms.md`](sms.md), [`sms-forwarding.md`](sms-forwarding.md) and
+[`alerts.md`](alerts.md).
+
+- **Callers never take the modem lock around `qsms`.** The broker takes
+  `/var/lock/qmanager.lock` itself; a caller already holding it would make the
+  broker wait until `modem_busy`. Callers also no longer re-assert
+  `AT+CPMS="ME","ME","ME"` (qsms restores it after every op) or filter
+  `tcgetattr` noise.
+- **Live check after the migration (2026-10-16):** the inbox GET is
+  byte-identical before and after (sorted JSON hash, 64 merged messages,
+  105/290 used); only `qmanager_atd` held `/dev/smd11` during three GETs; the
+  forwarder's seen-set from old and new code is identical (64/64), so nothing
+  re-forwards. No live send or delete was run.
 
 - **Client:** `/usr/bin/qsms` → `qmanager_atd` (argv[0] `qsms` is always a
   client, whatever its arguments, since message text may be `-d`). Commands:
@@ -253,11 +268,13 @@ covered by fake-modem tests only (86 crate tests).
     256 KB / 2-file rotation.
   - Static musl only honours `$TZ`, so the broker loads OpenWrt's `/etc/TZ`
     itself; without that, its lines would be stamped UTC.
-- **`/usr/bin/qcmd` is never written through.**
-  - `at_qcmd_link` uses a temp symlink plus `rename(2)`, never `ln -sf`,
-    which would leave a moment with no `qcmd` at all. It is idempotent, so
-    re-asserting it at every broker start is harmless.
-  - `cleanup_legacy_scripts` skips `qmanager_atd` and `qcmd` explicitly.
+- **`/usr/bin/qcmd` and `/usr/bin/qsms` are never written through.**
+  - `at_qcmd_link` / `at_qsms_link` share `_ate_link_to <link> <target>`: a
+    temp symlink (`/usr/bin/.qcmd.<pid>`, `.qsms.<pid>`) plus `rename(2)`,
+    never `ln -sf`, which would leave a moment with no link at all. Both are
+    idempotent, so re-asserting them at every broker start is harmless.
+  - `cleanup_legacy_scripts` skips `qmanager_atd` and `qcmd` explicitly; its
+    glob never matches `qsms`.
 
 ## Host AT ports (`quecmanager.ports.host_at`)
 
@@ -295,7 +312,8 @@ Every path goes through `install.sh`; the OTA updater runs it too.
    removes any leftover `qcmd.sh` / `atcli_smd11`.
 2. `seed_uci_defaults` seeds `ports.host_at` (no `at.engine`). On upgrade it
    deletes the retired `quecmanager.at` section, so a device that had chosen
-   Legacy moves to the broker. It then runs `at_qcmd_link`.
+   Legacy moves to the broker. It then runs `at_qcmd_link` and
+   `at_qsms_link`.
 3. `start_services` starts `qmanager_atd` before the main service.
 4. `stop_services` already stops and kills `qmanager_*`.
 5. Firmware detection and the install smoke test run the client through
@@ -306,13 +324,15 @@ Every path goes through `install.sh`; the OTA updater runs it too.
    keeps the status-cache fallback (an old broker still running during an
    upgrade refuses the new client's request).
 
-`/etc/init.d/qmanager_atd` `start_service` always re-asserts the `qcmd` link,
+`/etc/init.d/qmanager_atd` `start_service` always re-asserts the `qcmd` and
+`qsms` links (verified: a removed `qsms` link comes back on restart),
 applies the host AT port setting, then starts the broker. It has no engine
 check. It has no procd reload trigger on purpose: many CGIs commit
 `quecmanager`.
 
 **`uninstall.sh`** restores host AT ports if needed, then removes:
-- the `qcmd` link (dangling-safe, via `-L`);
+- the `qcmd` and `qsms` links (dangling-safe, via `-L`) and any
+  `.qcmd.*` / `.qsms.*` temp links;
 - `qmanager_atd`, plus leftover `qcmd.sh` and `atcli_smd11` from old installs;
 - the socket and init script.
 

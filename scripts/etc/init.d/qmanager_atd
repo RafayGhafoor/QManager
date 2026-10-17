@@ -5,8 +5,8 @@
 # Starts before the main qmanager service (poller) so the poller's first AT
 # call already goes through the broker, and stops after it.
 #
-# On every start it also reconciles two boot-time states:
-#   - /usr/bin/qcmd -> qmanager_atd (the multicall client)
+# On every start it also reconciles these boot-time states:
+#   - /usr/bin/qcmd and /usr/bin/qsms -> qmanager_atd (multicall clients)
 #   - port-bridge on/off (quecmanager.ports.host_at); a firmware update can
 #     re-enable the vendor service, so this re-applies the user's choice.
 #
@@ -25,6 +25,7 @@ start_service() {
     command -v at_qcmd_link >/dev/null 2>&1 || return 0
 
     at_qcmd_link
+    command -v at_qsms_link >/dev/null 2>&1 && at_qsms_link
     host_at_apply
 
     at_broker_available || return 0
