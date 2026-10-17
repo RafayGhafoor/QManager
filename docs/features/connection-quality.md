@@ -435,7 +435,7 @@ Re-authored by ledger U4.7 from `rm520n` `cebb8185` (page) and `9d156cbe` `e029d
 | `components/monitoring/connection-quality/probe-targets-card.tsx` | Probe Targets: Sensitivity `SegmentedField` (4 profiles), Probe interval row, numbered IPv4 leg and IPv6 fallback leg (mono fields, one `HintIcon`), verdict chip, `CardFoot` with Restore defaults + Save |
 | `components/monitoring/connection-quality/quality-thresholds-card.tsx` | Quality Thresholds: per metric a `SegmentedField` (Standard / Tolerant / Very tolerant / Custom), a Limit field when Custom, "Flags after" and "Right now" pill rows, `CardFoot` with Save |
 | `components/monitoring/connection-quality/{shapes.ts,condition-block.tsx}` | Family-local geometry and the error state block (never imported across families) |
-| `components/dashboard/connection-quality.tsx` (+ `connection-quality-shapes.ts`) | Dashboard card that replaced Live Latency: Internet / DNS lookup / Probing rows, 30-minute reachability and jitter strips from `fetch_ping_history.sh`, Typical / Worst / Loss, last speed test |
+| `components/dashboard/connection-quality.tsx` (shapes from the dashboard `shapes.ts` since U4.10) | Dashboard card that replaced Live Latency: Internet / DNS lookup / Probing rows, 30-minute reachability and jitter strips from `fetch_ping_history.sh`, Typical / Worst / Loss, last speed test |
 | `hooks/use-ping-profile.ts` | Fetch + save ping profile |
 | `hooks/use-quality-thresholds.ts` | Fetch + save quality thresholds |
 
