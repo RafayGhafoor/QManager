@@ -53,7 +53,7 @@ import {
   QUALITY,
   ROW,
   VALUE_CLASS,
-} from "./connection-quality-shapes";
+} from "./shapes";
 import { SpeedtestDialog } from "./speedtest-dialog";
 
 // =============================================================================
