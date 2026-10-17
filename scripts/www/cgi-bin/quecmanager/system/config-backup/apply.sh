@@ -6,6 +6,7 @@
 . /usr/lib/qmanager/cgi_base.sh
 . /usr/lib/qmanager/cgi_auth.sh
 . /usr/lib/qmanager/config_backup_sections.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 
 cgi_require_auth
 
@@ -81,7 +82,12 @@ if [ -z "$keys" ]; then
 fi
 
 # --- Persist payload + clear stale state ---
-echo "$BODY" > "$INPUT_FILE"
+# B4.1: root-owned 0600 payload; a planted file at the fixed name is replaced, not written through
+if ! echo "$BODY" | qm_atomic_write "$INPUT_FILE" 0600; then
+    printf 'Status: 500\r\nContent-Type: application/json\r\n\r\n'
+    echo '{"error":"persist_failed"}'
+    exit 0
+fi
 rm -f /tmp/qmanager_config_restore.cancel /tmp/qmanager_config_restore.json
 
 JOB_ID=$(date +%s)

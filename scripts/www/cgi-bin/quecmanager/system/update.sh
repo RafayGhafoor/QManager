@@ -13,7 +13,7 @@
 #
 # Config: UCI quecmanager.update.*
 # State:  /tmp/qmanager_update.json, /tmp/qmanager_update.pid
-#         /tmp/qmanager_staged.tar.gz, /tmp/qmanager_staged_version
+#         /var/run/qmanager/update/staged.tar.gz + staged_version (root 0700)
 #
 # Endpoint: GET/POST /cgi-bin/quecmanager/system/update.sh
 # =============================================================================
@@ -30,6 +30,12 @@ UPDATES_DIR="/etc/qmanager/updates"
 STATUS_FILE="/tmp/qmanager_update.json"
 PID_FILE="/tmp/qmanager_update.pid"
 UPDATER="/usr/bin/qmanager_update"
+# Written by qmanager_update in a root-only dir (B4.1).
+STAGED_TARBALL="/var/run/qmanager/update/staged.tar.gz"
+STAGED_VERSION_FILE="/var/run/qmanager/update/staged_version"
+# qm_read_pid (also pulled in by cgi_auth.sh; explicit so the lock check never
+# silently loses it).
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 
 # --- Helpers -----------------------------------------------------------------
 
@@ -90,8 +96,9 @@ strip_leading_zero() {
 check_lock() {
     if [ -f "$PID_FILE" ]; then
         local pid
-        pid=$(cat "$PID_FILE" 2>/dev/null)
-        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+        # B4.1: only a root-owned pidfile naming a live updater counts.
+        pid=$(qm_read_pid "$PID_FILE" qmanager_update 2>/dev/null)
+        if [ -n "$pid" ]; then
             cgi_error "update_in_progress" "An update is already in progress"
             exit 0
         fi
@@ -185,11 +192,11 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 
     # Query GitHub Releases API with header capture for rate-limit detection
     api_url="https://api.github.com/repos/$GITHUB_REPO/releases"
-    tmp_body="/tmp/qm_update_api_body.json"
-    tmp_headers="/tmp/qm_update_api_headers.txt"
-    rm -f "$tmp_body" "$tmp_headers"
+    # B4.1: private temp names; the release JSON picks the download URL.
+    tmp_body=$(mktemp /tmp/qm_update_api_body.XXXXXX 2>/dev/null)
+    tmp_headers=$(mktemp /tmp/qm_update_api_headers.XXXXXX 2>/dev/null)
 
-    if ! http_api_fetch "$api_url" "$tmp_body" "$tmp_headers"; then
+    if [ -z "$tmp_body" ] || [ -z "$tmp_headers" ] || ! http_api_fetch "$api_url" "$tmp_body" "$tmp_headers"; then
         rm -f "$tmp_body" "$tmp_headers"
         jq -n \
             --arg cv "$current_version" \
@@ -267,12 +274,12 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 
     # Detect staged download state
     download_state="null"
-    staged_tarball="/tmp/qmanager_staged.tar.gz"
-    staged_version_file="/tmp/qmanager_staged_version"
+    staged_tarball="$STAGED_TARBALL"
+    staged_version_file="$STAGED_VERSION_FILE"
 
     if [ -f "$PID_FILE" ]; then
-        pid=$(cat "$PID_FILE" 2>/dev/null)
-        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && [ -f "$STATUS_FILE" ]; then
+        pid=$(qm_read_pid "$PID_FILE" qmanager_update 2>/dev/null)
+        if [ -n "$pid" ] && [ -f "$STATUS_FILE" ]; then
             download_state=$(cat "$STATUS_FILE" 2>/dev/null)
         fi
     elif [ -f "$staged_tarball" ] && [ -f "$staged_version_file" ]; then
@@ -442,7 +449,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         check_lock
         ensure_updater_executable || exit 0
 
-        if [ ! -f "/tmp/qmanager_staged.tar.gz" ]; then
+        if [ ! -f "$STAGED_TARBALL" ]; then
             cgi_error "no_staged" "No staged download found. Download first."
             exit 0
         fi

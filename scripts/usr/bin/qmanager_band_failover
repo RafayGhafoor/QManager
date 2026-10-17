@@ -38,6 +38,7 @@ else
     qlog_warn() { :; }
     qlog_error() { :; }
 fi
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 qlog_init "band_failover"
 
 # --- Configuration -----------------------------------------------------------
@@ -47,7 +48,8 @@ STATUS_CACHE="/tmp/qmanager_status.json"
 SETTLE_DELAY=5   # seconds to wait after band lock before checking
 
 # --- Write PID file ----------------------------------------------------------
-echo $$ > "$PID_FILE"
+# B4.1: root-owned pidfile (killers gate on qm_read_pid)
+echo $$ | qm_atomic_write "$PID_FILE"
 
 cleanup() {
     rm -f "$PID_FILE"
@@ -90,7 +92,8 @@ all_nrdc=$(jq -r '.device.supported_nrdc_nr5g_bands | if . == null then empty el
 # Fallback: if status.json doesn't have it yet, source the RAM env cache
 if [ -z "$all_lte" ] && [ -z "$all_nsa" ] && [ -z "$all_sa" ]; then
     BANDS_CACHE="/tmp/qmanager_supported_bands.env"
-    if [ -f "$BANDS_CACHE" ]; then
+    # B4.1: only source a root-owned cache
+    if type qm_trusted_file >/dev/null 2>&1 && qm_trusted_file "$BANDS_CACHE"; then
         . "$BANDS_CACHE"
         all_lte="$boot_supported_lte_bands"
         all_nsa="$boot_supported_nsa_nr5g_bands"

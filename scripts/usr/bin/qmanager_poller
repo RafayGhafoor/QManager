@@ -312,6 +312,9 @@ else
     load_ondemand_cache() { :; }
 fi
 
+# B4.1: root-safe /tmp helpers (trusted-file gate, atomic write). Missing lib: fail closed.
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+
 # Ping-cache reader (conn_state_read). Without it connectivity reads as
 # unknown every cycle — fail-closed, never "up".
 if [ -f /usr/lib/qmanager/conn_state.sh ]; then
@@ -502,7 +505,7 @@ refresh_policy_band() {
         parse_policy_band "$result"
         printf 'boot_supported_lte_bands="%s"\nboot_supported_nsa_nr5g_bands="%s"\nboot_supported_sa_nr5g_bands="%s"\nboot_supported_nrdc_nr5g_bands="%s"\n' \
             "$boot_supported_lte_bands" "$boot_supported_nsa_nr5g_bands" "$boot_supported_sa_nr5g_bands" "$boot_supported_nrdc_nr5g_bands" \
-            > "$SUPPORTED_BANDS_FILE"
+            | qm_atomic_write "$SUPPORTED_BANDS_FILE"
         qlog_info "policy_band refreshed; supported bands cached to $SUPPORTED_BANDS_FILE"
         return 0
     fi
@@ -673,7 +676,8 @@ collect_boot_data() {
     # Supported bands — conditional (cached to /tmp across hotplug restarts)
     # On full device reboot /tmp is cleared, so queried once then cached.
     # =========================================================================
-    if [ -f "$SUPPORTED_BANDS_FILE" ]; then
+    # B4.1: only source a root-owned cache; otherwise re-query (atomic rewrite).
+    if qm_trusted_file "$SUPPORTED_BANDS_FILE"; then
         . "$SUPPORTED_BANDS_FILE"
         qlog_info "Loaded supported bands from RAM cache"
     else

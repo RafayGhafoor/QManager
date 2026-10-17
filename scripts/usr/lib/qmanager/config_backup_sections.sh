@@ -24,6 +24,8 @@
 [ -n "$_CFG_BACKUP_SECTIONS_LOADED" ] && return 0
 _CFG_BACKUP_SECTIONS_LOADED=1
 
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+
 # --- Logging ---
 if [ -f /usr/lib/qmanager/qlog.sh ]; then
     . /usr/lib/qmanager/qlog.sh
@@ -547,7 +549,8 @@ apply_bands() {
     # Kill any running band failover watcher before re-locking
     if [ -f /tmp/qmanager_band_failover.pid ]; then
         local old_bf_pid
-        old_bf_pid=$(cat /tmp/qmanager_band_failover.pid 2>/dev/null | tr -d ' \n\r')
+        # B4.1: kill only a root-owned pidfile whose pid is the failover daemon
+        old_bf_pid=$(qm_read_pid /tmp/qmanager_band_failover.pid qmanager_band_failover)
         [ -n "$old_bf_pid" ] && kill "$old_bf_pid" 2>/dev/null
         rm -f /tmp/qmanager_band_failover.pid /tmp/qmanager_band_failover
     fi

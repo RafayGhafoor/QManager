@@ -16,6 +16,8 @@
 [ -n "$_CGI_AUTH_LOADED" ] && return 0
 _CGI_AUTH_LOADED=1
 
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+
 AUTH_CONFIG="/etc/qmanager/auth.json"
 SESSIONS_DIR="/tmp/qmanager_sessions"
 ATTEMPTS_FILE="/tmp/qmanager_auth_attempts.json"
@@ -137,7 +139,10 @@ _is_valid_token() {
 
 # Create a new session. Prints the token to stdout.
 qm_create_session() {
-    mkdir -p "$SESSIONS_DIR"
+    # B4.1: the dir is absent after every boot; one another user made first
+    # would let them mint sessions, so it must be root's own.
+    command -v qm_root_dir >/dev/null 2>&1 || return 1
+    qm_root_dir "$SESSIONS_DIR" 0700 || return 1
     _token=$(qm_generate_token)
     date +%s > "${SESSIONS_DIR}/${_token}"
     printf '%s' "$_token"
@@ -152,6 +157,9 @@ qm_validate_session() {
 
     _session_file="${SESSIONS_DIR}/${_check_token}"
     [ ! -f "$_session_file" ] && return 1
+    command -v qm_owned_by_root >/dev/null 2>&1 || return 1
+    qm_owned_by_root "$SESSIONS_DIR" || return 1
+    qm_owned_by_root "$_session_file" || return 1
 
     _created=$(cat "$_session_file" 2>/dev/null)
     # Reject empty or non-numeric content. A bare epoch timestamp is the only

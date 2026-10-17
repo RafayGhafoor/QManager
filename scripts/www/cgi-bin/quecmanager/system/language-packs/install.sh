@@ -76,7 +76,7 @@ lp_pack_is_code_safe "$CODE" || {
 }
 
 # Persist input + clear stale progress
-echo "$BODY" > "$LP_INPUT_FILE"
+echo "$BODY" | qm_atomic_write "$LP_INPUT_FILE" 0600
 rm -f "$LP_CANCEL_FILE" "$LP_PROGRESS_FILE"
 
 # Emit pending progress so the client's first poll doesn't race the worker.

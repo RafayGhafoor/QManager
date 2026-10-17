@@ -26,8 +26,10 @@ cgi_headers
 cgi_handle_options
 
 AUTH_URL_FILE="/tmp/qmanager_tailscale_auth_url"
-TS_UP_OUTPUT="/tmp/qmanager_tailscale_up_output"
+# B4.1: tailscale up output lives in the root-only run dir (jq reads it back)
+TS_UP_OUTPUT="/var/run/qmanager/tailscale_up_output"
 TS_UP_PID_FILE="/tmp/qmanager_tailscale_up_pid"
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 
 # --- Helper: check if tailscale + tailscaled are installed -------------------
 is_installed() {
@@ -64,11 +66,9 @@ get_boot_enabled() {
 
 # --- Helper: kill stale tailscale up process from previous connect attempt ---
 kill_stale_ts_up() {
-    if [ -f "$TS_UP_PID_FILE" ]; then
-        old_pid=$(cat "$TS_UP_PID_FILE" 2>/dev/null | tr -d ' \n\r')
-        if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
-            kill "$old_pid" 2>/dev/null
-        fi
+    if [ -f "$TS_UP_PID_FILE" ] || [ -L "$TS_UP_PID_FILE" ]; then
+        # B4.1: kill only a root-owned pidfile whose pid is really tailscale
+        old_pid=$(qm_read_pid "$TS_UP_PID_FILE" tailscale) && kill "$old_pid" 2>/dev/null
         rm -f "$TS_UP_PID_FILE"
     fi
 }
@@ -162,8 +162,14 @@ seed_ts_uci_settings() {
 # writes the procd init script + marker + UCI parity. Writes phased progress to
 # $TS_INSTALL_RESULT. Must be called from within the orphaned install subshell.
 install_official() {
-    TS_TGZ="/tmp/qm_tailscale_dl.tgz"
-    TS_EXTRACT="/tmp/qm_tailscale_extract"
+    # B4.1: root-owned work dir; a /tmp dir another user made first is not trusted
+    TS_WORK="$(qm_run_dir 2>/dev/null)/tailscale_dl"
+    if [ "$TS_WORK" = "/tailscale_dl" ] || ! qm_root_dir "$TS_WORK" 0700; then
+        printf '{"success":false,"status":"error","message":"Cannot prepare work directory"}' > "$TS_INSTALL_RESULT"
+        exit 1
+    fi
+    TS_TGZ="$TS_WORK/dl.tgz"
+    TS_EXTRACT="$TS_WORK/extract"
     PKGS_JSON_URL="https://pkgs.tailscale.com/stable/?mode=json"
 
     rm -rf "$TS_TGZ" "$TS_EXTRACT"
@@ -618,6 +624,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
         # Clean up old temp files
         rm -f "$AUTH_URL_FILE" "$TS_UP_OUTPUT"
+        qm_run_dir >/dev/null || { cgi_error "start_failed" "Cannot prepare work dir"; exit 0; }
 
         # CRITICAL: NEVER use --accept-routes or --advertise-routes — accepting
         # routes disconnects the device from the network entirely and requires
@@ -632,7 +639,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         # re-authenticated. The double-fork form below (inner `&`, </dev/null)
         # orphans tailscale up to init before the CGI returns.
         ( tailscale up --accept-dns=false --json </dev/null >"$TS_UP_OUTPUT" 2>&1 &
-          echo $! > "$TS_UP_PID_FILE"
+          echo $! | qm_atomic_write "$TS_UP_PID_FILE"
         )
 
         # Poll for auth URL or Running state (up to 10 seconds)
@@ -652,7 +659,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
                 # Look for auth URL in JSON stream
                 auth_url=$(jq -r 'select(.AuthURL != null and .AuthURL != "") | .AuthURL' "$TS_UP_OUTPUT" 2>/dev/null | head -1)
                 if [ -n "$auth_url" ]; then
-                    printf '%s' "$auth_url" > "$AUTH_URL_FILE"
+                    printf '%s' "$auth_url" | qm_atomic_write "$AUTH_URL_FILE"
                     break
                 fi
             fi
@@ -899,7 +906,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         # Clean up state from official, legacy and tiny locations (marker lives
         # in /etc/tailscale, removed here).
         rm -rf /var/lib/tailscale/ /etc/tailscale/
-        rm -f /tmp/qmanager_tailscale_auth_url /tmp/qmanager_tailscale_up_output /tmp/qmanager_tailscale_up_pid
+        rm -f /tmp/qmanager_tailscale_auth_url /tmp/qmanager_tailscale_up_output /var/run/qmanager/tailscale_up_output /tmp/qmanager_tailscale_up_pid
 
         # Verify removal (check actual binary paths, not command -v which can be cached).
         hash -r 2>/dev/null

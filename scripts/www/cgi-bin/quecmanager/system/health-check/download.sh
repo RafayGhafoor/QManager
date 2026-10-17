@@ -7,6 +7,7 @@
 # =============================================================================
 
 . /usr/lib/qmanager/cgi_base.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 
 _json_status() {
     printf 'Status: %s\r\n' "$1"
@@ -31,7 +32,8 @@ case "$job_id" in
 esac
 
 tarball="/tmp/qmanager_health_check_${job_id}.tar.gz"
-if [ ! -f "$tarball" ]; then
+# B4.1: serve only a root-owned bundle (fails closed if the helper lib is missing)
+if ! qm_trusted_file "$tarball"; then
     _json_status "404 Not Found" "bundle_not_found"
 fi
 

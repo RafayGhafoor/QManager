@@ -139,6 +139,7 @@
   "select_failed": "Impossibile selezionare la modalità di rete",
   "send_failed": "Impossibile inviare il messaggio",
   "service_running": "Il servizio è attualmente in esecuzione: interrompilo prima",
+  "session_failed": "Impossibile avviare una sessione. Riprova ad accedere.",
   "setup_required": "È richiesta la configurazione iniziale: imposta prima una password",
   "shadow_unreadable": "Impossibile leggere il file della password (problema di autorizzazione)",
   "sim_mismatch": "Il SIM attivo non corrisponde al SIM previsto dal profilo",

@@ -1,5 +1,6 @@
 #!/bin/sh
 . /usr/lib/qmanager/cgi_base.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 # =============================================================================
 # failover_status.sh — CGI Endpoint: Get Failover State (Lightweight)
 # =============================================================================
@@ -42,8 +43,8 @@ fi
 # --- Check if watcher process is still running -------------------------------
 watcher_running="false"
 if [ -f "$WATCHER_PID_FILE" ]; then
-    watcher_pid=$(cat "$WATCHER_PID_FILE" 2>/dev/null | tr -d ' \n\r')
-    if [ -n "$watcher_pid" ] && kill -0 "$watcher_pid" 2>/dev/null; then
+    watcher_pid=$(qm_read_pid "$WATCHER_PID_FILE" qmanager_band_failover)
+    if [ -n "$watcher_pid" ]; then
         watcher_running="true"
     fi
 fi

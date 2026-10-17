@@ -17,6 +17,9 @@ else
     qlog_info() { logger -t auto_update "$1"; }
     qlog_warn() { logger -t auto_update "WARN: $1"; }
 fi
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+# Without the helper, fail closed below (no pid trusted = treat as running).
+command -v qm_read_pid >/dev/null 2>&1 || qm_read_pid() { [ -f "$1" ] && head -n 1 "$1"; }
 
 qlog_init "auto_update"
 
@@ -49,8 +52,9 @@ fi
 # --- Guard: skip if update already in progress -------------------------------
 
 if [ -f "$PID_FILE" ]; then
-    pid=$(cat "$PID_FILE" 2>/dev/null)
-    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    # B4.1: only a root-owned pidfile naming a live updater counts.
+    pid=$(qm_read_pid "$PID_FILE" qmanager_update 2>/dev/null)
+    if [ -n "$pid" ]; then
         qlog_info "Update already in progress (PID $pid), skipping"
         exit 0
     fi
@@ -68,8 +72,11 @@ include_prerelease=$(uci -q get quecmanager.update.include_prerelease 2>/dev/nul
 # --- Fetch GitHub releases ---------------------------------------------------
 
 api_url="https://api.github.com/repos/$REPO/releases"
-tmp_body="/tmp/qm_auto_update_body.json"
-rm -f "$tmp_body"
+# B4.1: private temp name; the release JSON picks the download URL.
+tmp_body=$(mktemp /tmp/qm_auto_update_body.XXXXXX 2>/dev/null) || {
+    qlog_warn "Auto-update check skipped: cannot create a temp file"
+    exit 1
+}
 
 if ! command -v curl >/dev/null 2>&1; then
     qlog_warn "curl is not installed — cannot auto-update"

@@ -35,9 +35,16 @@ VERSION_FILE="/etc/qmanager/VERSION"
 VERSION_PENDING="/etc/qmanager/VERSION.pending"
 UPDATES_DIR="/etc/qmanager/updates"
 
-STAGED_TARBALL="/tmp/qmanager_staged.tar.gz"
-STAGED_VERSION_MARKER="/tmp/qmanager_staged_version"
+# B4.1: downloads, the staged tarball and the extracted tree live in a root
+# 0700 dir. In /tmp another user could plant or swap them between the checks
+# and the `sh install.sh` that runs as root.
+UPDATE_WORK="/var/run/qmanager/update"
+STAGED_TARBALL="$UPDATE_WORK/staged.tar.gz"
+STAGED_VERSION_MARKER="$UPDATE_WORK/staged_version"
+EXTRACT_ROOT="$UPDATE_WORK/extract"
 INSTALL_LOG="/tmp/qmanager_install.log"
+
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 
 # URL prefix used for SSRF protection on all downloads
 GITHUB_REPO_PREFIX="https://github.com/dr-dolomite/QManager/releases/download/"
@@ -90,7 +97,7 @@ write_status() {
 
 cleanup() {
     rm -f "$PID_FILE"
-    rm -rf /tmp/qmanager_install
+    rm -rf "$EXTRACT_ROOT"
     # Keep the staged tarball and the update log — they are useful for
     # debugging a failed install. They will be cleared on the next
     # successful install_staged or on uninstall.
@@ -144,6 +151,12 @@ run_install_with_progress() {
 
     wait "$install_pid"
     return $?
+}
+
+# Empty root-owned extract dir inside UPDATE_WORK (itself root 0700).
+extract_fresh_root() {
+    rm -rf "$EXTRACT_ROOT"
+    mkdir -m 0700 "$EXTRACT_ROOT"
 }
 
 # =============================================================================
@@ -209,7 +222,7 @@ verify_archive() {
 
 verify_sha256() {
     local archive="$1" checksum_url="$2" version="$3"
-    local checksum_file="/tmp/qmanager_staged_sha256.txt"
+    local checksum_file="$UPDATE_WORK/sha256sum.txt"
 
     [ -n "$checksum_url" ] || {
         log_warn "No checksum URL provided — skipping SHA-256 verification"
@@ -296,8 +309,16 @@ preflight() {
     mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
     : > "$LOG_FILE" 2>/dev/null || true
 
-    echo $$ > "$PID_FILE"
+    # Fail closed: without a root-owned work dir nothing is downloaded or run.
+    if ! command -v qm_root_dir >/dev/null 2>&1; then
+        write_status "error" "Update helper library is missing" "" ""
+        exit 1
+    fi
+    echo "$$" | qm_atomic_write "$PID_FILE"
     trap 'cleanup' EXIT INT TERM
+    if ! qm_run_dir >/dev/null || ! qm_root_dir "$UPDATE_WORK" 0700; then
+        die "Cannot create a private update work directory"
+    fi
 
     log_info "qmanager_update v2 started (mode=$MODE, pid=$$)"
 
@@ -331,7 +352,7 @@ mode_install() {
     write_status "downloading" "Downloading QManager $version..." "$version" "$size"
     log_info "Downloading $url"
 
-    local download_path="/tmp/qmanager_update_new.tar.gz"
+    local download_path="$UPDATE_WORK/new.tar.gz"
     rm -f "$download_path"
 
     if ! http_download "$url" "$download_path"; then
@@ -356,14 +377,14 @@ mode_install() {
     log_info "Saved previous version for rollback: $current_ver"
 
     # --- Step 4: Extract and run install.sh ---
-    rm -rf /tmp/qmanager_install
-    if ! tar xzf "$download_path" -C /tmp/ 2>>"$LOG_FILE"; then
+    extract_fresh_root || die "Cannot create a private extract directory"
+    if ! tar xzf "$download_path" -C "$EXTRACT_ROOT" 2>>"$LOG_FILE"; then
         rm -f "$download_path"
-        die "Failed to extract archive to /tmp/"
+        die "Failed to extract archive"
     fi
     rm -f "$download_path"
 
-    cd /tmp/qmanager_install || die "Extraction produced no qmanager_install directory"
+    cd "$EXTRACT_ROOT/qmanager_install" || die "Extraction produced no qmanager_install directory"
 
     log_info "Running install.sh --skip-packages --no-reboot"
     if ! run_install_with_progress "$version" "Installing QManager $version"; then
@@ -378,7 +399,7 @@ mode_install() {
     fi
 
     # --- Step 6: Cleanup + reboot ---
-    rm -rf /tmp/qmanager_install
+    cd / && rm -rf "$EXTRACT_ROOT"
     write_status "rebooting" "Rebooting device..." "$version" ""
     log_info "Rebooting in 5 seconds"
 
@@ -464,15 +485,15 @@ mode_install_staged() {
     log_info "Saved previous version for rollback: $current_ver"
 
     # --- Step 2: Extract ---
-    rm -rf /tmp/qmanager_install
-    if ! tar xzf "$STAGED_TARBALL" -C /tmp/ 2>>"$LOG_FILE"; then
+    extract_fresh_root || die "Cannot create a private extract directory"
+    if ! tar xzf "$STAGED_TARBALL" -C "$EXTRACT_ROOT" 2>>"$LOG_FILE"; then
         die "Failed to extract staged archive"
     fi
 
-    # Successfully extracted — remove staged tarball to free /tmp
+    # Successfully extracted — remove staged tarball to free RAM
     rm -f "$STAGED_TARBALL" "$STAGED_VERSION_MARKER"
 
-    cd /tmp/qmanager_install || die "Extraction produced no qmanager_install directory"
+    cd "$EXTRACT_ROOT/qmanager_install" || die "Extraction produced no qmanager_install directory"
 
     # --- Step 3: Run install.sh ---
     log_info "Running install.sh --skip-packages --no-reboot"
@@ -487,7 +508,7 @@ mode_install_staged() {
     fi
 
     # --- Step 5: Cleanup + reboot ---
-    rm -rf /tmp/qmanager_install
+    cd / && rm -rf "$EXTRACT_ROOT"
     write_status "rebooting" "Rebooting device..." "$VERSION" ""
     log_info "Rebooting in 5 seconds"
 
@@ -516,7 +537,7 @@ mode_rollback() {
     write_status "downloading" "Downloading previous version $version..." "$version" ""
     log_info "Downloading rollback archive: $url"
 
-    local download_path="/tmp/qmanager_rollback.tar.gz"
+    local download_path="$UPDATE_WORK/rollback.tar.gz"
     rm -f "$download_path"
 
     if ! http_download "$url" "$download_path"; then
@@ -541,14 +562,14 @@ mode_rollback() {
     log_info "Saved current version before rollback: $current_ver"
 
     # --- Step 4: Extract and install ---
-    rm -rf /tmp/qmanager_install
-    if ! tar xzf "$download_path" -C /tmp/ 2>>"$LOG_FILE"; then
+    extract_fresh_root || die "Cannot create a private extract directory"
+    if ! tar xzf "$download_path" -C "$EXTRACT_ROOT" 2>>"$LOG_FILE"; then
         rm -f "$download_path"
         die "Failed to extract rollback archive"
     fi
     rm -f "$download_path"
 
-    cd /tmp/qmanager_install || die "Extraction produced no qmanager_install directory"
+    cd "$EXTRACT_ROOT/qmanager_install" || die "Extraction produced no qmanager_install directory"
 
     log_info "Running install.sh --skip-packages --no-reboot"
     if ! run_install_with_progress "$version" "Restoring $version"; then
@@ -562,7 +583,7 @@ mode_rollback() {
     fi
 
     # --- Step 6: Cleanup + reboot ---
-    rm -rf /tmp/qmanager_install
+    cd / && rm -rf "$EXTRACT_ROOT"
     write_status "rebooting" "Rebooting device..." "$version" ""
     log_info "Rebooting in 5 seconds"
 

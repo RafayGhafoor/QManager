@@ -28,7 +28,10 @@ PID_FILE="/tmp/qmanager_speedtest.pid"
 OUTPUT_FILE="/tmp/qmanager_speedtest_output"
 RESULT_FILE="/tmp/qmanager_speedtest_result.json"
 ERROR_FILE="/tmp/qmanager_speedtest_error"
-WRAPPER_SCRIPT="/tmp/qmanager_speedtest_run.sh"
+# B4.1: the wrapper is executed as root, so it lives in a root-owned dir under /var/run
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+WRAPPER_DIR=""
+WRAPPER_SCRIPT=""
 
 # --- Validate method ---------------------------------------------------------
 if [ "$REQUEST_METHOD" != "POST" ]; then
@@ -80,6 +83,14 @@ SPEEDTEST_BIN=$(command -v speedtest)
 #
 # This avoids all heredoc escaping headaches with $$, \$, etc.
 # --------------------------------------------------------------------------
+WRAPPER_DIR="$(qm_run_dir 2>/dev/null)/speedtest"
+if [ "$WRAPPER_DIR" = "/speedtest" ] || ! qm_root_dir "$WRAPPER_DIR" 0700; then
+    qlog_error "Cannot create root-owned speedtest work dir"
+    cgi_error "start_failed" "Cannot prepare speedtest"
+    exit 0
+fi
+WRAPPER_SCRIPT="$WRAPPER_DIR/run.sh"
+rm -f "$WRAPPER_SCRIPT"
 cat > "$WRAPPER_SCRIPT" << 'WEOF'
 #!/bin/sh
 
@@ -101,9 +112,6 @@ export LC_ALL="${LC_ALL:-C}"
 export TERM="${TERM:-xterm}"
 export HOSTNAME="${HOSTNAME:-$(cat /proc/sys/kernel/hostname 2>/dev/null || echo localhost)}"
 export PATH="/usr/sbin:/usr/bin:/sbin:/bin:${PATH}"
-
-# Dump environment for debugging (safe to remove once confirmed working)
-env > /tmp/qmanager_speedtest_env 2>&1
 
 # Write our PID so the status CGI can track us
 echo $$ > /tmp/qmanager_speedtest.pid

@@ -6,6 +6,7 @@
 # =============================================================================
 
 . /usr/lib/qmanager/cgi_base.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 
 qlog_init "cgi_health_check_status"
 cgi_headers
@@ -42,7 +43,8 @@ if [ -n "$test_id" ]; then
         *) cgi_error "no_run" "no diagnostic run found"; exit 0 ;;
     esac
     out_file="/tmp/qmanager_health_check_${job_id}/tests/${test_id}.txt"
-    if [ ! -f "$out_file" ]; then
+    # B4.1: serve evidence only from a root-owned job dir and file
+    if ! qm_owned_by_root "/tmp/qmanager_health_check_${job_id}" || ! qm_trusted_file "$out_file"; then
         jq -n --arg id "$test_id" '{success: true, test_id: $id, output: "", truncated: false}'
         exit 0
     fi

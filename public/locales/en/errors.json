@@ -139,6 +139,7 @@
   "select_failed": "Failed to select network mode",
   "send_failed": "Failed to send message",
   "service_running": "Service is currently running — stop it first",
+  "session_failed": "Could not start a session. Try signing in again.",
   "setup_required": "Initial setup required — set a password first",
   "shadow_unreadable": "Cannot read password file (permission issue)",
   "sim_mismatch": "Active SIM does not match the profile's expected SIM",
