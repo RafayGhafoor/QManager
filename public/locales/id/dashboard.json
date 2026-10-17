@@ -89,7 +89,7 @@
     "connection_uptime": "Waktu Aktif Koneksi",
     "device_uptime": "Waktu Aktif Perangkat",
     "more_info_aria": "Info lebih lanjut",
-    "description": "Kesehatan perangkat, penghitung data kumulatif, dan jarak ke setiap sel yang melayani."
+    "description": "Kesehatan perangkat dan jarak ke setiap sel yang melayani."
   },
   "signal_status": {
     "lte_primary_title": "Status Utama 4G",

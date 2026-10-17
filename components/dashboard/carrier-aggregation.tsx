@@ -440,7 +440,7 @@ export function CarrierAggregationComponent({
                 role: roleLabel(c),
                 bw: c.bandwidth_mhz,
               })}
-              title={`${c.band} · ${roleLabel(c)} · ${c.bandwidth_mhz} MHz`}
+              title={`${c.band} (${roleLabel(c)}, ${c.bandwidth_mhz} MHz)`}
               style={{ width: `${shares[i]}%` }}
               className={cn(
                 "ca-segment flex min-w-0 flex-col justify-center gap-px overflow-hidden rounded-tile py-1.5 whitespace-nowrap @md/ca:px-3.5",

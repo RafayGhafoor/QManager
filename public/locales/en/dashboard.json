@@ -89,7 +89,7 @@
     "connection_uptime": "Connection Uptime",
     "device_uptime": "Device Uptime",
     "more_info_aria": "More info",
-    "description": "Onboard health, the cumulative data counter, and the distance to each serving cell."
+    "description": "Onboard health and the distance to each serving cell."
   },
   "signal_status": {
     "lte_primary_title": "4G Primary Status",

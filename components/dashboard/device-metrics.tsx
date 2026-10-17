@@ -207,8 +207,12 @@ const DeviceMetricsComponent = ({
   const cpuValue = cpu !== null ? `${cpu}%` : ABSENT;
   const memValue = memTotal > 0 ? `${memUsed} MB / ${memTotal} MB` : ABSENT;
 
-  const lteTa = liveLteTa ?? lteData?.ta ?? null;
-  const nrTa = liveNrTa ?? nrData?.ta ?? null;
+  // An inactive leg has no serving cell to be distant from: the poller reports
+  // its TA as 0, which would otherwise render as "< 10 m".
+  const lteTa =
+    lteData?.state === "inactive" ? null : (liveLteTa ?? lteData?.ta ?? null);
+  const nrTa =
+    nrData?.state === "inactive" ? null : (liveNrTa ?? nrData?.ta ?? null);
   const lteKm = calculateLteDistance(lteTa);
   const nrKm = calculateNrDistance(nrTa);
   const lteDistance =

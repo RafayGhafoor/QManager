@@ -249,7 +249,7 @@ const DeviceStatusComponent = ({
           ) : (
             <div className="grid aspect-square w-[188px] max-w-full place-items-center rounded-pill bg-surface-container p-[18px]">
               <img
-                src="/device-icon.svg"
+                src="/device-icon.png"
                 alt={t("device_status.icon_alt")}
                 className="size-full object-contain drop-shadow-[0_4px_6px_oklch(0.15_0.03_262_/_0.35)] dark:drop-shadow-[0_4px_8px_oklch(0.05_0.02_262_/_0.6)]"
               />

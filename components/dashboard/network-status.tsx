@@ -364,7 +364,9 @@ const NetworkStatusComponent = ({
       <CardHeader className="px-0">
         <CardTitle className={CARD_TITLE}>{t("network.title")}</CardTitle>
         <CardDescription className={CARD_DESC}>
-          {unreachable
+          {/* Not while loading: before the first poll lands there is no
+              "last poll" to report on (target fix, ledger U4.10). */}
+          {unreachable && !isLoading
             ? t("network.description_unreachable")
             : t("network.description")}
         </CardDescription>

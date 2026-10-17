@@ -89,7 +89,7 @@
     "connection_uptime": "Tempo di attività della connessione",
     "device_uptime": "Tempo di attività del dispositivo",
     "more_info_aria": "Maggiori informazioni",
-    "description": "Salute del dispositivo, il contatore dati cumulativo e la distanza da ciascuna cella di servizio."
+    "description": "Salute del dispositivo e la distanza da ciascuna cella di servizio."
   },
   "signal_status": {
     "lte_primary_title": "Stato primario 4G",

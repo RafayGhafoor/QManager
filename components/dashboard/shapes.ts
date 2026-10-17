@@ -96,8 +96,15 @@ export const BAND = {
   FULL: "col-span-full",
   /** The hero + device-information band, restating the page grid one level down. */
   TOP: "col-span-full grid grid-cols-1 gap-6 @4xl/main:grid-cols-5",
-  /** The hero column: 3 of 5 once the container is wide enough to split. */
-  HERO_COL: "grid gap-4 col-span-1 @4xl/main:col-span-3",
+  /**
+   * The hero column: 3 of 5 once the container is wide enough to split.
+   *
+   * `grid-rows-[auto_1fr]` (target, ledger U4.10): when Device Information is
+   * the taller column, the default `align-content: stretch` split its slack
+   * across BOTH rows and opened a gap under the hero. The carrier row takes it
+   * instead, so the carrier cards (already `STRETCH`) meet the side column.
+   */
+  HERO_COL: "grid gap-4 col-span-1 @4xl/main:col-span-3 @4xl/main:grid-rows-[auto_1fr]",
   /** The device-information column: the remaining 2 of 5. */
   SIDE_COL: "col-span-1 @4xl/main:col-span-2 h-full *:data-[slot=card]:h-full",
   /** The LTE/NR carrier pair inside the hero column. */

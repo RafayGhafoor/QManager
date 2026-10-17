@@ -89,7 +89,7 @@
     "connection_uptime": "连接运行时长",
     "device_uptime": "设备运行时长",
     "more_info_aria": "更多信息",
-    "description": "设备自身的运行状况、累计流量计数，以及到各服务基站的距离。"
+    "description": "设备自身的运行状况，以及到各服务基站的距离。"
   },
   "signal_status": {
     "lte_primary_title": "4G 主载波状态",
