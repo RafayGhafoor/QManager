@@ -1,36 +1,29 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Loader2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HintIcon } from "@/components/ui/hint-icon";
-import { Loader2, Zap } from "lucide-react";
+import { CHECK } from "./shapes";
 
 interface EngineCheckRowProps {
-  /** Section heading (e.g. "Verify Service", "Test Injection"). */
   title: string;
-  /** One-line explanation of what the check proves. */
   description: string;
-  /** Optional tooltip explaining what a passing result means. */
   hint?: string;
   hintAriaLabel?: string;
-  /** Run-button label and its in-flight label. */
   runLabel: string;
   busyLabel: string;
-  /** Whether THIS mode owns the engine. Gates the button + idle hint. */
+  /** The mode is running; a check of a stopped engine proves nothing. */
   running: boolean;
-  /** True while the check is in flight. */
   busy: boolean;
   onRun: () => void;
-  /** Result alerts, rendered only while running. */
+  /** The result notice, shown only while the mode runs. */
   children?: ReactNode;
 }
 
 /**
- * The single confidence-check surface shared by Video Optimizer's "Verify
- * Service" and Masquerade's "Test Injection". One layout, one button shape, one
- * idle/result split — extracted (like {@link EngineEnableRow} and
- * {@link ResultAlert}) so the two checks are identical by construction and can
- * never drift apart by hand.
+ * The confidence check both mode panels end with: Video's verify and
+ * Masquerade's injection test share this layout so they stay in lockstep.
  */
 export function EngineCheckRow({
   title,
@@ -45,37 +38,27 @@ export function EngineCheckRow({
   children,
 }: EngineCheckRowProps) {
   return (
-    <div className="flex flex-col gap-3 border-t pt-5" aria-live="polite">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            {hint && (
-              <HintIcon label={hintAriaLabel ?? ""}>
-                {hint}
-              </HintIcon>
-            )}
-            <p className="text-sm font-medium text-foreground">{title}</p>
+    <div className={CHECK.ROOT} aria-live="polite">
+      <div className={CHECK.HEAD}>
+        <div className={CHECK.TEXT}>
+          <div className={CHECK.TITLE_ROW}>
+            <p className={CHECK.TITLE}>{title}</p>
+            {hint ? <HintIcon label={hintAriaLabel ?? title}>{hint}</HintIcon> : null}
           </div>
-          <p className="text-xs text-muted-foreground">{description}</p>
+          <p className={CHECK.DESC}>{description}</p>
         </div>
         <Button
           type="button"
-          variant="secondary"
-          size="sm"
+          variant="tonal-neutral"
           onClick={onRun}
           disabled={!running || busy}
         >
           {busy ? (
-            <>
-              <Loader2 className="animate-spin" />
-              {busyLabel}
-            </>
+            <Loader2 className="motion-safe:animate-spin" aria-hidden="true" />
           ) : (
-            <>
-              <Zap />
-              {runLabel}
-            </>
+            <Zap aria-hidden="true" />
           )}
+          {busy ? busyLabel : runLabel}
         </Button>
       </div>
 

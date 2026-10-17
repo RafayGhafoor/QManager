@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -10,7 +9,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CardFoot } from "@/components/ui/card-foot";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FieldError } from "@/components/ui/field";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { HintIcon } from "@/components/ui/hint-icon";
 import type { useVideoOptimizer } from "@/hooks/use-video-optimizer";
@@ -19,6 +21,15 @@ import { EngineEnableRow } from "./engine-enable-row";
 import { BypassHotspotRow } from "./bypass-hotspot-row";
 import { EngineCheckRow } from "./engine-check-row";
 import { ResultAlert } from "./result-alert";
+import { DraftStatus } from "./draft-status";
+import {
+  CARD_BODY,
+  CARD_DESC,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_TITLE,
+  FIELD,
+} from "./shapes";
 
 interface VideoOptimizerPanelProps {
   hook: ReturnType<typeof useVideoOptimizer>;
@@ -28,146 +39,125 @@ interface VideoOptimizerPanelProps {
   running: boolean;
   /** Whether Masquerade owns the engine (enabling video takes over). */
   otherOwns: boolean;
+  modeLabel: string;
   otherModeLabel: string;
   canEnable: boolean;
-  /** True while any engine toggle is in flight (covers the post-save poll gap,
-   *  not just this hook's own save). Keeps the switch busy until settled. */
+  /** True while any engine toggle is in flight (covers the post-save poll gap). */
   transitioning: boolean;
   /** Enable handler; owns the idle-vs-takeover confirm decision. */
   onEnable: (desyncRepeats: number) => void;
   onDisable: () => void;
+  /** Re-apply the draft to the running mode. Resolves true on success. */
+  onApply: (desyncRepeats: number) => Promise<boolean>;
 }
 
+const parseRepeats = (text: string): number | null => {
+  if (!/^\d+$/.test(text)) return null;
+  const n = parseInt(text, 10);
+  return n >= 1 && n <= 10 ? n : null;
+};
+
 /**
- * Video Optimizer panel: the enable affordance, the desync-strength control,
- * and a compact verify check, all inside one grouped card. The CDN domain list
- * is a separate sibling card mounted by the composer.
+ * Video Optimizer: the enable row, the Bypass Hotspot row, the desync-strength
+ * draft and a verify check in one card, committing its draft from the foot.
+ * The CDN domain list is a sibling card mounted by the composer.
  */
 export function VideoOptimizerPanel({
   hook,
   ttl,
   running,
   otherOwns,
+  modeLabel,
   otherModeLabel,
   canEnable,
   transitioning,
   onEnable,
   onDisable,
+  onApply,
 }: VideoOptimizerPanelProps) {
   const { t } = useTranslation("local-network");
   const { settings, isSaving, verifyResult, runVerification } = hook;
   const busy = isSaving || transitioning;
+  const formId = useId();
+  const errorId = useId();
 
-  const [repeatsText, setRepeatsText] = useState<string>(
-    String(settings?.desync_repeats ?? 1),
-  );
+  const savedRepeats = settings?.desync_repeats ?? 1;
+  const [repeatsText, setRepeatsText] = useState<string>(String(savedRepeats));
   const { saved, markSaved } = useSaveFlash();
 
-  const repeatsValid = useMemo(() => {
-    if (!/^\d+$/.test(repeatsText)) return false;
-    const n = parseInt(repeatsText, 10);
-    return n >= 1 && n <= 10;
-  }, [repeatsText]);
+  const repeats = useMemo(() => parseRepeats(repeatsText), [repeatsText]);
+  const isDirty = repeats !== savedRepeats;
 
-  const repeatsDirty = useMemo(() => {
-    if (!settings) return false;
-    const typed = repeatsValid ? parseInt(repeatsText, 10) : NaN;
-    return typed !== settings.desync_repeats;
-  }, [settings, repeatsText, repeatsValid]);
-
-  // Re-applying desync while running is a no-takeover re-apply; routed through
-  // onEnable so the composer keeps the single save+refresh path.
-  const handleSaveDesync = useCallback(() => {
-    if (!repeatsValid) {
-      toast.error(t("invalid_repeats", { ns: "errors" }));
-      return;
-    }
-    onEnable(parseInt(repeatsText, 10));
-    markSaved();
-  }, [repeatsValid, repeatsText, onEnable, markSaved, t]);
+  const handleApply = useCallback(async () => {
+    if (repeats === null || !running) return;
+    if (await onApply(repeats)) markSaved();
+  }, [repeats, running, onApply, markSaved]);
 
   const verifying = verifyResult.status === "running";
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("traffic_engine.mode_video")}</CardTitle>
-        <CardDescription>
+    <Card className={CARD_SHELL}>
+      <CardHeader className={CARD_PAD}>
+        <CardTitle className={CARD_TITLE}>{modeLabel}</CardTitle>
+        <CardDescription className={CARD_DESC}>
           {t("traffic_engine.video_tagline")}
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-5">
+      <CardContent className={`${CARD_PAD} ${CARD_BODY}`}>
         <EngineEnableRow
-          label={t("traffic_engine.enable_mode", {
-            mode: t("traffic_engine.mode_video"),
-          })}
+          modeLabel={modeLabel}
           running={running}
           canEnable={canEnable}
           busy={busy}
           otherOwns={otherOwns}
           otherModeLabel={otherModeLabel}
-          onToggle={(next) =>
-            next
-              ? onEnable(repeatsValid ? parseInt(repeatsText, 10) : 1)
-              : onDisable()
-          }
-          ariaLabel={
-            running
-              ? t("traffic_engine.aria_disable_engine")
-              : t("traffic_engine.aria_enable_engine")
-          }
+          onToggle={(next) => (next ? onEnable(repeats ?? 1) : onDisable())}
         />
 
-        {/* Hotspot bypass — global TTL/HL shortcut, shared with Masquerade */}
+        {/* Hotspot bypass: the global TTL/HL shortcut, shared with Masquerade */}
         <BypassHotspotRow ttl={ttl} />
 
-        {/* Desync strength */}
-        <div className="flex flex-col gap-2 border-t pt-5">
-          <div className="flex items-center gap-1.5">
-            <HintIcon
-              label={t("video_optimizer.aria_desync_repeats_info")}
-            >
-              {t("video_optimizer.help_desync_repeats")}
-            </HintIcon>
-            <label
-              htmlFor="dpi-desync-repeats"
-              className="text-sm font-medium text-foreground"
-            >
+        <form
+          id={formId}
+          className={FIELD.ROOT}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleApply();
+          }}
+        >
+          <div className={FIELD.LABEL_ROW}>
+            <label htmlFor="dpi-desync-repeats" className={FIELD.LABEL}>
               {t("video_optimizer.label_desync_repeats")}
             </label>
+            <HintIcon label={t("video_optimizer.aria_desync_repeats_info")}>
+              {t("video_optimizer.help_desync_repeats")}
+            </HintIcon>
           </div>
-          <p className="-mt-1 text-xs text-muted-foreground">
+          <p className={FIELD.HELPER}>
             {t("video_optimizer.helper_desync_repeats")}
           </p>
-          <div className="flex items-center gap-2">
-            <Input
-              id="dpi-desync-repeats"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={10}
-              step={1}
-              value={repeatsText}
-              onChange={(e) => setRepeatsText(e.target.value)}
-              disabled={busy}
-              aria-invalid={!repeatsValid}
-              aria-label={t("video_optimizer.label_desync_repeats")}
-              className="h-9 w-20 tabular-nums"
-            />
-            {running && (
-              <SaveButton
-                type="button"
-                isSaving={isSaving}
-                saved={saved}
-                disabled={!repeatsDirty || !repeatsValid}
-                onClick={handleSaveDesync}
-                label={t("traffic_engine.tile_apply")}
-              />
-            )}
-          </div>
-        </div>
+          <Input
+            id="dpi-desync-repeats"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={10}
+            step={1}
+            value={repeatsText}
+            onChange={(e) => setRepeatsText(e.target.value)}
+            disabled={busy}
+            aria-invalid={repeats === null}
+            aria-describedby={repeats === null ? errorId : undefined}
+            className={FIELD.NUMBER}
+          />
+          {repeats === null ? (
+            <FieldError id={errorId}>
+              {t("invalid_repeats", { ns: "errors" })}
+            </FieldError>
+          ) : null}
+        </form>
 
-        {/* Verify check — shared layout with Masquerade's Test Injection */}
+        {/* Verify check: shared layout with Masquerade's injection test */}
         <EngineCheckRow
           title={t("video_optimizer.verify_title")}
           description={t("video_optimizer.verify_description")}
@@ -179,19 +169,45 @@ export function VideoOptimizerPanel({
           busy={verifying}
           onRun={runVerification}
         >
-          {verifyResult.status === "complete" &&
-            verifyResult.passed === true && (
-              <ResultAlert tone="success">{verifyResult.message}</ResultAlert>
-            )}
-          {verifyResult.status === "complete" &&
-            verifyResult.passed === false && (
-              <ResultAlert tone="warning">{verifyResult.message}</ResultAlert>
-            )}
-          {verifyResult.status === "error" && verifyResult.error && (
+          {verifyResult.status === "complete" && verifyResult.passed === true ? (
+            <ResultAlert tone="success">{verifyResult.message}</ResultAlert>
+          ) : null}
+          {verifyResult.status === "complete" && verifyResult.passed === false ? (
+            <ResultAlert tone="warning">{verifyResult.message}</ResultAlert>
+          ) : null}
+          {verifyResult.status === "error" && verifyResult.error ? (
             <ResultAlert tone="destructive">{verifyResult.error}</ResultAlert>
-          )}
+          ) : null}
         </EngineCheckRow>
       </CardContent>
+
+      {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
+      <CardFoot
+        className={CARD_PAD}
+        status={<DraftStatus dirty={isDirty} running={running} />}
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={() => setRepeatsText(String(savedRepeats))}
+              disabled={!isDirty || busy}
+            >
+              {t("common:actions.discard")}
+            </Button>
+            <SaveButton
+              type="submit"
+              form={formId}
+              isSaving={isSaving}
+              saved={saved}
+              disabled={!running || !isDirty || repeats === null || busy}
+              label={t("traffic_engine.tile_apply")}
+              size="action"
+            />
+          </>
+        }
+      />
     </Card>
   );
 }

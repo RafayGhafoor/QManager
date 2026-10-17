@@ -5,8 +5,11 @@ import { useTranslation } from "react-i18next";
 import { authFetch } from "@/lib/auth-fetch";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type { HostlistResponse } from "@/types/video-optimizer";
+import type { MutationResult } from "@/types/mutation-result";
 
 const API_URL = "/cgi-bin/quecmanager/network/video_optimizer.sh";
+
+const SUCCEEDED: MutationResult = { ok: true, code: null, error: null };
 
 export function useCdnHostlist() {
   const { t } = useTranslation("errors");
@@ -56,7 +59,7 @@ export function useCdnHostlist() {
   }, []);
 
   const saveHostlist = useCallback(
-    async (newDomains: string[]): Promise<boolean> => {
+    async (newDomains: string[]): Promise<MutationResult> => {
       setIsSaving(true);
       setError(null);
 
@@ -71,19 +74,19 @@ export function useCdnHostlist() {
 
         const data = await response.json();
         if (!data.success) {
-          setError(resolveErrorMessage(t, undefined, data.detail, "Failed to save hostname list"));
-          return false;
+          setError(resolveErrorMessage(t, data.error, data.detail, "Failed to save hostname list"));
+          return { ok: false, code: data.error ?? null, error: data.detail ?? null };
         }
 
         await fetchHostlist(true);
-        return true;
+        return SUCCEEDED;
       } catch (err) {
         if (mountedRef.current) {
           setError(
             err instanceof Error ? err.message : "Failed to save hostname list"
           );
         }
-        return false;
+        return { ok: false, code: null, error: err instanceof Error ? err.message : null };
       } finally {
         if (mountedRef.current) setIsSaving(false);
       }
@@ -91,7 +94,7 @@ export function useCdnHostlist() {
     [fetchHostlist, t]
   );
 
-  const restoreDefaults = useCallback(async (): Promise<boolean> => {
+  const restoreDefaults = useCallback(async (): Promise<MutationResult> => {
     setIsRestoring(true);
     setError(null);
 
@@ -106,19 +109,19 @@ export function useCdnHostlist() {
 
       const data = await response.json();
       if (!data.success) {
-        setError(resolveErrorMessage(t, undefined, data.detail, "Failed to restore defaults"));
-        return false;
+        setError(resolveErrorMessage(t, data.error, data.detail, "Failed to restore defaults"));
+        return { ok: false, code: data.error ?? null, error: data.detail ?? null };
       }
 
       await fetchHostlist(true);
-      return true;
+      return SUCCEEDED;
     } catch (err) {
       if (mountedRef.current) {
         setError(
           err instanceof Error ? err.message : "Failed to restore defaults"
         );
       }
-      return false;
+      return { ok: false, code: null, error: err instanceof Error ? err.message : null };
     } finally {
       if (mountedRef.current) setIsRestoring(false);
     }

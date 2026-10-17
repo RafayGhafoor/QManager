@@ -8,39 +8,28 @@ import {
   XCircleIcon,
   type LucideIcon,
 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import {
+  NOTICE,
+  NOTICE_BODY,
+  NOTICE_GLYPH,
+  NOTICE_TONE,
+  type NoticeTone,
+} from "./shapes";
 
-export type ResultTone = "success" | "warning" | "destructive" | "info";
+export type ResultTone = NoticeTone;
 
-const TONES: Record<ResultTone, { wrap: string; text: string; Icon: LucideIcon }> = {
-  success: {
-    wrap: "border-success/30 bg-success/10",
-    text: "text-success",
-    Icon: CheckCircle2Icon,
-  },
-  warning: {
-    wrap: "border-warning/30 bg-warning/10",
-    text: "text-warning",
-    Icon: TriangleAlertIcon,
-  },
-  destructive: {
-    wrap: "border-destructive/30 bg-destructive/10",
-    text: "text-destructive",
-    Icon: XCircleIcon,
-  },
-  info: {
-    wrap: "border-info/30 bg-info/10",
-    text: "text-info",
-    Icon: InfoIcon,
-  },
+const GLYPH: Record<ResultTone, LucideIcon> = {
+  success: CheckCircle2Icon,
+  warning: TriangleAlertIcon,
+  destructive: XCircleIcon,
+  info: InfoIcon,
 };
 
 /**
- * Single source of truth for the engine's confidence-check result alerts
- * (verify / test / install). One tone scale, one icon set, one tint ramp, so
- * the Video and Masquerade surfaces can never drift apart on `bg-success/5`
- * vs `/10` the way the old twin surfaces did.
+ * Single source of truth for the engine's result notices (verify, injection
+ * test, install, prerequisites). A solid tonal container with its own glyph per
+ * tone, so the Video and Masquerade surfaces can never drift apart.
  */
 export function ResultAlert({
   tone,
@@ -51,11 +40,14 @@ export function ResultAlert({
   children: ReactNode;
   className?: string;
 }) {
-  const { wrap, text, Icon } = TONES[tone];
+  const Icon = GLYPH[tone];
   return (
-    <Alert className={cn(wrap, className)}>
-      <Icon className={cn("size-4", text)} />
-      <AlertDescription className={text}>{children}</AlertDescription>
-    </Alert>
+    <div
+      role={tone === "destructive" || tone === "warning" ? "alert" : "status"}
+      className={cn(NOTICE, NOTICE_TONE[tone], "animate-banner-in", className)}
+    >
+      <Icon className={NOTICE_GLYPH} aria-hidden="true" />
+      <span className={NOTICE_BODY}>{children}</span>
+    </div>
   );
 }

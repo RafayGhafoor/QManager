@@ -10,8 +10,11 @@ import type {
   VerifyResult,
   InstallResult,
 } from "@/types/video-optimizer";
+import type { MutationResult } from "@/types/mutation-result";
 
 const API_URL = "/cgi-bin/quecmanager/network/video_optimizer.sh";
+
+const SUCCEEDED: MutationResult = { ok: true, code: null, error: null };
 
 export function useVideoOptimizer() {
   const { t } = useTranslation("errors");
@@ -82,7 +85,7 @@ export function useVideoOptimizer() {
   const saveSettings = useCallback(
     async (
       input: { enabled: boolean; desync_repeats?: number },
-    ): Promise<boolean> => {
+    ): Promise<MutationResult> => {
       setIsSaving(true);
       setError(null);
 
@@ -106,19 +109,19 @@ export function useVideoOptimizer() {
         const data = await response.json();
         if (!data.success) {
           setError(resolveErrorMessage(t, data.error, data.detail, "Failed to save settings"));
-          return false;
+          return { ok: false, code: data.error ?? null, error: data.detail ?? null };
         }
 
         // Silent re-fetch to get updated status
         await fetchSettings(true);
-        return true;
+        return SUCCEEDED;
       } catch (err) {
         if (mountedRef.current) {
           setError(
             err instanceof Error ? err.message : "Failed to save settings"
           );
         }
-        return false;
+        return { ok: false, code: null, error: err instanceof Error ? err.message : null };
       } finally {
         if (mountedRef.current) setIsSaving(false);
       }
@@ -259,7 +262,7 @@ export function useVideoOptimizer() {
 
   const [isUninstalling, setIsUninstalling] = useState(false);
 
-  const runUninstall = useCallback(async (): Promise<boolean> => {
+  const runUninstall = useCallback(async (): Promise<MutationResult> => {
     setIsUninstalling(true);
     try {
       const response = await authFetch(API_URL, {
@@ -270,16 +273,16 @@ export function useVideoOptimizer() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (!data.success) {
-        setError(resolveErrorMessage(t, undefined, data.detail, "Failed to uninstall"));
-        return false;
+        setError(resolveErrorMessage(t, data.error, data.detail, "Failed to uninstall"));
+        return { ok: false, code: data.error ?? null, error: data.detail ?? null };
       }
       await fetchSettings(true);
-      return true;
+      return SUCCEEDED;
     } catch (err) {
       if (mountedRef.current) {
         setError(err instanceof Error ? err.message : "Failed to uninstall");
       }
-      return false;
+      return { ok: false, code: null, error: err instanceof Error ? err.message : null };
     } finally {
       if (mountedRef.current) setIsUninstalling(false);
     }

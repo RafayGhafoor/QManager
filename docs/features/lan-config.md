@@ -204,6 +204,8 @@ No reboot is issued. `network reload` re-reads UCI and rebinds `br-lan` without 
 
 The card slots into `components/local-network/ethernet-status.tsx`, replacing the removed Wake-on-LAN card.
 
+**Canon re-author (ledger U4.11.9).** Presentation only; the CGI, the hook and the self-severing apply flow above are unchanged. Both components take their motion from `lib/motion` tokens (`EASE_STANDARD`, `EASE_QUICK`, `DUR.quick` / `DUR.standard` / `DUR.emphasized`, `STAGGER_STEP`) and honour `useMotionReduced()`; no raw durations. The manual-fallback reconnect banner is a solid tonal `bg-warning-container` block with its glyph on a strong `bg-warning` disc, not a 10% tint.
+
 ### 5. Auto-redirect uses an event-driven no-cors reachability probe
 
 After the IP changes the device is reachable only at a **new origin**. A normal `fetch()` against it can't *read* the response (CORS) and the auth cookie is scoped to the old origin — but `LanReconnecting` doesn't need to read anything, only to know whether the device **answers**. It probes with `fetch(\`http://<new-ip>/?_qm=<ts>\`, { mode: "no-cors", redirect: "manual", signal })`, which **resolves on any HTTP response (opaque)** and **rejects on a connection failure** — a clean cross-origin reachability signal. Each probe is `AbortController`-bounded (1.5 s) so an unreachable host can't hang the poll. PNA doesn't block it because the serving page is itself on a private IP (private→private).

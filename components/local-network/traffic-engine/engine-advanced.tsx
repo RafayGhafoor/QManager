@@ -2,6 +2,7 @@
 
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { Loader2, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -14,65 +15,67 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Trash2Icon } from "lucide-react";
+import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
+import type { MutationResult } from "@/types/mutation-result";
+import { DANGER } from "./shapes";
 
 interface EngineRemoveRowProps {
   isUninstalling: boolean;
-  /** Removes the shared binary. Returns success. */
-  onUninstall: () => Promise<boolean>;
-  /** Refresh engine truth after a successful uninstall. */
+  onUninstall: () => Promise<MutationResult>;
   onUninstalled: () => void;
-  errorMessage?: string | null;
 }
 
 /**
- * The "remove engine binary" affordance. The nfqws binary is shared by both
- * modes, so removing it affects both — the dialog says so. Rendered as a quiet
- * footer row inside the Engine Status card (only while idle), not as a card of
- * its own.
+ * Removes the engine both modes share. Rendered by the composer only while the
+ * engine is settled idle, at the foot of the status card. Low emphasis on
+ * purpose: destructive is the button, not the surface.
  */
 export function EngineRemoveRow({
   isUninstalling,
   onUninstall,
   onUninstalled,
-  errorMessage,
 }: EngineRemoveRowProps) {
   const { t } = useTranslation("local-network");
 
+  const remove = async () => {
+    const result = await onUninstall();
+    if (result.ok) {
+      toast.success(t("traffic_engine.advanced_toast_success"));
+      onUninstalled();
+    } else {
+      toast.error(
+        resolveErrorMessage(
+          t,
+          result.code,
+          result.error,
+          t("traffic_engine.advanced_toast_error"),
+        ),
+      );
+    }
+  };
+
   return (
-    <div className="flex w-full flex-wrap items-center justify-between gap-3">
-      <div className="min-w-0">
-        <p className="text-sm font-medium">
-          {t("traffic_engine.advanced_remove_title")}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {t("traffic_engine.advanced_remove_desc")}
-        </p>
+    <div className={DANGER.ROOT}>
+      <div className={DANGER.TEXT}>
+        <p className={DANGER.TITLE}>{t("traffic_engine.advanced_remove_title")}</p>
+        <p className={DANGER.DESC}>{t("traffic_engine.advanced_remove_desc")}</p>
       </div>
       <AlertDialog>
         <AlertDialogTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isUninstalling}
-            className="text-destructive hover:text-destructive"
-          >
+          <Button variant="tonal-destructive" disabled={isUninstalling}>
             {isUninstalling ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                {t("traffic_engine.advanced_removing")}
-              </>
+              <Loader2 className="motion-safe:animate-spin" aria-hidden="true" />
             ) : (
-              <>
-                <Trash2Icon className="size-4" />
-                {t("traffic_engine.advanced_remove_button")}
-              </>
+              <Trash2Icon aria-hidden="true" />
             )}
+            {isUninstalling
+              ? t("traffic_engine.advanced_removing")
+              : t("traffic_engine.advanced_remove_button")}
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">
+            <AlertDialogTitle>
               {t("traffic_engine.advanced_dialog_title")}
             </AlertDialogTitle>
             <AlertDialogDescription>
@@ -85,17 +88,7 @@ export function EngineRemoveRow({
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={async () => {
-                const success = await onUninstall();
-                if (success) {
-                  toast.success(t("traffic_engine.advanced_toast_success"));
-                  onUninstalled();
-                } else {
-                  toast.error(
-                    errorMessage || t("traffic_engine.advanced_toast_error"),
-                  );
-                }
-              }}
+              onClick={() => void remove()}
             >
               {t("traffic_engine.advanced_remove_button")}
             </AlertDialogAction>

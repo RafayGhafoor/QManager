@@ -146,7 +146,16 @@ The file is created by the first POST; a fresh install with no prior POST will h
 | `isLoading` | `boolean` | True during initial fetch |
 | `isSaving` | `boolean` | True during save |
 | `error` | `string \| null` | Resolved error message |
-| `saveDns` | `(SaveDnsParams) => Promise<boolean>` | Apply new settings; silent re-fetch on success |
+| `saveDns` | `(SaveDnsParams) => Promise<MutationResult>` | Apply new settings; returns `{ success, error }` (`types/mutation-result.ts`), silent re-fetch on success. The handler toasts the returned `error`, not hook `error` state |
 | `refresh` | `() => void` | Re-fetch without showing the loading state |
 
 `DnsSettingsData` parses `currentDNS` and `currentDNS6` (both comma-separated strings from the backend) into individual `dns1`/`dns2`/`dns3` and `dns1v6`/`dns2v6` fields. `SaveDnsParams` mirrors the POST body exactly (all six address fields + `mode` + `nic`).
+
+## Layout (canon re-author, ledger U4.11.10)
+
+Frontend only; the CGI is unchanged. `components/local-network/custom-dns/shapes.ts` holds the class constants and the skeleton reads them.
+
+- The card is full width and declares `@container/card`. The IPv4 and IPv6 families sit side by side from `@3xl/card`; their inputs go two-up at `@md/card`, single column from `@3xl/card` (families side by side), and two-up again at `@5xl/card`.
+- The enable control is a `SegmentedField`. The provider `Select` trigger is full width and caps at `w-72` from `@md/card`.
+- A selected preset renders as receipt rows (key left, value right). Addresses are mono because they are opaque strings; "Custom" swaps the rows for editable inputs.
+- Apply commits from a `CardFoot` (status left, Discard then `SaveButton` right).

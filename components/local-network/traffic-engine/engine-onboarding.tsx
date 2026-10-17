@@ -1,17 +1,19 @@
 "use client";
 
-import { useTranslation, Trans } from "react-i18next";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Trans, useTranslation } from "react-i18next";
 import { Download, Loader2, PackageIcon, RefreshCcwIcon } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import type { InstallResult } from "@/types/video-optimizer";
+import { cn } from "@/lib/utils";
 import { ResultAlert } from "./result-alert";
+import {
+  CARD_PAD,
+  CONDITION,
+  CONDITION_TONE,
+  HERO_SHELL,
+  NOTICE_DETAIL,
+} from "./shapes";
 
 interface EngineOnboardingProps {
   installResult: InstallResult;
@@ -20,9 +22,8 @@ interface EngineOnboardingProps {
 }
 
 /**
- * Shared not-installed state. One install of the nfqws engine unlocks BOTH
- * modes, so this single card replaces the two separate "package missing" panels
- * the old features each carried.
+ * The not-installed shape of the page: one hero card that IS the state. One
+ * install unlocks both modes, so it replaces the status, tabs and hostlist.
  */
 export function EngineOnboarding({
   installResult,
@@ -31,90 +32,69 @@ export function EngineOnboarding({
 }: EngineOnboardingProps) {
   const { t } = useTranslation("local-network");
   const installing = installResult.status === "running";
+  const tone = CONDITION_TONE.muted;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("traffic_engine.onboarding_title")}</CardTitle>
-        <CardDescription>
-          {t("traffic_engine.onboarding_description")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent aria-live="polite">
-        <div className="mx-auto flex max-w-md flex-col items-center gap-5 py-8 text-center">
-          <div className="flex size-14 items-center justify-center rounded-xl border bg-muted/40">
-            <PackageIcon className="size-7 text-muted-foreground" />
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">
-              {t("traffic_engine.onboarding_unlocks")}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              <Trans
-                i18nKey="traffic_engine.onboarding_zapret_attribution"
-                ns="local-network"
-                components={{
-                  link: (
-                    <a
-                      href="https://github.com/bol-van/zapret"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline underline-offset-2"
-                    />
-                  ),
-                }}
-              />
-            </p>
-          </div>
+    <Card className={HERO_SHELL}>
+      <CardContent className={CARD_PAD} aria-live="polite">
+        <div className={cn(CONDITION.ROOT, tone.ROOT)}>
+          <span aria-hidden className={cn(CONDITION.DISC, tone.DISC)}>
+            <PackageIcon className={CONDITION.GLYPH} />
+          </span>
+          <h2 className={CONDITION.TITLE}>{t("traffic_engine.onboarding_title")}</h2>
+          <p className={CONDITION.DESC}>
+            {t("traffic_engine.onboarding_description")}{" "}
+            <Trans
+              i18nKey="traffic_engine.onboarding_zapret_attribution"
+              ns="local-network"
+              components={{
+                link: (
+                  <a
+                    href="https://github.com/bol-van/zapret"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium underline underline-offset-2"
+                  />
+                ),
+              }}
+            />
+          </p>
 
-          {installResult.status === "complete" && (
-            <ResultAlert tone="success" className="text-left">
-              {installResult.message}
-              {installResult.detail && (
-                <span className="text-muted-foreground">
-                  {" "}
-                  ({installResult.detail})
-                </span>
-              )}
-            </ResultAlert>
-          )}
-
-          {installResult.status === "error" && (
-            <ResultAlert tone="destructive" className="text-left">
-              {installResult.message}
-              {installResult.detail && (
-                <span className="mt-1 block text-xs opacity-80">
-                  {installResult.detail}
-                </span>
-              )}
-            </ResultAlert>
-          )}
-
-          <div className="flex items-center gap-2">
-            <Button onClick={onInstall} disabled={installing}>
+          <div className={CONDITION.ACTIONS}>
+            <Button size="action" onClick={onInstall} disabled={installing}>
               {installing ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  {installResult.message ||
-                    t("traffic_engine.onboarding_installing")}
-                </>
+                <Loader2 className="motion-safe:animate-spin" aria-hidden="true" />
               ) : (
-                <>
-                  <Download />
-                  {t("traffic_engine.onboarding_install")}
-                </>
+                <Download aria-hidden="true" />
               )}
+              {installing
+                ? installResult.message || t("traffic_engine.onboarding_installing")
+                : t("traffic_engine.onboarding_install")}
             </Button>
             <Button
-              variant="outline"
-              size="sm"
+              variant="ghost"
+              size="action"
               onClick={onRefresh}
               disabled={installing}
+              className={tone.ACTION}
             >
-              <RefreshCcwIcon className="size-3.5" />
+              <RefreshCcwIcon aria-hidden="true" />
               {t("traffic_engine.onboarding_check_again")}
             </Button>
           </div>
+
+          {installResult.status === "complete" || installResult.status === "error" ? (
+            <div className={CONDITION.NOTES}>
+              <ResultAlert
+                tone={installResult.status === "complete" ? "success" : "destructive"}
+              >
+                {installResult.message}
+                {installResult.detail ? (
+                  <span className={NOTICE_DETAIL}>{installResult.detail}</span>
+                ) : null}
+              </ResultAlert>
+            </div>
+          ) : null}
         </div>
       </CardContent>
     </Card>

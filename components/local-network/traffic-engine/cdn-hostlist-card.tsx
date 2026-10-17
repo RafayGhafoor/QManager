@@ -1,8 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import {
+  ArrowDownAZIcon,
+  ArrowUpAZIcon,
+  ArrowUpDownIcon,
+  Download,
+  ListIcon,
+  Loader2,
+  MoreVerticalIcon,
+  PencilLineIcon,
+  Plus,
+  RefreshCcwIcon,
+  RotateCcw,
+  TriangleAlertIcon,
+  Upload,
+  X,
+} from "lucide-react";
 import {
   Card,
   CardAction,
@@ -11,6 +27,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CardFoot } from "@/components/ui/card-foot";
 import {
   InputGroup,
   InputGroupAddon,
@@ -19,7 +36,6 @@ import {
 } from "@/components/ui/input-group";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import {
   AlertDialog,
@@ -36,57 +52,72 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FieldError } from "@/components/ui/field";
-import {
-  AlertTriangle,
-  ArrowDownAZIcon,
-  ArrowUpAZIcon,
-  ArrowUpDownIcon,
-  Download,
-  ListIcon,
-  Loader2,
-  MoreVerticalIcon,
-  PencilLineIcon,
-  Plus,
-  RefreshCcwIcon,
-  RotateCcw,
-  Upload,
-  X,
-} from "lucide-react";
 import { useCdnHostlist } from "@/hooks/use-cdn-hostlist";
+import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import { validateDomainKey } from "@/lib/validate-domain";
 import { cn } from "@/lib/utils";
+import {
+  CARD_DESC,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_TITLE,
+  CONDITION,
+  CONDITION_TONE,
+  HOSTLIST,
+  SKELETON,
+} from "./shapes";
 
-/**
- * Loading placeholder for the hostlist card. Mirrors the real card's flex /
- * full-height shape (header, add-input, stretch list, footer) so it occupies
- * the same box as the live content and the column-2 → content swap doesn't
- * shift the bottom edge. Exported so the page-level skeleton can reserve
- * column 2 and avoid the 1-col → 2-col layout jump.
- */
+const sameSet = (a: string[], b: string[]) => {
+  if (a.length !== b.length) return false;
+  const norm = (list: string[]) =>
+    list.map((d) => d.toLowerCase()).sort((x, y) => x.localeCompare(y));
+  const na = norm(a);
+  const nb = norm(b);
+  return na.every((d, i) => d === nb[i]);
+};
+
+function HostlistHeader({ children }: { children?: React.ReactNode }) {
+  const { t } = useTranslation("local-network");
+  return (
+    <CardHeader className={CARD_PAD}>
+      <CardTitle className={CARD_TITLE}>
+        {t("video_optimizer.hostlist_card_title")}
+      </CardTitle>
+      <CardDescription className={CARD_DESC}>
+        {t("video_optimizer.hostlist_card_description")}
+      </CardDescription>
+      {children}
+    </CardHeader>
+  );
+}
+
+/** The hostlist's placeholder: the loaded card's own geometry. */
 export function HostlistSkeleton() {
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader>
-        <Skeleton className="h-5 w-44" />
-        <Skeleton className="h-4 w-72" />
+    <Card className={cn(CARD_SHELL, "h-full")} aria-hidden="true">
+      <CardHeader className={CARD_PAD}>
+        <Skeleton className={SKELETON.TITLE} />
+        <Skeleton className={SKELETON.DESC} />
       </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
-        <Skeleton className="h-9 w-full" />
-        <Skeleton className="min-h-0 w-full flex-1" />
-        <Skeleton className="h-9 w-full" />
+      <CardContent className={`${CARD_PAD} flex min-h-0 flex-1 flex-col gap-4`}>
+        <Skeleton className={SKELETON.INPUT} />
+        <Skeleton className={SKELETON.HOSTLIST} />
       </CardContent>
+      <CardFoot
+        className={CARD_PAD}
+        liveStatus={false}
+        actions={<Skeleton className={SKELETON.ACTION} />}
+      />
     </Card>
   );
 }
 
 /**
- * Pill-dense CDN hostlist (UniFi data-density heritage). Domains render as dense
- * outline pills, custom domains carrying an info-tinted sparkle marker and an
- * inline remove. Add / remove / import / export / sort / restore all preserved.
+ * The CDN domains Video Optimizer targets. A companion of the Video tab: the
+ * draft is edited in the pill field and committed from the foot.
  */
 export function CdnHostlistCard() {
   const { t } = useTranslation("local-network");
@@ -102,34 +133,30 @@ export function CdnHostlistCard() {
     refresh,
   } = useCdnHostlist();
 
-  const [editDomains, setEditDomains] = useState<string[]>([]);
+  // The draft follows the saved list whenever a load or save replaces it
+  // (adjust-during-render, no effect).
+  const [editDomains, setEditDomains] = useState<string[]>(domains);
+  const [prevDomains, setPrevDomains] = useState(domains);
+  if (domains !== prevDomains) {
+    setPrevDomains(domains);
+    setEditDomains(domains);
+  }
+
   const [newDomain, setNewDomain] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [sortAsc, setSortAsc] = useState<boolean | null>(null);
   const { saved, markSaved } = useSaveFlash();
   const importRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    setEditDomains(domains);
-  }, [domains]);
-
   const defaultSet = useMemo(
     () => new Set(defaultDomains.map((d) => d.toLowerCase())),
     [defaultDomains],
   );
 
-  const isDirty = useMemo(() => {
-    if (editDomains.length !== domains.length) return true;
-    const sortedEdit = [...editDomains].sort((a, b) =>
-      a.toLowerCase().localeCompare(b.toLowerCase()),
-    );
-    const sortedSaved = [...domains].sort((a, b) =>
-      a.toLowerCase().localeCompare(b.toLowerCase()),
-    );
-    return sortedEdit.some(
-      (d, i) => d.toLowerCase() !== sortedSaved[i].toLowerCase(),
-    );
-  }, [editDomains, domains]);
+  const isDirty = useMemo(
+    () => !sameSet(editDomains, domains),
+    [editDomains, domains],
+  );
 
   const displayDomains = useMemo(() => {
     const indexed = editDomains.map((d, i) => ({ domain: d, originalIndex: i }));
@@ -161,39 +188,43 @@ export function CdnHostlistCard() {
     setEditDomains((prev) => prev.filter((_, i) => i !== originalIndex));
   }, []);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleAddDomain();
-      }
-    },
-    [handleAddDomain],
-  );
-
   const handleSave = useCallback(async () => {
-    const success = await saveHostlist(editDomains);
-    if (success) {
+    const result = await saveHostlist(editDomains);
+    if (result.ok) {
       markSaved();
       toast.success(t("video_optimizer.toast_save_success"));
     } else {
-      toast.error(error || t("video_optimizer.toast_save_error"));
+      toast.error(
+        resolveErrorMessage(
+          t,
+          result.code,
+          result.error,
+          t("video_optimizer.toast_save_error"),
+        ),
+      );
     }
-  }, [editDomains, saveHostlist, markSaved, error, t]);
+  }, [editDomains, saveHostlist, markSaved, t]);
 
-  const handleReset = useCallback(() => {
+  const handleDiscard = useCallback(() => {
     setEditDomains(domains);
     setValidationError(null);
   }, [domains]);
 
   const handleRestoreDefaults = useCallback(async () => {
-    const success = await restoreDefaults();
-    if (success) {
+    const result = await restoreDefaults();
+    if (result.ok) {
       toast.success(t("video_optimizer.toast_restore_success"));
     } else {
-      toast.error(error || t("video_optimizer.toast_restore_error"));
+      toast.error(
+        resolveErrorMessage(
+          t,
+          result.code,
+          result.error,
+          t("video_optimizer.toast_restore_error"),
+        ),
+      );
     }
-  }, [restoreDefaults, error, t]);
+  }, [restoreDefaults, t]);
 
   const handleExport = useCallback(() => {
     const content = editDomains.join("\n") + "\n";
@@ -229,6 +260,7 @@ export function CdnHostlistCard() {
           (d) => !existingLower.has(d.toLowerCase()),
         );
 
+        // Import only changes the draft; the foot's Save commits it.
         if (newOnes.length === 0) {
           toast.info(t("video_optimizer.toast_import_no_new"));
         } else {
@@ -245,131 +277,126 @@ export function CdnHostlistCard() {
   );
 
   const toggleSort = useCallback(() => {
-    setSortAsc((prev) => {
-      if (prev === null) return true;
-      if (prev === true) return false;
-      return null;
-    });
+    setSortAsc((prev) => (prev === null ? true : prev ? false : null));
   }, []);
 
   if (isLoading) return <HostlistSkeleton />;
 
   if (error && domains.length === 0) {
+    const tone = CONDITION_TONE.destructive;
     return (
-      <Card className="h-full">
-        <CardHeader>
-          <CardTitle>{t("video_optimizer.hostlist_card_title")}</CardTitle>
-          <CardDescription>
-            {t("video_optimizer.hostlist_card_description")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent aria-live="polite">
-          <Alert variant="destructive">
-            <AlertTriangle className="size-4" />
-            <AlertDescription className="flex items-center justify-between">
-              <span>{t("video_optimizer.hostlist_error_load_failed")}</span>
-              <Button variant="outline" size="sm" onClick={() => refresh()}>
-                <RefreshCcwIcon className="size-3.5" />
+      <Card className={cn(CARD_SHELL, "h-full")}>
+        <HostlistHeader />
+        <CardContent className={`${CARD_PAD} flex flex-1 flex-col`}>
+          <div role="alert" className={cn(CONDITION.ROOT, tone.ROOT)}>
+            <span aria-hidden className={cn(CONDITION.DISC, tone.DISC)}>
+              <TriangleAlertIcon className={CONDITION.GLYPH} />
+            </span>
+            <p className={CONDITION.DESC}>
+              {t("video_optimizer.hostlist_error_load_failed")}
+            </p>
+            <div className={CONDITION.ACTIONS}>
+              <Button
+                variant="ghost"
+                size="action"
+                onClick={() => refresh()}
+                className={tone.ACTION}
+              >
+                <RefreshCcwIcon aria-hidden="true" />
                 {t("actions.retry", { ns: "common" })}
               </Button>
-            </AlertDescription>
-          </Alert>
+            </div>
+          </div>
         </CardContent>
       </Card>
     );
   }
 
+  const busy = isSaving || isRestoring;
+
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader>
-        <CardTitle>{t("video_optimizer.hostlist_card_title")}</CardTitle>
-        <CardDescription>
-          {t("video_optimizer.hostlist_card_description")}
-        </CardDescription>
-        <CardAction>
-          <div className="flex items-center gap-2">
-            <span className="text-sm tabular-nums text-muted-foreground">
-              {t("traffic_engine.hostlist_summary", {
-                count: editDomains.length,
-                custom: customCount,
-              })}
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              onClick={toggleSort}
-              aria-label={
-                sortAsc === null
-                  ? t("video_optimizer.aria_sort_az")
-                  : sortAsc
-                    ? t("video_optimizer.aria_sort_za")
-                    : t("video_optimizer.aria_sort_clear")
-              }
-            >
-              {sortAsc === null ? (
-                <ArrowUpDownIcon className="size-4" />
-              ) : sortAsc ? (
-                <ArrowDownAZIcon className="size-4" />
-              ) : (
-                <ArrowUpAZIcon className="size-4" />
-              )}
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  aria-label={t("video_optimizer.aria_menu_options")}
-                >
-                  <MoreVerticalIcon className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleExport}>
-                  <Download className="size-4" />
-                  {t("video_optimizer.menu_export")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => importRef.current?.click()}>
-                  <Upload className="size-4" />
-                  {t("video_optimizer.menu_import")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleReset} disabled={!isDirty}>
-                  <RotateCcw className="size-4" />
-                  {t("video_optimizer.menu_discard")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <input
-              ref={importRef}
-              type="file"
-              accept=".txt,.csv,text/plain"
-              className="hidden"
-              onChange={handleImport}
-            />
-          </div>
+    <Card className={cn(CARD_SHELL, "h-full")}>
+      <HostlistHeader>
+        <CardAction className={HOSTLIST.HEAD_TOOLS}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={HOSTLIST.ICON_BUTTON}
+            onClick={toggleSort}
+            aria-label={
+              sortAsc === null
+                ? t("video_optimizer.aria_sort_az")
+                : sortAsc
+                  ? t("video_optimizer.aria_sort_za")
+                  : t("video_optimizer.aria_sort_clear")
+            }
+          >
+            {sortAsc === null ? (
+              <ArrowUpDownIcon className="size-4" />
+            ) : sortAsc ? (
+              <ArrowDownAZIcon className="size-4" />
+            ) : (
+              <ArrowUpAZIcon className="size-4" />
+            )}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={HOSTLIST.ICON_BUTTON}
+                aria-label={t("video_optimizer.aria_menu_options")}
+              >
+                <MoreVerticalIcon className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExport}>
+                <Download className="size-4" />
+                {t("video_optimizer.menu_export")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => importRef.current?.click()}>
+                <Upload className="size-4" />
+                {t("video_optimizer.menu_import")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <input
+            ref={importRef}
+            type="file"
+            accept=".txt,.csv,text/plain"
+            className="hidden"
+            onChange={handleImport}
+          />
         </CardAction>
-      </CardHeader>
+      </HostlistHeader>
+
       <CardContent
-        className="flex min-h-0 flex-1 flex-col gap-4"
+        className={`${CARD_PAD} flex min-h-0 flex-1 flex-col gap-4`}
         aria-live="polite"
       >
-        {/* Add domain input */}
-        <div className="space-y-1.5">
+        <div className="flex flex-col gap-1.5">
           <InputGroup>
             <InputGroupInput
               type="text"
+              autoComplete="off"
+              spellCheck={false}
+              autoCapitalize="none"
+              className="font-mono text-[0.8125rem]"
               placeholder={t("video_optimizer.placeholder_new_domain")}
               value={newDomain}
               onChange={(e) => {
                 setNewDomain(e.target.value);
                 if (validationError) setValidationError(null);
               }}
-              onKeyDown={handleKeyDown}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddDomain();
+                }
+              }}
               aria-label={t("video_optimizer.aria_new_domain")}
               aria-invalid={!!validationError}
               aria-describedby={validationError ? "add-domain-error" : undefined}
@@ -385,126 +412,131 @@ export function CdnHostlistCard() {
               </InputGroupButton>
             </InputGroupAddon>
           </InputGroup>
-          {validationError && (
+          {validationError ? (
             <FieldError id="add-domain-error">{validationError}</FieldError>
-          )}
+          ) : null}
         </div>
 
-        {/* Pill-dense domain list */}
         {displayDomains.length === 0 ? (
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-10 text-center">
-            <ListIcon className="size-8 text-muted-foreground/60" />
-            <p className="text-sm text-muted-foreground">
+          <div className={HOSTLIST.EMPTY}>
+            <ListIcon className={HOSTLIST.EMPTY_GLYPH} aria-hidden="true" />
+            <p className={HOSTLIST.EMPTY_TEXT}>
               {t("video_optimizer.empty_state_no_domains")}
             </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleRestoreDefaults}
-              disabled={isRestoring}
-            >
-              {isRestoring ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <RotateCcw className="size-4" />
-              )}
-              {t("video_optimizer.button_restore_defaults")}
-            </Button>
           </div>
         ) : (
-          <div className="flex min-h-0 flex-1 flex-wrap content-start gap-2 overflow-y-auto rounded-lg border bg-muted/20 p-3">
+          <ul className={HOSTLIST.FIELD} aria-label={t("video_optimizer.hostlist_card_title")}>
             {displayDomains.map(({ domain, originalIndex }) => {
               const isCustom = !defaultSet.has(domain.toLowerCase());
               return (
-                <span
+                <li
                   key={`${domain}-${originalIndex}`}
                   className={cn(
-                    "group/pill inline-flex max-w-full items-center gap-1.5 rounded-md border py-1 pl-2.5 pr-1 text-sm shadow-sm transition-colors duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
-                    // Custom domains carry a whole-pill info tint so they read
-                    // as "mine" at arm's length, not just via the 12px marker.
-                    isCustom
-                      ? "border-info/30 bg-info/5 hover:border-info/50"
-                      : "border-border bg-card hover:border-foreground/15",
+                    HOSTLIST.PILL,
+                    isCustom ? HOSTLIST.PILL_CUSTOM : HOSTLIST.PILL_DEFAULT,
                   )}
                 >
-                  {isCustom && (
+                  {isCustom ? (
                     <PencilLineIcon
-                      className="size-3 shrink-0 text-info"
+                      className={HOSTLIST.PILL_GLYPH}
                       aria-label={t("video_optimizer.aria_custom_domain_badge")}
                     />
-                  )}
+                  ) : null}
                   <span className="truncate">{domain}</span>
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon"
-                    className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+                    size="icon-xs"
+                    className={HOSTLIST.PILL_REMOVE}
                     onClick={() => handleRemoveDomain(originalIndex)}
-                    aria-label={t("video_optimizer.aria_remove_domain", {
-                      domain,
-                    })}
+                    aria-label={t("video_optimizer.aria_remove_domain", { domain })}
                   >
-                    <X className="size-3" />
+                    <X />
                   </Button>
-                </span>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 border-t pt-4">
-          <SaveButton
-            type="button"
-            isSaving={isSaving}
-            saved={saved}
-            disabled={!isDirty}
-            onClick={handleSave}
-            label={t("actions.save", { ns: "common" })}
-          />
-          <div className="flex-1" />
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isSaving || isRestoring}
-              >
-                {isRestoring ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    {t("video_optimizer.state_restoring")}
-                  </>
-                ) : (
-                  t("video_optimizer.button_restore_defaults")
-                )}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {t("video_optimizer.dialog_restore_title")}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t("video_optimizer.dialog_restore_desc")}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>
-                  {t("actions.cancel", { ns: "common" })}
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={handleRestoreDefaults}
-                >
-                  {t("video_optimizer.dialog_action_restore")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
       </CardContent>
+
+      <CardFoot
+        className={CARD_PAD}
+        status={
+          isDirty ? (
+            <span className="font-medium">{t("common:state.unsaved")}</span>
+          ) : (
+            <span className={HOSTLIST.SUMMARY}>
+              {t("traffic_engine.hostlist_summary", {
+                count: editDomains.length,
+                custom: customCount,
+              })}
+            </span>
+          )
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="action"
+              onClick={handleDiscard}
+              disabled={!isDirty || busy}
+            >
+              {t("common:actions.discard")}
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="tonal-neutral"
+                  size="action"
+                  disabled={busy}
+                >
+                  {isRestoring ? (
+                    <Loader2 className="motion-safe:animate-spin" aria-hidden="true" />
+                  ) : (
+                    <RotateCcw aria-hidden="true" />
+                  )}
+                  {isRestoring
+                    ? t("video_optimizer.state_restoring")
+                    : t("video_optimizer.button_restore_defaults")}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {t("video_optimizer.dialog_restore_title")}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t("video_optimizer.dialog_restore_desc")}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>
+                    {t("actions.cancel", { ns: "common" })}
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => void handleRestoreDefaults()}
+                  >
+                    {t("video_optimizer.dialog_action_restore")}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <SaveButton
+              type="button"
+              isSaving={isSaving}
+              saved={saved}
+              disabled={!isDirty || isRestoring}
+              onClick={() => void handleSave()}
+              label={t("actions.save", { ns: "common" })}
+              size="action"
+            />
+          </>
+        }
+      />
     </Card>
   );
 }
