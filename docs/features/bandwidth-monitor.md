@@ -38,6 +38,25 @@ LiveTrafficRow (device-metrics.tsx)  →  5-state UI
 
 **Message filtering:** The hook excludes `rmnet_ipa0`, `rmnet_data2`, and `tailscale0` from the aggregate speed calculation. These interfaces produce noise (IPA offload path, secondary rmnet slots, tunnel overhead) that does not reflect real user traffic. They are still present in `BandwidthMessage.interfaces` if you need raw per-interface breakdowns.
 
+**Aggregate selection — count every byte once.** The binary reports *every*
+interface it discovers, and on real hardware the same bytes appear on more than
+one of them, so `selectAggregateInterfaces()` (exported from the hook, and
+unit-tested in `hooks/__tests__/use-bandwidth-monitor.test.ts`) narrows the
+aggregate before summing:
+
+| | rule | why |
+|---|---|---|
+| alias pairs | a parent netdev is dropped when its `.N` sub-interface is also reported (`rmnet_mhi0` goes, `rmnet_mhi0.1` stays) | on MHI modems both counters advance for the same bearer bytes (measured: totals within 0.6%) |
+| bearer scope | when any `rmnet_*` / `wwan<N>` interface is present, the aggregate is **the bearer only** | a bridge (`br-lan`) and its member port (`eth0`) also carry forwarded traffic; adding them to the WAN doubles it |
+| fallback | no bearer reported (WAN is an ethernet port) → sum everything not excluded | previous behaviour, unchanged |
+| multiple bearers | still summed (`rmnet_data0` + `rmnet_data1` multi-PDN) | they are separate traffic |
+
+Summing the raw array made the Live Traffic row read **2.00x** the wire rate on
+both axes (a 265.7 Mbps Ookla download read 538-550 Mbps). After the change the
+row matches `rmnet_mhi0.1` exactly, i.e. **1.00x**. The `interfaces` array handed
+to callers is never modified — per-interface displays still see every interface,
+including the aliases.
+
 **Message format** (from `types/bandwidth-monitor.ts`):
 
 ```json

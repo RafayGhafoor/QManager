@@ -29,6 +29,63 @@ const RECONNECT_MAX_MS = 30000;
 /** Interfaces to exclude from aggregate speed calculation and display */
 const EXCLUDED_INTERFACES = new Set(["rmnet_ipa0", "rmnet_data2", "tailscale0"]);
 
+/**
+ * The modem bearer namespace: `rmnet_mhi0`, `rmnet_mhi0.1`, `rmnet_data0`, ...
+ * (QMAP/MHI modems) and `wwan0` (qmi_wwan in raw-ip mode, e.g. some RM500Q
+ * firmware). Anything else that reports traffic — bridges, bridge member
+ * ports, tunnels — is not a bearer.
+ */
+const BEARER_NAME_RE = /^(?:rmnet_|wwan\d)/;
+
+// =============================================================================
+// selectAggregateInterfaces — sum every byte exactly once
+// =============================================================================
+// The monitor reports EVERY interface it discovers, and the same bytes appear
+// on more than one of them:
+//
+//   rmnet_mhi0 + rmnet_mhi0.1   parent netdev and its data sub-interface; both
+//                               counters advance for the same bearer bytes
+//   br-lan + eth0               a bridge and the member port it forwards to
+//
+// Summing the whole array therefore roughly doubles the reading. Measured on a
+// Suncomm X75 (RM551E-GL) on 2026-10-18: a download the wire (and Ookla's own
+// final result) put at 265.7 Mbps read 534-574 Mbps in the Live Traffic row,
+// and a 43.6 Mbps upload read 88-105 Mbps.
+//
+// The aggregate answers one question — how busy is the modem link — so it sums
+// the bearer only. The LAN side and the bearer's parent netdev are aliases of
+// the same traffic, not extra traffic.
+//
+// This is deliberately conservative for other hardware:
+//   - A unit that reports no bearer at all (WAN is an ethernet port, or an
+//     unrecognised modem namespace) keeps the previous behaviour exactly:
+//     sum every interface that is not explicitly excluded.
+//   - Multiple bearers are still summed, so a multi-PDN QMAP setup
+//     (rmnet_data0 + rmnet_data1) reports the same total as before.
+//   - A parent is dropped only when its `.N` sub-interface is actually
+//     reported, so an RM520N exposing just `rmnet_mhi0` is unaffected.
+//   - Down interfaces and EXCLUDED_INTERFACES are dropped as before.
+// The per-interface array handed to callers is never modified.
+function selectAggregateInterfaces(
+  ifaces: BandwidthInterfaceData[],
+): BandwidthInterfaceData[] {
+  const up = ifaces.filter(
+    (iface) => iface.state === "up" && !EXCLUDED_INTERFACES.has(iface.name),
+  );
+
+  const bearers = up.filter((iface) => BEARER_NAME_RE.test(iface.name));
+  if (bearers.length === 0) return up;
+
+  // Drop a parent netdev when its data sub-interface is also reported.
+  const bearerNames = bearers.map((iface) => iface.name);
+  return bearers.filter(
+    (iface) =>
+      !bearerNames.some((name) => name.startsWith(`${iface.name}.`)),
+  );
+}
+
+export { selectAggregateInterfaces };
+
 export interface UseBandwidthMonitorReturn {
   /** Rolling chart data points (last 15 seconds) */
   chartData: BandwidthChartPoint[];
@@ -151,10 +208,9 @@ export function useBandwidthMonitor(): UseBandwidthMonitorReturn {
           const msg: BandwidthMessage = JSON.parse(event.data);
           if (msg.channel !== "network-monitor") return;
 
-          // Filter active interfaces, exclude rmnet_ipa0 from aggregation
-          const activeInterfaces = (msg.interfaces || []).filter(
-            (iface) => iface.state === "up" && !EXCLUDED_INTERFACES.has(iface.name),
-          );
+          // Keep only real, non-aliased interfaces before summing — see
+          // selectAggregateInterfaces above.
+          const activeInterfaces = selectAggregateInterfaces(msg.interfaces || []);
 
           // Aggregate speeds across active interfaces
           const totalDownload = activeInterfaces.reduce(
