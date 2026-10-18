@@ -184,5 +184,8 @@
   "restore_in_progress": "Un ripristino è già in corso.",
   "unknown_section": "Questo backup contiene una sezione che questa versione non può ripristinare.",
   "invalid_storage": "Scegli la memoria del modem o della SIM.",
-  "sim_storage_unavailable": "La SIM non può memorizzare messaggi. Controlla che sia inserita."
+  "sim_storage_unavailable": "La SIM non può memorizzare messaggi. Controlla che sia inserita.",
+  "invalid_smsc": "Inserisci il numero del gestore con un + iniziale facoltativo, seguito da 3-20 cifre.",
+  "smsc_write_failed": "Impossibile salvare il numero del gestore. Controllalo e riprova.",
+  "smsc_read_failed": "Impossibile leggere il numero del gestore dal modem."
 }

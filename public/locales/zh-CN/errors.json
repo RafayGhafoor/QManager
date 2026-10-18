@@ -184,5 +184,8 @@
   "restore_in_progress": "恢复已在进行中。",
   "unknown_section": "此备份包含当前版本无法恢复的部分。",
   "invalid_storage": "请选择调制解调器或 SIM 卡存储。",
-  "sim_storage_unavailable": "SIM 卡无法存储短信，请检查是否已插入 SIM 卡。"
+  "sim_storage_unavailable": "SIM 卡无法存储短信，请检查是否已插入 SIM 卡。",
+  "invalid_smsc": "请输入运营商号码：开头可带 +，后跟 3 至 20 位数字。",
+  "smsc_write_failed": "无法保存运营商号码。请检查后重试。",
+  "smsc_read_failed": "无法从调制解调器读取运营商号码。"
 }
