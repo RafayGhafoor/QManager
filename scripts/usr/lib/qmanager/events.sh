@@ -326,46 +326,77 @@ snapshot_event_state() {
 # Compares current t2_carrier_components against saved state in PCI_STATE_FILE.
 # Only called when t2_carrier_components string has changed (Tier 2 refresh).
 detect_scc_pci_changes() {
-    local prev_sccs curr_sccs
+    local prev_sccs curr_sccs curr_rows prev_rows
+    local _row _prow _pt _pb
+    local c_tech c_band c_pci p_pci
+    local _SCC_TAB=$'\t'
+    local _SCC_NL=$'\n'
 
-    # Build current SCC list: tech+band+pci for SCC entries only
-    curr_sccs=$(printf '%s' "$t2_carrier_components" | \
-        jq -c '[.[] | select(.type == "SCC") | {tech: .technology, band: .band, pci: .pci}]' 2>/dev/null)
+    # One jq: the SCC list twice - compact JSON for the state file, then rows.
+    curr_rows=$(printf '%s' "$t2_carrier_components" | jq -r '
+        ([.[] | select(.type == "SCC") | {tech: .technology, band: .band, pci: .pci}] | tojson),
+        ([.[] | select(.type == "SCC") | [.technology, .band, (.pci | tostring)] | @tsv] | .[])
+    ' 2>/dev/null)
+
+    # Line 1 is the JSON, the rest are rows.
+    curr_sccs=${curr_rows%%${_SCC_NL}*}
+    case "$curr_rows" in
+        *"$_SCC_NL"*) curr_rows=${curr_rows#*${_SCC_NL}} ;;
+        *)            curr_rows="" ;;
+    esac
     [ -z "$curr_sccs" ] && curr_sccs="[]"
 
     # Read previous state from file
     if [ -f "$PCI_STATE_FILE" ]; then
         prev_sccs=$(cat "$PCI_STATE_FILE" 2>/dev/null)
         [ -z "$prev_sccs" ] && prev_sccs="[]"
+        # One jq: the previous SCCs as the same rows. Malformed/absent content
+        # yields no rows, which matches the old per-lookup jq failing to match.
+        prev_rows=$(printf '%s' "$prev_sccs" | jq -r '
+            .[] | [(.tech | tostring), (.band | tostring), (.pci | tostring)] | @tsv
+        ' 2>/dev/null)
     else
-        # First run — save current state, no events
+        # First run - save current state, no events
         printf '%s\n' "$curr_sccs" > "$PCI_STATE_FILE"
         return
     fi
 
     # Compare each current SCC against previous (matched by tech+band)
-    local i=0
-    local curr_count
-    curr_count=$(printf '%s' "$curr_sccs" | jq 'length')
+    while [ -n "$curr_rows" ]; do
+        _row=${curr_rows%%${_SCC_NL}*}
+        case "$curr_rows" in
+            *"$_SCC_NL"*) curr_rows=${curr_rows#*${_SCC_NL}} ;;
+            *)            curr_rows="" ;;
+        esac
 
-    while [ "$i" -lt "$curr_count" ]; do
-        local c_tech c_band c_pci p_pci
-        c_tech=$(printf '%s' "$curr_sccs" | jq -r ".[$i].tech")
-        c_band=$(printf '%s' "$curr_sccs" | jq -r ".[$i].band")
-        c_pci=$(printf '%s' "$curr_sccs" | jq -r ".[$i].pci")
+        c_tech=${_row%%${_SCC_TAB}*}
+        _row=${_row#*${_SCC_TAB}}
+        c_band=${_row%%${_SCC_TAB}*}
+        c_pci=${_row#*${_SCC_TAB}}
 
-        # Find matching entry in previous state
-        p_pci=$(printf '%s' "$prev_sccs" | \
-            jq -r --arg t "$c_tech" --arg b "$c_band" \
-            '[.[] | select(.tech == $t and .band == $b)] | .[0].pci | if . == null then empty else tostring end')
+        # Find the first matching entry in the previous state
+        p_pci=""
+        _prow="$prev_rows"
+        while [ -n "$_prow" ]; do
+            _pb=${_prow%%${_SCC_NL}*}
+            case "$_prow" in
+                *"$_SCC_NL"*) _prow=${_prow#*${_SCC_NL}} ;;
+                *)            _prow="" ;;
+            esac
+            _pt=${_pb%%${_SCC_TAB}*}
+            _pb=${_pb#*${_SCC_TAB}}
+            if [ "$_pt" = "$c_tech" ] && [ "${_pb%%${_SCC_TAB}*}" = "$c_band" ]; then
+                p_pci=${_pb#*${_SCC_TAB}}
+                [ "$p_pci" = "null" ] && p_pci=""
+                break
+            fi
+        done
 
         # If previous PCI exists and differs, emit event
         if [ -n "$p_pci" ] && [ "$p_pci" != "null" ] && [ "$p_pci" != "$c_pci" ]; then
             append_event "scc_pci_change" \
                 "$c_tech $c_band SCC cell handoff (PCI: $p_pci -> $c_pci)" "info"
         fi
-
-        i=$((i + 1))
     done
 
     # Save current state for next comparison
