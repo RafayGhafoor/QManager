@@ -289,16 +289,61 @@ _ev_ca_check() {
 
 # Build a short network context string from current state
 # Output: "5G-NSA: B3 + N41" or "LTE: B3" or "5G-SA: N41"
-_ev_net_context() {
+# _ev_net_context_set puts it in the global _EV_CTX (no subshell fork);
+# _ev_net_context is the echo form, kept for compatibility.
+_ev_net_context_set() {
+    _EV_CTX=""
     if [ -n "$lte_band" ] && [ "$nr_state" = "connected" ] && [ -n "$nr_band" ]; then
-        echo "${network_type}: ${lte_band} + ${nr_band}"
+        _EV_CTX="${network_type}: ${lte_band} + ${nr_band}"
     elif [ "$nr_state" = "connected" ] && [ -n "$nr_band" ]; then
-        echo "${network_type}: ${nr_band}"
+        _EV_CTX="${network_type}: ${nr_band}"
     elif [ -n "$lte_band" ]; then
-        echo "${network_type}: ${lte_band}"
+        _EV_CTX="${network_type}: ${lte_band}"
     elif [ -n "$network_type" ]; then
-        echo "$network_type"
+        _EV_CTX="$network_type"
     fi
+}
+
+_ev_net_context() {
+    _ev_net_context_set
+    [ -n "$_EV_CTX" ] && echo "$_EV_CTX"
+    return 0
+}
+
+# _ev_gt <value> <threshold>: exit 0 iff value > threshold, exactly as the
+# former `echo value | awk -v t=threshold '{exit !($1 > t)}'` decided it.
+# A plain unsigned decimal against a plain unsigned integer is compared with
+# shell arithmetic (no fork); anything else (negative, exponent, "null", text,
+# padded zeros...) goes to awk so awk's own numeric/string rules still decide.
+_ev_gt() {
+    local _g_int
+    local _g_frac
+    case "$1" in
+        ''|*[!0-9.]*|.*|*.*.*|0[0-9]*) ;;
+        *)
+            case "$2" in
+                ''|*[!0-9]*|0[0-9]*) ;;
+                *)
+                    if [ "${#1}" -le 15 ] && [ "${#2}" -le 15 ]; then
+                        _g_int="${1%%.*}"
+                        _g_frac=""
+                        case "$1" in *.*) _g_frac="${1#*.}" ;; esac
+                        if [ "$_g_int" -gt "$2" ]; then
+                            return 0
+                        elif [ "$_g_int" -lt "$2" ]; then
+                            return 1
+                        fi
+                        # Integer parts equal: greater only with a non-zero fraction.
+                        case "$_g_frac" in
+                            *[!0]*) return 0 ;;
+                        esac
+                        return 1
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
+    echo "$1" | awk -v t="$2" '{exit !($1 > t)}'
 }
 
 # Snapshot current state into prev_ev_* variables (called once after first parse)
@@ -477,7 +522,8 @@ detect_data_connection_events() {
             _ev_arm_hold
         elif [ "$ev_recov_restored" != "true" ]; then
             local net_ctx
-            net_ctx=$(_ev_net_context)
+            _ev_net_context_set
+            net_ctx="$_EV_CTX"
             local lost_detail=""
             [ -n "$net_ctx" ] && lost_detail=" ($net_ctx)"
             append_event "internet_lost" "Internet connectivity lost${lost_detail}" "warning"
@@ -500,7 +546,7 @@ detect_data_connection_events() {
     local _lat_threshold="${QUALITY_LAT_THRESHOLD:-250}"
     local _lat_debounce="${QUALITY_LAT_DEBOUNCE:-3}"
     if [ "$conn_avg_latency" != "null" ] && [ -n "$conn_avg_latency" ]; then
-        if echo "$conn_avg_latency" | awk -v t="$_lat_threshold" '{exit !($1 > t)}'; then
+        if _ev_gt "$conn_avg_latency" "$_lat_threshold"; then
             ev_lat_clear_streak=0
             if [ "$_held" = "1" ]; then
                 ev_high_lat_streak=0
@@ -591,7 +637,8 @@ detect_events() {
     if [ "$modem_reachable" != "$prev_ev_modem_reachable" ]; then
         if [ "$modem_reachable" = "true" ]; then
             local net_ctx
-            net_ctx=$(_ev_net_context)
+            _ev_net_context_set
+            net_ctx="$_EV_CTX"
             local restore_detail=""
             [ -n "$net_ctx" ] && restore_detail=" — $net_ctx"
             append_event "signal_restored" "Modem signal restored${restore_detail}" "info"

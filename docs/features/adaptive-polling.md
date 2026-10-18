@@ -34,20 +34,36 @@ The poller reads `heartbeat_age = now − contents_of(/tmp/qmanager_ui_active)` 
 
 **Full-refresh on re-entry:** when an idle or deep AT touch fires, the poller runs Tier 1 + Tier 1.5 + Tier 2 unconditionally (ignoring their individual per-tier modulo counters). This guarantees that the first data a returning user sees is a complete, current snapshot rather than a partial one.
 
-**Measured impact:** at the 2 s baseline, active tier runs ~270 AT commands/min (full rate). Idle tier runs 4 `qcmd` invocations per `idle_interval` — QENG, QCAINFO, CFUN?, and the compound QRSRP;QRSRQ;QSINR (6 AT commands total) — roughly 24 AT commands/min at the 15 s default. Deep tier runs exactly **1 `qcmd` invocation per `deep_idle_interval`** (`AT+QENG="servingcell"` only) — ~1 AT command/min at the 60 s default — a ~99.6% reduction from active rate.
+**Fixed-clock base cycle:** the 2 s base cycle is a true 2 s period, not "work + a 2 s sleep". `main()` reads `/proc/uptime` in centiseconds (`_uptime_cs`, builtins only) before and after `poll_cycle` and sleeps `POLL_INTERVAL` minus the cycle's own time. An overrun skips the sleep and never catches up (no burst of back-to-back cycles); if `/proc/uptime` is unreadable the loop falls back to a plain `sleep "$POLL_INTERVAL"`. `cycle_count` still counts cycles, so every tier modulo above is unchanged.
+
+**Why:** before the re-author (ledger B5.29) a cycle took about 1.5 s of work on top of the 2 s sleep, so `status.json` landed every ~3.5 s while the docs and the UI assumed 2 s. The AT broker (`qmanager_atd`) serialises AT traffic, so the old per-call settle delay (`SIP_DELAY`) is gone.
+
+**Measured impact (AT cadence):** at the 2 s baseline, active tier runs ~270 AT commands/min (full rate). Idle tier runs 4 `qcmd` invocations per `idle_interval` — QENG, QCAINFO, CFUN?, and the compound QRSRP;QRSRQ;QSINR (6 AT commands total) — roughly 24 AT commands/min at the 15 s default. Deep tier runs exactly **1 `qcmd` invocation per `deep_idle_interval`** (`AT+QENG="servingcell"` only) — ~1 AT command/min at the 60 s default — a ~99.6% reduction from active rate.
+
+**Measured impact (poller CPU, RM551E, `tools/poller-parity/measure.sh`, 60 s windows):**
+
+| Tier | Metric | Before B5.29 Phase 1 | After |
+|---|---|---|---|
+| Active | CPU (percent of one core) | 36% | 11.5% (target was <=10%, slightly missed) |
+| Active | System forks/s (system-wide, includes the ping daemon) | ~135 | 28 (upper bound ~56 per cycle; the poller's own external commands are ~18 per active cycle, 4-7 idle/deep) |
+| Active | `status.json` period | 3.5 s | 1.99 s (1.79-2.10) |
+| Active | `.mono` age, max | 4 s | 2 s |
+| Idle | CPU | 23% | 4.6% (~8-10 forks/s, period 2.00 s) |
+
+The remaining active-tier cost is mostly the four `qcmd` client execs, the `parse_ca_info` awk, the `write_cache` jq, the `conn_state` jq and the ping-stats awk. The "after" windows ran while the modem's internet was down, so treat them as indicative, not a clean benchmark.
 
 ---
 
 ## Heartbeat
 
-Two CGIs write `date +%s > /tmp/qmanager_ui_active` on every response:
+Two CGIs refresh `/tmp/qmanager_ui_active` on every response:
 
 - `at_cmd/fetch_data.sh` — authenticated; fires only for real browser sessions.
 - `public/overview.sh` — unauthenticated; fires on any hit (e.g. third-party integrations).
 
-Any hit to either endpoint resets the heartbeat clock, extending the Active window.
+Each writes `date +%s` to `/tmp/qmanager_ui_active.$$` and then `mv -f` onto the real file (the temp file is removed if either step fails), so the poller never sees a truncated file. Any hit to either endpoint resets the heartbeat clock, extending the Active window.
 
-> ℹ️ NOTE: The heartbeat file contains a plain epoch integer. If the file is absent or unreadable (e.g. corrupted write), the poller treats the age as effectively infinite and may enter Deep immediately. Boot seeding (see Invariant 3 below) prevents this on a fresh start.
+> ℹ️ NOTE: The heartbeat file contains a plain epoch integer. On an empty or non-numeric read the poller reuses the last good heartbeat epoch instead of treating the age as infinite, and it strips leading zeros before doing arithmetic. A file that is absent from the start (no last good value) still resolves to maximum age; boot seeding (see Invariant 3 below) prevents that on a fresh start.
 
 ---
 
@@ -113,11 +129,11 @@ Both are one-shot: each flag forces exactly one Active cycle, then the poller re
 
 ### 4. Lifecycle cleanup is the init.d `stop_service()` responsibility
 
-`/etc/init.d/qmanager`'s `stop_service()` removes both `/tmp/qmanager_ui_active` and `/tmp/qmanager_poller_reload`. This prevents stale epoch values from causing a misleading Active state the next time the poller starts before `main()` can re-seed. The CGI is auto-deployed via the `install_tree` cgi-bin copy at install/upgrade time — no UCI seed step and no manual file placement needed.
+`/etc/init.d/qmanager`'s `stop_service()` removes `/tmp/qmanager_ui_active` (and any leftover `/tmp/qmanager_ui_active.*` temp files from an interrupted heartbeat write), `/tmp/qmanager_poller_reload`, `/var/run/qmanager/ondemand.stamp`, and the dev tap flag and ring (`/var/run/qmanager/poller_tap`, `/var/run/qmanager/tap/`). This prevents stale epoch values from causing a misleading Active state the next time the poller starts before `main()` can re-seed. The CGI is auto-deployed via the `install_tree` cgi-bin copy at install/upgrade time — no UCI seed step and no manual file placement needed.
 
 ### 5. Non-baseline `POLL_INTERVAL` collapses idle/active distinction
 
-If `POLL_INTERVAL` were raised to match `idle_interval` (e.g. both at 15 s), the `cycle_count % (15 / 15) == 0` gate would fire every cycle, making Idle behaviorally identical to Active. The feature is only meaningful at the 2 s baseline. The retired 15 s diagnostic patch exhibited this collapse; Adaptive Polling was introduced so the 2 s baseline could be safely restored while still shedding idle AT load.
+If `POLL_INTERVAL` were raised to match `idle_interval` (e.g. both at 15 s), the `cycle_count % (15 / 15) == 0` gate would fire every cycle, making Idle behaviorally identical to Active. The feature is only meaningful at the 2 s baseline, which is now a real 2 s period (fixed-clock loop, see Tier Architecture), so `interval / POLL_INTERVAL` is a true wall-clock multiple. The retired 15 s diagnostic patch exhibited this collapse; Adaptive Polling was introduced so the 2 s baseline could be safely restored while still shedding idle AT load.
 
 ### 6. The data-plane/L1 group is removed from the poller entirely (RM551E-GL SSR fix — final state)
 
@@ -259,5 +275,12 @@ The poller also writes a root-level **`mono`** integer field on every `write_cac
 - **`write_cache` skipped = watchdog quality trigger dies silently.** Any future modification to the poller loop must preserve the invariant that `write_cache` and `read_ping_data` run every base cycle. The AT-block gating should wrap only the AT reads.
 - **Removing or relocating the `ap_tier` gate in `poll_tier2()` re-introduces the RM551E-GL SSR (for the identity group).** The `[ "$ap_tier" = "active" ] || return 0` guard is the first statement in `poll_tier2()`. The data-plane/L1 group is already gone from the poller entirely (see Invariant 6); the guard now protects only the identity reads (`COPS?`, `QUIMSLOT?`, `CNUM`, `CPIN?`). Removing the guard makes those identity reads run at every tier, which is not the RM551E trigger but is wasteful and changes the documented contract.
 - **Idle tier at non-2s baseline collapses to Active.** If `POLL_INTERVAL` is ever raised for diagnostic purposes, `idle_interval=15` (default) at a 15 s base becomes `15 / 15 = 1` — every cycle fires. The feature must be re-tuned if the base interval changes.
-- **Heartbeat file is not atomic.** The shell redirect `date +%s > /tmp/qmanager_ui_active` is a truncate-then-write, not an atomic rename. A poller read that races with a CGI write may see an empty file; the poller treats an empty/unreadable file as maximum age and may briefly drop to Deep before the next cycle. This is benign — the next heartbeat write recovers it within 2 s.
+- **Heartbeat writes are atomic; keep them that way.** Both CGIs write a `.$$` temp file and `mv -f` it into place, and the poller falls back to the last good heartbeat epoch on an empty/garbage read. A new heartbeat producer must follow the same temp-then-`mv` shape, or a racing read can reintroduce a spurious drop toward Deep.
+- **Hot-path helpers set globals; never `$( )` a shell function on the hot path.** The re-authored `parse_at.sh` helpers have `_g` variants (`_hex_to_dec_g`, `map_scs_to_khz_g`, `_lte_rb_to_mhz_g`, `_nr_bw_to_mhz_g`, `_sig_val_g`, `_antenna_*_g`, `_pat_split`) that return through globals; the old echo helper names remain as thin wrappers for external callers (`radio_details.sh`, `ondemand_radio.sh`, `apn_mgr.sh`, `qmanager_profile_apply`). On BusyBox ash, `$( )` around a shell function forks (~2 ms each), which defeats the point. Likewise `qcmd_exec_g` returns through `_QR`, and `update_proc_metrics`, `mono_now_set` (`_MONO`) and the qlog level check use builtins only. The poller takes one `date` per cycle (`_NOW`).
+- **`parse_at.sh` edits must pass the parity harness on the device.** `tools/poller-parity/` (dev-only, not shipped by `build.sh`) proves a new `parse_at.sh` sets byte-identical globals to the previous one over a 206-fixture corpus (CRLF preserved) and keeps the helper echo output. Run it under the device's BusyBox shell, not Git Bash: `sh parity.sh <old> <new> fixtures` must be all `PASS` (see `tools/poller-parity/README.md` and `QUIRKS.md`). The one accepted format difference is `t2_carrier_components`, now compact single-line JSON from the single-awk `parse_ca_info` (was jq pretty-printed); it is JSON-equal under `jq -cS`, every consumer goes through jq, and the gate compares with `PARITY_CC_NORMALIZE=1`. The old `parse_ca_info` also used fixed `/tmp/qmanager_c*_*.tmp` scratch files that a concurrent caller could corrupt; they no longer exist.
+- **The on-demand cache read is `-nt`-gated, with a forced re-read.** `write_cache` calls `load_ondemand_cache_gated` (poller only), which re-parses `/tmp/qmanager_ondemand.json` only when it is newer than `/var/run/qmanager/ondemand.stamp`, or every 15th call regardless. **Why the forced read:** BusyBox `-nt` compares whole seconds, so a write in the same second as the stamp would be missed; the stamp is also backdated 1 s for the same reason. Every other caller (`ondemand_radio_fetch`, the apply paths) uses `load_ondemand_cache` and always re-reads, so a CGI-side read can never hide a change from the poller. A missing stamp degrades to re-reading every call.
+- **Dev AT tap (diagnostic only).** Creating `/var/run/qmanager/poller_tap` makes the poller record each raw AT reply plus the parser globals it produced into a 200-slot ring under `/var/run/qmanager/tap/`; `parity.sh --tap` replays those records through a new parser. Removing the flag stops it; `stop_service()` removes the flag and the directory. Leave it off in production.
+- **New ash facts from the B5.29 rewrite.** `$((08))` / `$((09))` aborts the script (leading zero is octal), so `_uptime_cs` and the heartbeat read strip leading zeros; an invalid arithmetic expression aborts ash, so `_hex_to_dec_g` checks the hex charset before `$((0x..))`. A redirect error on the special builtin `:` kills the shell but `true` survives (the stamp touch uses `true`). Here-docs under ~4 KB do not fork; larger bodies fork once. `$( )` around a shell function forks (~2 ms). BusyBox `-nt` compares whole seconds.
+- **History files are trimmed lazily.** `signal_history` and the ping history append with `printf` and an in-memory line counter and are trimmed only at `MAX + HISTORY_TRIM_SLACK` (30), so the signal file can hold up to 90 lines and the ping file up to 8670. Readers are unaffected (the CGIs `jq -s` the whole file; the signal chart slices the last 6), but do not assume the files are exactly at their cap.
+- **`t2_carrier_components` is compact JSON.** It is a single line now; do not parse it with line-oriented tools.
 - **`isDefault: true` is lost on first save, even with default values.** Once the user saves any settings (even unchanged defaults), the `quecmanager.poller` section exists and `isDefault` is always `false`. To restore the "never configured" state, delete the section directly in UCI.

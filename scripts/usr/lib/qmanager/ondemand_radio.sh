@@ -71,21 +71,64 @@ load_ondemand_cache() {
 
     [ -n "$_olc_dump" ] || return 0
 
-    # Read the 12 lines positionally. sed -n 'Np' keeps empty fields addressable.
-    t2_mimo=$(printf '%s\n' "$_olc_dump" | sed -n '1p')
-    lte_ta=$(printf '%s\n' "$_olc_dump" | sed -n '2p')
-    nr_ta=$(printf '%s\n' "$_olc_dump" | sed -n '3p')
-    t2_apn=$(printf '%s\n' "$_olc_dump" | sed -n '4p')
-    t2_wan_ipv4=$(printf '%s\n' "$_olc_dump" | sed -n '5p')
-    t2_wan_ipv6=$(printf '%s\n' "$_olc_dump" | sed -n '6p')
-    t2_primary_dns=$(printf '%s\n' "$_olc_dump" | sed -n '7p')
-    t2_secondary_dns=$(printf '%s\n' "$_olc_dump" | sed -n '8p')
-    t2_primary_dns_v4=$(printf '%s\n' "$_olc_dump" | sed -n '9p')
-    t2_primary_dns_v6=$(printf '%s\n' "$_olc_dump" | sed -n '10p')
-    t2_secondary_dns_v4=$(printf '%s\n' "$_olc_dump" | sed -n '11p')
-    t2_secondary_dns_v6=$(printf '%s\n' "$_olc_dump" | sed -n '12p')
+    # Read the 12 lines positionally with builtins. IFS= keeps leading/trailing
+    # blanks; a missing trailing line (the $( ) above strips trailing newlines)
+    # reads as empty, so empty fields stay addressable.
+    {
+        IFS= read -r t2_mimo
+        IFS= read -r lte_ta
+        IFS= read -r nr_ta
+        IFS= read -r t2_apn
+        IFS= read -r t2_wan_ipv4
+        IFS= read -r t2_wan_ipv6
+        IFS= read -r t2_primary_dns
+        IFS= read -r t2_secondary_dns
+        IFS= read -r t2_primary_dns_v4
+        IFS= read -r t2_primary_dns_v6
+        IFS= read -r t2_secondary_dns_v4
+        IFS= read -r t2_secondary_dns_v6
+    } <<EOF
+$_olc_dump
+EOF
 
     unset _olc_dump
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# load_ondemand_cache_gated
+# The poller's per-cycle entry point (write_cache). Re-parses the cache only
+# when ONDEMAND_CACHE_FILE is newer than ONDEMAND_STAMP, plus a forced re-read
+# every ONDEMAND_FORCE_EVERY calls (the poller passes ~30s of cycles) because
+# [ -nt ] compares whole seconds: a write in the same second as the stamp would
+# otherwise be missed. Other callers (ondemand_radio_fetch, the apply paths)
+# use load_ondemand_cache directly and ALWAYS re-read; only this wrapper touches
+# the stamp, so a CGI-side read can never hide a change from the poller.
+# The stamp is set BEFORE the read, and backdated one second (touch -d, one fork
+# per reload, not per cycle), so a write that lands in the same second as the
+# read still compares newer next cycle; the cost is at most one redundant
+# reload. A missing stamp (unwritable runtime dir) degrades to a re-read every
+# call, i.e. the old behaviour.
+# ---------------------------------------------------------------------------
+ONDEMAND_STAMP="${ONDEMAND_STAMP:-/var/run/qmanager/ondemand.stamp}"
+ONDEMAND_FORCE_EVERY="${TIER2_EVERY:-15}"
+_olc_calls=0
+
+load_ondemand_cache_gated() {
+    [ -s "$ONDEMAND_CACHE_FILE" ] || return 0
+    _olc_calls=$((_olc_calls + 1))
+    if [ "$_olc_calls" -lt "$ONDEMAND_FORCE_EVERY" ] && [ -f "$ONDEMAND_STAMP" ] \
+        && ! [ "$ONDEMAND_CACHE_FILE" -nt "$ONDEMAND_STAMP" ]; then
+        return 0
+    fi
+    _olc_calls=0
+    # `true`, not `:` — a redirect error on a special builtin exits the shell.
+    if [ "${_NOW:-0}" -gt 1 ] 2>/dev/null; then
+        touch -d "@$((_NOW - 1))" "$ONDEMAND_STAMP" 2>/dev/null || true 2>/dev/null > "$ONDEMAND_STAMP"
+    else
+        true 2>/dev/null > "$ONDEMAND_STAMP"
+    fi
+    load_ondemand_cache
     return 0
 }
 

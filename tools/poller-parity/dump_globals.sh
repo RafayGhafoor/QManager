@@ -48,6 +48,21 @@ pp_source_lib "$PP_LIB"
 PP_RAW=$(cat "$PP_FIX")
 
 pp_dump() {
+    # PARITY_CC_NORMALIZE=1: compare t2_carrier_components as JSON (jq -cS .)
+    # instead of byte-wise, so pretty vs compact output of the same array is
+    # equal. An empty value (old jq tonumber failure) stays empty.
+    if [ "${PARITY_CC_NORMALIZE:-0}" = "1" ]; then
+        set | grep -E '^(lte_|nr_|t1_|t2_|sig_|network_type=|service_status=|_cid_)' | grep -v '^t2_carrier_components=' | sort
+        printf '%s\n' '--- t2_carrier_components (jq -cS) ---'
+        if [ -n "$t2_carrier_components" ]; then
+            # Not JSON (e.g. the SENT_ sentinel left untouched): compare raw.
+            printf '%s' "$t2_carrier_components" | jq -cS . 2>/dev/null ||
+                printf 'RAW:%s\n' "$t2_carrier_components"
+        else
+            printf '%s\n' '<empty>'
+        fi
+        return
+    fi
     set | grep -E '^(lte_|nr_|t1_|t2_|sig_|network_type=|service_status=|_cid_)' | sort
     # The grep above is line-oriented (as in the poller's tap), so the multi-line
     # pretty-printed jq value of t2_carrier_components is cut after its first line.

@@ -159,7 +159,7 @@ The cache is **not cleared on reboot** (lives in `/tmp/`, which is RAM — clear
 
 `qmanager_poller` no longer issues any of the relocated AT commands. The relevant reads have been removed from both the `boot_cmd` block and `poll_tier2()`.
 
-`write_cache()` calls `load_ondemand_cache()` before building the `status.json` payload. This means `.device.mimo`, `.lte.ta`, `.nr.ta`, `.device.apn`, `.device.wan_ipv4`, `.device.wan_ipv6`, and the DNS fields in `status.json` always reflect the last-known on-demand values — never blank just because the page is closed.
+`write_cache()` calls `load_ondemand_cache_gated()` before building the `status.json` payload. The poller now reads the on-demand cache only when it changed (newer than `/var/run/qmanager/ondemand.stamp`), plus a forced re-read every 15 cycles, not every cycle; every other caller still calls `load_ondemand_cache()` and always re-reads. This means `.device.mimo`, `.lte.ta`, `.nr.ta`, `.device.apn`, `.device.wan_ipv4`, `.device.wan_ipv6`, and the DNS fields in `status.json` always reflect the last-known on-demand values — never blank just because the page is closed.
 
 **Consumers must not require these fields to be live** while the UI is idle. The expected contract is: live while the page is mounted (via `useRadioDetails`), last-known while the page is closed (via `status.json`).
 
