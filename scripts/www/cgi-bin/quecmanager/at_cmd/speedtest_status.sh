@@ -22,10 +22,31 @@
 PID_FILE="/tmp/qmanager_speedtest.pid"
 OUTPUT_FILE="/tmp/qmanager_speedtest_output"
 RESULT_FILE="/tmp/qmanager_speedtest_result.json"
+LOCK_FILE="/tmp/qmanager_speedtest.lock"
 
 qlog_init "cgi_speedtest_status"
 cgi_headers
 cgi_handle_options
+
+# Lazily create the lock file; the fd redirect below fails if it's absent.
+[ -e "$LOCK_FILE" ] || : > "$LOCK_FILE" 2>/dev/null
+
+# speedtest_flock_wait <fd> <timeout_seconds>
+# BusyBox flock has no -w/--timeout, so poll `flock -x -n` (the idiom used in
+# sim_registry.sh / cgi_auth.sh / sms.sh). Fractional sleep works on the
+# device BusyBox: only the LOSING poller waits, and with two consumers (the
+# dialog and the dashboard row) one loses routinely at exactly the moment the
+# result lands, so 0.2 s ticks keep its wait near 1 s instead of 3 s. Returns 1
+# on timeout; the caller decides the fallback response.
+speedtest_flock_wait() {
+    _fd="$1"; _wait="$2"; _tries=$((_wait * 5)); _n=0
+    while [ "$_n" -lt "$_tries" ]; do
+        if flock -x -n "$_fd" 2>/dev/null; then return 0; fi
+        sleep 0.2
+        _n=$((_n + 1))
+    done
+    return 1
+}
 
 # =============================================================================
 # HELPERS
@@ -87,34 +108,71 @@ if [ -f "$PID_FILE" ]; then
         exit 0
     else
         # =================================================================
-        # JUST FINISHED — process is dead, harvest result
+        # JUST FINISHED — process is dead, harvest result.
+        #
+        # This is the destructive section (rm's PID_FILE/OUTPUT_FILE, writes
+        # RESULT_FILE), and two concurrent pollers can race it: poller A can
+        # rm OUTPUT_FILE while poller B sits between its own [ -s ] check and
+        # its read, turning a good test into a false "speedtest_failed" for B.
+        # Serialize the harvest behind an exclusive, short-timeout flock so
+        # only one poller harvests; the loser gets a benign "running" (the
+        # frontend polls again in 500 ms) instead of an invented error.
         # =================================================================
-        rm -f "$PID_FILE"
+        (
+            if speedtest_flock_wait 9 3; then
+                if [ ! -f "$PID_FILE" ]; then
+                    # Another poller finished the harvest while we waited for
+                    # the lock. speedtest_start.sh clears RESULT_FILE before
+                    # every run, so a result here is this run's; none means
+                    # that harvest found no result line.
+                    CACHED_RESULT=$(cat "$RESULT_FILE" 2>/dev/null)
+                    case "$CACHED_RESULT" in
+                        "{"*)
+                            jq -n --argjson result "$CACHED_RESULT" '{status: "complete", result: $result}'
+                            ;;
+                        *)
+                            echo '{"status":"error","error":"speedtest_failed","detail":"Process exited without producing results"}'
+                            ;;
+                    esac
+                elif [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
+                    # First try: look specifically for the result line
+                    RESULT_LINE=$(get_result_line)
 
-        if [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
-            # First try: look specifically for the result line
-            RESULT_LINE=$(get_result_line)
+                    if [ -n "$RESULT_LINE" ]; then
+                        echo "$RESULT_LINE" > "$RESULT_FILE"
+                        jq -n --argjson result "$RESULT_LINE" '{status: "complete", result: $result}'
+                    else
+                        # No result line — check if last JSON line gives us anything
+                        LAST_LINE=$(get_last_json_line)
+                        LINE_TYPE=$(get_type "$LAST_LINE")
 
-            if [ -n "$RESULT_LINE" ]; then
-                echo "$RESULT_LINE" > "$RESULT_FILE"
-                jq -n --argjson result "$RESULT_LINE" '{status: "complete", result: $result}'
-            else
-                # No result line — check if last JSON line gives us anything
-                LAST_LINE=$(get_last_json_line)
-                LINE_TYPE=$(get_type "$LAST_LINE")
-
-                if [ "$LINE_TYPE" = "result" ]; then
-                    echo "$LAST_LINE" > "$RESULT_FILE"
-                    jq -n --argjson result "$LAST_LINE" '{status: "complete", result: $result}'
+                        if [ "$LINE_TYPE" = "result" ]; then
+                            echo "$LAST_LINE" > "$RESULT_FILE"
+                            jq -n --argjson result "$LAST_LINE" '{status: "complete", result: $result}'
+                        else
+                            echo '{"status":"error","error":"speedtest_failed","detail":"Process exited without producing results"}'
+                        fi
+                    fi
+                    # Clean up the (potentially large) progress output file
+                    rm -f "$OUTPUT_FILE"
                 else
-                    echo '{"status":"error","error":"speedtest_failed","detail":"Process exited without producing results"}'
+                    echo '{"status":"error","error":"speedtest_failed","detail":"Process exited with no output"}'
                 fi
+
+                # PID file goes LAST, deliberately. Removing it first would let
+                # a poller arriving mid-harvest skip this branch (and the lock),
+                # fall through to the cached-result case before RESULT_FILE is
+                # written and report "idle", so a finishing test would flicker
+                # running -> idle -> complete. Keeping it until the result is
+                # durable holds late pollers here, where the lock gives them
+                # "running"; a crash mid-harvest leaves it for the next poller.
+                rm -f "$PID_FILE"
+            else
+                # Lock timed out: another poller is harvesting this result now.
+                # Never fabricate "error" or "idle"; "running" keeps polling.
+                echo '{"status":"running"}'
             fi
-            # Clean up the (potentially large) progress output file
-            rm -f "$OUTPUT_FILE"
-        else
-            echo '{"status":"error","error":"speedtest_failed","detail":"Process exited with no output"}'
-        fi
+        ) 9<"$LOCK_FILE"
         exit 0
     fi
 fi

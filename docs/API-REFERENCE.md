@@ -386,6 +386,8 @@ Same pattern and shared lock as the cell scanner (`other_scan_running` while a f
 
 Start speed test, check results, and check if speedtest binary is available.
 
+`speedtest_status.sh` answers `idle`, `running` (`phase` + `progress` line), `complete` (`result`) or `error`. Several pollers can watch one run (the dashboard row and the dialog), so the destructive completion harvest (write `/tmp/qmanager_speedtest_result.json`, remove the output and PID files) runs under an exclusive flock on `/tmp/qmanager_speedtest.lock` (B5.23, ported from the RM520N source; BusyBox `flock` has no `-w`, so it polls `flock -x -n` every 0.2 s for up to 3 s). Invariants: the PID file is removed **last**, inside the lock, so a late poller stays in the harvest branch instead of falling through to `idle`; a poller that waited and finds the PID file gone serves the result the winner wrote (`speedtest_start.sh` clears the result file before every run, so it is this run's); a lock timeout answers `{"status":"running"}` with no `phase`, which `useSpeedtest` treats as "keep the current phase", never an error.
+
 ---
 
 ## Cellular Settings

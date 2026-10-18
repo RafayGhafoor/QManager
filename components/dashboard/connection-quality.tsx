@@ -30,17 +30,13 @@ import { MetricBar } from "@/components/ui/metric-bar";
 import { Tag } from "@/components/ui/tag";
 import { TickingValue } from "@/components/ui/ticking-value";
 
-import { authFetch } from "@/lib/auth-fetch";
 import { useLatencyHistory } from "@/hooks/use-latency-history";
+import { useSpeedtest, type SpeedtestPhase } from "@/hooks/use-speedtest";
 import {
   type ConnectivityStatus,
   type PingHistoryEntry,
 } from "@/types/modem-status";
-import {
-  formatSpeed,
-  type SpeedtestFinalResult,
-  type SpeedtestStatusResponse,
-} from "@/types/speedtest";
+import { formatSpeed, type SpeedtestProgressLine } from "@/types/speedtest";
 import { staggerRowItem, staggerRows } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -50,10 +46,12 @@ import {
   CARD_SHELL,
   CARD_TITLE,
   CLOCK_TICK_MS,
+  LANE,
   QUALITY,
   ROW,
   VALUE_CLASS,
 } from "./shapes";
+import { PillRow } from "./pill-row";
 import { SpeedtestDialog } from "./speedtest-dialog";
 
 // =============================================================================
@@ -61,15 +59,14 @@ import { SpeedtestDialog } from "./speedtest-dialog";
 // =============================================================================
 // Internet / DNS lookup / Probing rows, a 30-minute reachability strip and a
 // jitter strip from fetch_ping_history.sh, Typical / Worst / Loss from the
-// status poll, and the latest speed test at the foot.
+// status poll, and the speed test at the foot: its live phase, reading and
+// progress lane while a run is in flight (from any tab), else the last result.
 //
 // The verdict is the ICMP probe's alone (`connectivity.status`, graded on
 // `connectivity.thresholds`). The DNS lookup time is its own reading: the
 // carrier resolver can answer while ICMP is unreachable, so it never softens
 // or stands in for "Unreachable".
 // =============================================================================
-
-const SPEEDTEST_STATUS = "/cgi-bin/quecmanager/at_cmd/speedtest_status.sh";
 
 // The strip grades with the poller's own cuts (connectivity.thresholds); these
 // are the backend's `tolerant` defaults, used only when an older poller omits them.
@@ -258,24 +255,25 @@ function useSpeedtestTimeAgo() {
   );
 }
 
-/** The last finished speed test, re-read when the dialog closes. */
-function useCachedSpeedtest() {
-  const [result, setResult] = useState<SpeedtestFinalResult | null>(null);
-  const fetchResult = useCallback(async () => {
-    try {
-      const resp = await authFetch(SPEEDTEST_STATUS);
-      if (!resp.ok) return;
-      const data: SpeedtestStatusResponse = await resp.json();
-      if (data.status === "complete" && data.result) setResult(data.result);
-    } catch {
-      // No cached result is fine: the row reads "—".
-    }
-  }, []);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch; setState runs after await, not synchronously
-    void fetchResult();
-  }, [fetchResult]);
-  return { result, refresh: fetchResult };
+/** `initializing` has no entry on purpose: it falls back to the generic label. */
+const PHASE_LABEL_KEY: Partial<Record<SpeedtestPhase, string>> = {
+  ping: "speedtest.step_latency",
+  download: "speedtest.step_download",
+  upload: "speedtest.step_upload",
+};
+
+function liveReading(
+  phase: SpeedtestPhase,
+  p: SpeedtestProgressLine | null,
+): { value: string; unitKey: string } | null {
+  if (!p) return null;
+  if (phase === "download" && p.type === "download")
+    return { value: formatSpeed(p.download.bandwidth), unitKey: "speedtest.unit_mbps" };
+  if (phase === "upload" && p.type === "upload")
+    return { value: formatSpeed(p.upload.bandwidth), unitKey: "speedtest.unit_mbps" };
+  if (phase === "ping" && p.type === "ping")
+    return { value: p.ping.latency.toFixed(1), unitKey: "speedtest.unit_ms" };
+  return null;
 }
 
 // --- Latency row -------------------------------------------------------------
@@ -388,7 +386,17 @@ const ConnectionQualityComponent = ({
   const { t } = useTranslation("dashboard");
   const { data: history } = useLatencyHistory();
   const [speedtestOpen, setSpeedtestOpen] = useState(false);
-  const { result: cachedResult, refresh: refreshSpeedtest } = useCachedSpeedtest();
+  // One watching instance: a run started elsewhere shows up here too. The
+  // dialog polls through its own instance; speedtest_status.sh serializes the
+  // completion harvest, so the two never race into a false failure (B5.23).
+  const {
+    phase,
+    progress,
+    currentProgress,
+    result: cachedResult,
+    isRunning,
+    refreshStatus: refreshSpeedtest,
+  } = useSpeedtest({ watch: true });
   const nowSec = useNowSec();
   const timeAgo = useSpeedtestTimeAgo();
 
@@ -417,24 +425,69 @@ const ConnectionQualityComponent = ({
     </CardHeader>
   );
 
+  // --- Speed Test row: running, cached result, or never run, at one height.
+  const reading = liveReading(phase, currentProgress);
+  const phaseLabelKey = PHASE_LABEL_KEY[phase];
+  const runLabel = phaseLabelKey
+    ? t(phaseLabelKey)
+    : t("speedtest.tile_running_label");
+  const progressPct = Math.min(100, Math.max(0, progress * 100));
   const agoLabel = cachedResult ? timeAgo(cachedResult.timestamp, nowSec) : null;
 
   const speedtestRow = (
-    <motion.div variants={staggerRowItem} className={cn("mt-auto", ROW.ROOT)}>
-      <div className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-on-surface-variant">
-        <span className="truncate">{t("speedtest.section_label")}</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-5 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
-          aria-label={t("speedtest.start_button_aria")}
-          onClick={() => setSpeedtestOpen(true)}
-        >
-          <MaterialSymbol name="play_arrow" size={14} filled />
-        </Button>
-      </div>
-      <div className="flex shrink-0 items-center gap-3">
-        {cachedResult ? (
+    <div className="mt-auto">
+      <PillRow
+        label={
+          <>
+            <span className="truncate">{t("speedtest.section_label")}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-5 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+              aria-label={t("speedtest.start_button_aria")}
+              onClick={() => setSpeedtestOpen(true)}
+            >
+              <MaterialSymbol name="play_arrow" size={14} filled />
+            </Button>
+          </>
+        }
+      >
+        {isRunning ? (
+          <>
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant">
+              <span aria-hidden className="relative inline-flex size-[7px] shrink-0">
+                <span className="absolute inset-0 rounded-pill bg-primary animate-live-ping" />
+                <span className="relative size-[7px] rounded-pill bg-primary" />
+              </span>
+              <span className="hidden @[350px]/card:inline">{runLabel}</span>
+            </span>
+            {/* No TickingValue: the 500ms run cadence would never let the tick finish. */}
+            <span className={cn(VALUE_CLASS, "flex items-baseline gap-1 tabular-nums")}>
+              {reading ? reading.value : ABSENT}
+              {reading ? (
+                <span className="text-xs font-semibold text-on-surface-variant">
+                  {t(reading.unitKey)}
+                </span>
+              ) : null}
+            </span>
+            <span
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progressPct)}
+              aria-label={runLabel}
+              className={LANE}
+            >
+              <MetricBar
+                value={progressPct}
+                max={100}
+                warnAt={Number.POSITIVE_INFINITY}
+                dangerAt={Number.POSITIVE_INFINITY}
+                track="surface-container-high"
+              />
+            </span>
+          </>
+        ) : cachedResult ? (
           <>
             <span className="sr-only">{t("speedtest.result_label")}</span>
             {agoLabel ? (
@@ -468,8 +521,8 @@ const ConnectionQualityComponent = ({
         ) : (
           <span className={cn(VALUE_CLASS, "text-on-surface-variant")}>{ABSENT}</span>
         )}
-      </div>
-    </motion.div>
+      </PillRow>
+    </div>
   );
 
   const shell = (body: React.ReactNode) => (
