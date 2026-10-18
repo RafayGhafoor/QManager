@@ -508,7 +508,8 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
     if [ "$ACTION" = "install" ]; then
         check_migration_lock
         TS_INSTALL_RESULT="/tmp/qmanager_tailscale_install.json"
-        TS_INSTALL_PID="/tmp/qmanager_tailscale_install.pid"
+        # B5.11: root-only run dir (a planted /tmp pidfile could fake "already running")
+        TS_INSTALL_PID="/var/run/qmanager/tailscale_install.pid"
 
         # Variant selection: "official" (static tarball) or "tiny" (opkg).
         # Missing -> default "tiny" for backward compatibility with old clients.
@@ -529,7 +530,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         fi
 
         # Check if already running
-        if [ -f "$TS_INSTALL_PID" ] && kill -0 "$(cat "$TS_INSTALL_PID" 2>/dev/null)" 2>/dev/null; then
+        if ! command -v qm_read_pid >/dev/null 2>&1 || ! qm_run_dir >/dev/null; then
+            cgi_error "install_failed" "Cannot prepare the install state directory"
+            exit 0
+        fi
+        if qm_read_pid "$TS_INSTALL_PID" tailscale.sh >/dev/null; then
             cgi_error "already_running" "Installation already in progress"
             exit 0
         fi
@@ -547,7 +552,8 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         # subshell. They write phased progress to $TS_INSTALL_RESULT and exit
         # non-zero on failure.
         (
-            echo $$ > "$TS_INSTALL_PID"
+            # $$ is the CGI's pid here; record this subshell's own pid
+            qm_self_pid && printf '%s\n' "$QM_SELF_PID" | qm_atomic_write "$TS_INSTALL_PID"
             trap 'rm -f "$TS_INSTALL_PID"' EXIT
 
             if [ "$VARIANT" = "official" ]; then

@@ -15,7 +15,7 @@ QManager provides a first-class Tailscale integration that installs, connects, a
 | Install marker | `/etc/tailscale/.qm_install_method` (`official` or `tiny`) |
 | Tailscale state | `/etc/tailscale/tailscaled.state` |
 | Install progress | `/tmp/qmanager_tailscale_install.json` |
-| Install PID | `/tmp/qmanager_tailscale_install.pid` |
+| Install PID | `/var/run/qmanager/tailscale_install.pid` (root-only run dir, B5.11) |
 | Auth URL cache | `/tmp/qmanager_tailscale_auth_url` |
 | `tailscale up` PID | `/tmp/qmanager_tailscale_up_pid` |
 | `tailscale up` output | `/tmp/qmanager_tailscale_up_output` |

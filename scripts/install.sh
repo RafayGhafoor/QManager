@@ -1326,6 +1326,23 @@ install_backend() {
         fi
     fi
 
+    # --- sysctl.d hardening (B5.10: fs.protected_regular / protected_fifos) ---
+    # /etc/init.d/sysctl applies /etc/sysctl.d/*.conf at boot; apply it live too
+    # so an OTA --no-reboot upgrade is protected without waiting for a reboot.
+    if [ -d "$SRC_SCRIPTS/etc/sysctl.d" ]; then
+        mkdir -p /etc/sysctl.d
+        for f in "$SRC_SCRIPTS/etc/sysctl.d"/*.conf; do
+            [ -f "$f" ] || continue
+            local sname
+            sname="$(basename "$f")"
+            if install_file "$f" "/etc/sysctl.d/$sname" 644; then
+                sysctl -p "/etc/sysctl.d/$sname" >/dev/null 2>&1 \
+                    || warn "sysctl: could not apply /etc/sysctl.d/$sname live"
+                info "sysctl.d: $sname applied"
+            fi
+        done
+    fi
+
     # --- Required runtime directories ---
     # The session dir is not pre-created: cgi_auth.sh makes it root-owned on
     # first login and refuses one another user created first (B4.1).

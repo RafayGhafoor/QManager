@@ -1,5 +1,6 @@
 #!/bin/sh
 . /usr/lib/qmanager/cgi_base.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 # =============================================================================
 # sms_forwarding.sh — CGI Endpoint: SMS Forwarding Settings (GET + POST)
 # =============================================================================
@@ -72,7 +73,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     [ "$enabled_raw" = "1" ] && enabled_json="true" || enabled_json="false"
     [ -z "$target_phone" ] && target_phone=""
 
-    if [ -f "$FAILURES_FILE" ] && [ -s "$FAILURES_FILE" ]; then
+    # B5.13: show only the list the daemon wrote (root-owned regular file)
+    if command -v qm_trusted_file >/dev/null 2>&1 && qm_trusted_file "$FAILURES_FILE" && [ -s "$FAILURES_FILE" ]; then
         failures=$(jq -c 'if type == "array" then . else [] end' "$FAILURES_FILE" 2>/dev/null)
     fi
     [ -z "$failures" ] && failures="[]"

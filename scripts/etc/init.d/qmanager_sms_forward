@@ -40,6 +40,8 @@ start_service() {
 stop_service() {
     # Clean up daemon state (tmpfs; clears on reboot anyway, but be explicit so
     # a disable-then-enable re-seeds the inbox baseline cleanly).
+    rm -f /var/run/qmanager/sms_forward.pid /var/run/qmanager/sms_forward_seen
+    # pre-B5.13 paths (upgrade from an older build)
     rm -f /tmp/qmanager_sms_forward.pid
     rm -f /tmp/qmanager_sms_forward_reload
     rm -f /tmp/qmanager_sms_forward_seen

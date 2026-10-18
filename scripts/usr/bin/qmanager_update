@@ -193,6 +193,7 @@ validate_url() {
         "${GITHUB_REPO_PREFIX}"*/qmanager.tar.gz)        return 0 ;;
         "${GITHUB_REPO_PREFIX}"*/sha256sum.txt)          return 0 ;;
         "${GITHUB_RAW_PREFIX}"*/qmanager-build/qmanager.tar.gz) return 0 ;;
+        "${GITHUB_RAW_PREFIX}"*/qmanager-build/sha256sum.txt)   return 0 ;;
     esac
 
     log_error "URL failed validation: $url"
@@ -220,42 +221,48 @@ verify_archive() {
     return 0
 }
 
+# B5.12: fail closed. Every release ships sha256sum.txt next to qmanager.tar.gz,
+# so an archive that cannot be checked (no checksum URL, fetch failure, no
+# sha256sum, malformed hash) is refused, never installed unverified.
 verify_sha256() {
     local archive="$1" checksum_url="$2" version="$3"
     local checksum_file="$UPDATE_WORK/sha256sum.txt"
 
-    [ -n "$checksum_url" ] || {
-        log_warn "No checksum URL provided — skipping SHA-256 verification"
-        return 0
-    }
+    if [ -z "$checksum_url" ]; then
+        log_error "No checksum URL for $version, refusing to install unverified"
+        return 1
+    fi
 
     if ! validate_url "$checksum_url"; then
         log_error "Refusing to fetch checksum from unvalidated URL"
         return 1
     fi
 
+    if ! command -v sha256sum >/dev/null 2>&1; then
+        log_error "sha256sum not available, cannot verify $version"
+        return 1
+    fi
+
     rm -f "$checksum_file"
 
     if ! http_download "$checksum_url" "$checksum_file" 30; then
-        log_warn "Could not fetch $checksum_url — skipping SHA-256 verification"
-        return 0
-    fi
-
-    if ! command -v sha256sum >/dev/null 2>&1; then
-        log_warn "sha256sum not available — skipping SHA-256 verification"
+        log_error "Could not fetch $checksum_url, cannot verify $version"
         rm -f "$checksum_file"
-        return 0
+        return 1
     fi
 
     local expected actual
-    expected=$(awk '{print $1}' "$checksum_file" 2>/dev/null)
-    actual=$(sha256sum "$archive" 2>/dev/null | awk '{print $1}')
+    expected=$(awk 'NR == 1 { print tolower($1) }' "$checksum_file" 2>/dev/null)
+    actual=$(sha256sum "$archive" 2>/dev/null | awk '{ print $1 }')
 
     rm -f "$checksum_file"
 
-    if [ -z "$expected" ] || [ -z "$actual" ]; then
-        log_warn "Could not compute or read SHA-256 — skipping verification"
-        return 0
+    case "$expected" in
+        *[!0-9a-f]*|'') expected="" ;;
+    esac
+    if [ "${#expected}" -ne 64 ] || [ -z "$actual" ]; then
+        log_error "Could not read or compute SHA-256 for $version, refusing"
+        return 1
     fi
 
     if [ "$expected" != "$actual" ]; then
@@ -265,6 +272,14 @@ verify_sha256() {
 
     log_info "SHA-256 verified ($version)"
     return 0
+}
+
+# checksum_url_for TARBALL_URL — the sha256sum.txt published beside a release
+# (or dev build) tarball. Prints nothing for any other URL shape.
+checksum_url_for() {
+    case "$1" in
+        */qmanager.tar.gz) printf '%s/sha256sum.txt' "${1%/qmanager.tar.gz}" ;;
+    esac
 }
 
 # =============================================================================
@@ -367,6 +382,12 @@ mode_install() {
     fi
     log_info "Archive integrity verified"
 
+    # B5.12: the direct install path is checksum-verified too
+    if ! verify_sha256 "$download_path" "$(checksum_url_for "$url")" "$version"; then
+        rm -f "$download_path"
+        die "Could not verify the download (SHA-256). Nothing was installed."
+    fi
+
     # --- Step 3: Save current version for rollback ---
     write_status "installing" "Installing update..." "$version" ""
 
@@ -446,7 +467,7 @@ mode_download() {
     write_status "verifying" "Verifying SHA-256..." "$version" ""
     if ! verify_sha256 "$STAGED_TARBALL" "$checksum_url" "$version"; then
         rm -f "$STAGED_TARBALL"
-        die "SHA-256 mismatch — download may be corrupt or tampered"
+        die "Could not verify the download (SHA-256 missing or mismatched). Nothing was staged."
     fi
 
     # --- Step 4: Stage version marker ---
@@ -549,6 +570,12 @@ mode_rollback() {
     if ! verify_archive "$download_path"; then
         rm -f "$download_path"
         die "Rollback archive is invalid"
+    fi
+
+    # B5.12: rollback downloads are checksum-verified too
+    if ! verify_sha256 "$download_path" "$(checksum_url_for "$url")" "$version"; then
+        rm -f "$download_path"
+        die "Could not verify the rollback download (SHA-256). Nothing was installed."
     fi
     log_info "Rollback archive verified"
 
