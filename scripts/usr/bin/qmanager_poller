@@ -768,16 +768,17 @@ append_signal_history() {
     local ts
     ts=$(date +%s)
 
-    jq -n -c \
-        --argjson ts "$ts" \
-        --argjson lte_rsrp "$sig_lte_rsrp" \
-        --argjson lte_rsrq "$sig_lte_rsrq" \
-        --argjson lte_sinr "$sig_lte_sinr" \
-        --argjson nr_rsrp "$sig_nr_rsrp" \
-        --argjson nr_rsrq "$sig_nr_rsrq" \
-        --argjson nr_sinr "$sig_nr_sinr" \
-        '{ts:$ts, lte_rsrp:$lte_rsrp, lte_rsrq:$lte_rsrq, lte_sinr:$lte_sinr,
-         nr_rsrp:$nr_rsrp, nr_rsrq:$nr_rsrq, nr_sinr:$nr_sinr}' >> "$SIGNAL_HISTORY_FILE"
+    # Emitted with printf rather than `jq -n -c`: jq startup costs ~0.46s of CPU
+    # on the SoCs this runs on, and this runs on every AT cycle. Each value is
+    # already a JSON fragment (array or null). Same keys and order as before.
+    printf '{"ts":%s,"lte_rsrp":%s,"lte_rsrq":%s,"lte_sinr":%s,"nr_rsrp":%s,"nr_rsrq":%s,"nr_sinr":%s}\n' \
+        "${ts:-0}" \
+        "${sig_lte_rsrp:-null}" \
+        "${sig_lte_rsrq:-null}" \
+        "${sig_lte_sinr:-null}" \
+        "${sig_nr_rsrp:-null}" \
+        "${sig_nr_rsrq:-null}" \
+        "${sig_nr_sinr:-null}" >> "$SIGNAL_HISTORY_FILE"
 
     # Trim to max entries
     local count
@@ -796,15 +797,15 @@ append_ping_history() {
     local ts
     ts=$(date +%s)
 
-    jq -n -c \
-        --argjson ts "$ts" \
-        --argjson lat "${conn_latency:-null}" \
-        --argjson avg "${conn_avg_latency:-null}" \
-        --argjson min "${conn_min_latency:-null}" \
-        --argjson max "${conn_max_latency:-null}" \
-        --argjson loss "${conn_packet_loss:-0}" \
-        --argjson jit "${conn_jitter:-null}" \
-        '{ts:$ts,lat:$lat,avg:$avg,min:$min,max:$max,loss:$loss,jit:$jit}' >> "$PING_HISTORY_FILE"
+    # printf rather than `jq -n -c` - see append_signal_history above.
+    printf '{"ts":%s,"lat":%s,"avg":%s,"min":%s,"max":%s,"loss":%s,"jit":%s}\n' \
+        "${ts:-0}" \
+        "${conn_latency:-null}" \
+        "${conn_avg_latency:-null}" \
+        "${conn_min_latency:-null}" \
+        "${conn_max_latency:-null}" \
+        "${conn_packet_loss:-0}" \
+        "${conn_jitter:-null}" >> "$PING_HISTORY_FILE"
 
     # Trim to max entries
     local count

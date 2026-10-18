@@ -118,7 +118,9 @@ cgi_read_post() {
 # Returns 405 JSON and exits for any unsupported HTTP method.
 # ---------------------------------------------------------------------------
 cgi_method_not_allowed() {
-    jq -n '{"success":false,"error":"method_not_allowed","detail":"Use GET or POST"}'
+    # printf, not jq: jq startup costs ~0.46s of CPU on the SoCs this runs on,
+    # and this body is a constant.
+    printf '%s\n' '{"success":false,"error":"method_not_allowed","detail":"Use GET or POST"}'
     exit 0
 }
 
@@ -127,8 +129,9 @@ cgi_method_not_allowed() {
 # ---------------------------------------------------------------------------
 
 # Emit {"success":true}
+# printf, not jq - see cgi_method_not_allowed above. Constant body.
 cgi_success() {
-    jq -n '{"success":true}'
+    printf '%s\n' '{"success":true}'
 }
 
 # cgi_error <error_code> <detail_message>
@@ -164,7 +167,15 @@ cgi_reboot_response() {
 # ---------------------------------------------------------------------------
 serve_ndjson_as_array() {
     if [ -f "$1" ] && [ -s "$1" ]; then
-        jq -s '.' "$1"
+        # NDJSON -> JSON array. Deliberately NOT `jq -s .`: jq startup costs
+        # ~0.46s of CPU on the SoCs this runs on, and this serves a dashboard
+        # chart endpoint. Blank lines are skipped; a file with no non-blank line
+        # yields "[]". Semantically identical to `jq -s .` (an array of the
+        # file's JSON objects); output is compact rather than pretty-printed,
+        # which is fine for a JSON.parse consumer and matches
+        # cgi_reboot_response's existing compact body.
+        awk 'NF { printf "%s%s", (n++ ? "," : "["), $0 }
+             END { printf "%s\n", (n ? "]" : "[]") }' "$1"
     else
         echo "[]"
     fi

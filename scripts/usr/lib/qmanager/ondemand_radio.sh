@@ -45,6 +45,16 @@ command -v qlog_info  >/dev/null 2>&1 || qlog_info()  { :; }
 #   t2_secondary_dns_v4, t2_secondary_dns_v6
 # ---------------------------------------------------------------------------
 load_ondemand_cache() {
+    # Fast path: companion shell-snippet cache written alongside the JSON by
+    # _ondemand_write_cache. Dot-sourcing costs ~0 forks, where the jq path
+    # below costs one jq startup (~0.4-0.7s of CPU on a slow SoC) and is
+    # entered on EVERY poll cycle. Falls back to jq when the snippet is absent.
+    local _odc_env="${ONDEMAND_CACHE_FILE}.env"
+    if [ -s "$_odc_env" ]; then
+        . "$_odc_env"
+        return 0
+    fi
+
     [ -s "$ONDEMAND_CACHE_FILE" ] || return 0
 
     # Emit the 12 fields in a fixed order, one value per line, then read them
@@ -95,36 +105,54 @@ load_ondemand_cache() {
 # poller (and the next fetch) retain last-known values. Atomic via tmp+mv.
 # Internal — callers use ondemand_radio_fetch().
 # ---------------------------------------------------------------------------
+_odc_json_str() {
+    printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+}
+
+# POSIX single-quote for a shell literal, for the companion snippet file below.
+_odc_shq() {
+    printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
 _ondemand_write_cache() {
-    jq -n \
-        --arg mimo    "${t2_mimo:-}" \
-        --arg lte_ta  "${lte_ta:-}" \
-        --arg nr_ta   "${nr_ta:-}" \
-        --arg apn     "${t2_apn:-}" \
-        --arg wan4    "${t2_wan_ipv4:-}" \
-        --arg wan6    "${t2_wan_ipv6:-}" \
-        --arg dns1    "${t2_primary_dns:-}" \
-        --arg dns2    "${t2_secondary_dns:-}" \
-        --arg dns1_v4 "${t2_primary_dns_v4:-}" \
-        --arg dns1_v6 "${t2_primary_dns_v6:-}" \
-        --arg dns2_v4 "${t2_secondary_dns_v4:-}" \
-        --arg dns2_v6 "${t2_secondary_dns_v6:-}" \
-        --arg ts      "$(date +%s)" \
-        '{
-            mimo: $mimo,
-            lte_ta: $lte_ta,
-            nr_ta: $nr_ta,
-            apn: $apn,
-            wan_ipv4: $wan4,
-            wan_ipv6: $wan6,
-            primary_dns: $dns1,
-            secondary_dns: $dns2,
-            primary_dns_v4: $dns1_v4,
-            primary_dns_v6: $dns1_v6,
-            secondary_dns_v4: $dns2_v4,
-            secondary_dns_v6: $dns2_v6,
-            updated_at: ($ts | tonumber)
-        }' > "$ONDEMAND_CACHE_TMP" 2>/dev/null && mv "$ONDEMAND_CACHE_TMP" "$ONDEMAND_CACHE_FILE"
+    # Emitted with printf rather than `jq -n`: jq startup is ~0.4-0.7s of CPU on
+    # a slow SoC, and the poller reads this cache back every cycle. Values are
+    # display strings; output is compact rather than pretty-printed.
+    local _odc_ts
+    _odc_ts=$(date +%s)
+    printf '{"mimo":%s,"lte_ta":%s,"nr_ta":%s,"apn":%s,"wan_ipv4":%s,"wan_ipv6":%s,"primary_dns":%s,"secondary_dns":%s,"primary_dns_v4":%s,"primary_dns_v6":%s,"secondary_dns_v4":%s,"secondary_dns_v6":%s,"updated_at":%s}\n' \
+        "$(_odc_json_str "${t2_mimo:-}")" \
+        "$(_odc_json_str "${lte_ta:-}")" \
+        "$(_odc_json_str "${nr_ta:-}")" \
+        "$(_odc_json_str "${t2_apn:-}")" \
+        "$(_odc_json_str "${t2_wan_ipv4:-}")" \
+        "$(_odc_json_str "${t2_wan_ipv6:-}")" \
+        "$(_odc_json_str "${t2_primary_dns:-}")" \
+        "$(_odc_json_str "${t2_secondary_dns:-}")" \
+        "$(_odc_json_str "${t2_primary_dns_v4:-}")" \
+        "$(_odc_json_str "${t2_primary_dns_v6:-}")" \
+        "$(_odc_json_str "${t2_secondary_dns_v4:-}")" \
+        "$(_odc_json_str "${t2_secondary_dns_v6:-}")" \
+        "$_odc_ts" > "$ONDEMAND_CACHE_TMP" 2>/dev/null && mv "$ONDEMAND_CACHE_TMP" "$ONDEMAND_CACHE_FILE"
+
+    # Companion shell-snippet cache: the same 12 variables by name, so
+    # load_ondemand_cache() can restore them by dot-sourcing instead of paying a
+    # jq invocation every poll cycle. Written atomically; additive (the jq path
+    # below remains as a fallback when this file is absent).
+    {
+        printf 't2_mimo=%s\n'             "$(_odc_shq "${t2_mimo:-}")"
+        printf 'lte_ta=%s\n'              "$(_odc_shq "${lte_ta:-}")"
+        printf 'nr_ta=%s\n'               "$(_odc_shq "${nr_ta:-}")"
+        printf 't2_apn=%s\n'              "$(_odc_shq "${t2_apn:-}")"
+        printf 't2_wan_ipv4=%s\n'         "$(_odc_shq "${t2_wan_ipv4:-}")"
+        printf 't2_wan_ipv6=%s\n'         "$(_odc_shq "${t2_wan_ipv6:-}")"
+        printf 't2_primary_dns=%s\n'      "$(_odc_shq "${t2_primary_dns:-}")"
+        printf 't2_secondary_dns=%s\n'    "$(_odc_shq "${t2_secondary_dns:-}")"
+        printf 't2_primary_dns_v4=%s\n'   "$(_odc_shq "${t2_primary_dns_v4:-}")"
+        printf 't2_primary_dns_v6=%s\n'   "$(_odc_shq "${t2_primary_dns_v6:-}")"
+        printf 't2_secondary_dns_v4=%s\n' "$(_odc_shq "${t2_secondary_dns_v4:-}")"
+        printf 't2_secondary_dns_v6=%s\n' "$(_odc_shq "${t2_secondary_dns_v6:-}")"
+    } > "${ONDEMAND_CACHE_FILE}.env.tmp" 2>/dev/null && mv "${ONDEMAND_CACHE_FILE}.env.tmp" "${ONDEMAND_CACHE_FILE}.env"
 }
 
 # ---------------------------------------------------------------------------

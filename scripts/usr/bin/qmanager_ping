@@ -266,6 +266,14 @@ probe_cycle() {
     return 1
 }
 
+# --- Minimal JSON string quoting ---------------------------------------------
+# Quotes a plain scalar for JSON without paying jq's startup cost. Escapes
+# backslash and double-quote only, which is sufficient for the values used here
+# (profile name, ICMP targets, family) - all plain tokens sourced from UCI.
+_ping_json_str() {
+    printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+}
+
 # --- Write slim JSON cache atomically ----------------------------------------
 # Keys: timestamp, mono, profile, targets, interval_sec, fail_secs, recover_secs,
 # last_rtt_ms, reachable,
@@ -282,36 +290,26 @@ write_cache() {
     local during_recovery="false"
     [ -f "$RECOVERY_FLAG" ] && during_recovery="true"
 
-    jq -n \
-        --argjson timestamp "$timestamp" \
-        --argjson mono "$mono" \
-        --arg profile "$PING_PROFILE" \
-        --arg target4 "$PING_TARGET_IPV4" \
-        --arg target6 "$PING_TARGET_IPV6" \
-        --argjson interval "$PING_INTERVAL" \
-        --argjson fail_secs "$PING_FAIL_SECS" \
-        --argjson recover_secs "$PING_RECOVER_SECS" \
-        --argjson last_rtt "$rtt" \
-        --argjson reachable "$reachable" \
-        --argjson streak_s "$streak_success" \
-        --argjson streak_f "$streak_fail" \
-        --argjson during_rec "$during_recovery" \
-        --arg last_family "$last_family" \
-        '{
-            timestamp: $timestamp,
-            mono: $mono,
-            profile: $profile,
-            targets: [$target4, $target6],
-            interval_sec: $interval,
-            fail_secs: $fail_secs,
-            recover_secs: $recover_secs,
-            last_rtt_ms: $last_rtt,
-            reachable: $reachable,
-            streak_success: $streak_s,
-            streak_fail: $streak_f,
-            during_recovery: $during_rec,
-            last_family: $last_family
-        }' > "$CACHE_TMP"
+    # Emitted with printf rather than `jq -n`: this runs every cycle forever and
+    # jq startup costs ~0.46s of CPU on the SoCs this runs on. Every value below
+    # is already a JSON scalar, so the object is emitted directly. Same keys, same
+    # types, same values as the previous jq object; output is compact rather than
+    # pretty-printed (jq consumers are unaffected).
+    printf '{"timestamp":%s,"mono":%s,"profile":%s,"targets":[%s,%s],"interval_sec":%s,"fail_secs":%s,"recover_secs":%s,"last_rtt_ms":%s,"reachable":%s,"streak_success":%s,"streak_fail":%s,"during_recovery":%s,"last_family":%s}\n' \
+        "${timestamp:-0}" \
+        "${mono:-0}" \
+        "$(_ping_json_str "$PING_PROFILE")" \
+        "$(_ping_json_str "$PING_TARGET_IPV4")" \
+        "$(_ping_json_str "$PING_TARGET_IPV6")" \
+        "${PING_INTERVAL:-5}" \
+        "${PING_FAIL_SECS:-0}" \
+        "${PING_RECOVER_SECS:-0}" \
+        "${rtt:-null}" \
+        "${reachable:-false}" \
+        "${streak_success:-0}" \
+        "${streak_fail:-0}" \
+        "$during_recovery" \
+        "$(_ping_json_str "$last_family")" > "$CACHE_TMP"
 
     mv "$CACHE_TMP" "$CACHE_FILE"
 }
