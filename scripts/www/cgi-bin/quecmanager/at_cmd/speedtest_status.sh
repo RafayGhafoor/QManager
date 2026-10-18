@@ -23,6 +23,10 @@ PID_FILE="/tmp/qmanager_speedtest.pid"
 OUTPUT_FILE="/tmp/qmanager_speedtest_output"
 RESULT_FILE="/tmp/qmanager_speedtest_result.json"
 LOCK_FILE="/tmp/qmanager_speedtest.lock"
+ERROR_FILE="/tmp/qmanager_speedtest_error"
+# A failed run's verdict, kept until the next speedtest_start.sh (which removes
+# it) so every poller sees the failure, not only the one that harvested it.
+FAILED_FILE="/tmp/qmanager_speedtest_failed.json"
 
 qlog_init "cgi_speedtest_status"
 cgi_headers
@@ -67,6 +71,19 @@ get_last_json_line() {
 # Get the result line specifically (may not be the very last line)
 get_result_line() {
     grep '"type":"result"' "$OUTPUT_FILE" 2>/dev/null | tail -1
+}
+
+# record_failure <fallback_detail>
+# Prints the error response and saves it as FAILED_FILE. The detail is Ookla's
+# own last error log line from stderr (e.g. "Cannot open socket") when there is
+# one. Without this, only the harvesting poller ever saw the error: everyone
+# polling after the harvest found no PID file and no result and got "idle",
+# and the dialog dropped back to its start view with no message.
+record_failure() {
+    _detail=$(grep '"level":"error"' "$ERROR_FILE" 2>/dev/null | tail -1 | jq -r '.message // empty' 2>/dev/null)
+    [ -n "$_detail" ] || _detail="$1"
+    jq -cn --arg detail "$_detail" '{status: "error", error: "speedtest_failed", detail: $detail}' > "$FAILED_FILE"
+    cat "$FAILED_FILE"
 }
 
 # =============================================================================
@@ -122,16 +139,19 @@ if [ -f "$PID_FILE" ]; then
             if speedtest_flock_wait 9 3; then
                 if [ ! -f "$PID_FILE" ]; then
                     # Another poller finished the harvest while we waited for
-                    # the lock. speedtest_start.sh clears RESULT_FILE before
-                    # every run, so a result here is this run's; none means
-                    # that harvest found no result line.
+                    # the lock. speedtest_start.sh clears RESULT_FILE and
+                    # FAILED_FILE before every run, so either one is this run's.
                     CACHED_RESULT=$(cat "$RESULT_FILE" 2>/dev/null)
                     case "$CACHED_RESULT" in
                         "{"*)
                             jq -n --argjson result "$CACHED_RESULT" '{status: "complete", result: $result}'
                             ;;
                         *)
-                            echo '{"status":"error","error":"speedtest_failed","detail":"Process exited without producing results"}'
+                            if [ -s "$FAILED_FILE" ]; then
+                                cat "$FAILED_FILE"
+                            else
+                                echo '{"status":"error","error":"speedtest_failed","detail":"Process exited without producing results"}'
+                            fi
                             ;;
                     esac
                 elif [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
@@ -150,13 +170,13 @@ if [ -f "$PID_FILE" ]; then
                             echo "$LAST_LINE" > "$RESULT_FILE"
                             jq -n --argjson result "$LAST_LINE" '{status: "complete", result: $result}'
                         else
-                            echo '{"status":"error","error":"speedtest_failed","detail":"Process exited without producing results"}'
+                            record_failure "Process exited without producing results"
                         fi
                     fi
                     # Clean up the (potentially large) progress output file
                     rm -f "$OUTPUT_FILE"
                 else
-                    echo '{"status":"error","error":"speedtest_failed","detail":"Process exited with no output"}'
+                    record_failure "Process exited with no output"
                 fi
 
                 # PID file goes LAST, deliberately. Removing it first would let
@@ -194,5 +214,13 @@ if [ -f "$RESULT_FILE" ] && [ -s "$RESULT_FILE" ]; then
     exit 0
 fi
 
-# Case 3: Nothing — no test running, no previous result
+# Case 3: the last run failed. Report it until the next start clears it.
+if [ -s "$FAILED_FILE" ]; then
+    case "$(cat "$FAILED_FILE" 2>/dev/null)" in
+        "{"*) cat "$FAILED_FILE"; exit 0 ;;
+        *) rm -f "$FAILED_FILE" ;;
+    esac
+fi
+
+# Case 4: Nothing — no test running, no previous result
 echo '{"status":"idle"}'

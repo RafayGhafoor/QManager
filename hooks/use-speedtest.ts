@@ -160,6 +160,14 @@ export function useSpeedtest(
   const pingShownAtRef = useRef<number | null>(null);
   /** A phase advance deferred by the ping floor, applied when the floor expires. */
   const deferredRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * True while start()'s POST is in flight. The poll loop wakes the moment the
+   * phase turns `initializing`, before the wrapper has written its PID file,
+   * so the status endpoint can still answer with the PREVIOUS run's verdict
+   * (or idle). Those answers are about the old run and are ignored until the
+   * start request settles.
+   */
+  const startingRef = useRef(false);
 
   const isRunning =
     phase === "initializing" ||
@@ -283,19 +291,23 @@ export function useSpeedtest(
       if (!resp.ok) return;
       const data: SpeedtestStatusResponse = await resp.json();
       if (!mountedRef.current) return;
+      if (startingRef.current && data.status !== "running") return;
 
       switch (data.status) {
         case "idle":
-          // Server says idle. Don't reset if viewing results.
-          if (
-            phaseRef.current !== "complete" &&
-            phaseRef.current !== "error" &&
-            phaseRef.current !== "idle"
-          ) {
-            applyPhase("idle");
-            setProgress(0);
+          // A run we were following cannot end in "idle": a finished run leaves
+          // a result and a failed one an error (speedtest_status.sh keeps both
+          // until the next start). Idle here means the verdict was lost, e.g.
+          // an older backend that handed the error to whichever poller
+          // harvested it first. Report it as a failure instead of silently
+          // dropping back to the start view (B5.23).
+          if (isRunningPhase(phaseRef.current)) {
+            setFailedAt(asStep(phaseRef.current));
+            applyPhase("error");
+            setError("Process exited without producing results");
             setCurrentProgress(null);
           }
+          // Otherwise: nothing to do (idle already, or viewing a result).
           break;
 
         case "running": {
@@ -406,6 +418,7 @@ export function useSpeedtest(
     setProgress(0);
     setCurrentProgress(null);
     applyPhase("initializing");
+    startingRef.current = true;
 
     try {
       const body: Record<string, unknown> = {};
@@ -447,6 +460,8 @@ export function useSpeedtest(
           err instanceof Error ? err.message : "Failed to start speedtest",
         );
       }
+    } finally {
+      startingRef.current = false;
     }
   }, [applyPhase, selectedServer]);
 
