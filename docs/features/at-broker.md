@@ -244,6 +244,12 @@ covered by fake-modem tests only (86 crate tests).
 - **The broker reads smd11 only inside a locked exchange.** It keeps the fd
   open between exchanges, which is safe because a second opener (`sms_tool`)
   still gets its own reply while this fd is idle (verified on the device).
+  - **Openers outside QManager's control bypass the broker and its lock.**
+    The firmware's Quectel `atcmd` (opkg `atcmd`, defaults to `/dev/smd11`)
+    and iamromulan's `sdxpinn-console-menu` (`/usr/bin/menu`, whose
+    `sub_menus/lan_menu` drives `atcmd`) open smd11 directly with no lock. They
+    run only when someone starts them by hand over SSH, and a command sent
+    while the broker is mid-exchange can interleave with it.
 - **The socket is `0600` root and every peer is `SO_PEERCRED`-checked
   (uid 0).** `/dev/smd11` itself is `crw------- root`, and uhttpd runs CGIs
   as root, so no legitimate caller needs more. The umask is set *before*
