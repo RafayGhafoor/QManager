@@ -1,36 +1,57 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTranslation, Trans } from "react-i18next";
-import BandCardsComponent from "./band-cards";
-import BandSettingsComponent from "./band-settings";
+import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+
+import { ConditionScreen } from "@/components/cellular/condition-screen";
+import { CellularPageHeader } from "@/components/cellular/page-header";
+import { Banner } from "@/components/ui/banner";
+import { Button } from "@/components/ui/button";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { useBandLocking } from "@/hooks/use-band-locking";
-import { useModemStatus } from "@/hooks/use-modem-status";
 import { useConnectionScenarios } from "@/hooks/use-connection-scenarios";
+import { useModemStatus } from "@/hooks/use-modem-status";
+import { staggerContainer, staggerItem } from "@/lib/motion";
 import {
-  parseBandString,
   getBandsForCategory,
+  parseBandString,
+  type BandActionResult,
   type BandCategory,
 } from "@/types/band-locking";
 import { DEFAULT_SCENARIOS } from "@/types/connection-scenario";
-import { InfoIcon } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+
+import BandGridCard from "./band-grid-card";
+import BandStatusCard from "./band-status-card";
+import { categoryCardId, categoryShortKey } from "./shapes";
 
 // =============================================================================
-// BandLockingComponent — Page Coordinator
+// BandLockingComponent — page coordinator for /cellular/cell-locking
 // =============================================================================
-// Owns all hooks and distributes data to child components via props.
+// Owns every hook and distributes data down as props; no child talks to CGI.
 //
-// Data sources:
-//   useModemStatus()          → supported_*_bands, carrier_components
-//   useBandLocking()          → currentBands, failover, lock/unlock actions
-//   useConnectionScenarios()  → activeScenarioId (for scenario override check)
+//   useModemStatus()          → device.hw_* / supported_* bands, carriers
+//   useBandLocking()          → currentBands, failover, lock/unlock, refresh
+//   useConnectionScenarios()  → activeScenarioId (the scenario gate)
 //
-// Scenario override:
-//   When a non-Balanced scenario is active, band cards are disabled and an
-//   info banner is shown. This keeps the mental model clean: the scenario
-//   "owns" RF configuration. Switch to Balanced for manual band control.
+// Anatomy: header (with Refresh), the read-failure condition, the scenario
+// gate, the status card, then the category cards (LTE, NSA, and the SA slot
+// that swaps with NR-DC).
+//
+// Three band layers (docs/features/band-locking.md):
+//   hwBands      hardware capability, the chip universe ("Unlock all" writes it)
+//   policyBands  the network/SIM policy subset, grouping only
+//   locked       what the modem is configured to now (`current.sh`)
+// NR-DC has no hardware list of its own and borrows the SA one.
+//
+// Refresh exists because `current.sh` is read on mount and after a write only;
+// a scheduled scenario rewriting bands on-device would otherwise go unseen. It
+// is blocked while any write or the failover watcher is running: `current.sh`
+// takes the AT lock, and the watcher treats a failed check as "no carrier".
 // =============================================================================
+
+const K = "cell_locking.band_locking";
 
 const BandLockingComponent = () => {
   const { t } = useTranslation("cellular");
@@ -39,11 +60,13 @@ const BandLockingComponent = () => {
     currentBands,
     failover,
     isLoading: bandsLoading,
+    isRefreshing,
     lockingCategory,
-    error,
+    readError,
     lockBands,
     unlockAll,
     toggleFailover,
+    refresh,
   } = useBandLocking();
   const {
     activeScenarioId,
@@ -51,174 +74,217 @@ const BandLockingComponent = () => {
     isLoading: scenariosLoading,
   } = useConnectionScenarios();
 
-  // --- Shared SA / NR-DC slot -----------------------------------------------
-  // The third card slot toggles between SA NR5G and NR-DC via a swap control.
-  // Both target distinct AT params (nr5g_band vs nrdc_nr5g_band); only one is
-  // shown at a time so the page keeps its uniform three-card rhythm.
+  // --- Shared SA / NR-DC slot ------------------------------------------------
   const [saSlotView, setSaSlotView] = useState<"sa_nr5g" | "nrdc_nr5g">(
     "sa_nr5g",
   );
   const swapTargetView = saSlotView === "sa_nr5g" ? "nrdc_nr5g" : "sa_nr5g";
 
-  // --- Scenario override check ----------------------------------------------
-  const isScenarioControlled = activeScenarioId !== "balanced";
+  // --- Per-card write failures, from each mutator's returned result ---------
+  const [writeErrors, setWriteErrors] = useState<
+    Partial<Record<BandCategory, string>>
+  >({});
 
+  const track = async (
+    category: BandCategory,
+    run: () => Promise<BandActionResult>,
+  ): Promise<BandActionResult> => {
+    setWriteErrors((prev) => ({ ...prev, [category]: undefined }));
+    const result = await run();
+    if (!result.ok) {
+      setWriteErrors((prev) => ({ ...prev, [category]: result.error }));
+    }
+    return result;
+  };
+
+  // --- Scenario gate ---------------------------------------------------------
+  const isScenarioControlled = activeScenarioId !== "balanced";
   const activeScenarioName = useMemo(() => {
     if (!isScenarioControlled) return "";
-    // Check defaults first
-    const defaultMatch = DEFAULT_SCENARIOS.find(
-      (s) => s.id === activeScenarioId,
-    );
-    if (defaultMatch) return defaultMatch.name;
-    // Check custom scenarios
-    const customMatch = customScenarios.find((s) => s.id === activeScenarioId);
-    if (customMatch) return customMatch.name;
-    // Fallback — ID without prefix
+    const fromDefaults = DEFAULT_SCENARIOS.find((s) => s.id === activeScenarioId);
+    if (fromDefaults) return fromDefaults.name;
+    const fromCustom = customScenarios.find((s) => s.id === activeScenarioId);
+    if (fromCustom) return fromCustom.name;
     return activeScenarioId;
   }, [activeScenarioId, isScenarioControlled, customScenarios]);
 
-  // --- Band card definitions (translated) -----------------------------------
-  // LTE + NSA are fixed cards; the third slot (SA / NR-DC) is rendered
-  // separately below because it carries the swap control.
-  const bandCards = useMemo(() => [
-    { category: "lte" as BandCategory, title: t("cell_locking.band_locking.cards.lte.title"), description: t("cell_locking.band_locking.cards.lte.description") },
-    { category: "nsa_nr5g" as BandCategory, title: t("cell_locking.band_locking.cards.nsa_nr5g.title"), description: t("cell_locking.band_locking.cards.nsa_nr5g.description") },
-  ], [t]);
-
-  // --- Two band layers ------------------------------------------------------
-  // policyBands: bands the network/SIM actually uses (AT+QNWPREFCFG="policy_band",
-  //   re-read on boot + SIM swap). These render in primary; bands outside this set
-  //   render yellow. Coloring only — "Unlock all" locks the full hardware universe.
-  // hwBands: the full hardware spec-sheet capability (static file, device.hw_*_bands).
-  //   This is the checkbox universe. Bands present here but NOT in policyBands are
-  //   modem-supported-but-network-unused → rendered in warning/yellow.
-  // hwBands falls back to policyBands when the static field is absent (pre-upgrade
-  //   device) so the page degrades to the old behavior. NR-DC has no dedicated hw
-  //   list, so it borrows the SA hardware list as its universe (NR-DC bands are NR
-  //   bands ⊆ the SA set); it's fully lockable (verified on-device) and uses the
-  //   same two-tone coloring as the other categories via policyBands.nrdc_nr5g.
+  // --- Band layers -----------------------------------------------------------
   const policyBands: Record<BandCategory, number[]> = {
     lte: parseBandString(data?.device.supported_lte_bands),
     nsa_nr5g: parseBandString(data?.device.supported_nsa_nr5g_bands),
     sa_nr5g: parseBandString(data?.device.supported_sa_nr5g_bands),
     nrdc_nr5g: parseBandString(data?.device.supported_nrdc_nr5g_bands),
   };
-
-  const hwBands: Record<BandCategory, number[]> = {
-    lte: parseBandString(data?.device.hw_lte_bands),
-    nsa_nr5g: parseBandString(data?.device.hw_nsa_nr5g_bands),
-    sa_nr5g: parseBandString(data?.device.hw_sa_nr5g_bands),
-    nrdc_nr5g: [],
-  };
-
-  // The checkbox universe per category — hw capability when known, else policy set.
+  const hwLte = parseBandString(data?.device.hw_lte_bands);
+  const hwNsa = parseBandString(data?.device.hw_nsa_nr5g_bands);
+  const hwSa = parseBandString(data?.device.hw_sa_nr5g_bands);
   const supportedBands: Record<BandCategory, number[]> = {
-    lte: hwBands.lte.length > 0 ? hwBands.lte : policyBands.lte,
-    nsa_nr5g: hwBands.nsa_nr5g.length > 0 ? hwBands.nsa_nr5g : policyBands.nsa_nr5g,
-    sa_nr5g: hwBands.sa_nr5g.length > 0 ? hwBands.sa_nr5g : policyBands.sa_nr5g,
-    // NR-DC borrows the SA hardware universe (full NR band support) as its lockable
-    // checkbox set; falls back to policy nrdc pre-upgrade.
-    nrdc_nr5g: hwBands.sa_nr5g.length > 0 ? hwBands.sa_nr5g : policyBands.nrdc_nr5g,
+    lte: hwLte.length > 0 ? hwLte : policyBands.lte,
+    nsa_nr5g: hwNsa.length > 0 ? hwNsa : policyBands.nsa_nr5g,
+    sa_nr5g: hwSa.length > 0 ? hwSa : policyBands.sa_nr5g,
+    nrdc_nr5g: hwSa.length > 0 ? hwSa : policyBands.nrdc_nr5g,
   };
 
-  // --- Derive active bands from carrier_components (QCAINFO) ----------------
-  const carrierComponents = data?.network.carrier_components ?? [];
+  const hasCurrentReading = currentBands !== null;
+  const locked = (category: BandCategory) =>
+    currentBands ? parseBandString(getBandsForCategory(currentBands, category)) : [];
+  const lockedBands: Record<BandCategory, number[]> = {
+    lte: locked("lte"),
+    nsa_nr5g: locked("nsa_nr5g"),
+    sa_nr5g: locked("sa_nr5g"),
+    nrdc_nr5g: locked("nrdc_nr5g"),
+  };
 
-  // Overall loading: either poller hasn't loaded yet or bands haven't loaded
+  const carrierComponents = data?.network.carrier_components ?? [];
   const isPageLoading = statusLoading || bandsLoading || scenariosLoading;
 
+  const isBusy = lockingCategory !== null;
+  const isWatcherRunning = failover.watcher_running === true;
+  const isRefreshBlocked =
+    isBusy || isRefreshing || bandsLoading || isWatcherRunning;
+  const watcherReason = isWatcherRunning
+    ? t(`${K}.refresh_blocked_watcher`)
+    : undefined;
+
+  // A refresh belongs to no card, so its failure is a toast; success is
+  // evident from the page updating.
+  const handleRefresh = async () => {
+    const ok = await refresh();
+    if (!ok) toast.error(t(`${K}.toast.refresh_error`));
+  };
+
+  const selectCategory = (category: BandCategory) => {
+    if (category === "sa_nr5g" || category === "nrdc_nr5g") {
+      setSaSlotView(category);
+    }
+    document
+      .getElementById(categoryCardId(category))
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const renderCard = (
+    category: BandCategory,
+    swap?: { onSwapView: () => void; swapLabel: string },
+  ) => (
+    <BandGridCard
+      key={category}
+      bandCategory={category}
+      supportedBands={supportedBands[category]}
+      policyBands={policyBands[category]}
+      currentLockedBands={lockedBands[category]}
+      hasCurrentReading={hasCurrentReading}
+      onLock={(bands) => track(category, () => lockBands(category, bands))}
+      onUnlockAll={() =>
+        track(category, () => unlockAll(category, supportedBands[category]))
+      }
+      isLocking={lockingCategory === category}
+      isBusy={isBusy}
+      isLoading={isPageLoading}
+      error={writeErrors[category] ?? null}
+      isGated={isScenarioControlled}
+      onSwapView={swap?.onSwapView}
+      swapLabel={swap?.swapLabel}
+    />
+  );
+
   return (
-    <div className="@container/main mx-auto p-2">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">
-          {t("cell_locking.band_locking.page.title")}
-        </h1>
-        <p className="text-muted-foreground">
-          {t("cell_locking.band_locking.page.description")}
-        </p>
+    <div className="@container/main mx-auto flex flex-col gap-5 p-2">
+      <CellularPageHeader
+        title={t(`${K}.page.title`)}
+        description={t(`${K}.page.description`)}
+        actions={
+          <Button
+            type="button"
+            variant="tonal-neutral"
+            size="action"
+            onClick={handleRefresh}
+            disabled={isRefreshBlocked}
+            title={watcherReason}
+          >
+            <MaterialSymbol
+              name="refresh"
+              size={18}
+              className={isRefreshing ? "motion-safe:animate-spin" : undefined}
+            />
+            {t(`${K}.actions.refresh`)}
+          </Button>
+        }
+      />
+
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {isRefreshing ? t(`${K}.refreshing`) : ""}
       </div>
 
-      {/* Scenario override banner */}
-      {isScenarioControlled && !isPageLoading && (
-        <Alert className="mb-4">
-          <InfoIcon className="size-4" />
-          <AlertDescription>
-            <p>
-                <Trans
-                  i18nKey="cell_locking.band_locking.scenario_override_banner"
-                  ns="cellular"
-                  values={{ scenario_name: activeScenarioName }}
-                  components={{ strong: <span className="font-semibold" /> }}
-                />
-              </p>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="grid grid-cols-1 @3xl/main:grid-cols-2 grid-flow-row gap-4">
-        <BandSettingsComponent
-          failover={failover}
-          carrierComponents={carrierComponents}
-          onToggleFailover={toggleFailover}
-          isLoading={isPageLoading}
-          isScenarioControlled={isScenarioControlled}
+      {readError && !isPageLoading ? (
+        <ConditionScreen
+          tone="destructive"
+          glyph="visibility_off"
+          ariaRole="alert"
+          title={t(`${K}.read_error_title`)}
+          description={readError}
+          onRetry={handleRefresh}
+          retryLabel={t(`${K}.actions.refresh`)}
+          disabled={isRefreshBlocked}
+          disabledReason={watcherReason}
         />
-        {bandCards.map(({ category, title, description }) => (
-          <BandCardsComponent
-            key={category}
-            title={title}
-            description={description}
-            bandCategory={category}
-            supportedBands={supportedBands[category]}
-            policyBands={policyBands[category]}
-            currentLockedBands={
-              currentBands
-                ? parseBandString(getBandsForCategory(currentBands, category))
-                : []
-            }
-            onLock={(bands) => lockBands(category, bands)}
-            onUnlockAll={() => unlockAll(category, supportedBands[category])}
-            isLocking={lockingCategory === category}
+      ) : null}
+
+      {!isPageLoading && isScenarioControlled ? (
+        <Banner
+          role="override"
+          title={t(`${K}.scenario_gate_title`, { scenario: activeScenarioName })}
+          description={t(`${K}.scenario_gate_note`)}
+        />
+      ) : null}
+
+      <motion.div
+        className="flex flex-col gap-5"
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+      >
+        <motion.div variants={staggerItem}>
+          <BandStatusCard
+            failover={failover}
+            carrierComponents={carrierComponents}
+            supportedBands={supportedBands}
+            lockedBands={lockedBands}
+            hasCurrentReading={hasCurrentReading}
+            onToggleFailover={toggleFailover}
+            onSelectCategory={selectCategory}
             isLoading={isPageLoading}
-            error={error}
-            disabled={isScenarioControlled}
+            isGated={isScenarioControlled}
           />
-        ))}
+        </motion.div>
 
-        {/* Shared SA / NR-DC slot — key remounts the card on swap so its
-            checkbox state re-initializes from the new mode's locked bands and
-            the entrance animation replays as a visible "mode changed" cue. */}
-        <BandCardsComponent
-          key={saSlotView}
-          title={t(`cell_locking.band_locking.cards.${saSlotView}.title`)}
-          description={t(
-            `cell_locking.band_locking.cards.${saSlotView}.description`,
-          )}
-          bandCategory={saSlotView}
-          supportedBands={supportedBands[saSlotView]}
-          policyBands={policyBands[saSlotView]}
-          currentLockedBands={
-            currentBands
-              ? parseBandString(getBandsForCategory(currentBands, saSlotView))
-              : []
-          }
-          onLock={(bands) => lockBands(saSlotView, bands)}
-          onUnlockAll={() => unlockAll(saSlotView, supportedBands[saSlotView])}
-          isLocking={lockingCategory === saSlotView}
-          isLoading={isPageLoading}
-          error={error}
-          disabled={isScenarioControlled}
-          onSwapView={() => setSaSlotView(swapTargetView)}
-          swapLabel={t(
-            `cell_locking.band_locking.card_category_label.${swapTargetView}`,
-          )}
-          swapTitle={t("cell_locking.band_locking.card_buttons.swap_view", {
-            target: t(
-              `cell_locking.band_locking.card_category_label.${swapTargetView}`,
-            ),
-          })}
-        />
-      </div>
+        <motion.div
+          className="grid grid-cols-1 gap-4 @3xl/main:grid-cols-2"
+          variants={staggerContainer}
+        >
+          {(["lte", "nsa_nr5g"] as const).map((category) => (
+            <motion.div
+              key={category}
+              id={categoryCardId(category)}
+              variants={staggerItem}
+              className="h-full scroll-mt-20 *:data-[slot=card]:h-full"
+            >
+              {renderCard(category)}
+            </motion.div>
+          ))}
+          {/* The shared SA / NR-DC slot. The key remounts the card on swap so
+              its selection re-initialises from the new category. */}
+          <motion.div
+            id={categoryCardId("sa_nr5g")}
+            variants={staggerItem}
+            className="h-full scroll-mt-20 *:data-[slot=card]:h-full"
+          >
+            {renderCard(saSlotView, {
+              onSwapView: () => setSaSlotView(swapTargetView),
+              swapLabel: t(categoryShortKey(swapTargetView)),
+            })}
+          </motion.div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };

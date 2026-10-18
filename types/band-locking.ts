@@ -53,13 +53,27 @@ export interface FailoverState {
   enabled: boolean;
   /** Whether failover has fired and overrode the user's lock */
   activated: boolean;
+  /**
+   * Whether the failover watcher is still checking the new lock. Only
+   * `failover_status.sh` reports it (`current.sh` omits it), so it is optional
+   * and reads as false when absent.
+   */
+  watcher_running?: boolean;
 }
+
+/**
+ * The result a band mutation returns. `error` is already resolved through
+ * `resolveErrorMessage`, so the caller toasts and displays it as-is instead of
+ * reading the hook's render-time `error` after an `await` (a stale closure).
+ */
+export type BandActionResult = { ok: true } | { ok: false; error: string };
 
 /** Response from GET /cgi-bin/quecmanager/bands/current.sh */
 export interface BandCurrentResponse {
   success: boolean;
-  current: CurrentBands;
-  failover: FailoverState;
+  /** Omitted from the error envelope, hence optional. */
+  current?: CurrentBands;
+  failover?: FailoverState;
   error?: string;
   detail?: string;
 }

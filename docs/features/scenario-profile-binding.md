@@ -160,7 +160,7 @@ The cron worker has a **self-heal guard** as a backstop (not the primary teardow
 {"success": false, "error": "scenario_locked_by_schedule"}
 ```
 
-The UI resolves this via `errors.json`. Scenario tiles remain visible and browsable; only the Activate button is disabled while a schedule is running. The locked state is surfaced via `useActiveProfile`'s `scheduleLocked` field and a `variant="outline"` "Scheduled" badge on the active tile.
+The UI resolves this via `errors.json`. Scenario tiles remain visible and browsable; while a schedule is running the Selected-scenario card withholds Activate and shows an info block naming the next change instead. The locked state is surfaced via `useActiveProfile`'s `scheduleLocked` and `nextChangeAt` fields and a filled `info` "Scheduled" chip (`lock_clock` glyph) in that card.
 
 ## Frontend Display Contract
 
@@ -179,96 +179,41 @@ The hook runs a 60-second tick (`TICK_INTERVAL_MS = 60_000`) to advance `schedul
 
 ## Schedule Editor UI
 
-The schedule editor lives in the **Connection Scenario card** of the single-page profile editor (`profile-form/scenario-card.tsx`), the last section in the reading column. The default scenario picker reads first; the time-of-day schedule is an explicit opt-in below it. The persisted JSON contract, device cron, and canonical resolution rule are unchanged from the backend's perspective.
+The schedule editor is the Connection tab of the single-page profile editor, inline in `components/cellular/custom-profiles/profile-input.tsx` (the former `profile-form/scenario-card.tsx` and `scenario-binding/schedule-rule-row.tsx` are gone; the latter was dead code with no importers). The default scenario picker reads first; the time-of-day schedule is an explicit opt-in below it, switched by a `SegmentedField` (On/Off). The persisted JSON contract, device cron, and canonical resolution rule are unchanged from the backend's perspective.
 
 ### Simplified Daily-Only Model
 
-The editor no longer asks about days of the week. Every entry runs every day — the card always seeds and persists `days: [0,1,2,3,4,5,6]` via `newBlock()` in `scenario-card.tsx`. This keeps the device cron generator and the synced shell/TS resolver completely unchanged; `validateSchedule` still requires a non-empty `days` array and this invariant satisfies it. The `days` field is retained in `types/sim-profile.ts` as `days?: number[]` (optional) for backward-read compatibility with any profiles saved before this change.
+The editor no longer asks about days of the week. Every window runs every day: the save path always writes `days: [0,1,2,3,4,5,6]` for each block (and `blocks: []` while the schedule is off). This keeps the device cron generator and the synced shell/TS resolver unchanged; `validateSchedule` still requires a non-empty `days` array and this invariant satisfies it. The `days` field is retained in `types/sim-profile.ts` as `days?: number[]` (optional) for backward-read compatibility with profiles saved earlier.
 
-**Why removed:** per-day selection added complexity users did not need. All practical use cases (day/night split, work-hours swap) recur daily, and the simpler model is easier to reason about.
+**Why removed:** per-day selection added complexity users did not need. All practical use cases (day/night split, work-hours swap) recur daily.
 
-### 3-Entry Hard Cap
+### Window Cap
 
-The schedule is limited to a maximum of 3 entries (`MAX_SCHEDULE_ENTRIES = 3` in `scenario-card.tsx`). When the cap is reached, the Add affordance is replaced by a `entries_cap_hint` note (e.g. "Up to 3 time windows. Remove one to add another."). Two or three daily windows cover the full practical range of use cases.
-
-### Summary-Row Accordion
-
-The schedule block list renders as a single-open accordion. Each collapsed row shows a one-line summary in the format `{start}–{end} → {scenario}` (e.g. `22:00–06:00 → Gaming`). No day label appears — every entry runs every day. Expanding a row reveals the editor: start time, end time, and scenario picker. Only one row is open at a time. The parent (`scenario-card.tsx`) holds `openKey` (the `_key` of the currently expanded row) and passes controlled `open`/`onOpenChange` props into each `ScheduleRuleRow`.
-
-Component: `components/cellular/custom-profiles/scenario-binding/schedule-rule-row.tsx`.
-
-**Newly-added rows auto-expand.** When the user clicks "Add window", the parent calls `setOpenKey(block._key)` before appending, so the fresh row opens immediately.
-
-**Error force-expand.** When a rule carries a blocking validation error, the parent's `useEffect` on `firstErrorIndex` sets `openKey` to that rule's `_key`, keeping the error always visible. If validation is triggered by a blocked form submit, the imperative handle `revealFirstError()` additionally opens the offending rule and scrolls it into view.
-
-**Warning glyph.** A `TriangleAlertIcon` (`size-3`) appears on the collapsed summary trigger of any row that has a blocking error or an overlap warning, so the problem is discoverable without expanding.
+The editor limits the schedule to `MAX_WINDOWS = 2` windows (`profile-input.tsx`). Each window is a flat card (scenario picker, start, end, remove) in the order added; a `windows_count` readout (`{{count}}` of `{{max}}`) sits beside the Add button, which is disabled at the cap. An empty schedule shows the `windows_empty` note. Order matters on the device: **first-in-array wins** when windows overlap.
 
 ### Client-Only `_key` Field
 
-`ScenarioScheduleBlock` carries an optional `_key?: string` field that acts as a stable React list key. This replaces the previous index-based `key={i}`, which mis-targeted focus, labels, and `aria-live` regions on mid-list deletes.
-
-**INVARIANT: `_key` is never persisted.** It exists only in client-side form state. Two pure helpers in `lib/scenario-schedule.ts` enforce this:
-
-- `ensureScenarioKeys(binding)` — called when hydrating form state from a saved profile. Adds a `_key` to any block that lacks one (all blocks from persisted JSON). Uses `clientKey()`, which prefers `crypto.randomUUID()` and falls back to a monotonic counter of the form `blk_<base36-timestamp>_<n>`.
-- `stripScenarioKeys(binding)` — called before every save (POST to `profiles/save.sh`). Removes `_key` from every block before serialization. Returns a fresh object; does not mutate the input.
-
-Why: the device JSON must remain byte-clean. The modem shell scripts that read profile JSON have no awareness of `_key` and would ignore it, but carrying extra keys in persisted data creates a silent diff between what was saved and what the modem operates on.
-
-### Reorder Controls
-
-Each rule row shows move-up and move-down buttons when more than one rule exists (`canReorder = blocks.length > 1`). The first rule's move-up button and the last rule's move-down button are disabled. Reordering matters because **first-in-array wins** when multiple rules overlap — moving a rule up raises its precedence. The parent's `swap(a, b)` exchanges elements at indices `a` and `b` and calls `onChange` with the updated array.
-
-### Live Readout
-
-A single text line reports the currently-active scenario and the time of the next schedule boundary. It is shown only when `schedule.enabled = true` and at least one rule passes validation (no blocking error). The parent computes `{ scenario, next }` via `resolveScheduledScenario()` and `nextChangeAt()` on mount and then on a 60-second `setInterval`. The displayed text uses the `active_now_line_with_next` i18n key when a next-change time exists, or `active_now_line` when the scenario never changes within the next 7 days.
-
-Why 60 seconds: `nextChangeAt()` scans up to 7 × 1440 minutes to find the next transition. Running it more frequently would waste cycles; the one-minute granularity matches the device cron's minimum resolution.
-
-### `ScenarioCardHandle` Contract
-
-The card is exposed via `forwardRef` and `useImperativeHandle`. The editor holds a ref (`scenarioRef`) and calls `revealFirstError()` when a submit is blocked by schedule errors (after focusing any plain-field errors first).
-
-```typescript
-export interface ScenarioCardHandle {
-  revealFirstError: () => void;
-}
-```
-
-`revealFirstError()` does two things in order:
-
-1. Sets `openKey` to the `_key` of the first invalid rule (the card itself is always visible — there is no longer a collapsible wrapper to expand).
-2. Defers a `scrollIntoView` call via `requestAnimationFrame` so the rule has expanded before the scroll fires. The behavior is `"smooth"` unless `window.matchMedia("(prefers-reduced-motion: reduce)").matches`, in which case `"auto"` is used.
-
-If there are no blocking errors (`firstErrorIndex === -1`), `revealFirstError()` returns immediately without changing any state.
-
-### Overnight Hint
-
-When both start and end are valid times and `end <= start` (the window wraps past midnight), an informational line appears under the End field in the editor to make the overnight behavior explicit. This is a display-only hint; the resolution logic already handles overnight windows correctly via the `e <= s` branch in `blockMatchesAt()`.
-
-### Accessibility
-
-- The overlap warning paragraph carries `role="status"` so assistive technology announces it without requiring focus.
-- The reorder buttons carry explicit `aria-label` keys (`move_up_aria`, `move_down_aria`).
-- The expand/collapse trigger carries `aria-expanded` (Radix Collapsible) and an explicit `aria-label` (`expand_rule_aria`).
+`ScenarioScheduleBlock` carries an optional `_key?: string` that `lib/scenario-schedule.ts` can add (`ensureScenarioKeys`) and strip (`stripScenarioKeys`) so a client list key never reaches the device JSON. The inline editor keys its rows with its own numeric `id` and builds blocks without `_key`, so these helpers currently have no importers; if a keyed editor returns, **`_key` must never be persisted** (strip before every POST to `profiles/save.sh`). The device JSON must stay byte-clean: shell scripts ignore extra keys, but they would create a silent diff between what was saved and what the modem operates on.
 
 ### i18n Keys (Schedule Section)
 
-All keys live under `custom_profiles.form.scenario` in the `cellular` namespace. Keys present after this redesign:
+The editor reads `custom_profiles.form.{schedule_inline_label,schedule_inline_hint,windows_empty,window_label,window_remove_aria,add_window,windows_count}` and `custom_profiles.form.scenario.block_scenario_label` in the `cellular` namespace, in all five locales (en, zh-CN, zh-TW, id, it). The word "Block" is shown as "Window" in displayed strings; JSON key names such as `add_block` and `block_errors.*` are unchanged.
 
-| Key | Purpose |
-|---|---|
-| `summary_line` | Collapsed row summary: `{{time}} → {{scenario}}` |
-| `time_range` | Time portion of the summary: `{{start}}–{{end}}` |
-| `entries_cap_hint` | Note shown when at cap: "Up to {{max}} time windows…" |
-| `move_up_aria` | Accessible label for move-up button |
-| `move_down_aria` | Accessible label for move-down button |
-| `expand_rule_aria` | Accessible label for expand trigger |
-| `remove_block_aria` | Accessible label for remove button |
-| `active_now_line` | Live readout (no next-change time) |
-| `active_now_line_with_next` | Live readout with next-change time |
-| `overnight_hint` | Hint shown under End when window wraps midnight |
+---
 
-Keys removed with this redesign: `every_day`, `weekdays`, `weekends`, `no_days_short`, `preset_every_day`, `preset_weekdays`, `preset_weekends` (day-preset buttons and day-label vocabulary are gone). The word "Block" was replaced with "Window" in all displayed string values across all four locales (en, zh-CN, id, it); JSON key names (`add_block`, `remove_block_aria`, `block_label`, `block_errors.*`) are unchanged.
+## Connection Scenarios Page UI
+
+Route `/cellular/custom-profiles/connection-scenarios`. Components live in `components/cellular/custom-profiles/connection-scenarios/`: `connection-scenario.tsx` (page shell), `connection-scenario-card.tsx` (coordinator of both cards), `scenario-item.tsx` (tile), `active-config-card.tsx` (Selected-scenario card) and `scenario-dialog.tsx` (the one Add/Edit dialog). Hook: `hooks/use-connection-scenarios.ts`. `abstract-pattern.tsx` and `add-scenario-item.tsx` were deleted.
+
+- **No gradients.** The persisted `gradient` field is passed through unchanged when a custom scenario is edited, and new scenarios send a neutral legacy value (`LEGACY_GRADIENT`) the backend still expects; the UI never draws it.
+- **Tiles** are identity, not decoration: a glyph disc on the strong `primary` fill, the name and description, and neutral `Tag`s for the network mode and, when the scenario pins bands, "Band lock". The active scenario carries a filled `success` "Active" chip with `check_circle`. The selected tile (a view-only choice) is promoted to `primary-container`.
+- **Scenarios card** lists built-ins then customs; its header carries **New scenario**. `?create=1` opens the Add dialog once and strips itself from the URL.
+- **Selected-scenario card** shows the selected tile's configuration as receipt rows and commits from `CardFoot`: for customs, Delete (ghost) and Edit (`tonal-neutral`); Activate as a `SaveButton`, disabled when that scenario is already active. While the active profile's schedule lock holds, Activate is withheld and an info block states the lock and names the next change (`nextChangeAt`).
+- **One dialog** adds and edits custom scenarios; deletes confirm through an `AlertDialog`.
+- **Hook contract.** `activateScenario` and `deleteCustomScenario` return `ScenarioActionResult = { ok: true } | { ok: false; error: string }`; `saveCustomScenario` returns `{ ok: true; id } | { ok: false; error }`. `error` is already resolved (`resolveErrorMessage`, so `scenario_locked_by_schedule` arrives translated) and handlers toast the returned reason, one toast per mutation.
+- **Error state.** When `list.sh` fails the page renders a `ConditionScreen` with retry in place of the cards.
+
+---
 
 ## Timezone Change Caveat
 

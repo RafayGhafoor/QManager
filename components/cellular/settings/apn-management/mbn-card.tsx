@@ -30,17 +30,28 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2 } from "lucide-react";
 import { SaveButton } from "@/components/ui/save-button";
 import { CardFoot } from "@/components/ui/card-foot";
-import type { MbnProfile, MbnSaveRequest } from "@/types/mbn-settings";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
+import { SegmentedField } from "@/components/ui/segmented-field";
+import { ConditionScreen } from "@/components/cellular/condition-screen";
+import { requestRebootLater } from "@/lib/reboot";
+import type {
+  MbnActionResult,
+  MbnProfile,
+  MbnSaveRequest,
+} from "@/types/mbn-settings";
 
 interface MBNCardProps {
   profiles: MbnProfile[] | null;
   autoSel: number | null;
   isLoading: boolean;
   isSaving: boolean;
-  onSave: (request: MbnSaveRequest) => Promise<boolean>;
+  /** The first read failed and there is nothing to show (translated). */
+  loadError: string | null;
+  onRetry: () => void;
+  onSave: (request: MbnSaveRequest) => Promise<MbnActionResult>;
+  /** Fires the reboot and enters the /reboot/ flow; false if it was not sent. */
   onReboot: () => Promise<boolean>;
 }
 
@@ -49,6 +60,8 @@ const MBNCard = ({
   autoSel,
   isLoading,
   isSaving,
+  loadError,
+  onRetry,
   onSave,
   onReboot,
 }: MBNCardProps) => {
@@ -95,44 +108,48 @@ const MBNCard = ({
 
     // Case 1: Auto-select changed to enabled
     if (localAutoSel === "1" && currentAutoSel !== "1") {
-      const success = await onSave({ action: "auto_sel", auto_sel: 1 });
-      if (success) {
+      const result = await onSave({ action: "auto_sel", auto_sel: 1 });
+      if (result.ok) {
         toast.success(t("core_settings.apn.mbn.toast.auto_enabled"));
         setShowRebootDialog(true);
       } else {
-        toast.error(t("core_settings.apn.mbn.toast.enable_error"));
+        toast.error(result.error);
       }
       return;
     }
 
     // Case 2: Auto-select changed to disabled (without profile change)
     if (localAutoSel === "0" && currentAutoSel !== "0" && selectedProfile === currentProfile?.name) {
-      const success = await onSave({ action: "auto_sel", auto_sel: 0 });
-      if (success) {
+      const result = await onSave({ action: "auto_sel", auto_sel: 0 });
+      if (result.ok) {
         toast.success(t("core_settings.apn.mbn.toast.auto_disabled"));
         setShowRebootDialog(true);
       } else {
-        toast.error(t("core_settings.apn.mbn.toast.disable_error"));
+        toast.error(result.error);
       }
       return;
     }
 
     // Case 3: Profile changed (auto-sel is off or being turned off)
     if (localAutoSel === "0" && selectedProfile && selectedProfile !== currentProfile?.name) {
-      const success = await onSave({
+      const result = await onSave({
         action: "apply_profile",
         profile_name: selectedProfile,
       });
-      if (success) {
+      if (result.ok) {
         toast.success(t("core_settings.apn.mbn.toast.profile_applied"));
         setShowRebootDialog(true);
       } else {
-        toast.error(t("core_settings.apn.mbn.toast.apply_error"));
+        toast.error(result.error);
       }
-      return;
     }
+    // Save is disabled while clean, so there is no "no changes" branch.
+  };
 
-    toast.info(t("core_settings.apn.mbn.toast.no_changes"));
+  /** "Later": persist the deferred-reboot flag so the page banner stays up. */
+  const handleRebootLater = () => {
+    requestRebootLater("mbn");
+    setShowRebootDialog(false);
   };
 
   const handleReset = () => {
@@ -148,14 +165,38 @@ const MBNCard = ({
   const handleReboot = async (e: React.MouseEvent) => {
     e.preventDefault(); // Keep dialog open to show rebooting state
     setIsRebooting(true);
+    // The /reboot/ hand-off is the success signal; only a failure toasts.
     const sent = await onReboot();
-    if (sent) {
-      toast.success(t("core_settings.apn.mbn.toast.rebooting"));
-    } else {
+    if (!sent) {
       toast.error(t("core_settings.apn.mbn.toast.reboot_error"));
       setIsRebooting(false);
     }
   };
+
+  if (!isLoading && loadError) {
+    return (
+      <Card className="@container/card">
+        <CardHeader>
+          <CardTitle>{t("core_settings.apn.mbn.card.title")}</CardTitle>
+          <CardDescription>
+            {t("core_settings.apn.mbn.card.description")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ConditionScreen
+            tone="destructive"
+            glyph="error"
+            ariaRole="alert"
+            title={t("core_settings.apn.mbn.load_error_title")}
+            description={loadError}
+            onRetry={onRetry}
+            retryLabel={t("actions.retry", { ns: "common" })}
+            className="rounded-tile py-10"
+          />
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -202,23 +243,27 @@ const MBNCard = ({
             <FieldSet>
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="mbn-auto-select">{t("core_settings.apn.mbn.auto_select.label")}</FieldLabel>
-                  <Select
+                  <FieldLabel>{t("core_settings.apn.mbn.auto_select.label")}</FieldLabel>
+                  <SegmentedField
                     value={
-                      localAutoSel ||
-                      (autoSel !== null ? String(autoSel) : "")
+                      (localAutoSel ||
+                        (autoSel !== null ? String(autoSel) : "0")) as
+                        | "0"
+                        | "1"
                     }
                     onValueChange={setLocalAutoSel}
+                    options={[
+                      { value: "1", label: t("common:state.on") },
+                      { value: "0", label: t("common:state.off") },
+                    ]}
+                    ariaLabel={t("core_settings.apn.mbn.auto_select.label")}
                     disabled={isSaving}
-                  >
-                    <SelectTrigger id="mbn-auto-select" aria-label={t("core_settings.apn.mbn.auto_select.label")}>
-                      <SelectValue placeholder={t("core_settings.apn.mbn.auto_select.placeholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">{t("common:state.enabled")}</SelectItem>
-                      <SelectItem value="0">{t("common:state.disabled")}</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    breakpoint="never"
+                    className="w-fit"
+                    glyph={(className) => (
+                      <MaterialSymbol name="check" size={16} className={className} />
+                    )}
+                  />
                 </Field>
 
                 <Field>
@@ -233,12 +278,12 @@ const MBNCard = ({
                     onValueChange={setSelectedProfile}
                     disabled={isSaving || localAutoSel === "1"}
                   >
-                    <SelectTrigger id="mbn-carrier-config" aria-label={t("core_settings.apn.mbn.configuration.label")}>
+                    <SelectTrigger id="mbn-carrier-config" className="font-mono" aria-label={t("core_settings.apn.mbn.configuration.label")}>
                       <SelectValue placeholder={t("core_settings.apn.mbn.configuration.placeholder")} />
                     </SelectTrigger>
                     <SelectContent>
                       {profiles?.map((p) => (
-                        <SelectItem key={p.index} value={p.name}>
+                        <SelectItem key={p.index} value={p.name} className="font-mono">
                           {p.name}
                           {p.selected && p.activated ? t("core_settings.apn.mbn.configuration.option_active_suffix") : ""}
                         </SelectItem>
@@ -253,7 +298,11 @@ const MBNCard = ({
 
         {/* Reboot confirmation dialog */}
         <AlertDialog open={showRebootDialog} onOpenChange={(open) => {
-          if (!isRebooting) setShowRebootDialog(open);
+          // Any close that is not the reboot itself defers it (Later, Esc,
+          // overlay): the change is written and still needs a reboot.
+          if (isRebooting) return;
+          if (!open) handleRebootLater();
+          else setShowRebootDialog(true);
         }}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -272,7 +321,11 @@ const MBNCard = ({
               >
                 {isRebooting ? (
                   <>
-                    <Loader2 className="size-4 animate-spin" />
+                    <MaterialSymbol
+                      name="progress_activity"
+                      size={16}
+                      className="motion-safe:animate-spin"
+                    />
                     {t("core_settings.apn.mbn.reboot_dialog.rebooting")}
                   </>
                 ) : (

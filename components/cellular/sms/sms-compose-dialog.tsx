@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
+import type { SmsActionResult } from "@/hooks/use-sms";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +26,7 @@ import { Label } from "@/components/ui/label";
 interface SmsComposeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSend: (phone: string, message: string) => Promise<boolean>;
+  onSend: (phone: string, message: string) => Promise<SmsActionResult>;
   isSaving: boolean;
 }
 
@@ -52,14 +53,14 @@ export default function SmsComposeDialog({
 
     if (!isValid) return;
 
-    const success = await onSend(phone.trim(), message);
-    if (success) {
+    const result = await onSend(phone.trim(), message);
+    if (result.ok) {
       toast.success(t("sms.compose.toast.success"));
       setPhone("");
       setMessage("");
       onOpenChange(false);
     } else {
-      toast.error(t("sms.compose.toast.error"));
+      toast.error(result.error);
     }
   };
 
@@ -90,13 +91,14 @@ export default function SmsComposeDialog({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               disabled={isSaving}
+              className="font-mono"
             />
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="sms-message">{t("sms.compose.fields.message_label")}</Label>
               <span
-                className={`text-xs ${
+                className={`text-xs tabular-nums ${
                   isOverLimit
                     ? "text-destructive font-medium"
                     : charCount > maxChars * 0.9
@@ -126,7 +128,7 @@ export default function SmsComposeDialog({
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={() => onOpenChange(false)}
               disabled={isSaving}
             >
@@ -135,7 +137,11 @@ export default function SmsComposeDialog({
             <Button type="submit" disabled={isSaving || !isValid}>
               {isSaving ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" />
+                  <MaterialSymbol
+                    name="progress_activity"
+                    size={16}
+                    className="motion-safe:animate-spin"
+                  />
                   {t("sms.compose.buttons.sending")}
                 </>
               ) : (

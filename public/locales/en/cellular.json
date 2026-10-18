@@ -2,8 +2,7 @@
   "custom_profiles": {
     "page": {
       "title": "Custom SIM Profile",
-      "description": "Bundle APN, IMEI, and TTL/HL settings into one-click profiles.",
-      "error_load_failed": "Could not load profiles. Check the connection and try again."
+      "description": "Bundle APN, IMEI, and TTL/HL settings into one-click profiles."
     },
     "view": {
       "title": "Saved Profiles",
@@ -19,9 +18,10 @@
       "mismatch_note": "The SIM in the modem does not match this profile's ICCID. The device keeps its current settings until a matching SIM is inserted.",
       "toast": {
         "deactivated": "{{name}} deactivated",
-        "deactivate_error": "Failed to deactivate profile",
         "deleted": "{{name}} deleted",
-        "delete_error": "Failed to delete profile"
+        "activated": "{{name}} is active",
+        "activated_partial": "{{name}} is active with some steps skipped",
+        "activate_error": "Couldn't activate the profile."
       },
       "delete_title": "Delete “{{name}}”?"
     },
@@ -35,7 +35,7 @@
       "status_badge": {
         "active": "Active",
         "inactive": "Inactive",
-        "sim_mismatch": "SIM Mismatch"
+        "sim_mismatch": "SIM mismatch"
       },
       "pagination": {
         "total_one": "{{count}} profile total",
@@ -206,11 +206,10 @@
       "save_failed": "Failed to save profile",
       "profile_added": "Profile added",
       "profile_updated": "Profile updated",
-      "submit_add": "Submit",
+      "submit_add": "Add profile",
       "submit_edit": "Save changes",
       "cancel": "Cancel",
       "next": "Next",
-      "clear": "Clear",
       "tab_network": "Network",
       "network_desc": "How the modem connects to the carrier data network.",
       "identity_load_hint": "Name this profile and pick the carrier it is for.",
@@ -294,7 +293,7 @@
         "imei": "IMEI",
         "mpdn_rule": "Data Routing"
       },
-      "reboot_notice": "Modem is restarting to apply IMEI change. Dashboard will reconnect automatically.",
+      "reboot_notice": "The IMEI change takes effect after a reboot. Reboot from the banner when you are ready.",
       "step_state_unchanged": "Unchanged",
       "preparing": "Preparing…",
       "step_progress": "Step {{current}} of {{total}}",
@@ -304,7 +303,11 @@
       "partial_sub": "Some steps were skipped. Review the details below.",
       "failed_headline": "Activation failed",
       "failed_sub": "The modem was not fully reconfigured.",
-      "details_label": "Steps"
+      "details_label": "Steps",
+      "errors": {
+        "start_failed": "Could not start the profile apply.",
+        "not_started": "The profile apply did not start. Please try again."
+      }
     },
     "verizon_warning": {
       "title": "Verizon requires a special data routing rule",
@@ -317,7 +320,7 @@
     "empty_state": {
       "title": "No Custom Profiles",
       "description": "Manage your custom SIM profiles here.",
-      "description_full": "You have not created any custom SIM profiles yet. Use the form to create your first profile.",
+      "description_full": "Create a profile to save APN, IMEI and TTL settings for a SIM and apply them in one step.",
       "refresh": "Refresh",
       "card_title": "Custom SIM Profiles",
       "card_description": "Saved bundles of APN, IMEI, and TTL settings applied to the modem in one step.",
@@ -330,13 +333,13 @@
       "ip_v4": "IPv4",
       "ip_v6": "IPv6",
       "ip_dual": "IPv4v6",
-      "apn": "APN {{name}}",
       "apn_default": "Default APN",
       "cid": "CID {{cid}}",
       "ttl": "TTL {{value}}",
       "hl": "HL {{value}}",
       "imei_override": "IMEI override",
-      "mpdn_locked": "MPDN locked"
+      "mpdn_locked": "MPDN locked",
+      "apn_prefix": "APN "
     },
     "active_card": {
       "none_title": "No active profile",
@@ -362,12 +365,22 @@
     "card": {
       "label_iccid": "SIM",
       "label_updated": "Updated"
+    },
+    "registry": {
+      "add": "New profile",
+      "error_title": "Couldn't load your profiles"
+    },
+    "errors": {
+      "load_failed": "The modem didn't answer with your saved profiles. Try again in a moment.",
+      "save_failed": "Couldn't save the profile.",
+      "delete_failed": "Couldn't delete the profile.",
+      "deactivate_failed": "Couldn't deactivate the profile."
     }
   },
   "scenarios": {
     "page": {
       "title": "Connection Scenarios",
-      "description": "Manage and customize connection scenarios for your cellular profiles to optimize network performance and reliability."
+      "description": "Switch the radio between saved network setups."
     },
     "default_balanced_name": "Balanced",
     "default_balanced_description": "Auto band selection",
@@ -389,16 +402,15 @@
         "description": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
         "confirm": "Delete",
         "deleting": "Deleting…"
-      }
+      },
+      "band_lock": "Band lock"
     },
     "add_button": {
-      "label": "Create Scenario",
-      "description": "Add custom configuration"
+      "label": "New scenario"
     },
     "active_config_card": {
       "configuration": "{{name}} Configuration",
       "status": {
-        "applying": "Applying…",
         "active": "Active",
         "not_active": "Not Active"
       },
@@ -416,8 +428,9 @@
         "nrsa_nsa": "5G SA / NSA",
         "bands_auto": "Auto"
       },
-      "edit_aria": "Edit scenario settings",
-      "activate": "Activate"
+      "activate": "Activate",
+      "edit": "Edit",
+      "running_note": "This scenario is running now."
     },
     "add_dialog": {
       "title": "New Connection Scenario",
@@ -434,62 +447,54 @@
         "sa_bands_placeholder": "e.g., 41, 78",
         "nsa_bands_label": "NR5G-NSA Band Lock",
         "nsa_bands_placeholder": "e.g., 41, 78",
-        "theme_label": "Card Theme",
-        "preview_label": "Preview",
         "preview_placeholder": "Custom configuration"
       },
       "buttons": {
-        "create": "Create Scenario",
-        "creating": "Creating…"
+        "create": "Create Scenario"
       },
       "toast": {
-        "success": "Scenario created successfully.",
-        "error": "Failed to create scenario."
+        "success": "Scenario created successfully."
       }
     },
     "edit_dialog": {
       "title": "Edit Configuration",
       "fields": {
-        "name_label": "Scenario Name",
-        "name_placeholder": "Scenario name",
-        "description_label": "Description",
-        "description_placeholder": "Scenario description",
-        "network_mode_label": "Network Mode",
-        "network_mode_aria": "Network Mode",
         "optimization_label": "Optimization Label",
-        "optimization_placeholder": "e.g., Latency, Throughput, Custom",
-        "lte_bands_label": "LTE Band Lock",
-        "lte_bands_placeholder": "e.g., 1, 3, 7, 28 (empty = Auto)",
-        "sa_bands_label": "NR5G-SA Band Lock",
-        "sa_bands_placeholder": "e.g., 41, 78",
-        "nsa_bands_label": "NR5G-NSA Band Lock",
-        "nsa_bands_placeholder": "e.g., 41, 78",
-        "theme_label": "Card Theme",
-        "preview_label": "Preview",
-        "preview_placeholder": "Custom configuration"
+        "optimization_placeholder": "e.g., Latency, Throughput, Custom"
       },
       "buttons": {
-        "save": "Save Changes",
-        "saving": "Saving…"
+        "save": "Save Changes"
       },
       "toast": {
-        "success": "Scenario updated.",
-        "error": "Failed to update scenario."
+        "success": "Scenario updated."
       }
     },
     "activation_toast": {
-      "success": "Switched to {{name}} scenario.",
-      "error": "Failed to activate {{name}} scenario."
+      "success": "Switched to {{name}} scenario."
     },
     "deletion_toast": {
-      "success": "Scenario deleted.",
-      "error": "Failed to delete scenario."
+      "success": "Scenario deleted."
     },
     "schedule_lock": {
       "badge": "Scheduled",
       "hint": "Disable this profile's schedule to choose a scenario manually.",
       "next_change": "Next change at {{time}}",
       "blocked_toast": "Connection scenario is controlled by the active profile's schedule. Turn off the schedule to change it manually."
+    },
+    "list_card": {
+      "title": "Scenarios",
+      "description": "Select a scenario to see its configuration.",
+      "error_title": "Couldn't load your scenarios"
+    },
+    "dialog": {
+      "description": "Leave a band field empty to let the modem choose.",
+      "name_required": "Give the scenario a name."
+    },
+    "errors": {
+      "load_failed": "The modem didn't answer with your scenarios. Try again in a moment.",
+      "activate_failed": "Couldn't activate the scenario.",
+      "save_failed": "Couldn't save the scenario.",
+      "delete_failed": "Couldn't delete the scenario."
     }
   },
   "sms": {
@@ -500,7 +505,6 @@
     "inbox": {
       "title": "Inbox",
       "description": "View and manage your SMS messages",
-      "storage_suffix": " — {{used}}/{{total}} messages stored",
       "tabs": {
         "all": "All",
         "unread": "Unread",
@@ -555,12 +559,12 @@
         "selected_info": "{{selected}} of {{total}} selected"
       },
       "error": {
-        "title": "Failed to load messages",
-        "description_prefix": "Failed to load messages"
+        "title": "Failed to load messages"
       },
       "view_dialog": {
         "title": "Message from {{sender}}",
-        "timestamp_aria": "{{timestamp}}"
+        "timestamp_aria": "{{timestamp}}",
+        "heading": "Message"
       },
       "delete_single_confirm": {
         "title": "Delete Message",
@@ -582,12 +586,9 @@
       },
       "toast": {
         "delete_success": "Message deleted",
-        "delete_error": "Failed to delete message",
         "delete_all_success": "All messages deleted",
-        "delete_all_error": "Failed to delete messages",
         "delete_selected_success_one": "{{count}} message deleted",
         "delete_selected_success_other": "{{count}} messages deleted",
-        "delete_selected_error": "Failed to delete selected messages",
         "mark_all_read_success": "All messages marked as read"
       },
       "search": {
@@ -599,7 +600,8 @@
         "newest": "Newest first",
         "oldest": "Oldest first",
         "aria": "Sort order"
-      }
+      },
+      "description_storage": "{{used}} of {{total}} messages stored."
     },
     "compose": {
       "title": "New Message",
@@ -618,8 +620,7 @@
         "sending": "Sending…"
       },
       "toast": {
-        "success": "SMS sent successfully",
-        "error": "Failed to send SMS"
+        "success": "SMS sent successfully"
       }
     },
     "forwarding": {
@@ -636,12 +637,12 @@
         "target_description": "Each new message is resent here as \"From <sender>: <message>\".",
         "validation_phone": "Enter a valid phone number (e.g. +15551234567).",
         "toast_save_success": "Forwarding settings saved.",
-        "toast_save_error": "Couldn't save forwarding settings.",
-        "error_load": "Couldn't load forwarding settings"
+        "error_load": "Couldn't load forwarding settings",
+        "target_hint_label": "About forwarded messages"
       },
       "health": {
         "card_title": "Delivery & health",
-        "card_description": "Live relay status, a preview of what the recipient sees, and any delivery problems.",
+        "card_description": "Whether incoming messages are reaching your number.",
         "state_active": "Active",
         "state_issue": "Delivering with issues",
         "state_off": "Forwarding is off",
@@ -655,7 +656,6 @@
         "test_hint": "Sends a test to your saved number.",
         "test_disabled_hint": "Turn on forwarding and save a number to send a test.",
         "toast_test_success": "Test message sent to your forwarding number.",
-        "toast_test_error": "Couldn't send the test message.",
         "failures_title_one": "{{count}} message couldn't be forwarded",
         "failures_title_other": "{{count}} messages couldn't be forwarded",
         "failures_description": "Forwarding is still on for new messages. These were dropped after 3 failed attempts:",
@@ -663,8 +663,20 @@
         "failures_empty": "No delivery problems.",
         "clear_button": "Clear alerts",
         "toast_clear_success": "Cleared.",
-        "toast_clear_error": "Couldn't clear the alerts."
+        "preview_from": "From {{sender}}:"
+      },
+      "errors": {
+        "load_failed": "The modem didn't answer with the forwarding settings. Try again in a moment.",
+        "save_failed": "Couldn't save forwarding settings.",
+        "test_failed": "Couldn't send the test message.",
+        "clear_failed": "Couldn't clear the alerts."
       }
+    },
+    "errors": {
+      "fetch": "Failed to load messages",
+      "send": "Failed to send SMS",
+      "delete": "Failed to delete message",
+      "delete_all": "Failed to delete messages"
     }
   },
   "cell_locking": {
@@ -673,27 +685,19 @@
         "title": "Band Locking",
         "description": "Restrict which LTE and NR bands the modem can use."
       },
-      "scenario_override_banner": "Band configuration is managed by the <strong>{{scenario_name}}</strong> scenario.",
       "settings_card": {
-        "title": "Band Locking Settings",
-        "description": "Restrict the modem to specific LTE and 5G bands. Enable failover to fall back to all bands if locked bands lose signal.",
         "band_failover_label": "Band Failover",
-        "band_failover_tooltip": "When enabled, the device will automatically switch to the default bands if the locked bands are unavailable after 15 seconds.",
+        "band_failover_tooltip": "If the locked bands find no signal within about 5 seconds, the modem returns to all supported bands.",
         "band_failover_info_aria": "Band failover info",
-        "status_label": "Band Failover Status",
         "status": {
           "disabled": "Disabled",
-          "fallback_active": "Fallback Active",
-          "ready": "Ready"
+          "ready": "Ready",
+          "fallback": "Fallback active",
+          "monitoring": "Checking"
         },
-        "active_lte_bands": "Active LTE Bands",
-        "active_lte_channels": "Active LTE Channels",
-        "active_nr_bands": "Active 5G Bands",
-        "active_nr_channels": "Active 5G Channels",
         "toast": {
           "failover_enabled": "Band failover enabled",
-          "failover_disabled": "Band failover disabled",
-          "failover_error": "Failed to update band failover"
+          "failover_disabled": "Band failover disabled"
         }
       },
       "cards": {
@@ -711,26 +715,23 @@
         },
         "nrdc_nr5g": {
           "title": "NR-DC Bands",
-          "description": "NR-DC bands are managed by the modem and can't be locked manually. This shows the bands currently in use."
+          "description": "Select the NR bands to lock for NR dual connectivity."
         }
       },
       "card_badges": {
-        "scenario_controlled": "Scenario Controlled",
-        "all_unlocked": "All Unlocked",
         "bands_locked": "{{locked}} / {{total}} Bands",
-        "view_only": "View only"
+        "scenario": "Scenario controlled",
+        "unrestricted": "All bands",
+        "unavailable": "Not readable",
+        "unknown": "Not reported"
       },
       "card_empty": "No supported bands reported by the modem for this category.",
-      "legend": {
-        "used": "Used by network or SIM",
-        "unused": "Supported by modem"
-      },
       "card_buttons": {
         "lock_selected": "Lock Selected Bands",
         "select_all": "Select All",
         "deselect_all": "Deselect All",
-        "unlock_all_aria": "Unlock all bands",
-        "swap_view": "Switch to {{target}} bands"
+        "swap_view": "Switch to {{target}} bands",
+        "unlock_all": "Unlock all"
       },
       "card_live_region": "Applying {{category_label}} band lock…",
       "card_category_label": {
@@ -740,11 +741,78 @@
         "nrdc_nr5g": "NR-DC"
       },
       "toast": {
-        "select_one_band": "Select at least one band to lock",
         "locked_success": "{{category_label}} bands locked successfully",
-        "lock_error": "Failed to apply band lock",
         "unlocked_success": "{{category_label}} bands unlocked",
-        "unlock_error": "Failed to unlock bands"
+        "refresh_error": "Couldn't refresh the band configuration"
+      },
+      "scenario_gate_title": "The {{scenario}} scenario manages your bands",
+      "scenario_gate_note": "Switch to the Balanced scenario to lock bands by hand.",
+      "read_error_title": "Couldn't read the band configuration",
+      "refresh_blocked_watcher": "Wait for the failover check to finish",
+      "refreshing": "Reading the band configuration…",
+      "actions": {
+        "refresh": "Refresh"
+      },
+      "card": {
+        "empty_title": "No bands here",
+        "unavailable_note": "Current lock unknown, so changes are paused.",
+        "pending_one": "{{count}} unsaved change",
+        "pending_other": "{{count}} unsaved changes"
+      },
+      "legend": {
+        "selected": "Selected",
+        "live": "Currently locked",
+        "unused_group": "Not used by your network",
+        "unused_hint_label": "About bands not used by your network",
+        "unused_hint": "The modem supports these bands, but your network or SIM doesn't use them. Locking only to these can leave you without service."
+      },
+      "a11y": {
+        "band_live": "{{band}}, selected and locked on the modem",
+        "band_selected": "{{band}}, selected",
+        "band_unselected": "{{band}}, not selected"
+      },
+      "errors": {
+        "read_failed": "The modem didn't answer with its band configuration. Try again in a moment.",
+        "no_bands": "Select at least one band to lock.",
+        "no_supported": "The modem hasn't reported its supported bands yet.",
+        "lock_failed": "Couldn't apply the band lock.",
+        "failover_failed": "Couldn't update band failover."
+      },
+      "status": {
+        "title": "Band status",
+        "on_air": "On air now",
+        "on_air_summary_one": "{{count}} carrier ({{mhz}} MHz)",
+        "on_air_summary_other": "{{count}} carriers ({{mhz}} MHz)",
+        "on_air_empty_title": "No carriers on air",
+        "on_air_empty_body": "The modem isn't connected to a cell right now.",
+        "tile_aria": "{{tech}} carrier, {{role}}",
+        "tech_lte": "LTE",
+        "tech_nr": "5G NR",
+        "mhz": "{{value}} MHz",
+        "earfcn": "EARFCN {{value}}",
+        "pci": "PCI {{value}}",
+        "dbm": "{{value}} dBm",
+        "rsrp": "RSRP",
+        "no_value": "–",
+        "quality": {
+          "excellent": "Excellent signal",
+          "good": "Good signal",
+          "fair": "Fair signal",
+          "poor": "Poor signal",
+          "none": "No reading"
+        },
+        "posture": "Lock posture",
+        "subtitle_locked": "{{count}} of {{total}} categories locked",
+        "subtitle_unrestricted": "Every category uses all bands",
+        "subtitle_unknown": "The modem hasn't reported its bands",
+        "subtitle_unavailable": "Band configuration unreadable",
+        "ratio": "{{count}} of {{total}} bands",
+        "ratio_unavailable": "Not readable",
+        "rail_locked": "Locked",
+        "rail_unrestricted": "All bands",
+        "rail_unknown": "Not reported",
+        "rail_unavailable": "Unknown",
+        "rail_aria": "{{category}}: {{ratio}} ({{status}})"
       }
     },
     "tower_locking": {
@@ -1526,8 +1594,7 @@
       "page": {
         "title": "APN Settings",
         "description": "Set the APN, IP protocol, and data context your SIM uses to connect.",
-        "error_load_title": "Failed to load APN settings",
-        "error_load_description": "Displayed values may be outdated."
+        "error_load_title": "Failed to load APN settings"
       },
       "card": {
         "title": "APN Configuration",
@@ -1537,7 +1604,7 @@
         "active": "Active",
         "not_live": "Not live",
         "carrier_default": "Carrier default",
-        "network_using": "Network is using: {{apn}}"
+        "network_using_label": "Network is using"
       },
       "save_connection_notice": "Saving briefly drops the cellular connection while the modem reconnects.",
       "carrier_default": {
@@ -1551,70 +1618,11 @@
       },
       "toast": {
         "saved": "APN settings saved",
-        "save_error": "Failed to save APN settings",
-        "deactivated": "Reverted to carrier default APN",
-        "deactivate_error": "Failed to revert to carrier default"
+        "deactivated": "Reverted to carrier default APN"
       },
-      "controls_label": "APN configuration",
       "managed_by_profile_fallback": "active Custom SIM Profile",
-      "list": {
-        "card": {
-          "title": "APN Profiles",
-          "description": "Five data-profile slots. Switch one on to make it your active Internet APN — only one can be active at a time."
-        },
-        "empty": {
-          "title": "No profile slots",
-          "subtitle": "Profile slots could not be loaded."
-        },
-        "unnamed": "Unnamed",
-        "no_apn": "No APN set",
-        "slot": "Slot {{id}}",
-        "apn_on_cid": "{{apn}} · CID {{cid}}",
-        "status": {
-          "active": "Active",
-          "not_live": "Not live",
-          "idle": "Idle",
-          "empty": "Empty",
-          "overridden": "Overridden"
-        },
-        "live": {
-          "mismatch_title": "Stored APN isn't live",
-          "mismatch": "Network is using: {{apn}}",
-          "mismatch_default": "Network is using the carrier default"
-        },
-        "carrier_default": {
-          "title": "No profile active",
-          "subtitle": "Your carrier is choosing the APN automatically."
-        },
-        "aria": {
-          "activate_switch": "Activate {{name}}",
-          "active_switch": "{{name}} is the active profile",
-          "deactivate_switch": "Disable {{name}} and let the carrier choose the APN",
-          "edit_button": "Edit {{name}}"
-        },
-        "toast": {
-          "activating": "Activating {{name}}…",
-          "activated": "{{name}} is now your active APN",
-          "activate_error": "Failed to activate {{name}}",
-          "deactivating": "Disabling profiles…",
-          "deactivated": "Profiles disabled — your carrier now chooses the APN",
-          "deactivate_error": "Failed to disable profiles"
-        },
-        "deactivate": {
-          "title": "Disable APN profile?",
-          "description": "Your carrier will choose the APN automatically. The cellular connection will drop briefly while the modem reconnects.",
-          "confirm": "Disable",
-          "cancel": "Cancel"
-        }
-      },
       "edit": {
-        "title": "Edit Slot {{id}}",
-        "description_default": "Configure this data profile. Saving stores it; activate it from the list to go live.",
         "fields": {
-          "name": {
-            "label": "Name",
-            "placeholder": "My Data Profile"
-          },
           "apn": {
             "label": "APN *",
             "placeholder": "fast.t-mobile.com",
@@ -1647,35 +1655,15 @@
           "confirm": "Use anyway",
           "cancel": "Cancel"
         },
-        "clear": {
-          "button": "Clear slot",
-          "disabled_active": "Switch to another profile before clearing the active one",
-          "title": "Clear this slot?",
-          "description": "This empties the profile's name and APN. It cannot be undone.",
-          "confirm": "Clear",
-          "cancel": "Cancel",
-          "toast_success": "Slot cleared",
-          "toast_error": "Failed to clear slot"
-        },
-        "save_button": "Save Profile",
-        "cancel": "Cancel",
-        "toast": {
-          "saved": "{{name}} saved",
-          "save_error": "Failed to save profile"
-        }
+        "save_button": "Save Profile"
       },
       "mbn": {
         "card": {
           "title": "Carrier Profile",
-          "description": "Select which carrier firmware profile is active on the modem. A reboot is required after changes."
+          "description": "Choose the carrier firmware profile the modem runs; changes need a reboot."
         },
         "auto_select": {
-          "label": "Auto-Select Profile",
-          "placeholder": "Choose Auto-Select",
-          "options": {
-            "enabled": "Enabled",
-            "disabled": "Disabled"
-          }
+          "label": "Auto-Select Profile"
         },
         "configuration": {
           "label": "Carrier Configuration",
@@ -1694,13 +1682,25 @@
           "auto_enabled": "Auto-select enabled — reboot required",
           "auto_disabled": "Auto-select disabled — reboot required",
           "profile_applied": "Carrier profile applied — reboot required",
-          "enable_error": "Failed to enable auto-select",
-          "disable_error": "Failed to disable auto-select",
-          "apply_error": "Failed to apply carrier profile",
-          "no_changes": "No changes to save",
-          "rebooting": "Device is rebooting…",
           "reboot_error": "Reboot failed — restart the device manually"
+        },
+        "load_error_title": "Couldn't load carrier profiles",
+        "errors": {
+          "load_failed": "The modem didn't answer with its carrier profiles. Try again in a moment.",
+          "save_failed": "Couldn't apply the carrier profile setting."
+        },
+        "pending_reboot": {
+          "title": "Reboot to finish the carrier profile change",
+          "description": "The new carrier profile takes effect after the modem restarts.",
+          "dismiss": "Dismiss"
         }
+      },
+      "profile_gate_title": "The {{profile}} Custom SIM Profile manages your APN",
+      "profile_gate_note": "Edit that profile to change these settings.",
+      "errors": {
+        "load_failed": "The modem didn't answer with its APN settings. Try again in a moment.",
+        "save_failed": "Couldn't save the APN.",
+        "deactivate_failed": "Couldn't switch to the carrier default APN."
       }
     },
     "imei": {

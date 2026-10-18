@@ -30,6 +30,18 @@ import type {
 
 const CGI_BASE = "/cgi-bin/quecmanager/profiles";
 
+/** Mutation outcomes; `error` is already translated and safe to toast. */
+export type ProfileActionResult = { ok: true } | { ok: false; error: string };
+export type ProfileCreateResult =
+  | { ok: true; id: string | null }
+  | { ok: false; error: string };
+export type ProfileDeactivateResult =
+  | { ok: true; requiresReboot: boolean }
+  | { ok: false; error: string };
+
+/** Translate a `cellular` key outside React (the hook has no `t`). */
+const tr = (key: string) => i18next.t(key, { ns: "cellular" });
+
 export interface UseSimProfilesReturn {
   /** Array of profile summaries (for list view) */
   profiles: ProfileSummary[];
@@ -40,15 +52,15 @@ export interface UseSimProfilesReturn {
   /** Error message from the last operation */
   error: string | null;
   /** Create a new profile. Returns the new profile ID on success. */
-  createProfile: (data: ProfileFormData) => Promise<string | null>;
+  createProfile: (data: ProfileFormData) => Promise<ProfileCreateResult>;
   /** Update an existing profile. Returns success boolean. */
-  updateProfile: (id: string, data: ProfileFormData) => Promise<boolean>;
+  updateProfile: (id: string, data: ProfileFormData) => Promise<ProfileActionResult>;
   /** Delete a profile by ID. Returns success boolean. */
-  deleteProfile: (id: string) => Promise<boolean>;
+  deleteProfile: (id: string) => Promise<ProfileActionResult>;
   /** Fetch a single profile by ID (full data for edit form). */
   getProfile: (id: string) => Promise<SimProfile | null>;
   /** Deactivate the current active profile (clears marker only, no modem changes). */
-  deactivateProfile: () => Promise<{ success: boolean; requiresReboot: boolean }>;
+  deactivateProfile: () => Promise<ProfileDeactivateResult>;
   /** Manually refresh the profile list */
   refresh: () => void;
 }
@@ -107,11 +119,9 @@ export function useSimProfiles(): UseSimProfilesReturn {
       setProfiles(data.profiles || []);
       setActiveProfileId(data.active_profile_id || null);
       setError(null);
-    } catch (err) {
+    } catch {
       if (!mountedRef.current) return;
-      setError(
-        err instanceof Error ? err.message : "Failed to load profiles"
-      );
+      setError(tr("custom_profiles.errors.load_failed"));
     } finally {
       if (mountedRef.current) {
         setIsLoading(false);
@@ -125,153 +135,106 @@ export function useSimProfiles(): UseSimProfilesReturn {
   }, [fetchProfiles]);
 
   // ---------------------------------------------------------------------------
-  // Create profile
+  // Shared POST: resolves to the parsed body, or a translated failure.
   // ---------------------------------------------------------------------------
-  const createProfile = useCallback(
-    async (data: ProfileFormData): Promise<string | null> => {
-      setError(null);
+  const post = useCallback(
+    async (
+      endpoint: string,
+      body: unknown,
+      fallbackKey: string,
+    ): Promise<
+      | { ok: true; result: ProfileApiResponse & { requires_reboot?: boolean } }
+      | { ok: false; error: string }
+    > => {
+      const fallback = tr(fallbackKey);
       try {
-        const resp = await authFetch(`${CGI_BASE}/save.sh`, {
+        const resp = await authFetch(`${CGI_BASE}/${endpoint}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
+          body: body === undefined ? undefined : JSON.stringify(body),
         });
-
-        if (!resp.ok) {
-          throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
-        }
-
-        const result: ProfileApiResponse = await resp.json();
-
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const result: ProfileApiResponse & { requires_reboot?: boolean } =
+          await resp.json();
         if (!result.success) {
-          setError(result.detail || result.error || "Failed to create profile");
-          return null;
+          return {
+            ok: false,
+            error: resolveErrorMessage(
+              i18next.t.bind(i18next),
+              result.error,
+              result.detail,
+              fallback,
+            ),
+          };
         }
-
-        // Refresh the list to pick up the new profile
-        await fetchProfiles();
-        return result.id || null;
-      } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : "Failed to create profile";
-        setError(msg);
-        return null;
+        return { ok: true, result };
+      } catch {
+        return { ok: false, error: fallback };
       }
     },
-    [fetchProfiles]
+    [],
   );
 
   // ---------------------------------------------------------------------------
-  // Update profile
+  // Create profile
+  // ---------------------------------------------------------------------------
+  const createProfile = useCallback(
+    async (data: ProfileFormData): Promise<ProfileCreateResult> => {
+      const r = await post("save.sh", data, "custom_profiles.errors.save_failed");
+      if (!r.ok) return r;
+      await fetchProfiles();
+      return { ok: true, id: r.result.id || null };
+    },
+    [fetchProfiles, post],
+  );
+
+  // ---------------------------------------------------------------------------
+  // Update profile (the existing id tells profile_save() it is an update)
   // ---------------------------------------------------------------------------
   const updateProfile = useCallback(
-    async (id: string, data: ProfileFormData): Promise<boolean> => {
-      setError(null);
-      try {
-        // Include the existing ID so profile_save() knows it's an update
-        const payload = { ...data, id };
-        const resp = await authFetch(`${CGI_BASE}/save.sh`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (!resp.ok) {
-          throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
-        }
-
-        const result: ProfileApiResponse = await resp.json();
-
-        if (!result.success) {
-          setError(result.detail || result.error || "Failed to update profile");
-          return false;
-        }
-
-        await fetchProfiles();
-        return true;
-      } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : "Failed to update profile";
-        setError(msg);
-        return false;
-      }
+    async (id: string, data: ProfileFormData): Promise<ProfileActionResult> => {
+      const r = await post(
+        "save.sh",
+        { ...data, id },
+        "custom_profiles.errors.save_failed",
+      );
+      if (!r.ok) return r;
+      await fetchProfiles();
+      return { ok: true };
     },
-    [fetchProfiles]
+    [fetchProfiles, post],
   );
 
   // ---------------------------------------------------------------------------
   // Delete profile
   // ---------------------------------------------------------------------------
   const deleteProfile = useCallback(
-    async (id: string): Promise<boolean> => {
-      setError(null);
-      try {
-        const resp = await authFetch(`${CGI_BASE}/delete.sh`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id }),
-        });
-
-        if (!resp.ok) {
-          throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
-        }
-
-        const result: ProfileApiResponse = await resp.json();
-
-        if (!result.success) {
-          setError(result.detail || result.error || "Failed to delete profile");
-          return false;
-        }
-
-        await fetchProfiles();
-        return true;
-      } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : "Failed to delete profile";
-        setError(msg);
-        return false;
-      }
+    async (id: string): Promise<ProfileActionResult> => {
+      const r = await post(
+        "delete.sh",
+        { id },
+        "custom_profiles.errors.delete_failed",
+      );
+      if (!r.ok) return r;
+      await fetchProfiles();
+      return { ok: true };
     },
-    [fetchProfiles]
+    [fetchProfiles, post],
   );
 
   // ---------------------------------------------------------------------------
   // Deactivate active profile
   // ---------------------------------------------------------------------------
-  const deactivateProfile = useCallback(async (): Promise<{ success: boolean; requiresReboot: boolean }> => {
-    setError(null);
-    try {
-      const resp = await authFetch(`${CGI_BASE}/deactivate.sh`, {
-        method: "POST",
-      });
-
-      if (!resp.ok) {
-        throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
-      }
-
-      const result: ProfileApiResponse & { requires_reboot?: boolean } = await resp.json();
-
-      if (!result.success) {
-        setError(
-          resolveErrorMessage(
-            i18next.t.bind(i18next),
-            result.error,
-            result.detail,
-            "Failed to deactivate profile",
-          ),
-        );
-        return { success: false, requiresReboot: false };
-      }
-
-      await fetchProfiles();
-      return { success: true, requiresReboot: result.requires_reboot === true };
-    } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to deactivate profile";
-      setError(msg);
-      return { success: false, requiresReboot: false };
-    }
-  }, [fetchProfiles]);
+  const deactivateProfile = useCallback(async (): Promise<ProfileDeactivateResult> => {
+    const r = await post(
+      "deactivate.sh",
+      undefined,
+      "custom_profiles.errors.deactivate_failed",
+    );
+    if (!r.ok) return r;
+    await fetchProfiles();
+    return { ok: true, requiresReboot: r.result.requires_reboot === true };
+  }, [fetchProfiles, post]);
 
   // ---------------------------------------------------------------------------
   // Get single profile (for edit form)
@@ -288,16 +251,10 @@ export function useSimProfiles(): UseSimProfilesReturn {
 
         // The get endpoint returns the full profile on success,
         // or { success: false, error: "..." } on failure.
-        if (data.success === false) {
-          setError(data.detail || data.error || "Profile not found");
-          return null;
-        }
+        if (data.success === false) return null;
 
         return data as SimProfile;
-      } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : "Failed to load profile";
-        setError(msg);
+      } catch {
         return null;
       }
     },

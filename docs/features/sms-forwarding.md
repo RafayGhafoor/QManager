@@ -121,11 +121,15 @@ The test-send action (`action=send_test`) reads the **configured target from UCI
 
 `forwarding-center.tsx` owns the single `useSmsForwarding()` call and passes the result down as a `fwd` prop to both cards. This means there is one fetch/poll loop and one source of truth — both cards stay in sync without independent polling.
 
+**Layout.** The page is status first: `DeliveryHealthCard` leads and `SmsForwardingCard` follows. They sit side by side at `@4xl/main` and stack below it with status on top. A failed first read (`!isLoading && !data`) replaces both cards with one destructive `ConditionScreen` with Retry, rather than two copies.
+
 `useSmsForwarding` fetches settings and failure state on mount, then polls every **20 seconds** (silent, does not show a spinner) so a background delivery failure surfaces without a manual refresh. The daemon polls every 15 s — the 20 s UI poll adds a one-cycle lag at most. Exports: `data`, `isLoading`, `isSaving`, `isSendingTest`, `isClearing`, `error`, `saveSettings`, `sendTest`, `clearFailures`, `refresh`.
+
+**Mutator contract.** `saveSettings`, `sendTest` and `clearFailures` return `SmsForwardingResult = { ok: true } | { ok: false; error: string }`; `error` is already resolved through `resolveErrorMessage` with `sms.forwarding.errors.*` fallbacks. Handlers toast the returned reason; hook `error` state is the read error only, and silent poll failures never clobber a working view.
 
 ### `sms-forwarding-card.tsx` — Control Card
 
-Enable toggle + destination number + save. This card intentionally holds no status display, no test button, and no failure history — those moved to `delivery-health-card.tsx`.
+Enable `SegmentedField` (On/Off) + destination number (with a `HintIcon` explaining the relay format) + a `CardFoot` carrying the unsaved status, Discard (ghost) and `SaveButton` last. This card intentionally holds no status display, no test button, and no failure history — those moved to `delivery-health-card.tsx`.
 
 One behavioral invariant: phone validation is gated on `isEnabled`. Turning forwarding **off** is never blocked by a stale or invalid number left in the field.
 
@@ -140,13 +144,13 @@ A single derived health state drives the entire card:
 | `unconfigured` | `enabled=true`, `target_phone` empty |
 | `off` | `enabled=false` |
 
-The state drives a focal icon + label + destination row, toned `success` / `warning` / `muted`. There is intentionally **no** header status badge — it duplicated the focal-row label (the old `Active · healthy` badge), so the focal row is the single status surface.
+The state drives one filled health chip (`Badge`, one glyph per state because the success and warning containers are 1.03:1 apart): `active` success + `check_circle`, `issue` warning + `warning`, `unconfigured` warning + `edit`, `off` muted + `do_not_disturb_on`. The destination is a receipt row (key left, value right) beneath it.
 
 **Recipient preview:** a static bubble showing `From +15550142: <sample body>` teaches the relay format. The sample sender is a placeholder — the recipient's number is not the sender, it is the destination.
 
-**Send test:** active only when `enabled=true` and `target_phone` is non-empty. The CGI reads the target from UCI, not from the request body — the test verifies the actual saved path, not whatever is currently in the control card's input field.
+**Send test:** lives in the card's `CardFoot` (a `tonal-neutral` operational action), active only when `enabled=true` and `target_phone` is non-empty. The CGI reads the target from UCI, not from the request body — the test verifies the actual saved path, not whatever is currently in the control card's input field.
 
-**Delivery failures:** shows up to 5 recent entries (sender, timestamp, last error) in an animated destructive alert. A Clear button calls `action=clear_failures`. When no failures are present, a calm "No delivery problems." line is shown instead.
+**Delivery failures:** shows up to 5 recent entries (sender, timestamp, last error) in an animated destructive block. A Clear button calls `action=clear_failures`. When no failures are present, a calm "No delivery problems." line is shown instead.
 
 ---
 

@@ -2,24 +2,33 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+
 import ApnSettingsCard from "./apn-settings-card";
 import MBNCard from "./mbn-card";
+import { CellularPageHeader } from "@/components/cellular/page-header";
+import { Banner, bannerActionVariants } from "@/components/ui/banner";
 import { useApnSettings } from "@/hooks/use-apn-settings";
 import { useMbnSettings } from "@/hooks/use-mbn-settings";
 import { useSimProfiles } from "@/hooks/use-sim-profiles";
-import { ProfileOverrideAlert } from "@/components/cellular/custom-profiles/profile-override-alert";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { AlertCircleIcon, RefreshCwIcon } from "lucide-react";
+import { clearPendingReboot, usePendingReboot } from "@/lib/reboot/pending";
 
 // =============================================================================
 // APNSettingsComponent — APN Settings page coordinator (single-APN model)
 // =============================================================================
+// Two stacked cards: the APN (what the data connection dials) and the carrier
+// profile (MBN). They are unrelated settings, so they stack full-width rather
+// than sitting as a uniform two-column pair.
+//
 // Gating: when a Custom SIM Profile is active AND that profile sets a
 // non-empty APN, this whole page becomes read-only. The user can still see
 // the current configuration but can't edit it — the source of truth is the
 // profile. We wrap the cards in a disabled <fieldset> rather than threading
 // `disabled` through every child component.
+//
+// An MBN change needs a reboot. The dialog after a successful save offers it;
+// "Later" persists the deferred-reboot flag, and this page keeps the banner up
+// until the user reboots or dismisses it. Never a reboot inside a save.
 // =============================================================================
 
 const APNSettingsComponent = () => {
@@ -43,11 +52,29 @@ const APNSettingsComponent = () => {
     autoSel,
     isLoading: mbnLoading,
     isSaving: mbnSaving,
+    error: mbnError,
     saveMbn,
     rebootDevice,
+    refresh: refreshMbn,
   } = useMbnSettings();
 
   const { activeProfileId, isLoading: simLoading, getProfile } = useSimProfiles();
+
+  // --- Deferred MBN reboot ---------------------------------------------------
+  const pendingReboot = usePendingReboot();
+  const mbnRebootPending = pendingReboot?.source === "mbn";
+  const [rebootBusy, setRebootBusy] = useState(false);
+
+  const handleRebootNow = async () => {
+    setRebootBusy(true);
+    const sent = await rebootDevice();
+    if (sent) {
+      clearPendingReboot();
+    } else {
+      setRebootBusy(false);
+      toast.error(t("core_settings.apn.mbn.toast.reboot_error"));
+    }
+  };
 
   // --- SIM Profile override check (async) ----------------------------------
   // Gate iff the active profile has a non-empty APN name. Empty APN = profile
@@ -65,9 +92,6 @@ const APNSettingsComponent = () => {
   const [checkedId, setCheckedId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Only fetch once the profile list has settled and there is an active
-    // profile to inspect. Until then the verdict stays "undetermined" (derived
-    // below) so the UI holds its skeleton rather than exposing live controls.
     if (simLoading || !activeProfileId) return;
 
     let cancelled = false;
@@ -91,11 +115,8 @@ const APNSettingsComponent = () => {
   const isProfileControlled =
     !!activeProfileId && profileOverride?.profileId === activeProfileId;
 
-  // True while we still can't tell whether a profile owns the APN: the list is
-  // still loading, or an active profile's APN fetch hasn't resolved yet
-  // (`checkedId` lags `activeProfileId`). The interactive cards stay in their
-  // loading state and the fieldset stays disabled until this clears, closing
-  // the window where every button is live before the override gate engages.
+  // True while we still can't tell whether a profile owns the APN. The cards
+  // hold their skeletons and the fieldset stays disabled until this clears.
   const overrideUndetermined =
     simLoading || (!!activeProfileId && checkedId !== activeProfileId);
 
@@ -104,45 +125,60 @@ const APNSettingsComponent = () => {
     : t("core_settings.apn.managed_by_profile_fallback");
 
   return (
-    <div className="@container/main mx-auto p-2">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">
-          {t("core_settings.apn.page.title")}
-        </h1>
-        <p className="text-muted-foreground">
-          {t("core_settings.apn.page.description")}
-        </p>
-      </div>
+    <div className="@container/main mx-auto flex flex-col gap-5 p-2">
+      <CellularPageHeader
+        title={t("core_settings.apn.page.title")}
+        description={t("core_settings.apn.page.description")}
+      />
 
-      {error && !isLoading && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircleIcon />
-          <AlertTitle>{t("core_settings.apn.page.error_load_title")}</AlertTitle>
-          <AlertDescription className="flex items-center gap-2">
-            <span>{t("core_settings.apn.page.error_load_description")}</span>
-            <Button variant="outline" size="sm" onClick={() => refresh()}>
-              <RefreshCwIcon className="size-3.5" />
-              {t("actions.retry", { ns: "common" })}
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {isProfileControlled && (
-        <ProfileOverrideAlert
-          profileName={profileName}
-          controls={t("core_settings.apn.controls_label")}
+      {mbnRebootPending ? (
+        <Banner
+          role="deferred-reboot"
+          title={t("core_settings.apn.mbn.pending_reboot.title")}
+          description={t("core_settings.apn.mbn.pending_reboot.description")}
+          action={
+            <>
+              <button
+                type="button"
+                className={bannerActionVariants({ tone: "on-warning" })}
+                onClick={clearPendingReboot}
+                disabled={rebootBusy}
+              >
+                {t("core_settings.apn.mbn.pending_reboot.dismiss")}
+              </button>
+              <button
+                type="button"
+                className={bannerActionVariants({ tone: "warning" })}
+                onClick={handleRebootNow}
+                disabled={rebootBusy}
+              >
+                {rebootBusy
+                  ? t("core_settings.apn.mbn.reboot_dialog.rebooting")
+                  : t("core_settings.apn.mbn.reboot_dialog.reboot")}
+              </button>
+            </>
+          }
         />
-      )}
+      ) : null}
 
-      {/* Fieldset wrap: `pointer-events-none opacity-60` makes the
-          disabled state visually obvious while leaving values readable. */}
+      {isProfileControlled ? (
+        <Banner
+          role="override"
+          title={t("core_settings.apn.profile_gate_title", {
+            profile: profileName,
+          })}
+          description={t("core_settings.apn.profile_gate_note")}
+        />
+      ) : null}
+
+      {/* Fieldset wrap: `pointer-events-none opacity-60` makes the disabled
+          state visually obvious while leaving values readable. */}
       <fieldset
         disabled={isProfileControlled || overrideUndetermined}
         className={
           isProfileControlled
-            ? "pointer-events-none opacity-60 grid grid-cols-1 @3xl/main:grid-cols-2 grid-flow-row gap-4 border-0 p-0 m-0"
-            : "grid grid-cols-1 @3xl/main:grid-cols-2 grid-flow-row gap-4 border-0 p-0 m-0"
+            ? "pointer-events-none m-0 grid grid-cols-1 gap-4 border-0 p-0 opacity-60"
+            : "m-0 grid grid-cols-1 gap-4 border-0 p-0"
         }
       >
         <ApnSettingsCard
@@ -152,6 +188,8 @@ const APNSettingsComponent = () => {
           activeCid={activeCid}
           isLoading={isLoading || overrideUndetermined}
           isSaving={isSaving}
+          loadError={apn === null ? error : null}
+          onRetry={() => refresh()}
           onSave={save}
           onDeactivate={deactivate}
         />
@@ -161,6 +199,8 @@ const APNSettingsComponent = () => {
           autoSel={autoSel}
           isLoading={mbnLoading}
           isSaving={mbnSaving}
+          loadError={mbnProfiles === null ? mbnError : null}
+          onRetry={() => refreshMbn()}
           onSave={saveMbn}
           onReboot={rebootDevice}
         />

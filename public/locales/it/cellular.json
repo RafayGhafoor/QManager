@@ -2,8 +2,7 @@
   "custom_profiles": {
     "page": {
       "title": "Profilo SIM personalizzato",
-      "description": "Raggruppa le impostazioni APN, IMEI e TTL/HL in profili con un clic.",
-      "error_load_failed": "Impossibile caricare i profili. Verifica la connessione e riprova."
+      "description": "Raggruppa le impostazioni APN, IMEI e TTL/HL in profili con un clic."
     },
     "view": {
       "title": "Profili salvati",
@@ -19,9 +18,10 @@
       "mismatch_note": "La SIM nel modem non corrisponde all'ICCID di questo profilo. Il dispositivo mantiene le impostazioni attuali finché non viene inserita una SIM corrispondente.",
       "toast": {
         "deactivated": "{{name}} disattivato",
-        "deactivate_error": "Impossibile disattivare il profilo",
         "deleted": "{{name}} eliminato",
-        "delete_error": "Impossibile eliminare il profilo"
+        "activated": "{{name}} è attivo",
+        "activated_partial": "{{name}} è attivo con alcuni passaggi saltati",
+        "activate_error": "Impossibile attivare il profilo."
       },
       "delete_title": "Eliminare “{{name}}”?"
     },
@@ -35,7 +35,7 @@
       "status_badge": {
         "active": "Attivo",
         "inactive": "Inattivo",
-        "sim_mismatch": "SIM Mancata corrispondenza"
+        "sim_mismatch": "SIM non corrispondente"
       },
       "pagination": {
         "total_one": "{{count}} totale profilo",
@@ -206,11 +206,10 @@
       "save_failed": "Impossibile salvare il profilo",
       "profile_added": "Profilo aggiunto",
       "profile_updated": "Profilo aggiornato",
-      "submit_add": "Invia",
+      "submit_add": "Aggiungi profilo",
       "submit_edit": "Salva modifiche",
       "cancel": "Annulla",
       "next": "Avanti",
-      "clear": "Cancella",
       "tab_network": "Rete",
       "network_desc": "Come il modem si connette alla rete dati dell'operatore.",
       "identity_load_hint": "Assegna un nome a questo profilo e scegli l'operatore a cui è destinato.",
@@ -294,7 +293,7 @@
         "imei": "IMEI",
         "mpdn_rule": "Instradamento dati"
       },
-      "reboot_notice": "Il modem si sta riavviando per applicare la modifica IMEI. La dashboard si ricollegherà automaticamente.",
+      "reboot_notice": "La modifica dell'IMEI avrà effetto dopo un riavvio. Riavvia dal banner quando sei pronto.",
       "step_state_unchanged": "Invariato",
       "preparing": "Preparazione…",
       "step_progress": "Passaggio {{current}} di {{total}}",
@@ -304,7 +303,11 @@
       "partial_sub": "Alcuni passaggi sono stati saltati. Controlla i dettagli sotto.",
       "failed_headline": "Attivazione non riuscita",
       "failed_sub": "Il modem non è stato riconfigurato completamente.",
-      "details_label": "Passaggi"
+      "details_label": "Passaggi",
+      "errors": {
+        "start_failed": "Impossibile avviare l'applicazione del profilo.",
+        "not_started": "L'applicazione del profilo non è partita. Riprova."
+      }
     },
     "verizon_warning": {
       "title": "Verizon richiede una regola di routing dei dati speciale",
@@ -318,18 +321,18 @@
       "ip_v4": "IPv4",
       "ip_v6": "IPv6",
       "ip_dual": "IPv4v6",
-      "apn": "APN {{name}}",
       "apn_default": "APN predefinito",
       "cid": "CID {{cid}}",
       "ttl": "TTL {{value}}",
       "hl": "HL {{value}}",
       "imei_override": "Override IMEI",
-      "mpdn_locked": "MPDN bloccato"
+      "mpdn_locked": "MPDN bloccato",
+      "apn_prefix": "APN "
     },
     "empty_state": {
       "title": "Nessun profilo personalizzato",
       "description": "Gestisci i tuoi profili SIM personalizzati qui.",
-      "description_full": "Non hai ancora creato alcun profilo SIM personalizzato. Utilizza il modulo per creare il tuo primo profilo.",
+      "description_full": "Crea un profilo per salvare le impostazioni APN, IMEI e TTL di una SIM e applicarle in un solo passaggio.",
       "refresh": "Aggiorna",
       "card_title": "Profili SIM personalizzati",
       "card_description": "Pacchetti di impostazioni APN, IMEI e TTL applicati al modem in un solo passaggio.",
@@ -362,12 +365,22 @@
       "bound_sim": "Associato alla SIM {{iccid}}",
       "detail_unavailable": "Impossibile caricare le impostazioni di questo profilo.",
       "only_active_hint": "Il tuo unico profilo è quello attivo. Creane un altro per passare da una configurazione all'altra."
+    },
+    "registry": {
+      "add": "Nuovo profilo",
+      "error_title": "Impossibile caricare i tuoi profili"
+    },
+    "errors": {
+      "load_failed": "Il modem non ha restituito i profili salvati. Riprova tra poco.",
+      "save_failed": "Impossibile salvare il profilo.",
+      "delete_failed": "Impossibile eliminare il profilo.",
+      "deactivate_failed": "Impossibile disattivare il profilo."
     }
   },
   "scenarios": {
     "page": {
       "title": "Scenari di connessione",
-      "description": "Gestisci e personalizza gli scenari di connessione per i tuoi profili cellulari per ottimizzare le prestazioni e l'affidabilità della rete."
+      "description": "Passa la radio tra le configurazioni di rete salvate."
     },
     "default_balanced_name": "Equilibrato",
     "default_balanced_description": "Selezione automatica della banda",
@@ -389,16 +402,15 @@
         "description": "Sei sicuro di voler eliminare \"{{name}}\"? Questa azione non può essere annullata.",
         "confirm": "Elimina",
         "deleting": "Eliminazione…"
-      }
+      },
+      "band_lock": "Blocco bande"
     },
     "add_button": {
-      "label": "Crea scenario",
-      "description": "Aggiungi configurazione personalizzata"
+      "label": "Nuovo scenario"
     },
     "active_config_card": {
       "configuration": "{{name}} Configurazione",
       "status": {
-        "applying": "Applicazione…",
         "active": "Attivo",
         "not_active": "Non attivo"
       },
@@ -416,8 +428,9 @@
         "nrsa_nsa": "5G SA/NSA",
         "bands_auto": "Automatico"
       },
-      "edit_aria": "Modifica le impostazioni dello scenario",
-      "activate": "Attiva"
+      "activate": "Attiva",
+      "edit": "Modifica",
+      "running_note": "Questo scenario è in esecuzione ora."
     },
     "add_dialog": {
       "title": "Nuovo scenario di connessione",
@@ -434,62 +447,54 @@
         "sa_bands_placeholder": "ad esempio, 41, 78",
         "nsa_bands_label": "Blocco cinturino NR5G-NSA",
         "nsa_bands_placeholder": "ad esempio, 41, 78",
-        "theme_label": "Tema della carta",
-        "preview_label": "Anteprima",
         "preview_placeholder": "Configurazione personalizzata"
       },
       "buttons": {
-        "create": "Crea scenario",
-        "creating": "Creazione…"
+        "create": "Crea scenario"
       },
       "toast": {
-        "success": "Scenario creato con successo.",
-        "error": "Impossibile creare lo scenario."
+        "success": "Scenario creato con successo."
       }
     },
     "edit_dialog": {
       "title": "Modifica configurazione",
       "fields": {
-        "name_label": "Nome dello scenario",
-        "name_placeholder": "Nome dello scenario",
-        "description_label": "Descrizione",
-        "description_placeholder": "Descrizione dello scenario",
-        "network_mode_label": "Modalità di rete",
-        "network_mode_aria": "Modalità di rete",
         "optimization_label": "Etichetta di ottimizzazione",
-        "optimization_placeholder": "ad esempio, Latenza, Velocità effettiva, Personalizzata",
-        "lte_bands_label": "LTE Blocco cinturino",
-        "lte_bands_placeholder": "ad esempio, 1, 3, 7, 28 (vuoto = Auto)",
-        "sa_bands_label": "Blocco cinturino NR5G-SA",
-        "sa_bands_placeholder": "ad esempio, 41, 78",
-        "nsa_bands_label": "Blocco cinturino NR5G-NSA",
-        "nsa_bands_placeholder": "ad esempio, 41, 78",
-        "theme_label": "Tema della carta",
-        "preview_label": "Anteprima",
-        "preview_placeholder": "Configurazione personalizzata"
+        "optimization_placeholder": "ad esempio, Latenza, Velocità effettiva, Personalizzata"
       },
       "buttons": {
-        "save": "Salva modifiche",
-        "saving": "Salvataggio…"
+        "save": "Salva modifiche"
       },
       "toast": {
-        "success": "Scenario aggiornato.",
-        "error": "Impossibile aggiornare lo scenario."
+        "success": "Scenario aggiornato."
       }
     },
     "activation_toast": {
-      "success": "Passato allo scenario {{name}}.",
-      "error": "Impossibile attivare lo scenario {{name}}."
+      "success": "Passato allo scenario {{name}}."
     },
     "deletion_toast": {
-      "success": "Scenario eliminato.",
-      "error": "Impossibile eliminare lo scenario."
+      "success": "Scenario eliminato."
     },
     "schedule_lock": {
       "badge": "Pianificato",
       "hint": "Disattiva la pianificazione del profilo per scegliere uno scenario manualmente.",
       "next_change": "Prossimo cambio alle {{time}}",
       "blocked_toast": "Lo scenario di connessione è gestito dalla pianificazione del profilo attivo. Disattivala per cambiarlo manualmente."
+    },
+    "list_card": {
+      "title": "Scenari",
+      "description": "Seleziona uno scenario per vederne la configurazione.",
+      "error_title": "Impossibile caricare i tuoi scenari"
+    },
+    "dialog": {
+      "description": "Lascia vuoto un campo banda per lasciare la scelta al modem.",
+      "name_required": "Dai un nome allo scenario."
+    },
+    "errors": {
+      "load_failed": "Il modem non ha restituito i tuoi scenari. Riprova tra poco.",
+      "activate_failed": "Impossibile attivare lo scenario.",
+      "save_failed": "Impossibile salvare lo scenario.",
+      "delete_failed": "Impossibile eliminare lo scenario."
     }
   },
   "sms": {
@@ -500,7 +505,6 @@
     "inbox": {
       "title": "Posta in arrivo",
       "description": "Visualizza e gestisci i tuoi messaggi SMS",
-      "storage_suffix": " — Messaggi {{used}}/{{total}} memorizzati",
       "table": {
         "headers": {
           "from": "Da",
@@ -549,12 +553,12 @@
         "selected_info": "{{selected}} di {{total}} selezionati"
       },
       "error": {
-        "title": "Impossibile caricare i messaggi",
-        "description_prefix": "Impossibile caricare i messaggi"
+        "title": "Impossibile caricare i messaggi"
       },
       "view_dialog": {
         "title": "Messaggio da {{sender}}",
-        "timestamp_aria": "{{timestamp}}"
+        "timestamp_aria": "{{timestamp}}",
+        "heading": "Messaggio"
       },
       "delete_single_confirm": {
         "title": "Elimina messaggio",
@@ -576,12 +580,9 @@
       },
       "toast": {
         "delete_success": "Messaggio eliminato",
-        "delete_error": "Impossibile eliminare il messaggio",
         "delete_all_success": "Tutti i messaggi cancellati",
-        "delete_all_error": "Impossibile eliminare i messaggi",
         "delete_selected_success_one": "{{count}} messaggio eliminato",
         "delete_selected_success_other": "{{count}} messaggi eliminati",
-        "delete_selected_error": "Impossibile eliminare i messaggi selezionati",
         "mark_all_read_success": "Tutti i messaggi sono stati segnati come letti"
       },
       "tabs": {
@@ -599,7 +600,8 @@
         "newest": "Prima i più recenti",
         "oldest": "Prima i meno recenti",
         "aria": "Ordine"
-      }
+      },
+      "description_storage": "{{used}} di {{total}} messaggi memorizzati."
     },
     "compose": {
       "title": "Nuovo messaggio",
@@ -618,8 +620,7 @@
         "sending": "Invio…"
       },
       "toast": {
-        "success": "SMS inviato con successo",
-        "error": "Impossibile inviare SMS"
+        "success": "SMS inviato con successo"
       }
     },
     "forwarding": {
@@ -636,12 +637,12 @@
         "target_description": "Ogni nuovo messaggio viene reinviato qui come \"Da <sender>: <message>\".",
         "validation_phone": "Inserisci un numero di telefono valido (es. +393331234567).",
         "toast_save_success": "Impostazioni di inoltro salvate.",
-        "toast_save_error": "Impossibile salvare le impostazioni di inoltro.",
-        "error_load": "Impossibile caricare le impostazioni di inoltro"
+        "error_load": "Impossibile caricare le impostazioni di inoltro",
+        "target_hint_label": "Informazioni sui messaggi inoltrati"
       },
       "health": {
         "card_title": "Consegna e stato",
-        "card_description": "Stato dell'inoltro in tempo reale, un'anteprima di ciò che vede il destinatario ed eventuali problemi di consegna.",
+        "card_description": "Se i messaggi in arrivo raggiungono il tuo numero.",
         "state_active": "Attivo · funzionante",
         "state_issue": "Consegna con problemi",
         "state_off": "Inoltro disattivato",
@@ -655,7 +656,6 @@
         "test_hint": "Invia un test al numero salvato.",
         "test_disabled_hint": "Attiva l'inoltro e salva un numero per inviare un test.",
         "toast_test_success": "Messaggio di test inviato al tuo numero di inoltro.",
-        "toast_test_error": "Impossibile inviare il messaggio di test.",
         "failures_title_one": "Impossibile inoltrare {{count}} messaggio",
         "failures_title_other": "Impossibile inoltrare {{count}} messaggi",
         "failures_description": "L'inoltro è ancora attivo per i nuovi messaggi. Questi sono stati scartati dopo 3 tentativi falliti:",
@@ -663,8 +663,20 @@
         "failures_empty": "Nessun problema di consegna.",
         "clear_button": "Cancella avvisi",
         "toast_clear_success": "Cancellato.",
-        "toast_clear_error": "Impossibile cancellare gli avvisi."
+        "preview_from": "Da {{sender}}:"
+      },
+      "errors": {
+        "load_failed": "Il modem non ha restituito le impostazioni di inoltro. Riprova tra poco.",
+        "save_failed": "Impossibile salvare le impostazioni di inoltro.",
+        "test_failed": "Impossibile inviare il messaggio di prova.",
+        "clear_failed": "Impossibile cancellare gli avvisi."
       }
+    },
+    "errors": {
+      "fetch": "Impossibile caricare i messaggi",
+      "send": "Impossibile inviare SMS",
+      "delete": "Impossibile eliminare il messaggio",
+      "delete_all": "Impossibile eliminare i messaggi"
     }
   },
   "cell_locking": {
@@ -673,32 +685,24 @@
         "title": "Blocco bande",
         "description": "Limita le bande LTE e NR utilizzabili dal modem."
       },
-      "scenario_override_banner": "La configurazione della banda è gestita dallo scenario <strong>{{scenario_name}}</strong>.",
       "settings_card": {
-        "title": "Impostazioni di blocco della banda",
-        "description": "Limita il modem a bande specifiche LTE e 5G. Abilita il failover per tornare a tutte le bande se le bande bloccate perdono il segnale.",
         "band_failover_label": "Failover della banda",
-        "band_failover_tooltip": "Quando abilitato, il dispositivo passerà automaticamente alle bande predefinite se le bande bloccate non sono disponibili dopo 15 secondi.",
+        "band_failover_tooltip": "Se le bande bloccate non trovano segnale entro circa 5 secondi, il modem torna a tutte le bande supportate.",
         "band_failover_info_aria": "Informazioni sul failover della banda",
-        "status_label": "Stato di failover della banda",
         "status": {
           "disabled": "Disabilitato",
-          "fallback_active": "Ripiego attivo",
-          "ready": "Pronto"
+          "ready": "Pronto",
+          "fallback": "Ripiego attivo",
+          "monitoring": "Verifica in corso"
         },
-        "active_lte_bands": "Bande LTE attive",
-        "active_lte_channels": "Canali LTE attivi",
-        "active_nr_bands": "Bande 5G attive",
-        "active_nr_channels": "Canali 5G attivi",
         "toast": {
           "failover_enabled": "Failover della banda abilitato",
-          "failover_disabled": "Failover della banda disabilitato",
-          "failover_error": "Impossibile aggiornare il failover della banda"
+          "failover_disabled": "Failover della banda disabilitato"
         }
       },
       "cards": {
         "lte": {
-          "title": "LTE Blocco del cinturino",
+          "title": "Blocco bande LTE",
           "description": "Seleziona i cinturini LTE da bloccare per il tuo dispositivo."
         },
         "nsa_nr5g": {
@@ -711,26 +715,23 @@
         },
         "nrdc_nr5g": {
           "title": "Bande NR-DC",
-          "description": "Le bande NR-DC sono gestite dal modem e non possono essere bloccate manualmente. Qui sono mostrate le bande attualmente in uso."
+          "description": "Seleziona le bande NR da bloccare per la doppia connettività NR."
         }
       },
       "card_badges": {
-        "scenario_controlled": "Scenario controllato",
-        "all_unlocked": "Tutto sbloccato",
         "bands_locked": "{{locked}} / {{total}} Bande",
-        "view_only": "Sola lettura"
+        "scenario": "Controllato dallo scenario",
+        "unrestricted": "Tutte le bande",
+        "unavailable": "Non leggibile",
+        "unknown": "Non segnalato"
       },
       "card_empty": "Nessuna banda supportata segnalata dal modem per questa categoria.",
-      "legend": {
-        "used": "Usata dalla rete o dalla SIM",
-        "unused": "Supportata dal modem"
-      },
       "card_buttons": {
         "lock_selected": "Blocca le bande selezionate",
         "select_all": "Seleziona tutto",
         "deselect_all": "Deseleziona tutto",
-        "unlock_all_aria": "Sblocca tutte le bande",
-        "swap_view": "Passa alle bande {{target}}"
+        "swap_view": "Passa alle bande {{target}}",
+        "unlock_all": "Sblocca tutte"
       },
       "card_live_region": "Applicazione del blocco del cinturino {{category_label}}…",
       "card_category_label": {
@@ -740,11 +741,78 @@
         "nrdc_nr5g": "NR-DC"
       },
       "toast": {
-        "select_one_band": "Seleziona almeno una banda da bloccare",
         "locked_success": "{{category_label}} bande bloccate con successo",
-        "lock_error": "Impossibile applicare il blocco del cinturino",
         "unlocked_success": "{{category_label}} bande sbloccate",
-        "unlock_error": "Impossibile sbloccare le bande"
+        "refresh_error": "Impossibile aggiornare la configurazione delle bande"
+      },
+      "scenario_gate_title": "Lo scenario {{scenario}} gestisce le tue bande",
+      "scenario_gate_note": "Passa allo scenario Bilanciato per bloccare le bande manualmente.",
+      "read_error_title": "Impossibile leggere la configurazione delle bande",
+      "refresh_blocked_watcher": "Attendi la fine del controllo di failover",
+      "refreshing": "Lettura della configurazione delle bande…",
+      "actions": {
+        "refresh": "Aggiorna"
+      },
+      "card": {
+        "empty_title": "Nessuna banda qui",
+        "unavailable_note": "Blocco attuale sconosciuto, modifiche sospese.",
+        "pending_one": "{{count}} modifica non salvata",
+        "pending_other": "{{count}} modifiche non salvate"
+      },
+      "legend": {
+        "selected": "Selezionata",
+        "live": "Bloccata ora",
+        "unused_group": "Non usate dalla tua rete",
+        "unused_hint_label": "Informazioni sulle bande non usate dalla tua rete",
+        "unused_hint": "Il modem supporta queste bande, ma la tua rete o SIM non le usa. Bloccare solo queste può lasciarti senza servizio."
+      },
+      "a11y": {
+        "band_live": "{{band}}, selezionata e bloccata sul modem",
+        "band_selected": "{{band}}, selezionata",
+        "band_unselected": "{{band}}, non selezionata"
+      },
+      "errors": {
+        "read_failed": "Il modem non ha restituito la configurazione delle bande. Riprova tra poco.",
+        "no_bands": "Seleziona almeno una banda da bloccare.",
+        "no_supported": "Il modem non ha ancora segnalato le bande supportate.",
+        "lock_failed": "Impossibile applicare il blocco delle bande.",
+        "failover_failed": "Impossibile aggiornare il failover della banda."
+      },
+      "status": {
+        "title": "Stato delle bande",
+        "on_air": "In uso ora",
+        "on_air_summary_one": "{{count}} portante ({{mhz}} MHz)",
+        "on_air_summary_other": "{{count}} portanti ({{mhz}} MHz)",
+        "on_air_empty_title": "Nessuna portante in uso",
+        "on_air_empty_body": "Il modem non è collegato a nessuna cella in questo momento.",
+        "tile_aria": "Portante {{tech}}, {{role}}",
+        "tech_lte": "LTE",
+        "tech_nr": "5G NR",
+        "mhz": "{{value}} MHz",
+        "earfcn": "EARFCN {{value}}",
+        "pci": "PCI {{value}}",
+        "dbm": "{{value}} dBm",
+        "rsrp": "RSRP",
+        "no_value": "–",
+        "quality": {
+          "excellent": "Segnale eccellente",
+          "good": "Segnale buono",
+          "fair": "Segnale discreto",
+          "poor": "Segnale scarso",
+          "none": "Nessuna lettura"
+        },
+        "posture": "Stato del blocco",
+        "subtitle_locked": "{{count}} categorie su {{total}} bloccate",
+        "subtitle_unrestricted": "Ogni categoria usa tutte le bande",
+        "subtitle_unknown": "Il modem non ha segnalato le sue bande",
+        "subtitle_unavailable": "Configurazione delle bande non leggibile",
+        "ratio": "{{count}} di {{total}} bande",
+        "ratio_unavailable": "Non leggibile",
+        "rail_locked": "Bloccata",
+        "rail_unrestricted": "Tutte le bande",
+        "rail_unknown": "Non segnalato",
+        "rail_unavailable": "Sconosciuto",
+        "rail_aria": "{{category}}: {{ratio}} ({{status}})"
       }
     },
     "tower_locking": {
@@ -1526,8 +1594,7 @@
       "page": {
         "title": "Impostazioni APN",
         "description": "Imposta l'APN, il protocollo IP e il contesto dati usati dalla SIM per connettersi.",
-        "error_load_title": "Impossibile caricare le impostazioni APN",
-        "error_load_description": "I valori visualizzati potrebbero essere obsoleti."
+        "error_load_title": "Impossibile caricare le impostazioni APN"
       },
       "card": {
         "title": "Configurazione APN",
@@ -1537,7 +1604,7 @@
         "active": "Attivo",
         "not_live": "Non attivo",
         "carrier_default": "Predefinito operatore",
-        "network_using": "La rete sta usando: {{apn}}"
+        "network_using_label": "La rete sta usando"
       },
       "save_connection_notice": "Il salvataggio interrompe brevemente la connessione cellulare durante la riconnessione del modem.",
       "carrier_default": {
@@ -1551,70 +1618,11 @@
       },
       "toast": {
         "saved": "Impostazioni APN salvate",
-        "save_error": "Impossibile salvare le impostazioni APN",
-        "deactivated": "Ripristinato all'APN predefinito dell'operatore",
-        "deactivate_error": "Impossibile ripristinare il predefinito dell'operatore"
+        "deactivated": "Ripristinato all'APN predefinito dell'operatore"
       },
-      "controls_label": "Configurazione APN",
       "managed_by_profile_fallback": "profilo SIM personalizzato attivo",
-      "list": {
-        "card": {
-          "title": "Profili APN",
-          "description": "Cinque slot per profili dati. Attivane uno per renderlo l'APN Internet attivo — può essere attivo solo uno alla volta."
-        },
-        "empty": {
-          "title": "Nessuno slot profilo",
-          "subtitle": "Impossibile caricare gli slot dei profili."
-        },
-        "unnamed": "Senza nome",
-        "no_apn": "Nessun APN impostato",
-        "slot": "Slot {{id}}",
-        "apn_on_cid": "{{apn}} · CID {{cid}}",
-        "status": {
-          "active": "Attivo",
-          "not_live": "Non attivo",
-          "idle": "Inattivo",
-          "empty": "Vuoto",
-          "overridden": "Sovrascritto"
-        },
-        "live": {
-          "mismatch_title": "L'APN memorizzato non è attivo",
-          "mismatch": "La rete sta usando: {{apn}}",
-          "mismatch_default": "La rete sta usando il valore predefinito dell'operatore"
-        },
-        "carrier_default": {
-          "title": "Nessun profilo attivo",
-          "subtitle": "Il tuo operatore sta scegliendo l'APN automaticamente."
-        },
-        "aria": {
-          "activate_switch": "Attiva {{name}}",
-          "active_switch": "{{name}} è il profilo attivo",
-          "deactivate_switch": "Disattiva {{name}} e lascia che l'operatore scelga l'APN",
-          "edit_button": "Modifica {{name}}"
-        },
-        "toast": {
-          "activating": "Attivazione di {{name}}…",
-          "activated": "{{name}} è ora il tuo APN attivo",
-          "activate_error": "Impossibile attivare {{name}}",
-          "deactivating": "Disattivazione dei profili…",
-          "deactivated": "Profili disattivati — ora il tuo operatore sceglie l'APN",
-          "deactivate_error": "Impossibile disattivare i profili"
-        },
-        "deactivate": {
-          "title": "Disattivare il profilo APN?",
-          "description": "Il tuo operatore sceglierà l'APN automaticamente. La connessione cellulare si interromperà brevemente mentre il modem si riconnette.",
-          "confirm": "Disattiva",
-          "cancel": "Annulla"
-        }
-      },
       "edit": {
-        "title": "Modifica slot {{id}}",
-        "description_default": "Configura questo profilo dati. Salvando lo memorizzi; attivalo dall'elenco per renderlo operativo.",
         "fields": {
-          "name": {
-            "label": "Nome",
-            "placeholder": "Il mio profilo dati"
-          },
           "apn": {
             "label": "APN *",
             "placeholder": "fast.t-mobile.com",
@@ -1647,35 +1655,15 @@
           "confirm": "Usa comunque",
           "cancel": "Annulla"
         },
-        "clear": {
-          "button": "Svuota slot",
-          "disabled_active": "Passa a un altro profilo prima di svuotare quello attivo",
-          "title": "Svuotare questo slot?",
-          "description": "Questo cancella il nome e l'APN del profilo. L'operazione non può essere annullata.",
-          "confirm": "Svuota",
-          "cancel": "Annulla",
-          "toast_success": "Slot svuotato",
-          "toast_error": "Impossibile svuotare lo slot"
-        },
-        "save_button": "Salva profilo",
-        "cancel": "Annulla",
-        "toast": {
-          "saved": "{{name}} salvato",
-          "save_error": "Impossibile salvare il profilo"
-        }
+        "save_button": "Salva profilo"
       },
       "mbn": {
         "card": {
-          "title": "Profilo del trasportatore",
-          "description": "Seleziona quale profilo firmware dell'operatore è attivo sul modem. Dopo le modifiche è necessario un riavvio."
+          "title": "Profilo dell'operatore",
+          "description": "Scegli il profilo firmware dell'operatore usato dal modem; le modifiche richiedono un riavvio."
         },
         "auto_select": {
-          "label": "Profilo di selezione automatica",
-          "placeholder": "Scegli Selezione automatica",
-          "options": {
-            "enabled": "Abilita",
-            "disabled": "Disabilita"
-          }
+          "label": "Profilo di selezione automatica"
         },
         "configuration": {
           "label": "Configurazione del corriere",
@@ -1694,13 +1682,25 @@
           "auto_enabled": "Selezione automatica abilitata: è necessario riavviare",
           "auto_disabled": "Selezione automatica disabilitata: è necessario riavviare",
           "profile_applied": "Profilo operatore applicato: è necessario riavviare",
-          "enable_error": "Impossibile abilitare la selezione automatica",
-          "disable_error": "Impossibile disattivare la selezione automatica",
-          "apply_error": "Impossibile applicare il profilo dell'operatore",
-          "no_changes": "Nessuna modifica da salvare",
-          "rebooting": "Il dispositivo si sta riavviando...",
           "reboot_error": "Riavvio non riuscito: riavvia il dispositivo manualmente"
+        },
+        "load_error_title": "Impossibile caricare i profili dell'operatore",
+        "errors": {
+          "load_failed": "Il modem non ha restituito i profili dell'operatore. Riprova tra poco.",
+          "save_failed": "Impossibile applicare l'impostazione del profilo dell'operatore."
+        },
+        "pending_reboot": {
+          "title": "Riavvia per completare il cambio di profilo dell'operatore",
+          "description": "Il nuovo profilo dell'operatore entra in vigore dopo il riavvio del modem.",
+          "dismiss": "Ignora"
         }
+      },
+      "profile_gate_title": "Il profilo SIM personalizzato {{profile}} gestisce il tuo APN",
+      "profile_gate_note": "Modifica quel profilo per cambiare queste impostazioni.",
+      "errors": {
+        "load_failed": "Il modem non ha restituito le impostazioni APN. Riprova tra poco.",
+        "save_failed": "Impossibile salvare l'APN.",
+        "deactivate_failed": "Impossibile passare all'APN predefinito dell'operatore."
       }
     },
     "imei": {

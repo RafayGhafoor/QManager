@@ -2,8 +2,7 @@
   "custom_profiles": {
     "page": {
       "title": "Profil SIM Kustom",
-      "description": "Gabungkan pengaturan APN, IMEI, dan TTL/HL ke dalam profil sekali klik",
-      "error_load_failed": "Gagal memuat profil. Periksa koneksi dan coba lagi."
+      "description": "Gabungkan pengaturan APN, IMEI, dan TTL/HL ke dalam profil sekali klik"
     },
     "view": {
       "title": "Profil Tersimpan",
@@ -19,9 +18,10 @@
       "mismatch_note": "SIM di modem tidak cocok dengan ICCID profil ini. Perangkat tetap menggunakan pengaturan saat ini hingga SIM yang cocok dipasang.",
       "toast": {
         "deactivated": "{{name}} dinonaktifkan",
-        "deactivate_error": "Gagal menonaktifkan profil",
         "deleted": "{{name}} dihapus",
-        "delete_error": "Gagal menghapus profil"
+        "activated": "{{name}} aktif",
+        "activated_partial": "{{name}} aktif dengan beberapa langkah dilewati",
+        "activate_error": "Tidak dapat mengaktifkan profil."
       },
       "delete_title": "Hapus “{{name}}”?"
     },
@@ -206,11 +206,10 @@
       "save_failed": "Gagal menyimpan profil",
       "profile_added": "Profil ditambahkan",
       "profile_updated": "Profil diperbarui",
-      "submit_add": "Kirim",
+      "submit_add": "Tambah profil",
       "submit_edit": "Simpan perubahan",
       "cancel": "Batal",
       "next": "Berikutnya",
-      "clear": "Bersihkan",
       "tab_network": "Jaringan",
       "network_desc": "Cara modem terhubung ke jaringan data operator.",
       "identity_load_hint": "Beri nama profil ini dan pilih operator yang dituju.",
@@ -294,7 +293,7 @@
         "imei": "IMEI",
         "mpdn_rule": "Perutean Data"
       },
-      "reboot_notice": "Modem sedang memulai ulang untuk menerapkan perubahan IMEI. Dashboard akan tersambung kembali secara otomatis.",
+      "reboot_notice": "Perubahan IMEI berlaku setelah mulai ulang. Mulai ulang dari banner saat Anda siap.",
       "step_state_unchanged": "Tidak berubah",
       "preparing": "Menyiapkan…",
       "step_progress": "Langkah {{current}} dari {{total}}",
@@ -304,7 +303,11 @@
       "partial_sub": "Beberapa langkah dilewati. Tinjau detail di bawah.",
       "failed_headline": "Aktivasi gagal",
       "failed_sub": "Modem tidak sepenuhnya dikonfigurasi ulang.",
-      "details_label": "Langkah"
+      "details_label": "Langkah",
+      "errors": {
+        "start_failed": "Tidak dapat memulai penerapan profil.",
+        "not_started": "Penerapan profil tidak dimulai. Silakan coba lagi."
+      }
     },
     "verizon_warning": {
       "title": "Verizon memerlukan aturan routing data khusus",
@@ -318,18 +321,18 @@
       "ip_v4": "IPv4",
       "ip_v6": "IPv6",
       "ip_dual": "IPv4v6",
-      "apn": "APN {{name}}",
       "apn_default": "APN Default",
       "cid": "CID {{cid}}",
       "ttl": "TTL {{value}}",
       "hl": "HL {{value}}",
       "imei_override": "Penggantian IMEI",
-      "mpdn_locked": "MPDN terkunci"
+      "mpdn_locked": "MPDN terkunci",
+      "apn_prefix": "APN "
     },
     "empty_state": {
       "title": "Tidak ada profil",
       "description": "Kelola profil SIM kustom Anda di sini.",
-      "description_full": "Anda belum membuat profil SIM kustom. Gunakan formulir untuk membuat profil pertama Anda.",
+      "description_full": "Buat profil untuk menyimpan pengaturan APN, IMEI, dan TTL untuk SIM dan menerapkannya sekaligus.",
       "refresh": "Muat Ulang",
       "card_title": "Profil SIM Kustom",
       "card_description": "Bundel APN, IMEI, dan pengaturan TTL yang diterapkan ke modem dalam satu langkah.",
@@ -362,12 +365,22 @@
       "bound_sim": "Terikat ke SIM {{iccid}}",
       "detail_unavailable": "Tidak dapat memuat pengaturan profil ini.",
       "only_active_hint": "Satu-satunya profil Anda adalah yang sedang aktif. Buat profil lain untuk berpindah pengaturan."
+    },
+    "registry": {
+      "add": "Profil baru",
+      "error_title": "Tidak dapat memuat profil Anda"
+    },
+    "errors": {
+      "load_failed": "Modem tidak mengembalikan profil tersimpan. Coba lagi sebentar lagi.",
+      "save_failed": "Tidak dapat menyimpan profil.",
+      "delete_failed": "Tidak dapat menghapus profil.",
+      "deactivate_failed": "Tidak dapat menonaktifkan profil."
     }
   },
   "scenarios": {
     "page": {
       "title": "Skenario Koneksi",
-      "description": "Kelola dan sesuaikan skenario koneksi untuk profil seluler Anda guna mengoptimalkan kinerja dan keandalan jaringan."
+      "description": "Alihkan radio di antara pengaturan jaringan yang tersimpan."
     },
     "default_balanced_name": "Seimbang",
     "default_balanced_description": "Pemilihan band otomatis",
@@ -389,16 +402,15 @@
         "description": "Apakah kamu yakin untuk menghapus \"{{name}}\"? Tindakan ini tidak dapat dibatalkan.",
         "confirm": "Hapus",
         "deleting": "Menghapus…"
-      }
+      },
+      "band_lock": "Kunci band"
     },
     "add_button": {
-      "label": "Buat Skenario",
-      "description": "Tambahkan konfigurasi kustom"
+      "label": "Skenario baru"
     },
     "active_config_card": {
       "configuration": "{{name}} konfigurasi",
       "status": {
-        "applying": "Menerapkan…",
         "active": "Aktif",
         "not_active": "Tidak Aktif"
       },
@@ -416,8 +428,9 @@
         "nrsa_nsa": "5G SA / NSA",
         "bands_auto": "Auto"
       },
-      "edit_aria": "Edit pengaturan skenario",
-      "activate": "Aktifkan"
+      "activate": "Aktifkan",
+      "edit": "Ubah",
+      "running_note": "Skenario ini sedang berjalan."
     },
     "add_dialog": {
       "title": "Skenario Koneksi Baru",
@@ -434,62 +447,54 @@
         "sa_bands_placeholder": "Contoh., 41, 78",
         "nsa_bands_label": "Kunci Band NR5G-NSA",
         "nsa_bands_placeholder": "Contoh., 41, 78",
-        "theme_label": "Tema Kartu",
-        "preview_label": "Pratinjau",
         "preview_placeholder": "Konfigurasi kustom"
       },
       "buttons": {
-        "create": "Buat Skenario",
-        "creating": "Membuat…"
+        "create": "Buat Skenario"
       },
       "toast": {
-        "success": "Skenario berhasil dibuat.",
-        "error": "Skenario gagal dibuat"
+        "success": "Skenario berhasil dibuat."
       }
     },
     "edit_dialog": {
       "title": "Edit Konfigurasi",
       "fields": {
-        "name_label": "Nama Skenario",
-        "name_placeholder": "Nama Skenario",
-        "description_label": "Deskripsi",
-        "description_placeholder": "Deskripsi Skenario",
-        "network_mode_label": "Mode Jaringan",
-        "network_mode_aria": "Mode Jaringan",
         "optimization_label": "Label Optimasi",
-        "optimization_placeholder": "contoh: Latensi, Throughput, Kustom",
-        "lte_bands_label": "Kunci Band LTE",
-        "lte_bands_placeholder": "contoh: 1, 3, 7, 28 (kosong = Otomatis)",
-        "sa_bands_label": "Kunci Band NR5G-SA",
-        "sa_bands_placeholder": "e.g., 41, 78",
-        "nsa_bands_label": "Kunci BandNR5G-NSA",
-        "nsa_bands_placeholder": "Contoh: 41, 78",
-        "theme_label": "Tema Kartu",
-        "preview_label": "Pratinjau",
-        "preview_placeholder": "Konfigurasi kustom"
+        "optimization_placeholder": "contoh: Latensi, Throughput, Kustom"
       },
       "buttons": {
-        "save": "Simpan Perubahan",
-        "saving": "Menyimpan…"
+        "save": "Simpan Perubahan"
       },
       "toast": {
-        "success": "Memperbarui Skenario.",
-        "error": "Gagal Memperbarui Skenario."
+        "success": "Memperbarui Skenario."
       }
     },
     "activation_toast": {
-      "success": "Beralih ke {{name}} Skenario.",
-      "error": "Gagal mengaktifkan {{name}} Skenario."
+      "success": "Beralih ke {{name}} Skenario."
     },
     "deletion_toast": {
-      "success": "Skenario berhasil dihapus.",
-      "error": "Skenario gagal dihapus."
+      "success": "Skenario berhasil dihapus."
     },
     "schedule_lock": {
       "badge": "Terjadwal",
       "hint": "Nonaktifkan jadwal profil ini untuk memilih skenario secara manual.",
       "next_change": "Perubahan berikutnya pukul {{time}}",
       "blocked_toast": "Skenario koneksi dikendalikan oleh jadwal profil aktif. Matikan jadwal untuk mengubahnya secara manual."
+    },
+    "list_card": {
+      "title": "Skenario",
+      "description": "Pilih skenario untuk melihat konfigurasinya.",
+      "error_title": "Tidak dapat memuat skenario Anda"
+    },
+    "dialog": {
+      "description": "Biarkan kolom band kosong agar modem yang memilih.",
+      "name_required": "Beri nama skenario."
+    },
+    "errors": {
+      "load_failed": "Modem tidak mengembalikan skenario Anda. Coba lagi sebentar lagi.",
+      "activate_failed": "Tidak dapat mengaktifkan skenario.",
+      "save_failed": "Tidak dapat menyimpan skenario.",
+      "delete_failed": "Tidak dapat menghapus skenario."
     }
   },
   "sms": {
@@ -500,7 +505,6 @@
     "inbox": {
       "title": "Kotak Masuk",
       "description": "Lihat dan kelola pesan SMS Anda.",
-      "storage_suffix": " — {{used}}/{{total}} pesan tersimpan",
       "table": {
         "headers": {
           "from": "Dari",
@@ -549,12 +553,12 @@
         "selected_info": "{{selected}} dari {{total}} dipilih"
       },
       "error": {
-        "title": "Gagal memuat pesan",
-        "description_prefix": "Gagal memuat pesan"
+        "title": "Gagal memuat pesan"
       },
       "view_dialog": {
         "title": "Pesan dari {{sender}}",
-        "timestamp_aria": "{{timestamp}}"
+        "timestamp_aria": "{{timestamp}}",
+        "heading": "Pesan"
       },
       "delete_single_confirm": {
         "title": "Hapus Pesan",
@@ -576,12 +580,9 @@
       },
       "toast": {
         "delete_success": "Pesan berhasil dihapus",
-        "delete_error": "Pesan gagal dihapus",
         "delete_all_success": "Semua pesan berhasil dihapus",
-        "delete_all_error": "Gagal menghapus pesan",
         "delete_selected_success_one": "{{count}} pesan terhapus",
         "delete_selected_success_other": "{{count}} pesan terhapus",
-        "delete_selected_error": "Gagal menghapus pesan yang dipilih",
         "mark_all_read_success": "Semua pesan ditandai sebagai dibaca"
       },
       "tabs": {
@@ -599,7 +600,8 @@
         "newest": "Terbaru dulu",
         "oldest": "Terlama dulu",
         "aria": "Urutan"
-      }
+      },
+      "description_storage": "{{used}} dari {{total}} pesan tersimpan."
     },
     "compose": {
       "title": "Pesan baru",
@@ -618,8 +620,7 @@
         "sending": "Mengirim…"
       },
       "toast": {
-        "success": "SMS berhasil terkirim",
-        "error": "SMS gagal terkirim"
+        "success": "SMS berhasil terkirim"
       }
     },
     "forwarding": {
@@ -636,12 +637,12 @@
         "target_description": "Setiap pesan baru dikirim ulang ke sini sebagai \"Dari <sender>: <message>\".",
         "validation_phone": "Masukkan nomor telepon yang valid (mis. +6281234567890).",
         "toast_save_success": "Pengaturan penerusan disimpan.",
-        "toast_save_error": "Tidak dapat menyimpan pengaturan penerusan.",
-        "error_load": "Tidak dapat memuat pengaturan penerusan"
+        "error_load": "Tidak dapat memuat pengaturan penerusan",
+        "target_hint_label": "Tentang pesan yang diteruskan"
       },
       "health": {
         "card_title": "Pengiriman & status",
-        "card_description": "Status penerusan langsung, pratinjau yang dilihat penerima, dan masalah pengiriman apa pun.",
+        "card_description": "Apakah pesan masuk sampai ke nomor Anda.",
         "state_active": "Aktif",
         "state_issue": "Pengiriman bermasalah",
         "state_off": "Penerusan nonaktif",
@@ -655,7 +656,6 @@
         "test_hint": "Mengirim tes ke nomor tersimpan Anda.",
         "test_disabled_hint": "Aktifkan penerusan dan simpan nomor untuk mengirim tes.",
         "toast_test_success": "Pesan tes terkirim ke nomor penerusan Anda.",
-        "toast_test_error": "Tidak dapat mengirim pesan tes.",
         "failures_title_one": "{{count}} pesan tidak dapat diteruskan",
         "failures_title_other": "{{count}} pesan tidak dapat diteruskan",
         "failures_description": "Penerusan tetap aktif untuk pesan baru. Pesan berikut dibatalkan setelah 3 kali percobaan gagal:",
@@ -663,8 +663,20 @@
         "failures_empty": "Tidak ada masalah pengiriman.",
         "clear_button": "Bersihkan peringatan",
         "toast_clear_success": "Dibersihkan.",
-        "toast_clear_error": "Tidak dapat membersihkan peringatan."
+        "preview_from": "Dari {{sender}}:"
+      },
+      "errors": {
+        "load_failed": "Modem tidak mengembalikan pengaturan penerusan. Coba lagi sebentar lagi.",
+        "save_failed": "Tidak dapat menyimpan pengaturan penerusan.",
+        "test_failed": "Tidak dapat mengirim pesan uji.",
+        "clear_failed": "Tidak dapat menghapus peringatan."
       }
+    },
+    "errors": {
+      "fetch": "Gagal memuat pesan",
+      "send": "SMS gagal terkirim",
+      "delete": "Pesan gagal dihapus",
+      "delete_all": "Semua pesan gagal dihapus"
     }
   },
   "cell_locking": {
@@ -673,27 +685,19 @@
         "title": "Penguncian Band",
         "description": "Batasi band LTE dan NR yang dapat digunakan oleh modem."
       },
-      "scenario_override_banner": "Konfigurasi band dikelola oleh <strong>{{scenario_name}}</strong> skenario.",
       "settings_card": {
-        "title": "Pengaturan Penguncian Band",
-        "description": "Batasi modem hanya ke band LTE dan 5G tertentu. Aktifkan failover untuk kembali ke semua band jika band yang dikunci kehilangan sinyal.",
         "band_failover_label": "Band Failover",
-        "band_failover_tooltip": "Saat diaktifkan, perangkat akan otomatis beralih ke band default jika band yang dikunci tidak tersedia setelah 15 detik.",
+        "band_failover_tooltip": "Jika band yang dikunci tidak menemukan sinyal dalam sekitar 5 detik, modem kembali ke semua band yang didukung.",
         "band_failover_info_aria": "Info band failover",
-        "status_label": "Status Band Failover",
         "status": {
           "disabled": "Nonaktif",
-          "fallback_active": "Fallback Aktif",
-          "ready": "Siap"
+          "ready": "Siap",
+          "fallback": "Fallback aktif",
+          "monitoring": "Memeriksa"
         },
-        "active_lte_bands": "Band LTE Aktif",
-        "active_lte_channels": "Channel LTE Aktif",
-        "active_nr_bands": "Band 5G Aktif",
-        "active_nr_channels": "Channel 5G Aktif",
         "toast": {
           "failover_enabled": "Failover band diaktifkan",
-          "failover_disabled": "Failover band dinonaktifkan",
-          "failover_error": "Gagal memperbarui failover band"
+          "failover_disabled": "Failover band dinonaktifkan"
         }
       },
       "cards": {
@@ -711,26 +715,23 @@
         },
         "nrdc_nr5g": {
           "title": "Band NR-DC",
-          "description": "Band NR-DC dikelola oleh modem dan tidak dapat dikunci secara manual. Ini menampilkan band yang sedang digunakan."
+          "description": "Pilih band NR yang ingin dikunci untuk konektivitas ganda NR."
         }
       },
       "card_badges": {
-        "scenario_controlled": "Dikontrol oleh Skenario",
-        "all_unlocked": "Semua Tidak Dikunci",
         "bands_locked": "{{locked}} / {{total}} Band",
-        "view_only": "Hanya lihat"
+        "scenario": "Dikendalikan skenario",
+        "unrestricted": "Semua band",
+        "unavailable": "Tidak terbaca",
+        "unknown": "Tidak dilaporkan"
       },
       "card_empty": "Tidak ada band yang didukung dilaporkan oleh modem untuk kategori ini.",
-      "legend": {
-        "used": "Digunakan oleh jaringan atau SIM",
-        "unused": "Didukung modem"
-      },
       "card_buttons": {
         "lock_selected": "Kunci band terpilih",
         "select_all": "Pilih semua",
         "deselect_all": "Batalkan Pilih Semua",
-        "unlock_all_aria": "Buka kunci semua band",
-        "swap_view": "Beralih ke band {{target}}"
+        "swap_view": "Beralih ke band {{target}}",
+        "unlock_all": "Buka semua"
       },
       "card_live_region": "Menerapkan {{category_label}} kunci band…",
       "card_category_label": {
@@ -740,11 +741,78 @@
         "nrdc_nr5g": "NR-DC"
       },
       "toast": {
-        "select_one_band": "Pilih setidaknya satu band untuk dikunci",
         "locked_success": "{{category_label}} band berhasil dikunci",
-        "lock_error": "Gagal menerapkan penguncian band",
         "unlocked_success": "{{category_label}} band berhasil dibuka kuncinya",
-        "unlock_error": "Unlock band gagal"
+        "refresh_error": "Tidak dapat menyegarkan konfigurasi band"
+      },
+      "scenario_gate_title": "Skenario {{scenario}} mengelola band Anda",
+      "scenario_gate_note": "Beralih ke skenario Seimbang untuk mengunci band secara manual.",
+      "read_error_title": "Tidak dapat membaca konfigurasi band",
+      "refresh_blocked_watcher": "Tunggu hingga pemeriksaan failover selesai",
+      "refreshing": "Membaca konfigurasi band…",
+      "actions": {
+        "refresh": "Segarkan"
+      },
+      "card": {
+        "empty_title": "Tidak ada band di sini",
+        "unavailable_note": "Kunci saat ini tidak diketahui, perubahan dijeda.",
+        "pending_one": "{{count}} perubahan belum disimpan",
+        "pending_other": "{{count}} perubahan belum disimpan"
+      },
+      "legend": {
+        "selected": "Dipilih",
+        "live": "Sedang dikunci",
+        "unused_group": "Tidak digunakan jaringan Anda",
+        "unused_hint_label": "Tentang band yang tidak digunakan jaringan Anda",
+        "unused_hint": "Modem mendukung band ini, tetapi jaringan atau SIM Anda tidak menggunakannya. Mengunci hanya ke band ini dapat membuat Anda tanpa layanan."
+      },
+      "a11y": {
+        "band_live": "{{band}}, dipilih dan dikunci di modem",
+        "band_selected": "{{band}}, dipilih",
+        "band_unselected": "{{band}}, tidak dipilih"
+      },
+      "errors": {
+        "read_failed": "Modem tidak mengembalikan konfigurasi band. Coba lagi sebentar lagi.",
+        "no_bands": "Pilih setidaknya satu band untuk dikunci.",
+        "no_supported": "Modem belum melaporkan band yang didukung.",
+        "lock_failed": "Tidak dapat menerapkan penguncian band.",
+        "failover_failed": "Tidak dapat memperbarui band failover."
+      },
+      "status": {
+        "title": "Status band",
+        "on_air": "Sedang aktif",
+        "on_air_summary_one": "{{count}} carrier ({{mhz}} MHz)",
+        "on_air_summary_other": "{{count}} carrier ({{mhz}} MHz)",
+        "on_air_empty_title": "Tidak ada carrier aktif",
+        "on_air_empty_body": "Modem sedang tidak terhubung ke sel mana pun.",
+        "tile_aria": "Carrier {{tech}}, {{role}}",
+        "tech_lte": "LTE",
+        "tech_nr": "5G NR",
+        "mhz": "{{value}} MHz",
+        "earfcn": "EARFCN {{value}}",
+        "pci": "PCI {{value}}",
+        "dbm": "{{value}} dBm",
+        "rsrp": "RSRP",
+        "no_value": "–",
+        "quality": {
+          "excellent": "Sinyal sangat baik",
+          "good": "Sinyal baik",
+          "fair": "Sinyal cukup",
+          "poor": "Sinyal buruk",
+          "none": "Tidak ada bacaan"
+        },
+        "posture": "Status penguncian",
+        "subtitle_locked": "{{count}} dari {{total}} kategori dikunci",
+        "subtitle_unrestricted": "Setiap kategori memakai semua band",
+        "subtitle_unknown": "Modem belum melaporkan band-nya",
+        "subtitle_unavailable": "Konfigurasi band tidak terbaca",
+        "ratio": "{{count}} dari {{total}} band",
+        "ratio_unavailable": "Tidak terbaca",
+        "rail_locked": "Dikunci",
+        "rail_unrestricted": "Semua band",
+        "rail_unknown": "Tidak dilaporkan",
+        "rail_unavailable": "Tidak diketahui",
+        "rail_aria": "{{category}}: {{ratio}} ({{status}})"
       }
     },
     "tower_locking": {
@@ -1526,8 +1594,7 @@
       "page": {
         "title": "Pengaturan APN",
         "description": "Atur APN, protokol IP, dan konteks data yang digunakan SIM Anda untuk terhubung.",
-        "error_load_title": "Gagal memuat pengaturan APN",
-        "error_load_description": "Nilai yang ditampilkan mungkin sudah usang."
+        "error_load_title": "Gagal memuat pengaturan APN"
       },
       "card": {
         "title": "Konfigurasi APN",
@@ -1537,7 +1604,7 @@
         "active": "Aktif",
         "not_live": "Tidak live",
         "carrier_default": "Default operator",
-        "network_using": "Jaringan menggunakan: {{apn}}"
+        "network_using_label": "Jaringan menggunakan"
       },
       "save_connection_notice": "Menyimpan akan memutus koneksi seluler sebentar saat modem menyambung ulang.",
       "carrier_default": {
@@ -1551,70 +1618,11 @@
       },
       "toast": {
         "saved": "Pengaturan APN disimpan",
-        "save_error": "Gagal menyimpan pengaturan APN",
-        "deactivated": "Dikembalikan ke APN default operator",
-        "deactivate_error": "Gagal kembali ke default operator"
+        "deactivated": "Dikembalikan ke APN default operator"
       },
-      "controls_label": "Konfigurasi APN",
       "managed_by_profile_fallback": "Profil SIM Kustom aktif",
-      "list": {
-        "card": {
-          "title": "Profil APN",
-          "description": "Lima slot profil data. Aktifkan salah satu untuk menjadikannya APN Internet aktif — hanya satu yang bisa aktif pada satu waktu."
-        },
-        "empty": {
-          "title": "Tidak ada slot profil",
-          "subtitle": "Slot profil tidak dapat dimuat."
-        },
-        "unnamed": "Tanpa Nama",
-        "no_apn": "APN belum diatur",
-        "slot": "Slot {{id}}",
-        "apn_on_cid": "{{apn}} · CID {{cid}}",
-        "status": {
-          "active": "Aktif",
-          "not_live": "Tidak aktif",
-          "idle": "Siaga",
-          "empty": "Kosong",
-          "overridden": "Ditimpa Profil"
-        },
-        "live": {
-          "mismatch_title": "APN tersimpan tidak aktif",
-          "mismatch": "Jaringan menggunakan: {{apn}}",
-          "mismatch_default": "Jaringan menggunakan default operator"
-        },
-        "carrier_default": {
-          "title": "Tidak ada profil aktif",
-          "subtitle": "Operator Anda memilih APN secara otomatis."
-        },
-        "aria": {
-          "activate_switch": "Aktifkan {{name}}",
-          "active_switch": "{{name}} adalah profil aktif",
-          "deactivate_switch": "Nonaktifkan {{name}} dan biarkan operator memilih APN",
-          "edit_button": "Edit {{name}}"
-        },
-        "toast": {
-          "activating": "Mengaktifkan {{name}}…",
-          "activated": "{{name}} kini menjadi APN aktif Anda",
-          "activate_error": "Gagal mengaktifkan {{name}}",
-          "deactivating": "Menonaktifkan profil…",
-          "deactivated": "Profil dinonaktifkan — operator Anda kini memilih APN",
-          "deactivate_error": "Gagal menonaktifkan profil"
-        },
-        "deactivate": {
-          "title": "Nonaktifkan profil APN?",
-          "description": "Operator Anda akan memilih APN secara otomatis. Koneksi seluler akan terputus sebentar saat modem menyambung ulang.",
-          "confirm": "Nonaktifkan",
-          "cancel": "Batal"
-        }
-      },
       "edit": {
-        "title": "Edit Slot {{id}}",
-        "description_default": "Konfigurasi profil data ini. Menyimpan akan menyimpannya; aktifkan dari daftar untuk menggunakannya.",
         "fields": {
-          "name": {
-            "label": "Nama",
-            "placeholder": "Profil Data Saya"
-          },
           "apn": {
             "label": "APN *",
             "placeholder": "fast.t-mobile.com",
@@ -1647,35 +1655,15 @@
           "confirm": "Tetap gunakan",
           "cancel": "Batal"
         },
-        "clear": {
-          "button": "Kosongkan slot",
-          "disabled_active": "Beralih ke profil lain sebelum mengosongkan yang aktif",
-          "title": "Kosongkan slot ini?",
-          "description": "Ini akan mengosongkan nama dan APN profil. Tindakan ini tidak dapat dibatalkan.",
-          "confirm": "Kosongkan",
-          "cancel": "Batal",
-          "toast_success": "Slot dikosongkan",
-          "toast_error": "Gagal mengosongkan slot"
-        },
-        "save_button": "Simpan Profil",
-        "cancel": "Batal",
-        "toast": {
-          "saved": "{{name}} disimpan",
-          "save_error": "Gagal menyimpan profil"
-        }
+        "save_button": "Simpan Profil"
       },
       "mbn": {
         "card": {
           "title": "Profil Operator",
-          "description": "Pilih profil firmware operator mana yang aktif pada modem. Reboot diperlukan setelah perubahan."
+          "description": "Pilih profil firmware operator yang dijalankan modem; perubahan memerlukan reboot."
         },
         "auto_select": {
-          "label": "Pilih Otomatis Profil",
-          "placeholder": "Pilih Pilihan Otomatis",
-          "options": {
-            "enabled": "Aktif",
-            "disabled": "Nonaktif"
-          }
+          "label": "Pilih Otomatis Profil"
         },
         "configuration": {
           "label": "Konfigurasi Operator",
@@ -1694,13 +1682,25 @@
           "auto_enabled": "Pilihan otomatis diaktifkan — reboot diperlukan",
           "auto_disabled": "Pilihan otomatis dinonaktifkan — reboot diperlukan",
           "profile_applied": "Profil operator diterapkan — reboot diperlukan",
-          "enable_error": "Gagal mengaktifkan pilihan otomatis",
-          "disable_error": "Gagal menonaktifkan pilihan otomatis",
-          "apply_error": "Gagal menerapkan profil operator",
-          "no_changes": "Tidak ada perubahan untuk disimpan",
-          "rebooting": "Perangkat sedang memulai ulang…",
           "reboot_error": "Reboot gagal — mulai ulang perangkat secara manual"
+        },
+        "load_error_title": "Tidak dapat memuat profil operator",
+        "errors": {
+          "load_failed": "Modem tidak mengembalikan profil operator. Coba lagi sebentar lagi.",
+          "save_failed": "Tidak dapat menerapkan pengaturan profil operator."
+        },
+        "pending_reboot": {
+          "title": "Reboot untuk menyelesaikan perubahan profil operator",
+          "description": "Profil operator baru berlaku setelah modem dinyalakan ulang.",
+          "dismiss": "Tutup"
         }
+      },
+      "profile_gate_title": "Profil SIM Kustom {{profile}} mengelola APN Anda",
+      "profile_gate_note": "Ubah profil tersebut untuk mengganti pengaturan ini.",
+      "errors": {
+        "load_failed": "Modem tidak mengembalikan pengaturan APN. Coba lagi sebentar lagi.",
+        "save_failed": "Tidak dapat menyimpan APN.",
+        "deactivate_failed": "Tidak dapat beralih ke APN bawaan operator."
       }
     },
     "imei": {

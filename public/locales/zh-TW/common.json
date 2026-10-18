@@ -41,9 +41,6 @@
   "connection": {
     "reconnecting": "與裝置失去聯絡，正在重新連線…"
   },
-  "profile_override": {
-    "banner": "{{controls}} 由自訂 SIM 設定檔 <strong>{{profile_name}}</strong> 管理。"
-  },
   "time": {
     "just_now": "剛剛",
     "now": "現在",

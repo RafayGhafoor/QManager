@@ -2,8 +2,7 @@
   "custom_profiles": {
     "page": {
       "title": "自定义 SIM 配置文件",
-      "description": "将 APN、IMEI 和 TTL/HL 设置打包为一键式配置文件。",
-      "error_load_failed": "无法加载配置文件。请检查连接并重试。"
+      "description": "将 APN、IMEI 和 TTL/HL 设置打包为一键式配置文件。"
     },
     "view": {
       "title": "已保存的配置文件",
@@ -19,9 +18,10 @@
       "mismatch_note": "modem 中的 SIM 卡与此配置文件的 ICCID 不匹配。在插入匹配的 SIM 卡之前，设备将保持当前设置。",
       "toast": {
         "deactivated": "已停用 {{name}}",
-        "deactivate_error": "停用配置文件失败",
         "deleted": "已删除 {{name}}",
-        "delete_error": "删除配置文件失败"
+        "activated": "{{name}} 已激活",
+        "activated_partial": "{{name}} 已激活，部分步骤已跳过",
+        "activate_error": "无法激活配置。"
       },
       "delete_title": "删除“{{name}}”？"
     },
@@ -206,11 +206,10 @@
       "save_failed": "保存配置文件失败",
       "profile_added": "已添加配置文件",
       "profile_updated": "已更新配置文件",
-      "submit_add": "提交",
+      "submit_add": "添加配置",
       "submit_edit": "保存更改",
       "cancel": "取消",
       "next": "下一步",
-      "clear": "清除",
       "tab_network": "网络",
       "network_desc": "modem 连接到运营商数据网络的方式。",
       "identity_load_hint": "为此配置文件命名并选择适用的运营商。",
@@ -294,7 +293,7 @@
         "imei": "IMEI",
         "mpdn_rule": "数据路由"
       },
-      "reboot_notice": "调制解调器正在重启以应用 IMEI 更改，仪表板将自动重新连接。",
+      "reboot_notice": "IMEI 更改将在重启后生效。准备好后，可通过横幅重启。",
       "step_state_unchanged": "无变化",
       "preparing": "准备中…",
       "step_progress": "第 {{current}} / {{total}} 步",
@@ -304,7 +303,11 @@
       "partial_sub": "部分步骤已跳过。请查看下方详情。",
       "failed_headline": "激活失败",
       "failed_sub": "调制解调器未完全重新配置。",
-      "details_label": "步骤"
+      "details_label": "步骤",
+      "errors": {
+        "start_failed": "无法开始应用配置文件。",
+        "not_started": "配置文件应用未启动，请重试。"
+      }
     },
     "verizon_warning": {
       "title": "Verizon 需要特殊的数据路由规则",
@@ -317,7 +320,7 @@
     "empty_state": {
       "title": "暂无自定义配置文件",
       "description": "在此管理您的自定义 SIM 配置文件。",
-      "description_full": "您尚未创建任何自定义 SIM 配置文件。请使用表单创建您的第一个配置文件。",
+      "description_full": "创建配置文件，保存 SIM 的 APN、IMEI 和 TTL 设置，并一步应用。",
       "refresh": "刷新",
       "card_title": "自定义 SIM 配置文件",
       "card_description": "将 APN、IMEI 和 TTL 设置打包，一步应用到调制解调器。",
@@ -330,13 +333,13 @@
       "ip_v4": "IPv4",
       "ip_v6": "IPv6",
       "ip_dual": "IPv4v6",
-      "apn": "APN {{name}}",
       "apn_default": "默认 APN",
       "cid": "CID {{cid}}",
       "ttl": "TTL {{value}}",
       "hl": "HL {{value}}",
       "imei_override": "IMEI 覆盖",
-      "mpdn_locked": "MPDN 已锁定"
+      "mpdn_locked": "MPDN 已锁定",
+      "apn_prefix": "APN "
     },
     "active_card": {
       "none_title": "无活动配置",
@@ -362,12 +365,22 @@
     "edit": {
       "not_found_title": "未找到配置",
       "not_found_desc": "该配置可能已被删除。返回已保存的配置。"
+    },
+    "registry": {
+      "add": "新建配置",
+      "error_title": "无法加载您的配置"
+    },
+    "errors": {
+      "load_failed": "调制解调器未返回已保存的配置，请稍后重试。",
+      "save_failed": "无法保存配置。",
+      "delete_failed": "无法删除配置。",
+      "deactivate_failed": "无法停用配置。"
     }
   },
   "scenarios": {
     "page": {
       "title": "连接场景",
-      "description": "管理和自定义您的蜂窝配置文件连接场景，以优化网络性能和可靠性。"
+      "description": "在已保存的网络设置之间切换无线电。"
     },
     "default_balanced_name": "均衡",
     "default_balanced_description": "自动选择频段",
@@ -389,16 +402,15 @@
         "description": "确定要删除「{{name}}」吗？此操作不可撤销。",
         "confirm": "删除",
         "deleting": "删除中…"
-      }
+      },
+      "band_lock": "频段锁定"
     },
     "add_button": {
-      "label": "创建场景",
-      "description": "添加自定义配置"
+      "label": "新建场景"
     },
     "active_config_card": {
       "configuration": "{{name}} 配置",
       "status": {
-        "applying": "应用中…",
         "active": "活动",
         "not_active": "未激活"
       },
@@ -416,8 +428,9 @@
         "nrsa_nsa": "5G SA / NSA",
         "bands_auto": "自动"
       },
-      "edit_aria": "编辑场景设置",
-      "activate": "激活"
+      "activate": "激活",
+      "edit": "编辑",
+      "running_note": "此场景当前正在运行。"
     },
     "add_dialog": {
       "title": "新建连接场景",
@@ -434,62 +447,54 @@
         "sa_bands_placeholder": "例如：41, 78",
         "nsa_bands_label": "NR5G-NSA 频段锁定",
         "nsa_bands_placeholder": "例如：41, 78",
-        "theme_label": "卡片主题",
-        "preview_label": "预览",
         "preview_placeholder": "自定义配置"
       },
       "buttons": {
-        "create": "创建场景",
-        "creating": "创建中…"
+        "create": "创建场景"
       },
       "toast": {
-        "success": "场景创建成功。",
-        "error": "创建场景失败。"
+        "success": "场景创建成功。"
       }
     },
     "edit_dialog": {
       "title": "编辑配置",
       "fields": {
-        "name_label": "场景名称",
-        "name_placeholder": "场景名称",
-        "description_label": "描述",
-        "description_placeholder": "场景描述",
-        "network_mode_label": "网络模式",
-        "network_mode_aria": "网络模式",
         "optimization_label": "优化标签",
-        "optimization_placeholder": "例如：低延迟、高吞吐量、自定义",
-        "lte_bands_label": "LTE 频段锁定",
-        "lte_bands_placeholder": "例如：1, 3, 7, 28（留空 = 自动）",
-        "sa_bands_label": "NR5G-SA 频段锁定",
-        "sa_bands_placeholder": "例如：41, 78",
-        "nsa_bands_label": "NR5G-NSA 频段锁定",
-        "nsa_bands_placeholder": "例如：41, 78",
-        "theme_label": "卡片主题",
-        "preview_label": "预览",
-        "preview_placeholder": "自定义配置"
+        "optimization_placeholder": "例如：低延迟、高吞吐量、自定义"
       },
       "buttons": {
-        "save": "保存更改",
-        "saving": "保存中…"
+        "save": "保存更改"
       },
       "toast": {
-        "success": "场景已更新。",
-        "error": "更新场景失败。"
+        "success": "场景已更新。"
       }
     },
     "activation_toast": {
-      "success": "已切换到 {{name}} 场景。",
-      "error": "激活 {{name}} 场景失败。"
+      "success": "已切换到 {{name}} 场景。"
     },
     "deletion_toast": {
-      "success": "场景已删除。",
-      "error": "删除场景失败。"
+      "success": "场景已删除。"
     },
     "schedule_lock": {
       "badge": "已计划",
       "hint": "关闭此配置的计划以手动选择场景。",
       "next_change": "下次切换于 {{time}}",
       "blocked_toast": "连接场景由活动配置的计划控制。请关闭计划以手动更改。"
+    },
+    "list_card": {
+      "title": "场景",
+      "description": "选择一个场景以查看其配置。",
+      "error_title": "无法加载您的场景"
+    },
+    "dialog": {
+      "description": "频段字段留空即由调制解调器自动选择。",
+      "name_required": "请为场景命名。"
+    },
+    "errors": {
+      "load_failed": "调制解调器未返回您的场景，请稍后重试。",
+      "activate_failed": "无法激活场景。",
+      "save_failed": "无法保存场景。",
+      "delete_failed": "无法删除场景。"
     }
   },
   "sms": {
@@ -500,7 +505,6 @@
     "inbox": {
       "title": "收件箱",
       "description": "查看和管理您的短信",
-      "storage_suffix": " — 已存储 {{used}}/{{total}} 条短信",
       "table": {
         "headers": {
           "from": "发件人",
@@ -549,12 +553,12 @@
         "selected_info": "已选择 {{selected}} / {{total}}"
       },
       "error": {
-        "title": "加载消息失败",
-        "description_prefix": "加载消息失败"
+        "title": "加载消息失败"
       },
       "view_dialog": {
         "title": "来自 {{sender}} 的消息",
-        "timestamp_aria": "{{timestamp}}"
+        "timestamp_aria": "{{timestamp}}",
+        "heading": "消息"
       },
       "delete_single_confirm": {
         "title": "删除消息",
@@ -576,12 +580,9 @@
       },
       "toast": {
         "delete_success": "消息已删除",
-        "delete_error": "删除消息失败",
         "delete_all_success": "所有消息已删除",
-        "delete_all_error": "删除消息失败",
         "delete_selected_success_one": "已删除 {{count}} 条消息",
         "delete_selected_success_other": "已删除 {{count}} 条消息",
-        "delete_selected_error": "删除选中的消息失败",
         "mark_all_read_success": "所有消息已标记为已读"
       },
       "tabs": {
@@ -599,7 +600,8 @@
         "newest": "最新优先",
         "oldest": "最早优先",
         "aria": "排序方式"
-      }
+      },
+      "description_storage": "已存储 {{used}} / {{total}} 条短信。"
     },
     "compose": {
       "title": "新短信",
@@ -618,8 +620,7 @@
         "sending": "发送中…"
       },
       "toast": {
-        "success": "短信发送成功",
-        "error": "发送短信失败"
+        "success": "短信发送成功"
       }
     },
     "forwarding": {
@@ -636,12 +637,12 @@
         "target_description": "每条新短信将以“来自 <发件人>：<内容>”的格式重新发送到此号码。",
         "validation_phone": "请输入有效的电话号码（例如 +8613800138000）。",
         "toast_save_success": "转发设置已保存。",
-        "toast_save_error": "无法保存转发设置。",
-        "error_load": "无法加载转发设置"
+        "error_load": "无法加载转发设置",
+        "target_hint_label": "关于转发的短信"
       },
       "health": {
         "card_title": "投递与状态",
-        "card_description": "实时转发状态、收件人看到的内容预览，以及任何投递问题。",
+        "card_description": "收到的短信是否正在送达您的号码。",
         "state_active": "运行正常",
         "state_issue": "投递存在问题",
         "state_off": "转发已关闭",
@@ -655,7 +656,6 @@
         "test_hint": "向您保存的号码发送测试。",
         "test_disabled_hint": "开启转发并保存号码后即可发送测试。",
         "toast_test_success": "测试短信已发送到您的转发号码。",
-        "toast_test_error": "无法发送测试短信。",
         "failures_title_one": "有 {{count}} 条短信转发失败",
         "failures_title_other": "有 {{count}} 条短信转发失败",
         "failures_description": "新短信仍会继续转发。以下短信在 3 次尝试后仍未成功：",
@@ -663,8 +663,20 @@
         "failures_empty": "没有投递问题。",
         "clear_button": "清除提醒",
         "toast_clear_success": "已清除。",
-        "toast_clear_error": "无法清除提醒。"
+        "preview_from": "来自 {{sender}}："
+      },
+      "errors": {
+        "load_failed": "调制解调器未返回转发设置，请稍后重试。",
+        "save_failed": "无法保存转发设置。",
+        "test_failed": "无法发送测试短信。",
+        "clear_failed": "无法清除警报。"
       }
+    },
+    "errors": {
+      "fetch": "加载消息失败",
+      "send": "发送短信失败",
+      "delete": "删除消息失败",
+      "delete_all": "删除全部消息失败"
     }
   },
   "cell_locking": {
@@ -673,27 +685,19 @@
         "title": "频段锁定",
         "description": "限制调制解调器可使用的 LTE 和 NR 频段。"
       },
-      "scenario_override_banner": "频段配置由 <strong>{{scenario_name}}</strong> 场景管理。",
       "settings_card": {
-        "title": "频段锁定设置",
-        "description": "将调制解调器限制到特定的 LTE 和 5G 频段。启用故障转移，以便在锁定频段失去信号时回退到全部频段。",
         "band_failover_label": "频段故障转移",
-        "band_failover_tooltip": "启用后，如果锁定的频段在 15 秒后不可用，设备将自动切换到默认频段。",
+        "band_failover_tooltip": "如果锁定的频段在约 5 秒内没有信号，调制解调器将恢复使用所有支持的频段。",
         "band_failover_info_aria": "频段故障转移说明",
-        "status_label": "频段故障转移状态",
         "status": {
           "disabled": "已禁用",
-          "fallback_active": "回退生效中",
-          "ready": "就绪"
+          "ready": "就绪",
+          "fallback": "回退生效中",
+          "monitoring": "检查中"
         },
-        "active_lte_bands": "当前 LTE 频段",
-        "active_lte_channels": "当前 LTE 信道",
-        "active_nr_bands": "当前 5G 频段",
-        "active_nr_channels": "当前 5G 信道",
         "toast": {
           "failover_enabled": "频段故障转移已启用",
-          "failover_disabled": "频段故障转移已禁用",
-          "failover_error": "更新频段故障转移失败"
+          "failover_disabled": "频段故障转移已禁用"
         }
       },
       "cards": {
@@ -711,26 +715,23 @@
         },
         "nrdc_nr5g": {
           "title": "NR-DC 频段",
-          "description": "NR-DC 频段由调制解调器管理，无法手动锁定。此处显示当前正在使用的频段。"
+          "description": "选择要为 NR 双连接锁定的 NR 频段。"
         }
       },
       "card_badges": {
-        "scenario_controlled": "场景控制",
-        "all_unlocked": "全部解锁",
         "bands_locked": "{{locked}} / {{total}} 个频段",
-        "view_only": "仅查看"
+        "scenario": "由场景控制",
+        "unrestricted": "全部频段",
+        "unavailable": "无法读取",
+        "unknown": "未报告"
       },
       "card_empty": "调制解调器未报告此类别的支持频段。",
-      "legend": {
-        "used": "网络或 SIM 卡使用",
-        "unused": "调制解调器支持"
-      },
       "card_buttons": {
         "lock_selected": "锁定所选频段",
         "select_all": "全选",
         "deselect_all": "全不选",
-        "unlock_all_aria": "解锁所有频段",
-        "swap_view": "切换到 {{target}} 频段"
+        "swap_view": "切换到 {{target}} 频段",
+        "unlock_all": "全部解锁"
       },
       "card_live_region": "正在应用 {{category_label}} 频段锁定…",
       "card_category_label": {
@@ -740,11 +741,78 @@
         "nrdc_nr5g": "NR-DC"
       },
       "toast": {
-        "select_one_band": "请至少选择一个频段进行锁定",
         "locked_success": "{{category_label}} 频段锁定成功",
-        "lock_error": "应用频段锁定失败",
         "unlocked_success": "{{category_label}} 频段已解锁",
-        "unlock_error": "解锁频段失败"
+        "refresh_error": "无法刷新频段配置"
+      },
+      "scenario_gate_title": "{{scenario}} 场景正在管理您的频段",
+      "scenario_gate_note": "切换到“均衡”场景即可手动锁定频段。",
+      "read_error_title": "无法读取频段配置",
+      "refresh_blocked_watcher": "请等待故障转移检查完成",
+      "refreshing": "正在读取频段配置…",
+      "actions": {
+        "refresh": "刷新"
+      },
+      "card": {
+        "empty_title": "此处没有频段",
+        "unavailable_note": "当前锁定状态未知，已暂停更改。",
+        "pending_one": "{{count}} 项未保存的更改",
+        "pending_other": "{{count}} 项未保存的更改"
+      },
+      "legend": {
+        "selected": "已选择",
+        "live": "当前已锁定",
+        "unused_group": "您的网络未使用",
+        "unused_hint_label": "关于您的网络未使用的频段",
+        "unused_hint": "调制解调器支持这些频段，但您的网络或 SIM 卡不使用它们。仅锁定这些频段可能导致无服务。"
+      },
+      "a11y": {
+        "band_live": "{{band}}，已选择并已在调制解调器上锁定",
+        "band_selected": "{{band}}，已选择",
+        "band_unselected": "{{band}}，未选择"
+      },
+      "errors": {
+        "read_failed": "调制解调器未返回频段配置，请稍后重试。",
+        "no_bands": "请至少选择一个频段进行锁定。",
+        "no_supported": "调制解调器尚未报告其支持的频段。",
+        "lock_failed": "无法应用频段锁定。",
+        "failover_failed": "无法更新频段故障转移。"
+      },
+      "status": {
+        "title": "频段状态",
+        "on_air": "当前在用",
+        "on_air_summary_one": "{{count}} 个载波（{{mhz}} MHz）",
+        "on_air_summary_other": "{{count}} 个载波（{{mhz}} MHz）",
+        "on_air_empty_title": "没有在用的载波",
+        "on_air_empty_body": "调制解调器当前未连接到任何小区。",
+        "tile_aria": "{{tech}} 载波，{{role}}",
+        "tech_lte": "LTE",
+        "tech_nr": "5G NR",
+        "mhz": "{{value}} MHz",
+        "earfcn": "EARFCN {{value}}",
+        "pci": "PCI {{value}}",
+        "dbm": "{{value}} dBm",
+        "rsrp": "RSRP",
+        "no_value": "–",
+        "quality": {
+          "excellent": "信号极好",
+          "good": "信号良好",
+          "fair": "信号一般",
+          "poor": "信号较差",
+          "none": "无读数"
+        },
+        "posture": "锁定状态",
+        "subtitle_locked": "{{total}} 个类别中有 {{count}} 个已锁定",
+        "subtitle_unrestricted": "所有类别均使用全部频段",
+        "subtitle_unknown": "调制解调器尚未报告其频段",
+        "subtitle_unavailable": "无法读取频段配置",
+        "ratio": "{{count}} / {{total}} 个频段",
+        "ratio_unavailable": "无法读取",
+        "rail_locked": "已锁定",
+        "rail_unrestricted": "全部频段",
+        "rail_unknown": "未报告",
+        "rail_unavailable": "未知",
+        "rail_aria": "{{category}}：{{ratio}}（{{status}}）"
       }
     },
     "tower_locking": {
@@ -1526,8 +1594,7 @@
       "page": {
         "title": "APN 设置",
         "description": "设置 SIM 卡用于连接的 APN、IP 协议和数据上下文。",
-        "error_load_title": "加载 APN 设置失败",
-        "error_load_description": "显示的值可能已过时。"
+        "error_load_title": "加载 APN 设置失败"
       },
       "card": {
         "title": "APN 配置",
@@ -1537,7 +1604,7 @@
         "active": "已激活",
         "not_live": "未生效",
         "carrier_default": "运营商默认",
-        "network_using": "网络正在使用：{{apn}}"
+        "network_using_label": "网络正在使用"
       },
       "save_connection_notice": "保存时调制解调器重连期间蜂窝连接会短暂中断。",
       "carrier_default": {
@@ -1551,70 +1618,11 @@
       },
       "toast": {
         "saved": "APN 设置已保存",
-        "save_error": "保存 APN 设置失败",
-        "deactivated": "已恢复到运营商默认 APN",
-        "deactivate_error": "恢复到运营商默认失败"
+        "deactivated": "已恢复到运营商默认 APN"
       },
-      "controls_label": "APN 配置",
       "managed_by_profile_fallback": "活动的自定义 SIM 配置",
-      "list": {
-        "card": {
-          "title": "APN 配置文件",
-          "description": "五个数据配置文件槽位。开启其中一个即可将其设为活动的互联网 APN — 同一时间只能有一个处于活动状态。"
-        },
-        "empty": {
-          "title": "没有配置文件槽位",
-          "subtitle": "无法加载配置文件槽位。"
-        },
-        "unnamed": "未命名",
-        "no_apn": "未设置 APN",
-        "slot": "槽位 {{id}}",
-        "apn_on_cid": "{{apn}} · CID {{cid}}",
-        "status": {
-          "active": "活动",
-          "not_live": "未生效",
-          "idle": "空闲",
-          "empty": "空",
-          "overridden": "已被配置文件接管"
-        },
-        "live": {
-          "mismatch_title": "存储的 APN 未生效",
-          "mismatch": "网络正在使用：{{apn}}",
-          "mismatch_default": "网络正在使用运营商默认值"
-        },
-        "carrier_default": {
-          "title": "无活动配置文件",
-          "subtitle": "您的运营商正在自动选择 APN。"
-        },
-        "aria": {
-          "activate_switch": "激活 {{name}}",
-          "active_switch": "{{name}} 是活动配置文件",
-          "deactivate_switch": "停用 {{name}}，让运营商选择 APN",
-          "edit_button": "编辑 {{name}}"
-        },
-        "toast": {
-          "activating": "正在激活 {{name}}…",
-          "activated": "{{name}} 现已成为活动 APN",
-          "activate_error": "激活 {{name}} 失败",
-          "deactivating": "正在停用配置文件…",
-          "deactivated": "配置文件已停用 — 现由运营商选择 APN",
-          "deactivate_error": "停用配置文件失败"
-        },
-        "deactivate": {
-          "title": "停用 APN 配置文件？",
-          "description": "您的运营商将自动选择 APN。调制解调器重新连接时，蜂窝连接会短暂中断。",
-          "confirm": "停用",
-          "cancel": "取消"
-        }
-      },
       "edit": {
-        "title": "编辑槽位 {{id}}",
-        "description_default": "配置此数据配置文件。保存即存储；在列表中将其激活以生效。",
         "fields": {
-          "name": {
-            "label": "名称",
-            "placeholder": "我的数据配置文件"
-          },
           "apn": {
             "label": "APN *",
             "placeholder": "fast.t-mobile.com",
@@ -1647,35 +1655,15 @@
           "confirm": "仍然使用",
           "cancel": "取消"
         },
-        "clear": {
-          "button": "清空槽位",
-          "disabled_active": "清空活动配置文件前请先切换到其他配置文件",
-          "title": "清空此槽位？",
-          "description": "这将清空该配置文件的名称和 APN。此操作无法撤销。",
-          "confirm": "清空",
-          "cancel": "取消",
-          "toast_success": "槽位已清空",
-          "toast_error": "清空槽位失败"
-        },
-        "save_button": "保存配置文件",
-        "cancel": "取消",
-        "toast": {
-          "saved": "{{name}} 已保存",
-          "save_error": "保存配置文件失败"
-        }
+        "save_button": "保存配置文件"
       },
       "mbn": {
         "card": {
           "title": "运营商配置文件",
-          "description": "选择在调制解调器上激活的运营商固件配置文件。更改后需要重启。"
+          "description": "选择调制解调器运行的运营商固件配置文件；更改后需要重启。"
         },
         "auto_select": {
-          "label": "自动选择配置文件",
-          "placeholder": "选择自动选择",
-          "options": {
-            "enabled": "已启用",
-            "disabled": "已禁用"
-          }
+          "label": "自动选择配置文件"
         },
         "configuration": {
           "label": "运营商配置",
@@ -1694,13 +1682,25 @@
           "auto_enabled": "已启用自动选择 — 需要重启",
           "auto_disabled": "已禁用自动选择 — 需要重启",
           "profile_applied": "运营商配置文件已应用 — 需要重启",
-          "enable_error": "启用自动选择失败",
-          "disable_error": "禁用自动选择失败",
-          "apply_error": "应用运营商配置文件失败",
-          "no_changes": "没有需要保存的更改",
-          "rebooting": "设备正在重启…",
           "reboot_error": "重启失败 — 请手动重启设备"
+        },
+        "load_error_title": "无法加载运营商配置文件",
+        "errors": {
+          "load_failed": "调制解调器未返回运营商配置文件，请稍后重试。",
+          "save_failed": "无法应用运营商配置文件设置。"
+        },
+        "pending_reboot": {
+          "title": "重启以完成运营商配置文件更改",
+          "description": "新的运营商配置文件将在调制解调器重启后生效。",
+          "dismiss": "关闭"
         }
+      },
+      "profile_gate_title": "{{profile}} 自定义 SIM 配置正在管理您的 APN",
+      "profile_gate_note": "请编辑该配置以更改这些设置。",
+      "errors": {
+        "load_failed": "调制解调器未返回 APN 设置，请稍后重试。",
+        "save_failed": "无法保存 APN。",
+        "deactivate_failed": "无法切换到运营商默认 APN。"
       }
     },
     "imei": {

@@ -2,8 +2,6 @@
 
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { motion } from "motion/react";
-import { useMotionReduced } from "@/components/motion-preference";
 import {
   Dialog,
   DialogContent,
@@ -12,17 +10,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  CheckCircle2Icon,
-  XCircleIcon,
-  Loader2,
-  EllipsisIcon,
-  ClockIcon,
-  MinusCircleIcon,
-  RotateCwIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { cn } from "@/lib/utils";
+import { motion } from "motion/react";
 import { transitionStandard } from "@/lib/motion";
 
 import type {
@@ -40,14 +30,12 @@ import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 // justified modal — profile activation reconfigures a live modem.
 //
 // Composition leads with a status HERO: a single state glyph, a headline that
-// names the step in flight (or the terminal verdict), and one determinate fill
-// bar that advances as steps complete. The per-step list sits beneath as
-// supporting detail — a compact ledger, not the primary progress signal. This
-// keeps one obvious "where am I" focal point instead of four competing rows.
-// "Skipped" reads as a calm "Unchanged" (the value was already correct) and
-// resolves to a check once the whole apply completes. The fill is transform-
-// only (scaleX) on the standard transition and collapses to instant under
-// reduced motion.
+// names the step in flight (or the terminal verdict), and a row of step dots
+// (the Loader-and-Dots Rule: no determinate bar). The per-step list sits
+// beneath as supporting detail, a compact ledger, not the primary progress
+// signal. "Skipped" reads as a calm "Unchanged" (the value was already
+// correct) and resolves to a check once the whole apply completes. The dialog
+// never reboots the modem; a pending reboot is surfaced by the banner.
 // =============================================================================
 
 interface ApplyProgressDialogProps {
@@ -89,45 +77,48 @@ function isTraversed(status: ApplyStepStatus): boolean {
   return status === "done" || status === "skipped";
 }
 
+/** Hero disc: the role's STRONG fill (Glyph-Disc Rule). `info` is the brand. */
+const TONE_DISC: Record<Tone, string> = {
+  info: "bg-primary text-primary-foreground",
+  success: "bg-success text-success-foreground",
+  warning: "bg-warning text-warning-foreground",
+  destructive: "bg-destructive text-destructive-foreground",
+};
+
+/** The progress fill, in the same role as the hero. */
 const TONE_FILL: Record<Tone, string> = {
-  info: "bg-info",
+  info: "bg-primary",
   success: "bg-success",
   warning: "bg-warning",
   destructive: "bg-destructive",
 };
 
-const TONE_RING: Record<Tone, string> = {
-  info: "border-info/20 bg-info/10 text-info",
-  success: "border-success/20 bg-success/10 text-success",
-  warning: "border-warning/20 bg-warning/10 text-warning",
-  destructive: "border-destructive/20 bg-destructive/10 text-destructive",
-};
-
-/** The large hero glyph for the current overall state. */
+/** The large hero glyph for the current overall state. Each state its own glyph. */
 function HeroGlyph({ tone, status }: { tone: Tone; status: string }) {
-  const Icon =
+  const name =
     status === "complete"
-      ? CheckCircle2Icon
+      ? "check_circle"
       : status === "partial"
-        ? MinusCircleIcon
+        ? "warning"
         : status === "failed"
-          ? XCircleIcon
-          : null;
+          ? "cancel"
+          : "progress_activity";
 
   return (
     <span
       className={cn(
-        "flex size-14 items-center justify-center rounded-full border",
-        TONE_RING[tone],
+        "flex size-14 items-center justify-center rounded-pill",
+        TONE_DISC[tone],
       )}
     >
-      {Icon ? (
-        <Icon className="size-7" />
-      ) : (
-        // In-flight: a calm pulsing ellipsis (not a spinner) so the focal glyph
-        // reads as "working" without the rotation that competes with the fill bar.
-        <EllipsisIcon className="size-7 animate-pulse motion-reduce:animate-none" />
-      )}
+      <MaterialSymbol
+        name={name}
+        filled={name !== "progress_activity"}
+        size={30}
+        className={
+          name === "progress_activity" ? "motion-safe:animate-spin" : undefined
+        }
+      />
     </span>
   );
 }
@@ -135,36 +126,40 @@ function HeroGlyph({ tone, status }: { tone: Tone; status: string }) {
 /** Compact status node for the supporting step ledger. */
 function StepNode({ status }: { status: ApplyStepStatus }) {
   const base =
-    "flex size-5 shrink-0 items-center justify-center rounded-full transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none";
+    "flex size-5 shrink-0 items-center justify-center rounded-pill transition-colors duration-[var(--duration-standard)] ease-standard motion-reduce:transition-none";
   switch (status) {
     case "running":
       return (
         <span className={cn(base, "text-info")}>
-          <Loader2 className="size-4 animate-spin" />
+          <MaterialSymbol
+            name="progress_activity"
+            size={18}
+            className="motion-safe:animate-spin"
+          />
         </span>
       );
     case "done":
       return (
         <span className={cn(base, "text-success")}>
-          <CheckCircle2Icon className="size-4" />
+          <MaterialSymbol name="check_circle" filled size={18} />
         </span>
       );
     case "failed":
       return (
         <span className={cn(base, "text-destructive")}>
-          <XCircleIcon className="size-4" />
+          <MaterialSymbol name="cancel" filled size={18} />
         </span>
       );
     case "skipped":
       return (
         <span className={cn(base, "text-muted-foreground")}>
-          <MinusCircleIcon className="size-4" />
+          <MaterialSymbol name="do_not_disturb_on" size={18} />
         </span>
       );
     default:
       return (
         <span className={cn(base, "text-muted-foreground/60")}>
-          <ClockIcon className="size-3.5" />
+          <MaterialSymbol name="schedule" size={16} />
         </span>
       );
   }
@@ -177,7 +172,6 @@ export function ApplyProgressDialog({
   error,
 }: ApplyProgressDialogProps) {
   const { t } = useTranslation("cellular");
-  const reduceMotion = useMotionReduced();
 
   const stepLabels = useMemo<Record<string, string>>(
     () => ({
@@ -202,18 +196,9 @@ export function ApplyProgressDialog({
           ? "destructive"
           : "info";
 
-  // Completed fraction drives the determinate fill (skipped counts as done).
   const total = applyState?.total_steps || steps.length || 0;
   const doneCount = steps.filter((s) => isTraversed(s.status)).length;
-  const fraction = isTerminal
-    ? status === "complete"
-      ? 1
-      : total > 0
-        ? doneCount / total
-        : 1
-    : total > 0
-      ? doneCount / total
-      : 0;
+  const dotCount = steps.length || total;
 
   // Headline + subtext: name the step in flight, or the terminal verdict.
   const runningStep = steps.find((s) => s.status === "running");
@@ -263,24 +248,39 @@ export function ApplyProgressDialog({
             )}
           </div>
 
-          {/* Determinate fill — transform-only (scaleX). */}
-          <div className="bg-muted relative h-1.5 w-full overflow-hidden rounded-full">
-            <motion.div
-              className={cn("h-full w-full origin-left rounded-full", TONE_FILL[tone])}
-              initial={false}
-              animate={{ scaleX: fraction }}
-              transition={reduceMotion ? { duration: 0 } : transitionStandard}
-            />
-          </div>
+          {/* Determinate fill: steps traversed over total, transform-only
+              (scaleX). Kept over the Loader-and-Dots Rule for the same reason
+              as the Config Restore pipeline (U4.11.6): it counts real steps,
+              not elapsed time. */}
+          {dotCount > 0 && (
+            <div
+              role="img"
+              aria-label={t("custom_profiles.apply_dialog.step_progress", {
+                current: Math.min(
+                  applyState?.current_step ?? doneCount + 1,
+                  dotCount,
+                ),
+                total: dotCount,
+              })}
+              className="relative h-1.5 w-full overflow-hidden rounded-pill bg-surface-container-high"
+            >
+              <motion.div
+                className={cn("h-full w-full origin-left rounded-pill", TONE_FILL[tone])}
+                initial={false}
+                animate={{ scaleX: Math.min(doneCount / dotCount, 1) }}
+                transition={transitionStandard}
+              />
+            </div>
+          )}
         </div>
 
         {/* Supporting ledger — compact per-step detail. */}
         {steps.length > 0 && (
-          <div className="rounded-lg border">
-            <p className="text-muted-foreground border-b px-3 py-2 text-xs font-medium">
+          <div className="rounded-card bg-surface-container">
+            <p className="text-muted-foreground px-3 pt-2.5 pb-1 text-xs font-medium">
               {t("custom_profiles.apply_dialog.details_label")}
             </p>
-            <ul className="divide-y">
+            <ul>
               {steps.map((step) => {
                 const eff = effectiveStatus(step.status, applyState?.status);
                 const detailText =
@@ -291,8 +291,8 @@ export function ApplyProgressDialog({
                   <li
                     key={step.name}
                     className={cn(
-                      "flex items-center gap-2.5 px-3 py-2 transition-colors duration-300 motion-reduce:transition-none",
-                      eff === "running" && "bg-info/5",
+                      "flex items-center gap-2.5 px-3 py-2 transition-colors duration-[var(--duration-standard)] ease-standard motion-reduce:transition-none",
+                      eff === "running" && "bg-surface-container-high",
                     )}
                   >
                     <StepNode status={eff} />
@@ -318,28 +318,28 @@ export function ApplyProgressDialog({
 
         {/* Reboot notice — deferred, never an inline reboot. */}
         {applyState?.requires_reboot && (
-          <div className="border-info/30 bg-info/10 text-info flex items-start gap-2 rounded-md border p-3 text-sm">
-            <RotateCwIcon className="mt-0.5 size-4 shrink-0" />
+          <div className="bg-info-container text-on-info-container flex items-start gap-2 rounded-card p-3 text-sm">
+            <MaterialSymbol name="restart_alt" size={18} className="mt-0.5 shrink-0" />
             <p>{t("custom_profiles.apply_dialog.reboot_notice")}</p>
           </div>
         )}
 
         {/* Error from the start request (not step-level) */}
         {error && !applyState && (
-          <div className="border-destructive/30 bg-destructive/10 text-destructive flex items-start gap-2 rounded-md border p-3 text-sm">
-            <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" />
+          <div className="bg-destructive-container text-on-destructive-container flex items-start gap-2 rounded-card p-3 text-sm">
+            <MaterialSymbol name="warning" size={18} className="mt-0.5 shrink-0" />
             <p>{error}</p>
           </div>
         )}
 
         {/* Partial / failed summary */}
         {applyState?.status === "partial" && applyState.error && (
-          <div className="border-warning/30 bg-warning/10 text-warning rounded-md border p-3 text-sm">
+          <div className="bg-warning-container text-on-warning-container rounded-card p-3 text-sm">
             {resolveErrorMessage(t, applyState.error, undefined, applyState.error)}
           </div>
         )}
         {applyState?.status === "failed" && applyState.error && (
-          <div className="border-destructive/30 bg-destructive/10 text-destructive rounded-md border p-3 text-sm">
+          <div className="bg-destructive-container text-on-destructive-container rounded-card p-3 text-sm">
             {resolveErrorMessage(t, applyState.error, undefined, applyState.error)}
           </div>
         )}
@@ -348,7 +348,7 @@ export function ApplyProgressDialog({
             state doesn't resize the dialog. Button renders only when actionable. */}
         <div className="flex min-h-9 justify-end">
           {(isTerminal || (error && !applyState)) && (
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="ghost" onClick={onClose}>
               {t("actions.close", { ns: "common" })}
             </Button>
           )}

@@ -2,8 +2,7 @@
   "custom_profiles": {
     "page": {
       "title": "自訂 SIM 設定檔",
-      "description": "將 APN、IMEI 和 TTL/HL 設定打包為一鍵式設定檔。",
-      "error_load_failed": "無法載入設定檔。請檢查連線並重試。"
+      "description": "將 APN、IMEI 和 TTL/HL 設定打包為一鍵式設定檔。"
     },
     "view": {
       "title": "已儲存的設定檔",
@@ -19,9 +18,10 @@
       "mismatch_note": "modem 中的 SIM 卡與此設定檔的 ICCID 不匹配。在插入匹配的 SIM 卡之前，裝置將保持當前設定。",
       "toast": {
         "deactivated": "已停用 {{name}}",
-        "deactivate_error": "停用設定檔失敗",
         "deleted": "已刪除 {{name}}",
-        "delete_error": "刪除設定檔失敗"
+        "activated": "{{name}} 已啟用",
+        "activated_partial": "{{name}} 已啟用，部分步驟已略過",
+        "activate_error": "無法啟用設定。"
       },
       "delete_title": "刪除“{{name}}”？"
     },
@@ -206,11 +206,10 @@
       "save_failed": "儲存設定檔失敗",
       "profile_added": "已新增設定檔",
       "profile_updated": "已更新設定檔",
-      "submit_add": "提交",
+      "submit_add": "新增設定",
       "submit_edit": "儲存更改",
       "cancel": "取消",
       "next": "下一步",
-      "clear": "清除",
       "tab_network": "網路",
       "network_desc": "modem 連線到運營商資料網路的方式。",
       "identity_load_hint": "為此設定檔命名並選擇適用的運營商。",
@@ -294,7 +293,7 @@
         "imei": "IMEI",
         "mpdn_rule": "資料路由"
       },
-      "reboot_notice": "調變解調器正在重啟以套用 IMEI 變更，儀表板將自動重新連線。",
+      "reboot_notice": "IMEI 變更將在重啟後生效。準備好後，可透過橫幅重啟。",
       "step_state_unchanged": "無變化",
       "preparing": "準備中…",
       "step_progress": "第 {{current}} / {{total}} 步",
@@ -304,7 +303,11 @@
       "partial_sub": "部分步驟已跳過。請檢視下方詳情。",
       "failed_headline": "啟用失敗",
       "failed_sub": "數據機未完全重新配置。",
-      "details_label": "步驟"
+      "details_label": "步驟",
+      "errors": {
+        "start_failed": "無法開始套用設定檔。",
+        "not_started": "設定檔套用未啟動，請重試。"
+      }
     },
     "verizon_warning": {
       "title": "Verizon 需要特殊的資料路由規則",
@@ -317,7 +320,7 @@
     "empty_state": {
       "title": "暫無自訂設定檔",
       "description": "在此管理您的自訂 SIM 設定檔。",
-      "description_full": "您尚未建立任何自訂 SIM 設定檔。請使用表單建立您的第一個設定檔。",
+      "description_full": "建立設定檔，儲存 SIM 的 APN、IMEI 與 TTL 設定，並一步套用。",
       "refresh": "重新整理",
       "card_title": "自訂 SIM 設定檔",
       "card_description": "將 APN、IMEI 和 TTL 設定打包，一步套用到數據機。",
@@ -330,13 +333,13 @@
       "ip_v4": "IPv4",
       "ip_v6": "IPv6",
       "ip_dual": "IPv4v6",
-      "apn": "APN {{name}}",
       "apn_default": "預設 APN",
       "cid": "CID {{cid}}",
       "ttl": "TTL {{value}}",
       "hl": "HL {{value}}",
       "imei_override": "IMEI 覆蓋",
-      "mpdn_locked": "MPDN 已鎖定"
+      "mpdn_locked": "MPDN 已鎖定",
+      "apn_prefix": "APN "
     },
     "active_card": {
       "none_title": "無活動配置",
@@ -362,12 +365,22 @@
     "card": {
       "label_iccid": "SIM",
       "label_updated": "更新時間"
+    },
+    "registry": {
+      "add": "新增設定",
+      "error_title": "無法載入您的設定"
+    },
+    "errors": {
+      "load_failed": "數據機未回傳已儲存的設定，請稍後再試。",
+      "save_failed": "無法儲存設定。",
+      "delete_failed": "無法刪除設定。",
+      "deactivate_failed": "無法停用設定。"
     }
   },
   "scenarios": {
     "page": {
       "title": "連線場景",
-      "description": "管理和自訂您的蜂窩設定檔連線場景，以最佳化網路效能和可靠性。"
+      "description": "在已儲存的網路設定之間切換無線電。"
     },
     "default_balanced_name": "均衡",
     "default_balanced_description": "自動選擇頻段",
@@ -389,16 +402,15 @@
         "description": "確定要刪除「{{name}}」嗎？此操作不可撤銷。",
         "confirm": "刪除",
         "deleting": "刪除中…"
-      }
+      },
+      "band_lock": "頻段鎖定"
     },
     "add_button": {
-      "label": "建立場景",
-      "description": "新增自訂設定"
+      "label": "新增場景"
     },
     "active_config_card": {
       "configuration": "{{name}} 設定",
       "status": {
-        "applying": "套用中…",
         "active": "活動",
         "not_active": "未啟用"
       },
@@ -416,8 +428,9 @@
         "nrsa_nsa": "5G SA / NSA",
         "bands_auto": "自動"
       },
-      "edit_aria": "編輯場景設定",
-      "activate": "啟用"
+      "activate": "啟用",
+      "edit": "編輯",
+      "running_note": "此場景目前正在執行。"
     },
     "add_dialog": {
       "title": "新建連線場景",
@@ -434,62 +447,54 @@
         "sa_bands_placeholder": "例如：41, 78",
         "nsa_bands_label": "NR5G-NSA 頻段鎖定",
         "nsa_bands_placeholder": "例如：41, 78",
-        "theme_label": "卡片主題",
-        "preview_label": "預覽",
         "preview_placeholder": "自訂設定"
       },
       "buttons": {
-        "create": "建立場景",
-        "creating": "建立中…"
+        "create": "建立場景"
       },
       "toast": {
-        "success": "場景建立成功。",
-        "error": "建立場景失敗。"
+        "success": "場景建立成功。"
       }
     },
     "edit_dialog": {
       "title": "編輯設定",
       "fields": {
-        "name_label": "場景名稱",
-        "name_placeholder": "場景名稱",
-        "description_label": "描述",
-        "description_placeholder": "場景描述",
-        "network_mode_label": "網路模式",
-        "network_mode_aria": "網路模式",
         "optimization_label": "最佳化標籤",
-        "optimization_placeholder": "例如：低延遲、高吞吐量、自訂",
-        "lte_bands_label": "LTE 頻段鎖定",
-        "lte_bands_placeholder": "例如：1, 3, 7, 28（留空 = 自動）",
-        "sa_bands_label": "NR5G-SA 頻段鎖定",
-        "sa_bands_placeholder": "例如：41, 78",
-        "nsa_bands_label": "NR5G-NSA 頻段鎖定",
-        "nsa_bands_placeholder": "例如：41, 78",
-        "theme_label": "卡片主題",
-        "preview_label": "預覽",
-        "preview_placeholder": "自訂設定"
+        "optimization_placeholder": "例如：低延遲、高吞吐量、自訂"
       },
       "buttons": {
-        "save": "儲存變更",
-        "saving": "儲存中…"
+        "save": "儲存變更"
       },
       "toast": {
-        "success": "場景已更新。",
-        "error": "更新場景失敗。"
+        "success": "場景已更新。"
       }
     },
     "activation_toast": {
-      "success": "已切換到 {{name}} 場景。",
-      "error": "啟用 {{name}} 場景失敗。"
+      "success": "已切換到 {{name}} 場景。"
     },
     "deletion_toast": {
-      "success": "場景已刪除。",
-      "error": "刪除場景失敗。"
+      "success": "場景已刪除。"
     },
     "schedule_lock": {
       "badge": "已計劃",
       "hint": "關閉此配置的計劃以手動選擇場景。",
       "next_change": "下次切換於 {{time}}",
       "blocked_toast": "連線場景由活動配置的計劃控制。請關閉計劃以手動更改。"
+    },
+    "list_card": {
+      "title": "場景",
+      "description": "選擇一個場景以檢視其設定。",
+      "error_title": "無法載入您的場景"
+    },
+    "dialog": {
+      "description": "頻段欄位留空即由數據機自動選擇。",
+      "name_required": "請為場景命名。"
+    },
+    "errors": {
+      "load_failed": "數據機未回傳您的場景，請稍後再試。",
+      "activate_failed": "無法啟用場景。",
+      "save_failed": "無法儲存場景。",
+      "delete_failed": "無法刪除場景。"
     }
   },
   "sms": {
@@ -500,7 +505,6 @@
     "inbox": {
       "title": "收件箱",
       "description": "檢視和管理您的簡訊",
-      "storage_suffix": " — 已儲存 {{used}}/{{total}} 條簡訊",
       "tabs": {
         "all": "全部",
         "unread": "未讀",
@@ -555,12 +559,12 @@
         "selected_info": "已選擇 {{selected}} / {{total}}"
       },
       "error": {
-        "title": "載入訊息失敗",
-        "description_prefix": "載入訊息失敗"
+        "title": "載入訊息失敗"
       },
       "view_dialog": {
         "title": "來自 {{sender}} 的訊息",
-        "timestamp_aria": "{{timestamp}}"
+        "timestamp_aria": "{{timestamp}}",
+        "heading": "訊息"
       },
       "delete_single_confirm": {
         "title": "刪除訊息",
@@ -582,12 +586,9 @@
       },
       "toast": {
         "delete_success": "訊息已刪除",
-        "delete_error": "刪除訊息失敗",
         "delete_all_success": "所有訊息已刪除",
-        "delete_all_error": "刪除訊息失敗",
         "delete_selected_success_one": "已刪除 {{count}} 條訊息",
         "delete_selected_success_other": "已刪除 {{count}} 條訊息",
-        "delete_selected_error": "刪除選中的訊息失敗",
         "mark_all_read_success": "所有訊息已標記為已讀"
       },
       "search": {
@@ -599,7 +600,8 @@
         "newest": "最新優先",
         "oldest": "最早優先",
         "aria": "排序方式"
-      }
+      },
+      "description_storage": "已儲存 {{used}} / {{total}} 則簡訊。"
     },
     "compose": {
       "title": "新簡訊",
@@ -618,8 +620,7 @@
         "sending": "傳送中…"
       },
       "toast": {
-        "success": "簡訊傳送成功",
-        "error": "傳送簡訊失敗"
+        "success": "簡訊傳送成功"
       }
     },
     "forwarding": {
@@ -636,12 +637,12 @@
         "target_description": "每則新簡訊將以「來自 <sender>：<message>」的格式重新傳送到此號碼。",
         "validation_phone": "請輸入有效的電話號碼（例如 +886912345678）。",
         "toast_save_success": "轉發設定已儲存。",
-        "toast_save_error": "無法儲存轉發設定。",
-        "error_load": "無法載入轉發設定"
+        "error_load": "無法載入轉發設定",
+        "target_hint_label": "關於轉寄的簡訊"
       },
       "health": {
         "card_title": "投遞與狀態",
-        "card_description": "即時轉發狀態、收件者看到的內容預覽，以及任何投遞問題。",
+        "card_description": "收到的簡訊是否正在送達您的號碼。",
         "state_active": "運作中 · 正常",
         "state_issue": "投遞發生問題",
         "state_off": "轉發已關閉",
@@ -655,7 +656,6 @@
         "test_hint": "向您儲存的號碼傳送測試。",
         "test_disabled_hint": "開啟轉發並儲存號碼後即可傳送測試。",
         "toast_test_success": "測試簡訊已傳送到您的轉發號碼。",
-        "toast_test_error": "無法傳送測試簡訊。",
         "failures_title_one": "有 {{count}} 則簡訊轉發失敗",
         "failures_title_other": "有 {{count}} 則簡訊轉發失敗",
         "failures_description": "新簡訊仍會繼續轉發。以下簡訊在 3 次嘗試後仍未成功：",
@@ -663,8 +663,20 @@
         "failures_empty": "沒有投遞問題。",
         "clear_button": "清除提醒",
         "toast_clear_success": "已清除。",
-        "toast_clear_error": "無法清除提醒。"
+        "preview_from": "來自 {{sender}}："
+      },
+      "errors": {
+        "load_failed": "數據機未回傳轉寄設定，請稍後再試。",
+        "save_failed": "無法儲存轉寄設定。",
+        "test_failed": "無法傳送測試簡訊。",
+        "clear_failed": "無法清除警示。"
       }
+    },
+    "errors": {
+      "fetch": "載入訊息失敗",
+      "send": "傳送簡訊失敗",
+      "delete": "刪除訊息失敗",
+      "delete_all": "刪除全部訊息失敗"
     }
   },
   "cell_locking": {
@@ -673,27 +685,19 @@
         "title": "頻段鎖定",
         "description": "限制調變解調器可使用的 LTE 和 NR 頻段。"
       },
-      "scenario_override_banner": "頻段設定由 <strong>{{scenario_name}}</strong> 場景管理。",
       "settings_card": {
-        "title": "頻段鎖定設定",
-        "description": "將調變解調器限制到特定的 LTE 和 5G 頻段。啟用故障轉移，以便在鎖定頻段失去訊號時回退到全部頻段。",
         "band_failover_label": "頻段故障轉移",
-        "band_failover_tooltip": "啟用後，如果鎖定的頻段在 15 秒後不可用，裝置將自動切換到預設頻段。",
+        "band_failover_tooltip": "如果鎖定的頻段在約 5 秒內沒有訊號，數據機將恢復使用所有支援的頻段。",
         "band_failover_info_aria": "頻段故障轉移說明",
-        "status_label": "頻段故障轉移狀態",
         "status": {
           "disabled": "已停用",
-          "fallback_active": "回退生效中",
-          "ready": "就緒"
+          "ready": "就緒",
+          "fallback": "回退生效中",
+          "monitoring": "檢查中"
         },
-        "active_lte_bands": "當前 LTE 頻段",
-        "active_lte_channels": "當前 LTE 通道",
-        "active_nr_bands": "當前 5G 頻段",
-        "active_nr_channels": "當前 5G 通道",
         "toast": {
           "failover_enabled": "頻段故障轉移已啟用",
-          "failover_disabled": "頻段故障轉移已停用",
-          "failover_error": "更新頻段故障轉移失敗"
+          "failover_disabled": "頻段故障轉移已停用"
         }
       },
       "cards": {
@@ -711,26 +715,23 @@
         },
         "nrdc_nr5g": {
           "title": "NR-DC 頻段",
-          "description": "NR-DC 頻段由數據機管理，無法手動鎖定。此處顯示當前正在使用的頻段。"
+          "description": "選擇要為 NR 雙連線鎖定的 NR 頻段。"
         }
       },
       "card_badges": {
-        "scenario_controlled": "場景控制",
-        "all_unlocked": "全部解鎖",
         "bands_locked": "{{locked}} / {{total}} 個頻段",
-        "view_only": "僅檢視"
+        "scenario": "由情境控制",
+        "unrestricted": "全部頻段",
+        "unavailable": "無法讀取",
+        "unknown": "未回報"
       },
       "card_empty": "調變解調器未報告此類別的支援頻段。",
-      "legend": {
-        "used": "網路或 SIM 卡使用",
-        "unused": "數據機支援"
-      },
       "card_buttons": {
         "lock_selected": "鎖定所選頻段",
         "select_all": "全選",
         "deselect_all": "全不選",
-        "unlock_all_aria": "解鎖所有頻段",
-        "swap_view": "切換到 {{target}} 頻段"
+        "swap_view": "切換到 {{target}} 頻段",
+        "unlock_all": "全部解鎖"
       },
       "card_live_region": "正在套用 {{category_label}} 頻段鎖定…",
       "card_category_label": {
@@ -740,11 +741,78 @@
         "nrdc_nr5g": "NR-DC"
       },
       "toast": {
-        "select_one_band": "請至少選擇一個頻段進行鎖定",
         "locked_success": "{{category_label}} 頻段鎖定成功",
-        "lock_error": "套用頻段鎖定失敗",
         "unlocked_success": "{{category_label}} 頻段已解鎖",
-        "unlock_error": "解鎖頻段失敗"
+        "refresh_error": "無法重新整理頻段設定"
+      },
+      "scenario_gate_title": "{{scenario}} 情境正在管理您的頻段",
+      "scenario_gate_note": "切換到「均衡」情境即可手動鎖定頻段。",
+      "read_error_title": "無法讀取頻段設定",
+      "refresh_blocked_watcher": "請等待故障轉移檢查完成",
+      "refreshing": "正在讀取頻段設定…",
+      "actions": {
+        "refresh": "重新整理"
+      },
+      "card": {
+        "empty_title": "此處沒有頻段",
+        "unavailable_note": "目前鎖定狀態未知，已暫停變更。",
+        "pending_one": "{{count}} 項未儲存的變更",
+        "pending_other": "{{count}} 項未儲存的變更"
+      },
+      "legend": {
+        "selected": "已選擇",
+        "live": "目前已鎖定",
+        "unused_group": "您的網路未使用",
+        "unused_hint_label": "關於您的網路未使用的頻段",
+        "unused_hint": "數據機支援這些頻段，但您的網路或 SIM 卡不使用它們。僅鎖定這些頻段可能導致無服務。"
+      },
+      "a11y": {
+        "band_live": "{{band}}，已選擇並已在數據機上鎖定",
+        "band_selected": "{{band}}，已選擇",
+        "band_unselected": "{{band}}，未選擇"
+      },
+      "errors": {
+        "read_failed": "數據機未回傳頻段設定，請稍後再試。",
+        "no_bands": "請至少選擇一個頻段進行鎖定。",
+        "no_supported": "數據機尚未回報其支援的頻段。",
+        "lock_failed": "無法套用頻段鎖定。",
+        "failover_failed": "無法更新頻段故障轉移。"
+      },
+      "status": {
+        "title": "頻段狀態",
+        "on_air": "目前使用中",
+        "on_air_summary_one": "{{count}} 個載波（{{mhz}} MHz）",
+        "on_air_summary_other": "{{count}} 個載波（{{mhz}} MHz）",
+        "on_air_empty_title": "沒有使用中的載波",
+        "on_air_empty_body": "數據機目前未連線到任何基地台。",
+        "tile_aria": "{{tech}} 載波，{{role}}",
+        "tech_lte": "LTE",
+        "tech_nr": "5G NR",
+        "mhz": "{{value}} MHz",
+        "earfcn": "EARFCN {{value}}",
+        "pci": "PCI {{value}}",
+        "dbm": "{{value}} dBm",
+        "rsrp": "RSRP",
+        "no_value": "–",
+        "quality": {
+          "excellent": "訊號極佳",
+          "good": "訊號良好",
+          "fair": "訊號普通",
+          "poor": "訊號不佳",
+          "none": "無讀數"
+        },
+        "posture": "鎖定狀態",
+        "subtitle_locked": "{{total}} 個類別中有 {{count}} 個已鎖定",
+        "subtitle_unrestricted": "所有類別均使用全部頻段",
+        "subtitle_unknown": "數據機尚未回報其頻段",
+        "subtitle_unavailable": "無法讀取頻段設定",
+        "ratio": "{{count}} / {{total}} 個頻段",
+        "ratio_unavailable": "無法讀取",
+        "rail_locked": "已鎖定",
+        "rail_unrestricted": "全部頻段",
+        "rail_unknown": "未回報",
+        "rail_unavailable": "未知",
+        "rail_aria": "{{category}}：{{ratio}}（{{status}}）"
       }
     },
     "tower_locking": {
@@ -1526,8 +1594,7 @@
       "page": {
         "title": "APN 設定",
         "description": "設定 SIM 卡用於連線的 APN、IP 協定及資料連線情境。",
-        "error_load_title": "載入 APN 設定失敗",
-        "error_load_description": "顯示的值可能已過時。"
+        "error_load_title": "載入 APN 設定失敗"
       },
       "card": {
         "title": "APN 設定",
@@ -1537,7 +1604,7 @@
         "active": "已啟用",
         "not_live": "未生效",
         "carrier_default": "電信商預設",
-        "network_using": "網路正在使用：{{apn}}"
+        "network_using_label": "網路正在使用"
       },
       "save_connection_notice": "儲存時數據機重新連線期間蜂窩連線會短暫中斷。",
       "carrier_default": {
@@ -1551,70 +1618,11 @@
       },
       "toast": {
         "saved": "APN 設定已儲存",
-        "save_error": "儲存 APN 設定失敗",
-        "deactivated": "已還原至電信商預設 APN",
-        "deactivate_error": "還原至電信商預設失敗"
+        "deactivated": "已還原至電信商預設 APN"
       },
-      "controls_label": "APN 配置",
       "managed_by_profile_fallback": "活動的自訂 SIM 設定",
-      "list": {
-        "card": {
-          "title": "APN 設定檔",
-          "description": "五個資料設定檔槽位。開啟其中一個即可將其設為活動的網際網路 APN — 同一時間只能有一個處於活動狀態。"
-        },
-        "empty": {
-          "title": "沒有設定檔槽位",
-          "subtitle": "無法載入設定檔槽位。"
-        },
-        "unnamed": "未命名",
-        "no_apn": "未設定 APN",
-        "slot": "槽位 {{id}}",
-        "apn_on_cid": "{{apn}} · CID {{cid}}",
-        "status": {
-          "active": "活動",
-          "not_live": "未生效",
-          "idle": "空閒",
-          "empty": "空",
-          "overridden": "已被設定檔接管"
-        },
-        "live": {
-          "mismatch_title": "儲存的 APN 未生效",
-          "mismatch": "網路正在使用：{{apn}}",
-          "mismatch_default": "網路正在使用運營商預設值"
-        },
-        "carrier_default": {
-          "title": "無活動設定檔",
-          "subtitle": "您的運營商正在自動選擇 APN。"
-        },
-        "aria": {
-          "activate_switch": "啟用 {{name}}",
-          "active_switch": "{{name}} 是活動設定檔",
-          "deactivate_switch": "停用 {{name}}，讓運營商選擇 APN",
-          "edit_button": "編輯 {{name}}"
-        },
-        "toast": {
-          "activating": "正在啟用 {{name}}…",
-          "activated": "{{name}} 現已成為活動 APN",
-          "activate_error": "啟用 {{name}} 失敗",
-          "deactivating": "正在停用設定檔…",
-          "deactivated": "設定檔已停用 — 現由運營商選擇 APN",
-          "deactivate_error": "停用設定檔失敗"
-        },
-        "deactivate": {
-          "title": "停用 APN 設定檔？",
-          "description": "您的運營商將自動選擇 APN。數據機重新連線時，蜂窩連線會短暫中斷。",
-          "confirm": "停用",
-          "cancel": "取消"
-        }
-      },
       "edit": {
-        "title": "編輯槽位 {{id}}",
-        "description_default": "配置此資料設定檔。儲存即儲存；在列表中將其啟用以生效。",
         "fields": {
-          "name": {
-            "label": "名稱",
-            "placeholder": "我的資料設定檔"
-          },
           "apn": {
             "label": "APN *",
             "placeholder": "fast.t-mobile.com",
@@ -1647,35 +1655,15 @@
           "confirm": "仍然使用",
           "cancel": "取消"
         },
-        "clear": {
-          "button": "清空槽位",
-          "disabled_active": "清空活動設定檔前請先切換到其他設定檔",
-          "title": "清空此槽位？",
-          "description": "這將清空該設定檔的名稱和 APN。此操作無法撤銷。",
-          "confirm": "清空",
-          "cancel": "取消",
-          "toast_success": "槽位已清空",
-          "toast_error": "清空槽位失敗"
-        },
-        "save_button": "儲存設定檔",
-        "cancel": "取消",
-        "toast": {
-          "saved": "{{name}} 已儲存",
-          "save_error": "儲存設定檔失敗"
-        }
+        "save_button": "儲存設定檔"
       },
       "mbn": {
         "card": {
           "title": "運營商設定檔",
-          "description": "選擇在調變解調器上啟用的運營商韌體設定檔。變更後需要重啟。"
+          "description": "選擇數據機執行的電信業者韌體設定檔；變更後需要重新啟動。"
         },
         "auto_select": {
-          "label": "自動選擇設定檔",
-          "placeholder": "選擇自動選擇",
-          "options": {
-            "enabled": "已啟用",
-            "disabled": "已停用"
-          }
+          "label": "自動選擇設定檔"
         },
         "configuration": {
           "label": "運營商設定",
@@ -1694,13 +1682,25 @@
           "auto_enabled": "已啟用自動選擇 — 需要重啟",
           "auto_disabled": "已停用自動選擇 — 需要重啟",
           "profile_applied": "運營商設定檔已套用 — 需要重啟",
-          "enable_error": "啟用自動選擇失敗",
-          "disable_error": "停用自動選擇失敗",
-          "apply_error": "套用運營商設定檔失敗",
-          "no_changes": "沒有需要儲存的變更",
-          "rebooting": "裝置正在重啟…",
           "reboot_error": "重啟失敗 — 請手動重啟裝置"
+        },
+        "load_error_title": "無法載入電信業者設定檔",
+        "errors": {
+          "load_failed": "數據機未回傳電信業者設定檔，請稍後再試。",
+          "save_failed": "無法套用電信業者設定檔設定。"
+        },
+        "pending_reboot": {
+          "title": "重新啟動以完成電信業者設定檔變更",
+          "description": "新的電信業者設定檔會在數據機重新啟動後生效。",
+          "dismiss": "關閉"
         }
+      },
+      "profile_gate_title": "{{profile}} 自訂 SIM 設定正在管理您的 APN",
+      "profile_gate_note": "請編輯該設定以變更這些設定值。",
+      "errors": {
+        "load_failed": "數據機未回傳 APN 設定，請稍後再試。",
+        "save_failed": "無法儲存 APN。",
+        "deactivate_failed": "無法切換到電信業者預設 APN。"
       }
     },
     "imei": {

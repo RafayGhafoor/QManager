@@ -113,6 +113,10 @@ On every write (`markRead` and `markAllRead`), the stored set is intersected wit
 
 `components/cellular/sms/sms-inbox-card.tsx` adds three shadcn `Tabs`: **All**, **Unread {count}**, and **Read**. Unread rows carry a primary-color dot indicator and `font-semibold` styling. A "Mark all read" action in the card's `CardAction` area calls `markAllRead` and fires a toast.
 
+**Page contract (canon re-author).** Glyphs are Material Symbols. The sender (inbox rows and the view dialog) and the compose phone input are mono (opaque strings). The storage line is one key, `sms.inbox.description_storage`. A failed first read renders a `ConditionScreen` (error state) with retry.
+
+**Hook contract (`hooks/use-sms.ts`).** `sendSms`, `deleteSms` and `deleteAllSms` return `SmsActionResult = { ok: true } | { ok: false; error: string }`. `error` is already translated: a backend error code goes through `resolveErrorMessage`, with `sms.errors.*` keys (`fetch`, `send`, ...) as fallbacks. Handlers toast the returned reason; hook `error` state is the read error only.
+
 ---
 
 ## Timestamp Sorting

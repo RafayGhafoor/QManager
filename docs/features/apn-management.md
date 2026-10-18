@@ -15,10 +15,10 @@ The page label changed to "APN Settings" in the sidebar and breadcrumb; the **ro
 | Types | `types/apn-settings.ts` (`ApnSetting`, `CidContext`, `ApnSettingsResponse`, `ApnSaveRequest`, `PDP_TYPE_OPTIONS`) |
 | Coordinator | `components/cellular/settings/apn-management/apn-settings.tsx` |
 | Settings card | `components/cellular/settings/apn-management/apn-settings-card.tsx` |
-| MBN card | `components/cellular/settings/apn-management/mbn-card.tsx` (unchanged) |
+| MBN card | `components/cellular/settings/apn-management/mbn-card.tsx` + `hooks/use-mbn-settings.ts` |
 | Shared AT libs | `run_at` from `scripts/usr/lib/qmanager/cgi_at.sh` |
 | Shared APN lib | `scripts/usr/lib/qmanager/apn_mgr.sh` — v2 config I/O (`read_config_v2`, `write_config_v2`, `normalize_v2`), COPS apply primitives (`cops_recover`, `apply_apn_to_modem`), slot constants (`MAX_SLOTS`, `MAX_CID`, `PROFILE_FILE`), and `reapply_active_apn_slot`. Sourced by `apn.sh` and `profiles/deactivate.sh`. |
-| i18n namespace | `public/locales/{en,id,it,zh-CN}/cellular.json` — `core_settings.apn.*` |
+| i18n namespace | `public/locales/{en,id,it,zh-CN,zh-TW}/cellular.json` — `core_settings.apn.*` |
 | Reboot? | No (boot-time reconcile in `qmanager_poller` replays the active APN but does not reboot) |
 | Lock files? | No |
 | Boot reconcile | `reconcile_active_apn_slot_at_boot()` in `apn_mgr.sh`, invoked from `qmanager_poller`'s `collect_boot_data()` — no separate daemon |
@@ -132,7 +132,7 @@ The product requirement — "reapply the custom APN after reboots and SIM change
 | Reboot | `reconcile_active_apn_slot_at_boot()` in `qmanager_poller`'s `collect_boot_data()` | Gated on: no active Custom SIM Profile (`[ ! -s /etc/qmanager/active_profile ]`), `active != 0`, slot APN non-empty. COPS cycle only on mismatch — idempotent. |
 | SIM swap | Physical SIM swap forces a device reboot → covered by boot reconcile | There is **no runtime ICCID polling** in the APN system. None is needed — a physical SIM swap always reboots the device, so the boot reconcile fires automatically. Do not add ICCID polling to this path. |
 | Custom SIM Profile deactivated | `profiles/deactivate.sh` calls `reapply_active_apn_slot()` in `apn_mgr.sh` | `active == 0` → no-op, preserving the deliberate carrier-default choice. Best-effort; failure does not fail the deactivation. |
-| Custom SIM Profile active | Absolute authority — overrides the single APN | Enforced at boot (poller gate) and in the UI (`ProfileOverrideAlert` + disabled fieldset). Custom SIM Profile APN > APN-Settings APN at all times. |
+| Custom SIM Profile active | Absolute authority — overrides the single APN | Enforced at boot (poller gate) and in the UI (`Banner role="override"` + disabled fieldset). Custom SIM Profile APN > APN-Settings APN at all times. |
 
 ## AT Commands
 
@@ -223,10 +223,10 @@ IMS and SOS contexts appear in the `cids` array (the CID picker) with their `apn
 
 | Condition | Badge |
 |---|---|
-| Custom SIM Profile active with APN | **Overridden** (muted + CircleSlashIcon) — fieldset disabled; `ProfileOverrideAlert` shown |
-| `active == 1` and stored APN matches live CID APN | **Active** (success/green + GlobeIcon) |
-| `active == 1` and live CID APN is non-empty and differs from stored APN | **Not live** (warning/amber + TriangleAlertIcon) — suppressed while `isSaving` to avoid flicker; an empty or absent live APN falls through to **Active** (unknown, not a mismatch) |
-| `active == 0` | **Carrier default** (muted) — form is pre-filled with stored APN but "Use carrier default" button state reflects that carrier is in control |
+| Custom SIM Profile active with APN | **Overridden** (muted) — fieldset disabled; the override `Banner` shown |
+| `active == 1` and stored APN matches live CID APN | **Active** (success + `check_circle`) |
+| `active == 1` and live CID APN is non-empty and differs from stored APN | **Not live** (warning + `warning`) — suppressed while `isSaving` to avoid flicker; an empty or absent live APN falls through to **Active** (unknown, not a mismatch) |
+| `active == 0` | **Carrier default** (muted + `do_not_disturb_on`) — form is pre-filled with stored APN but "Use carrier default" button state reflects that carrier is in control |
 
 **Why "Not live" exists:** if for any reason the boot reconcile does not run or cannot match the APN (e.g. a carrier that overrides the APN string on attach), `active == 1` but the live CID APN differs. The badge makes this visible without requiring manual intervention. It also appears when the carrier genuinely replaces the configured APN string.
 
@@ -234,13 +234,13 @@ IMS and SOS contexts appear in the `cids` array (the CID picker) with their `apn
 
 ### CID picker — carrier badges and AlertDialog confirmation
 
-`apn-settings-card.tsx` renders the CID selector from `cids[]` (the live modem contexts). Each option carries a `CidBadge`:
+`apn-settings-card.tsx` renders the CID selector from `cids[]` (the live modem contexts). Each option carries a `CidBadge`. Context type is identity, so these are neutral `Tag`s with Material glyphs, not status chips:
 
 | `apn_type` | Badge | Color |
 |---|---|---|
-| `"ims"` | PhoneCall icon + "IMS" | warning/amber |
-| `"emergency"` | Siren icon + "SOS" | destructive/red |
-| `""` and `is_internet` | Globe icon + "Internet" | success/green |
+| `"ims"` | `call` + "IMS" | neutral Tag |
+| `"emergency"` | `sos` + "SOS" | neutral Tag |
+| `""` and `is_internet` | `public` + "Internet" | neutral Tag |
 | `""` and not internet | (none) | — |
 
 When the user selects a CID whose `apn_type` is `"ims"` or `"emergency"`, `handleCidChange` intercepts it, stashes it in `pendingCid`, and opens an `AlertDialog`. The Select remains controlled by the prior `cid` value, so it visually reverts on cancel. Only after confirming does `setCid` apply the new value.
@@ -255,9 +255,22 @@ After a successful save or deactivate, the hook applies an optimistic local patc
 
 On save, `patchCidApn` also optimistically updates the matching entry in `cids[]` with the stored APN, so the honest-badge comparison does not flash "Not live" against a stale CID snapshot during the COPS settle window.
 
+### Page Layout and Hook Contracts
+
+The page opens with `CellularPageHeader`. The APN card and the MBN card stack full width (a one-column grid inside the disabled fieldset). Banners sit above the fieldset: the deferred-reboot banner (below) and the profile override banner.
+
+- `useApnSettings`: `save` and `deactivate` return `ApnActionResult` (`{ ok, error }`, error already translated through `resolveErrorMessage`). The hook's `error` is the **read** error only. Handlers toast the returned reason on failure.
+- `useMbnSettings`: `saveMbn` returns `MbnActionResult` with the same shape; its `error` is likewise read-only.
+- Each card renders a destructive `ConditionScreen` with Retry when its first read fails (the APN card only when `apn === null`).
+- The live APN string and the APN input are mono (opaque strings); the status badges use Material glyphs.
+
+### MBN Card and Deferred Reboot
+
+Auto-select is a `SegmentedField` (On/Off). After a successful MBN save the reboot `AlertDialog` opens. ANY close other than Reboot now (Later, Esc, overlay click) calls `requestRebootLater("mbn")`, which persists the deferred-reboot flag. The APN page then shows a `Banner role="deferred-reboot"` while `usePendingReboot().source === "mbn"`, with Dismiss and Reboot now actions. Reboot now has no success toast (the `/reboot/` hand-off is the signal) and only a failure toast. The reboot is never issued from a CGI response path.
+
 ### Custom SIM Profile override gate
 
-`apn-settings.tsx` checks whether an active Custom SIM Profile has a non-empty `settings.apn.name`. If it does, the page is locked read-only with a `ProfileOverrideAlert` banner showing the controlling profile name and the fieldset is disabled (`overridden={true}`), so no Save or Deactivate control is ever live while a profile manages the APN.
+`apn-settings.tsx` checks whether an active Custom SIM Profile has a non-empty `settings.apn.name`. If it does, the page is locked read-only with a `Banner role="override"` (`ProfileOverrideAlert` was deleted) naming the controlling profile and the fieldset is disabled (`overridden={true}`), so no Save or Deactivate control is ever live while a profile manages the APN.
 
 The verdict arrives over **two sequential fetches** — `useSimProfiles` first learns `activeProfileId` (`list.sh`), then an effect fetches that profile's APN (`get.sh`). Until both settle, the page holds the APN card in its loading skeleton and keeps the fieldset disabled (`overrideUndetermined`). The "still determining" status is **derived during render** from `simLoading` + a `checkedId` state — there is no synchronous `setState` in the effect, satisfying the React-Compiler `set-state-in-effect` rule.
 

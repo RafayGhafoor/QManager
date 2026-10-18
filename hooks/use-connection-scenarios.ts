@@ -46,24 +46,32 @@ export interface UseConnectionScenariosReturn {
    * For custom scenarios, pass the config so mode + bands are sent to backend.
    * Returns success boolean.
    */
-  activateScenario: (id: string, config?: ScenarioConfig) => Promise<boolean>;
+  activateScenario: (id: string, config?: ScenarioConfig) => Promise<ScenarioActionResult>;
   /**
    * Save a custom scenario definition to the backend.
    * Pass an id to update, omit id for create.
    * Returns the scenario ID on success, null on failure.
    */
-  saveCustomScenario: (scenario: Omit<StoredScenario, "id"> & { id?: string }) => Promise<string | null>;
+  saveCustomScenario: (scenario: Omit<StoredScenario, "id"> & { id?: string }) => Promise<ScenarioSaveResult>;
   /**
    * Delete a custom scenario by ID.
    * Returns success boolean.
    */
-  deleteCustomScenario: (id: string) => Promise<boolean>;
+  deleteCustomScenario: (id: string) => Promise<ScenarioActionResult>;
   /** Manually refresh all data (scenarios list + active state) */
   refresh: () => void;
 }
 
+/** Mutation outcomes; `error` is already translated and safe to toast. */
+export type ScenarioActionResult = { ok: true } | { ok: false; error: string };
+export type ScenarioSaveResult =
+  | { ok: true; id: string | null }
+  | { ok: false; error: string };
+
+const K = "scenarios.errors";
+
 export function useConnectionScenarios(): UseConnectionScenariosReturn {
-  const { t } = useTranslation("errors");
+  const { t } = useTranslation("cellular");
   const [activeScenarioId, setActiveScenarioId] = useState("balanced");
   const [customScenarios, setCustomScenarios] = useState<StoredScenario[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,17 +103,15 @@ export function useConnectionScenarios(): UseConnectionScenariosReturn {
       setCustomScenarios(data.scenarios || []);
       setActiveScenarioId(data.active_scenario_id || "balanced");
       setError(null);
-    } catch (err) {
+    } catch {
       if (!mountedRef.current) return;
-      setError(
-        err instanceof Error ? err.message : "Failed to load scenarios",
-      );
+      setError(t(`${K}.load_failed`));
     } finally {
       if (mountedRef.current) {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [t]);
 
   // Initial fetch
   useEffect(() => {
@@ -116,8 +122,7 @@ export function useConnectionScenarios(): UseConnectionScenariosReturn {
   // Activate a scenario
   // ---------------------------------------------------------------------------
   const activateScenario = useCallback(
-    async (id: string, config?: ScenarioConfig): Promise<boolean> => {
-      setError(null);
+    async (id: string, config?: ScenarioConfig): Promise<ScenarioActionResult> => {
       setIsActivating(true);
 
       try {
@@ -143,24 +148,19 @@ export function useConnectionScenarios(): UseConnectionScenariosReturn {
         }
 
         const data: ScenarioActivateResponse = await resp.json();
-        if (!mountedRef.current) return false;
 
         if (!data.success) {
-          setError(resolveErrorMessage(t, data.error, data.detail, "Failed to activate scenario"));
-          return false;
+          return {
+            ok: false,
+            error: resolveErrorMessage(t, data.error, data.detail, t(`${K}.activate_failed`)),
+          };
         }
 
         // Optimistic update — backend confirmed success
-        setActiveScenarioId(id);
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to activate scenario",
-        );
-        return false;
+        if (mountedRef.current) setActiveScenarioId(id);
+        return { ok: true };
+      } catch {
+        return { ok: false, error: t(`${K}.activate_failed`) };
       } finally {
         if (mountedRef.current) {
           setIsActivating(false);
@@ -174,8 +174,7 @@ export function useConnectionScenarios(): UseConnectionScenariosReturn {
   // Save a custom scenario (create or update)
   // ---------------------------------------------------------------------------
   const saveCustomScenario = useCallback(
-    async (scenario: Omit<StoredScenario, "id"> & { id?: string }): Promise<string | null> => {
-      setError(null);
+    async (scenario: Omit<StoredScenario, "id"> & { id?: string }): Promise<ScenarioSaveResult> => {
 
       try {
         const resp = await authFetch(`${CGI_BASE}/save.sh`, {
@@ -189,22 +188,19 @@ export function useConnectionScenarios(): UseConnectionScenariosReturn {
         }
 
         const data: ScenarioApiResponse = await resp.json();
-        if (!mountedRef.current) return null;
 
         if (!data.success) {
-          setError(resolveErrorMessage(t, data.error, data.detail, "Failed to save scenario"));
-          return null;
+          return {
+            ok: false,
+            error: resolveErrorMessage(t, data.error, data.detail, t(`${K}.save_failed`)),
+          };
         }
 
         // Refresh the list from backend to pick up the new/updated scenario
-        await fetchScenarios();
-        return data.id || null;
-      } catch (err) {
-        if (!mountedRef.current) return null;
-        setError(
-          err instanceof Error ? err.message : "Failed to save scenario",
-        );
-        return null;
+        if (mountedRef.current) await fetchScenarios();
+        return { ok: true, id: data.id || scenario.id || null };
+      } catch {
+        return { ok: false, error: t(`${K}.save_failed`) };
       }
     },
     [fetchScenarios, t],
@@ -214,9 +210,7 @@ export function useConnectionScenarios(): UseConnectionScenariosReturn {
   // Delete a custom scenario
   // ---------------------------------------------------------------------------
   const deleteCustomScenario = useCallback(
-    async (id: string): Promise<boolean> => {
-      setError(null);
-
+    async (id: string): Promise<ScenarioActionResult> => {
       try {
         const resp = await authFetch(`${CGI_BASE}/delete.sh`, {
           method: "POST",
@@ -229,22 +223,19 @@ export function useConnectionScenarios(): UseConnectionScenariosReturn {
         }
 
         const data: ScenarioApiResponse = await resp.json();
-        if (!mountedRef.current) return false;
 
         if (!data.success) {
-          setError(resolveErrorMessage(t, data.error, data.detail, "Failed to delete scenario"));
-          return false;
+          return {
+            ok: false,
+            error: resolveErrorMessage(t, data.error, data.detail, t(`${K}.delete_failed`)),
+          };
         }
 
         // Refresh the list from backend
-        await fetchScenarios();
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(
-          err instanceof Error ? err.message : "Failed to delete scenario",
-        );
-        return false;
+        if (mountedRef.current) await fetchScenarios();
+        return { ok: true };
+      } catch {
+        return { ok: false, error: t(`${K}.delete_failed`) };
       }
     },
     [fetchScenarios, t],

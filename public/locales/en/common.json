@@ -41,9 +41,6 @@
   "connection": {
     "reconnecting": "Lost contact with the device. Reconnecting…"
   },
-  "profile_override": {
-    "banner": "{{controls}} is managed by the <strong>{{profile_name}}</strong> Custom SIM Profile."
-  },
   "time": {
     "just_now": "Just now",
     "now": "Now",

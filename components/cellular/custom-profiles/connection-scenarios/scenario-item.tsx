@@ -1,168 +1,117 @@
 "use client";
 
-import React, { useState } from "react";
 import { motion } from "motion/react";
-import { Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { cn } from "@/lib/utils";
-import { AbstractPattern } from "./abstract-pattern";
+
+import { Badge } from "@/components/ui/badge";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  MaterialSymbol,
+  type MaterialSymbolName,
+} from "@/components/ui/material-symbol";
+import { Tag } from "@/components/ui/tag";
+import { staggerRowItem } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 import type { ScenarioConfig } from "@/types/connection-scenario";
+
+// =============================================================================
+// ScenarioItem — one scenario as a selectable tile
+// =============================================================================
+// No gradients: identity is a glyph disc plus neutral Tags (the network mode,
+// and a band-lock marker when the scenario pins bands). Selecting a tile only
+// shows its configuration in the Selected-scenario card; activation is the
+// explicit commit there. The selected tile is promoted one container step to
+// `primary-container` (Highlight-by-Container); every disc sits on the strong
+// `primary` fill (Glyph-Disc Rule). The running scenario carries a filled
+// `success` chip.
+//
+// The persisted `gradient` field is passed through untouched by the page and
+// never read here.
+// =============================================================================
 
 export interface Scenario {
   id: string;
   name: string;
   description: string;
-  icon: React.ElementType;
+  /** Material glyph for the identity disc. UI-only; never persisted. */
+  glyph: MaterialSymbolName;
+  /** Persisted by the backend; carried through on edit, never rendered. */
   gradient: string;
-  pattern: "gaming" | "streaming" | "balanced" | "custom";
+  isDefault: boolean;
   config: ScenarioConfig;
-  isDefault?: boolean;
 }
+
+export const SCENARIO_TILE_SHAPE =
+  "flex h-full min-h-[8.5rem] w-full flex-col gap-3 rounded-tile px-4 py-4 text-left transition-colors duration-[var(--duration-quick)] ease-out focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-[3px] focus-visible:outline-none";
+
+export const SCENARIO_GRID =
+  "grid grid-cols-1 gap-3 @md/card:grid-cols-2 @4xl/card:grid-cols-4";
 
 interface ScenarioItemProps {
   scenario: Scenario;
   isActive: boolean;
   isSelected: boolean;
+  modeLabel: string;
   onSelect: (id: string) => void;
-  onDelete?: (id: string) => void | Promise<void>;
 }
-
-// Map gradient to matching ring color
-const getRingColor = (gradient: string) => {
-  if (gradient.includes("violet")) return "ring-violet-500";
-  if (gradient.includes("rose")) return "ring-rose-500";
-  if (gradient.includes("emerald")) return "ring-emerald-500";
-  if (gradient.includes("blue")) return "ring-blue-500";
-  if (gradient.includes("amber")) return "ring-amber-500";
-  if (gradient.includes("slate")) return "ring-slate-500";
-  if (gradient.includes("sky")) return "ring-sky-500";
-  if (gradient.includes("lime")) return "ring-lime-500";
-  if (gradient.includes("fuchsia")) return "ring-fuchsia-500";
-  if (gradient.includes("yellow")) return "ring-yellow-500";
-  if (gradient.includes("cyan")) return "ring-cyan-500";
-  if (gradient.includes("orange")) return "ring-orange-500";
-  return "ring-primary";
-};
 
 export const ScenarioItem = ({
   scenario,
   isActive,
   isSelected,
+  modeLabel,
   onSelect,
-  onDelete,
 }: ScenarioItemProps) => {
   const { t } = useTranslation("cellular");
-  const Icon = scenario.icon;
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const isCustom = scenario.pattern === "custom";
-
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowDeleteDialog(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    setIsDeleting(true);
-    await onDelete?.(scenario.id);
-    setIsDeleting(false);
-    setShowDeleteDialog(false);
-  };
+  const { lte_bands, nsa_nr_bands, sa_nr_bands } = scenario.config;
+  const pinsBands = Boolean(lte_bands || nsa_nr_bands || sa_nr_bands);
 
   return (
-    <>
-      <motion.div
-        className={cn(
-          "relative overflow-hidden rounded-xl cursor-pointer",
-          isActive
-            ? `ring-2 ${getRingColor(scenario.gradient)} ring-offset-3 ring-offset-background`
-            : isSelected
-              ? "ring-2 ring-muted-foreground/40 ring-offset-2 ring-offset-background"
-              : "",
-        )}
-        animate={{ scale: isActive || isSelected ? 1.01 : 1 }}
-        whileHover={!isActive && !isSelected ? { scale: 1.02, y: -2 } : {}}
-        whileTap={{ scale: 0.97 }}
-        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+    <motion.div variants={staggerRowItem} className="h-full">
+      <button
+        type="button"
+        aria-pressed={isSelected}
         onClick={() => onSelect(scenario.id)}
+        className={cn(
+          SCENARIO_TILE_SHAPE,
+          isSelected
+            ? "bg-primary-container text-on-primary-container"
+            : "bg-surface-container hover:bg-surface-container-high",
+        )}
       >
-        {/* Background gradient */}
-        <div
-          className={cn("absolute inset-0 bg-linear-to-br", scenario.gradient)}
-        />
-
-        {/* Abstract pattern overlay */}
-        <AbstractPattern
-          type={scenario.pattern}
-          className="absolute inset-0 w-full h-full"
-        />
-
-        {/* Content */}
-        <div className="relative p-5 h-36 flex flex-col justify-between text-white group">
-          {/* Top row - Icon and badges/delete */}
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-2">
-              <div className="p-2.5 bg-white/20 backdrop-blur-sm rounded-lg">
-                <Icon size={20} />
-              </div>
-              {isActive && (
-                <span className="px-2 py-0.5 bg-white/25 backdrop-blur-sm rounded-full text-xs font-medium">
-                  {t("scenarios.scenario_item.active_badge")}
-                </span>
-              )}
-            </div>
-            {isCustom && (
-              <button
-                onClick={handleDeleteClick}
-                className="p-2 bg-white/20 backdrop-blur-sm rounded-lg hover:bg-destructive/80 transition-all opacity-0 group-hover:opacity-100"
-              >
-                <Trash2 size={16} />
-              </button>
-            )}
-          </div>
-
-          {/* Bottom row - Name and description */}
-          <div>
-            <h3 className="text-base font-semibold mb-0.5">{scenario.name}</h3>
-            <p className="text-white/80 text-xs">{scenario.description}</p>
-          </div>
+        <div className="flex items-start justify-between gap-2">
+          <span
+            aria-hidden="true"
+            className="grid size-10 flex-none place-items-center rounded-pill bg-primary text-primary-foreground"
+          >
+            <MaterialSymbol name={scenario.glyph} size={20} filled />
+          </span>
+          {isActive ? (
+            <Badge variant="success">
+              <MaterialSymbol name="check_circle" size={12} />
+              {t("scenarios.scenario_item.active_badge")}
+            </Badge>
+          ) : null}
         </div>
-      </motion.div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("scenarios.scenario_item.delete_confirm.title")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("scenarios.scenario_item.delete_confirm.description", { name: scenario.name })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("actions.cancel", { ns: "common" })}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting
-                ? t("scenarios.scenario_item.delete_confirm.deleting")
-                : t("scenarios.scenario_item.delete_confirm.confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate text-sm font-semibold">{scenario.name}</span>
+          <span
+            className={cn(
+              "line-clamp-2 text-xs",
+              isSelected ? "opacity-80" : "text-on-surface-variant",
+            )}
+          >
+            {scenario.description}
+          </span>
+        </div>
+
+        <div className="mt-auto flex flex-wrap gap-1.5">
+          <Tag variant="neutral">{modeLabel}</Tag>
+          {pinsBands ? (
+            <Tag variant="neutral">{t("scenarios.scenario_item.band_lock")}</Tag>
+          ) : null}
+        </div>
+      </button>
+    </motion.div>
   );
 };
