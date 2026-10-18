@@ -1114,7 +1114,14 @@
         "cell_type": "小區型別",
         "frequency": "頻率",
         "pci": "PCI",
-        "signal": "訊號"
+        "signal": "訊號",
+        "rsrq": "RSRQ",
+        "rssi": "RSSI",
+        "sinr": "SINR"
+      },
+      "cells": {
+        "unreported": "未回報",
+        "decibel": "{{value}} dB"
       },
       "toast_lock_success_description": "已鎖定到 LTE PCI {{pci}}，EARFCN {{earfcn}}",
       "footer_count_one": "找到 {{count}} 個小區",

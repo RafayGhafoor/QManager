@@ -1114,7 +1114,14 @@
         "cell_type": "Jenis Sel",
         "frequency": "Frekuensi",
         "pci": "PCI",
-        "signal": "Sinyal"
+        "signal": "Sinyal",
+        "rsrq": "RSRQ",
+        "rssi": "RSSI",
+        "sinr": "SINR"
+      },
+      "cells": {
+        "unreported": "Tidak dilaporkan",
+        "decibel": "{{value}} dB"
       },
       "toast_lock_success_description": "Terkunci ke LTE PCI {{pci}} pada EARFCN {{earfcn}}",
       "footer_count_one": "{{count}} sel ditemukan",

@@ -58,10 +58,24 @@ interface NeighbourScanResultViewProps {
 }
 
 
+/** An unreported measurement. The scanner writes `null` for anything the modem
+ *  did not answer, and that must not render as a realistic-looking reading. */
+function Unreported({ label }: { label: string }) {
+  return (
+    <span className="text-muted-foreground" aria-label={label}>
+      &mdash;
+    </span>
+  );
+}
+
 function getColumns(
   t: TFunction,
   onLockCell?: (cell: NeighbourCellResult) => void,
 ): ColumnDef<NeighbourCellResult>[] {
+  const unreported = t("cell_scanner.neighbour.cells.unreported");
+  const decibel = (value: number) =>
+    t("cell_scanner.neighbour.cells.decibel", { value });
+
   return [
     {
       accessorKey: "networkType",
@@ -133,6 +147,42 @@ function getColumns(
       },
     },
     {
+      accessorKey: "rsrq",
+      header: t("cell_scanner.neighbour.column_headers.rsrq"),
+      cell: ({ row }) => {
+        const rsrq = row.getValue("rsrq") as number | null | undefined;
+        if (rsrq === null || rsrq === undefined) {
+          return <Unreported label={unreported} />;
+        }
+        return <div className="font-semibold">{decibel(rsrq)}</div>;
+      },
+    },
+    {
+      accessorKey: "rssi",
+      header: t("cell_scanner.neighbour.column_headers.rssi"),
+      // RSSI is dBm where RSRQ and SINR are dB. NR5G neighbours never carry one:
+      // `AT+QNWCFG="nr5g_meas_info"` has no RSSI field, so the worker leaves the
+      // column empty for them by design and a null is an absence, not a fault.
+      cell: ({ row }) => {
+        const rssi = row.getValue("rssi") as number | null | undefined;
+        if (rssi === null || rssi === undefined) {
+          return <Unreported label={unreported} />;
+        }
+        return <div className="font-semibold">{rssi} dBm</div>;
+      },
+    },
+    {
+      accessorKey: "sinr",
+      header: t("cell_scanner.neighbour.column_headers.sinr"),
+      cell: ({ row }) => {
+        const sinr = row.getValue("sinr") as number | null | undefined;
+        if (sinr === null || sinr === undefined) {
+          return <Unreported label={unreported} />;
+        }
+        return <div className="font-semibold">{decibel(sinr)}</div>;
+      },
+    },
+    {
       id: "actions",
       header: () => null,
       enableHiding: false,
@@ -189,6 +239,9 @@ const NeighbourScanResultView = ({
     frequency: t("cell_scanner.neighbour.column_headers.frequency"),
     pci: t("cell_scanner.neighbour.column_headers.pci"),
     signalStrength: t("cell_scanner.neighbour.column_headers.signal"),
+    rsrq: t("cell_scanner.neighbour.column_headers.rsrq"),
+    rssi: t("cell_scanner.neighbour.column_headers.rssi"),
+    sinr: t("cell_scanner.neighbour.column_headers.sinr"),
   }), [t]);
 
   const table = useReactTable({
@@ -250,7 +303,7 @@ const NeighbourScanResultView = ({
         </DropdownMenu>
       </div>
       <div className="overflow-x-auto rounded-lg border">
-        <Table className="min-w-[600px]">
+        <Table className="min-w-[880px]">
           <TableHeader className="bg-muted sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

@@ -1114,7 +1114,14 @@
         "cell_type": "Cell Type",
         "frequency": "Frequency",
         "pci": "PCI",
-        "signal": "Signal"
+        "signal": "Signal",
+        "rsrq": "RSRQ",
+        "rssi": "RSSI",
+        "sinr": "SINR"
+      },
+      "cells": {
+        "unreported": "Not reported",
+        "decibel": "{{value}} dB"
       },
       "toast_lock_success_description": "Locked to LTE PCI {{pci}} on EARFCN {{earfcn}}",
       "footer_count_one": "{{count}} cell found",
