@@ -4,7 +4,7 @@ import { BrandMark } from "@/components/ui/brand-mark";
 
 import { DIALOG, SITES } from "./shapes";
 
-// The domain -> glyph map and the favicon fallback live in `components/ui/brand-mark.tsx`
+// The domain -> glyph map and the fetched-logo fallback live in `components/ui/brand-mark.tsx`
 // (shared with the SMS sender discs); this file only fixes the Sites plate sizes.
 
 export interface SiteMarkProps {

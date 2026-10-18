@@ -21,12 +21,13 @@ import { IDENTITY_DISC_CLASS, type SmsIdentity } from "./sms-identity";
 //
 // Fallback ladder, in order:
 //   1. `identity.logoDomain` set → the shared `BrandMark`: a mapped brand glyph,
-//      else the curated domain's favicon once it proves to be a real icon.
+//      else the curated domain's fetched logo (`lib/logo-store.ts`). A square
+//      fetched logo fills the disc edge to edge, so it reads round.
 //   2. `identity.initials` → two-letter monogram.
 //   3. Neither → the person glyph.
 //
 // Privacy: the only value that ever reaches the brand mark (and so Google's
-// favicon service) is `identity.logoDomain`, a curated domain from
+// Hunter / Google s2) is `identity.logoDomain`, a curated domain from
 // `lib/sms-logos.ts`. A sender ID or a number never leaves the page.
 //
 // The mark sits on a neutral plate (`surface-container-high`, the same plate
@@ -74,6 +75,8 @@ export function SmsIdentityDisc({
           label={identity.title}
           className="grid size-full place-items-center rounded-full"
           logoClassName="bg-surface-container-high p-[16%]"
+          // A square fetched logo fills the whole disc so it reads round.
+          fillLogoClassName="bg-surface-container-high"
           glyphClassName="size-full"
           faviconClassName="size-full rounded-[2px] object-contain"
           fallback={fallback}

@@ -41,6 +41,7 @@ import {
   SiZoom,
 } from "react-icons/si";
 
+import { faviconUrl, logoKey, useLogo } from "@/lib/logo-store";
 import { cn } from "@/lib/utils";
 
 // =============================================================================
@@ -49,12 +50,14 @@ import { cn } from "@/lib/utils";
 // Shared by the Sites surface (`latency-monitoring/site-mark.tsx`) and the SMS
 // sender discs (`cellular/sms/sms-identity-disc.tsx`). Ladder, in order:
 //   1. A mapped `react-icons/si` glyph in its brand colour.
-//   2. The Google s2 favicon for the domain, loaded by the BROWSER (never the
-//      device), crossfading over the fallback once it proves to be a real icon.
+//   2. A fetched logo from `lib/logo-store.ts`: Hunter's logo, else the Google
+//      s2 favicon, checked once by the BROWSER (never the device) and kept in
+//      localStorage. A square one can fill the plate (`fillLogoClassName`).
 //   3. The fallback: a monogram by default, or whatever the caller passes.
 //
-// Privacy: the only thing that ever reaches Google is the `domain` the caller
-// hands in. Callers pass a curated domain, never a sender ID or a number.
+// Privacy: the only thing that ever reaches Hunter or Google is the `domain`
+// the caller hands in. Callers pass a curated domain, never a sender ID or a
+// number.
 // =============================================================================
 
 // Brand marks are content, like the RAT marks on the dashboard; the label carries identity.
@@ -116,20 +119,6 @@ export function markFor(host: string): Mark | null {
   return null;
 }
 
-// Unmapped hosts load a favicon; the browser's HTTP cache keeps it (7 days upstream).
-const FAVICON_PX = 64;
-/** The service answers an unknown domain with a 16px globe, so 16px or less is "no icon". */
-const FAVICON_MIN_PX = 17;
-
-function faviconUrl(host: string): string {
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=${FAVICON_PX}`;
-}
-
-type FaviconState = "loading" | "ready" | "none";
-
-/** Per-session result, so a remount (range switch, dialog open) does not flash the monogram. */
-const faviconSeen = new Map<string, FaviconState>();
-
 const STACK = "*:col-start-1 *:row-start-1";
 const FADE = "transition-opacity duration-[var(--duration-standard)] ease-standard";
 
@@ -144,8 +133,14 @@ export interface BrandMarkProps {
   logoClassName?: string;
   /** Size of the mapped glyph. Defaults to filling the plate. */
   glyphClassName?: string;
-  /** Size and shape of the favicon image. Defaults to filling the plate. */
+  /** Size and shape of a fetched logo image. Defaults to filling the plate. */
   faviconClassName?: string;
+  /**
+   * Plate classes for a SQUARE fetched logo, which then fills the plate edge to
+   * edge (cover-fit, clipped round) instead of sitting inset. Omit to keep every
+   * fetched logo fitted with `logoClassName` / `faviconClassName`.
+   */
+  fillLogoClassName?: string;
   /** Type for the default monogram. Ignored when `fallback` is passed. */
   monogramClassName?: string;
   /** Replaces the monogram: what shows when no glyph is mapped and no favicon (yet) loaded. */
@@ -159,21 +154,24 @@ export function BrandMark({
   logoClassName,
   glyphClassName = "size-full",
   faviconClassName = "size-full rounded-[2px] object-contain",
+  fillLogoClassName,
   monogramClassName = "text-on-surface-variant leading-none font-bold",
   fallback,
 }: BrandMarkProps) {
   const mark = markFor(domain);
-  const key = domain.toLowerCase();
-  const [favicon, setFavicon] = useState<FaviconState>(
-    () => faviconSeen.get(key) ?? "loading",
-  );
+  // A mapped glyph never fetches; an empty domain is a no-op in the store.
+  const logo = useLogo(mark ? "" : domain);
+  // Image results are per src, set from the image's own events.
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
 
   if (!mark) {
-    const settle = (next: FaviconState) => {
-      faviconSeen.set(key, next);
-      setFavicon(next);
-    };
-    const ready = favicon === "ready";
+    const src =
+      logo?.s === "h" ? logo.d : logo?.s === "g" ? faviconUrl(logoKey(domain)) : null;
+    const usable = src !== null && src !== brokenSrc;
+    // A stored data URI paints at once; a verified favicon waits for its load.
+    const ready = usable && (logo?.s === "h" || loadedSrc === src);
+    const fill = ready && fillLogoClassName !== undefined && (logo?.s === "g" || (logo?.s === "h" && logo.sq));
     return (
       <span
         aria-hidden
@@ -181,21 +179,23 @@ export function BrandMark({
           className,
           STACK,
           logoClassName && "transition-colors duration-[var(--duration-standard)] ease-standard",
-          ready && logoClassName,
+          ready && (fill ? fillLogoClassName : logoClassName),
         )}
       >
-        {favicon !== "none" ? (
+        {usable ? (
           <img
-            key={key}
-            src={faviconUrl(key)}
+            key={src}
+            src={src}
             alt=""
             referrerPolicy="no-referrer"
             decoding="async"
-            onLoad={(e) =>
-              settle(e.currentTarget.naturalWidth >= FAVICON_MIN_PX ? "ready" : "none")
-            }
-            onError={() => settle("none")}
-            className={cn(faviconClassName, FADE, ready ? "opacity-100" : "opacity-0")}
+            onLoad={() => setLoadedSrc(src)}
+            onError={() => setBrokenSrc(src)}
+            className={cn(
+              fill ? "size-full rounded-full object-cover" : faviconClassName,
+              FADE,
+              ready ? "opacity-100" : "opacity-0",
+            )}
           />
         ) : null}
         <span
