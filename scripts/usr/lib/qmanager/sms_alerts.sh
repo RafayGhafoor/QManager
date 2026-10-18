@@ -30,10 +30,18 @@ _SA_CONFIG="/etc/qmanager/sms_alerts.json"
 _SA_LOG_FILE="/tmp/qmanager_sms_log.json"
 _SA_RELOAD_FLAG="/tmp/qmanager_sms_reload"
 # Shared with qcmd/atcli_smd11 so sms_tool send/recv/delete/status
-# serializes against every other process touching /dev/smd11.
+# serializes against every other process touching the AT device.
 _SA_LOCK_FILE="/var/lock/qmanager.lock"
 _SA_SMS_TOOL="/usr/bin/sms_tool"
-_SA_AT_DEVICE="/dev/smd11"
+# AT device resolved via platform.sh (smd11 on barebone images, mhi_DUN on
+# PCIe/MHI-attached ODUs). Guarded: BusyBox ash exits when `.` cannot find it.
+if [ -f /usr/lib/qmanager/platform.sh ]; then
+    . /usr/lib/qmanager/platform.sh
+fi
+if ! command -v qm_at_device >/dev/null 2>&1; then
+    qm_at_device() { printf '%s' /dev/smd11; }
+fi
+_SA_AT_DEVICE="$(qm_at_device)"
 _SA_MAX_LOG=100
 
 # =============================================================================

@@ -57,9 +57,17 @@ FAILURES_TMP="/tmp/qmanager_sms_forward_failures.json.tmp"
 LOCK_FILE="/var/lock/qmanager.lock"
 LOCK_WAIT=10
 
-# sms_tool transport (hard-wired to /dev/smd11, like sms.sh / sms_alerts.sh).
+# sms_tool transport. The AT device is resolved via platform.sh, like
+# sms.sh / sms_alerts.sh: /dev/smd11 on barebone images, /dev/mhi_DUN on
+# PCIe/MHI-attached ODUs.
+if [ -f /usr/lib/qmanager/platform.sh ]; then
+    . /usr/lib/qmanager/platform.sh
+fi
+if ! command -v qm_at_device >/dev/null 2>&1; then
+    qm_at_device() { printf '%s' /dev/smd11; }
+fi
 SMS_TOOL="/usr/bin/sms_tool"
-AT_DEVICE="/dev/smd11"
+AT_DEVICE="$(qm_at_device)"
 
 MAX_FAILURES=20
 

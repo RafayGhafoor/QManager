@@ -53,6 +53,19 @@ SESSION_DIR="/tmp/qmanager_sessions"
 VERSION_FILE="/etc/qmanager/VERSION"
 VERSION_PENDING="/etc/qmanager/VERSION.pending"
 
+# Honour the web root chosen at install time (install.sh --web-root), so this
+# script cleans the tree the install actually used instead of assuming /www.
+# install.sh writes this file; it must be read before CONF_DIR is deleted.
+if [ -r "$CONF_DIR/web_root" ]; then
+    _WR="$(head -n1 "$CONF_DIR/web_root" 2>/dev/null | tr -d ' \t\r\n')"
+    case "$_WR" in
+        /*)
+            WWW_ROOT="$_WR"
+            CGI_DIR="$WWW_ROOT/cgi-bin/quecmanager"
+            ;;
+    esac
+fi
+
 # --- Colors & Icons ----------------------------------------------------------
 
 if [ -t 1 ]; then

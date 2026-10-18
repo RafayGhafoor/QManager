@@ -22,7 +22,17 @@
 # Install location: /usr/bin/qmanager_sms_storage
 # =============================================================================
 
-SMS_DEV="/dev/smd11"
+# AT device resolved via platform.sh: /dev/smd11 on barebone RM551E images,
+# /dev/mhi_DUN on PCIe/MHI-attached ODUs. Guarded: BusyBox ash exits when `.`
+# cannot find its file.
+if [ -f /usr/lib/qmanager/platform.sh ]; then
+    . /usr/lib/qmanager/platform.sh
+fi
+if ! command -v qm_at_device >/dev/null 2>&1; then
+    qm_at_device() { printf '%s' /dev/smd11; }
+fi
+
+SMS_DEV="$(qm_at_device)"
 LOCK_FILE="/var/lock/qmanager.lock"
 READY_TRIES=20
 READY_SLEEP=3

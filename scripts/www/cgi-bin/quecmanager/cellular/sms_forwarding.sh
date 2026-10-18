@@ -32,7 +32,15 @@ INITD="/etc/init.d/qmanager_sms_forward"
 _SF_LOCK_FILE="/var/lock/qmanager.lock"
 _SF_LOCK_WAIT=10
 _SF_SMS_TOOL="/usr/bin/sms_tool"
-_SF_AT_DEVICE="/dev/smd11"
+# AT device resolved via platform.sh (smd11 on barebone images, mhi_DUN on
+# PCIe/MHI-attached ODUs). Guarded: BusyBox ash exits when `.` cannot find it.
+if [ -f /usr/lib/qmanager/platform.sh ]; then
+    . /usr/lib/qmanager/platform.sh
+fi
+if ! command -v qm_at_device >/dev/null 2>&1; then
+    qm_at_device() { printf '%s' /dev/smd11; }
+fi
+_SF_AT_DEVICE="$(qm_at_device)"
 
 # Validation: E.164-ish — optional +, first digit 1-9, total 7-15 digits.
 # Reused verbatim from monitoring/sms_alerts.sh.

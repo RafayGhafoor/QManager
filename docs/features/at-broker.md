@@ -17,6 +17,7 @@ Host AT Ports card (On / Off).
 - [How an exchange works](#how-an-exchange-works)
 - [Invariants (and why they exist)](#invariants-and-why-they-exist)
 - [Engine switch (`quecmanager.at.engine`)](#engine-switch-quecmanageratengine)
+- [AT device (`quecmanager.at.device`)](#at-device-quecmanageratdevice)
 - [Host AT ports (`quecmanager.ports.host_at`)](#host-at-ports-quecmanagerportshost_at)
 - [Lifecycle](#lifecycle)
 - [Validated on the RM551E](#validated-on-the-rm551e-2026-10-16)
@@ -210,6 +211,33 @@ refused, not executed.
   link always matches UCI.
 - The service has no procd reload trigger on purpose: many CGIs commit
   `quecmanager`.
+
+## AT device (`quecmanager.at.device`)
+
+Which character device carries AT. Resolved by `qm_at_device()`
+([`platform.sh`](../../scripts/usr/lib/qmanager/platform.sh)) and passed
+explicitly to `atcli_smd11 -p` / `sms_tool -d`:
+
+1. `$QM_AT_DEVICE`
+2. `uci quecmanager.at.device`
+3. `/etc/qmanager/atdev` (one-line file)
+4. first existing of `/dev/smd11`, `/dev/mhi_DUN`, `/dev/ttyUSB2`, `/dev/ttyUSB3`
+5. `/dev/smd11`
+
+`/dev/smd11` is first in the candidate list, so barebone RM551E images are
+unaffected and need no configuration.
+
+- **The broker ignores this key.** `native/qmanager_atd` compiles in
+  `const SMD_PATH = "/dev/smd11"`. On an MHI-attached module — AT on
+  `/dev/mhi_DUN`, e.g. the Suncomm X75 ODU — set
+  `quecmanager.at.engine='legacy'` so `qcmd.sh`, which does honour the key,
+  serves the AT path. See [`suncomm-x75-odu.md`](../suncomm-x75-odu.md).
+- `qcmd.sh` and the whole SMS transport (`sms_alerts.sh`,
+  `qmanager_sms_storage`, `qmanager_sms_forward`, `cellular/sms.sh`,
+  `cellular/sms_forwarding.sh`) resolve through the same helper, so they cannot
+  disagree about the device.
+- A wrong value is a visible error, never a hang: callers pass the device
+  explicitly rather than relying on a client-side default.
 
 ## Host AT ports (`quecmanager.ports.host_at`)
 

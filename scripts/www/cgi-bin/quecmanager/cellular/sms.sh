@@ -51,6 +51,16 @@ cgi_handle_options
 _SMS_LOCK_FILE="/var/lock/qmanager.lock"
 _SMS_LOCK_WAIT=10
 
+# AT device resolved via platform.sh (smd11 on barebone images, mhi_DUN on
+# PCIe/MHI-attached ODUs). Guarded: BusyBox ash exits when `.` cannot find it.
+if [ -f /usr/lib/qmanager/platform.sh ]; then
+    . /usr/lib/qmanager/platform.sh
+fi
+if ! command -v qm_at_device >/dev/null 2>&1; then
+    qm_at_device() { printf '%s' /dev/smd11; }
+fi
+_SMS_AT_DEVICE="$(qm_at_device)"
+
 # BusyBox-compatible flock with timeout (polling loop).
 # Usage: _sms_flock_wait <fd> <timeout_seconds>
 _sms_flock_wait() {
@@ -88,7 +98,7 @@ _sms_run() {
 
     (
         _sms_flock_wait 9 "$_SMS_LOCK_WAIT" || exit 2
-        _sms_out=$(sms_tool -d /dev/smd11 "$@" 2>"$_sms_err")
+        _sms_out=$(sms_tool -d "$_SMS_AT_DEVICE" "$@" 2>"$_sms_err")
         _sms_rc=$?
 
         if [ "$_sms_rc" -eq 0 ]; then

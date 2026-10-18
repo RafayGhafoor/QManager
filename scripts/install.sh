@@ -68,6 +68,19 @@ SRC_FRONTEND="$INSTALL_DIR/out"
 SRC_SCRIPTS="$INSTALL_DIR/scripts"
 SRC_DEPS="$INSTALL_DIR/dependencies"
 
+# AT device — resolved with the same helper the runtime uses (platform.sh), so
+# the installer and the daemons can never disagree about where AT lives:
+# /dev/smd11 on barebone RM551E images, /dev/mhi_DUN on PCIe/MHI-attached ODUs.
+# Sourced from the bundle because this runs before the backend is installed.
+# Overridable via QM_AT_DEVICE or `uci quecmanager.at.device`.
+if [ -f "$SRC_SCRIPTS/usr/lib/qmanager/platform.sh" ]; then
+    . "$SRC_SCRIPTS/usr/lib/qmanager/platform.sh"
+fi
+if ! command -v qm_at_device >/dev/null 2>&1; then
+    qm_at_device() { printf '%s' /dev/smd11; }
+fi
+AT_DEV="$(qm_at_device)"
+
 # Packages
 # Note: coreutils-timeout is required even though BusyBox ships a `timeout`
 # applet — barebone OpenWRT builds (like OEM modem firmware) often strip
@@ -429,7 +442,7 @@ detect_modem_firmware() {
     fi
 
     if [ -n "$atcli" ]; then
-        raw=$(run_capture_timeout 8 "$atcli" 'ATI' 2>/dev/null || true)
+        raw=$(run_capture_timeout 8 "$atcli" -p "$AT_DEV" 'ATI' 2>/dev/null || true)
 
         detected=$(printf '%s\n' "$raw" \
             | tr -d '\r' \
@@ -441,7 +454,7 @@ detect_modem_firmware() {
         fi
 
         if [ -z "$detected" ]; then
-            raw=$(run_capture_timeout 8 "$atcli" 'AT+GMR' 2>/dev/null || true)
+            raw=$(run_capture_timeout 8 "$atcli" -p "$AT_DEV" 'AT+GMR' 2>/dev/null || true)
             detected=$(printf '%s\n' "$raw" | tr -d '\r' | grep -E 'RM[0-9]{3,}' | head -n1)
         fi
     fi
@@ -495,7 +508,7 @@ preflight() {
 
     if [ -z "$fw" ]; then
         warn "Could not detect modem firmware (tried ATI/AT+GMR and cache)"
-        warn "This usually means /dev/smd11 is busy or the modem is not responsive"
+        warn "This usually means $AT_DEV is busy or the modem is not responsive"
         if [ -t 0 ]; then
             printf "\n    Continue installation anyway? [y/N] "
             read -r answer
@@ -534,6 +547,11 @@ mark_version_pending() {
     mkdir -p "$CONF_DIR"
     printf '%s' "$VERSION" > "$VERSION_PENDING"
     _log_raw "Marked pending version: $VERSION"
+
+    # Record the web root so uninstall.sh (and any later OTA pass) targets the
+    # same tree this install actually used.
+    printf '%s\n' "$WWW_ROOT" > "$CONF_DIR/web_root" 2>/dev/null \
+        || warn "Could not persist web root to $CONF_DIR/web_root"
 }
 
 finalize_version() {
@@ -1137,7 +1155,10 @@ backup_originals() {
 install_frontend() {
     step "Installing frontend"
 
-    # Wipe /www/* except preserved items (intentional per project decision)
+    # A --web-root target may not exist yet (the default /www always does).
+    mkdir -p "$WWW_ROOT" || die "Cannot create web root: $WWW_ROOT"
+
+    # Wipe $WWW_ROOT/* except preserved items (intentional per project decision)
     for item in "$WWW_ROOT"/*; do
         [ -e "$item" ] || continue
         local name
@@ -1297,11 +1318,11 @@ install_bundled_binaries() {
 
     # Smoke test (warn-only — modem may not be ready yet on fresh hardware)
     local smoke
-    smoke=$(run_capture_timeout 5 atcli_smd11 'AT' 2>/dev/null || true)
+    smoke=$(run_capture_timeout 5 atcli_smd11 -p "$AT_DEV" 'AT' 2>/dev/null || true)
     if printf '%s\n' "$smoke" | grep -q OK; then
-        info "atcli_smd11 smoke test passed"
+        info "atcli_smd11 smoke test passed ($AT_DEV)"
     else
-        warn "atcli_smd11 smoke test did not return OK — check /dev/smd11"
+        warn "atcli_smd11 smoke test did not return OK — check $AT_DEV"
     fi
 }
 
@@ -1727,8 +1748,8 @@ at_stack_check() {
 
     warn "qcmd ATI did not return OK after 3 attempts"
     warn "  Troubleshooting:"
-    warn "    1. Check /dev/smd11 exists: ls -la /dev/smd11"
-    warn "    2. Test directly:           atcli_smd11 'AT'"
+    warn "    1. Check $AT_DEV exists: ls -la $AT_DEV"
+    warn "    2. Test directly:           atcli_smd11 -p $AT_DEV 'AT'"
     warn "    3. Check for conflicts:     opkg list-installed | grep -E 'sms-tool|socat'"
     warn "    4. Review install log:      $LOG_FILE"
     warn "  AT commands may start working once the modem finishes initializing."
@@ -1822,6 +1843,9 @@ Options:
   --no-start         Do not start services after install
   --no-reboot        Do not reboot after install (used by OTA)
   --force            Skip modem firmware detection
+  --web-root DIR     Install the frontend (and its CGI tree) under DIR
+                     instead of /www. Use on devices whose /www is the
+                     stock OEM web UI, which would otherwise be wiped.
   --help, -h         Show this help
 
 Archive layout:
@@ -1853,6 +1877,7 @@ main() {
     DO_PACKAGES=1
     DO_REBOOT=1
     DO_FORCE=0
+    WEB_ROOT_OVERRIDE=""
 
     while [ $# -gt 0 ]; do
         case "$1" in
@@ -1863,6 +1888,15 @@ main() {
             --no-start)      DO_START=0 ;;
             --no-reboot)     DO_REBOOT=0 ;;
             --force)         DO_FORCE=1 ;;
+            --web-root)
+                shift
+                [ $# -gt 0 ] || { error "--web-root requires a directory"; exit 1; }
+                case "$1" in
+                    /*) ;;
+                    *) error "--web-root must be an absolute path"; exit 1 ;;
+                esac
+                WEB_ROOT_OVERRIDE="$1"
+                ;;
             --help|-h)       usage; exit 0 ;;
             *)
                 error "Unknown option: $1"
@@ -1872,6 +1906,14 @@ main() {
         esac
         shift
     done
+
+    # --web-root relocates the frontend (and its CGI tree) off /www, for devices
+    # whose /www is the stock OEM web UI. install_frontend's wipe then only ever
+    # touches the chosen directory, never /www.
+    if [ -n "$WEB_ROOT_OVERRIDE" ]; then
+        WWW_ROOT="$WEB_ROOT_OVERRIDE"
+        CGI_DIR="$WWW_ROOT/cgi-bin/quecmanager"
+    fi
 
     log_init
 

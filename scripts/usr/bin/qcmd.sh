@@ -8,8 +8,9 @@
 # rollback; behaviour and output contract are identical.
 #
 # The SINGLE entry point for ALL AT command execution.
-# Uses flock to serialize access to the modem and atcli_smd11 to talk to
-# /dev/smd11 directly.
+# Uses flock to serialize access to the modem and atcli_smd11 to talk to the
+# AT character device, resolved at runtime by platform.sh (qm_at_device):
+# /dev/smd11 on barebone RM551E images, /dev/mhi_DUN on PCIe/MHI-attached ODUs.
 #
 # Usage:
 #   qcmd "AT+COMMAND"          → Execute AT command, return raw result
@@ -38,6 +39,21 @@ else
     qlog_lock() { :; }
 fi
 qlog_init "qcmd"
+
+# --- Platform ----------------------------------------------------------------
+# Resolves the AT character device and provides fractional sleep. Guarded with
+# -f like qlog.sh: BusyBox ash aborts when `.` cannot find its file.
+if [ -f /usr/lib/qmanager/platform.sh ]; then
+    . /usr/lib/qmanager/platform.sh
+fi
+if ! command -v qm_at_device >/dev/null 2>&1; then
+    qm_at_device() { printf '%s' /dev/smd11; }
+fi
+if ! command -v qm_sleep_frac >/dev/null 2>&1; then
+    qm_sleep_frac() { sleep "$1" 2>/dev/null || sleep 1; }
+fi
+
+AT_DEV="$(qm_at_device)"
 
 # --- Configuration -----------------------------------------------------------
 LOCK_FILE="/var/lock/qmanager.lock"
@@ -139,8 +155,10 @@ check_stale_lock() {
 # a 1s retry grain made every contended qcmd pay a full second. 100ms grain
 # cuts worst-case contention latency from ~1050ms to ~110ms while keeping the
 # LOCK_WAIT_SHORT/LONG windows intact for SSR-storm resilience.
-# Requires BusyBox built with FEATURE_FANCY_SLEEP (fractional sleep) -- verified
-# present on RM551E (BusyBox v1.36.1). Fallback if ever absent: usleep 100000.
+# Uses qm_sleep_frac (platform.sh), which falls back to usleep when BusyBox is
+# built without FEATURE_FANCY_SLEEP -- verified absent on the Suncomm X75 ODU
+# (BusyBox v1.33.2), where a bare `sleep 0.1` returns instantly and turns this
+# loop into a busy spin. The 100ms grain is preserved either way.
 #
 # Usage: flock_wait <fd> <timeout_seconds>
 # Returns: 0 = lock acquired, 1 = timed out
@@ -157,7 +175,7 @@ flock_wait() {
         if flock -x -n "$fd" 2>/dev/null; then
             return 0
         fi
-        sleep 0.1
+        qm_sleep_frac 0.1
         i=$((i + 1))
     done
 
@@ -194,11 +212,11 @@ if is_long_command "$COMMAND"; then
             echo $$ > "$PID_FILE"
 
             # Warm-up: flush residual buffer + confirm modem responsive
-            atcli_smd11 'AT' > /dev/null 2>&1 9>&- || { rm -f "$PID_FILE"; exit 3; }
+            atcli_smd11 -p "$AT_DEV" 'AT' > /dev/null 2>&1 9>&- || { rm -f "$PID_FILE"; exit 3; }
 
             # Real command — atcli_smd11 self-times. Outer timeout is a last
             # resort in case the binary itself wedges.
-            timeout "$SAFETY_TIMEOUT" atcli_smd11 "$COMMAND" 2>/dev/null 9>&-
+            timeout "$SAFETY_TIMEOUT" atcli_smd11 -p "$AT_DEV" "$COMMAND" 2>/dev/null 9>&-
             cmd_rc=$?
             rm -f "$PID_FILE"
             exit $cmd_rc
@@ -254,7 +272,7 @@ else
                 exit 2
             fi
             echo $$ > "$PID_FILE"
-            timeout "$SAFETY_TIMEOUT" atcli_smd11 "$COMMAND" 2>/dev/null 9>&-
+            timeout "$SAFETY_TIMEOUT" atcli_smd11 -p "$AT_DEV" "$COMMAND" 2>/dev/null 9>&-
             cmd_rc=$?
             rm -f "$PID_FILE"
             exit $cmd_rc
@@ -273,7 +291,7 @@ else
                         exit 2
                     fi
                     echo $$ > "$PID_FILE"
-                    timeout "$SAFETY_TIMEOUT" atcli_smd11 "$COMMAND" 2>/dev/null 9>&-
+                    timeout "$SAFETY_TIMEOUT" atcli_smd11 -p "$AT_DEV" "$COMMAND" 2>/dev/null 9>&-
                     cmd_rc=$?
                     rm -f "$PID_FILE"
                     exit $cmd_rc

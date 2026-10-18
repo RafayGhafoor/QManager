@@ -180,6 +180,33 @@ Session and password management:
 
 The lockout ladder (30/120/300/900s, state in `/tmp/qmanager_auth_attempts.json`) is documented in [`reference/auth-rate-limiting.md`](reference/auth-rate-limiting.md).
 
+### platform.sh
+
+Host-specific AT transport + sleep primitives — the only things that legitimately
+differ between OpenWRT images carrying the same Quectel module.
+
+```sh
+if [ -f /usr/lib/qmanager/platform.sh ]; then
+    . /usr/lib/qmanager/platform.sh
+fi
+if ! command -v qm_at_device >/dev/null 2>&1; then
+    qm_at_device() { printf '%s' /dev/smd11; }
+fi
+
+AT_DEV="$(qm_at_device)"      # /dev/smd11, /dev/mhi_DUN, ...
+qm_sleep_frac 0.1             # fractional sleep, usleep fallback
+```
+
+| Function | Purpose |
+|---|---|
+| `qm_at_device()` | Emit the AT character device. Resolution: `$QM_AT_DEVICE` → `uci quecmanager.at.device` → `/etc/qmanager/atdev` → first existing of `/dev/smd11`, `/dev/mhi_DUN`, `/dev/ttyUSB2`, `/dev/ttyUSB3` → `/dev/smd11`. |
+| `qm_sleep_frac <secs>` | Sleep for a possibly fractional duration. Integers take plain `sleep`; fractions try native support, then `usleep`, then round up to 1s. No path can busy-spin. |
+
+**Why the guard matters here as much as for `qlog.sh`:** every consumer defines a
+local `qm_at_device` fallback when the library is absent, so a device that has
+not yet been re-installed keeps resolving to `/dev/smd11` instead of dying. See
+[`docs/suncomm-x75-odu.md`](suncomm-x75-odu.md) for the MHI-attached case.
+
 ### qlog.sh
 
 Centralized logging library:
