@@ -15,7 +15,7 @@
 | Sites | `sites-card.tsx` + `manage-sites-dialog.tsx` — `hooks/use-sites.ts` → `GET/POST /cgi-bin/quecmanager/monitoring/sites.sh` |
 | Derivations | `derive.ts` — `resolveCuts` / `cutsFrom`, `latencyTone`, `lossTone`, `deriveHistory`, `siteAverage`, `normalizeHost`, `hostError`, `MAX_SITES` |
 | Geometry and tone maps | `shapes.ts` — `PAIR`, `FIGURE_INK`, `ALERT_INK`, `SITE_INK`, `BAR_FILL`, `STATUS_VARIANT`, `SITES`, `DIALOG` |
-| Brand marks | `components/ui/brand-mark.tsx` (shared with SMS) — `BRAND_MARKS`, `markFor`, `BrandMark`, favicon fallback; `site-mark.tsx` — `SiteMark`, the thin Sites wrapper |
+| Brand marks | `components/ui/brand-mark.tsx` (shared with SMS) — `BRAND_MARKS`, `markFor`, `BrandMark`; `lib/logo-store.ts` — fetched-logo store (Hunter, then s2, kept in `localStorage`); `site-mark.tsx` — `SiteMark`, the thin Sites wrapper |
 | Empty / error / off states | `condition-block.tsx` — `ConditionBlock` (`muted` or `destructive`) |
 | Sites types | `types/sites.ts` — `SitesResponse`, `SiteEntry`, `SiteBucket`, `SitesConfig`, `SitesRange` |
 | Limits | `connectivity.thresholds.latency_ms` / `.loss_pct`; fallback **250 ms / 30 %** |
@@ -105,14 +105,15 @@ The figure is `latest.ms` when the data on screen was read for Now, and `siteAve
 
 ## Brand marks
 
-The mark logic lives in the shared `components/ui/brand-mark.tsx` (extracted 2026-10-18 so the SMS sender discs can reuse it; see [`sms.md`](../features/sms.md#sender-identity-and-logos)). It holds **one** map, `BRAND_MARKS`, from a registrable domain to a `react-icons/si` glyph and a colour. `site-mark.tsx` is now a thin wrapper (`SiteMark`) that passes the Sites tile's size, plate and monogram label into `BrandMark`; an edit to a mark, the favicon rule or the monogram fallback is made in `brand-mark.tsx` and changes both surfaces.
+The mark logic lives in the shared `components/ui/brand-mark.tsx` (extracted 2026-10-18 so the SMS sender discs can reuse it; see [`sms.md`](../features/sms.md#sender-identity-and-logos)). It holds **one** map, `BRAND_MARKS`, from a registrable domain to a `react-icons/si` glyph and a colour. `site-mark.tsx` is now a thin wrapper (`SiteMark`) that passes the Sites tile's size, plate and monogram label into `BrandMark`; an edit to a mark, the fetched-logo ladder (`lib/logo-store.ts`) or the monogram fallback changes both surfaces.
 
 - `markFor()` strips a leading `www.` and matches the exact domain or any subdomain of it; any `shopee.*` host gets the Shopee mark. Add a brand by adding one row to `BRAND_MARKS`, nowhere else.
 - **Brand hex is allowed here.** A logo is content, like the RAT marks on the dashboard, so it keeps its brand colour; the label under it carries identity.
 - **`null` colour means on-surface ink.** Use it for near-black brands (TikTok, X, GitHub) and for any brand colour that fails on either tile: Snapchat's yellow on the light tile, Dota 2's `#BF2E1A` on the dark one (2.88:1; 4.85:1 on light). Check a new hex on the tile in both themes before adding it.
 - **Dota 2 needs its mapped mark.** `dota2.com` serves only a 16 px favicon, which the fallback below reads as "no icon", so `SiDota2` is mapped explicitly.
-- **No mark, a favicon.** An unmapped host loads `https://www.google.com/s2/favicons?domain=<host>&sz=64` (`referrerPolicy="no-referrer"`), crossfading over its monogram once loaded. The browser's HTTP cache keeps it (the service sends `max-age` of 7 days); `faviconSeen` remembers the result for the session so a remount does not flash. The service has no CORS headers, so the image cannot be copied into storage.
-- **Monogram fallback.** A load error (no internet) or an image 16px or smaller (the service's stand-in globe for an unknown domain; `FAVICON_MIN_PX = 17`) shows the first letter of the label (or host) by default. `BrandMark` takes a `fallback` slot, which the SMS discs use for initials.
+- **No mark, a fetched logo.** An unmapped host goes through `lib/logo-store.ts` (2026-10-19), checked once per browser: Hunter (`https://logos.hunter.io/<host>`, CORS-open, redrawn to a 128 px WebP and stored in `localStorage` `qm_logos_v2`), else the Google s2 favicon (`&sz=64`, `referrerPolicy="no-referrer"`; not CORS-readable, so only the verdict is stored and the image comes from the HTTP cache), else a miss. A fresh verdict is never re-requested (hit 30 days, miss 7 days); a network fault stores nothing. A stored logo paints on the first frame; an s2 favicon crossfades over the monogram once loaded. Full contract: [`sms.md`](../features/sms.md#sender-identity-and-logos).
+- **Monogram fallback.** A miss (Hunter under 32 px or a 404, and an s2 image of 16 px or less, the service's stand-in globe) or a load error (no internet, nothing stored) shows the first letter of the label (or host) by default. `BrandMark` takes a `fallback` slot, which the SMS discs use for initials.
+- **Sites keep the fitted logo.** The SMS discs pass `fillLogoClassName`, so a square fetched logo fills the round disc; `SiteMark` does not, so a fetched logo on a Sites tile stays fitted at the mark size inside the rounded tile (user decision 2026-10-19).
 
 Both range pickers pass `glyph={() => null}` to `SegmentedField`: the active pill's fill marks it, with no check mark (user decision, 2026-10-12).
 

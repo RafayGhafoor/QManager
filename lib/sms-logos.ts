@@ -13,8 +13,9 @@
 //
 // ## Privacy invariant
 //
-// The brand mark may fetch a favicon from a third party, and the ONLY thing
-// that ever leaves the browser is a domain string this file resolves. A sender
+// The brand mark may fetch a logo from a third party (Hunter, Google s2; see
+// `lib/logo-store.ts`), and the ONLY thing that ever leaves the browser is a
+// domain string this file resolves. A sender
 // ID, a phone number or message content never reaches the network: an unmatched
 // sender simply gets initials. Do not add a code path that sends anything else.
 //
@@ -73,7 +74,7 @@ export interface SmsLogoEntry {
 }
 
 export const SMS_LOGO_MAP: SmsLogoEntry[] = [
-  { name: "BDO", domain: "bdo.com.ph", aliases: [], source: "PH bank" },
+  { name: "BDO", domain: "bdo.com.ph", aliases: ["BDO Deals"], source: "PH bank" },
   { name: "BIR", domain: "bir.gov.ph", aliases: [], source: "PH government agency" },
   { name: "BPI", domain: "bpi.com.ph", aliases: [], source: "PH bank" },
   { name: "COMELEC", domain: "comelec.gov.ph", aliases: [], source: "PH government agency" },
@@ -108,11 +109,21 @@ export const SMS_LOGO_MAP: SmsLogoEntry[] = [
   },
   { name: "PAGASA", domain: "pagasa.dost.gov.ph", aliases: [], source: "PH government agency" },
   { name: "PhilHealth", domain: "philhealth.gov.ph", aliases: [], source: "PH government agency" },
-  { name: "PLDT", domain: "pldt.com", aliases: [], source: "PH telco" },
+  {
+    name: "PLDT",
+    domain: "pldt.com",
+    aliases: ["PLDTDeals", "PLDTHome", "PLDTUpgrade"],
+    source: "PH telco (sender IDs seen live 2026-10)",
+  },
   { name: "PSA", domain: "psa.gov.ph", aliases: [], source: "PH government agency" },
   { name: "SeaBank", domain: "seabank.ph", aliases: [], source: "PH bank" },
   { name: "Shopee", domain: "shopee.ph", aliases: [], source: "PH commerce" },
-  { name: "Smart", domain: "smart.com.ph", aliases: ["SMART"], source: "PH telco" },
+  {
+    name: "Smart",
+    domain: "smart.com.ph",
+    aliases: ["SMART", "SmartApp", "SMARTLoad"],
+    source: "PH telco (sender IDs seen live 2026-10)",
+  },
   { name: "SSS", domain: "sss.gov.ph", aliases: [], source: "PH government agency" },
   {
     name: "UnionBank",

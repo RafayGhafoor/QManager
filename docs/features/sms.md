@@ -219,7 +219,7 @@ The page (`app/cellular/sms/page.tsx`) renders `SmsCenterComponent`; the forward
 | `sms-settings-dialog.tsx` | Header three-dot menu, **SMS settings**: Provider number (SMSC) and Message storage |
 | `sms-identity.ts`, `sms-identity-disc.tsx` | Sender resolution ladder and the avatar disc |
 | `lib/sms-directory.ts`, `lib/sms-logos.ts` | Bundled short-code names; curated name-to-domain map |
-| `components/ui/brand-mark.tsx` | Shared logo plate (see Sender Identity and Logos) |
+| `components/ui/brand-mark.tsx`, `lib/logo-store.ts` | Shared logo plate; browser-side fetched-logo store (see Sender Identity and Logos) |
 
 **Routing.** Opening a thread pushes `/cellular/sms/?thread=<encodeURIComponent(addr)>`, so Back leaves the thread and a thread is deep-linkable. The query value is the raw stored address. **Why:** `output: "export"` rules out a `[addr]` dynamic segment (`generateStaticParams` cannot enumerate sender addresses), so this uses the fixed-route-plus-query pattern. Below `@3xl/main` the panes replace each other with a push; above it both show.
 
@@ -253,11 +253,15 @@ The modem cannot be the source of truth for per-message read state: every list u
 
 > ⚠️ WARNING: `addr` is a **key** (storage path, thread fetch, delete payload, reply destination). Display fields are named `title` / `formattedAddr` and never replace it.
 
-**Logos.** `lib/sms-logos.ts` is a curated map from a sender name (plus aliases) to a domain, **exact match only**: no fuzzy matching and no guessing, so a spoofed name that merely resembles a brand gets no logo. Rows are kept sorted by name. `SmsIdentityDisc` renders them through the shared `components/ui/brand-mark.tsx` (extracted from the Latency Monitor's `site-mark.tsx`, now a thin wrapper; see [`latency-monitor.md`](../reference/latency-monitor.md#brand-marks)). Resolution per sender: a `react-icons/si` glyph if the domain is mapped in `BRAND_MARKS`, else the Google s2 favicon of the curated domain loaded **by the browser**, else initials.
+**Logos.** `lib/sms-logos.ts` is a curated map from a sender name (plus aliases) to a domain, **exact match only**: no fuzzy matching and no guessing, so a spoofed name that merely resembles a brand gets no logo. Aliases are sender IDs a brand really sends from (Smart: `SmartApp`, `SMARTLoad`; PLDT: `PLDTDeals`, `PLDTHome`, `PLDTUpgrade`; BDO: `BDO Deals`). TNT stays unmapped: it is a separate brand, never Smart's logo. Rows are kept sorted by name. `SmsIdentityDisc` renders them through the shared `components/ui/brand-mark.tsx` (see [`latency-monitor.md`](../reference/latency-monitor.md#brand-marks)). Resolution per sender: a `react-icons/si` glyph if the domain is mapped in `BRAND_MARKS`, else a fetched logo from `lib/logo-store.ts`, else initials.
 
-- **Privacy:** only curated domains are ever requested from Google; no sender text, number or message content is sent. With no internet the disc falls back to initials.
-- **16 px rule:** an image of 16 px or smaller is the service's stand-in globe and is treated as "no icon" (`FAVICON_MIN_PX = 17`). Smart, PLDT and TNT publish only 16 px favicons, so they render initials.
-- **No logo backend.** The sibling repo's server-side logo lookup (`sms_logos.sh`, hunter.io) was not ported.
+**Fetched logos (`lib/logo-store.ts`, 2026-10-19).** The **browser** checks each domain once, never the device: Hunter (`https://logos.hunter.io/<domain>`, 128 px, CORS-open), else the Google s2 favicon, else a miss. A Hunter logo is redrawn on a canvas to a 128 px WebP (a few KB) and stored in `localStorage` (`qm_logos_v2`), so a known logo paints on the first frame and without internet. An s2 favicon is not CORS-readable, so only its verdict is stored and the image comes from the HTTP cache.
+
+- **Check once.** A domain with a fresh verdict is never requested again (hit 30 days, miss 7 days; a stale hit keeps showing while it is re-checked). A network fault stores nothing, so the next visit retries. At most 4 checks run at a time; storage keeps the newest 200 verdicts and shrinks on a quota error. Each browser checks on its own; nothing is stored on the device.
+- **Size floors.** A Hunter answer under 32 px (it serves `pldt.com` as a 16 px favicon) counts as none, so s2 gets its turn; an s2 image of 16 px or less is its stand-in globe and is a miss. PLDT and TNT therefore render initials.
+- **Round fill.** A square fetched logo (width/height 0.8 to 1.25, and every s2 favicon) fills the disc edge to edge (`object-cover`, clipped round, `fillLogoClassName` on `BrandMark`), so a square asset such as GCash reads as a circle. A wide wordmark (Globe, 128x67) stays fitted on the plate with its inset rather than being cropped. Mapped glyphs and initials are unchanged.
+- **Privacy:** only curated domains are ever requested from Hunter or Google; no sender text, number or message content is sent. With no internet and no stored logo the disc falls back to initials.
+- **No logo backend.** The sibling repo proxies Hunter through the device (`sms_logos.sh`, a `/data` cache). Here the browser fetches directly (Hunter allows hotlinking: `cross-origin-resource-policy: cross-origin`, `access-control-allow-origin: *`), which needs no CGI, no flash cache and no device egress.
 - Inbound messages containing a link carry a phishing warning row, because a sender name or logo can be faked.
 
 ---
