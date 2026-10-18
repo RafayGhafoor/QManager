@@ -182,6 +182,7 @@
     "step_latency": "Latency",
     "step_download": "Download",
     "step_upload": "Upload",
+    "tile_running_label": "Running",
     "step_status_done": "completed",
     "step_status_active": "in progress",
     "step_status_failed": "failed",

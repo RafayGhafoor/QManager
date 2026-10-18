@@ -170,6 +170,7 @@ const { data, isLoading, isStale, error, refresh } = useModemStatus({
 - **Returns**: `ModemStatus | null` (null before first fetch)
 - **Staleness**: Data marked stale if timestamp > 10 seconds old
 - **Error handling**: Preserves last good data on error, sets `isStale: true`
+- **One shared poll** (B5.28, `lib/modem-status-store.ts`): every mounted instance subscribes to one module-level loop that runs at the fastest subscriber's `pollInterval` (so the dashboard's tier-aligned interval keeps its phase). Each instance still receives results at its own interval (within half a base tick), so the 15 s sidebar watchdog indicator re-renders about every 15 s as before. Mounting, an interval change and `refresh()` fetch at once for that instance; requests never overlap. The store holds no snapshot, so each instance keeps its own last data on error.
 
 #### `useSignalHistory(options?)`
 

@@ -182,6 +182,7 @@
     "step_latency": "延遲",
     "step_download": "下載",
     "step_upload": "上傳",
+    "tile_running_label": "進行中",
     "step_status_done": "已完成",
     "step_status_active": "進行中",
     "step_status_failed": "已失敗",

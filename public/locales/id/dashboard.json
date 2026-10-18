@@ -182,6 +182,7 @@
     "step_latency": "Latensi",
     "step_download": "Unduh",
     "step_upload": "Unggah",
+    "tile_running_label": "Berjalan",
     "step_status_done": "selesai",
     "step_status_active": "sedang berlangsung",
     "step_status_failed": "gagal",

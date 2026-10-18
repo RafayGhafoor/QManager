@@ -28,6 +28,7 @@ PID_FILE="/tmp/qmanager_speedtest.pid"
 OUTPUT_FILE="/tmp/qmanager_speedtest_output"
 RESULT_FILE="/tmp/qmanager_speedtest_result.json"
 ERROR_FILE="/tmp/qmanager_speedtest_error"
+FAILED_FILE="/tmp/qmanager_speedtest_failed.json"
 # B4.1: the wrapper is executed as root, so it lives in a root-owned dir under /var/run
 [ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 WRAPPER_DIR=""
@@ -71,7 +72,7 @@ if [ -f "$PID_FILE" ]; then
 fi
 
 # --- Clean up previous run ---------------------------------------------------
-rm -f "$OUTPUT_FILE" "$RESULT_FILE" "$ERROR_FILE"
+rm -f "$OUTPUT_FILE" "$RESULT_FILE" "$ERROR_FILE" "$FAILED_FILE"
 
 # --- Resolve full path to speedtest binary -----------------------------------
 SPEEDTEST_BIN=$(command -v speedtest)
