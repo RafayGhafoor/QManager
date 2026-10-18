@@ -58,8 +58,8 @@ The backend uses a tiered polling system to balance data freshness against modem
 | Tier | Interval | Data Collected | Source |
 |------|----------|---------------|--------|
 | **Tier 1 (Hot)** | 2s | Serving cell (RSRP/RSRQ/SINR/RSSI), traffic stats, uptime | `AT+QENG="servingcell"`, `/proc/net/dev` |
-| **Tier 1.5 (Signal)** | 10s | Per-antenna signal, signal history, ping history | `AT+QRSRP`, `AT+QRSRQ`, `AT+QSINR` |
-| **Tier 2 (Warm)** | 30s | Temperature, carrier, SIM slot, CA info, MIMO, APN | `AT+QTEMP`, `AT+COPS`, `AT+QCAINFO` |
+| **Tier 1.5 (Signal)** | 10s | Per-antenna signal, signal history, ping history, SoC temperature (thermal sysfs) | `AT+QRSRP`, `AT+QRSRQ`, `AT+QSINR`, `/sys/class/thermal` |
+| **Tier 2 (Warm)** | 30s | Carrier, SIM slot, CA info, MIMO, APN | `AT+COPS`, `AT+QCAINFO` |
 | **Boot (Once)** | Startup | Firmware, IMEI, IMSI, ICCID, capabilities, supported bands | `AT+CGMM`, `AT+CGSN`, etc. |
 
 All tiers write to a single cache file: `/tmp/qmanager_status.json`
