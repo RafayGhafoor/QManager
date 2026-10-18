@@ -33,6 +33,9 @@ UPDATER="/usr/bin/qmanager_update"
 # Written by qmanager_update in a root-only dir (B4.1).
 STAGED_TARBALL="/var/run/qmanager/update/staged.tar.gz"
 STAGED_VERSION_FILE="/var/run/qmanager/update/staged_version"
+# install.sh writes this before touching files and promotes it to VERSION on
+# success, so a marker that outlives the installer means an interrupted install.
+VERSION_PENDING="/etc/qmanager/VERSION.pending"
 # qm_read_pid (also pulled in by cgi_auth.sh; explicit so the lock check never
 # silently loses it).
 [ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
@@ -190,6 +193,18 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     auto_enabled=$(uci_update_get auto_update_enabled "0")
     auto_time=$(uci_update_get auto_update_time "03:00")
 
+    # Interrupted-install detection. A live updater owns the marker mid-install,
+    # so only a marker with no updater behind it counts as a failure.
+    pending_version=""
+    if [ -f "$VERSION_PENDING" ] && [ -z "$(qm_read_pid "$PID_FILE" qmanager_update 2>/dev/null)" ]; then
+        pending_version=$(tr -d '[:space:]' < "$VERSION_PENDING" 2>/dev/null)
+    fi
+    if [ -n "$pending_version" ]; then
+        previous_install_failed="true"
+    else
+        previous_install_failed="false"
+    fi
+
     # Query GitHub Releases API with header capture for rate-limit detection
     api_url="https://api.github.com/repos/$GITHUB_REPO/releases"
     # B4.1: private temp names; the release JSON picks the download URL.
@@ -203,6 +218,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             --argjson prerelease "$include_prerelease" \
             --arg auto_en "$auto_enabled" \
             --arg auto_time "$auto_time" \
+            --argjson pif "$previous_install_failed" \
+            --arg pv "$pending_version" \
             '{
                 success: true, current_version: $cv,
                 latest_version: null, update_available: false,
@@ -212,6 +229,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
                 include_prerelease: ($prerelease == 1),
                 auto_update_enabled: ($auto_en == "1"),
                 auto_update_time: $auto_time,
+                previous_install_failed: $pif,
+                pending_version: (if $pv == "" then null else $pv end),
                 check_error: "Unable to check for updates. Check your internet connection."
             }'
         exit 0
@@ -236,6 +255,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             --arg err "$wait_msg" \
             --arg auto_en "$auto_enabled" \
             --arg auto_time "$auto_time" \
+            --argjson pif "$previous_install_failed" \
+            --arg pv "$pending_version" \
             '{
                 success: true, current_version: $cv,
                 latest_version: null, update_available: false,
@@ -245,6 +266,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
                 include_prerelease: ($prerelease == 1),
                 auto_update_enabled: ($auto_en == "1"),
                 auto_update_time: $auto_time,
+                previous_install_failed: $pif,
+                pending_version: (if $pv == "" then null else $pv end),
                 check_error: $err
             }'
         exit 0
@@ -333,6 +356,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         --argjson prerelease "$include_prerelease" \
         --arg auto_en "$auto_enabled" \
         --arg auto_time "$auto_time" \
+        --argjson pif "$previous_install_failed" \
+        --arg pv "$pending_version" \
         '{
             success: true,
             current_version: $cv,
@@ -347,6 +372,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             include_prerelease: ($prerelease == 1),
             auto_update_enabled: ($auto_en == "1"),
             auto_update_time: $auto_time,
+            previous_install_failed: $pif,
+            pending_version: (if $pv == "" then null else $pv end),
             check_error: null
         }'
     exit 0

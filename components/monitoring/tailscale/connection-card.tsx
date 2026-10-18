@@ -75,6 +75,7 @@ export interface ConnectionCardProps {
   isTogglingService: boolean;
   isTogglingBoot: boolean;
   isTogglingExitNode: boolean;
+  isTogglingSsh: boolean;
   connect: () => Promise<TailscaleActionResult>;
   disconnect: () => Promise<TailscaleActionResult>;
   logout: () => Promise<TailscaleActionResult>;
@@ -82,6 +83,7 @@ export interface ConnectionCardProps {
   stopService: () => Promise<TailscaleActionResult>;
   setBootEnabled: (enabled: boolean) => Promise<TailscaleActionResult>;
   setExitNodeAdvertised: (enabled: boolean) => Promise<TailscaleActionResult>;
+  setSshEnabled: (enabled: boolean) => Promise<TailscaleActionResult>;
 }
 
 /** The lucide check that SegmentedField reserves on every segment. */
@@ -144,6 +146,7 @@ export function ConnectionCard({
   isTogglingService,
   isTogglingBoot,
   isTogglingExitNode,
+  isTogglingSsh,
   connect,
   disconnect,
   logout,
@@ -151,8 +154,10 @@ export function ConnectionCard({
   stopService,
   setBootEnabled,
   setExitNodeAdvertised,
+  setSshEnabled,
 }: ConnectionCardProps) {
   const { t } = useTranslation("common");
+  const [sshDialogOpen, setSshDialogOpen] = React.useState(false);
 
   const version = status.version;
   const daemonRunning = status.daemon_running ?? false;
@@ -170,6 +175,37 @@ export function ConnectionCard({
   // `tailscale set` cannot reach a stopped or logged-out daemon, so exit-node
   // advertising can only change while the node is connected.
   const exitNodeLocked = !daemonRunning || backendState !== "Running";
+
+  // Tailscale SSH follows the same rule. While connected, `ssh_enabled: null`
+  // means the daemon's prefs could not be read, so the row is left out rather
+  // than shown with a guessed state.
+  const sshEnabled = status.ssh_enabled ?? false;
+  const sshUnknown = !exitNodeLocked && status.ssh_enabled == null;
+
+  const applySsh = async (checked: boolean) => {
+    const result = await setSshEnabled(checked);
+    if (result.ok) {
+      toast.success(
+        checked
+          ? t("tailscale.toast.sshEnabled")
+          : t("tailscale.toast.sshDisabled"),
+      );
+    } else {
+      toast.error(
+        result.reason ||
+          (checked
+            ? t("tailscale.toast.sshEnableFailed")
+            : t("tailscale.toast.sshDisableFailed")),
+      );
+    }
+  };
+
+  // Turning SSH on opens remote shell access, so it confirms first; turning
+  // it off applies at once.
+  const handleSsh = (checked: boolean) => {
+    if (checked) setSshDialogOpen(true);
+    else void applySsh(false);
+  };
 
   const handleBoot = async (checked: boolean) => {
     const result = await setBootEnabled(checked);
@@ -444,6 +480,36 @@ export function ConnectionCard({
           onChange={handleExitNode}
         />
 
+        {sshUnknown ? null : (
+          <SettingRow
+            title={t("tailscale.connection.sshTitle")}
+            description={t("tailscale.connection.sshDescription")}
+            note={exitNodeLocked ? t("tailscale.connection.sshLocked") : undefined}
+            checked={sshEnabled}
+            disabled={exitNodeLocked || isTogglingSsh}
+            onChange={handleSsh}
+          />
+        )}
+
+        <AlertDialog open={sshDialogOpen} onOpenChange={setSshDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {t("tailscale.connection.sshDialogTitle")}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("tailscale.connection.sshDialogDescription")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("tailscale.actions.cancel")}</AlertDialogCancel>
+              <AlertDialogAction onClick={() => void applySsh(true)}>
+                {t("tailscale.connection.sshConfirm")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <div className={RAIL}>{rail}</div>
       </CardContent>
 
@@ -468,6 +534,7 @@ export function ConnectionCardSkeleton() {
         </div>
       </CardHeader>
       <CardContent className={cn(CARD_PAD, CARD_BODY)} aria-hidden>
+        <Skeleton className={SKELETON.SWITCH} />
         <Skeleton className={SKELETON.SWITCH} />
         <Skeleton className={SKELETON.SWITCH} />
         <Skeleton className={cn(SKELETON.ACTION, "w-40")} />

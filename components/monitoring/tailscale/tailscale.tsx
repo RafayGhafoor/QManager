@@ -244,6 +244,7 @@ const TailscaleComponent = () => {
               isTogglingService={hook.isTogglingService}
               isTogglingBoot={hook.isTogglingBoot}
               isTogglingExitNode={hook.isTogglingExitNode}
+              isTogglingSsh={hook.isTogglingSsh}
               connect={hook.connect}
               disconnect={hook.disconnect}
               logout={hook.logout}
@@ -251,6 +252,7 @@ const TailscaleComponent = () => {
               stopService={hook.stopService}
               setBootEnabled={hook.setBootEnabled}
               setExitNodeAdvertised={hook.setExitNodeAdvertised}
+              setSshEnabled={hook.setSshEnabled}
             />
           ) : (
             <ConnectionCardSkeleton />

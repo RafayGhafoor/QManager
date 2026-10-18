@@ -481,7 +481,13 @@
       "off": "Spento",
       "exitNodeTitle": "Annuncia come exit node",
       "exitNodeDescription": "Consente ad altri dispositivi di instradare il loro traffico Internet attraverso questo modem. Lo approvi nella console di amministrazione di Tailscale.",
-      "exitNodeLocked": "Connettiti a Tailscale per modificarlo."
+      "exitNodeLocked": "Connettiti a Tailscale per modificarlo.",
+      "sshTitle": "Tailscale SSH",
+      "sshDescription": "Consenti ai membri della tailnet di aprire una sessione SSH su questo modem, secondo le tue ACL del pannello admin.",
+      "sshLocked": "Connettiti a Tailscale per cambiare questa impostazione.",
+      "sshDialogTitle": "Attivare Tailscale SSH?",
+      "sshDialogDescription": "I membri della tailnet potranno collegarsi via SSH a questo modem in base alle ACL del tuo pannello admin Tailscale. Controlla prima quella policy, così solo le persone che intendi possono raggiungere il dispositivo.",
+      "sshConfirm": "Attiva SSH"
     },
     "device": {
       "title": "Questo dispositivo",
@@ -585,6 +591,10 @@
       "exitNodeEnabled": "Annuncio come exit node attivo",
       "exitNodeDisabled": "Annuncio come exit node disattivato",
       "exitNodeFailed": "Impossibile modificare l'annuncio come exit node",
+      "sshEnabled": "Tailscale SSH è attivo",
+      "sshEnableFailed": "Impossibile attivare Tailscale SSH",
+      "sshDisabled": "Tailscale SSH è disattivo",
+      "sshDisableFailed": "Impossibile disattivare Tailscale SSH",
       "installed": "Tailscale installato",
       "installFailed": "L'installazione di Tailscale non è stata completata"
     },

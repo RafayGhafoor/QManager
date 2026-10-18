@@ -15,7 +15,8 @@
 #   /etc/init.d/tailscale     -> daemon control (start/stop/enable/disable)
 #
 # POST body: { "action": "connect"|"disconnect"|"logout"|"start_service"|
-#                         "stop_service"|"set_boot_enabled" }
+#                         "stop_service"|"set_boot_enabled"|"set_exit_node"|
+#                         "set_ssh"|"install"|"install_status"|"uninstall" }
 #
 # Endpoint: GET/POST /cgi-bin/quecmanager/vpn/tailscale.sh
 # Install location: /www/cgi-bin/quecmanager/vpn/tailscale.sh
@@ -29,6 +30,8 @@ AUTH_URL_FILE="/tmp/qmanager_tailscale_auth_url"
 # B4.1: tailscale up output lives in the root-only run dir (jq reads it back)
 TS_UP_OUTPUT="/var/run/qmanager/tailscale_up_output"
 TS_UP_PID_FILE="/tmp/qmanager_tailscale_up_pid"
+# Live install log (install subshell stdout+stderr), root-only run dir.
+TS_INSTALL_LOG="/var/run/qmanager/tailscale_install.log"
 [ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 
 # --- Helper: check if tailscale + tailscaled are installed -------------------
@@ -157,6 +160,14 @@ seed_ts_uci_settings() {
     uci -q commit tailscale 2>/dev/null
 }
 
+# --- Helper: write install progress + echo it to the install log ------------
+# $1 is the status JSON. The install subshell's stdout is the live install log
+# (TS_INSTALL_LOG), so the phase message lands there next to the tool output.
+ts_status() {
+    printf '%s' "$1" > "$TS_INSTALL_RESULT"
+    printf '%s' "$1" | jq -r '[.message, .detail] | map(select(. != null)) | join(": ")' 2>/dev/null
+}
+
 # --- Helper: official-variant installer (runs inside background subshell) -----
 # Downloads the official static arm64 tarball, installs binaries to /usr/bin,
 # writes the procd init script + marker + UCI parity. Writes phased progress to
@@ -165,7 +176,7 @@ install_official() {
     # B4.1: root-owned work dir; a /tmp dir another user made first is not trusted
     TS_WORK="$(qm_run_dir 2>/dev/null)/tailscale_dl"
     if [ "$TS_WORK" = "/tailscale_dl" ] || ! qm_root_dir "$TS_WORK" 0700; then
-        printf '{"success":false,"status":"error","message":"Cannot prepare work directory"}' > "$TS_INSTALL_RESULT"
+        ts_status '{"success":false,"status":"error","message":"Cannot prepare work directory"}'
         exit 1
     fi
     TS_TGZ="$TS_WORK/dl.tgz"
@@ -176,43 +187,43 @@ install_official() {
 
     # Phase: disk space. Tarball ~27MB compressed / ~55MB extracted; guard /tmp
     # at ~100MB for download + extract headroom.
-    printf '{"success":true,"status":"running","message":"Checking disk space..."}' > "$TS_INSTALL_RESULT"
+    ts_status '{"success":true,"status":"running","message":"Checking disk space..."}'
     tmp_avail=$(df -k /tmp 2>/dev/null | awk 'NR==2{print $4}')
     case "$tmp_avail" in ''|*[!0-9]*) tmp_avail=0 ;; esac
     if [ "$tmp_avail" -lt 102400 ]; then
-        printf '{"success":false,"status":"error","message":"Not enough space in /tmp","detail":"Need ~100MB free to download Tailscale"}' > "$TS_INSTALL_RESULT"
+        ts_status '{"success":false,"status":"error","message":"Not enough space in /tmp","detail":"Need ~100MB free to download Tailscale"}'
         exit 1
     fi
 
     # Phase: resolve latest version. Plain key access only — device jq has NO
     # regex. Shape: {"Version":"1.98.4","Tarballs":{"arm64":"tailscale_1.98.4_arm64.tgz"}}
-    printf '{"success":true,"status":"running","message":"Resolving latest version..."}' > "$TS_INSTALL_RESULT"
+    ts_status '{"success":true,"status":"running","message":"Resolving latest version..."}'
     meta=$(curl -fsSL --max-time 20 "$PKGS_JSON_URL" 2>/dev/null)
     tarball=$(printf '%s' "$meta" | jq -r '.Tarballs.arm64 | if . == null then empty else . end' 2>/dev/null)
     ts_ver=$(printf '%s' "$meta" | jq -r '.Version | if . == null then empty else . end' 2>/dev/null)
     if [ -z "$tarball" ]; then
-        printf '{"success":false,"status":"error","message":"Could not resolve latest Tailscale version","detail":"pkgs.tailscale.com unreachable or response format changed"}' > "$TS_INSTALL_RESULT"
+        ts_status '{"success":false,"status":"error","message":"Could not resolve latest Tailscale version","detail":"pkgs.tailscale.com unreachable or response format changed"}'
         exit 1
     fi
     [ -n "$ts_ver" ] || ts_ver="latest"
     dl_url="https://pkgs.tailscale.com/stable/${tarball}"
 
     # Phase: download.
-    printf '{"success":true,"status":"running","message":"Downloading Tailscale %s..."}' "$ts_ver" > "$TS_INSTALL_RESULT"
-    if ! curl -fsSL --max-time 600 -o "$TS_TGZ" "$dl_url" 2>/dev/null; then
+    ts_status "$(printf '{"success":true,"status":"running","message":"Downloading Tailscale %s..."}' "$ts_ver")"
+    if ! curl -fsSL --max-time 600 -o "$TS_TGZ" "$dl_url"; then
         rm -f "$TS_TGZ"
-        printf '{"success":false,"status":"error","message":"Download failed","detail":"Check internet connection and retry"}' > "$TS_INSTALL_RESULT"
+        ts_status '{"success":false,"status":"error","message":"Download failed","detail":"Check internet connection and retry"}'
         exit 1
     fi
 
     # Phase: extract. BusyBox tar handles gzip via -z; fall back to gzip pipe if
     # the -z applet is stripped from this build.
-    printf '{"success":true,"status":"running","message":"Extracting..."}' > "$TS_INSTALL_RESULT"
+    ts_status '{"success":true,"status":"running","message":"Extracting..."}'
     mkdir -p "$TS_EXTRACT"
     if ! tar -xzf "$TS_TGZ" -C "$TS_EXTRACT" 2>/dev/null; then
         if ! gzip -dc "$TS_TGZ" 2>/dev/null | tar -x -C "$TS_EXTRACT" 2>/dev/null; then
             rm -rf "$TS_TGZ" "$TS_EXTRACT"
-            printf '{"success":false,"status":"error","message":"Extraction failed"}' > "$TS_INSTALL_RESULT"
+            ts_status '{"success":false,"status":"error","message":"Extraction failed"}'
             exit 1
         fi
     fi
@@ -223,32 +234,32 @@ install_official() {
     [ -n "$src_dir" ] || src_dir="$TS_EXTRACT"
     if [ ! -f "$src_dir/tailscale" ] || [ ! -f "$src_dir/tailscaled" ]; then
         rm -rf "$TS_TGZ" "$TS_EXTRACT"
-        printf '{"success":false,"status":"error","message":"Binaries not found in archive"}' > "$TS_INSTALL_RESULT"
+        ts_status '{"success":false,"status":"error","message":"Binaries not found in archive"}'
         exit 1
     fi
 
     # Phase: install binaries. Guard overlay at ~80MB.
-    printf '{"success":true,"status":"running","message":"Installing binaries..."}' > "$TS_INSTALL_RESULT"
+    ts_status '{"success":true,"status":"running","message":"Installing binaries..."}'
     ov_avail=$(df -k /overlay 2>/dev/null | awk 'NR==2{print $4}')
     case "$ov_avail" in ''|*[!0-9]*) ov_avail=0 ;; esac
     if [ "$ov_avail" -lt 81920 ]; then
         rm -rf "$TS_TGZ" "$TS_EXTRACT"
-        printf '{"success":false,"status":"error","message":"Not enough space on overlay","detail":"Free space and retry"}' > "$TS_INSTALL_RESULT"
+        ts_status '{"success":false,"status":"error","message":"Not enough space on overlay","detail":"Free space and retry"}'
         exit 1
     fi
     if ! cp "$src_dir/tailscale" /usr/bin/tailscale || ! cp "$src_dir/tailscaled" /usr/bin/tailscaled; then
         rm -f /usr/bin/tailscale /usr/bin/tailscaled
         rm -rf "$TS_TGZ" "$TS_EXTRACT"
-        printf '{"success":false,"status":"error","message":"Failed to install binaries to /usr/bin"}' > "$TS_INSTALL_RESULT"
+        ts_status '{"success":false,"status":"error","message":"Failed to install binaries to /usr/bin"}'
         exit 1
     fi
     chmod 755 /usr/bin/tailscale /usr/bin/tailscaled
 
     # Phase: write service + marker + UCI parity.
-    printf '{"success":true,"status":"running","message":"Writing service..."}' > "$TS_INSTALL_RESULT"
+    ts_status '{"success":true,"status":"running","message":"Writing service..."}'
     mkdir -p /etc/tailscale
     if ! write_ts_initd; then
-        printf '{"success":false,"status":"error","message":"Failed to write Tailscale service","detail":"tailscale_initd.sh lib missing"}' > "$TS_INSTALL_RESULT"
+        ts_status '{"success":false,"status":"error","message":"Failed to write Tailscale service","detail":"tailscale_initd.sh lib missing"}'
         exit 1
     fi
     printf 'official\n' > "$TS_INSTALL_MARKER"
@@ -262,9 +273,9 @@ install_official() {
         if [ "$_TS_WORKAROUNDS" = "1" ]; then
             vpn_fw_ensure_zone "tailscale" "tailscale0"
         fi
-        printf '{"success":true,"status":"complete","message":"Tailscale %s installed successfully","variant":"official"}' "$ts_ver" > "$TS_INSTALL_RESULT"
+        ts_status "$(printf '{"success":true,"status":"complete","message":"Tailscale %s installed successfully","variant":"official"}' "$ts_ver")"
     else
-        printf '{"success":false,"status":"error","message":"Install completed but binary not found"}' > "$TS_INSTALL_RESULT"
+        ts_status '{"success":false,"status":"error","message":"Install completed but binary not found"}'
     fi
 }
 
@@ -272,15 +283,15 @@ install_official() {
 # Installs the tailscale-tiny opkg package directly. Seeds tailscale.settings +
 # writes the marker for symmetry with the official path.
 install_tiny() {
-    printf '{"success":true,"status":"running","message":"Updating package lists..."}' > "$TS_INSTALL_RESULT"
-    if ! opkg update >/dev/null 2>&1; then
-        printf '{"success":false,"status":"error","message":"Failed to update package lists","detail":"Check internet connection and opkg feeds"}' > "$TS_INSTALL_RESULT"
+    ts_status '{"success":true,"status":"running","message":"Updating package lists..."}'
+    if ! opkg update; then
+        ts_status '{"success":false,"status":"error","message":"Failed to update package lists","detail":"Check internet connection and opkg feeds"}'
         exit 1
     fi
 
-    printf '{"success":true,"status":"running","message":"Installing tailscale-tiny..."}' > "$TS_INSTALL_RESULT"
-    if ! opkg install tailscale-tiny >/dev/null 2>&1; then
-        printf '{"success":false,"status":"error","message":"opkg install failed","detail":"Package may not be available for this architecture"}' > "$TS_INSTALL_RESULT"
+    ts_status '{"success":true,"status":"running","message":"Installing tailscale-tiny..."}'
+    if ! opkg install tailscale-tiny; then
+        ts_status '{"success":false,"status":"error","message":"opkg install failed","detail":"Package may not be available for this architecture"}'
         exit 1
     fi
 
@@ -293,9 +304,9 @@ install_tiny() {
         if [ "$_TS_WORKAROUNDS" = "1" ]; then
             vpn_fw_ensure_zone "tailscale" "tailscale0"
         fi
-        printf '{"success":true,"status":"complete","message":"Tailscale installed successfully","variant":"tiny"}' > "$TS_INSTALL_RESULT"
+        ts_status '{"success":true,"status":"complete","message":"Tailscale installed successfully","variant":"tiny"}'
     else
-        printf '{"success":false,"status":"error","message":"Package installed but binary not found"}' > "$TS_INSTALL_RESULT"
+        ts_status '{"success":false,"status":"error","message":"Package installed but binary not found"}'
     fi
 }
 
@@ -453,6 +464,20 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     exit_node_advertised=$(printf '%s' "$status_json" | jq -r '.Self.ExitNodeOption // false' 2>/dev/null)
     [ "$exit_node_advertised" = "true" ] || exit_node_advertised="false"
 
+    # Tailscale SSH server state, from tailscaled's own persisted prefs (our
+    # connect never passes --reset, so tailscaled is the single source of truth).
+    # null when the prefs can't be read (e.g. a build without `debug prefs`).
+    if command -v timeout >/dev/null 2>&1; then
+        prefs_json=$(timeout 5 tailscale debug prefs 2>/dev/null)
+    else
+        prefs_json=$(tailscale debug prefs 2>/dev/null)
+    fi
+    ssh_enabled=$(printf '%s' "$prefs_json" | jq -r '.RunSSH | if type == "boolean" then tostring else empty end' 2>/dev/null)
+    case "$ssh_enabled" in
+        true|false) : ;;
+        *) ssh_enabled="null" ;;
+    esac
+
     # Assemble full response
     jq -n \
         --argjson installed true \
@@ -463,6 +488,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         --arg auth_url "$auth_url" \
         --arg install_variant "$install_variant" \
         --argjson exit_node_advertised "$exit_node_advertised" \
+        --argjson ssh_enabled "$ssh_enabled" \
         --argjson self "$self_json" \
         --argjson tailnet "$tailnet_json" \
         --argjson peers "$peers_json" \
@@ -477,6 +503,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             install_variant: $install_variant,
             backend_state: $backend_state,
             exit_node_advertised: $exit_node_advertised,
+            ssh_enabled: $ssh_enabled,
             auth_url: $auth_url,
             self: $self,
             tailnet: $tailnet,
@@ -546,6 +573,8 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         fi
 
         qlog_info "Starting Tailscale installation (variant=$VARIANT)"
+        # Fresh log per run (the run dir was checked above).
+        : > "$TS_INSTALL_LOG"
 
         # Spawn background installer. The variant installers (install_official /
         # install_tiny) are sourced in the parent and inherit into this orphaned
@@ -561,22 +590,32 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
             else
                 install_tiny
             fi
-        ) </dev/null >/dev/null 2>&1 &
+        ) </dev/null >>"$TS_INSTALL_LOG" 2>&1 &
 
         cgi_success
         exit 0
     fi
 
     # -------------------------------------------------------------------------
-    # action: install_status — poll install progress
+    # action: install_status — poll install progress + live log tail
     # -------------------------------------------------------------------------
     if [ "$ACTION" = "install_status" ]; then
         TS_INSTALL_RESULT="/tmp/qmanager_tailscale_install.json"
         if [ -f "$TS_INSTALL_RESULT" ]; then
-            cat "$TS_INSTALL_RESULT"
+            status_json=$(cat "$TS_INSTALL_RESULT" 2>/dev/null)
         else
-            printf '{"success":true,"status":"idle"}'
+            status_json='{"success":true,"status":"idle"}'
         fi
+        # A half-written status file must not break the poller's JSON.
+        if ! printf '%s' "$status_json" | jq -e . >/dev/null 2>&1; then
+            status_json='{"success":true,"status":"running","message":"Installing..."}'
+        fi
+        # CR -> LF first so \r-separated progress output lands on its own lines.
+        log_tail=""
+        if [ -f "$TS_INSTALL_LOG" ]; then
+            log_tail=$(tr '\r' '\n' < "$TS_INSTALL_LOG" 2>/dev/null | tr -d '\000' | tail -n 50)
+        fi
+        printf '%s' "$status_json" | jq --arg log "$log_tail" '. + {log: $log}'
         exit 0
     fi
 
@@ -801,6 +840,54 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
                 exit 0
                 ;;
         esac
+        cgi_success
+        exit 0
+    fi
+
+    # -------------------------------------------------------------------------
+    # action: set_ssh — turn the Tailscale SSH server on/off while connected.
+    # `tailscale set` keeps every other pref, and tailscaled persists RunSSH
+    # itself, so QManager stores no copy (the GET reads it back from prefs).
+    # Who may SSH in is still governed by the tailnet's ACL policy.
+    # -------------------------------------------------------------------------
+    if [ "$ACTION" = "set_ssh" ]; then
+        check_migration_lock
+        ssh_value=$(printf '%s' "$POST_DATA" | jq -r '.enabled | if . == null then empty else tostring end')
+        if [ -z "$ssh_value" ]; then
+            cgi_error "missing_field" "enabled field is required"
+            exit 0
+        fi
+        case "$ssh_value" in
+            true|false) : ;;
+            *)
+                cgi_error "invalid_value" "enabled must be true or false"
+                exit 0
+                ;;
+        esac
+
+        if ! is_daemon_running; then
+            cgi_error "not_connected" "Tailscale must be connected to change Tailscale SSH"
+            exit 0
+        fi
+        if command -v timeout >/dev/null 2>&1; then
+            ssh_status=$(timeout 5 tailscale status --json 2>/dev/null)
+        else
+            ssh_status=$(tailscale status --json 2>/dev/null)
+        fi
+        ssh_state=$(printf '%s' "$ssh_status" | jq -r '.BackendState // "Unknown"' 2>/dev/null)
+        if [ "$ssh_state" != "Running" ]; then
+            cgi_error "not_connected" "Tailscale must be connected to change Tailscale SSH"
+            exit 0
+        fi
+
+        ssh_result=$(tailscale set --ssh="$ssh_value" 2>&1)
+        ssh_rc=$?
+        if [ "$ssh_rc" -ne 0 ]; then
+            qlog_error "tailscale set --ssh=$ssh_value failed: $ssh_result"
+            cgi_error "set_failed" "Failed to update Tailscale SSH: $ssh_result"
+            exit 0
+        fi
+        qlog_info "Tailscale SSH set to $ssh_value"
         cgi_success
         exit 0
     fi
