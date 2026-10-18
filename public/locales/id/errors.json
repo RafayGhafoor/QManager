@@ -182,5 +182,7 @@
   "invalid_envelope": "File ini bukan cadangan QManager.",
   "wrong_version": "Cadangan ini dibuat oleh QManager yang lebih baru dan tidak dapat dibaca di sini.",
   "restore_in_progress": "Pemulihan sedang berjalan.",
-  "unknown_section": "Cadangan ini berisi bagian yang tidak dapat dipulihkan oleh versi ini."
+  "unknown_section": "Cadangan ini berisi bagian yang tidak dapat dipulihkan oleh versi ini.",
+  "invalid_storage": "Pilih penyimpanan modem atau SIM.",
+  "sim_storage_unavailable": "SIM tidak dapat menyimpan pesan. Pastikan SIM terpasang."
 }

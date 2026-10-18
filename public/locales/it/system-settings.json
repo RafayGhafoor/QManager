@@ -65,7 +65,8 @@
       "quality_thresholds": "Soglie di qualità della connessione",
       "sites": "Siti del monitor della latenza",
       "sms_alerts": "Avvisi SMS",
-      "alert_routing": "Instradamento degli avvisi"
+      "alert_routing": "Instradamento degli avvisi",
+      "sms_storage": "Memoria degli SMS"
     },
     "create": {
       "card_title": "Crea backup",

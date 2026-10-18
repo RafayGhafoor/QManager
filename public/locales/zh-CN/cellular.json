@@ -603,6 +603,24 @@
       },
       "description_storage": "已存储 {{used}} / {{total}} 条短信。"
     },
+    "storage": {
+      "card_title": "短信存储位置",
+      "card_description": "新短信的保存位置。已有短信保持原位。",
+      "field_label": "新短信保存到",
+      "option_modem": "调制解调器",
+      "option_sim": "SIM 卡",
+      "hint_label": "关于短信存储",
+      "hint": "调制解调器可存储更多短信。存储在 SIM 卡上的短信会随 SIM 卡转移到其他设备。",
+      "row_modem": "调制解调器",
+      "row_sim": "SIM 卡",
+      "used_of_total": "{{used}} / {{total}}",
+      "unavailable": "不可用",
+      "nearly_full": "即将存满",
+      "full": "已满",
+      "toast_saved": "短信存储位置已保存。",
+      "load_failed": "无法读取短信存储信息。",
+      "save_failed": "无法保存短信存储位置。"
+    },
     "compose": {
       "title": "新短信",
       "description": "撰写并发送短信。",

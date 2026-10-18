@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import SmsInboxCard from "./sms-inbox-card";
 import { CellularPageHeader } from "@/components/cellular/page-header";
 import { useSms } from "@/hooks/use-sms";
+import SmsStorageCard from "./sms-storage-card";
+import { useSmsStorage } from "@/hooks/use-sms-storage";
 
 const SmsCenterComponent = () => {
   const { t } = useTranslation("cellular");
@@ -17,6 +19,7 @@ const SmsCenterComponent = () => {
     deleteAllSms,
     refresh,
   } = useSms();
+  const storage = useSmsStorage();
 
   return (
     <div className="@container/main mx-auto flex flex-col gap-5 p-2">
@@ -34,6 +37,7 @@ const SmsCenterComponent = () => {
         onDeleteAll={deleteAllSms}
         onRefresh={() => refresh()}
       />
+      <SmsStorageCard store={storage} />
     </div>
   );
 };

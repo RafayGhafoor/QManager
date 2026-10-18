@@ -42,7 +42,7 @@ fi
 # two alert-config sections restore together, ahead of the risky AT/IMEI work.
 # quality_thresholds precedes watchdog because watchcat quality recovery reads
 # them; sites is a plain JSON write with no modem side effects.
-CFG_BACKUP_APPLY_ORDER="sms_alerts alert_routing quality_thresholds sites watchdog network_mode_apn bands tower_lock ttl_hl imei profiles"
+CFG_BACKUP_APPLY_ORDER="sms_alerts alert_routing sms_storage quality_thresholds sites watchdog network_mode_apn bands tower_lock ttl_hl imei profiles"
 
 # --- Known section keys (used for validation) ---
 CFG_BACKUP_KNOWN_SECTIONS="$CFG_BACKUP_APPLY_ORDER"
@@ -60,6 +60,7 @@ cfg_backup_collect() {
     case "$key" in
         sms_alerts)       collect_sms_alerts ;;
         alert_routing)    collect_alert_routing ;;
+        sms_storage)      collect_sms_storage ;;
         quality_thresholds) collect_quality_thresholds ;;
         sites)            collect_sites ;;
         watchdog)         collect_watchdog ;;
@@ -79,6 +80,7 @@ cfg_backup_apply() {
     case "$key" in
         sms_alerts)       apply_sms_alerts ;;
         alert_routing)    apply_alert_routing ;;
+        sms_storage)      apply_sms_storage ;;
         quality_thresholds) apply_quality_thresholds ;;
         sites)            apply_sites ;;
         watchdog)         apply_watchdog ;;
@@ -179,6 +181,41 @@ apply_alert_routing() {
     mv "$tmp" "$cfg" || return 1
     # Signal the running poller to reload routing next cycle
     touch /tmp/qmanager_alert_routing_reload
+    return 0
+}
+
+# =============================================================================
+# SMS Storage — /etc/qmanager/sms_storage ("ME" or "SM"; missing = ME)
+# =============================================================================
+# Where incoming SMS are stored (cellular/sms_storage.sh). qmanager_atd reads
+# the file after every SMS operation, so apply only rewrites it and points the
+# modem at it. A SIM choice the modem cannot use (no SIM) is still restored:
+# the boot daemon falls back to ME for that boot without changing it.
+collect_sms_storage() {
+    local s
+    s=$(tr -d ' \r\n' < /etc/qmanager/sms_storage 2>/dev/null | tr 'a-z' 'A-Z')
+    [ "$s" = "SM" ] || s="ME"
+    jq -n --arg s "$s" '{storage: $s}'
+}
+
+apply_sms_storage() {
+    local input
+    local s
+    input=$(cat)
+    s=$(printf '%s' "$input" | jq -r 'if .storage == null then empty else (.storage | tostring) end' 2>/dev/null)
+    case "$s" in
+        ME|SM) ;;
+        *) qlog_error "sms_storage: invalid storage '$s'"; return 1 ;;
+    esac
+    mkdir -p /etc/qmanager
+    if [ "$s" = "SM" ]; then
+        printf 'SM\n' > /etc/qmanager/sms_storage || return 1
+    else
+        rm -f /etc/qmanager/sms_storage
+    fi
+    # Best effort: an unusable SIM store refuses this, and the next boot or
+    # SMS operation applies the routing anyway.
+    qcmd "AT+CPMS=\"$s\",\"$s\",\"$s\"" >/dev/null 2>&1
     return 0
 }
 

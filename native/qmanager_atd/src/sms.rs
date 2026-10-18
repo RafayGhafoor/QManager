@@ -6,9 +6,10 @@
 //! `recv -j`'s per-message keys so shell callers can move over mechanically;
 //! everything is properly JSON-escaped (sms_tool printed sender raw).
 //!
-//! QManager routes incoming SMS to ME (`AT+CPMS="ME","ME","ME"`, see
-//! docs/features/sms.md). Selecting SM to read or delete it flips mem1, so
-//! every operation that selects a storage restores ME,ME,ME before it lets go
+//! QManager routes incoming SMS to the user's chosen storage: ME unless
+//! /etc/qmanager/sms_storage says SM (see docs/features/sms.md). Selecting the
+//! other storage to read or delete it flips mem1, so every operation that
+//! selects a storage restores X,X,X (X = the chosen storage) before it lets go
 //! of the lock, even when it failed half-way.
 //!
 //! Message bodies and numbers never reach the log: inboxes hold one-time codes.
@@ -181,9 +182,30 @@ fn select<D: Device>(s: &mut Session<'_, D>, mem: Mem) -> Result<(), Fail> {
     step(s, &format!("AT+CPMS=\"{}\"", mem.as_str()), CMD_TIMEOUT).map(|_| ())
 }
 
-/// Puts the routing back to ME,ME,ME. False if that failed.
+/// The user's storage choice, written by `cellular/sms_storage.sh`. A missing
+/// or unreadable file means ME, the routing QManager has always used.
+pub const PREF_FILE: &str = "/etc/qmanager/sms_storage";
+
+/// `SM` (any case, whitespace ignored) means the SIM; anything else ME.
+fn parse_pref(raw: &str) -> Mem {
+    match raw.trim().to_ascii_uppercase().as_str() {
+        "SM" => Mem::Sm,
+        _ => Mem::Me,
+    }
+}
+
+fn preferred() -> Mem {
+    std::fs::read_to_string(PREF_FILE).map(|r| parse_pref(&r)).unwrap_or(Mem::Me)
+}
+
+/// Puts all three pointers back on the chosen storage. False if that failed.
 fn restore<D: Device>(s: &mut Session<'_, D>) -> bool {
-    step(s, "AT+CPMS=\"ME\",\"ME\",\"ME\"", CMD_TIMEOUT).is_ok()
+    restore_to(s, preferred())
+}
+
+fn restore_to<D: Device>(s: &mut Session<'_, D>, m: Mem) -> bool {
+    let m = m.as_str();
+    step(s, &format!("AT+CPMS=\"{m}\",\"{m}\",\"{m}\""), CMD_TIMEOUT).is_ok()
 }
 
 /// `+CPMS: "ME",97,255,...` -> (name, used, total) of mem1.
@@ -697,6 +719,16 @@ mod tests {
         let s = seen.lock().unwrap().clone();
         assert_eq!(s.last().unwrap(), "AT+CPMS=\"ME\",\"ME\",\"ME\"");
         assert!(s.contains(&"AT+CPMS=\"SM\"".to_string()));
+    }
+
+    #[test]
+    fn storage_preference_parses_sm_and_defaults_to_me() {
+        assert_eq!(parse_pref("SM\n"), Mem::Sm);
+        assert_eq!(parse_pref("  sm "), Mem::Sm);
+        assert_eq!(parse_pref("ME"), Mem::Me);
+        assert_eq!(parse_pref(""), Mem::Me);
+        assert_eq!(parse_pref("MT"), Mem::Me);
+        assert_eq!(parse_pref("SIM"), Mem::Me);
     }
 
     #[test]

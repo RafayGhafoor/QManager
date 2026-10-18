@@ -603,6 +603,24 @@
       },
       "description_storage": "{{used}} dari {{total}} pesan tersimpan."
     },
+    "storage": {
+      "card_title": "Penyimpanan pesan",
+      "card_description": "Tempat pesan baru disimpan. Pesan yang ada tetap di tempatnya.",
+      "field_label": "Simpan pesan baru ke",
+      "option_modem": "Modem",
+      "option_sim": "SIM",
+      "hint_label": "Tentang penyimpanan pesan",
+      "hint": "Modem menampung lebih banyak pesan. Pesan di SIM ikut berpindah bersama SIM ke perangkat lain.",
+      "row_modem": "Modem",
+      "row_sim": "SIM",
+      "used_of_total": "{{used}} dari {{total}}",
+      "unavailable": "Tidak tersedia",
+      "nearly_full": "Hampir penuh",
+      "full": "Penuh",
+      "toast_saved": "Penyimpanan pesan disimpan.",
+      "load_failed": "Tidak dapat membaca penyimpanan pesan.",
+      "save_failed": "Tidak dapat menyimpan penyimpanan pesan."
+    },
     "compose": {
       "title": "Pesan baru",
       "description": "Tulis dan kirim pesan SMS.",

@@ -11,10 +11,11 @@
 #   The modem routes incoming SMS by CPMS mem3. On the RM551E it defaults to
 #   mem3=SM (SIM), so new messages would land in SIM storage. qsms (the SMS
 #   client of the qmanager_atd broker) selects each storage per operation and
-#   ALWAYS restores AT+CPMS="ME","ME","ME" afterwards, so every GET/POST also
-#   re-asserts ME routing. We read BOTH ME and SM, tag each message with its
-#   storage, and merge so historical SIM messages stay visible and
-#   individually deletable. qmanager_sms_storage sets the same routing at boot.
+#   ALWAYS restores the user's chosen storage afterwards (ME by default, SM via
+#   cellular/sms_storage.sh), so every GET/POST also re-asserts it. We read
+#   BOTH ME and SM, tag each message with its storage, and merge so messages
+#   on either store stay visible and individually deletable.
+#   qmanager_sms_storage sets the same routing at boot.
 #
 # Transport (/usr/bin/qsms -> qmanager_atd; one JSON line on stdout, rc 0/1):
 #   qsms list all                 -> {"success":true,"msg":[{index,storage,...}]}

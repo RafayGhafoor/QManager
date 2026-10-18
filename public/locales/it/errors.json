@@ -182,5 +182,7 @@
   "invalid_envelope": "Questo file non è un backup di QManager.",
   "wrong_version": "Questo backup è stato creato da una versione più recente di QManager e non può essere letto qui.",
   "restore_in_progress": "Un ripristino è già in corso.",
-  "unknown_section": "Questo backup contiene una sezione che questa versione non può ripristinare."
+  "unknown_section": "Questo backup contiene una sezione che questa versione non può ripristinare.",
+  "invalid_storage": "Scegli la memoria del modem o della SIM.",
+  "sim_storage_unavailable": "La SIM non può memorizzare messaggi. Controlla che sia inserita."
 }

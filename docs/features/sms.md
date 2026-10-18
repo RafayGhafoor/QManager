@@ -49,29 +49,47 @@ Callers also no longer filter `tcgetattr`/`tcsetattr` noise from stderr: there i
 
 `AT+CPMS` controls three independent storage pointers: mem1 (read/delete source), mem2 (send destination), and mem3 (incoming-message routing). On the RM551E the modem defaults mem3 to `SM` (SIM card), so every incoming SMS is written to the SIM rather than modem memory (`ME`). QManager read `ME` exclusively, which meant incoming messages accumulated silently on the SIM card and never appeared in the inbox.
 
-**The fix** is two-pronged: a boot daemon that asserts `AT+CPMS="ME","ME","ME"` at startup, and `qsms` itself, which restores that routing after every operation that selects a storage.
+**The fix** is two-pronged: a boot daemon that points all three pointers at the chosen storage at startup, and `qsms` itself, which restores that routing after every operation that selects a storage.
+
+### Storage choice (Message storage card)
+
+The user picks where **new** messages go: **Modem** (`ME`, 255 slots, the default) or **SIM** (`SM`, about 35 slots; the messages travel with the SIM). The choice is the one-line file `/etc/qmanager/sms_storage` (`ME` or `SM`); a missing file means `ME`, so upgrades need no seed. It is a plain file and not UCI because the broker must read it after every SMS operation (the same pattern as `band_failover_enabled`).
+
+| Item | Value |
+|---|---|
+| CGI | `GET/POST /cgi-bin/quecmanager/cellular/sms_storage.sh` |
+| Hook / card | `hooks/use-sms-storage.ts`, `components/cellular/sms/sms-storage-card.tsx` (below the inbox) |
+| Readers | `qmanager_atd` (`sms.rs` `PREF_FILE`, read at every restore), `qmanager_sms_storage` (boot), Config Backup section `sms_storage` |
+
+- **GET** returns `{success, storage, routing, storages:[{storage,used,total}], storage_errors?}`. `storage` is the saved choice, `routing` the live mem3 from `AT+CPMS?` (`""` if the read failed). `qsms status all` fails as a whole when the SIM store is unusable, so the CGI then reads each store alone and names the failing one in `storage_errors`; the card disables the SIM option unless SIM is already saved.
+- **POST** `{storage:"ME"|"SM"}`: validates (`invalid_storage`), refuses SIM when `qsms status SM` fails (`sim_storage_unavailable`, or `modem_busy`), writes the file (`save_failed`), sets `AT+CPMS="X","X","X"` and reads mem3 back. On a mismatch it writes the previous choice back, re-applies it and answers `apply_failed`.
+- **Changing it moves nothing.** Existing messages stay where they are; the inbox already reads both stores and tags SIM rows. Moving or copying messages between stores is not offered (`qsms` has no write path).
+- **Full stores:** the card shows a warning chip at 90% and a destructive "Full" chip at 100% per store. A full mem3 store makes the modem refuse new messages, which is why Modem stays the default.
+- **No automatic fallback.** `AT+CPMS=?` lists `MT`, but on the RM551E `MT` is the modem store alone (it reported ME's 99/255 and listed only ME messages, 2026-10-18), not ME plus SIM, so there is no "SIM, then modem when full" option.
+- **Forwarder:** unaffected. Its fingerprint includes the storage, and a message never changes store.
+- **Uninstall:** `/etc/qmanager/sms_storage` goes with `/etc/qmanager/` when config is purged. The modem's routing is not reset; it returns to its own default (SIM) at the next boot, as before QManager.
 
 ### `AT+CPMS` mem1/mem2/mem3 model
 
 | Pointer | Controls | QManager target |
 |---|---|---|
-| mem1 | Storage read/delete operations | `ME` (255 slots) |
-| mem2 | Storage used for sent messages | `ME` |
-| mem3 | Storage for incoming SMS routing | `ME` |
+| mem1 | Storage read/delete operations | the chosen storage (`ME` by default) |
+| mem2 | Storage used for sent messages | the chosen storage |
+| mem3 | Storage for incoming SMS routing | the chosen storage |
 
-**Why `ME` and not `SM`:** The SIM card typically has 35 slots. `ME` provides 255 slots and is modem-resident, so it survives SIM swaps. If mem3 stays `SM` and the SIM fills up, the modem silently discards further incoming messages.
+**Why `ME` is the default:** The SIM card typically has 35 slots. `ME` provides 255 slots and is modem-resident, so it survives SIM swaps. If mem3 is `SM` and the SIM fills up, the modem refuses further incoming messages.
 
 ### Boot daemon (`qmanager_sms_storage`)
 
-`/usr/bin/qmanager_sms_storage` runs once at boot (init.d START=99). It polls `qsms status ME` until it succeeds (20 tries, 3 s apart), then sets `AT+CPMS="ME","ME","ME"` through `qcmd`. It counts the set as done only if `qcmd` exits 0 **and** an `OK` line is present in the output, because `qcmd` exits 0 even on `AT ERROR`. There is no `flock` in the script. The daemon does not respawn and does not trigger a reboot or `AT+CFUN`.
+`/usr/bin/qmanager_sms_storage` runs once at boot (init.d START=99). It polls `qsms status ME` until it succeeds (20 tries, 3 s apart), then sets `AT+CPMS="X","X","X"` through `qcmd`, where X is the saved choice. If SIM is chosen but `qsms status SM` fails (no SIM), it uses `ME` for that boot and leaves the saved choice alone. It counts the set as done only if `qcmd` exits 0 **and** an `OK` line is present in the output, because `qcmd` exits 0 even on `AT ERROR`. There is no `flock` in the script. The daemon does not respawn and does not trigger a reboot or `AT+CFUN`.
 
 The matching init.d script (`/etc/init.d/qmanager_sms_storage`) uses `#!/bin/sh /etc/rc.common`, is a non-procd one-shot, and double-forks the daemon so init.d's `start` call returns immediately. It is auto-enabled by the directory-driven `install.sh` discovery — it is NOT in `UCI_GATED_SERVICES`, so `enable_services()` enables it unconditionally. No installer change is needed when this file is added.
 
 ### Restore after every operation
 
-Selecting `SM` flips modem mem1 to `SM` as a side effect. `qsms` restores `AT+CPMS="ME","ME","ME"` after every operation that selects a storage (list, status, delete), even when the operation fails. Callers do not re-assert it, and there is no GET-time step sequence to maintain.
+Selecting the other store flips modem mem1 as a side effect. `qsms` restores `AT+CPMS="X","X","X"` (X = `/etc/qmanager/sms_storage`, `ME` if missing or not `SM`) after every operation that selects a storage (list, status, delete), even when the operation fails. Callers do not re-assert it, and there is no GET-time step sequence to maintain. A failed restore adds `"warning":"cpms_restore_failed"` to the reply.
 
-**Why it matters:** other readers (the forwarding daemon, the health check's `AT+CPMS?`) assume mem1 is `ME`. If a failed `SM` operation left it on `SM`, they would read the SIM until the next successful operation or reboot.
+**Why it matters:** every reader names its store explicitly, but a pointer left on the wrong store would also route new messages there until the next successful operation or reboot.
 
 ### Dual-storage merge
 

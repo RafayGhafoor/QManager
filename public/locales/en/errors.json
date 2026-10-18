@@ -182,5 +182,7 @@
   "invalid_envelope": "This file isn't a QManager backup.",
   "wrong_version": "This backup was made by a newer QManager and can't be read here.",
   "restore_in_progress": "A restore is already running.",
-  "unknown_section": "This backup contains a section this version can't restore."
+  "unknown_section": "This backup contains a section this version can't restore.",
+  "invalid_storage": "Choose modem or SIM storage.",
+  "sim_storage_unavailable": "The SIM can't store messages. Check that a SIM is inserted."
 }
