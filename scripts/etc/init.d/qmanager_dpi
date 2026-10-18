@@ -91,11 +91,12 @@ start_service() {
     procd_set_param respawn 3600 5 5
     procd_set_param stdout 1
     procd_set_param stderr 1
+    # procd spawns the instance only after start_service returns, so a
+    # pidof here always ran too early and left the pidfile empty. procd
+    # writes the pidfile itself on every (re)spawn; dpi_get_uptime uses
+    # its mtime and dpi_get_status gates on it via qm_read_pid.
+    procd_set_param pidfile "$NFQWS_PID"
     procd_close_instance
-
-    # Write PID file for uptime tracking
-    sleep 1
-    pidof nfqws > "$NFQWS_PID" 2>/dev/null || true
 
     qlog_info "DPI service started"
 }
