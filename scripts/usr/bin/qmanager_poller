@@ -210,8 +210,31 @@ modem_reachable=true
 errors=""
 
 # CPU tracking (from /proc/stat)
-prev_cpu_idle=0
-prev_cpu_total=0
+#
+# Reported over a fixed WINDOW, not per cycle. Two things are deliberately
+# different from the original `(total - idle) * 100 / total`:
+#
+#   1. This kernel is CONFIG_NO_HZ (tickless) - it stops generating timer ticks
+#      while the CPU is idle, so IDLE time is never accrued. `total` is therefore
+#      short by roughly the idle amount and `(total - idle)/total` is biased UP.
+#      Measured on this device: that formula reports ~42% over 60 s against a true
+#      16.2% of the box. So we sum the BUSY fields (busy time always ticks) and
+#      divide by the ticks that SHOULD have elapsed, not the ones that accrued.
+#   2. A per-cycle value is a ~2 s SAMPLE, so it reports bursts. Measured across
+#      consecutive samples: 3% to 86% while the 60 s mean was 16%. A utilisation
+#      figure needs a window; the value is held between recomputes.
+#
+# CPU_HZ is CONFIG_HZ on this kernel (250 -> 1 jiffy = 4 ms); CPU_CORES is derived
+# once from /proc/stat. Both are assumptions, validated by measurement - the
+# published value agrees with an independent busy-jiffies/expected-jiffies
+# calculation to within 1-2 points.
+CPU_HZ=250
+CPU_WINDOW_SEC=30
+CPU_FIRST_WINDOW=4       # short first window so a restart does not publish 0 for 30 s
+CPU_CORES=""              # derived fork-free on first use
+cpu_busy0=0                # busy jiffies at the start of the current window
+cpu_win_ts=0               # monotonic second at the start of the current window
+cpu_win_init=0             # 0 until the first (short) window has been published
 
 # Connectivity (from ping daemon)
 conn_internet_available="null"
@@ -409,30 +432,49 @@ qcmd_exec() {
 # =============================================================================
 
 update_proc_metrics() {
-    # --- CPU Usage % (from /proc/stat delta) ---
-    local cpu_line
-    cpu_line=$(head -1 /proc/stat 2>/dev/null)
-    if [ -n "$cpu_line" ]; then
-        # /proc/stat format: cpu user nice system idle iowait irq softirq steal
-        local cur_idle
-        local cur_total
-        cur_idle=$(echo "$cpu_line" | awk '{print $5}')
-        cur_total=$(echo "$cpu_line" | awk '{print $2+$3+$4+$5+$6+$7+$8+$9}')
-
-        if [ "$prev_cpu_total" -gt 0 ] 2>/dev/null; then
-            local diff_idle
-            local diff_total
-            diff_idle=$((cur_idle - prev_cpu_idle))
-            diff_total=$((cur_total - prev_cpu_total))
-
-            if [ "$diff_total" -gt 0 ] 2>/dev/null; then
-                # Integer math: (diff_total - diff_idle) * 100 / diff_total
-                cpu_usage=$(( (diff_total - diff_idle) * 100 / diff_total ))
-            fi
+    # --- CPU Usage % (over CPU_WINDOW_SEC, from /proc/stat) ---
+    # Fork-free: the previous `head -1 /proc/stat | awk '{...}'` pair cost 2 forks
+    # on every single 2 s cycle.
+    local cur_busy
+    if read -r _cpu cur_u cur_n cur_s _idle _iow _irq _sirq cur_st _rest < /proc/stat 2>/dev/null; then
+        # Core count, derived once (fork-free) and cached for the process lifetime.
+        if [ -z "$CPU_CORES" ]; then
+            CPU_CORES=0
+            while read -r _cl _cr; do
+                case "$_cl" in cpu[0-9]*) CPU_CORES=$((CPU_CORES + 1)) ;; esac
+            done < /proc/stat
+            [ "$CPU_CORES" -gt 0 ] 2>/dev/null || CPU_CORES=1
         fi
 
-        prev_cpu_idle=$cur_idle
-        prev_cpu_total=$cur_total
+        # Busy fields only: user + nice + system + irq + softirq + steal.
+        # idle and iowait are excluded - they are what this kernel under-accrues.
+        cur_busy=$(( cur_u + cur_n + cur_s + _irq + _sirq + cur_st ))
+
+        local _now
+        read -r _now _ < /proc/uptime 2>/dev/null
+        _now=${_now%.*}
+
+        if [ "${cpu_win_ts:-0}" -gt 0 ] 2>/dev/null && [ -n "$_now" ]; then
+            local _elapsed _dbusy _need
+            _elapsed=$(( _now - cpu_win_ts ))
+            # First value comes quickly (CPU_FIRST_WINDOW) so a restart does not
+            # publish 0% for a whole window; after that it is CPU_WINDOW_SEC.
+            _need=$CPU_WINDOW_SEC
+            [ "${cpu_win_init:-0}" != "1" ] && _need=$CPU_FIRST_WINDOW
+            if [ "$_elapsed" -ge "$_need" ] 2>/dev/null; then
+                _dbusy=$(( cur_busy - cpu_busy0 ))
+                [ "$_dbusy" -lt 0 ] && _dbusy=0
+                # % of the whole box: busy jiffies / (cores * HZ * seconds).
+                cpu_usage=$(( _dbusy * 100 / (CPU_CORES * CPU_HZ * _elapsed) ))
+                cpu_busy0=$cur_busy
+                cpu_win_ts=$_now
+                cpu_win_init=1
+            fi
+        else
+            # First sample in this process: open a window, publish nothing yet.
+            cpu_busy0=$cur_busy
+            cpu_win_ts=$_now
+        fi
     fi
 
     # --- Memory ---
