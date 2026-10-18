@@ -388,6 +388,13 @@ remove_backend() {
         info "Removed /etc/firewall.user.mtu"
     fi
 
+    # --- sysctl.d hardening (B5.10): drop the file, return to the firmware 0 ---
+    if [ -f /etc/sysctl.d/90-qmanager-hardening.conf ]; then
+        rm -f /etc/sysctl.d/90-qmanager-hardening.conf
+        sysctl -w fs.protected_regular=0 fs.protected_fifos=0 >/dev/null 2>&1 || true
+        info "Removed /etc/sysctl.d/90-qmanager-hardening.conf"
+    fi
+
     # --- nftables DPI rules (persistent .nft file + live chain) ---
     if [ -f /etc/nftables.d/12-mangle-qmanager-dpi.nft ]; then
         rm -f /etc/nftables.d/12-mangle-qmanager-dpi.nft

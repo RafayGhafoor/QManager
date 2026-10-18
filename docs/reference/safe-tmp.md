@@ -15,6 +15,18 @@ is fully steerable. QManager's own users are all root, so the real exposure is
 local privilege escalation from a non-root vendor daemon. Treat it as defence
 in depth, not a remote hole.
 
+Since B5.10 QManager ships `/etc/sysctl.d/90-qmanager-hardening.conf`
+(`fs.protected_regular=2`, `fs.protected_fifos=2`; applied at boot by
+`/etc/init.d/sysctl` and live by `install.sh`; `uninstall.sh` removes it and
+resets both to 0). With it, root's `>` into a file or FIFO another user planted
+in a sticky dir fails with `EACCES` instead of writing through, so a plain `>`
+to a planted name becomes a failed write (a DoS of that write, not an
+escalation). The rules below still apply: they keep features working when a
+name is planted and cover reads, sourcing and pid kills, which the sysctl does
+not. Recon before enabling (2026-10-18): the only non-root entries directly in
+`/tmp` were vendor `radio` items rewritten by `radio` itself (`/tmp/ipv4config1`
+from QCMAP), so no vendor daemon depends on writing into another user's file.
+
 ## The helper
 
 `/usr/lib/qmanager/safe_tmp.sh` (source with `[ -f LIB ] && . LIB`; a bare
@@ -27,6 +39,7 @@ in depth, not a remote hole.
 | `qm_root_dir DIR [MODE]` | Makes DIR a real root-owned dir (default 0700), removing anything else at that name first. Returns 1 if it cannot; never use DIR then. |
 | `qm_run_dir` | Ensures and prints `/var/run/qmanager` (root 0700). Prints nothing on failure, so guard `"$(qm_run_dir)/x"` against `/x`. |
 | `qm_atomic_write DEST [MODE]` | stdin to DEST via a `mktemp` sibling and `mv -f` (default 0644). Replaces a planted file, FIFO or symlink instead of writing through it. |
+| `qm_self_pid` | Sets `QM_SELF_PID` to the calling shell's real pid. Use it inside a `( ... )` subshell, where ash's `$$` is still the parent's pid. Call it directly, never as `$(qm_self_pid)` (the command substitution forks). |
 | `qm_read_pid PIDFILE [CMDLINE_SUBSTR]` | The pid when the file is root-owned, the pid numeric, > 1, alive and (optionally) its cmdline contains the substring. Use it before any `kill` of a pid read from `/tmp`. |
 
 ## Rules
@@ -47,11 +60,20 @@ in depth, not a remote hole.
   by the installer; `qm_validate_session` rejects a session whose dir or file
   is not root-owned. Login returns `session_failed` when the dir cannot be made
   trustworthy.
+- Singleton pidfiles a feature trusts for "already running" or `kill` live in
+  `/var/run/qmanager` (B5.11/B5.13): `dpi_verify.pid`, `dpi_install.pid`,
+  `netbird_install.pid`, `tailscale_install.pid`, `msmtp_install.pid`,
+  `mtu_reapply.pid`, `sms_forward.pid` (plus the forwarder's `sms_forward_seen`).
+  Write with `qm_atomic_write`, read with `qm_read_pid PIDFILE <cmdline>`. A
+  background `( ... ) &` worker records `qm_self_pid`, or the spawner records
+  `$!`; never `echo $$` from the subshell (that is the caller, so a later
+  `kill` would hit the calling daemon).
 - Fail closed: when the helper is missing, a feature refuses to download,
   execute, source or kill, rather than falling back to the old fixed path.
 - Not moved: lock files and their FD numbers (a flock target only needs to
-  exist), result/progress JSON the UI only reads, and the SMS scripts (owned by
-  the SMS-in-broker work).
+  exist) and result/progress JSON the UI only reads. The SMS forwarder's
+  failures list stays at `/tmp/qmanager_sms_forward_failures.json` for the CGI,
+  written atomically and shown only when root-owned.
 
 `uninstall.sh` removes `/var/run/qmanager`; `/var/run` is tmpfs, so a reboot
 clears it too.

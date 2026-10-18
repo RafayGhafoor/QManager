@@ -1,15 +1,31 @@
 #!/bin/sh
 . /usr/lib/qmanager/cgi_base.sh
 . /usr/lib/qmanager/dpi_helper.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 
 qlog_init "cgi_video_optimizer"
 cgi_headers
 cgi_handle_options
 
 DPI_VERIFY_RESULT="/tmp/qmanager_dpi_verify.json"
-DPI_VERIFY_PID="/tmp/qmanager_dpi_verify.pid"
+# B5.11: pidfiles in the root-only run dir (a planted /tmp pidfile could fake
+# "running" forever); qmanager_dpi_install writes the same install path.
+DPI_VERIFY_PID="/var/run/qmanager/dpi_verify.pid"
 DPI_INSTALL_RESULT="/tmp/qmanager_dpi_install.json"
-DPI_INSTALL_PID="/tmp/qmanager_dpi_install.pid"
+DPI_INSTALL_PID="/var/run/qmanager/dpi_install.pid"
+
+# dpi_spawn_guard PIDFILE CMDLINE — exit with the envelope when the worker is
+# already running or its state dir cannot be made trustworthy.
+dpi_spawn_guard() {
+    if ! command -v qm_read_pid >/dev/null 2>&1 || ! qm_run_dir >/dev/null; then
+        cgi_error "state_dir_failed" "Cannot prepare the DPI state directory"
+        exit 0
+    fi
+    if qm_read_pid "$1" "$2" >/dev/null; then
+        printf '{"success":true,"status":"running"}'
+        exit 0
+    fi
+}
 
 # Ensure UCI section exists with defaults
 ensure_dpi_config() {
@@ -246,17 +262,14 @@ POST)
 
     verify)
         # Check if verification is already running
-        if [ -f "$DPI_VERIFY_PID" ] && kill -0 "$(cat "$DPI_VERIFY_PID" 2>/dev/null)" 2>/dev/null; then
-            printf '{"success":true,"status":"running"}'
-            exit 0
-        fi
+        dpi_spawn_guard "$DPI_VERIFY_PID" qmanager_dpi_verify
 
         # Clear old results
         rm -f "$DPI_VERIFY_RESULT"
 
         # Spawn background verification
         /usr/bin/qmanager_dpi_verify </dev/null >/dev/null 2>&1 &
-        echo $! > "$DPI_VERIFY_PID"
+        printf '%s\n' "$!" | qm_atomic_write "$DPI_VERIFY_PID"
 
         qlog_info "Verification test started"
         printf '{"success":true,"status":"started"}'
@@ -264,17 +277,14 @@ POST)
 
     install)
         # Check if install is already running
-        if [ -f "$DPI_INSTALL_PID" ] && kill -0 "$(cat "$DPI_INSTALL_PID" 2>/dev/null)" 2>/dev/null; then
-            printf '{"success":true,"status":"running"}'
-            exit 0
-        fi
+        dpi_spawn_guard "$DPI_INSTALL_PID" qmanager_dpi_install
 
         # Clear old results
         rm -f "$DPI_INSTALL_RESULT"
 
         # Spawn background installer
         /usr/bin/qmanager_dpi_install </dev/null >/dev/null 2>&1 &
-        echo $! > "$DPI_INSTALL_PID"
+        printf '%s\n' "$!" | qm_atomic_write "$DPI_INSTALL_PID"
 
         qlog_info "nfqws installation started"
         printf '{"success":true,"status":"started"}'

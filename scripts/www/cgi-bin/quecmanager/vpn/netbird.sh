@@ -1,6 +1,7 @@
 #!/bin/sh
 . /usr/lib/qmanager/cgi_base.sh
 . /usr/lib/qmanager/netbird_firewall.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 # =============================================================================
 # netbird.sh — CGI Endpoint: NetBird VPN Management (GET + POST)
 # =============================================================================
@@ -27,7 +28,8 @@ cgi_headers
 cgi_handle_options
 
 NB_INSTALL_RESULT="/tmp/qmanager_netbird_install.json"
-NB_INSTALL_PID="/tmp/qmanager_netbird_install.pid"
+# B5.11: root-only run dir, so a planted /tmp pidfile cannot fake "already running"
+NB_INSTALL_PID="/var/run/qmanager/netbird_install.pid"
 
 # --- Helper: check if netbird is installed -----------------------------------
 is_installed() {
@@ -443,7 +445,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         fi
 
         # Check if already running
-        if [ -f "$NB_INSTALL_PID" ] && kill -0 "$(cat "$NB_INSTALL_PID" 2>/dev/null)" 2>/dev/null; then
+        if ! command -v qm_read_pid >/dev/null 2>&1 || ! qm_run_dir >/dev/null; then
+            cgi_error "install_failed" "Cannot prepare the install state directory"
+            exit 0
+        fi
+        if qm_read_pid "$NB_INSTALL_PID" netbird.sh >/dev/null; then
             cgi_error "already_running" "Installation already in progress"
             exit 0
         fi
@@ -458,7 +464,8 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
         # Spawn background installer
         (
-            echo $$ > "$NB_INSTALL_PID"
+            # $$ is the CGI's pid here; record this subshell's own pid
+            qm_self_pid && printf '%s\n' "$QM_SELF_PID" | qm_atomic_write "$NB_INSTALL_PID"
             trap 'rm -f "$NB_INSTALL_PID"' EXIT
 
             printf '{"success":true,"status":"running","message":"Updating package lists..."}' > "$NB_INSTALL_RESULT"
@@ -664,7 +671,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
         # Clean up state files
         rm -rf /var/lib/netbird/
-        rm -f /tmp/qmanager_netbird_install.json /tmp/qmanager_netbird_install.pid
+        rm -f /tmp/qmanager_netbird_install.json "$NB_INSTALL_PID"
 
         # Verify removal (check actual binary paths, not command -v which can be cached)
         hash -r 2>/dev/null

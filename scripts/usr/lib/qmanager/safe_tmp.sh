@@ -82,6 +82,19 @@ qm_atomic_write() {
     return 1
 }
 
+# qm_self_pid — set QM_SELF_PID to the pid of the calling shell process. Unlike
+# $$ this is right inside a ( ... ) subshell (ash keeps $$ as the parent's pid):
+# `read` is a builtin, so /proc/self is the subshell itself. Call it directly,
+# never as $(qm_self_pid): command substitution forks and would report the fork.
+qm_self_pid() {
+    QM_SELF_PID=""
+    read -r QM_SELF_PID _qsp_rest < /proc/self/stat 2>/dev/null
+    case "$QM_SELF_PID" in
+        ''|*[!0-9]*) QM_SELF_PID=""; return 1 ;;
+    esac
+    return 0
+}
+
 # qm_read_pid PIDFILE [CMDLINE_SUBSTR] — print the pid in PIDFILE when the file
 # is root-owned, the pid is numeric (> 1) and alive, and, if given, its
 # /proc cmdline contains CMDLINE_SUBSTR. Returns 1 otherwise. Use it before

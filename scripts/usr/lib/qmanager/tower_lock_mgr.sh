@@ -480,7 +480,9 @@ tower_spawn_failover_watcher() {
 # =============================================================================
 
 [ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
-MTU_REAPPLY_PID="/tmp/qmanager_mtu_reapply.pid"
+# B5.11: root-only run dir; the worker records its OWN pid (qm_self_pid), not
+# its caller's $$, so a second re-apply never signals the calling daemon.
+MTU_REAPPLY_PID="/var/run/qmanager/mtu_reapply.pid"
 MTU_FILE="/etc/firewall.user.mtu"
 
 mtu_reapply_after_bounce() {
@@ -489,11 +491,19 @@ mtu_reapply_after_bounce() {
         return 0
     fi
 
+    # Fail closed without the safe_tmp helpers or the root-only run dir
+    if ! command -v qm_read_pid >/dev/null 2>&1 || ! qm_run_dir >/dev/null; then
+        qlog_warn "MTU re-apply skipped: cannot prepare the state directory"
+        return 0
+    fi
+
     # Kill any previous re-apply process
     if [ -f "$MTU_REAPPLY_PID" ]; then
         local old_pid
-        # B4.1: the worker is a subshell, so the pid is its caller's (a qmanager_* daemon/worker)
-        old_pid=$(qm_read_pid "$MTU_REAPPLY_PID" qmanager_)
+        # The worker is a fork of its caller, so its cmdline is the caller's:
+        # a qmanager_* daemon/worker or the tower/lock.sh CGI.
+        old_pid=$(qm_read_pid "$MTU_REAPPLY_PID" qmanager_ \
+            || qm_read_pid "$MTU_REAPPLY_PID" tower/lock.sh)
         if [ -n "$old_pid" ]; then
             kill "$old_pid" 2>/dev/null
         fi
@@ -527,7 +537,8 @@ _mtu_sleep_ms() {
 _mtu_reapply_worker() {
     # Worker writes its own PID first — eliminates the race window between
     # fork in mtu_reapply_after_bounce and a second caller's guard check.
-    echo $$ | qm_atomic_write "$MTU_REAPPLY_PID"
+    # $$ would be the caller's pid in this subshell; record our own
+    qm_self_pid && printf '%s\n' "$QM_SELF_PID" | qm_atomic_write "$MTU_REAPPLY_PID"
 
     # Wait for an rmnet_data interface with carrier=1, then keep watching
     # MTU until it stays at the expected value for two consecutive reads.

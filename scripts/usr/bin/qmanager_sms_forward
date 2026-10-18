@@ -23,7 +23,7 @@
 #     is not retried forever) and a failure record is appended to FAILURES_FILE.
 #
 # Output: /tmp/qmanager_sms_forward_failures.json (JSON array, read by the CGI)
-# State:  /tmp/qmanager_sms_forward_seen (one fingerprint per line, tmpfs)
+# State:  /var/run/qmanager/sms_forward_seen (one fingerprint per line, tmpfs)
 #
 # Install location: /usr/bin/qmanager_sms_forward
 # Dependencies: qsms (qmanager_atd), qcmd, jq, awk, uci
@@ -49,11 +49,14 @@ SF_TARGET="${SF_TARGET:-}"
 SF_INTERVAL=15
 
 # --- File Paths --------------------------------------------------------------
-PID_FILE="/tmp/qmanager_sms_forward.pid"
+# B5.13: pid and seen-set live in the root-only run dir (a planted /tmp pidfile
+# blocked the daemon; a planted seen-set steered what gets forwarded). The
+# failures list stays in /tmp for the CGI but is written atomically.
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+PID_FILE="/var/run/qmanager/sms_forward.pid"
 RELOAD_FLAG="/tmp/qmanager_sms_forward_reload"
-SEEN_FILE="/tmp/qmanager_sms_forward_seen"
+SEEN_FILE="/var/run/qmanager/sms_forward_seen"
 FAILURES_FILE="/tmp/qmanager_sms_forward_failures.json"
-FAILURES_TMP="/tmp/qmanager_sms_forward_failures.json.tmp"
 # SMS transport: the broker's SMS client (one JSON line on stdout, rc 0/1).
 QSMS="/usr/bin/qsms"
 
@@ -196,23 +199,21 @@ sf_record_failure() {
     _f_err="$3"
 
     _existing="[]"
-    if [ -f "$FAILURES_FILE" ] && [ -s "$FAILURES_FILE" ]; then
+    # Only extend a list we wrote ourselves (root-owned regular file)
+    if qm_trusted_file "$FAILURES_FILE" && [ -s "$FAILURES_FILE" ]; then
         _existing=$(jq -c '.' "$FAILURES_FILE" 2>/dev/null)
         printf '%s' "$_existing" | jq -e 'type == "array"' >/dev/null 2>&1 || _existing="[]"
     fi
 
-    printf '%s' "$_existing" | jq -c \
+    _new=$(printf '%s' "$_existing" | jq -c \
         --arg sender "$_f_sender" \
         --arg timestamp "$_f_ts" \
         --arg last_error "$_f_err" \
         '. + [{sender:$sender, timestamp:$timestamp, last_error:$last_error}] | .[-'"$MAX_FAILURES"':]' \
-        > "$FAILURES_TMP" 2>/dev/null
+        2>/dev/null)
 
-    if [ -s "$FAILURES_TMP" ]; then
-        mv "$FAILURES_TMP" "$FAILURES_FILE"
-    else
-        rm -f "$FAILURES_TMP"
-    fi
+    # mktemp + rename: replaces a planted file instead of writing through it
+    [ -n "$_new" ] && printf '%s\n' "$_new" | qm_atomic_write "$FAILURES_FILE"
 }
 
 # --- Send one forwarded message with 3-attempt / 5s-retry --------------------
@@ -372,18 +373,24 @@ process_cycle() {
 # =============================================================================
 
 main() {
-    # Prevent duplicate instances.
-    if [ -f "$PID_FILE" ]; then
-        old_pid=$(cat "$PID_FILE" 2>/dev/null)
-        if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
-            qlog_error "Another sms_forward daemon already running (PID $old_pid), exiting"
-            exit 1
-        fi
-        rm -f "$PID_FILE"
+    # Fail closed without the safe_tmp helpers or the root-only run dir.
+    if ! command -v qm_read_pid >/dev/null 2>&1 || ! qm_run_dir >/dev/null; then
+        qlog_error "sms_forward: cannot prepare the state directory, exiting"
+        exit 1
     fi
-    echo $$ > "$PID_FILE"
 
-    trap 'rm -f "$PID_FILE" "$FAILURES_TMP"' EXIT INT TERM
+    # Prevent duplicate instances (root-owned pidfile whose pid is really us).
+    old_pid=$(qm_read_pid "$PID_FILE" qmanager_sms_forward)
+    if [ -n "$old_pid" ] && [ "$old_pid" != "$$" ]; then
+        qlog_error "Another sms_forward daemon already running (PID $old_pid), exiting"
+        exit 1
+    fi
+    printf '%s\n' "$$" | qm_atomic_write "$PID_FILE"
+
+    # INT/TERM must exit (an ash trap that only cleans up keeps the loop
+    # running with no pidfile, so a second instance could start)
+    trap 'rm -f "$PID_FILE"' EXIT
+    trap 'exit 0' INT TERM
 
     load_config
 

@@ -12,9 +12,9 @@ SMS Forwarding automatically relays every new incoming SMS to a configured phone
 | Transport | `qsms` (`list all`, `send`); the AT broker holds `/var/lock/qmanager.lock` itself |
 | UCI — enabled | `quecmanager.sms_forwarding.enabled` |
 | UCI — target | `quecmanager.sms_forwarding.target_phone` |
-| Daemon PID file | `/tmp/qmanager_sms_forward.pid` |
-| Daemon seen-set | `/tmp/qmanager_sms_forward_seen` |
-| Daemon failures file | `/tmp/qmanager_sms_forward_failures.json` |
+| Daemon PID file | `/var/run/qmanager/sms_forward.pid` (root-only run dir, B5.13) |
+| Daemon seen-set | `/var/run/qmanager/sms_forward_seen` (root-only run dir, B5.13) |
+| Daemon failures file | `/tmp/qmanager_sms_forward_failures.json` (written atomically; the CGI shows it only when root-owned) |
 | Daemon reload flag | `/tmp/qmanager_sms_forward_reload` |
 | Poll interval | 15 s |
 | Reboot | Never |
@@ -35,7 +35,7 @@ The init.d script uses `USE_PROCD=1` for automatic respawn (`3600 5 5`). The ser
 
 ### Seed-on-First-Run
 
-When `/tmp/qmanager_sms_forward_seen` is absent (daemon first start, or after a stop/disable), the daemon creates the file empty and calls `process_cycle 1` — a special pass that records every currently-present inbox fingerprint **without forwarding anything**. Only messages that appear in later poll cycles are relayed.
+When `/var/run/qmanager/sms_forward_seen` is absent (daemon first start, or after a stop/disable), the daemon creates the file empty and calls `process_cycle 1` — a special pass that records every currently-present inbox fingerprint **without forwarding anything**. Only messages that appear in later poll cycles are relayed.
 
 **Why:** Without this guard, enabling forwarding on a device that already has 50 messages in its inbox would immediately spray all 50 to the target number. The seen-file absence is the trigger — its presence (even empty) means seeding is complete.
 
@@ -61,7 +61,7 @@ There is no "paused" state — the daemon is either enabled or disabled.
 
 The daemon fingerprints each message as `djb2(storage|sender|timestamp|content)` using raw UTF-8 byte values via BusyBox awk. The frontend read-state hook uses the same djb2 algorithm but iterates UTF-16 code units via `charCodeAt`. For ASCII messages the two produce the same numeric value; for non-ASCII (emoji, CJK, etc.) they diverge.
 
-**Why this is safe:** The daemon seen-set (`/tmp/qmanager_sms_forward_seen`) never crosses the wire and is never compared against the frontend's `localStorage` set. All that matters for dedup is that the daemon produces a **stable hash for the same message across cycles** — which it does, because BusyBox awk consistently iterates raw bytes. The frontend uses its own fingerprints independently for the inbox read/unread display.
+**Why this is safe:** The daemon seen-set (`/var/run/qmanager/sms_forward_seen`) never crosses the wire and is never compared against the frontend's `localStorage` set. All that matters for dedup is that the daemon produces a **stable hash for the same message across cycles** — which it does, because BusyBox awk consistently iterates raw bytes. The frontend uses its own fingerprints independently for the inbox read/unread display.
 
 ### Phone Number Handling
 

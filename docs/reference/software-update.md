@@ -586,3 +586,20 @@ Subtrees: `page`, `actions`, `band`, `card`, `delta`, `steps`, `notice`, `notes`
 | `previous_install_failed`, `pending_version` | emitted by `update.sh` | not emitted; optional on `UpdateInfo`, the surface degrades to absent |
 | `reboot_ack` | the OTA worker waits for it | not used; the hand-off does not depend on it |
 | Preference toggles | `Switch` rows, toast on every save | same; they apply immediately and are exempt from CardFoot. A failed save toasts the device's own reason when it gave one |
+
+## Download verification fails closed (B5.12)
+
+`qmanager_update` refuses any OTA archive it cannot check against the release's
+`sha256sum.txt` (decided with the user, 2026-10-18: refuse, not warn). Every
+mode verifies: `download` uses the checksum URL `system/update.sh` passes, and
+the direct `install` and `rollback` modes derive it with `checksum_url_for`
+(the `sha256sum.txt` beside `…/qmanager.tar.gz`, release or `qmanager-build`
+raw path). `verify_sha256` returns 1, and the worker `die`s with nothing staged
+or installed, when the checksum URL is empty or off-repo, the fetch fails
+(including a 404), `sha256sum` is missing, the first field of the file is not
+64 lowercase hex characters, or the hashes differ. Every published release
+(checked v0.1.24 to v0.1.31) ships `sha256sum.txt`, and `build.sh` writes one
+beside every build, so a refusal means a broken or tampered download. On-device
+harness (2026-10-18, real `http_download` against v0.1.31): empty URL,
+off-repo URL, 404, mismatch and missing `sha256sum` all return 1; the real
+tarball verifies.

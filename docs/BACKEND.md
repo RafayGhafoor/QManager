@@ -524,7 +524,7 @@ Boot-time one-shot: checks if the device rebooted during a scheduled low power w
 **Type:** One-shot background script (spawned by CGI)
 **Location:** `scripts/usr/bin/qmanager_dpi_install`
 **State file:** `/tmp/qmanager_dpi_install.json`
-**PID file:** `/tmp/qmanager_dpi_install.pid`
+**PID file:** `/var/run/qmanager/dpi_install.pid` (root-only run dir, B5.11)
 
 Downloads and installs the nfqws binary from the [zapret](https://github.com/bol-van/zapret) GitHub releases. The binary is **not bundled** with QManager and is **not installed via opkg** — it is fetched on demand from upstream to avoid dependency issues on custom firmware (e.g., iamromulan's RM551E-GL build).
 
@@ -787,9 +787,9 @@ All auth endpoints set `_SKIP_AUTH=1`.
 | `qmanager_low_power_active` | low_power | Low power mode flag (timestamp; suppresses events + alerts) |
 | `qmanager_watchcat.lock` | low_power | Watchdog pause lock (forces LOCKED state) |
 | `qmanager_dpi_install.json` | dpi_install | nfqws installer progress/result |
-| `qmanager_dpi_install.pid` | dpi_install | Installer singleton PID |
+| `qmanager_dpi_install.pid` | dpi_install | Retired: now `/var/run/qmanager/dpi_install.pid` (B5.11) |
 | `qmanager_dpi_verify.json` | dpi_verify | DPI verification test results |
-| `qmanager_dpi_verify.pid` | dpi_verify | Verification singleton PID |
+| `qmanager_dpi_verify.pid` | dpi_verify | Retired: now `/var/run/qmanager/dpi_verify.pid` (B5.11) |
 | `qmanager_reboot_pending.json` | poller (`alert_engine.sh`) | Staged reboot alert awaiting post-recovery delivery; tmpfs on purpose — a real reboot wipes it, a poller respawn does not |
 | `qmanager_reboot_storm_hour` | poller (`alert_engine.sh`) | Mono-stamped marker suppressing further reboot alerts after a coalesced storm message |
 | `qmanager_crashlog.lock` | qlog.sh (`record_planned_reboot`) | flock guarding appends to the shared `/etc/qmanager/crash.log` reboot ledger |

@@ -51,7 +51,8 @@ MSMTP_CONFIG="/etc/qmanager/msmtprc"
 SMS_LOG="/tmp/qmanager_sms_log.json"
 EMAIL_LOG="/tmp/qmanager_email_log.json"
 MSMTP_INSTALL_RESULT="/tmp/qmanager_msmtp_install.json"
-MSMTP_INSTALL_PID="/tmp/qmanager_msmtp_install.pid"
+# B5.11: root-only run dir (a planted /tmp pidfile could fake "already running")
+MSMTP_INSTALL_PID="/var/run/qmanager/msmtp_install.pid"
 # Persistent reboot ledger — powers the "Recent reboots" history list.
 CRASH_LOG="/etc/qmanager/crash.log"
 
@@ -480,6 +481,10 @@ MSMTPEOF
     # install — install msmtp via opkg (background)
     # -------------------------------------------------------------------------
     if [ "$ACTION" = "install" ]; then
+        if ! command -v qm_read_pid >/dev/null 2>&1 || ! qm_run_dir >/dev/null; then
+            cgi_error "install_failed" "Cannot prepare the install state directory"
+            exit 0
+        fi
         if qm_read_pid "$MSMTP_INSTALL_PID" alerts.sh >/dev/null; then
             cgi_error "already_running" "Installation already in progress"
             exit 0
@@ -492,7 +497,8 @@ MSMTPEOF
         qlog_info "Starting msmtp installation via opkg"
 
         (
-            echo $$ | qm_atomic_write "$MSMTP_INSTALL_PID"
+            # $$ is the CGI's pid here; record this subshell's own pid
+            qm_self_pid && printf '%s\n' "$QM_SELF_PID" | qm_atomic_write "$MSMTP_INSTALL_PID"
             trap 'rm -f "$MSMTP_INSTALL_PID"' EXIT
 
             printf '{"success":true,"status":"running","message":"Updating package lists..."}' | qm_atomic_write "$MSMTP_INSTALL_RESULT"

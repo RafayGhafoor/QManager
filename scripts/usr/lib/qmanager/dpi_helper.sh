@@ -4,6 +4,7 @@
 
 [ -n "$_DPI_HELPER_LOADED" ] && return 0
 _DPI_HELPER_LOADED=1
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 
 NFQWS_BIN="/usr/bin/nfqws"
 NFQWS_PID="/var/run/nfqws.pid"
@@ -41,6 +42,16 @@ dpi_check_kmod() {
 
 # Get service status: running, stopped, or error
 dpi_get_status() {
+    # B5.11: /var/run is root-only, but still require a root-owned pidfile
+    # whose pid really is nfqws (a stale pid can be reused by anything).
+    if command -v qm_read_pid >/dev/null 2>&1; then
+        if qm_read_pid "$NFQWS_PID" nfqws >/dev/null; then
+            echo "running"
+        else
+            echo "stopped"
+        fi
+        return
+    fi
     if [ -f "$NFQWS_PID" ] && kill -0 "$(cat "$NFQWS_PID" 2>/dev/null)" 2>/dev/null; then
         echo "running"
     else
