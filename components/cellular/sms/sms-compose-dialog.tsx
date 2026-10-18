@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import { MaterialSymbol } from "@/components/ui/material-symbol";
-import type { SmsActionResult } from "@/hooks/use-sms";
 import {
   Dialog,
   DialogContent,
@@ -16,11 +15,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
+import { Textarea } from "@/components/ui/textarea";
+import { smsErrorMessage, type SmsActionResult } from "@/hooks/use-sms";
+import { DUR, EASE_QUICK } from "@/lib/motion";
+
+import { segmentInfo } from "./sms-format";
 
 // =============================================================================
-// SmsComposeDialog — Dialog for composing and sending SMS messages
+// SmsComposeDialog — start a NEW conversation
+// =============================================================================
+// Replying inside an existing thread is the composer at the foot of the
+// conversation pane; this dialog exists only for the case where there is no
+// thread yet and the user has to name a destination.
 // =============================================================================
 
 interface SmsComposeDialogProps {
@@ -40,17 +48,11 @@ export default function SmsComposeDialog({
   const [phone, setPhone] = React.useState("");
   const [message, setMessage] = React.useState("");
 
-  // Character count and encoding detection
-  const isUcs2 = /[^\x00-\x7F]/.test(message);
-  const maxChars = isUcs2 ? 70 : 160;
-  const charCount = message.length;
-  const isOverLimit = charCount > maxChars;
-
+  const seg = segmentInfo(message);
   const isValid = phone.trim().length > 0 && message.trim().length > 0;
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!isValid) return;
 
     const result = await onSend(phone.trim(), message);
@@ -60,7 +62,7 @@ export default function SmsComposeDialog({
       setMessage("");
       onOpenChange(false);
     } else {
-      toast.error(result.error);
+      toast.error(smsErrorMessage(t, result, t("sms.errors.send")));
     }
   };
 
@@ -77,39 +79,28 @@ export default function SmsComposeDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t("sms.compose.title")}</DialogTitle>
-          <DialogDescription>
-            {t("sms.compose.description")}
-          </DialogDescription>
+          <DialogDescription>{t("sms.compose.description")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSend} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="sms-phone">{t("sms.compose.fields.phone_label")}</Label>
+            <Label htmlFor="sms-phone">
+              {t("sms.compose.fields.phone_label")}
+            </Label>
             <Input
               id="sms-phone"
               type="tel"
+              inputMode="tel"
               placeholder={t("sms.compose.fields.phone_placeholder")}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               disabled={isSaving}
-              className="font-mono"
+              className="font-mono tabular-nums"
             />
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="sms-message">{t("sms.compose.fields.message_label")}</Label>
-              <span
-                className={`text-xs tabular-nums ${
-                  isOverLimit
-                    ? "text-destructive font-medium"
-                    : charCount > maxChars * 0.9
-                      ? "text-warning-on-surface"
-                      : "text-muted-foreground"
-                }`}
-              >
-                {t("sms.compose.fields.char_counter", { count: charCount, max: maxChars })}
-                {isUcs2 && t("sms.compose.unicode_indicator")}
-              </span>
-            </div>
+            <Label htmlFor="sms-message">
+              {t("sms.compose.fields.message_label")}
+            </Label>
             <Textarea
               id="sms-message"
               placeholder={t("sms.compose.fields.message_placeholder")}
@@ -119,11 +110,31 @@ export default function SmsComposeDialog({
               rows={4}
               className="resize-none"
             />
-            {isOverLimit && (
-              <p className="text-xs text-destructive">
-                {t("sms.compose.limit_warning")}
-              </p>
-            )}
+            {/* Same rule as the in-thread composer: the counter appears at the
+                first boundary, not before. */}
+            <AnimatePresence initial={false}>
+              {seg.visible ? (
+                <motion.p
+                  key="segments"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: DUR.quick, ease: EASE_QUICK }}
+                  aria-live="polite"
+                  className="text-on-surface-variant text-xs font-medium"
+                >
+                  <span className="tabular-nums">
+                    {t("sms.center.composer.segments", { count: seg.segments })}
+                  </span>
+                  {` (${
+                    seg.ucs2
+                      ? t("sms.compose.encoding.ucs2")
+                      : t("sms.compose.encoding.gsm7")
+                  })`}
+                  {seg.ucs2 ? ` ${t("sms.compose.encoding_hint")}` : null}
+                </motion.p>
+              ) : null}
+            </AnimatePresence>
           </div>
           <DialogFooter>
             <Button
@@ -145,7 +156,10 @@ export default function SmsComposeDialog({
                   {t("sms.compose.buttons.sending")}
                 </>
               ) : (
-                t("sms.compose.buttons.send")
+                <>
+                  <MaterialSymbol name="send" size={16} />
+                  {t("sms.compose.buttons.send")}
+                </>
               )}
             </Button>
           </DialogFooter>

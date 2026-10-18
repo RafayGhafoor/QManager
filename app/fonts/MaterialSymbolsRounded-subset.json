@@ -5,6 +5,7 @@
     "add",
     "airplanemode_active",
     "alt_route",
+    "arrow_back",
     "arrow_circle_down",
     "arrow_circle_up",
     "arrow_downward",
@@ -40,6 +41,7 @@
     "favorite",
     "fingerprint",
     "first_page",
+    "forward",
     "graphic_eq",
     "help",
     "home",
@@ -53,6 +55,7 @@
     "lock",
     "lock_clock",
     "lock_open",
+    "mark_email_read",
     "mark_email_unread",
     "memory",
     "monitor",
@@ -63,6 +66,7 @@
     "notifications",
     "open_in_new",
     "percent",
+    "person",
     "pets",
     "play_arrow",
     "playlist_add",
@@ -98,6 +102,7 @@
     "sim_card",
     "sim_card_alert",
     "sms",
+    "sort",
     "sos",
     "speed",
     "sports_esports",
@@ -120,6 +125,6 @@
     "wifi_tethering_off",
     "work"
   ],
-  "bytes": 43684,
-  "sha256": "50a29a86f8e3ec5de47da39ac2bd253401f18e6ceed28cb3e66fd5586a6e600c"
+  "bytes": 45472,
+  "sha256": "b98eae7a40d012e67f0cefc74d3d3cc2f713954a1042f58df47fde5b2032a13f"
 }

@@ -518,105 +518,37 @@
       "description": "View, manage, and send SMS messages from your modem."
     },
     "inbox": {
-      "title": "Inbox",
-      "description": "View and manage your SMS messages",
-      "tabs": {
-        "all": "All",
-        "unread": "Unread",
-        "read": "Read"
-      },
-      "unread_aria": "Unread message",
-      "table": {
-        "headers": {
-          "from": "From",
-          "message": "Message",
-          "date": "Date"
-        },
-        "actions": {
-          "open_menu": "Open menu",
-          "view": "View",
-          "delete": "Delete"
-        },
-        "empty_row": "No messages found.",
-        "empty_unread": "No unread messages.",
-        "empty_read": "No read messages.",
-        "select_all_aria": "Select all",
-        "select_row_aria": "Select row",
-        "sim_badge": "SIM",
-        "empty_search": "No messages match your search."
-      },
-      "empty_state": {
-        "title": "No messages yet",
-        "description": "Messages you receive will appear here. Send one to get started."
-      },
       "buttons": {
-        "refresh_aria": "Refresh inbox",
-        "delete_selected": "Delete ({{count}})",
-        "delete_selected_aria": "Delete {{count}} selected",
-        "delete_all": "Delete All",
-        "delete_all_aria": "Delete all messages",
-        "new_message": "New Message",
-        "mark_all_read": "Mark all read",
-        "mark_all_read_aria": "Mark all messages as read",
-        "prev": "Prev",
-        "next": "Next",
-        "first_page": "Go to first page",
-        "prev_page": "Go to previous page",
-        "next_page": "Go to next page",
-        "last_page": "Go to last page"
-      },
-      "pagination": {
-        "total_one": "{{count}} message",
-        "total_other": "{{count}} messages",
-        "page_info": "{{current}} / {{total}}",
-        "rows_per_page": "Rows per page",
-        "page_label": "Page {{current}} of {{total}}",
-        "selected_info": "{{selected}} of {{total}} selected"
-      },
-      "error": {
-        "title": "Failed to load messages"
-      },
-      "view_dialog": {
-        "title": "Message from {{sender}}",
-        "timestamp_aria": "{{timestamp}}",
-        "heading": "Message"
+        "delete_all": "Delete all"
       },
       "delete_single_confirm": {
-        "title": "Delete Message",
-        "description": "Are you sure you want to delete this message from {{sender}}? This action cannot be undone.",
-        "confirm": "Delete",
         "deleting": "Deleting…"
       },
       "delete_all_confirm": {
-        "title": "Delete All Messages",
-        "description": "Are you sure you want to delete all {{count}} messages? This action cannot be undone.",
-        "confirm": "Delete All"
-      },
-      "delete_selected_confirm": {
-        "title": "Delete Selected Messages",
-        "description_one": "Are you sure you want to delete {{count}} selected message? This action cannot be undone.",
-        "description_other": "Are you sure you want to delete {{count}} selected messages? This action cannot be undone.",
-        "confirm": "Delete ({{count}})",
-        "deleting": "Deleting…"
+        "title": "Delete all messages",
+        "description": "Every stored message and conversation will be permanently deleted. This action cannot be undone.",
+        "confirm": "Delete all",
+        "cancel": "Keep messages",
+        "deleting": "Deleting all…"
       },
       "toast": {
-        "delete_success": "Message deleted",
-        "delete_all_success": "All messages deleted",
-        "delete_selected_success_one": "{{count}} message deleted",
-        "delete_selected_success_other": "{{count}} messages deleted",
-        "mark_all_read_success": "All messages marked as read"
-      },
-      "search": {
-        "placeholder": "Search messages…",
-        "aria": "Search messages"
-      },
-      "sort": {
-        "label": "Sort",
-        "newest": "Newest first",
-        "oldest": "Oldest first",
-        "aria": "Sort order"
-      },
-      "description_storage": "{{used}} of {{total}} messages stored."
+        "delete_all_success": "All messages deleted"
+      }
+    },
+    "settings": {
+      "title": "SMS settings",
+      "description": "Choose how this modem sends and stores text messages.",
+      "smsc": {
+        "title": "Provider number",
+        "description": "The carrier number that routes your outgoing messages.",
+        "hint_label": "About the provider number",
+        "hint": "Also called the SMS service center (SMSC). Your carrier sets it, so change it only if messages stop sending.",
+        "placeholder": "e.g. +639180000101",
+        "invalid": "Enter 3 to 20 digits, with an optional leading +.",
+        "unreadable": "The current number couldn't be read. You can still set one.",
+        "toast_saved": "Provider number saved.",
+        "save_failed": "Couldn't save the provider number."
+      }
     },
     "storage": {
       "card_title": "Message storage",
@@ -637,23 +569,180 @@
       "save_failed": "Couldn't save message storage."
     },
     "compose": {
-      "title": "New Message",
+      "title": "New message",
       "description": "Compose and send an SMS message.",
       "fields": {
-        "phone_label": "Phone Number",
+        "phone_label": "Phone number",
         "phone_placeholder": "+1234567890",
         "message_label": "Message",
-        "message_placeholder": "Type your message...",
-        "char_counter": "{{count}}/{{max}}"
+        "message_placeholder": "Type your message..."
       },
-      "unicode_indicator": " (Unicode)",
-      "limit_warning": "Message exceeds single SMS limit. It will be sent as multiple parts.",
       "buttons": {
         "send": "Send",
         "sending": "Sending…"
       },
       "toast": {
         "success": "SMS sent successfully"
+      },
+      "encoding": {
+        "gsm7": "GSM 7 bit",
+        "ucs2": "UCS-2"
+      },
+      "encoding_hint": "A non-ASCII character switches the message to UCS-2 and caps a single part at 70 characters."
+    },
+    "center": {
+      "search": {
+        "placeholder": "Search messages",
+        "aria": "Search messages"
+      },
+      "filters": {
+        "all": "All",
+        "unread": "Unread"
+      },
+      "sort": {
+        "to_oldest": "Sort oldest first",
+        "to_newest": "Sort newest first"
+      },
+      "actions": {
+        "compose": "New message",
+        "refresh": "Refresh",
+        "more": "More options",
+        "back": "Back to all messages",
+        "copy_address": "Copy sender address",
+        "thread_options": "Conversation options",
+        "mark_read": "Mark all as read",
+        "delete_thread": "Delete conversation",
+        "copy_text": "Copy text",
+        "forward": "Forward…",
+        "mark_unread": "Mark as unread",
+        "details": "Details…",
+        "delete_message": "Delete"
+      },
+      "header": {
+        "synced": "Synced {{seconds}}s ago"
+      },
+      "identity": {
+        "matched": "Matched"
+      },
+      "preview": {
+        "you": "You:"
+      },
+      "time": {
+        "today": "Today",
+        "yesterday": "Yesterday"
+      },
+      "composer": {
+        "placeholder": "Text message",
+        "aria": "Reply to {{contact}}",
+        "send": "Send message",
+        "remaining_one": "{{count}} character left",
+        "remaining_other": "{{count}} characters left",
+        "segments_one": "{{count}} SMS",
+        "segments_other": "{{count}} SMS"
+      },
+      "send": {
+        "sending": "Sending…",
+        "sent_at": "Sent {{time}}",
+        "failed": "Couldn't send",
+        "retry": "Retry",
+        "discard": "Discard"
+      },
+      "code": {
+        "copy": "Copy code",
+        "copied": "Copied"
+      },
+      "phishing": {
+        "with_logo": "Contains a link. Sender names can be faked, so {{name}} may not have sent this.",
+        "generic": "Contains a link. Only open it if you expected this message."
+      },
+      "delete_thread": {
+        "title": "Delete this conversation?",
+        "description": "Every message stored for {{contact}} is removed. This cannot be undone.",
+        "confirm": "Delete conversation"
+      },
+      "toast": {
+        "address_copied": "Sender address copied",
+        "copy_failed": "Couldn't copy. The browser blocked clipboard access on this connection.",
+        "thread_deleted": "Conversation deleted",
+        "thread_delete_failed": "Couldn't delete the conversation",
+        "thread_marked_read": "Marked as read",
+        "message_copied": "Message copied",
+        "message_deleted": "Message deleted",
+        "message_delete_failed": "Couldn't delete the message",
+        "message_marked_unread": "Marked as unread",
+        "mark_unread_failed": "Couldn't mark the message as unread"
+      },
+      "a11y": {
+        "unread_count_one": "{{count}} unread message",
+        "unread_count_other": "{{count}} unread messages"
+      },
+      "states": {
+        "loading_sr": "Loading conversations",
+        "loading_thread_sr": "Loading conversation",
+        "no_selection": {
+          "title": "Pick a conversation",
+          "description": "Choose a thread on the left, or start a new message."
+        },
+        "empty": {
+          "title": "No messages",
+          "description": "Messages you receive will appear here.",
+          "action": "Write a message"
+        },
+        "no_unread": {
+          "title": "Nothing unread",
+          "description": "Every stored message has been opened in this browser."
+        },
+        "no_matches": {
+          "title": "No matches",
+          "description": "No conversation matches that search. Try a name, a number, or a word from the message."
+        },
+        "thread_empty": {
+          "title": "Nothing here yet",
+          "description": "This conversation has no stored messages. Send one to start it."
+        },
+        "missing": {
+          "title": "That conversation is gone",
+          "description": "It is no longer stored. It may have been deleted since this link was made.",
+          "action": "Back to all messages"
+        },
+        "error": {
+          "title": "Couldn't load messages",
+          "description": "Your stored messages are safe. Try again in a moment.",
+          "retry": "Try again"
+        }
+      },
+      "delete_message": {
+        "title": "Delete this message?",
+        "description": "It is permanently removed and cannot be undone.",
+        "confirm": "Delete message"
+      },
+      "forward": {
+        "title": "Forward message",
+        "description": "Sends a new text from this modem. The original stays where it is.",
+        "to_label": "To",
+        "prefix": "From {{addr}}:",
+        "include_sender": "Include original sender",
+        "include_sender_hint": "Adds a \"From {{addr}}:\" line to the top",
+        "alpha_disabled": "Sender names cannot receive texts",
+        "submit": "Forward"
+      },
+      "details": {
+        "title": "Message details",
+        "description": "Everything QManager knows about this message.",
+        "from": "From",
+        "to": "To",
+        "sender_type": "Sender type",
+        "received_at": "Received",
+        "sent_at": "Sent",
+        "length": "Length",
+        "length_value_one": "{{count}} character",
+        "length_value_other": "{{count}} characters",
+        "close": "Close",
+        "kind": {
+          "msisdn": "Phone number",
+          "shortcode": "Short code",
+          "alphanumeric": "Sender name"
+        }
       }
     },
     "forwarding": {
@@ -671,7 +760,8 @@
         "validation_phone": "Enter a valid phone number (e.g. +15551234567).",
         "toast_save_success": "Forwarding settings saved.",
         "error_load": "Couldn't load forwarding settings",
-        "target_hint_label": "About forwarded messages"
+        "target_hint_label": "About forwarded messages",
+        "loading_label": "Loading forwarding settings"
       },
       "health": {
         "card_title": "Delivery & health",
@@ -680,10 +770,13 @@
         "state_issue": "Delivering with issues",
         "state_off": "Forwarding is off",
         "state_unconfigured": "No destination set",
+        "state_unconfigured_description": "Forwarding is on, but there is nowhere to send to yet. Add a number to start relaying.",
         "destination_label": "Sending to",
         "destination_none": "Turn on forwarding and save a number to start relaying messages.",
         "preview_label": "Recipient sees",
         "preview_sample_body": "Hi, are we still on for 3pm?",
+        "preview_hint_label": "About this preview",
+        "preview_hint": "The number in the From line is an example sender. Your saved number receives this message; it doesn't send it.",
         "test_button": "Send test",
         "test_sending": "Sending…",
         "test_hint": "Sends a test to your saved number.",
@@ -708,7 +801,6 @@
     "errors": {
       "fetch": "Failed to load messages",
       "send": "Failed to send SMS",
-      "delete": "Failed to delete message",
       "delete_all": "Failed to delete messages"
     }
   },
