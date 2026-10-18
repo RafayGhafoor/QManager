@@ -509,53 +509,83 @@ Start speed test, check results, and check if speedtest binary is available.
 
 ### GET/POST `/cellular/sms.sh`
 
-SMS inbox and send functionality. Backed by `qsms` (`/usr/bin/qsms`, a symlink to the `qmanager_atd` AT broker), which takes `/var/lock/qmanager.lock` itself for each operation. GET is one `qsms list all` plus `qsms status all`; a busy modem returns `{"success":false,"error":"modem_busy","detail":"Could not acquire AT lock"}` and any other list failure returns `{"success":false,"error":"<code or command_failed>","detail":"..."}`. See [`docs/features/sms.md`](features/sms.md) for the `qsms` contract and the broker-owned-lock rule.
+SMS conversations: received messages (ME + SM) plus QManager's own sent log, grouped into threads. Backed by `qsms` (`/usr/bin/qsms`, a symlink to the `qmanager_atd` AT broker, which takes `/var/lock/qmanager.lock` itself for each operation) and, for the provider number, `qcmd` `AT+CSCA`. A busy modem returns `{"success":false,"error":"modem_busy","detail":"Could not acquire AT lock"}`; any other list failure returns `{"success":false,"error":"<code or command_failed>","detail":"..."}`. Full contract, message fields and the sent log: [`docs/features/sms.md`](features/sms.md).
 
-**GET Response:**
+**GET** (inbox):
 ```json
 {
   "success": true,
   "messages": [
     {
-      "indexes": [0, 1],
-      "sender": "+14155550100",
-      "content": "Concatenated multi-part message body",
-      "timestamp": "25/03/14,15:27:04+08"
+      "addr": "+14155550100", "sender": "+14155550100", "content": "Hello",
+      "indexes": [0, 1], "index": 0, "storage": "ME",
+      "timestamp": "10/18/26 14:03:22", "time": 1792332202,
+      "direction": "inbound", "type": 1, "status": "success", "result": 1,
+      "identity": "ME0:1792332202",
+      "display_name": "+14155550100", "display_source": "raw", "addr_kind": "msisdn"
     }
   ],
-  "storage": {
-    "used": 3,
-    "total": 25
-  }
+  "threads": [
+    { "addr": "+14155550100", "sender": "+14155550100", "display_name": "+14155550100",
+      "display_source": "raw", "addr_kind": "msisdn", "latestMessage": "Hello", "content": "Hello",
+      "timestamp": "10/18/26 14:03:22", "timestampSec": 1792332202, "unreadCount": 0,
+      "latestIndex": 0, "direction": "inbound", "type": 1, "status": "success" }
+  ],
+  "storage": { "used": 3, "total": 255 },
+  "smsc": { "addr": "+639180000101", "status": "", "time": "" },
+  "unread_total": 0
 }
 ```
 
-Multi-part messages (same sender + reference) are merged into a single entry; `indexes` lists every storage slot so `delete` can clear them all at once.
+Multi-part messages are merged into one entry (`indexes` lists every storage slot so `delete` clears them all). Sent-log records appear in the same list with `storage: "SENT"`, `direction: "outbound"`, `indexes: []`, `index: null`, and `identity` `S<seq>:<time>`. `smsc` is `null` when the modem is busy or the read fails; it never fails the inbox. `unread_total` and `threads[].unreadCount` are always `0`: read state is client-side.
+
+**GET `?addr=<percent-encoded addr>`**: one thread, oldest-first: `{ "success": true, "addr": "...", "count": N, "messages": [...], "has_more": false }`. `before` is ignored. Missing `addr` returns `missing_addr`.
+
+**GET `?action=smsc`**: `{ "success": true, "smsc": { "addr": "+639180000101", "status": "", "time": "" } }`, or `smsc_read_failed`, or `modem_busy`.
 
 **POST (send):**
 ```json
-{
-  "action": "send",
-  "phone": "+14155551234",
-  "message": "Hello from QManager"
-}
+{ "action": "send", "phone": "+14155551234", "message": "Hello from QManager" }
 ```
 
-Phone-number handling: the endpoint strips a leading `+` before calling `qsms send` and does nothing else. Send failures return `send_failed` with the `qsms` detail; a busy modem returns `modem_busy`. There is no IMSI lookup, no MCC-to-country-code table, and no local-number rewriting — users are responsible for providing the full international number (with or without a leading `+`).
+Strips a leading `+` before `qsms send` and does nothing else (no IMSI lookup, no country-code table). The result is appended to the sent log as `success` or `failed`. Failure returns `send_failed` with the `qsms` detail; a busy modem returns `modem_busy`.
 
-**POST (delete one or more storage slots):**
+**POST (delete modem storage slots):**
 ```json
-{ "action": "delete", "indexes": [0, 1] }
+{ "action": "delete", "indexes": [0, 1], "storage": "ME" }
 ```
 
-Indexes are validated as plain non-negative integers and sent in one `qsms delete <storage> i,j,k` call (optional `storage`: `ME` default or `SM`). Failures return `partial_failure`; a busy modem returns `modem_busy`.
+Indexes are validated as plain non-negative integers and sent in one `qsms delete <storage> i,j,k` call (`storage`: `ME` default or `SM`). Failures return `partial_failure`; busy returns `modem_busy`.
+
+**POST (delete sent-log records):**
+```json
+{ "action": "delete", "storage": "SENT", "identities": ["S12:1792332202"] }
+```
+
+`missing_identities` if the array is absent or empty; a log write failure returns `partial_failure`.
+
+**POST (delete a whole conversation):**
+```json
+{ "action": "delete", "addr": "+14155550100", "index": "ALL" }
+```
+
+Deletes every modem message from `addr` (one `qsms delete` per storage) and the sent records addressed to it. Returns `partial_failure` with a count if any slot fails.
 
 **POST (delete everything):**
 ```json
 { "action": "delete_all" }
 ```
 
-Clears ME then SM. Failure returns `delete_all_failed` with details formatted `ME: ... | SM: ...`.
+Clears ME, SM and the sent log. Failure returns `delete_all_failed` with details `ME: ... | SM: ... | SENT: ...`.
+
+**POST (set provider number):**
+```json
+{ "action": "set_smsc", "addr": "+639180000101" }
+```
+
+Optional leading `+`, then 3 to 20 digits (`invalid_smsc` otherwise). Writes `AT+CSCA="<n>",<145|129>`, requires `OK`, then reads the value back; returns `{ "success": true, "smsc": {...} }`. `smsc_write_failed` if the modem rejects it or the read-back fails.
+
+`mark_read` / `mark_unread` are not actions; read state lives in the browser. Unknown actions return `invalid_action`.
 
 ### GET/POST `/cellular/sms_forwarding.sh`
 

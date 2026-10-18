@@ -1,14 +1,16 @@
 # SMS
 
-The SMS feature exposes a read/send/delete inbox over the modem's AT channel (`/dev/smd11`). Every shell caller talks to the modem through `qsms`, the SMS client of the Rust AT broker (`qmanager_atd`). The broker is the only process that opens `/dev/smd11` and it takes `/var/lock/qmanager.lock` itself for the whole operation, so SMS calls never race against `qcmd`. The old bundled `sms_tool` binary is no longer called by anything (see [Legacy: `sms_tool`](#legacy-sms_tool)).
+The SMS feature is a two-pane conversation center (threads per contact, received and sent) over the modem's AT channel (`/dev/smd11`), with a settings dialog for the provider number (SMSC) and message storage. Every shell caller talks to the modem through `qsms`, the SMS client of the Rust AT broker (`qmanager_atd`). The broker is the only process that opens `/dev/smd11` and it takes `/var/lock/qmanager.lock` itself for the whole operation, so SMS calls never race against `qcmd`. The old bundled `sms_tool` binary is no longer called by anything (see [Legacy: `sms_tool`](#legacy-sms_tool)).
 
-> ℹ️ NOTE: SMS **downtime alerts** (connection-lost/restored notifications sent over SMS) are documented separately in [`docs/features/alerts.md`](alerts.md) — they're one channel in the centralized Alerts feature, which also covers email and the shared routing/capability model. This doc covers the inbox (read/send/delete) and the `qsms` transport only. `sms_alerts.sh` still exists as the SMS channel's transport lib (config I/O, `qsms send`, retry, logging) but no longer owns downtime *detection* — that lives in `alert_engine.sh`.
+> ℹ️ NOTE: SMS **downtime alerts** (connection-lost/restored notifications sent over SMS) are documented separately in [`docs/features/alerts.md`](alerts.md) — they're one channel in the centralized Alerts feature, which also covers email and the shared routing/capability model. This doc covers the conversation CGI, the sent log, the SMS settings and the `qsms` transport only. `sms_alerts.sh` still exists as the SMS channel's transport lib (config I/O, `qsms send`, retry, logging) but no longer owns downtime *detection* — that lives in `alert_engine.sh`.
 
 ## Quick Reference
 
 | Item | Value |
 |---|---|
-| Inbox CGI | `GET/POST /cgi-bin/quecmanager/cellular/sms.sh` |
+| Conversation CGI | `GET/POST /cgi-bin/quecmanager/cellular/sms.sh` (inbox, `?addr=` thread, `?action=smsc`; POST `send`, `delete`, `delete_all`, `set_smsc`) |
+| Sent log | `/usrdata/qmanager/sms_sent.json` via `scripts/usr/lib/qmanager/sms_sent.sh`, lock `/var/run/qmanager/sms_sent.lock` (FD 8) |
+| UI | `components/cellular/sms/sms-center.tsx` (two panes), `sms-settings-dialog.tsx`, `?thread=<addr>` deep link |
 | AT channel | `/dev/smd11` (opened only by `qmanager_atd`) |
 | Transport | `/usr/bin/qsms`, a symlink to `/usr/bin/qmanager_atd` (argv[0] `qsms` selects the SMS client); socket `/var/run/qmanager_atd.sock` |
 | Lock | `/var/lock/qmanager.lock`, taken by the broker itself. Callers never wrap `qsms` in `flock` |
@@ -51,20 +53,20 @@ Callers also no longer filter `tcgetattr`/`tcsetattr` noise from stderr: there i
 
 **The fix** is two-pronged: a boot daemon that points all three pointers at the chosen storage at startup, and `qsms` itself, which restores that routing after every operation that selects a storage.
 
-### Storage choice (Message storage card)
+### Storage choice (SMS settings dialog)
 
 The user picks where **new** messages go: **Modem** (`ME`, 255 slots, the default) or **SIM** (`SM`, about 35 slots; the messages travel with the SIM). The choice is the one-line file `/etc/qmanager/sms_storage` (`ME` or `SM`); a missing file means `ME`, so upgrades need no seed. It is a plain file and not UCI because the broker must read it after every SMS operation (the same pattern as `band_failover_enabled`).
 
 | Item | Value |
 |---|---|
 | CGI | `GET/POST /cgi-bin/quecmanager/cellular/sms_storage.sh` |
-| Hook / card | `hooks/use-sms-storage.ts`, `components/cellular/sms/sms-storage-card.tsx` (below the inbox) |
+| Hook / UI | `hooks/use-sms-storage.ts`, the Message storage section of `components/cellular/sms/sms-settings-dialog.tsx` (header menu, SMS settings) |
 | Readers | `qmanager_atd` (`sms.rs` `PREF_FILE`, read at every restore), `qmanager_sms_storage` (boot), Config Backup section `sms_storage` |
 
-- **GET** returns `{success, storage, routing, storages:[{storage,used,total}], storage_errors?}`. `storage` is the saved choice, `routing` the live mem3 from `AT+CPMS?` (`""` if the read failed). `qsms status all` fails as a whole when the SIM store is unusable, so the CGI then reads each store alone and names the failing one in `storage_errors`; the card disables the SIM option unless SIM is already saved.
+- **GET** returns `{success, storage, routing, storages:[{storage,used,total}], storage_errors?}`. `storage` is the saved choice, `routing` the live mem3 from `AT+CPMS?` (`""` if the read failed). `qsms status all` fails as a whole when the SIM store is unusable, so the CGI then reads each store alone and names the failing one in `storage_errors`; the dialog disables the SIM option unless SIM is already saved.
 - **POST** `{storage:"ME"|"SM"}`: validates (`invalid_storage`), refuses SIM when `qsms status SM` fails (`sim_storage_unavailable`, or `modem_busy`), writes the file (`save_failed`), sets `AT+CPMS="X","X","X"` and reads mem3 back. On a mismatch it writes the previous choice back, re-applies it and answers `apply_failed`.
-- **Changing it moves nothing.** Existing messages stay where they are; the inbox already reads both stores and tags SIM rows. Moving or copying messages between stores is not offered (`qsms` has no write path).
-- **Full stores:** the card shows a warning chip at 90% and a destructive "Full" chip at 100% per store. A full mem3 store makes the modem refuse new messages, which is why Modem stays the default.
+- **Changing it moves nothing.** Existing messages stay where they are; the conversation list already reads both stores and tags SIM rows. Moving or copying messages between stores is not offered (`qsms` has no write path).
+- **Full stores:** the dialog shows a warning chip at 90% and a destructive "Full" chip at 100% per store. A full mem3 store makes the modem refuse new messages, which is why Modem stays the default.
 - **No automatic fallback.** `AT+CPMS=?` lists `MT`, but on the RM551E `MT` is the modem store alone (it reported ME's 99/255 and listed only ME messages, 2026-10-18), not ME plus SIM, so there is no "SIM, then modem when full" option.
 - **Forwarder:** unaffected. Its fingerprint includes the storage, and a message never changes store.
 - **Uninstall:** `/etc/qmanager/sms_storage` goes with `/etc/qmanager/` when config is purged. The modem's routing is not reset; it returns to its own default (SIM) at the next boot, as before QManager.
@@ -101,57 +103,174 @@ Selecting the other store flips modem mem1 as a side effect. `qsms` restores `AT
 
 The `delete` POST takes a `storage` field (`"ME"` or `"SM"`, default `"ME"` if absent, validated). The CGI makes one `qsms delete <STORAGE> i,j,k` call for all indexes. Indexes that are not plain non-negative integers are not sent and count as failures. The failed count comes from the length of `.failed` in the response (all indexes if the call itself failed at transport level); a busy modem returns the `modem_busy` envelope.
 
-`delete_all` clears both memories in sequence (`qsms delete ME all`, then `qsms delete SM all`). A failure returns `delete_all_failed` with the per-storage reasons joined as `ME: ... | SM: ...`.
+`delete_all` clears both memories in sequence (`qsms delete ME all`, then `qsms delete SM all`) and then the sent log. A failure returns `delete_all_failed` with the reasons joined as `ME: ... | SM: ... | SENT: ...`. Deleting a whole conversation (`{addr, index:"ALL"}`) and sent-log records (`storage:"SENT"`) are described under [Conversation Model](#post).
+
+## Conversation Model (`cellular/sms.sh`)
+
+The CGI returns a conversation model, not just the modem's inbox. Received messages come from `qsms list all` (ME + SM, multi-part merged, see Dual-storage merge). Sent messages come from QManager's own **sent log** (see [Sent Log](#sent-log-sms_sentsh)), because the modem keeps received messages only. Both are normalised by one jq program (`SMS_JQ_MODEL`) into one flat list, newest first, and grouped into threads by `addr`.
+
+**Why:** the two-pane UI needs per-contact threads with both directions, a stable per-message identity for delete and read state, and a sender name where the network supplied one. Building that in the CGI keeps the BusyBox-side parsing (UTC offset, concat reassembly) in one place.
+
+### GET
+
+| Request | Response |
+|---|---|
+| `GET sms.sh` | `{success, messages[], threads[], storage:{used,total}, smsc:{addr,status,time}\|null, unread_total:0}` |
+| `GET sms.sh?addr=<percent-encoded addr>` | `{success, addr, count, messages[], has_more:false}`, one thread, **oldest-first**. `&before=` is accepted and ignored (the thread is always returned whole). A missing or empty `addr` returns `missing_addr`. |
+| `GET sms.sh?action=smsc` | `{success, smsc:{addr,status,time}}`, or `modem_busy`, or `smsc_read_failed` |
+
+`addr` must be percent-encoded by the caller; the CGI decodes it with an awk decoder (`+` is a space, `%XX` is a byte, UTF-8 survives, a malformed escape stays literal). The value is the **raw stored address**, the same string the thread key, delete payload and reply destination use.
+
+`unread_total` is always `0`. Read state is client-side (below), so the backend never reports unread, and `threads[].unreadCount` is `0` for the same reason; the browser overlays the real counts.
+
+Message object (inbound and outbound share one shape):
+
+```json
+{
+  "addr": "+639171234567",
+  "sender": "+639171234567",
+  "content": "Hello",
+  "indexes": [3],
+  "index": 3,
+  "storage": "ME",
+  "timestamp": "10/18/26 14:03:22",
+  "time": 1792332202,
+  "direction": "inbound",
+  "type": 1,
+  "status": "success",
+  "result": 1,
+  "identity": "ME3:1792332202",
+  "display_name": "+639171234567",
+  "display_source": "raw",
+  "addr_kind": "msisdn"
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `addr` | Thread key. The raw stored sender (inbound) or destination (outbound). |
+| `storage` | `ME`, `SM`, or `SENT` for a sent-log record. Sent records have `indexes: []` and `index: null`, plus `seq`. |
+| `identity` | Stable per-message handle: `<ST><idx>:<time>` for modem messages (`ME3:1792332202`), `S<seq>:<time>` for sent records. |
+| `time` | Unix seconds, corrected for the device UTC offset (see Timestamp Handling). `0` if unparseable. |
+| `direction` / `type` | `inbound` / `1`, or `outbound` / `0`. |
+| `status` / `result` | `success` / `1`, or `failed` / `0`. Inbound is always `success`. |
+| `display_name` / `display_source` / `addr_kind` | Sender label for the UI: `display_source` is `network` (alphanumeric sender ID the network sent as text) or `raw`; `addr_kind` is `alphanumeric`, `shortcode` (up to 6 digits) or `msisdn`. |
+
+`threads[]` is one entry per `addr`, newest first: `{addr, sender, display_name, display_source, addr_kind, latestMessage, content, timestamp, timestampSec, unreadCount:0, latestIndex, direction, type, status}`.
+
+`smsc` is read with `AT+CSCA?` through `qcmd` and is **decoration**: a busy or failed read yields `smsc: null`, never a failed inbox. The inbox GET therefore costs one extra AT call.
+
+GET failure envelopes: a list failure with `modem_busy` or `scan_in_progress` returns `{"success":false,"error":"modem_busy","detail":"Could not acquire AT lock"}`; any other list failure returns `{"success":false,"error":"<code or command_failed>","detail":"..."}`. If the jq model produces nothing the reply is `command_failed`.
+
+### POST
+
+| Action | Body | Notes |
+|---|---|---|
+| `send` | `{phone, message}` | Strips one leading `+` before `qsms send`, no other normalisation. Success **and** failure both append a record to the sent log (`success`/`failed`) using the number as typed, so a failed bubble can be retried. Failure: `send_failed` with the `qsms` detail (HTTP 200, error in the body); a busy modem returns `modem_busy` and is not logged as failed. |
+| `delete` | `{indexes:[..], storage:"ME"\|"SM"}` | Storage-aware delete (below). |
+| `delete` | `{storage:"SENT", identities:["S<seq>:<time>", ..]}` | Drops sent-log records. Empty or missing `identities` returns `missing_identities`. |
+| `delete` | `{addr, index:"ALL"}` | Deletes the whole conversation: lists the modem, groups that `addr`'s messages by storage, one `qsms delete <ST> i,j,k` per storage, then drops the sent records to `addr`. Any failed slot returns `partial_failure` with a count; busy returns `modem_busy`. |
+| `delete_all` | none | `qsms delete ME all`, `qsms delete SM all`, and clears the sent log. Failure returns `delete_all_failed` with `ME: ... \| SM: ... \| SENT: ...`. |
+| `set_smsc` | `{addr}` | Provider number write, see [Provider Number](#provider-number-smsc). |
+
+`mark_read` and `mark_unread` are **not** backend actions. An unknown action returns `invalid_action`.
+
+Error codes added with the redesign: `invalid_smsc`, `smsc_read_failed`, `smsc_write_failed`, `missing_identities`, `missing_addr`, `command_failed`. Only the first three have `errors.json` entries; the rest are guards the UI does not normally reach and fall through to the `Modem reported: ...` catch-all. Existing codes are unchanged: `missing_action`, `missing_phone`, `missing_message`, `missing_indexes`, `partial_failure`, `delete_all_failed`, `send_failed`, `modem_busy`.
+
+## Sent Log (`sms_sent.sh`)
+
+| Item | Value |
+|---|---|
+| Lib | `scripts/usr/lib/qmanager/sms_sent.sh`, sourced by `cellular/sms.sh` (no-op stubs are defined if the lib is missing) |
+| File | `/usrdata/qmanager/sms_sent.json` (override `SMS_SENT_FILE`), a JSON array of `{seq, addr, content, time, status:"success"\|"failed"}`; created lazily on the first send; newest 300 kept |
+| Lock | `/var/run/qmanager/sms_sent.lock` (override `SMS_SENT_LOCK`), its own `flock` on **FD 8**, polled for 3 s |
+| Write path | read-modify-write under the lock in a subshell (so FD 8 closes however it exits), landed through `qm_atomic_write` (same-dir temp plus rename) |
+| Corruption | a missing, empty or corrupt file reads as `[]`; non-object entries are dropped on read |
+| Cleanup | `scripts/uninstall.sh` `remove_config` deletes the file. **Not** in Config Backup. `install.sh` copies libs by glob, so no installer change |
+
+**Why:** the modem's SMS store holds only received messages, so a conversation view has nothing to show for outbound traffic unless QManager records it. The log lives under `/usrdata` so it survives reboots.
+
+> ⚠️ WARNING: this lock is separate from `/var/lock/qmanager.lock`. Never hold the modem lock around the sent log or the reverse; the broker owns the modem lock and the log lock is only ever taken for a fast file update.
+
+## Provider Number (SMSC)
+
+The provider number (SMS service center) routes outgoing messages. It is read and written with `AT+CSCA` through `qcmd`, not `qsms`.
+
+- **Read:** `AT+CSCA?`, parsed from the `+CSCA: "<number>",<toa>` line. `_sms_smsc_read` returns 0 ok, 1 failed, 2 modem busy.
+- **Write (`set_smsc {addr}`):** validates an optional leading `+` then **3 to 20 digits** (`invalid_smsc` otherwise), sends `AT+CSCA="<n>",<toa>` with `toa` 145 for a `+` number and 129 otherwise, **requires an `OK` line** (`qcmd` exits 0 even on `AT ERROR`), then re-reads the value. Any rejection or a failed read-back is `smsc_write_failed`; busy is `modem_busy`. Success returns `{success:true, smsc:{addr,status:"",time:""}}` with the value read back.
+- **Not persisted by QManager.** The SMSC lives in the modem/SIM, not in a QManager file.
+
+> ℹ️ NOTE: the SMSC write, send logging and the delete-by-conversation path have not been exercised on the device yet (port ledger B5.38). The inbox, thread and SMSC reads are the validated surface.
+
+## Frontend
+
+The page (`app/cellular/sms/page.tsx`) renders `SmsCenterComponent`; the forwarding sub-route is documented in [`sms-forwarding.md`](sms-forwarding.md). The old inbox and storage cards (`sms-inbox-card.tsx`, `sms-storage-card.tsx`) are gone.
+
+| File (under `components/cellular/sms/` unless noted) | Role |
+|---|---|
+| `sms-center.tsx` | Page header plus **one card with two panes**: thread list left, conversation right. Owns routing, dialogs and the poll consumers. |
+| `sms-thread-list.tsx` | Search, All/Unread filter, thread rows with identity disc, preview ("You: ..." for outbound), unread pill |
+| `sms-conversation.tsx` | Day-grouped bubbles, reply composer, phishing warning under inbound messages with links, one-time-code detection |
+| `sms-composer.tsx`, `sms-compose-dialog.tsx` | Reply box; new-message dialog |
+| `sms-forward-dialog.tsx` | Forward a message to another number (sent as a new message) |
+| `sms-message-menu.tsx` | Per-bubble context menu (right-click, long-press, Shift+F10): Copy text, Copy code, Forward, Mark as unread, Details, Delete. Items a message cannot support are omitted, never disabled; pending optimistic sends get Copy text only. |
+| `sms-message-details-dialog.tsx`, `sms-states.tsx` | Details dialog; loading, empty and error panels |
+| `sms-threads.ts`, `sms-format.ts` | Thread view models and skeleton geometry; timestamp and text helpers (`parseSmsTimestamp`, `smsEpochMs`, `isOutbound`) |
+| `sms-settings-dialog.tsx` | Header three-dot menu, **SMS settings**: Provider number (SMSC) and Message storage |
+| `sms-identity.ts`, `sms-identity-disc.tsx` | Sender resolution ladder and the avatar disc |
+| `lib/sms-directory.ts`, `lib/sms-logos.ts` | Bundled short-code names; curated name-to-domain map |
+| `components/ui/brand-mark.tsx` | Shared logo plate (see Sender Identity and Logos) |
+
+**Routing.** Opening a thread pushes `/cellular/sms/?thread=<encodeURIComponent(addr)>`, so Back leaves the thread and a thread is deep-linkable. The query value is the raw stored address. **Why:** `output: "export"` rules out a `[addr]` dynamic segment (`generateStaticParams` cannot enumerate sender addresses), so this uses the fixed-route-plus-query pattern. Below `@3xl/main` the panes replace each other with a push; above it both show.
+
+**Hook contract (`hooks/use-sms.ts`).**
+- Polls the flat list every **25 s** (`POLL_MS`), skipping a tick while `document.visibilityState` is `hidden`. Thread history is fetched only on open (`fetchThread`, never on a poll), which also marks the thread read.
+- Mutations return `SmsActionResult = { ok: boolean; error?: string; detail?: string }`; callers pass failures through `smsErrorMessage` / `resolveErrorMessage` and toast the returned reason. Hook `error` state is the list-read error only.
+- Sends are **optimistic**: `queueSend(addr, text)` returns a `clientId`, and `pendingSends[]` renders `queued` / `sending` / `sent` / `failed` bubbles until the server list contains the message. `retrySend(clientId)` reuses the same id so a retried message never renders twice.
+- Other exports: `sendSms`, `deleteSms(message)` (routes to modem indexes or to `storage:"SENT"` identities), `deleteThread(addr)`, `deleteAllSms`, `updateSmsc`, `markThreadRead`, `markMessageUnread`, `refresh`, `lastSyncedAt`.
+
+**Settings dialog.** Provider number checks the same 3-to-20-digit rule client-side before the round trip. Message storage is the former card with the same behaviour: it uses `hooks/use-sms-storage.ts` (unchanged) and the `sms_storage.sh` contract above.
 
 ## Read/Unread State (Client-Side)
 
-The modem cannot be the source of truth for per-message read/unread status for two reasons: (1) `qsms list` emits a numeric `stat` but the CGI's multi-part merge drops it, so no read flag reaches the browser; (2) every inbox GET issues `AT+CMGL=4` (what `qsms list` uses) which the modem treats as "mark all read", so any modem-side unread flag self-erases on every fetch. Read state is therefore tracked entirely in the browser.
+The modem cannot be the source of truth for per-message read state: every list uses `AT+CMGL=4`, which the modem treats as "mark all read", so a modem-side unread flag self-erases on every fetch. The CGI therefore reports `unread_total: 0` and `unreadCount: 0`, and read state is tracked in the browser.
 
-**Hook:** `hooks/use-sms-read-state.ts` — exports `useSmsReadState`, `smsFingerprint`, and `parseSmsTimestamp`.
+**Hook:** `hooks/use-sms-read-state.ts` exports `useSmsReadState` and `smsFingerprint`. `parseSmsTimestamp` moved to `components/cellular/sms/sms-format.ts`.
 
-**Persistence:** `localStorage` under the key `qmanager.sms.read.v1` as a JSON array of fingerprint strings. Reads on mount, writes on every state change (errors are swallowed — quota exceeded or storage disabled; read-state is best-effort).
+**Persistence:** `localStorage` key `qmanager.sms.read.v1`, a JSON array of fingerprint strings, written on every change; errors are swallowed (read state is best-effort). Nothing is written while the message list is still empty, so the stored set survives the first load.
 
-### Message Fingerprinting
+**API:** `isRead`, `markRead`, `markManyRead` (a whole thread in one update), `markUnread` (makes one message unread again), `markAllRead`, `unreadCount`.
 
-There is no stable backend message ID. The fingerprint is a djb2 hash of the string `storage|sender|timestamp|content`. It is base-36 encoded (unsigned 32-bit). The hash covers `storage` so that two messages with identical sender/timestamp/content but different storage locations (ME vs. SM) produce different fingerprints and can be marked independently.
+**Fingerprint:** unchanged, a djb2 hash of `storage|sender|timestamp|content`, base-36. Do not change the inputs: doing so marks every message unread again. `storage` is in the hash so identical ME and SM copies are independent.
 
-### Self-Pruning
+**Self-pruning:** the persisted set is filtered to the fingerprints of currently present messages on every write, so deleted messages cannot grow it without bound. Only **inbound** messages are passed in.
 
-On every write (`markRead` and `markAllRead`), the stored set is intersected with the fingerprints of the **currently-present** message list before the new entry is added. This ensures that when messages are deleted on the modem, their read-markers are evicted from `localStorage` on the next state change — the set cannot grow unbounded.
+**Trade-offs:** read state is per-browser and resets if site data is cleared; new messages default to unread; opening a thread marks it read, and a message arriving in an already-open thread is marked read after an 800 ms debounce.
 
-**Why:** Without pruning, every deleted message leaves a dead fingerprint in `localStorage` indefinitely. The prune step is implicit in `markRead` and explicit in `markAllRead`.
+## Sender Identity and Logos
 
-### Known Trade-offs
+`sms-identity.ts::resolveSmsIdentity` is a four-tier ladder: `network` (clean text from the network), `decoded` (backend un-mangled a GSM-7-packed sender), `directory` (`lib/sms-directory.ts` bundled short-code table), `raw` (shown as stored). A name QManager inferred wears a different marker from one the network sent, and the disc hue is hashed from the raw address so it never implies a carrier brand.
 
-- Read state is **per-browser**. It does not sync across devices. Clearing browser storage resets all read markers.
-- New incoming messages appear as unread by default (fingerprint absent from the stored set).
-- Opening the View dialog marks the message read immediately (`markRead` is called in the `openMessage` callback inside `sms-inbox-card.tsx`).
+> ⚠️ WARNING: `addr` is a **key** (storage path, thread fetch, delete payload, reply destination). Display fields are named `title` / `formattedAddr` and never replace it.
 
-### Inbox Tabs and UI
+**Logos.** `lib/sms-logos.ts` is a curated map from a sender name (plus aliases) to a domain, **exact match only**: no fuzzy matching and no guessing, so a spoofed name that merely resembles a brand gets no logo. Rows are kept sorted by name. `SmsIdentityDisc` renders them through the shared `components/ui/brand-mark.tsx` (extracted from the Latency Monitor's `site-mark.tsx`, now a thin wrapper; see [`latency-monitor.md`](../reference/latency-monitor.md#brand-marks)). Resolution per sender: a `react-icons/si` glyph if the domain is mapped in `BRAND_MARKS`, else the Google s2 favicon of the curated domain loaded **by the browser**, else initials.
 
-`components/cellular/sms/sms-inbox-card.tsx` adds three shadcn `Tabs`: **All**, **Unread {count}**, and **Read**. Unread rows carry a primary-color dot indicator and `font-semibold` styling. A "Mark all read" action in the card's `CardAction` area calls `markAllRead` and fires a toast.
-
-**Page contract (canon re-author).** Glyphs are Material Symbols. The sender (inbox rows and the view dialog) and the compose phone input are mono (opaque strings). The storage line is one key, `sms.inbox.description_storage`. A failed first read renders a `ConditionScreen` (error state) with retry.
-
-**Hook contract (`hooks/use-sms.ts`).** `sendSms`, `deleteSms` and `deleteAllSms` return `SmsActionResult = { ok: true } | { ok: false; error: string }`. `error` is already translated: a backend error code goes through `resolveErrorMessage`, with `sms.errors.*` keys (`fetch`, `send`, ...) as fallbacks. Handlers toast the returned reason; hook `error` state is the read error only.
+- **Privacy:** only curated domains are ever requested from Google; no sender text, number or message content is sent. With no internet the disc falls back to initials.
+- **16 px rule:** an image of 16 px or smaller is the service's stand-in globe and is treated as "no icon" (`FAVICON_MIN_PX = 17`). Smart, PLDT and TNT publish only 16 px favicons, so they render initials.
+- **No logo backend.** The sibling repo's server-side logo lookup (`sms_logos.sh`, hunter.io) was not ported.
+- Inbound messages containing a link carry a phishing warning row, because a sender name or logo can be faked.
 
 ---
 
-## Timestamp Sorting
+## Timestamp Handling
 
-> ⚠️ WARNING: `qsms` emits timestamps in `"MM/DD/YY HH:MM:SS"` format (zero-padded, fixed-width, ASCII). Plain lexicographic sort (`sort_by(.timestamp)`) mis-orders messages across month/year boundaries — for example, `"12/31/25 23:59:59"` sorts alphabetically **after** `"01/01/26 00:00:00"` because `"12"` > `"01"`. Never sort directly on the raw timestamp field.
+`qsms` emits `"MM/DD/YY HH:MM:SS"` (zero-padded, fixed-width, device-local wall clock, no zone).
 
-The backend (`sms.sh` GET handler, `messages=$(... jq ...)` block) applies a slice-reordering key before reversing:
+> ⚠️ WARNING: plain lexicographic sort on that string mis-orders messages across month and year boundaries (`"12/31/25 23:59:59"` sorts after `"01/01/26 00:00:00"`). Never sort the raw field.
 
-```sh
-sort_by(.timestamp[6:8] + .timestamp[0:2] + .timestamp[3:5] + .timestamp[8:]) | reverse
-```
+The CGI converts each timestamp to unix seconds in jq (`epoch`: parse as UTC, then subtract the device UTC offset from `date +%z`, so the value is a true epoch) and sorts by `time`, with the slice-reorder key `.[6:8] + .[0:2] + .[3:5] + .[8:]` (`YYMMDD HH:MM:SS`) as the tiebreaker. Sent records store epoch `time` and are rendered back to the same string with the offset added.
 
-This rearranges the fixed-width slices into `"YYMMDD HH:MM:SS"` — a sortable string that orders correctly across month and year boundaries.
-
-The frontend (`parseSmsTimestamp` in `hooks/use-sms-read-state.ts`) parses the same `MM/DD/YY HH:MM:SS` format into epoch millis and sorts descending client-side, so newest-first ordering is robust regardless of backend ordering.
-
-**Why both layers:** The backend sort is authoritative. The client-side sort is a safety net for any future scenario where backend ordering is disrupted (e.g., storage merge returning unsorted results).
+The frontend uses `smsEpochMs`: the backend `time` first, then `parseSmsTimestamp` on `timestamp`, then ISO parse, returning `0` (sorts last) for anything unparseable. Multi-part merge still uses the slice-reorder key to walk parts oldest-first.
 
 ---
 
@@ -159,40 +278,11 @@ The frontend (`parseSmsTimestamp` in `hooks/use-sms-read-state.ts`) parses the s
 
 ### Cross-Page Toast Notification (deferred)
 
-Goal: show a toast when a new SMS arrives while the user is on a different page. The only AT-channel-safe path is piggybacking on `qmanager_poller` — a full `sms.sh` GET holds the broker's `/var/lock/qmanager.lock` for the duration of its `qsms` calls (~0.26 s with the old `sms_tool` path), making it too heavyweight to run app-wide on every poll cycle. The intended design: `qmanager_poller` writes an unread/new-count field into `/tmp/qmanager_status.json`; an `AppLayout` hook consumes that field; the existing global `<Toaster/>` fires the notification. Latency would be bounded by the poller's SMS-check cadence (not instant). This is a known, intended follow-up — the plumbing is not yet in place.
+Goal: show a toast when a new SMS arrives while the user is on a different page. A full `sms.sh` GET is too heavyweight to run app-wide (several `qsms`/`qcmd` calls, each taking the broker's lock), so the only AT-channel-safe path is piggybacking on `qmanager_poller`: it would write a new-count field into `/tmp/qmanager_status.json`, an `AppLayout` hook would consume it, and the global `<Toaster/>` would fire. This is a known follow-up; the plumbing is not in place.
 
-> ℹ️ NOTE: SMS Forwarding (automatic relay of incoming messages to another number) is a separate daemon — see [`docs/features/sms-forwarding.md`](sms-forwarding.md). `qmanager_sms_forward` is the **only** server-side inbox reader in the project; all other read-state is client-side.
+> ℹ️ NOTE: SMS Forwarding (automatic relay of incoming messages to another number) is a separate daemon, see [`sms-forwarding.md`](sms-forwarding.md). `qmanager_sms_forward` is the **only** server-side inbox reader in the project; all other read state is client-side.
 
 ---
-
-## Inbox CGI (`cellular/sms.sh`)
-
-**GET** — one `qsms list all` (each message already tagged with its storage), then the merge, then `qsms status all` for the storage counts (falls back to `qsms status ME` if the combined call fails). `.storage_errors` from the list (for example an unusable SIM) is logged as a warning and does not hide the ME messages. Multi-part messages are grouped by `sender + reference + storage`, and the timestamp slice-reorder sort below is unchanged. `indexes` in each message lists every storage slot for that message so a single `delete` call clears them all.
-
-GET failure envelopes: a list failure with code `modem_busy` or `scan_in_progress` returns `{"success":false,"error":"modem_busy","detail":"Could not acquire AT lock"}`; any other list failure returns `{"success":false,"error":"<code or command_failed>","detail":"..."}`.
-
-Response message object shape:
-
-```json
-{
-  "sender": "+1234567890",
-  "message": "Hello",
-  "indexes": [3],
-  "storage": "ME"
-}
-```
-
-`storage` is `"ME"` or `"SM"`. The `storage.used`/`storage.total` envelope fields reflect the sum of both memories.
-
-**POST actions:**
-
-| Action | Required fields | Notes |
-|---|---|---|
-| `send` | `phone`, `message` | Strips a leading `+` from `phone` before calling `qsms send`; no other normalization |
-| `delete` | `indexes` (array), `storage` (`"ME"`\|`"SM"`, default `"ME"`) | Validates each index as a plain non-negative integer (others count as failures), then one `qsms delete <STORAGE> i,j,k` call; returns `partial_failure` if any slot fails; busy returns `modem_busy` |
-| `delete_all` | — | `qsms delete ME all` then `qsms delete SM all`; error `delete_all_failed` with `ME: ... \| SM: ...` details |
-
-On `send` failure the envelope is `{ "success": false, "error": "send_failed", "detail": "<qsms detail>" }` (HTTP 200 with the error in the JSON body, not a 4xx status). A busy modem (`modem_busy` / `scan_in_progress` from `qsms`) returns the `modem_busy` envelope instead.
 
 ## SMS Channel Transport (`sms_alerts.sh`)
 
@@ -210,7 +300,7 @@ Sourced by `qmanager_poller`. Downtime *detection* (the outage timer, threshold 
 
 ## Phone Number Handling
 
-- Inbox CGI (`send` action): strips a leading `+` exactly once; everything else passes verbatim to `qsms send`. Users must supply the full international number.
+- Conversation CGI (`send` action): strips a leading `+` exactly once; everything else passes verbatim to `qsms send`. Users must supply the full international number.
 - Alerts CGI (`monitoring/alerts.sh`): strips a leading `+` exactly once before writing to `sms_alerts.json`. Storage and GET responses always return raw digits (no leading `+`). The send path passes the stored value verbatim to `qsms send`.
 
 ## Legacy: `sms_tool`
