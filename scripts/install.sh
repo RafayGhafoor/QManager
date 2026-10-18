@@ -24,7 +24,7 @@
 #     usr/bin/                  Daemons and utilities (qmanager_*, qcmd, qsms, ...)
 #     usr/lib/qmanager/         Shared shell libraries
 #     www/cgi-bin/quecmanager/  CGI API endpoints
-#   dependencies/               Bundled binaries (sms_tool, qmanager_atd)
+#   dependencies/               Bundled binaries (qmanager_atd)
 #   install.sh                  This script
 #
 # Usage:
@@ -77,7 +77,7 @@ SRC_DEPS="$INSTALL_DIR/dependencies"
 # guarantee.
 REQUIRED_PACKAGES="jq curl coreutils-timeout ethtool"
 OPTIONAL_PACKAGES="msmtp ookla-speedtest"
-# Removed before install to avoid /dev/smd11 conflicts and sms_tool collision
+# Removed before install: they open /dev/smd11 and fight the AT broker for it
 CONFLICT_PACKAGES="sms-tool socat-at-bridge socat"
 
 # UCI-gated services — only enabled if a prior install had them enabled.
@@ -1333,13 +1333,13 @@ install_backend() {
 }
 
 install_bundled_binaries() {
-    step "Installing bundled binaries (sms_tool, qmanager_atd)"
+    step "Installing bundled binaries (qmanager_atd)"
 
     [ -d "$SRC_DEPS" ] || die "Bundled dependencies not found: $SRC_DEPS"
 
     # qmanager_atd is the Rust AT broker. /usr/bin/qcmd becomes a symlink to it
     # in seed_uci_defaults.
-    for bin in sms_tool qmanager_atd; do
+    for bin in qmanager_atd; do
         local src="$SRC_DEPS/$bin"
         local dst="$BIN_DIR/$bin"
 
@@ -1354,8 +1354,10 @@ install_bundled_binaries() {
     # Legacy AT engine (removed): the shell gatekeeper and the atcli binary it
     # drove. If /usr/bin/qcmd still points at qcmd.sh it dangles until
     # seed_uci_defaults repoints it; services are stopped meanwhile.
+    # sms_tool (retired in SMS phase 4): every caller uses qsms through the
+    # broker, which must be the only opener of /dev/smd11.
     local old
-    for old in qcmd.sh atcli_smd11; do
+    for old in qcmd.sh atcli_smd11 sms_tool; do
         if [ -e "$BIN_DIR/$old" ]; then
             rm -f "$BIN_DIR/$old"
             info "Removed legacy AT engine file: $old"
@@ -1972,8 +1974,8 @@ main() {
     mark_version_pending
 
     # Always run conflict removal — the conflicting opkg packages (sms-tool,
-    # socat-at-bridge, socat) clobber /dev/smd11 and collide with our bundled
-    # sms_tool binary regardless of whether we're installing opkg packages.
+    # socat-at-bridge, socat) clobber /dev/smd11, which the AT broker owns,
+    # regardless of whether we're installing opkg packages.
     # --skip-packages must not leave conflicts in place.
     remove_conflicts
 

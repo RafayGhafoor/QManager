@@ -12,7 +12,7 @@ The SMS feature exposes a read/send/delete inbox over the modem's AT channel (`/
 | AT channel | `/dev/smd11` (opened only by `qmanager_atd`) |
 | Transport | `/usr/bin/qsms`, a symlink to `/usr/bin/qmanager_atd` (argv[0] `qsms` selects the SMS client); socket `/var/run/qmanager_atd.sock` |
 | Lock | `/var/lock/qmanager.lock`, taken by the broker itself. Callers never wrap `qsms` in `flock` |
-| Legacy binary | `/usr/bin/sms_tool` (still installed, unused; removed from the bundle in phase 4) |
+| Legacy binary | `/usr/bin/sms_tool`: retired in phase 4 (not bundled; `install.sh` and `uninstall.sh` delete it) |
 | Storage boot daemon | `/usr/bin/qmanager_sms_storage` (init.d: `/etc/init.d/qmanager_sms_storage`, START=99) |
 | Reboot | Never |
 
@@ -197,9 +197,9 @@ Sourced by `qmanager_poller`. Downtime *detection* (the outage timer, threshold 
 
 ## Legacy: `sms_tool`
 
-Phase 3 moved every caller from the bundled `/usr/bin/sms_tool` to `qsms`. The binary is still shipped by `install.sh` and removed by `uninstall.sh`, but nothing calls it. Phase 4 (separate, later) stops bundling it. Until then, this is what it is.
+Phase 3 moved every caller from the bundled `/usr/bin/sms_tool` to `qsms`, and phase 4 (2026-10-18) stopped bundling it: `build.sh` no longer packs it and `install.sh` no longer installs it. Like `atcli_smd11`, it is removed outright: `install_bundled_binaries` deletes an existing `/usr/bin/sms_tool` on every install and upgrade, and `uninstall.sh` deletes it too, so the broker is the only opener of `/dev/smd11`. Third-party scripts that call `sms_tool` (the test RM551E has a `/usr/bin/sub_menus/lan_menu` running `sms_tool at` for `AT+QMAP`) stop working; `qcmd` is the replacement. The `sms-tool` opkg package stays in the installer's conflict list.
 
-`sms_tool` is a patched fork of [`obsy/sms_tool`](https://github.com/obsy/sms_tool) (Apache-2.0), statically linked for ARM EABI5. The patches and the rebuild recipe are in [`dependencies/README.md`](../../dependencies/README.md):
+What it was: a patched fork of [`obsy/sms_tool`](https://github.com/obsy/sms_tool) (Apache-2.0) at commit 94b66b9, statically linked for ARM EABI5. The binary, `sms_tool.patch` and the rebuild recipe are in git history before the phase 4 commit; its behaviour is in [`docs/reference/sms-tool/`](../reference/sms-tool/). The patch:
 
 1. Default device `/dev/smd11` instead of `/dev/ttyUSB0` (bare `recv` used to segfault on the RM551E).
 2. `isatty()` guards in `setserial()` and `resetserial()`, because `/dev/smd11` is a Qualcomm SMD char device and termios calls return `ENOTTY`.

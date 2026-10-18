@@ -7,7 +7,7 @@
 //! - resync (AT -> OK) after a timeout, and reopen if the channel stays dead.
 //!
 //! Callers must hold /var/lock/qmanager.lock for the whole exchange. The
-//! channel is never read outside an exchange, because sms_tool opens the same
+//! channel is never read outside an exchange, because the retired sms_tool opened the same
 //! device under the same lock (verified on-device: a second opener still gets
 //! its own reply while this fd stays open and idle).
 

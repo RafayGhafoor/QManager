@@ -1,4 +1,5 @@
-//! /var/lock/qmanager.lock, shared with sms_tool wrappers and legacy qcmd.
+//! /var/lock/qmanager.lock, shared with legacy qcmd (and, historically, the
+//! retired sms_tool wrappers).
 //! Same semantics as qcmd's flock_wait: non-blocking tries on a 100 ms grain
 //! until the budget runs out, then one final try.
 

@@ -55,7 +55,7 @@
 
 - **Connection Watchdog** — 4-tier auto-recovery: ifup → CFUN toggle → SIM failover → full reboot (with token bucket rate limiting)
 - **Email Alerts** — Downtime notifications via Gmail SMTP (msmtp), sent on recovery with duration details
-- **SMS Alerts** — Downtime notifications via `sms_tool`, sent during active outages once threshold is exceeded
+- **SMS Alerts** — Downtime notifications by SMS, sent during active outages once threshold is exceeded
 - **WAN Interface Guard** — Automatically disables phantom WAN profiles to prevent netifd CPU-wasting retry loops
 - **Low Power Mode** — Scheduled CFUN power-down windows via cron
 - **Tailscale VPN** — One-click installation, authentication, and status monitoring

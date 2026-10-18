@@ -87,7 +87,7 @@ Any apply that touches shared state (firewall, UCI, profile state) must:
 
 ### 7. `qcmd` is the only AT path
 
-Never `echo > /dev/ttyUSB*` directly. `qcmd` serializes via `flock` and handles the transport (USB CDC on OpenWRT host, `sms_tool` on the RM520N-GL port). On RM520N-GL specifically, the bundled `sms_tool` static binary in `dependencies/` is the transport — see the project-memory file on the porting effort.
+Never `echo > /dev/ttyUSB*` or open `/dev/smd11` directly. `qcmd` (AT) and `qsms` (SMS) are both symlinks to the Rust broker `qmanager_atd`, which owns `/dev/smd11` and its lock; never wrap either in `flock`. `sms_tool` is no longer bundled — see `docs/features/at-broker.md` and `docs/features/sms.md`.
 
 ## File Conventions
 

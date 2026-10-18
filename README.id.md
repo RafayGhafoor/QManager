@@ -55,7 +55,7 @@
 
 - **Connection Watchdog** — Auto-recovery 4 tingkat: ifup → toggle CFUN → SIM failover → reboot penuh (dengan pembatasan laju token bucket)
 - **Notifikasi Email** — Pemberitahuan gangguan via Gmail SMTP (msmtp), dikirim saat pemulihan dengan detail durasi
-- **Notifikasi SMS** — Pemberitahuan gangguan via `sms_tool`, dikirim selama pemadaman aktif setelah ambang batas terlampaui
+- **Notifikasi SMS** — Pemberitahuan gangguan via SMS, dikirim selama pemadaman aktif setelah ambang batas terlampaui
 - **WAN Interface Guard** — Menonaktifkan otomatis profil WAN bayangan untuk mencegah loop retry netifd yang memboroskan CPU
 - **Mode Hemat Daya** — Jendela mati daya CFUN terjadwal via cron
 - **Tailscale VPN** — Instalasi, autentikasi, dan pemantauan status dengan satu klik

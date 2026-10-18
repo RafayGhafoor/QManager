@@ -83,8 +83,8 @@ there is a single behaviour, not two:
      client takes the reply instead. Long commands do not watch.
 2. **`flock` on `/var/lock/qmanager.lock`.** This uses the same 100 ms grain
    and the same 5 s (short) / 10 s (long) budgets as the original shell `qcmd`. It is also why
-   the legacy `sms_tool`, which opens `/dev/smd11` directly under this lock,
-   still works beside the broker (no QManager caller uses it any more).
+   any other opener that takes this lock (the retired `sms_tool` did) can
+   still work beside the broker.
    - The broker serves one request at a time, so waiting in its accept queue
      *is* waiting for the modem. Each request carries its send time
      (`CLOCK_MONOTONIC`), and the queue time is taken off the lock budget: a
@@ -154,7 +154,7 @@ opens `/dev/smd11`. **Every SMS caller uses `qsms`** (phase 3):
 `sms_forwarding.sh`, `qmanager_sms_storage` (`qsms status ME`, then
 `qcmd 'AT+CPMS="ME","ME","ME"'`) and `qmanager_health_check` (`bin.qsms` link
 check). `install.sh` links `/usr/bin/qsms` with `at_qsms_link`. `sms_tool` is
-still shipped but nothing calls it; phase 4 removes it. Caller contracts are
+retired (phase 4): not bundled, and the installer deletes it. Caller contracts are
 in [`sms.md`](sms.md), [`sms-forwarding.md`](sms-forwarding.md) and
 [`alerts.md`](alerts.md).
 
@@ -308,8 +308,8 @@ uses them; its path is `/dev/smd11`.
 Every path goes through `install.sh`; the OTA updater runs it too.
 
 **`install.sh`:**
-1. `install_bundled_binaries` installs `sms_tool` and `qmanager_atd` only, and
-   removes any leftover `qcmd.sh` / `atcli_smd11`.
+1. `install_bundled_binaries` installs `qmanager_atd` only, and removes any
+   leftover `qcmd.sh` / `atcli_smd11` / `sms_tool`.
 2. `seed_uci_defaults` seeds `ports.host_at` (no `at.engine`). On upgrade it
    deletes the retired `quecmanager.at` section, so a device that had chosen
    Legacy moves to the broker. It then runs `at_qcmd_link` and
