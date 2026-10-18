@@ -96,6 +96,11 @@ REQUIRED_FIRMWARE="RM551EGL"
 # mid-install.
 WATCHCAT_LOCK="/tmp/qmanager_watchcat.lock"
 
+# Services that were running when stop_services ran (space-separated names).
+# start_services restarts them so a --no-reboot install does not leave an
+# enabled daemon (e.g. qmanager_dpi) down until the next reboot.
+RUNNING_BEFORE_STOP=""
+
 # --- Colors & Icons ----------------------------------------------------------
 
 if [ -t 1 ]; then
@@ -752,8 +757,45 @@ install_packages() {
 #   4. THEN call init.d stop on every qmanager* script. With daemons
 #      already dead, procd's stop_service returns immediately — it just
 #      runs the cleanup hooks (rm -f state files).
+#
+# Before any of that, snapshot_running_services records which services were
+# running so start_services can bring them back (no-reboot installs).
+snapshot_running_services() {
+    RUNNING_BEFORE_STOP=""
+    [ -d "$INITD_DIR" ] || return 0
+
+    for svc in "$INITD_DIR"/qmanager*; do
+        [ -x "$svc" ] || continue
+        local name
+        name="$(basename "$svc")"
+
+        if [ "$name" = "qmanager_tower_failover" ]; then
+            # Non-procd daemon tracked by a pid file
+            local pid
+            pid=$(cat /tmp/qmanager_tower_failover.pid 2>/dev/null | tr -d ' \n\r')
+            case "$pid" in
+                ''|*[!0-9]*) continue ;;
+            esac
+            kill -0 "$pid" 2>/dev/null || continue
+        else
+            # Only procd scripts have a working "running" command; on a
+            # non-procd rc.common script it prints usage and returns 0.
+            grep -q '^USE_PROCD=1' "$svc" 2>/dev/null || continue
+            "$svc" running >/dev/null 2>&1 || continue
+        fi
+
+        RUNNING_BEFORE_STOP="$RUNNING_BEFORE_STOP $name"
+    done
+
+    if [ -n "$RUNNING_BEFORE_STOP" ]; then
+        info "Running before stop:$RUNNING_BEFORE_STOP"
+    fi
+}
+
 stop_services() {
     step "Stopping QManager services"
+
+    snapshot_running_services
 
     # Step 1: Pause watchcat for the entire install window.
     # Note: the lock file mechanism was added in v0.1.15 — any pre-v0.1.15
@@ -1143,6 +1185,25 @@ start_services() {
             || warn "Failed to start Sites monitor"
         info "Started Sites monitor"
     fi
+
+    restore_running_services
+}
+
+# Restart every service snapshot_running_services saw running (B5.27). Each
+# gated service's start re-checks its own UCI/config flag, so this never
+# force-enables a feature. Watchcat starts while the maintenance lock is
+# still held and resumes when main() removes it.
+restore_running_services() {
+    local name
+    for name in $RUNNING_BEFORE_STOP; do
+        case "$name" in
+            qmanager_atd|qmanager|qmanager_sites) continue ;;
+        esac
+        [ -x "$INITD_DIR/$name" ] || continue
+        "$INITD_DIR/$name" start >>"$LOG_FILE" 2>&1 \
+            || warn "Failed to restart $name"
+        info "Restarted $name (was running before install)"
+    done
 }
 
 # --- File Install Steps ------------------------------------------------------
