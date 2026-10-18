@@ -103,8 +103,11 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     printf '%s' "$raw_msgs" | jq empty 2>/dev/null || raw_msgs="[]"
 
     # 2. Merge multi-part messages into single entries, storage-aware.
-    #    - Group key is sender + reference + storage so ME index 0 and SM
-    #      index 0 never collide into one merged message.
+    #    - Group key is sender + reference + storage + total so ME index 0 and
+    #      SM index 0 never collide into one merged message.
+    #    - The concat reference is 8 bits, so a sender reuses it: within a
+    #      group, parts are walked oldest-first and a repeated part number
+    #      starts a new message (live case: ref 185 seven weeks apart).
     #    - Each output object carries its storage so delete can target the
     #      right memory (ME vs SM).
     #    - Singles (no "reference") pass through, also carrying storage.
@@ -120,8 +123,14 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             {indexes: [.index], sender, content, timestamp, storage}
         ] as $singles |
         ([.[] | select(has("reference"))] |
-            group_by(.sender + "|" + (.reference | tostring) + "|" + .storage) |
-            [.[] | sort_by(.part) | {
+            group_by(.sender + "|" + (.reference | tostring) + "|" + .storage + "|" + ((.total // 0) | tostring)) |
+            [.[]
+             | sort_by((.timestamp[6:8] + .timestamp[0:2] + .timestamp[3:5] + .timestamp[8:]), .index)
+             | reduce .[] as $p ([];
+                 if length > 0 and ((.[-1] | any(.[]; .part == $p.part)) | not)
+                 then .[:-1] + [.[-1] + [$p]]
+                 else . + [[$p]] end)
+             | .[] | sort_by(.part) | {
                 indexes: [.[].index],
                 sender: .[0].sender,
                 content: ([.[].content] | join("")),

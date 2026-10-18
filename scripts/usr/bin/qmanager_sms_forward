@@ -123,7 +123,8 @@ sf_fingerprint() {
 }
 
 # --- Read + merge inbound messages from ME and SM into one JSON array --------
-# Mirrors the sms.sh merge: group multi-part by sender|reference|storage, pass
+# Mirrors the sms.sh merge: group multi-part by sender|reference|storage|total,
+# split a group where a part number repeats (the 8-bit reference wraps), pass
 # singles through. Output is a JSON array of {sender, content, timestamp,
 # storage}. qsms tags every message with its storage and restores ME,ME,ME
 # routing itself. On a failed read prints nothing and returns 1, so a busy
@@ -146,8 +147,14 @@ sf_read_inbox() {
             {sender, content, timestamp, storage}
         ] as $singles |
         ([.[] | select(has("reference"))] |
-            group_by(.sender + "|" + (.reference | tostring) + "|" + .storage) |
-            [.[] | sort_by(.part) | {
+            group_by(.sender + "|" + (.reference | tostring) + "|" + .storage + "|" + ((.total // 0) | tostring)) |
+            [.[]
+             | sort_by((.timestamp[6:8] + .timestamp[0:2] + .timestamp[3:5] + .timestamp[8:]), .index)
+             | reduce .[] as $p ([];
+                 if length > 0 and ((.[-1] | any(.[]; .part == $p.part)) | not)
+                 then .[:-1] + [.[-1] + [$p]]
+                 else . + [[$p]] end)
+             | .[] | sort_by(.part) | {
                 sender: .[0].sender,
                 content: ([.[].content] | join("")),
                 timestamp: .[0].timestamp,

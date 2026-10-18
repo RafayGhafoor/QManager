@@ -75,7 +75,7 @@ Selecting `SM` flips modem mem1 to `SM` as a side effect. `qsms` restores `AT+CP
 
 ### Dual-storage merge
 
-`qsms list all` returns every message already tagged `"storage": "ME"` or `"SM"`. Multi-part reassembly in the CGI groups by `sender + reference + storage` — not just `sender + reference` — so a message whose parts straddle both memories is never incorrectly merged. The merge also drops `stat`.
+`qsms list all` returns every message already tagged `"storage": "ME"` or `"SM"`. Multi-part reassembly in the CGI groups by `sender + reference + storage` — not just `sender + reference` — so a message whose parts straddle both memories is never incorrectly merged. The key also carries `total`, and because the concat reference is only 8 bits (a sender reuses it; live case: `ref 185` seven weeks apart), parts inside a group are walked oldest-first and a repeated `part` number starts a new message. `qmanager_sms_forward` uses the same merge. The merge also drops `stat`.
 
 `storage.used` and `storage.total` in the GET response are the **sum** of ME and SM usage (from `qsms status all`), not ME-only. This gives an honest picture when some messages still reside on the SIM. If the combined call fails, the CGI falls back to `qsms status ME`.
 
