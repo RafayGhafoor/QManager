@@ -1,0 +1,5 @@
+AT+QENG="servingcell"
+hello world
+not a response
+
+OK

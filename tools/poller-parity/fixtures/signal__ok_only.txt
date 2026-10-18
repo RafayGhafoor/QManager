@@ -1,0 +1,3 @@
+AT+QRSRP;+QRSRQ;+QSINR
+
+OK

@@ -1,0 +1,3 @@
+AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?
+
+OK

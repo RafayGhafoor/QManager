@@ -1,0 +1,10 @@
+AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?
++COPS: 0,0,"First",7
+
++COPS: 0,0,"Second",7
+
++QUIMSLOT: 1
+
++CPIN: READY
+
+OK

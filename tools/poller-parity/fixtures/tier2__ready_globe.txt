@@ -1,0 +1,10 @@
+AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?
++COPS: 0,0,"Globe Telecom",7
+
++QUIMSLOT: 1
+
++CNUM: ,"000000000000",129
+
++CPIN: READY
+
+OK

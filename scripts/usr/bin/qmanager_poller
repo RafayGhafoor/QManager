@@ -60,6 +60,13 @@ POLL_INTERVAL=2        # seconds between Tier 1 cycles
 TIER1_5_EVERY=5        # Tier 1.5 (watchcat state + ping history) runs every N Tier-1 cycles
 TIER2_EVERY=15         # Tier 2 runs every N Tier-1 cycles
 SIP_DELAY=0.1          # Delay between AT commands (seconds)
+# Dev-only AT tap (B5.29 parse-parity corpus). Off unless the root-owned flag
+# exists; when off it costs one [ -f ] builtin per AT call. Records the raw qcmd
+# reply of each poller AT call plus the parser globals at the end of each AT
+# cycle into a 200-slot ring. Removed by init.d stop_service and uninstall.
+TAP_FLAG="/var/run/qmanager/poller_tap"
+TAP_DIR="/var/run/qmanager/tap"
+TAP_RING=200
 
 # --- Adaptive (UI-aware tiered) backoff --------------------------------------
 # When no browser is open the poller graduates AT-port reads to a slower cadence
@@ -372,6 +379,36 @@ else
 fi
 
 # =============================================================================
+# DEV-ONLY AT TAP (see TAP_FLAG)
+# =============================================================================
+# _tap_at <cmd> <rc> <raw>: append one raw reply to the in-progress record.
+# Safe from a $( ) subshell (it appends to a file, sets no globals).
+_tap_at() {
+    [ -f "$TAP_FLAG" ] || return 0
+    [ -d "$TAP_DIR" ] || mkdir -p "$TAP_DIR" 2>/dev/null
+    printf '### AT %s rc=%s
+%s
+### END
+' "$1" "$2" "$3" >> "$TAP_DIR/cur" 2>/dev/null
+}
+
+# _tap_end: close the cycle record with the parser globals, rotate into the ring.
+_tap_end() {
+    [ -f "$TAP_FLAG" ] || return 0
+    [ -f "$TAP_DIR/cur" ] || return 0
+    {
+        printf '### CYCLE %s tier=%s
+' "$cycle_count" "$ap_tier"
+        printf '### GLOBALS
+'
+        set | grep -E '^(lte_|nr_|t1_|t2_|sig_|network_type=|service_status=|modem_reachable=|errors=|boot_phone_number=)'
+        printf '### END
+'
+    } >> "$TAP_DIR/cur" 2>/dev/null
+    mv -f "$TAP_DIR/cur" "$TAP_DIR/$((cycle_count % TAP_RING)).rec" 2>/dev/null
+}
+
+# =============================================================================
 # HELPER: SAFE QCMD CALL
 # =============================================================================
 # Calls qcmd (the AT broker) and strips the echoed AT command + trailing OK.
@@ -386,6 +423,7 @@ qcmd_exec() {
 
     result=$(qcmd "$cmd" 2>/dev/null)
     local exit_code=$?
+    _tap_at "$cmd" "$exit_code" "$result"
 
     if [ $exit_code -ne 0 ] || [ -z "$result" ]; then
         qlog_warn "qcmd_exec failed: cmd=${cmd} exit=${exit_code}"
@@ -755,6 +793,7 @@ poll_per_antenna_signal() {
     # Compound AT: fetch all per-antenna signal data in one call
     local result
     result=$(qcmd 'AT+QRSRP;+QRSRQ;+QSINR' 2>/dev/null)
+    _tap_at 'AT+QRSRP;+QRSRQ;+QSINR' "$?" "$result"
 
     if [ -n "$result" ]; then
         parse_qrsrp "$result"
@@ -856,6 +895,7 @@ poll_tier2() {
     # ensures earlier responses (COPS, QUIMSLOT, CNUM) are preserved
     # even if the modem aborts on CPIN ERROR.
     result=$(qcmd 'AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?' 2>/dev/null)
+    _tap_at 'AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?' "$?" "$result"
 
     if [ -n "$result" ]; then
         parse_carrier "$result"
@@ -1736,6 +1776,7 @@ poll_cycle() {
             # Active/idle only; deep tier skips this read.
             local cfun_result
             cfun_result=$(qcmd 'AT+CFUN?' 2>/dev/null)
+            _tap_at 'AT+CFUN?' "$?" "$cfun_result"
             if [ -n "$cfun_result" ]; then
                 local cfun_val
                 cfun_val=$(printf '%s\n' "$cfun_result" | grep '+CFUN:' | head -1 | tr -d '\r' | awk -F': ' '{print $2}' | tr -d ' ')
@@ -1766,6 +1807,7 @@ poll_cycle() {
 
         determine_service_status
         detect_events
+        _tap_end
     fi
     unset _force_t2
     unset _refresh_policy

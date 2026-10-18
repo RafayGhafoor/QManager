@@ -91,6 +91,9 @@ stop_service() {
     # and never consumes a stale reload flag.
     rm -f /tmp/qmanager_ui_active
     rm -f /tmp/qmanager_poller_reload
+    # Dev-only poller AT tap (B5.29): never survive a restart.
+    rm -f /var/run/qmanager/poller_tap
+    rm -rf /var/run/qmanager/tap
     # Note: Ping cache and history are left for post-mortem debugging
     # Note: Logs in /tmp/qmanager.log are preserved for post-mortem debugging
 }

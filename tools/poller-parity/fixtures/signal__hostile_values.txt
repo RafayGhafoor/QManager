@@ -1,0 +1,8 @@
+AT+QRSRP;+QRSRQ;+QSINR
++QRSRP: $(id),`id`,;,'q',LTE
+
++QRSRQ: "-9",\n,\\,%s,NR5G
+
++QSINR: -1"2,3,4,5,LTE
+
+OK
