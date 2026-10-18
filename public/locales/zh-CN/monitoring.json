@@ -609,6 +609,9 @@
       "installFailed": "NetBird 安装未完成",
       "copied": "安装命令已复制",
       "copyFailed": "无法复制命令"
+    },
+    "errors": {
+      "fetch_failed": "无法加载 NetBird 状态"
     }
   },
   "connection_quality": {

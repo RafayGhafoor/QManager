@@ -163,7 +163,12 @@
     "toast_error_save": "Failed to apply LAN settings",
     "error_invalid_ipaddr": "Enter a valid unicast IPv4 address (e.g. 192.168.1.1).",
     "error_invalid_host_in_subnet": "This is the network or broadcast address for the chosen subnet. Pick a usable host address.",
-    "error_invalid_prefix": "Choose a subnet prefix between /16 and /30."
+    "error_invalid_prefix": "Choose a subnet prefix between /16 and /30.",
+    "errors": {
+      "fetch_failed": "Failed to load LAN settings",
+      "save_failed": "Failed to save LAN settings",
+      "parse_failed": "Failed to read the save response"
+    }
   },
   "dns": {
     "page_title": "Custom DNS Settings",
@@ -196,7 +201,11 @@
     "receipt_secondary": "Secondary",
     "receipt_none": "None",
     "error_load_title": "Could not read DNS settings",
-    "error_load_desc": "The modem did not answer. Check the connection and try again."
+    "error_load_desc": "The modem did not answer. Check the connection and try again.",
+    "errors": {
+      "fetch_failed": "Could not load DNS settings",
+      "apply_failed": "Could not apply the DNS settings"
+    }
   },
   "ttl_mtu": {
     "page_title": "TTL and MTU Settings",
@@ -363,7 +372,13 @@
     "test_title": "Test Injection",
     "test_description": "Confirm fake SNI packets are being injected into HTTPS traffic",
     "state_testing": "Testing…",
-    "button_run_test": "Run Test"
+    "button_run_test": "Run Test",
+    "errors": {
+      "load_failed": "Failed to load settings",
+      "save_failed": "Failed to save settings",
+      "uninstall_failed": "Failed to uninstall",
+      "test_failed": "Test failed"
+    }
   },
   "video_optimizer": {
     "page_title": "Video Optimizer",
@@ -414,6 +429,17 @@
     "state_restoring": "Restoring…",
     "dialog_restore_title": "Restore Default Hostnames?",
     "dialog_restore_desc": "This will replace the current list with the factory default CDN hostnames. Any custom domains you added will be removed.",
-    "dialog_action_restore": "Restore Defaults"
+    "dialog_action_restore": "Restore Defaults",
+    "errors": {
+      "load_failed": "Failed to load settings",
+      "save_failed": "Failed to save settings",
+      "uninstall_failed": "Failed to uninstall",
+      "verify_start_failed": "Failed to start verification",
+      "install_start_failed": "Failed to start installation",
+      "install_starting": "Starting installation…",
+      "hostlist_load_failed": "Failed to load hostname list",
+      "hostlist_save_failed": "Failed to save hostname list",
+      "hostlist_restore_failed": "Failed to restore defaults"
+    }
   }
 }

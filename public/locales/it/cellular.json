@@ -488,13 +488,28 @@
     },
     "dialog": {
       "description": "Lascia vuoto un campo banda per lasciare la scelta al modem.",
-      "name_required": "Dai un nome allo scenario."
+      "name_required": "Dai un nome allo scenario.",
+      "icon_label": "Icona"
     },
     "errors": {
       "load_failed": "Il modem non ha restituito i tuoi scenari. Riprova tra poco.",
       "activate_failed": "Impossibile attivare lo scenario.",
       "save_failed": "Impossibile salvare lo scenario.",
       "delete_failed": "Impossibile eliminare lo scenario."
+    },
+    "icons": {
+      "sparkles": "Scintille",
+      "gamepad": "Gioco",
+      "play": "Media",
+      "zap": "Prestazioni",
+      "globe": "Navigazione",
+      "rocket": "Velocità",
+      "video": "Videochiamate",
+      "download": "Download",
+      "shield": "Sicurezza",
+      "plane": "Viaggio",
+      "moon": "Notturno",
+      "briefcase": "Lavoro"
     }
   },
   "sms": {
@@ -1706,11 +1721,6 @@
         "errors": {
           "load_failed": "Il modem non ha restituito i profili dell'operatore. Riprova tra poco.",
           "save_failed": "Impossibile applicare l'impostazione del profilo dell'operatore."
-        },
-        "pending_reboot": {
-          "title": "Riavvia per completare il cambio di profilo dell'operatore",
-          "description": "Il nuovo profilo dell'operatore entra in vigore dopo il riavvio del modem.",
-          "dismiss": "Ignora"
         }
       },
       "profile_gate_title": "Il profilo SIM personalizzato {{profile}} gestisce il tuo APN",

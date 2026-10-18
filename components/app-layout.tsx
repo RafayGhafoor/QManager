@@ -28,6 +28,7 @@ import { isLoggedIn } from "@/hooks/use-auth";
 import { useAutoLogout } from "@/hooks/use-auto-logout";
 import { useBootPendingReboot } from "@/hooks/use-boot-pending-reboot";
 import { ReconnectingBanner } from "@/components/reboot/reconnecting-banner";
+import { PendingRebootBanner } from "@/components/reboot/pending-reboot-banner";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const breadcrumbs = useBreadcrumbs();
@@ -90,6 +91,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
         <SimSwapBanner />
         <ReconnectingBanner />
+        <PendingRebootBanner />
         <motion.div
           id="main-content"
           key={pathname}

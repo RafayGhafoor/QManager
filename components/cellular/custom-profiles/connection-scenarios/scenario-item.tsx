@@ -23,19 +23,16 @@ import type { ScenarioConfig } from "@/types/connection-scenario";
 // `primary-container` (Highlight-by-Container); every disc sits on the strong
 // `primary` fill (Glyph-Disc Rule). The running scenario carries a filled
 // `success` chip.
-//
-// The persisted `gradient` field is passed through untouched by the page and
-// never read here.
 // =============================================================================
 
 export interface Scenario {
   id: string;
   name: string;
   description: string;
-  /** Material glyph for the identity disc. UI-only; never persisted. */
+  /** Material glyph for the identity disc, resolved from `icon` for customs. */
   glyph: MaterialSymbolName;
-  /** Persisted by the backend; carried through on edit, never rendered. */
-  gradient: string;
+  /** Persisted glyph id (`scenario-icons.ts`), customs only. */
+  icon?: string;
   isDefault: boolean;
   config: ScenarioConfig;
 }

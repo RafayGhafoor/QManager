@@ -14,17 +14,22 @@
 #   "id": "custom-..." (optional — omit for create),
 #   "name": "My Scenario",
 #   "description": "...",
-#   "gradient": "from-violet-600 via-purple-600 to-indigo-700",
+#   "icon": "gamepad",            (optional — identity glyph id, UI-only)
 #   "config": {
 #     "atModeValue": "AUTO",
-#     "mode": "Auto",
-#     "optimization": "Custom",
+#     "optimization": "Custom",     (stable token or the user's own text)
 #     "lte_bands": "1:3:28",
 #     "nsa_nr_bands": "",
 #     "sa_nr_bands": ""
 #   }
 # }
 # Response: {"success":true,"id":"custom-..."}
+#
+# The body is stored as sent, minus the retired fields: `gradient` (B5.25) and
+# `config.mode` (a display label in the language it was saved in; B5.26 — the
+# modem applies `atModeValue`). Old records keep them until their next save.
+# `icon` must be a short lowercase id ([a-z0-9_-], <= 32 chars); an empty or
+# absent one is dropped, anything else is refused with `invalid_field`.
 #
 # Install location: /www/cgi-bin/quecmanager/scenarios/save.sh
 # =============================================================================
@@ -49,10 +54,23 @@ cgi_read_post
 # --- Parse fields from JSON --------------------------------------------------
 SCENARIO_ID=$(printf '%s' "$POST_DATA" | jq -r '.id // empty')
 SCENARIO_NAME=$(printf '%s' "$POST_DATA" | jq -r '.name // empty')
+SCENARIO_ICON=$(printf '%s' "$POST_DATA" | jq -r '.icon // empty | if type == "string" then . else "!" end')
 
 # --- Validate name -----------------------------------------------------------
 if [ -z "$SCENARIO_NAME" ]; then
     cgi_error "no_name" "Scenario name is required"
+    exit 0
+fi
+
+# --- Validate icon (shell case: the device jq has no regex) -------------------
+case "$SCENARIO_ICON" in
+    *[!a-z0-9_-]*)
+        cgi_error "invalid_field" "icon must be a short lowercase id"
+        exit 0
+        ;;
+esac
+if [ "${#SCENARIO_ICON}" -gt 32 ]; then
+    cgi_error "invalid_field" "icon must be a short lowercase id"
     exit 0
 fi
 
@@ -88,9 +106,17 @@ if [ "$IS_NEW" -eq 1 ]; then
     fi
 fi
 
-# --- Ensure the stored JSON has the correct ID --------------------------------
-# Use jq to set the id field (handles both insert and replace safely)
-SAVE_DATA=$(printf '%s' "$POST_DATA" | jq --arg id "$SCENARIO_ID" '.id = $id')
+# --- Build the stored JSON: correct ID, retired fields stripped ---------------
+SAVE_DATA=$(printf '%s' "$POST_DATA" | jq --arg id "$SCENARIO_ID" --arg icon "$SCENARIO_ICON" '
+    .id = $id
+    | del(.gradient)
+    | (if (.config | type) == "object" then .config |= del(.mode) else . end)
+    | (if $icon == "" then del(.icon) else .icon = $icon end)
+' 2>/dev/null)
+if [ -z "$SAVE_DATA" ]; then
+    cgi_error "invalid_json" "Request body is not a JSON object"
+    exit 0
+fi
 
 # --- Write to file (atomic: temp + mv) ----------------------------------------
 SCENARIO_FILE="$SCENARIOS_DIR/${SCENARIO_ID}.json"

@@ -148,17 +148,17 @@ export function useNetBird(): UseNetBirdReturn {
               t,
               json.error,
               undefined,
-              "Failed to fetch NetBird status",
+              t("netbird.errors.fetch_failed", { ns: "monitoring" }),
             ),
           );
           return;
         }
 
         setStatus(json);
-      } catch (err) {
+      } catch {
         if (!mountedRef.current) return;
         setError(
-          err instanceof Error ? err.message : "Failed to fetch NetBird status",
+          t("netbird.errors.fetch_failed", { ns: "monitoring" }),
         );
       } finally {
         if (mountedRef.current && !silent) {
@@ -228,10 +228,10 @@ export function useNetBird(): UseNetBirdReturn {
         if (settleMs > 0) await new Promise((r) => setTimeout(r, settleMs));
         if (mountedRef.current) await fetchStatus(true);
         return { success: true };
-      } catch (err) {
+      } catch {
         return {
           success: false,
-          error: err instanceof Error ? err.message : undefined,
+          error: undefined,
         };
       } finally {
         if (mountedRef.current) setBusy?.(false);
@@ -322,12 +322,12 @@ export function useNetBird(): UseNetBirdReturn {
         return;
       }
       installPollRef.current = setInterval(pollInstallStatus, 2000);
-    } catch (err) {
+    } catch {
       if (mountedRef.current) {
         setInstallResult({
           success: false,
           status: "error",
-          message: err instanceof Error ? err.message : "",
+          message: "",
         });
       }
     }

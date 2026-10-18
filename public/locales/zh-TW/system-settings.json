@@ -44,16 +44,8 @@
   "config_backup": {
     "page_title": "設定備份",
     "page_description": "儲存設定的加密副本，或將備份恢復到此數據機。",
-    "pending_reboot_title": "重啟以完成恢復",
-    "pending_reboot_description": "恢復的 IMEI 更改或 SIM 設定檔將在下次重啟後生效。",
     "reboot_now_button": "立即重啟",
-    "rebooting_button": "正在重啟…",
     "reboot_failed_toast": "無法啟動重啟，請重試。",
-    "dismiss_button": "忽略",
-    "dismiss_dialog_title": "忽略重啟提醒？",
-    "dismiss_dialog_description": "需要重啟的恢復更改在數據機重啟前不會生效。僅在已重啟後才忽略。",
-    "dismiss_keep": "保留提醒",
-    "dismiss_confirm": "忽略",
     "sections": {
       "network_mode_apn": "網路模式和 APN",
       "bands": "首選 LTE 和 5G 頻段",

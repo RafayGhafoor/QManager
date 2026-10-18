@@ -163,7 +163,12 @@
     "toast_error_save": "套用 LAN 設定失敗",
     "error_invalid_ipaddr": "請輸入有效的單播 IPv4 地址（例如 192.168.1.1）。",
     "error_invalid_host_in_subnet": "這是所選子網的網路地址或廣播地址。請選擇可用的主機地址。",
-    "error_invalid_prefix": "請選擇 /16 到 /30 之間的子網字首。"
+    "error_invalid_prefix": "請選擇 /16 到 /30 之間的子網字首。",
+    "errors": {
+      "fetch_failed": "載入 LAN 設定失敗",
+      "save_failed": "儲存 LAN 設定失敗",
+      "parse_failed": "無法讀取儲存回應"
+    }
   },
   "dns": {
     "page_title": "自訂 DNS 設定",
@@ -196,7 +201,11 @@
     "receipt_secondary": "備用",
     "receipt_none": "無",
     "error_load_title": "無法讀取 DNS 設定",
-    "error_load_desc": "數據機沒有回應。請檢查連線後再試一次。"
+    "error_load_desc": "數據機沒有回應。請檢查連線後再試一次。",
+    "errors": {
+      "fetch_failed": "無法載入 DNS 設定",
+      "apply_failed": "無法套用 DNS 設定"
+    }
   },
   "ttl_mtu": {
     "page_title": "TTL 與 MTU 設定",
@@ -363,7 +372,13 @@
     "test_title": "注入測試",
     "test_description": "向 CDN 發起一次 HTTPS 請求，透過對比前後 nftables 計數器來驗證是否注入了偽造的 SNI 資料包",
     "state_testing": "測試中…",
-    "button_run_test": "執行測試"
+    "button_run_test": "執行測試",
+    "errors": {
+      "load_failed": "載入設定失敗",
+      "save_failed": "儲存設定失敗",
+      "uninstall_failed": "解除安裝失敗",
+      "test_failed": "測試失敗"
+    }
   },
   "video_optimizer": {
     "page_title": "影片最佳化器",
@@ -414,6 +429,17 @@
     "state_restoring": "恢復中…",
     "dialog_restore_title": "恢復預設主機名？",
     "dialog_restore_desc": "這將使用出廠預設的 CDN 主機名替換當前列表。您新增的所有自訂域名將被移除。",
-    "dialog_action_restore": "恢復預設"
+    "dialog_action_restore": "恢復預設",
+    "errors": {
+      "load_failed": "載入設定失敗",
+      "save_failed": "儲存設定失敗",
+      "uninstall_failed": "解除安裝失敗",
+      "verify_start_failed": "無法啟動驗證",
+      "install_start_failed": "無法啟動安裝",
+      "install_starting": "正在啟動安裝…",
+      "hostlist_load_failed": "載入主機名列表失敗",
+      "hostlist_save_failed": "儲存主機名列表失敗",
+      "hostlist_restore_failed": "恢復預設失敗"
+    }
   }
 }

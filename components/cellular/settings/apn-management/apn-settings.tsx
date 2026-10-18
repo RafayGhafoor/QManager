@@ -2,16 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 
 import ApnSettingsCard from "./apn-settings-card";
 import MBNCard from "./mbn-card";
 import { CellularPageHeader } from "@/components/cellular/page-header";
-import { Banner, bannerActionVariants } from "@/components/ui/banner";
+import { Banner } from "@/components/ui/banner";
 import { useApnSettings } from "@/hooks/use-apn-settings";
 import { useMbnSettings } from "@/hooks/use-mbn-settings";
 import { useSimProfiles } from "@/hooks/use-sim-profiles";
-import { clearPendingReboot, usePendingReboot } from "@/lib/reboot/pending";
 
 // =============================================================================
 // APNSettingsComponent — APN Settings page coordinator (single-APN model)
@@ -27,8 +25,9 @@ import { clearPendingReboot, usePendingReboot } from "@/lib/reboot/pending";
 // `disabled` through every child component.
 //
 // An MBN change needs a reboot. The dialog after a successful save offers it;
-// "Later" persists the deferred-reboot flag, and this page keeps the banner up
-// until the user reboots or dismisses it. Never a reboot inside a save.
+// "Later" persists the deferred-reboot flag, and the app-shell banner
+// (`PendingRebootBanner`) stays up on every route until the user reboots or
+// dismisses it. Never a reboot inside a save.
 // =============================================================================
 
 const APNSettingsComponent = () => {
@@ -59,22 +58,6 @@ const APNSettingsComponent = () => {
   } = useMbnSettings();
 
   const { activeProfileId, isLoading: simLoading, getProfile } = useSimProfiles();
-
-  // --- Deferred MBN reboot ---------------------------------------------------
-  const pendingReboot = usePendingReboot();
-  const mbnRebootPending = pendingReboot?.source === "mbn";
-  const [rebootBusy, setRebootBusy] = useState(false);
-
-  const handleRebootNow = async () => {
-    setRebootBusy(true);
-    const sent = await rebootDevice();
-    if (sent) {
-      clearPendingReboot();
-    } else {
-      setRebootBusy(false);
-      toast.error(t("core_settings.apn.mbn.toast.reboot_error"));
-    }
-  };
 
   // --- SIM Profile override check (async) ----------------------------------
   // Gate iff the active profile has a non-empty APN name. Empty APN = profile
@@ -130,36 +113,6 @@ const APNSettingsComponent = () => {
         title={t("core_settings.apn.page.title")}
         description={t("core_settings.apn.page.description")}
       />
-
-      {mbnRebootPending ? (
-        <Banner
-          role="deferred-reboot"
-          title={t("core_settings.apn.mbn.pending_reboot.title")}
-          description={t("core_settings.apn.mbn.pending_reboot.description")}
-          action={
-            <>
-              <button
-                type="button"
-                className={bannerActionVariants({ tone: "on-warning" })}
-                onClick={clearPendingReboot}
-                disabled={rebootBusy}
-              >
-                {t("core_settings.apn.mbn.pending_reboot.dismiss")}
-              </button>
-              <button
-                type="button"
-                className={bannerActionVariants({ tone: "warning" })}
-                onClick={handleRebootNow}
-                disabled={rebootBusy}
-              >
-                {rebootBusy
-                  ? t("core_settings.apn.mbn.reboot_dialog.rebooting")
-                  : t("core_settings.apn.mbn.reboot_dialog.reboot")}
-              </button>
-            </>
-          }
-        />
-      ) : null}
 
       {isProfileControlled ? (
         <Banner

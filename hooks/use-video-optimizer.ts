@@ -59,7 +59,7 @@ export function useVideoOptimizer() {
       if (!mountedRef.current) return;
 
       if (!data.success) {
-        setError("Failed to load settings");
+        setError(t("video_optimizer.errors.load_failed", { ns: "local-network" }));
         return;
       }
 
@@ -74,13 +74,13 @@ export function useVideoOptimizer() {
         binary_installed: data.binary_installed,
         kernel_module_loaded: data.kernel_module_loaded,
       });
-    } catch (err) {
+    } catch {
       if (!mountedRef.current) return;
-      setError(err instanceof Error ? err.message : "Failed to fetch settings");
+      setError(t("video_optimizer.errors.load_failed", { ns: "local-network" }));
     } finally {
       if (mountedRef.current && !silent) setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const saveSettings = useCallback(
     async (
@@ -108,20 +108,20 @@ export function useVideoOptimizer() {
 
         const data = await response.json();
         if (!data.success) {
-          setError(resolveErrorMessage(t, data.error, data.detail, "Failed to save settings"));
+          setError(resolveErrorMessage(t, data.error, data.detail, t("video_optimizer.errors.save_failed", { ns: "local-network" })));
           return { ok: false, code: data.error ?? null, error: data.detail ?? null };
         }
 
         // Silent re-fetch to get updated status
         await fetchSettings(true);
         return SUCCEEDED;
-      } catch (err) {
+      } catch {
         if (mountedRef.current) {
           setError(
-            err instanceof Error ? err.message : "Failed to save settings"
+            t("video_optimizer.errors.save_failed", { ns: "local-network" })
           );
         }
-        return { ok: false, code: null, error: err instanceof Error ? err.message : null };
+        return { ok: false, code: null, error: null };
       } finally {
         if (mountedRef.current) setIsSaving(false);
       }
@@ -172,17 +172,17 @@ export function useVideoOptimizer() {
 
       // Start polling for results every 2 seconds
       pollTimerRef.current = setInterval(pollVerifyStatus, 2000);
-    } catch (err) {
+    } catch {
       if (mountedRef.current) {
         setVerifyResult({
           success: false,
           status: "error",
           error:
-            err instanceof Error ? err.message : "Failed to start verification",
+            t("video_optimizer.errors.verify_start_failed", { ns: "local-network" }),
         });
       }
     }
-  }, [pollVerifyStatus]);
+  }, [pollVerifyStatus, t]);
 
   const stopInstallPolling = useCallback(() => {
     if (installPollRef.current) {
@@ -212,7 +212,7 @@ export function useVideoOptimizer() {
   }, [stopInstallPolling, fetchSettings]);
 
   const runInstall = useCallback(async () => {
-    setInstallResult({ success: true, status: "running", message: "Starting installation..." });
+    setInstallResult({ success: true, status: "running", message: t("video_optimizer.errors.install_starting", { ns: "local-network" }) });
 
     try {
       const response = await authFetch(API_URL, {
@@ -225,16 +225,16 @@ export function useVideoOptimizer() {
 
       // Start polling for results every 2 seconds
       installPollRef.current = setInterval(pollInstallStatus, 2000);
-    } catch (err) {
+    } catch {
       if (mountedRef.current) {
         setInstallResult({
           success: false,
           status: "error",
-          message: err instanceof Error ? err.message : "Failed to start installation",
+          message: t("video_optimizer.errors.install_start_failed", { ns: "local-network" }),
         });
       }
     }
-  }, [pollInstallStatus]);
+  }, [pollInstallStatus, t]);
 
   useEffect(() => {
     fetchSettings();
@@ -273,16 +273,16 @@ export function useVideoOptimizer() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (!data.success) {
-        setError(resolveErrorMessage(t, data.error, data.detail, "Failed to uninstall"));
+        setError(resolveErrorMessage(t, data.error, data.detail, t("video_optimizer.errors.uninstall_failed", { ns: "local-network" })));
         return { ok: false, code: data.error ?? null, error: data.detail ?? null };
       }
       await fetchSettings(true);
       return SUCCEEDED;
-    } catch (err) {
+    } catch {
       if (mountedRef.current) {
-        setError(err instanceof Error ? err.message : "Failed to uninstall");
+        setError(t("video_optimizer.errors.uninstall_failed", { ns: "local-network" }));
       }
-      return { ok: false, code: null, error: err instanceof Error ? err.message : null };
+      return { ok: false, code: null, error: null };
     } finally {
       if (mountedRef.current) setIsUninstalling(false);
     }

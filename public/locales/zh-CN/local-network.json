@@ -163,7 +163,12 @@
     "toast_error_save": "应用 LAN 设置失败",
     "error_invalid_ipaddr": "请输入有效的单播 IPv4 地址（例如 192.168.1.1）。",
     "error_invalid_host_in_subnet": "这是所选子网的网络地址或广播地址。请选择可用的主机地址。",
-    "error_invalid_prefix": "请选择 /16 到 /30 之间的子网前缀。"
+    "error_invalid_prefix": "请选择 /16 到 /30 之间的子网前缀。",
+    "errors": {
+      "fetch_failed": "加载 LAN 设置失败",
+      "save_failed": "保存 LAN 设置失败",
+      "parse_failed": "无法读取保存响应"
+    }
   },
   "dns": {
     "page_title": "自定义 DNS 设置",
@@ -196,7 +201,11 @@
     "receipt_secondary": "备用",
     "receipt_none": "无",
     "error_load_title": "无法读取 DNS 设置",
-    "error_load_desc": "调制解调器没有响应。请检查连接后重试。"
+    "error_load_desc": "调制解调器没有响应。请检查连接后重试。",
+    "errors": {
+      "fetch_failed": "无法加载 DNS 设置",
+      "apply_failed": "无法应用 DNS 设置"
+    }
   },
   "ttl_mtu": {
     "page_title": "TTL 与 MTU 设置",
@@ -363,7 +372,13 @@
     "test_title": "注入测试",
     "test_description": "确认伪造的 SNI 数据包正被注入 HTTPS 流量",
     "state_testing": "测试中…",
-    "button_run_test": "运行测试"
+    "button_run_test": "运行测试",
+    "errors": {
+      "load_failed": "加载设置失败",
+      "save_failed": "保存设置失败",
+      "uninstall_failed": "卸载失败",
+      "test_failed": "测试失败"
+    }
   },
   "video_optimizer": {
     "page_title": "视频优化器",
@@ -414,6 +429,17 @@
     "state_restoring": "恢复中…",
     "dialog_restore_title": "恢复默认主机名？",
     "dialog_restore_desc": "这将使用出厂默认的 CDN 主机名替换当前列表。您添加的所有自定义域名将被移除。",
-    "dialog_action_restore": "恢复默认"
+    "dialog_action_restore": "恢复默认",
+    "errors": {
+      "load_failed": "加载设置失败",
+      "save_failed": "保存设置失败",
+      "uninstall_failed": "卸载失败",
+      "verify_start_failed": "无法启动验证",
+      "install_start_failed": "无法启动安装",
+      "install_starting": "正在启动安装…",
+      "hostlist_load_failed": "加载主机名列表失败",
+      "hostlist_save_failed": "保存主机名列表失败",
+      "hostlist_restore_failed": "恢复默认失败"
+    }
   }
 }

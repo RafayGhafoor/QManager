@@ -592,5 +592,27 @@
       "title": "已安裝其他 VPN",
       "description": "同一時間只能安裝一個 VPN。請先在 <link>NetBird 頁面</link>解除安裝 {{other_vpn}}。"
     }
+  },
+  "pending_reboot": {
+    "title": "重新啟動以完成變更",
+    "reboot_now": "立即重新啟動",
+    "rebooting": "正在重新啟動…",
+    "dismiss": "忽略",
+    "reboot_failed_toast": "無法啟動重新啟動，請重試。",
+    "description": {
+      "config_restore": "還原的 IMEI 變更或 SIM 設定檔將在下次重新啟動後生效。",
+      "verizon_revert": "Verizon 設定檔的還原將在下次重新啟動後完成。",
+      "imei": "新的 IMEI 將在下次重新啟動後生效。",
+      "netbird": "NetBird 已移除。重新啟動可清除殘留的防火牆規則。",
+      "mbn": "新的電信業者設定檔會在數據機重新啟動後生效。",
+      "ipa_offload": "硬體卸載的變更將在下次重新啟動後生效。",
+      "default": "部分變更將在下次重新啟動後生效。"
+    },
+    "dismiss_dialog": {
+      "title": "忽略重新啟動提醒？",
+      "description": "需要重新啟動的變更在數據機重新啟動前不會生效。僅在已重新啟動後才忽略。",
+      "keep": "保留提醒",
+      "confirm": "忽略"
+    }
   }
 }

@@ -609,6 +609,9 @@
       "installFailed": "Instalasi NetBird tidak selesai",
       "copied": "Perintah instalasi disalin",
       "copyFailed": "Tidak dapat menyalin perintah"
+    },
+    "errors": {
+      "fetch_failed": "Tidak dapat memuat status NetBird"
     }
   },
   "connection_quality": {

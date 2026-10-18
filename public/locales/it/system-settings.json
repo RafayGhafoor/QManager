@@ -44,16 +44,8 @@
   "config_backup": {
     "page_title": "Backup della configurazione",
     "page_description": "Salva una copia crittografata delle tue impostazioni o ripristinane una su questo modem.",
-    "pending_reboot_title": "Riavvia per completare il ripristino",
-    "pending_reboot_description": "Una modifica IMEI o un profilo SIM del ripristino avrà effetto dopo il prossimo riavvio.",
     "reboot_now_button": "Riavvia ora",
-    "rebooting_button": "Riavvio…",
     "reboot_failed_toast": "Impossibile avviare il riavvio. Riprova.",
-    "dismiss_button": "Ignora",
-    "dismiss_dialog_title": "Ignorare il promemoria di riavvio?",
-    "dismiss_dialog_description": "Le modifiche ripristinate che richiedono un riavvio restano inattive finché il modem non si riavvia. Ignora solo se hai già riavviato.",
-    "dismiss_keep": "Mantieni promemoria",
-    "dismiss_confirm": "Ignora",
     "sections": {
       "network_mode_apn": "Modalità di rete e APN",
       "bands": "Bande preferite LTE e 5G",

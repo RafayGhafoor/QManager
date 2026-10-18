@@ -592,5 +592,27 @@
       "title": "VPN lain sudah terinstal",
       "description": "Hanya satu VPN yang dapat diinstal dalam satu waktu. Copot {{other_vpn}} dari <link>halaman NetBird</link> terlebih dahulu."
     }
+  },
+  "pending_reboot": {
+    "title": "Reboot untuk menyelesaikan perubahan",
+    "reboot_now": "Reboot sekarang",
+    "rebooting": "Memulai ulang…",
+    "dismiss": "Tutup",
+    "reboot_failed_toast": "Tidak dapat memulai reboot. Coba lagi.",
+    "description": {
+      "config_restore": "Perubahan IMEI atau profil SIM dari pemulihan akan berlaku setelah reboot berikutnya.",
+      "verizon_revert": "Pengembalian profil Verizon selesai setelah reboot berikutnya.",
+      "imei": "IMEI baru berlaku setelah reboot berikutnya.",
+      "netbird": "NetBird telah dihapus. Reboot membersihkan sisa aturan firewall.",
+      "mbn": "Profil operator baru berlaku setelah modem dinyalakan ulang.",
+      "ipa_offload": "Perubahan Hardware Offload berlaku setelah reboot berikutnya.",
+      "default": "Beberapa perubahan berlaku setelah reboot berikutnya."
+    },
+    "dismiss_dialog": {
+      "title": "Tutup pengingat reboot?",
+      "description": "Perubahan yang memerlukan reboot tetap tidak aktif sampai modem dimulai ulang. Tutup hanya jika Anda sudah me-reboot.",
+      "keep": "Pertahankan pengingat",
+      "confirm": "Tutup"
+    }
   }
 }

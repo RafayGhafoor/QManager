@@ -592,5 +592,27 @@
       "title": "È installata un'altra VPN",
       "description": "È possibile installare una sola VPN alla volta. Disinstalla prima {{other_vpn}} dalla pagina <link>NetBird</link>."
     }
+  },
+  "pending_reboot": {
+    "title": "Riavvia per completare le modifiche",
+    "reboot_now": "Riavvia ora",
+    "rebooting": "Riavvio…",
+    "dismiss": "Ignora",
+    "reboot_failed_toast": "Impossibile avviare il riavvio. Riprova.",
+    "description": {
+      "config_restore": "Una modifica IMEI o un profilo SIM del ripristino avrà effetto dopo il prossimo riavvio.",
+      "verizon_revert": "Il ripristino del profilo Verizon si completa dopo il prossimo riavvio.",
+      "imei": "Il nuovo IMEI avrà effetto dopo il prossimo riavvio.",
+      "netbird": "NetBird è stato rimosso. Il riavvio elimina le regole del firewall residue.",
+      "mbn": "Il nuovo profilo dell'operatore entra in vigore dopo il riavvio del modem.",
+      "ipa_offload": "La modifica all'offload hardware avrà effetto dopo il prossimo riavvio.",
+      "default": "Alcune modifiche avranno effetto dopo il prossimo riavvio."
+    },
+    "dismiss_dialog": {
+      "title": "Ignorare il promemoria di riavvio?",
+      "description": "Le modifiche che richiedono un riavvio restano inattive finché il modem non si riavvia. Ignora solo se hai già riavviato.",
+      "keep": "Mantieni promemoria",
+      "confirm": "Ignora"
+    }
   }
 }

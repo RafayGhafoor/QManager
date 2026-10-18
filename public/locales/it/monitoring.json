@@ -609,6 +609,9 @@
       "installFailed": "L'installazione di NetBird non è terminata",
       "copied": "Comando di installazione copiato",
       "copyFailed": "Impossibile copiare il comando"
+    },
+    "errors": {
+      "fetch_failed": "Impossibile caricare lo stato di NetBird"
     }
   },
   "connection_quality": {

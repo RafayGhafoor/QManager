@@ -44,7 +44,7 @@ export function useTrafficMasquerade() {
       if (!mountedRef.current) return;
 
       if (!data.success) {
-        setError("Failed to load settings");
+        setError(t("masquerade.errors.load_failed", { ns: "local-network" }));
         return;
       }
 
@@ -58,13 +58,13 @@ export function useTrafficMasquerade() {
         binary_installed: data.binary_installed,
         kernel_module_loaded: data.kernel_module_loaded,
       });
-    } catch (err) {
+    } catch {
       if (!mountedRef.current) return;
-      setError(err instanceof Error ? err.message : "Failed to fetch settings");
+      setError(t("masquerade.errors.load_failed", { ns: "local-network" }));
     } finally {
       if (mountedRef.current && !silent) setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const saveSettings = useCallback(
     async (enabled: boolean, sniDomain: string): Promise<MutationResult> => {
@@ -86,19 +86,19 @@ export function useTrafficMasquerade() {
 
         const data = await response.json();
         if (!data.success) {
-          setError(resolveErrorMessage(t, data.error, data.detail, "Failed to save settings"));
+          setError(resolveErrorMessage(t, data.error, data.detail, t("masquerade.errors.save_failed", { ns: "local-network" })));
           return { ok: false, code: data.error ?? null, error: data.detail ?? null };
         }
 
         await fetchSettings(true);
         return SUCCEEDED;
-      } catch (err) {
+      } catch {
         if (mountedRef.current) {
           setError(
-            err instanceof Error ? err.message : "Failed to save settings"
+            t("masquerade.errors.save_failed", { ns: "local-network" })
           );
         }
-        return { ok: false, code: null, error: err instanceof Error ? err.message : null };
+        return { ok: false, code: null, error: null };
       } finally {
         if (mountedRef.current) setIsSaving(false);
       }
@@ -128,7 +128,12 @@ export function useTrafficMasquerade() {
       if (!data.success) {
         setTestResult({
           status: "error",
-          error: data.error || "Test failed",
+          error: resolveErrorMessage(
+            t,
+            data.error,
+            data.detail,
+            t("masquerade.errors.test_failed", { ns: "local-network" }),
+          ),
         });
         return;
       }
@@ -139,14 +144,14 @@ export function useTrafficMasquerade() {
         packets: data.packets,
         message: data.message,
       });
-    } catch (err) {
+    } catch {
       if (!mountedRef.current) return;
       setTestResult({
         status: "error",
-        error: err instanceof Error ? err.message : "Test failed",
+        error: t("masquerade.errors.test_failed", { ns: "local-network" }),
       });
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchSettings();
@@ -185,16 +190,16 @@ export function useTrafficMasquerade() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (!data.success) {
-        setError(resolveErrorMessage(t, data.error, data.detail, "Failed to uninstall"));
+        setError(resolveErrorMessage(t, data.error, data.detail, t("masquerade.errors.uninstall_failed", { ns: "local-network" })));
         return { ok: false, code: data.error ?? null, error: data.detail ?? null };
       }
       await fetchSettings(true);
       return SUCCEEDED;
-    } catch (err) {
+    } catch {
       if (mountedRef.current) {
-        setError(err instanceof Error ? err.message : "Failed to uninstall");
+        setError(t("masquerade.errors.uninstall_failed", { ns: "local-network" }));
       }
-      return { ok: false, code: null, error: err instanceof Error ? err.message : null };
+      return { ok: false, code: null, error: null };
     } finally {
       if (mountedRef.current) setIsUninstalling(false);
     }

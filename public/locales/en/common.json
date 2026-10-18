@@ -592,5 +592,27 @@
       "title": "Another VPN is installed",
       "description": "Only one VPN can be installed at a time. Uninstall {{other_vpn}} from the <link>NetBird page</link> first."
     }
+  },
+  "pending_reboot": {
+    "title": "Reboot to finish your changes",
+    "reboot_now": "Reboot now",
+    "rebooting": "Rebooting…",
+    "dismiss": "Dismiss",
+    "reboot_failed_toast": "Couldn't start the reboot. Try again.",
+    "description": {
+      "config_restore": "An IMEI change or SIM profile from the restore takes effect after the next reboot.",
+      "verizon_revert": "Reverting the Verizon profile finishes after the next reboot.",
+      "imei": "The new IMEI takes effect after the next reboot.",
+      "netbird": "NetBird is removed. A reboot clears its leftover firewall rules.",
+      "mbn": "The new carrier profile takes effect after the modem restarts.",
+      "ipa_offload": "The Hardware Offload change takes effect after the next reboot.",
+      "default": "Some changes take effect after the next reboot."
+    },
+    "dismiss_dialog": {
+      "title": "Dismiss the reboot reminder?",
+      "description": "Changes that need a reboot stay inactive until the modem restarts. Dismiss only if you have already rebooted.",
+      "keep": "Keep reminder",
+      "confirm": "Dismiss"
+    }
   }
 }

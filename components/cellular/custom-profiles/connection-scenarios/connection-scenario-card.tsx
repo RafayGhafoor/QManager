@@ -29,7 +29,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveProfile } from "@/hooks/use-active-profile";
 import { useConnectionScenarios } from "@/hooks/use-connection-scenarios";
 import { staggerRows } from "@/lib/motion";
-import { bandsToInput, inputToBands } from "@/types/connection-scenario";
+import {
+  OPTIMIZATION_TOKENS,
+  bandsToInput,
+  inputToBands,
+  optimizationLabelKey,
+} from "@/types/connection-scenario";
 import { ActiveConfigCard } from "./active-config-card";
 import {
   EMPTY_SCENARIO_DRAFT,
@@ -42,6 +47,7 @@ import {
   ScenarioItem,
   type Scenario,
 } from "./scenario-item";
+import { DEFAULT_SCENARIO_ICON_ID, resolveScenarioIcon } from "./scenario-icons";
 
 // =============================================================================
 // ConnectionScenariosCard — the page body: Scenarios card + Selected card
@@ -55,13 +61,12 @@ import {
 // Invariants: activation is explicit and a same-id activate is a no-op;
 // built-ins are mode-only; the active profile's schedule lock withholds
 // Activate (the backend also refuses with `scenario_locked_by_schedule`);
-// `?create=1` opens the Add dialog once and strips itself; the persisted
-// `gradient` passes through unchanged on edit (new scenarios send a neutral
-// legacy value the backend still expects). Never reboots.
+// `?create=1` opens the Add dialog once and strips itself. A custom
+// scenario persists its identity glyph as an `icon` id (B5.25) and its
+// optimization as a stable token or the user's own words (B5.26); neither the
+// retired `gradient` nor the display-language `config.mode` is sent any more.
+// Never reboots.
 // =============================================================================
-
-/** Legacy value for the stored `gradient` field. The UI never draws it. */
-const LEGACY_GRADIENT = "from-blue-500 via-indigo-500 to-purple-600";
 
 const ConnectionScenariosCard = () => {
   const { t } = useTranslation("cellular");
@@ -77,6 +82,11 @@ const ConnectionScenariosCard = () => {
   );
   const modeLabel = (value: string) =>
     modeOptions.find((o) => o.value === value)?.label ?? value;
+  // A token the app wrote is translated; the user's own words print verbatim.
+  const optimizationLabel = (value: string) => {
+    const key = optimizationLabelKey(value);
+    return key ? t(key) : value;
+  };
 
   const defaultScenarios = useMemo<Scenario[]>(
     () => [
@@ -85,12 +95,10 @@ const ConnectionScenariosCard = () => {
         name: t("scenarios.default_balanced_name"),
         description: t("scenarios.default_balanced_description"),
         glyph: "bolt",
-        gradient: "",
         isDefault: true,
         config: {
           atModeValue: "AUTO",
-          mode: t("scenarios.mode_option_auto"),
-          optimization: t("scenarios.default_balanced_name"),
+          optimization: OPTIMIZATION_TOKENS.balanced,
           lte_bands: "",
           nsa_nr_bands: "",
           sa_nr_bands: "",
@@ -101,12 +109,10 @@ const ConnectionScenariosCard = () => {
         name: t("scenarios.default_gaming_name"),
         description: t("scenarios.default_gaming_description"),
         glyph: "sports_esports",
-        gradient: "",
         isDefault: true,
         config: {
           atModeValue: "NR5G",
-          mode: t("scenarios.mode_option_nrsa"),
-          optimization: t("scenarios.default_gaming_optimization"),
+          optimization: OPTIMIZATION_TOKENS.latency,
           lte_bands: "",
           nsa_nr_bands: "",
           sa_nr_bands: "",
@@ -117,12 +123,10 @@ const ConnectionScenariosCard = () => {
         name: t("scenarios.default_streaming_name"),
         description: t("scenarios.default_streaming_description"),
         glyph: "videocam",
-        gradient: "",
         isDefault: true,
         config: {
           atModeValue: "LTE:NR5G",
-          mode: t("scenarios.mode_option_nrsa_nsa"),
-          optimization: t("scenarios.default_streaming_optimization"),
+          optimization: OPTIMIZATION_TOKENS.throughput,
           lte_bands: "",
           nsa_nr_bands: "",
           sa_nr_bands: "",
@@ -150,7 +154,7 @@ const ConnectionScenariosCard = () => {
       ...defaultScenarios,
       ...stored.map((s) => ({
         ...s,
-        glyph: "auto_awesome" as const,
+        glyph: resolveScenarioIcon(s.icon),
         isDefault: false,
       })),
     ],
@@ -201,7 +205,8 @@ const ConnectionScenariosCard = () => {
           name: selected.name,
           description: selected.description,
           mode: selected.config.atModeValue,
-          optimization: selected.config.optimization,
+          optimization: optimizationLabel(selected.config.optimization),
+          icon: selected.icon ?? DEFAULT_SCENARIO_ICON_ID,
           lteBands: bandsToInput(selected.config.lte_bands),
           saBands: bandsToInput(selected.config.sa_nr_bands),
           nsaBands: bandsToInput(selected.config.nsa_nr_bands),
@@ -227,6 +232,14 @@ const ConnectionScenariosCard = () => {
 
   const handleSubmit = async (draft: ScenarioDraft) => {
     const editing = dialog?.mode === "edit" ? selected : undefined;
+    // An untouched optimization field keeps its stored token, so a translated
+    // label shown in the dialog is never written back as the value.
+    const typedOptimization = draft.optimization.trim();
+    const optimization = editing
+      ? typedOptimization === optimizationLabel(editing.config.optimization)
+        ? editing.config.optimization
+        : typedOptimization
+      : OPTIMIZATION_TOKENS.custom;
     setIsSaving(true);
     const result = await saveCustomScenario({
       ...(editing ? { id: editing.id } : {}),
@@ -234,13 +247,10 @@ const ConnectionScenariosCard = () => {
       description:
         draft.description.trim() ||
         t("scenarios.add_dialog.fields.preview_placeholder"),
-      gradient: editing?.gradient || LEGACY_GRADIENT,
+      icon: draft.icon,
       config: {
         atModeValue: draft.mode,
-        mode: modeLabel(draft.mode),
-        optimization: editing
-          ? draft.optimization
-          : t("scenarios.default_custom_optimization"),
+        optimization,
         lte_bands: inputToBands(draft.lteBands),
         nsa_nr_bands: inputToBands(draft.nsaBands),
         sa_nr_bands: inputToBands(draft.saBands),
@@ -339,7 +349,7 @@ const ConnectionScenariosCard = () => {
         <ActiveConfigCard
           scenario={selected}
           modeLabel={selected ? modeLabel(selected.config.atModeValue) : ""}
-          optimizationLabel={selected?.config.optimization ?? ""}
+          optimizationLabel={selected ? optimizationLabel(selected.config.optimization) : ""}
           isActive={isSelectedActive}
           isActivating={isActivating}
           isLoading={isLoading}

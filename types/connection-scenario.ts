@@ -30,6 +30,35 @@ export function modeValueToLabel(atValue: string): string {
   );
 }
 
+// --- Optimization tokens -----------------------------------------------------
+//
+// The built-in scenarios and the create path write fixed English tokens, which
+// are ours to translate; a word the user typed in the edit dialog is theirs and
+// shows verbatim. The stored string stays the stable token (B5.26), so only the
+// DISPLAY goes through this map. The keys live in the `cellular` namespace.
+
+export const OPTIMIZATION_TOKENS = {
+  balanced: "Balanced",
+  latency: "Latency",
+  throughput: "Throughput",
+  custom: "Custom",
+} as const;
+
+const OPTIMIZATION_LABEL_KEY: Record<string, string> = {
+  [OPTIMIZATION_TOKENS.balanced]: "scenarios.default_balanced_name",
+  [OPTIMIZATION_TOKENS.latency]: "scenarios.default_gaming_optimization",
+  [OPTIMIZATION_TOKENS.throughput]: "scenarios.default_streaming_optimization",
+  [OPTIMIZATION_TOKENS.custom]: "scenarios.default_custom_optimization",
+};
+
+/**
+ * A stored `optimization` value -> its `cellular` i18n key, or `null` when the
+ * user typed their own word and the caller should print it unchanged.
+ */
+export function optimizationLabelKey(value: string): string | null {
+  return OPTIMIZATION_LABEL_KEY[value.trim()] ?? null;
+}
+
 // --- Band Format Helpers -----------------------------------------------------
 
 import type { TFunction } from "i18next";
@@ -65,9 +94,17 @@ export function bandsToInput(colonDelimited: string): string {
 export interface ScenarioConfig {
   /** AT command value for mode_pref: "AUTO" | "LTE" | "NR5G" | "LTE:NR5G" */
   atModeValue: string;
-  /** Display-friendly network mode label (e.g., "Auto", "5G SA Only") */
-  mode: string;
-  /** Display-friendly optimization label (e.g., "Balanced", "Latency") */
+  /**
+   * Legacy display label in the language it was saved in. No longer written
+   * (B5.26): the UI derives the mode label from `atModeValue`, and `save.sh`
+   * strips it. Records saved before that still carry it; never read it.
+   */
+  mode?: string;
+  /**
+   * A stable token the app writes (`Balanced`, `Latency`, `Throughput`,
+   * `Custom`; see `optimizationLabelKey`) or the user's own free text, shown
+   * verbatim. Records saved before B5.26 may hold a translated string.
+   */
   optimization: string;
   /** LTE bands, colon-delimited (e.g., "1:3:7:28"). Empty = Auto. */
   lte_bands: string;
@@ -85,8 +122,6 @@ export interface ConnectionScenario {
   name: string;
   /** Short description */
   description: string;
-  /** Tailwind gradient classes for the card background */
-  gradient: string;
   /** SVG pattern type for the card overlay */
   pattern: "balanced" | "gaming" | "streaming" | "custom";
   /** Scenario configuration */
@@ -102,7 +137,6 @@ export const DEFAULT_SCENARIOS: ConnectionScenario[] = [
     id: "balanced",
     name: "Balanced",
     description: "Auto band selection",
-    gradient: "from-emerald-500 via-teal-500 to-cyan-500",
     pattern: "balanced",
     config: {
       atModeValue: "AUTO",
@@ -118,7 +152,6 @@ export const DEFAULT_SCENARIOS: ConnectionScenario[] = [
     id: "gaming",
     name: "Gaming",
     description: "Low latency, SA priority",
-    gradient: "from-violet-600 via-purple-600 to-indigo-700",
     pattern: "gaming",
     config: {
       atModeValue: "NR5G",
@@ -134,7 +167,6 @@ export const DEFAULT_SCENARIOS: ConnectionScenario[] = [
     id: "streaming",
     name: "Streaming",
     description: "High bandwidth, stable connection",
-    gradient: "from-rose-500 via-pink-500 to-orange-400",
     pattern: "streaming",
     config: {
       atModeValue: "LTE:NR5G",
@@ -166,7 +198,15 @@ export interface StoredScenario {
   id: string;
   name: string;
   description: string;
-  gradient: string;
+  /**
+   * Identity glyph id from `SCENARIO_ICONS` (`scenario-icons.ts`), persisted
+   * as a key, never as the glyph. Absent on records saved before B5.25; they
+   * resolve to the default glyph.
+   */
+  icon?: string;
+  /** Retired Tailwind gradient (B5.25). Old records may carry it; `save.sh`
+   *  strips it on the next save. Never read. */
+  gradient?: string;
   config: ScenarioConfig;
 }
 

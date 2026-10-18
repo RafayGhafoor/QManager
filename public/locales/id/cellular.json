@@ -488,13 +488,28 @@
     },
     "dialog": {
       "description": "Biarkan kolom band kosong agar modem yang memilih.",
-      "name_required": "Beri nama skenario."
+      "name_required": "Beri nama skenario.",
+      "icon_label": "Ikon"
     },
     "errors": {
       "load_failed": "Modem tidak mengembalikan skenario Anda. Coba lagi sebentar lagi.",
       "activate_failed": "Tidak dapat mengaktifkan skenario.",
       "save_failed": "Tidak dapat menyimpan skenario.",
       "delete_failed": "Tidak dapat menghapus skenario."
+    },
+    "icons": {
+      "sparkles": "Kilau",
+      "gamepad": "Game",
+      "play": "Media",
+      "zap": "Performa",
+      "globe": "Penjelajahan",
+      "rocket": "Kecepatan",
+      "video": "Panggilan video",
+      "download": "Unduhan",
+      "shield": "Aman",
+      "plane": "Perjalanan",
+      "moon": "Malam",
+      "briefcase": "Kerja"
     }
   },
   "sms": {
@@ -1706,11 +1721,6 @@
         "errors": {
           "load_failed": "Modem tidak mengembalikan profil operator. Coba lagi sebentar lagi.",
           "save_failed": "Tidak dapat menerapkan pengaturan profil operator."
-        },
-        "pending_reboot": {
-          "title": "Reboot untuk menyelesaikan perubahan profil operator",
-          "description": "Profil operator baru berlaku setelah modem dinyalakan ulang.",
-          "dismiss": "Tutup"
         }
       },
       "profile_gate_title": "Profil SIM Kustom {{profile}} mengelola APN Anda",
