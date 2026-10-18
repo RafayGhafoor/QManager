@@ -603,6 +603,24 @@
       },
       "description_storage": "{{used}} di {{total}} messaggi memorizzati."
     },
+    "storage": {
+      "card_title": "Memoria dei messaggi",
+      "card_description": "Dove vengono salvati i nuovi messaggi. Quelli esistenti restano dove sono.",
+      "field_label": "Salva i nuovi messaggi in",
+      "option_modem": "Modem",
+      "option_sim": "SIM",
+      "hint_label": "Informazioni sulla memoria dei messaggi",
+      "hint": "Il modem contiene più messaggi. I messaggi sulla SIM la seguono su un altro dispositivo.",
+      "row_modem": "Modem",
+      "row_sim": "SIM",
+      "used_of_total": "{{used}} di {{total}}",
+      "unavailable": "Non disponibile",
+      "nearly_full": "Quasi piena",
+      "full": "Piena",
+      "toast_saved": "Memoria dei messaggi salvata.",
+      "load_failed": "Impossibile leggere la memoria dei messaggi.",
+      "save_failed": "Impossibile salvare la memoria dei messaggi."
+    },
     "compose": {
       "title": "Nuovo messaggio",
       "description": "Componi e invia un messaggio SMS.",

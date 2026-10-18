@@ -182,5 +182,7 @@
   "invalid_envelope": "此文件不是 QManager 备份。",
   "wrong_version": "此备份由更新版本的 QManager 创建，无法在此读取。",
   "restore_in_progress": "恢复已在进行中。",
-  "unknown_section": "此备份包含当前版本无法恢复的部分。"
+  "unknown_section": "此备份包含当前版本无法恢复的部分。",
+  "invalid_storage": "请选择调制解调器或 SIM 卡存储。",
+  "sim_storage_unavailable": "SIM 卡无法存储短信，请检查是否已插入 SIM 卡。"
 }

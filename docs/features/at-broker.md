@@ -220,7 +220,9 @@ in [`sms.md`](sms.md), [`sms-forwarding.md`](sms-forwarding.md) and
 sender, timestamp, part, total and content equal `sms_tool recv -j` for
 105/105; reference differs on 4, all 16-bit references whose low byte is what
 `sms_tool` reported. `status` equals `sms_tool status` for ME and SM.
-`AT+CPMS?` reads ME,ME,ME after every op. `qsms list all` takes about 0.24 s
+`AT+CPMS?` reads ME,ME,ME after every op (since 2026-10-18 the restore target is
+the user's storage choice, `/etc/qmanager/sms_storage`, ME by default; see
+[`sms.md`](sms.md)). `qsms list all` takes about 0.24 s
 against 0.29 s for the two `sms_tool` reads. In-process fallback output is
 byte-identical. The 57 `qcmd` parity outputs (9 commands raw and `-j` with rc,
 no argument) are byte-identical to the previous broker. Send and delete are

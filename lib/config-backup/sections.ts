@@ -15,6 +15,7 @@ export const BACKUP_SECTIONS: BackupSectionMeta[] = [
   { key: "quality_thresholds", group: "monitoring", overlapGroup: null, defaultChecked: false },
   { key: "sites", group: "monitoring", overlapGroup: null, defaultChecked: false },
   { key: "sms_alerts", group: "monitoring", overlapGroup: null, defaultChecked: false },
+  { key: "sms_storage", group: "monitoring", overlapGroup: null, defaultChecked: false },
   { key: "alert_routing", group: "monitoring", overlapGroup: null, defaultChecked: false },
 ];
 

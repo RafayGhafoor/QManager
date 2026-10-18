@@ -65,7 +65,8 @@
       "quality_thresholds": "連線品質閾值",
       "sites": "延遲監控站點",
       "sms_alerts": "簡訊提醒",
-      "alert_routing": "提醒路由"
+      "alert_routing": "提醒路由",
+      "sms_storage": "簡訊儲存位置"
     },
     "create": {
       "card_title": "建立備份",

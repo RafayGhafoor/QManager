@@ -3,9 +3,9 @@
 # qmanager_sms_storage — Init Script for SMS Storage Routing Daemon
 # =============================================================================
 # Launches the one-shot SMS storage routing daemon at boot. The daemon waits
-# for modem readiness, then forces AT+CPMS="ME","ME","ME" so incoming SMS are
-# routed to ME (modem) storage instead of the SIM. Without this, new messages
-# land on the SIM and the inbox (which reads ME) appears empty.
+# for modem readiness, then points AT+CPMS at the user's chosen storage
+# (/etc/qmanager/sms_storage: ME by default, or SM). Without this the RM551E
+# keeps its boot default (SIM) whatever the user chose.
 #
 # Non-procd: runs once and exits. No automatic respawn needed.
 #

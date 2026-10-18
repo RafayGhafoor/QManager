@@ -4,6 +4,7 @@
 export type BackupSectionKey =
   | "sms_alerts"
   | "alert_routing"
+  | "sms_storage"
   | "quality_thresholds"
   | "sites"
   | "watchdog"

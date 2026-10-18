@@ -65,7 +65,8 @@
       "quality_thresholds": "Connection quality thresholds",
       "sites": "Latency monitor sites",
       "sms_alerts": "SMS alerts",
-      "alert_routing": "Alert routing"
+      "alert_routing": "Alert routing",
+      "sms_storage": "SMS storage"
     },
     "create": {
       "card_title": "Create backup",

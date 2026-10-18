@@ -603,6 +603,24 @@
       },
       "description_storage": "已儲存 {{used}} / {{total}} 則簡訊。"
     },
+    "storage": {
+      "card_title": "簡訊儲存位置",
+      "card_description": "新簡訊的儲存位置。現有簡訊保持原位。",
+      "field_label": "新簡訊儲存至",
+      "option_modem": "數據機",
+      "option_sim": "SIM 卡",
+      "hint_label": "關於簡訊儲存",
+      "hint": "數據機可儲存更多簡訊。儲存在 SIM 卡上的簡訊會隨 SIM 卡轉移到其他裝置。",
+      "row_modem": "數據機",
+      "row_sim": "SIM 卡",
+      "used_of_total": "{{used}} / {{total}}",
+      "unavailable": "無法使用",
+      "nearly_full": "即將存滿",
+      "full": "已滿",
+      "toast_saved": "簡訊儲存位置已儲存。",
+      "load_failed": "無法讀取簡訊儲存資訊。",
+      "save_failed": "無法儲存簡訊儲存位置。"
+    },
     "compose": {
       "title": "新簡訊",
       "description": "撰寫併傳送簡訊。",

@@ -603,6 +603,24 @@
       },
       "description_storage": "{{used}} of {{total}} messages stored."
     },
+    "storage": {
+      "card_title": "Message storage",
+      "card_description": "Where new messages are saved. Existing messages stay where they are.",
+      "field_label": "Save new messages to",
+      "option_modem": "Modem",
+      "option_sim": "SIM",
+      "hint_label": "About message storage",
+      "hint": "The modem holds more messages. Messages on the SIM go with it to another device.",
+      "row_modem": "Modem",
+      "row_sim": "SIM",
+      "used_of_total": "{{used}} of {{total}}",
+      "unavailable": "Unavailable",
+      "nearly_full": "Nearly full",
+      "full": "Full",
+      "toast_saved": "Message storage saved.",
+      "load_failed": "Couldn't read message storage.",
+      "save_failed": "Couldn't save message storage."
+    },
     "compose": {
       "title": "New Message",
       "description": "Compose and send an SMS message.",
