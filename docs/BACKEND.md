@@ -873,6 +873,12 @@ All auth endpoints set `_SKIP_AUTH=1`.
 
 The installer copies QManager onto the device filesystem and starts services. It is used both for fresh installs (via `qmanager-installer.sh`) and for OTA updates (Software Update path, `--no-reboot --skip-packages`).
 
+### Service stop / restart
+
+`stop_services` stops every `qmanager*` init script (watchcat first, under the `/tmp/qmanager_watchcat.lock` maintenance lock), then kills stragglers. Before stopping, `snapshot_running_services` records which services were running: procd scripts are asked `running`, and `qmanager_tower_failover` (non-procd) is checked through its pid file. Do not call `running` on a non-procd rc.common script: it prints usage and returns 0.
+
+`start_services` starts `qmanager_atd`, `qmanager` and `qmanager_sites`, then `restore_running_services` starts every other service from the snapshot. Gated services re-check their own UCI flag in `start`, so this restores the pre-install state without force-enabling anything. This matters on `--no-reboot` installs; without it a running `qmanager_dpi` stayed down until the next reboot (B5.27).
+
 ### File-copy helpers
 
 | Function | Used for |
