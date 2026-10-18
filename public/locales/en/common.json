@@ -481,7 +481,13 @@
       "off": "Off",
       "exitNodeTitle": "Advertise as exit node",
       "exitNodeDescription": "Lets other devices route their internet traffic through this modem. You approve it in the Tailscale admin console.",
-      "exitNodeLocked": "Connect to Tailscale to change this."
+      "exitNodeLocked": "Connect to Tailscale to change this.",
+      "sshTitle": "Tailscale SSH",
+      "sshDescription": "Let tailnet members open an SSH session to this modem, subject to your admin-panel ACLs.",
+      "sshLocked": "Connect to Tailscale to change this.",
+      "sshDialogTitle": "Turn on Tailscale SSH?",
+      "sshDialogDescription": "Tailnet members will be able to SSH into this modem based on your Tailscale admin-panel ACLs. Review that policy first, so only the people you intend can reach the device.",
+      "sshConfirm": "Turn on SSH"
     },
     "device": {
       "title": "This device",
@@ -585,6 +591,10 @@
       "exitNodeEnabled": "Advertising as an exit node",
       "exitNodeDisabled": "No longer advertising as an exit node",
       "exitNodeFailed": "Could not change exit node advertising",
+      "sshEnabled": "Tailscale SSH is on",
+      "sshEnableFailed": "Could not turn on Tailscale SSH",
+      "sshDisabled": "Tailscale SSH is off",
+      "sshDisableFailed": "Could not turn off Tailscale SSH",
       "installed": "Tailscale installed",
       "installFailed": "The Tailscale install did not finish"
     },

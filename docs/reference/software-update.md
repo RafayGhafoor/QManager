@@ -184,25 +184,23 @@ signal here is which row is spinning.
 
 ## The two fixes folded in
 
-Neither touched the CGI. Both read fields the backend was already emitting.
+Neither touched the CGI when U4.2 ported them. In the source both read fields the backend was already emitting; on this target the first one needed the B5.7 CGI change below.
 
 ### 1. The interrupted install now has a surface
 
-> **Target status:** this target's `update.sh` does not emit `previous_install_failed` or
-> `pending_version`, so `UpdateInfo` types both as optional and the banner and the Installed
-> tile's `interrupted` face never render here. The code stays so the surface lights up the day
-> the CGI emits them; nothing on the client has to change. The description below is the
-> contract, not the target's current output.
+> **Target status:** wired by ledger B5.7 (2026-10-18). `UpdateInfo` still types both fields as
+> optional, because a device running an older QManager omits them.
 
 `update.sh` emits `previous_install_failed` (boolean) and `pending_version` (string or null) on
-**all three** GET paths — the API-fetch-failed path (~line 142), the rate-limited path (~line 179)
-and the normal path (~line 285). Both are derived from whether `/etc/qmanager/VERSION.pending`
-exists and is non-empty:
+**all three** GET update-check paths: the API-fetch-failed path, the rate-limited path and the
+normal path (`?action=status` is not one of them). Both come from `/etc/qmanager/VERSION.pending`:
+`install.sh` `mark_version_pending()` writes it before touching any file and `finalize_version()`
+renames it onto `VERSION` on success, so nothing else clears it.
 
-```sh
---argjson pif "$([ -n "$pending_version" ] && echo true || echo false)" \
---arg pv "$pending_version" \
-```
+**Target deviation from the source:** while a live updater holds the pidfile
+(`qm_read_pid "$PID_FILE" qmanager_update`), the marker is the install in progress, not a failed
+one, so the CGI reports `false` / `null` until the updater is gone. The source reported the flag
+mid-install.
 
 A surviving `VERSION.pending` marker means an install wrote the marker, began replacing files,
 and never reached the reboot that clears it. **The tree may be mixed** — some files from the new
@@ -392,7 +390,7 @@ size.
 
 ```
 PAGE_ROOT
-  [Banner role="degraded"]     only when previous_install_failed && pending_version (never on this target's CGI)
+  [Banner role="degraded"]     only when previous_install_failed && pending_version
   <PageHeader />               title + one contextual verb (+ "Check again" when an update is known)
   <StatusBand />               head label + 3 tiles (Installed · Latest release · Automatic updates)
   <UpdateCard />               ANCHOR — delta strip + step ladder + consequence notice
@@ -583,8 +581,8 @@ Subtrees: `page`, `actions`, `band`, `card`, `delta`, `steps`, `notice`, `notes`
 | Reboot handoff | inline sessionStorage + cookie + `location.href` | `enterRebootFlow("software_update")` (`@/lib/reboot`) |
 | Install stall | none | 120 s detector, `FailureKind` `"stalled"`, confirmed manual restart |
 | Error text | device words only | a CGI error code resolves through `resolveErrorMessage` (`errors` namespace) before it reaches `error` |
-| `previous_install_failed`, `pending_version` | emitted by `update.sh` | not emitted; optional on `UpdateInfo`, the surface degrades to absent |
-| `reboot_ack` | the OTA worker waits for it | not used; the hand-off does not depend on it |
+| `previous_install_failed`, `pending_version` | emitted by `update.sh` | emitted (B5.7), but held at `false` / `null` while a live updater owns the marker |
+| `reboot_ack` | the OTA worker waits for it | not used; the hand-off does not depend on it (B5.7 decision: skipped) |
 | Preference toggles | `Switch` rows, toast on every save | same; they apply immediately and are exempt from CardFoot. A failed save toasts the device's own reason when it gave one |
 
 ## Download verification fails closed (B5.12)

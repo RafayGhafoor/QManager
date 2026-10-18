@@ -481,7 +481,13 @@
       "off": "关",
       "exitNodeTitle": "宣告为出口节点",
       "exitNodeDescription": "允许其他设备通过此调制解调器路由其互联网流量。需要在 Tailscale 管理控制台中批准。",
-      "exitNodeLocked": "连接 Tailscale 后才能更改。"
+      "exitNodeLocked": "连接 Tailscale 后才能更改。",
+      "sshTitle": "Tailscale SSH",
+      "sshDescription": "允许 tailnet 成员通过 SSH 连接此调制解调器，具体权限取决于你的管理后台 ACL 设置。",
+      "sshLocked": "连接 Tailscale 后才能更改此设置。",
+      "sshDialogTitle": "开启 Tailscale SSH？",
+      "sshDialogDescription": "tailnet 成员将能够根据你的 Tailscale 管理后台 ACL 通过 SSH 连接此调制解调器。请先检查该策略，确保只有你允许的人能访问此设备。",
+      "sshConfirm": "开启 SSH"
     },
     "device": {
       "title": "此设备",
@@ -585,6 +591,10 @@
       "exitNodeEnabled": "已宣告为出口节点",
       "exitNodeDisabled": "已停止宣告为出口节点",
       "exitNodeFailed": "无法更改出口节点宣告",
+      "sshEnabled": "Tailscale SSH 已开启",
+      "sshEnableFailed": "无法开启 Tailscale SSH",
+      "sshDisabled": "Tailscale SSH 已关闭",
+      "sshDisableFailed": "无法关闭 Tailscale SSH",
       "installed": "Tailscale 已安装",
       "installFailed": "Tailscale 安装未完成"
     },

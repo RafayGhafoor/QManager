@@ -1885,18 +1885,20 @@ Tailscale VPN status and configuration. Full contract: [`docs/features/tailscale
 |---|---|
 | Not installed | `installed:false`, `install_hint`, `install_variants:["official","tiny"]` |
 | Installed, daemon stopped | `installed:true`, `daemon_running:false`, `version`, `install_variant`, `enabled_on_boot` |
-| Daemon running | All of the above + `backend_state`, `exit_node_advertised`, `auth_url`, `self`, `tailnet`, `peers`, `health` |
+| Daemon running | All of the above + `backend_state`, `exit_node_advertised`, `ssh_enabled`, `auth_url`, `self`, `tailnet`, `peers`, `health` |
 
 `install_variant` — `"official"` (QManager static tarball), `"tiny"` (opkg `tailscale-tiny`), or `"opkg"` (pre-marker legacy). The marker file `/etc/tailscale/.qm_install_method` is authoritative; opkg detection is the fallback.
 
 `exit_node_advertised` — boolean derived from `.Self.ExitNodeOption` in `tailscale status --json`. Present on the Tier-3 (daemon running) response only.
+
+`ssh_enabled` — boolean from tailscaled's `RunSSH` pref (`tailscale debug prefs`), or `null` when the prefs can't be read. Tier-3 only.
 
 **POST actions:**
 
 | Action | Required fields | Notes |
 |---|---|---|
 | `install` | `variant` (`"official"`\|`"tiny"`, absent→`"tiny"`) | Background; poll `install_status` |
-| `install_status` | — | Returns `/tmp/qmanager_tailscale_install.json` |
+| `install_status` | — | Returns `/tmp/qmanager_tailscale_install.json` plus `log` (last 50 lines of `/var/run/qmanager/tailscale_install.log`) |
 | `connect` | — | Orphaned double-fork `tailscale up --accept-dns=false --json` |
 | `disconnect` | — | `tailscale down`; stays registered |
 | `logout` | — | `tailscale logout`; removes device from tailnet |
@@ -1904,6 +1906,7 @@ Tailscale VPN status and configuration. Full contract: [`docs/features/tailscale
 | `stop_service` | — | Stops `tailscaled` |
 | `set_boot_enabled` | `enabled` (bool) | Writes `tailscale.settings.service_enabled` + `init.d enable/disable` |
 | `set_exit_node` | `enabled` (bool) | `tailscale set --advertise-exit-node=<bool>`; requires `BackendState=="Running"` |
+| `set_ssh` | `enabled` (bool) | `tailscale set --ssh=<bool>`; requires `BackendState=="Running"` |
 | `uninstall` | — | Method-aware: tarball path removes binaries + init.d + rc.d + UCI + `/etc/config/tailscale`; opkg path uses smart 6-package removal |
 
 **Install progress shape** (polled via `install_status`):
@@ -1929,9 +1932,9 @@ Terminal `status` values: `"complete"` (with `"variant"` field) or `"error"` (wi
 | `disconnect_failed` | disconnect | `tailscale down` non-zero exit |
 | `logout_failed` | logout | `tailscale logout` non-zero exit |
 | `start_failed` | start_service | Daemon not running after start |
-| `missing_field` | set_boot_enabled, set_exit_node | Required field absent |
+| `missing_field` | set_boot_enabled, set_exit_node, set_ssh | Required field absent |
 | `no_init_script` | set_boot_enabled | `/etc/init.d/tailscale` absent |
-| `invalid_value` | set_boot_enabled, set_exit_node | Field present but wrong type/value |
-| `not_connected` | set_exit_node | Daemon not running or `BackendState != "Running"` |
-| `set_failed` | set_exit_node | `tailscale set` non-zero exit |
+| `invalid_value` | set_boot_enabled, set_exit_node, set_ssh | Field present but wrong type/value |
+| `not_connected` | set_exit_node, set_ssh | Daemon not running or `BackendState != "Running"` |
+| `set_failed` | set_exit_node, set_ssh | `tailscale set` non-zero exit |
 | `uninstall_failed` | uninstall | Binary still present after removal |

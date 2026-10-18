@@ -66,11 +66,11 @@ A failed poll on top of good data is a non-blocking notice above the content, ne
 | --- | --- |
 | `tailscale.tsx` | Page shell, `deriveView`, the four band tiles, the reboot dialog owner |
 | `status-band.tsx` | Four pinned-height tiles, the verdict chip (`SwapLabel` morph) |
-| `connection-card.tsx` | Rail of actions per view, Start on boot and Advertise as exit node rows (On / Off `SegmentedField`), health notice, auth `ConditionBlock` with the one ambient loop |
+| `connection-card.tsx` | Rail of actions per view, Start on boot, Advertise as exit node and Tailscale SSH rows (On / Off `SegmentedField`), health notice, auth `ConditionBlock` with the one ambient loop |
 | `device-card.tsx` | Tailnet identity as pill rows; every value is mono (identifiers the device emitted) |
 | `peers-card.tsx` | The peer table; the only hairline surface |
 | `install-card.tsx` | The not-installed hero: build choice (`SegmentedField`, Official / Tiny), install and Check again, transcript, manual command |
-| `install-log-viewer.tsx` | Install transcript, rendered only when the status carries a `log` |
+| `install-log-viewer.tsx` | Install transcript: the last 50 lines `install_status` sends as `log` (B5.7) |
 | `danger-card.tsx` | Low-emphasis uninstall row, plus `RebootDialog` |
 | `condition-block.tsx` | The family's state block; the block IS the state |
 
@@ -78,7 +78,7 @@ A failed poll on top of good data is a non-blocking notice above the content, ne
 
 - **Install variants.** `runInstall(variant)` posts `{action:"install", variant}`. The chosen build's caption sits under the pill group. The installed variant shows as a `Tag` in the Connection header (identity, not status). The manual opkg command (`install_hint`, else the fixed `tailscale.install.manualCommand`) shows only while Tiny is selected.
 - **Exit-node advertising** (`set_exit_node`). Locked, with a visible note, until the node is `Running`: `tailscale set` cannot reach a stopped or logged-out daemon.
-- **No Tailscale SSH.** The source's SSH row and `set_ssh` action do not exist in this CGI.
+- **Tailscale SSH** (`set_ssh`, B5.7). Same lock rule as exit node. Turning it on confirms first (`sshDialogTitle` / `sshDialogDescription`); off applies at once. The state is tailscaled's `RunSSH` pref read back as `ssh_enabled`; while connected, `null` hides the row instead of guessing. The source's `sshPending` ("applies on next connect") is not ported: this CGI refuses while disconnected instead of storing a flag.
 
 ### Mutations and toasts
 

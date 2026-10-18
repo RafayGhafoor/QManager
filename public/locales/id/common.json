@@ -481,7 +481,13 @@
       "off": "Mati",
       "exitNodeTitle": "Iklankan sebagai exit node",
       "exitNodeDescription": "Memungkinkan perangkat lain merutekan lalu lintas internetnya melalui modem ini. Anda menyetujuinya di konsol admin Tailscale.",
-      "exitNodeLocked": "Hubungkan ke Tailscale untuk mengubahnya."
+      "exitNodeLocked": "Hubungkan ke Tailscale untuk mengubahnya.",
+      "sshTitle": "Tailscale SSH",
+      "sshDescription": "Izinkan anggota tailnet membuka sesi SSH ke modem ini, sesuai ACL panel admin Anda.",
+      "sshLocked": "Hubungkan ke Tailscale untuk mengubah ini.",
+      "sshDialogTitle": "Aktifkan Tailscale SSH?",
+      "sshDialogDescription": "Anggota tailnet akan bisa membuka SSH ke modem ini berdasarkan ACL panel admin Tailscale Anda. Tinjau dulu kebijakan itu, agar hanya orang yang Anda maksud yang bisa menjangkau perangkat ini.",
+      "sshConfirm": "Aktifkan SSH"
     },
     "device": {
       "title": "Perangkat ini",
@@ -585,6 +591,10 @@
       "exitNodeEnabled": "Diiklankan sebagai exit node",
       "exitNodeDisabled": "Tidak lagi diiklankan sebagai exit node",
       "exitNodeFailed": "Tidak dapat mengubah pengiklanan exit node",
+      "sshEnabled": "Tailscale SSH aktif",
+      "sshEnableFailed": "Tidak dapat mengaktifkan Tailscale SSH",
+      "sshDisabled": "Tailscale SSH nonaktif",
+      "sshDisableFailed": "Tidak dapat menonaktifkan Tailscale SSH",
       "installed": "Tailscale terinstal",
       "installFailed": "Instalasi Tailscale tidak selesai"
     },

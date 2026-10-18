@@ -68,6 +68,8 @@ export interface TailscaleStatus {
   install_hint?: string;
   install_variant?: "official" | "tiny" | "opkg";
   exit_node_advertised?: boolean;
+  /** Tailscale SSH server (tailscaled's RunSSH pref); null when unreadable. */
+  ssh_enabled?: boolean | null;
   error_detail?: string;
   other_vpn_installed?: boolean;
   other_vpn_name?: string;
@@ -93,6 +95,7 @@ export interface UseTailscaleReturn {
   isTogglingService: boolean;
   isTogglingBoot: boolean;
   isTogglingExitNode: boolean;
+  isTogglingSsh: boolean;
   isUninstalling: boolean;
   installResult: InstallResult;
   error: string | null;
@@ -103,6 +106,7 @@ export interface UseTailscaleReturn {
   stopService: () => Promise<TailscaleActionResult>;
   setBootEnabled: (enabled: boolean) => Promise<TailscaleActionResult>;
   setExitNodeAdvertised: (enabled: boolean) => Promise<TailscaleActionResult>;
+  setSshEnabled: (enabled: boolean) => Promise<TailscaleActionResult>;
   uninstall: () => Promise<TailscaleActionResult>;
   runInstall: (variant: TailscaleInstallVariant) => Promise<void>;
   refresh: () => void;
@@ -127,6 +131,7 @@ export function useTailscale(): UseTailscaleReturn {
   const [isTogglingService, setIsTogglingService] = useState(false);
   const [isTogglingBoot, setIsTogglingBoot] = useState(false);
   const [isTogglingExitNode, setIsTogglingExitNode] = useState(false);
+  const [isTogglingSsh, setIsTogglingSsh] = useState(false);
   const [isUninstalling, setIsUninstalling] = useState(false);
   const [installResult, setInstallResult] = useState<InstallResult>({
     success: true,
@@ -304,6 +309,12 @@ export function useTailscale(): UseTailscaleReturn {
     [runAction],
   );
 
+  const setSshEnabled = useCallback(
+    (enabled: boolean) =>
+      runAction({ action: "set_ssh", enabled }, setIsTogglingSsh),
+    [runAction],
+  );
+
   const uninstall = useCallback(
     () => runAction({ action: "uninstall" }, setIsUninstalling),
     [runAction],
@@ -373,6 +384,7 @@ export function useTailscale(): UseTailscaleReturn {
     isTogglingService,
     isTogglingBoot,
     isTogglingExitNode,
+    isTogglingSsh,
     isUninstalling,
     installResult,
     error,
@@ -383,6 +395,7 @@ export function useTailscale(): UseTailscaleReturn {
     stopService,
     setBootEnabled,
     setExitNodeAdvertised,
+    setSshEnabled,
     uninstall,
     runInstall,
     refresh: fetchStatus,

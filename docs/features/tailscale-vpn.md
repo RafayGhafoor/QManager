@@ -1,6 +1,6 @@
 # Tailscale VPN
 
-QManager provides a first-class Tailscale integration that installs, connects, and manages the Tailscale daemon entirely from the monitoring UI. Because the modem runs OpenWRT/BusyBox with constrained overlay storage, the feature supports two install variants — an official static-tarball build and a lightweight opkg package — each with its own lifecycle. The CGI is a thin control layer over `tailscale`/`tailscaled`; it does not own Tailscale's config beyond the UCI boot-enable flag and the install-method marker.
+QManager provides a first-class Tailscale integration that installs, connects, and manages the Tailscale daemon entirely from the monitoring UI. Because the modem runs OpenWRT/BusyBox with constrained overlay storage, the feature supports two install variants — an official static-tarball build and a lightweight opkg package — each with its own lifecycle. The CGI is a thin control layer over `tailscale`/`tailscaled`; it does not own Tailscale's config beyond the UCI boot-enable flag and the install-method marker (exit-node and SSH prefs are set through `tailscale set` and live in tailscaled's own state).
 
 ---
 
@@ -166,7 +166,11 @@ Terminal (failure):
 
 #### action: `install_status`
 
-Returns the contents of `/tmp/qmanager_tailscale_install.json` (or `{"success":true,"status":"idle"}` if the file is absent). No additional fields.
+Returns the contents of `/tmp/qmanager_tailscale_install.json` (or `{"success":true,"status":"idle"}` if the file is absent; a half-written file reads as `running`), plus `log`: the last 50 lines of `/var/run/qmanager/tailscale_install.log`, CR translated to LF first so `\r`-separated progress output splits into lines (B5.7). The install action truncates that log and sends the install subshell's stdout and stderr into it; `ts_status` writes each phase JSON and echoes its message (and `detail`) to the log, and the `opkg` / download output is no longer discarded. The log lives in the root-only run dir (tmpfs), so nothing cleans it on uninstall.
+
+#### action: `set_ssh`
+
+`{ "action": "set_ssh", "enabled": true|false }` (B5.7). Mirrors `set_exit_node`: refuses with `not_connected` unless the daemon is up and `BackendState` is `Running`, then runs `tailscale set --ssh=<v>` (`set_failed` with the tool's output on failure). QManager stores no copy: tailscaled persists `RunSSH` itself and our connect never passes `--reset`, so the GET reads it back as `ssh_enabled` from `tailscale debug prefs` (`null` when the prefs can't be read, which hides the row). Who may SSH in is still the tailnet ACL's call. The fork kept its own `/etc/qmanager/tailscale_ssh` flag only because its connect runs `tailscale up --reset`.
 
 #### action: `connect`
 
@@ -456,9 +460,8 @@ The page was re-authored to the RM520N canon in ledger U4.2 (see [`docs/referenc
 | Exit-node advertising | `connection-card.tsx`: an On / Off `SegmentedField` row beside Start on boot; locked with a note until the node is connected (`set_exit_node` needs a running node). |
 | Other-VPN mutex | `tailscale.tsx`: a `Banner` (`degraded`) with a link to the NetBird page replaces the page body while `other_vpn_installed`. |
 | Uninstall reboot | `danger-card.tsx` `RebootDialog` calls `rebootNow("tailscale")` (`lib/reboot`). |
-| Install log | `install-log-viewer.tsx` renders only when `install_status` carries a `log`; otherwise the notice shows the backend `message`. |
-
-Dropped from the source: the Tailscale SSH row (no `set_ssh` action in this CGI).
+| Install log | `install-log-viewer.tsx` renders the `log` tail `install_status` sends (B5.7). |
+| Tailscale SSH | `connection-card.tsx`: an On / Off row under exit node, locked until `Running`; turning it on goes through a confirm `AlertDialog` (remote shell access), turning it off applies at once. Hidden while connected if `ssh_enabled` is `null`. |
 
 The hook returns `TailscaleActionResult { ok, reason }` from every mutation (reason already resolved through `resolveErrorMessage`), so handlers toast the returned reason and never read hook state after an `await`. `error` is the status read only.
 
