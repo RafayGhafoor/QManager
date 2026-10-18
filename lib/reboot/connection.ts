@@ -83,17 +83,22 @@ function readReconnecting(): boolean {
 
 // React subscription hook for the reconnecting flag. (Imported lazily by the
 // banner component.)
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+
+function subscribeReconnecting(onChange: () => void): () => void {
+  window.addEventListener(RECONNECTING_EVENT, onChange);
+  return () => window.removeEventListener(RECONNECTING_EVENT, onChange);
+}
+
+// Server/prerender snapshot: the static export renders "not reconnecting"; the
+// client reads sessionStorage after hydration.
+const getReconnectingServerSnapshot = () => false;
 
 export function useConnectionStatus(): { reconnecting: boolean } {
-  const [reconnecting, setReconnecting] = useState(false);
-
-  useEffect(() => {
-    setReconnecting(readReconnecting());
-    const sync = () => setReconnecting(readReconnecting());
-    window.addEventListener(RECONNECTING_EVENT, sync);
-    return () => window.removeEventListener(RECONNECTING_EVENT, sync);
-  }, []);
-
+  const reconnecting = useSyncExternalStore(
+    subscribeReconnecting,
+    readReconnecting,
+    getReconnectingServerSnapshot,
+  );
   return { reconnecting };
 }

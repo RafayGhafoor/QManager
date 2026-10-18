@@ -15,17 +15,28 @@ export interface PendingReboot {
   source: RebootSource;
 }
 
-export function readPendingReboot(): PendingReboot | null {
+function readRaw(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
+    return window.localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function parsePendingReboot(raw: string | null): PendingReboot | null {
+  if (!raw) return null;
+  try {
     const parsed = JSON.parse(raw) as PendingReboot;
     if (typeof parsed?.since !== "number") return null;
     return parsed;
   } catch {
     return null;
   }
+}
+
+export function readPendingReboot(): PendingReboot | null {
+  return parsePendingReboot(readRaw());
 }
 
 export function setPendingReboot(source: RebootSource = "config_restore"): void {
@@ -51,22 +62,24 @@ export function clearPendingReboot(): void {
 }
 
 // React-style subscription hook for the pending-reboot flag
-import { useEffect, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
+
+function subscribePendingReboot(onChange: () => void): () => void {
+  window.addEventListener("storage", onChange); // cross-tab updates
+  window.addEventListener("qmanager:pending-reboot-changed", onChange); // same-tab updates
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener("qmanager:pending-reboot-changed", onChange);
+  };
+}
+
+// Server/prerender snapshot: the static export renders no banner; the client
+// reads localStorage after hydration.
+const getServerRaw = () => null;
 
 export function usePendingReboot(): PendingReboot | null {
-  const [state, setState] = useState<PendingReboot | null>(null);
-
-  useEffect(() => {
-    setState(readPendingReboot());
-
-    const sync = () => setState(readPendingReboot());
-    window.addEventListener("storage", sync); // cross-tab updates
-    window.addEventListener("qmanager:pending-reboot-changed", sync); // same-tab updates
-    return () => {
-      window.removeEventListener("storage", sync);
-      window.removeEventListener("qmanager:pending-reboot-changed", sync);
-    };
-  }, []);
-
-  return state;
+  // Snapshot the raw string (stable between reads) and parse it per change, so
+  // useSyncExternalStore never sees a fresh object on an unchanged store.
+  const raw = useSyncExternalStore(subscribePendingReboot, readRaw, getServerRaw);
+  return useMemo(() => parsePendingReboot(raw), [raw]);
 }

@@ -43,6 +43,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "tools/**",
+    // Gitignored session scratch (handoff stubs, other worktrees' checkouts).
+    ".claude/**",
   ]),
   {
     rules: {
