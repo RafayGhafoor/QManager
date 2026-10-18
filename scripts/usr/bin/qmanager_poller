@@ -1235,15 +1235,29 @@ read_watchcat_state() {
 
     [ -z "$_wdata" ] && return
 
-    wc_enabled=$(printf '%s' "$_wdata" | cut -f1)
-    wc_state=$(printf '%s' "$_wdata" | cut -f2)
-    wc_current_tier=$(printf '%s' "$_wdata" | cut -f3)
-    wc_failure_count=$(printf '%s' "$_wdata" | cut -f4)
-    wc_last_recovery_time=$(printf '%s' "$_wdata" | cut -f5)
-    wc_last_recovery_tier=$(printf '%s' "$_wdata" | cut -f6)
-    wc_total_recoveries=$(printf '%s' "$_wdata" | cut -f7)
-    wc_cooldown_remaining=$(printf '%s' "$_wdata" | cut -f8)
-    wc_reboots_this_hour=$(printf '%s' "$_wdata" | cut -f9)
+    # Change 6 (2026-10-18): split the 9 @tsv fields with the shell itself
+    # instead of NINE `printf | cut -fN` pipelines (18 forks per call).
+    #
+    # NOTE - `IFS='<TAB>'; set -- $_wdata` is NOT usable here. TAB is IFS
+    # *whitespace*, so ash collapses runs of it and an EMPTY field would shift
+    # every field after it (verified on-device: `a<TAB><TAB>b` word-splits to 2
+    # fields, whereas `cut -f` returns 3, the middle one empty). The parameter-
+    # expansion chain below preserves empty fields exactly like `cut`, costs no
+    # forks, and never touches $IFS - so it cannot leak into other parsing.
+    # Appending one TAB gives every field a terminator, so a line with FEWER
+    # than 9 fields yields empty strings for the missing ones, as `cut` did.
+    local _w _TAB
+    _TAB=$'\t'
+    _w=$_wdata$_TAB
+    wc_enabled=${_w%%${_TAB}*};             _w=${_w#*${_TAB}}
+    wc_state=${_w%%${_TAB}*};               _w=${_w#*${_TAB}}
+    wc_current_tier=${_w%%${_TAB}*};        _w=${_w#*${_TAB}}
+    wc_failure_count=${_w%%${_TAB}*};       _w=${_w#*${_TAB}}
+    wc_last_recovery_time=${_w%%${_TAB}*};  _w=${_w#*${_TAB}}
+    wc_last_recovery_tier=${_w%%${_TAB}*};  _w=${_w#*${_TAB}}
+    wc_total_recoveries=${_w%%${_TAB}*};    _w=${_w#*${_TAB}}
+    wc_cooldown_remaining=${_w%%${_TAB}*};  _w=${_w#*${_TAB}}
+    wc_reboots_this_hour=${_w%%${_TAB}*}
 }
 
 read_sim_state() {
