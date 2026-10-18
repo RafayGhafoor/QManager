@@ -518,105 +518,37 @@
       "description": "Lihat, kelola, dan kirim pesan SMS dari modem Anda."
     },
     "inbox": {
-      "title": "Kotak Masuk",
-      "description": "Lihat dan kelola pesan SMS Anda.",
-      "table": {
-        "headers": {
-          "from": "Dari",
-          "message": "Pesan",
-          "date": "Tanggal"
-        },
-        "actions": {
-          "open_menu": "Buka menu",
-          "view": "Lihat",
-          "delete": "Hapus"
-        },
-        "empty_row": "Tidak ada pesan ditemukan.",
-        "select_all_aria": "Pilih semua",
-        "select_row_aria": "Pilih baris",
-        "sim_badge": "SIM",
-        "empty_unread": "Tidak ada pesan belum dibaca.",
-        "empty_read": "Tidak ada pesan dibaca.",
-        "empty_search": "Tidak ada pesan yang cocok dengan pencarian Anda."
-      },
-      "empty_state": {
-        "title": "Belum ada pesan",
-        "description": "Pesan yang Anda terima akan muncul di sini. Kirim pesan untuk memulai."
-      },
       "buttons": {
-        "refresh_aria": "Muat ulang kotak masuk",
-        "delete_selected": "Hapus ({{count}})",
-        "delete_selected_aria": "Hapus {{count}} terpilih",
-        "delete_all": "Hapus Semua",
-        "delete_all_aria": "Hapus semua pesan",
-        "new_message": "Pesan Baru",
-        "prev": "Sebelum",
-        "next": "Selanjutnya",
-        "mark_all_read": "Tandai semua dibaca",
-        "mark_all_read_aria": "Tandai semua pesan sebagai dibaca",
-        "first_page": "Ke halaman pertama",
-        "prev_page": "Ke halaman sebelumnya",
-        "next_page": "Ke halaman berikutnya",
-        "last_page": "Ke halaman terakhir"
-      },
-      "pagination": {
-        "total_one": "{{count}} pesan",
-        "total_other": "{{count}} pesan",
-        "page_info": "{{current}} / {{total}}",
-        "rows_per_page": "Baris per halaman",
-        "page_label": "Halaman {{current}} dari {{total}}",
-        "selected_info": "{{selected}} dari {{total}} dipilih"
-      },
-      "error": {
-        "title": "Gagal memuat pesan"
-      },
-      "view_dialog": {
-        "title": "Pesan dari {{sender}}",
-        "timestamp_aria": "{{timestamp}}",
-        "heading": "Pesan"
+        "delete_all": "Hapus Semua"
       },
       "delete_single_confirm": {
-        "title": "Hapus Pesan",
-        "description": "Apakah Anda yakin ingin menghapus pesan ini dari {{sender}}? Tindakan ini tidak dapat dibatalkan.",
-        "confirm": "Menghapus",
         "deleting": "Menghapus…"
       },
       "delete_all_confirm": {
         "title": "Hapus Semua Pesan",
-        "description": "Apakah Anda yakin ingin menghapus semua {{count}} messages? Tindakan ini tidak dapat dibatalkan.",
-        "confirm": "Hapus semua"
-      },
-      "delete_selected_confirm": {
-        "title": "Hapus pesan terpilih",
-        "description_one": "Apakah Anda yakin ingin menghapus {{count}} pesan terpilih? Tindakan ini tidak dapat dibatalkan.",
-        "description_other": "Apakah Anda yakin ingin menghapus {{count}} pesan terpilih? Tindakan ini tidak dapat dibatalkan.",
-        "confirm": "Menghapus ({{count}})",
-        "deleting": "Menghapus…"
+        "description": "Semua pesan dan percakapan yang tersimpan akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.",
+        "confirm": "Hapus semua",
+        "cancel": "Simpan pesan",
+        "deleting": "Menghapus semua…"
       },
       "toast": {
-        "delete_success": "Pesan berhasil dihapus",
-        "delete_all_success": "Semua pesan berhasil dihapus",
-        "delete_selected_success_one": "{{count}} pesan terhapus",
-        "delete_selected_success_other": "{{count}} pesan terhapus",
-        "mark_all_read_success": "Semua pesan ditandai sebagai dibaca"
-      },
-      "tabs": {
-        "all": "Semua",
-        "unread": "Belum dibaca",
-        "read": "Dibaca"
-      },
-      "unread_aria": "Pesan belum dibaca",
-      "search": {
-        "placeholder": "Cari pesan…",
-        "aria": "Cari pesan"
-      },
-      "sort": {
-        "label": "Urutkan",
-        "newest": "Terbaru dulu",
-        "oldest": "Terlama dulu",
-        "aria": "Urutan"
-      },
-      "description_storage": "{{used}} dari {{total}} pesan tersimpan."
+        "delete_all_success": "Semua pesan berhasil dihapus"
+      }
+    },
+    "settings": {
+      "title": "Pengaturan SMS",
+      "description": "Pilih cara modem ini mengirim dan menyimpan SMS.",
+      "smsc": {
+        "title": "Nomor operator",
+        "description": "Nomor operator yang meneruskan pesan keluar Anda.",
+        "hint_label": "Tentang nomor operator",
+        "hint": "Disebut juga pusat layanan SMS (SMSC). Nomor ini ditetapkan operator Anda, jadi ubah hanya jika pesan berhenti terkirim.",
+        "placeholder": "mis. +639180000101",
+        "invalid": "Masukkan 3 hingga 20 digit, dengan + di awal secara opsional.",
+        "unreadable": "Nomor saat ini tidak dapat dibaca. Anda tetap dapat menetapkan yang baru.",
+        "toast_saved": "Nomor operator disimpan.",
+        "save_failed": "Tidak dapat menyimpan nomor operator."
+      }
     },
     "storage": {
       "card_title": "Penyimpanan pesan",
@@ -643,17 +575,174 @@
         "phone_label": "Nomor Telepon",
         "phone_placeholder": "+1234567890",
         "message_label": "Pesan",
-        "message_placeholder": "Tulis Pesan...",
-        "char_counter": "{{count}}/{{max}}"
+        "message_placeholder": "Tulis Pesan..."
       },
-      "unicode_indicator": " (Unicode)",
-      "limit_warning": "Pesan melebihi batas satu SMS. Pesan akan dikirim dalam beberapa bagian.",
       "buttons": {
         "send": "Kirim",
         "sending": "Mengirim…"
       },
       "toast": {
         "success": "SMS berhasil terkirim"
+      },
+      "encoding": {
+        "gsm7": "GSM 7 bit",
+        "ucs2": "UCS-2"
+      },
+      "encoding_hint": "Karakter non-ASCII mengubah pesan menjadi UCS-2 dan membatasi satu bagian jadi 70 karakter."
+    },
+    "center": {
+      "search": {
+        "placeholder": "Cari pesan",
+        "aria": "Cari pesan"
+      },
+      "filters": {
+        "all": "Semua",
+        "unread": "Belum dibaca"
+      },
+      "sort": {
+        "to_oldest": "Urutkan terlama dulu",
+        "to_newest": "Urutkan terbaru dulu"
+      },
+      "actions": {
+        "compose": "Pesan baru",
+        "refresh": "Muat ulang",
+        "more": "Opsi lainnya",
+        "back": "Kembali ke semua pesan",
+        "copy_address": "Salin alamat pengirim",
+        "thread_options": "Opsi percakapan",
+        "mark_read": "Tandai semua dibaca",
+        "delete_thread": "Hapus percakapan",
+        "copy_text": "Salin teks",
+        "forward": "Teruskan…",
+        "mark_unread": "Tandai belum dibaca",
+        "details": "Detail…",
+        "delete_message": "Hapus"
+      },
+      "header": {
+        "synced": "Disinkronkan {{seconds}} dtk lalu"
+      },
+      "identity": {
+        "matched": "Cocok"
+      },
+      "preview": {
+        "you": "Anda:"
+      },
+      "time": {
+        "today": "Hari ini",
+        "yesterday": "Kemarin"
+      },
+      "composer": {
+        "placeholder": "Pesan teks",
+        "aria": "Balas {{contact}}",
+        "send": "Kirim pesan",
+        "remaining_one": "Sisa {{count}} karakter",
+        "remaining_other": "Sisa {{count}} karakter",
+        "segments_one": "{{count}} SMS",
+        "segments_other": "{{count}} SMS"
+      },
+      "send": {
+        "sending": "Mengirim…",
+        "sent_at": "Terkirim {{time}}",
+        "failed": "Gagal mengirim",
+        "retry": "Coba lagi",
+        "discard": "Buang"
+      },
+      "code": {
+        "copy": "Salin kode",
+        "copied": "Tersalin"
+      },
+      "phishing": {
+        "with_logo": "Berisi tautan. Nama pengirim bisa dipalsukan, sehingga {{name}} mungkin bukan yang mengirim pesan ini.",
+        "generic": "Berisi tautan. Buka hanya jika Anda memang mengharapkan pesan ini."
+      },
+      "delete_thread": {
+        "title": "Hapus percakapan ini?",
+        "description": "Semua pesan yang tersimpan untuk {{contact}} akan dihapus. Tindakan ini tidak dapat dibatalkan.",
+        "confirm": "Hapus percakapan"
+      },
+      "toast": {
+        "address_copied": "Alamat pengirim disalin",
+        "copy_failed": "Tidak dapat menyalin. Browser memblokir akses papan klip pada koneksi ini.",
+        "thread_deleted": "Percakapan dihapus",
+        "thread_delete_failed": "Tidak dapat menghapus percakapan",
+        "thread_marked_read": "Ditandai sudah dibaca",
+        "message_copied": "Pesan disalin",
+        "message_deleted": "Pesan dihapus",
+        "message_delete_failed": "Tidak dapat menghapus pesan",
+        "message_marked_unread": "Ditandai belum dibaca",
+        "mark_unread_failed": "Tidak dapat menandai pesan sebagai belum dibaca"
+      },
+      "a11y": {
+        "unread_count_one": "{{count}} pesan belum dibaca",
+        "unread_count_other": "{{count}} pesan belum dibaca"
+      },
+      "states": {
+        "loading_sr": "Memuat percakapan",
+        "loading_thread_sr": "Memuat percakapan",
+        "no_selection": {
+          "title": "Pilih percakapan",
+          "description": "Pilih percakapan di sebelah kiri, atau mulai pesan baru."
+        },
+        "empty": {
+          "title": "Tidak ada pesan",
+          "description": "Pesan yang Anda terima akan muncul di sini.",
+          "action": "Tulis pesan"
+        },
+        "no_unread": {
+          "title": "Tidak ada yang belum dibaca",
+          "description": "Semua pesan tersimpan sudah dibuka di browser ini."
+        },
+        "no_matches": {
+          "title": "Tidak ada yang cocok",
+          "description": "Tidak ada percakapan yang cocok dengan pencarian itu. Coba nama, nomor, atau kata dari pesan."
+        },
+        "thread_empty": {
+          "title": "Belum ada apa-apa di sini",
+          "description": "Percakapan ini tidak memiliki pesan tersimpan. Kirim satu pesan untuk memulainya."
+        },
+        "missing": {
+          "title": "Percakapan itu sudah tidak ada",
+          "description": "Percakapan ini tidak lagi tersimpan. Mungkin sudah dihapus sejak tautan ini dibuat.",
+          "action": "Kembali ke semua pesan"
+        },
+        "error": {
+          "title": "Tidak dapat memuat pesan",
+          "description": "Pesan tersimpan Anda aman. Coba lagi sebentar lagi.",
+          "retry": "Coba lagi"
+        }
+      },
+      "delete_message": {
+        "title": "Hapus pesan ini?",
+        "description": "Pesan akan dihapus permanen dan tidak dapat dibatalkan.",
+        "confirm": "Hapus pesan"
+      },
+      "forward": {
+        "title": "Teruskan pesan",
+        "description": "Mengirim SMS baru dari modem ini. Pesan aslinya tetap di tempatnya.",
+        "to_label": "Kepada",
+        "prefix": "Dari {{addr}}:",
+        "include_sender": "Sertakan pengirim asli",
+        "include_sender_hint": "Menambahkan baris \"Dari {{addr}}:\" di bagian atas",
+        "alpha_disabled": "Nama pengirim tidak dapat menerima SMS",
+        "submit": "Teruskan"
+      },
+      "details": {
+        "title": "Detail pesan",
+        "description": "Semua yang diketahui QManager tentang pesan ini.",
+        "from": "Dari",
+        "to": "Kepada",
+        "sender_type": "Jenis pengirim",
+        "received_at": "Diterima",
+        "sent_at": "Dikirim",
+        "length": "Panjang",
+        "length_value_one": "{{count}} karakter",
+        "length_value_other": "{{count}} karakter",
+        "close": "Tutup",
+        "kind": {
+          "msisdn": "Nomor telepon",
+          "shortcode": "Kode pendek",
+          "alphanumeric": "Nama pengirim"
+        }
       }
     },
     "forwarding": {
@@ -671,7 +760,8 @@
         "validation_phone": "Masukkan nomor telepon yang valid (mis. +6281234567890).",
         "toast_save_success": "Pengaturan penerusan disimpan.",
         "error_load": "Tidak dapat memuat pengaturan penerusan",
-        "target_hint_label": "Tentang pesan yang diteruskan"
+        "target_hint_label": "Tentang pesan yang diteruskan",
+        "loading_label": "Memuat pengaturan penerusan"
       },
       "health": {
         "card_title": "Pengiriman & status",
@@ -680,10 +770,13 @@
         "state_issue": "Pengiriman bermasalah",
         "state_off": "Penerusan nonaktif",
         "state_unconfigured": "Tujuan belum disetel",
+        "state_unconfigured_description": "Penerusan aktif, tetapi belum ada tujuan. Tambahkan nomor untuk mulai meneruskan.",
         "destination_label": "Mengirim ke",
         "destination_none": "Aktifkan penerusan dan simpan nomor untuk mulai meneruskan pesan.",
         "preview_label": "Penerima melihat",
         "preview_sample_body": "Hai, jadi jam 3 sore?",
+        "preview_hint_label": "Tentang pratinjau ini",
+        "preview_hint": "Nomor pada baris Dari hanyalah contoh pengirim. Nomor yang Anda simpan menerima pesan ini, bukan mengirimnya.",
         "test_button": "Kirim tes",
         "test_sending": "Mengirim…",
         "test_hint": "Mengirim tes ke nomor tersimpan Anda.",
@@ -708,7 +801,6 @@
     "errors": {
       "fetch": "Gagal memuat pesan",
       "send": "SMS gagal terkirim",
-      "delete": "Pesan gagal dihapus",
       "delete_all": "Semua pesan gagal dihapus"
     }
   },

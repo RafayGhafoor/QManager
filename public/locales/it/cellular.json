@@ -518,105 +518,37 @@
       "description": "Visualizza, gestisci e invia messaggi SMS dal tuo modem."
     },
     "inbox": {
-      "title": "Posta in arrivo",
-      "description": "Visualizza e gestisci i tuoi messaggi SMS",
-      "table": {
-        "headers": {
-          "from": "Da",
-          "message": "Messaggio",
-          "date": "Data"
-        },
-        "actions": {
-          "open_menu": "Apri il menu",
-          "view": "Visualizza",
-          "delete": "Elimina"
-        },
-        "empty_row": "Nessun messaggio trovato.",
-        "select_all_aria": "Seleziona tutto",
-        "select_row_aria": "Seleziona riga",
-        "sim_badge": "SIM",
-        "empty_unread": "Nessun messaggio non letto.",
-        "empty_read": "Nessun messaggio letto.",
-        "empty_search": "Nessun messaggio corrisponde alla ricerca."
-      },
-      "empty_state": {
-        "title": "Nessun messaggio ancora",
-        "description": "I messaggi ricevuti appariranno qui. Invia un messaggio per iniziare."
-      },
       "buttons": {
-        "refresh_aria": "Aggiorna la posta in arrivo",
-        "delete_selected": "Elimina ({{count}})",
-        "delete_selected_aria": "Elimina {{count}} selezionato",
-        "delete_all": "Elimina tutto",
-        "delete_all_aria": "Elimina tutti i messaggi",
-        "new_message": "Nuovo messaggio",
-        "prev": "Prec",
-        "next": "Avanti",
-        "mark_all_read": "Segna tutti come letti",
-        "mark_all_read_aria": "Segna tutti i messaggi come letti",
-        "first_page": "Vai alla prima pagina",
-        "prev_page": "Vai alla pagina precedente",
-        "next_page": "Vai alla pagina successiva",
-        "last_page": "Vai all’ultima pagina"
-      },
-      "pagination": {
-        "total_one": "messaggio {{count}}",
-        "total_other": "{{count}} messaggi",
-        "page_info": "{{current}} / {{total}}",
-        "rows_per_page": "Righe per pagina",
-        "page_label": "Pagina {{current}} di {{total}}",
-        "selected_info": "{{selected}} di {{total}} selezionati"
-      },
-      "error": {
-        "title": "Impossibile caricare i messaggi"
-      },
-      "view_dialog": {
-        "title": "Messaggio da {{sender}}",
-        "timestamp_aria": "{{timestamp}}",
-        "heading": "Messaggio"
+        "delete_all": "Elimina tutto"
       },
       "delete_single_confirm": {
-        "title": "Elimina messaggio",
-        "description": "Sei sicuro di voler eliminare questo messaggio da {{sender}}? Questa azione non può essere annullata.",
-        "confirm": "Elimina",
         "deleting": "Eliminazione…"
       },
       "delete_all_confirm": {
         "title": "Elimina tutti i messaggi",
-        "description": "Sei sicuro di voler eliminare tutti i messaggi {{count}}? Questa azione non può essere annullata.",
-        "confirm": "Elimina tutto"
-      },
-      "delete_selected_confirm": {
-        "title": "Elimina i messaggi selezionati",
-        "description_one": "Sei sicuro di voler eliminare il messaggio selezionato {{count}}? Questa azione non può essere annullata.",
-        "description_other": "Sei sicuro di voler eliminare i {{count}} messaggi selezionati? Questa azione non può essere annullata.",
-        "confirm": "Elimina ({{count}})",
-        "deleting": "Eliminazione…"
+        "description": "Tutti i messaggi e le conversazioni archiviati verranno eliminati definitivamente. Questa azione non può essere annullata.",
+        "confirm": "Elimina tutto",
+        "cancel": "Mantieni i messaggi",
+        "deleting": "Eliminazione di tutto…"
       },
       "toast": {
-        "delete_success": "Messaggio eliminato",
-        "delete_all_success": "Tutti i messaggi cancellati",
-        "delete_selected_success_one": "{{count}} messaggio eliminato",
-        "delete_selected_success_other": "{{count}} messaggi eliminati",
-        "mark_all_read_success": "Tutti i messaggi sono stati segnati come letti"
-      },
-      "tabs": {
-        "all": "Tutti",
-        "unread": "Non letti",
-        "read": "Letti"
-      },
-      "unread_aria": "Messaggio non letto",
-      "search": {
-        "placeholder": "Cerca messaggi…",
-        "aria": "Cerca messaggi"
-      },
-      "sort": {
-        "label": "Ordina",
-        "newest": "Prima i più recenti",
-        "oldest": "Prima i meno recenti",
-        "aria": "Ordine"
-      },
-      "description_storage": "{{used}} di {{total}} messaggi memorizzati."
+        "delete_all_success": "Tutti i messaggi cancellati"
+      }
+    },
+    "settings": {
+      "title": "Impostazioni SMS",
+      "description": "Scegli come questo modem invia e archivia gli SMS.",
+      "smsc": {
+        "title": "Numero del gestore",
+        "description": "Il numero dell'operatore che instrada i messaggi in uscita.",
+        "hint_label": "Informazioni sul numero del gestore",
+        "hint": "Chiamato anche centro servizi SMS (SMSC). Lo imposta il tuo operatore: modificalo solo se i messaggi non vengono più inviati.",
+        "placeholder": "es. +639180000101",
+        "invalid": "Inserisci da 3 a 20 cifre, con un + iniziale facoltativo.",
+        "unreadable": "Impossibile leggere il numero attuale. Puoi comunque impostarne uno.",
+        "toast_saved": "Numero del gestore salvato.",
+        "save_failed": "Impossibile salvare il numero del gestore."
+      }
     },
     "storage": {
       "card_title": "Memoria dei messaggi",
@@ -643,17 +575,174 @@
         "phone_label": "Numero di telefono",
         "phone_placeholder": "+1234567890",
         "message_label": "Messaggio",
-        "message_placeholder": "Scrivi il tuo messaggio...",
-        "char_counter": "{{count}}/{{max}}"
+        "message_placeholder": "Scrivi il tuo messaggio..."
       },
-      "unicode_indicator": "(Unicode)",
-      "limit_warning": "Il messaggio supera il limite singolo SMS. Verrà inviato in più parti.",
       "buttons": {
         "send": "Invia",
         "sending": "Invio…"
       },
       "toast": {
         "success": "SMS inviato con successo"
+      },
+      "encoding": {
+        "gsm7": "GSM 7 bit",
+        "ucs2": "UCS-2"
+      },
+      "encoding_hint": "Un carattere non ASCII fa passare il messaggio a UCS-2 e limita una singola parte a 70 caratteri."
+    },
+    "center": {
+      "search": {
+        "placeholder": "Cerca messaggi",
+        "aria": "Cerca messaggi"
+      },
+      "filters": {
+        "all": "Tutti",
+        "unread": "Non letti"
+      },
+      "sort": {
+        "to_oldest": "Prima i più vecchi",
+        "to_newest": "Prima i più recenti"
+      },
+      "actions": {
+        "compose": "Nuovo messaggio",
+        "refresh": "Aggiorna",
+        "more": "Altre opzioni",
+        "back": "Torna a tutti i messaggi",
+        "copy_address": "Copia indirizzo mittente",
+        "thread_options": "Opzioni conversazione",
+        "mark_read": "Segna tutti come letti",
+        "delete_thread": "Elimina conversazione",
+        "copy_text": "Copia testo",
+        "forward": "Inoltra…",
+        "mark_unread": "Segna come non letto",
+        "details": "Dettagli…",
+        "delete_message": "Elimina"
+      },
+      "header": {
+        "synced": "Sincronizzato {{seconds}}s fa"
+      },
+      "identity": {
+        "matched": "Associato"
+      },
+      "preview": {
+        "you": "Tu:"
+      },
+      "time": {
+        "today": "Oggi",
+        "yesterday": "Ieri"
+      },
+      "composer": {
+        "placeholder": "Messaggio di testo",
+        "aria": "Rispondi a {{contact}}",
+        "send": "Invia messaggio",
+        "remaining_one": "{{count}} carattere rimanente",
+        "remaining_other": "{{count}} caratteri rimanenti",
+        "segments_one": "{{count}} SMS",
+        "segments_other": "{{count}} SMS"
+      },
+      "send": {
+        "sending": "Invio in corso…",
+        "sent_at": "Inviato {{time}}",
+        "failed": "Invio non riuscito",
+        "retry": "Riprova",
+        "discard": "Scarta"
+      },
+      "code": {
+        "copy": "Copia codice",
+        "copied": "Copiato"
+      },
+      "phishing": {
+        "with_logo": "Contiene un link. I nomi dei mittenti possono essere falsificati, quindi {{name}} potrebbe non aver inviato questo messaggio.",
+        "generic": "Contiene un link. Aprilo solo se aspettavi questo messaggio."
+      },
+      "delete_thread": {
+        "title": "Eliminare questa conversazione?",
+        "description": "Tutti i messaggi archiviati per {{contact}} verranno rimossi. Questa azione non può essere annullata.",
+        "confirm": "Elimina conversazione"
+      },
+      "toast": {
+        "address_copied": "Indirizzo del mittente copiato",
+        "copy_failed": "Impossibile copiare. Il browser ha bloccato l'accesso agli appunti su questa connessione.",
+        "thread_deleted": "Conversazione eliminata",
+        "thread_delete_failed": "Impossibile eliminare la conversazione",
+        "thread_marked_read": "Segnata come letta",
+        "message_copied": "Messaggio copiato",
+        "message_deleted": "Messaggio eliminato",
+        "message_delete_failed": "Impossibile eliminare il messaggio",
+        "message_marked_unread": "Segnato come non letto",
+        "mark_unread_failed": "Impossibile segnare il messaggio come non letto"
+      },
+      "a11y": {
+        "unread_count_one": "{{count}} messaggio non letto",
+        "unread_count_other": "{{count}} messaggi non letti"
+      },
+      "states": {
+        "loading_sr": "Caricamento conversazioni",
+        "loading_thread_sr": "Caricamento conversazione",
+        "no_selection": {
+          "title": "Scegli una conversazione",
+          "description": "Scegli una conversazione a sinistra oppure inizia un nuovo messaggio."
+        },
+        "empty": {
+          "title": "Nessun messaggio",
+          "description": "I messaggi che ricevi appariranno qui.",
+          "action": "Scrivi un messaggio"
+        },
+        "no_unread": {
+          "title": "Nessun messaggio non letto",
+          "description": "Tutti i messaggi archiviati sono stati aperti in questo browser."
+        },
+        "no_matches": {
+          "title": "Nessun risultato",
+          "description": "Nessuna conversazione corrisponde alla ricerca. Prova con un nome, un numero o una parola del messaggio."
+        },
+        "thread_empty": {
+          "title": "Ancora niente qui",
+          "description": "Questa conversazione non ha messaggi archiviati. Invia un messaggio per iniziarla."
+        },
+        "missing": {
+          "title": "Questa conversazione non esiste più",
+          "description": "Non è più archiviata. Potrebbe essere stata eliminata dopo la creazione di questo link.",
+          "action": "Torna a tutti i messaggi"
+        },
+        "error": {
+          "title": "Impossibile caricare i messaggi",
+          "description": "I messaggi archiviati sono al sicuro. Riprova tra un momento.",
+          "retry": "Riprova"
+        }
+      },
+      "delete_message": {
+        "title": "Eliminare questo messaggio?",
+        "description": "Verrà rimosso definitivamente e non potrà essere ripristinato.",
+        "confirm": "Elimina messaggio"
+      },
+      "forward": {
+        "title": "Inoltra messaggio",
+        "description": "Invia un nuovo SMS da questo modem. L'originale resta dov'è.",
+        "to_label": "A",
+        "prefix": "Da {{addr}}:",
+        "include_sender": "Includi il mittente originale",
+        "include_sender_hint": "Aggiunge in alto una riga \"Da {{addr}}:\"",
+        "alpha_disabled": "I nomi dei mittenti non possono ricevere SMS",
+        "submit": "Inoltra"
+      },
+      "details": {
+        "title": "Dettagli del messaggio",
+        "description": "Tutto ciò che QManager sa su questo messaggio.",
+        "from": "Da",
+        "to": "A",
+        "sender_type": "Tipo di mittente",
+        "received_at": "Ricevuto",
+        "sent_at": "Inviato",
+        "length": "Lunghezza",
+        "length_value_one": "{{count}} carattere",
+        "length_value_other": "{{count}} caratteri",
+        "close": "Chiudi",
+        "kind": {
+          "msisdn": "Numero di telefono",
+          "shortcode": "Numero breve",
+          "alphanumeric": "Nome mittente"
+        }
       }
     },
     "forwarding": {
@@ -671,7 +760,8 @@
         "validation_phone": "Inserisci un numero di telefono valido (es. +393331234567).",
         "toast_save_success": "Impostazioni di inoltro salvate.",
         "error_load": "Impossibile caricare le impostazioni di inoltro",
-        "target_hint_label": "Informazioni sui messaggi inoltrati"
+        "target_hint_label": "Informazioni sui messaggi inoltrati",
+        "loading_label": "Caricamento impostazioni di inoltro"
       },
       "health": {
         "card_title": "Consegna e stato",
@@ -680,10 +770,13 @@
         "state_issue": "Consegna con problemi",
         "state_off": "Inoltro disattivato",
         "state_unconfigured": "Nessuna destinazione impostata",
+        "state_unconfigured_description": "L'inoltro è attivo, ma non c'è ancora una destinazione. Aggiungi un numero per iniziare.",
         "destination_label": "Invio a",
         "destination_none": "Attiva l'inoltro e salva un numero per iniziare a reinviare i messaggi.",
         "preview_label": "Il destinatario vede",
         "preview_sample_body": "Ciao, confermiamo per le 15?",
+        "preview_hint_label": "Informazioni su questa anteprima",
+        "preview_hint": "Il numero nella riga Da è un mittente di esempio. Il numero salvato riceve questo messaggio, non lo invia.",
         "test_button": "Invia test",
         "test_sending": "Invio…",
         "test_hint": "Invia un test al numero salvato.",
@@ -708,7 +801,6 @@
     "errors": {
       "fetch": "Impossibile caricare i messaggi",
       "send": "Impossibile inviare SMS",
-      "delete": "Impossibile eliminare il messaggio",
       "delete_all": "Impossibile eliminare i messaggi"
     }
   },

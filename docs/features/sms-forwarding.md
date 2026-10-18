@@ -23,7 +23,7 @@ SMS Forwarding automatically relays every new incoming SMS to a configured phone
 
 ## How It Works
 
-`qmanager_sms_forward` is a procd-managed daemon that wakes every 15 seconds, reads the modem inbox with one `qsms list all` (ME + SM, each message tagged with its storage), and forwards each message it has not yet seen to the configured number in the format `From <sender>: <body>`. The daemon sends outbound SMS via `qsms send`; the broker (`qmanager_atd`) takes the shared AT lock itself, so the daemon never wraps `qsms` in `flock`. It is the **only** server-side inbox reader in the project. Read state everywhere else (the inbox UI tab) is entirely client-side; see [`docs/features/sms.md`](sms.md).
+`qmanager_sms_forward` is a procd-managed daemon that wakes every 15 seconds, reads the modem inbox with one `qsms list all` (ME + SM, each message tagged with its storage), and forwards each message it has not yet seen to the configured number in the format `From <sender>: <body>`. The daemon sends outbound SMS via `qsms send`; the broker (`qmanager_atd`) takes the shared AT lock itself, so the daemon never wraps `qsms` in `flock`. It is the **only** server-side inbox reader in the project. Read state everywhere else (the SMS Center) is entirely client-side; see [`docs/features/sms.md`](sms.md).
 
 The init.d script uses `USE_PROCD=1` for automatic respawn (`3600 5 5`). The service is **UCI-gated**: `start_service()` reads `quecmanager.sms_forwarding.enabled` and returns early if it is not `1`, so enabling the init.d service on its own does nothing — UCI must also be set. For this reason the daemon is listed in `UCI_GATED_SERVICES` in `install.sh` and is **not** auto-enabled on install.
 
@@ -61,7 +61,7 @@ There is no "paused" state — the daemon is either enabled or disabled.
 
 The daemon fingerprints each message as `djb2(storage|sender|timestamp|content)` using raw UTF-8 byte values via BusyBox awk. The frontend read-state hook uses the same djb2 algorithm but iterates UTF-16 code units via `charCodeAt`. For ASCII messages the two produce the same numeric value; for non-ASCII (emoji, CJK, etc.) they diverge.
 
-**Why this is safe:** The daemon seen-set (`/var/run/qmanager/sms_forward_seen`) never crosses the wire and is never compared against the frontend's `localStorage` set. All that matters for dedup is that the daemon produces a **stable hash for the same message across cycles** — which it does, because BusyBox awk consistently iterates raw bytes. The frontend uses its own fingerprints independently for the inbox read/unread display.
+**Why this is safe:** The daemon seen-set (`/var/run/qmanager/sms_forward_seen`) never crosses the wire and is never compared against the frontend's `localStorage` set. All that matters for dedup is that the daemon produces a **stable hash for the same message across cycles** — which it does, because BusyBox awk consistently iterates raw bytes. The frontend uses its own fingerprints independently for the SMS Center read/unread display.
 
 ### Phone Number Handling
 
@@ -116,12 +116,15 @@ The test-send action (`action=send_test`) reads the **configured target from UCI
 | Forwarding center | `components/cellular/sms/forwarding/forwarding-center.tsx` |
 | Control card | `components/cellular/sms/forwarding/sms-forwarding-card.tsx` |
 | Status card | `components/cellular/sms/forwarding/delivery-health-card.tsx` |
+| Shared shapes | `components/cellular/sms/forwarding/shapes.ts` |
 
 ### Lifted-Hook Architecture
 
 `forwarding-center.tsx` owns the single `useSmsForwarding()` call and passes the result down as a `fwd` prop to both cards. This means there is one fetch/poll loop and one source of truth — both cards stay in sync without independent polling.
 
-**Layout.** The page is status first: `DeliveryHealthCard` leads and `SmsForwardingCard` follows. They sit side by side at `@4xl/main` and stack below it with status on top. A failed first read (`!isLoading && !data`) replaces both cards with one destructive `ConditionScreen` with Retry, rather than two copies.
+**Layout.** Control first, report second: `SmsForwardingCard` (the left card CONTROLS the relay) leads and `DeliveryHealthCard` (the right card REPORTS on it) follows. They sit side by side at `@3xl/main` (`CARD_GRID` in `forwarding/shapes.ts`, a container query against `@container/main`, never a viewport breakpoint) and stack below it with the control card on top. `CARD_CELL` pins both cards to the row height, so a card whose data has not landed is not shorter. A failed first read (`!isLoading && !data`) replaces both cards with one destructive `ConditionScreen` with Retry, rather than two copies.
+
+**Shared shapes.** `components/cellular/sms/forwarding/shapes.ts` holds the family's geometry once (`CARD_GRID`, `CARD_CELL`, `CARD_SHELL`, `CARD_FOOT_GUTTER`, the form and `HEALTH_*` skeleton and block constants), and the loaded view and its skeleton both read it, so a skeleton never restates a number. It is scoped to this folder; the SMS Center (a two-pane conversation UI, see [`sms.md`](sms.md)) shares nothing with it. Both cards use `rounded-card`, not `rounded-hero`, because two co-equal height-locked peers means neither anchors the page.
 
 `useSmsForwarding` fetches settings and failure state on mount, then polls every **20 seconds** (silent, does not show a spinner) so a background delivery failure surfaces without a manual refresh. The daemon polls every 15 s — the 20 s UI poll adds a one-cycle lag at most. Exports: `data`, `isLoading`, `isSaving`, `isSendingTest`, `isClearing`, `error`, `saveSettings`, `sendTest`, `clearFailures`, `refresh`.
 
@@ -144,13 +147,13 @@ A single derived health state drives the entire card:
 | `unconfigured` | `enabled=true`, `target_phone` empty |
 | `off` | `enabled=false` |
 
-The state drives one filled health chip (`Badge`, one glyph per state because the success and warning containers are 1.03:1 apart): `active` success + `check_circle`, `issue` warning + `warning`, `unconfigured` warning + `edit`, `off` muted + `do_not_disturb_on`. The destination is a receipt row (key left, value right) beneath it.
+The state drives one **focal health block** at the top of the card, the single status surface for the feature (deliberately no second header chip, because two indicators for one fact can disagree during a poll). The block is a tonal container plus disc resolved through `HEALTH_TONE` to `CONDITION_TONE`, with one glyph per state because the success and warning containers are 1.03:1 apart and the glyph is the only separation: `active` `check_circle`, `issue` `warning`, `unconfigured` `edit`, `off` `do_not_disturb_on`. Its detail line shows the destination number (mono, an opaque string) for `active`/`issue`, or a short explanation for `off`/`unconfigured`. `role="status"` is scoped to this block only: the hook rebuilds its data object every 20 s poll, so a page-root live region would announce on a loop.
 
-**Recipient preview:** a static bubble showing `From +15550142: <sample body>` teaches the relay format. The sample sender is a placeholder — the recipient's number is not the sender, it is the destination.
+**Recipient preview:** a static bubble showing `From +15550142: <sample body>` teaches the relay format. The sample sender is a placeholder (the recipient's number is not the sender, it is the destination), and a `HintIcon` beside the preview label says so rather than leaving the bubble to imply the number is real.
 
 **Send test:** lives in the card's `CardFoot` (a `tonal-neutral` operational action), active only when `enabled=true` and `target_phone` is non-empty. The CGI reads the target from UCI, not from the request body — the test verifies the actual saved path, not whatever is currently in the control card's input field.
 
-**Delivery failures:** shows up to 5 recent entries (sender, timestamp, last error) in an animated destructive block. A Clear button calls `action=clear_failures`. When no failures are present, a calm "No delivery problems." line is shown instead.
+**Delivery failures:** a destructive `TonalBanner` (`role="alert"`) titled with the live count, listing up to 5 recent entries (sender, timestamp, last error); a `tonal-neutral` Clear button below it calls `action=clear_failures`. When no failures are present, a quiet row (`done_all` glyph, no container) says there are no delivery problems. The empty state is quiet on purpose: the fill is saved for the row that needs finding.
 
 ---
 
@@ -169,5 +172,5 @@ See [`docs/features/error-codes.md`](error-codes.md) for the full error vocabula
 
 ## Related Features
 
-- [`docs/features/sms.md`](sms.md) — `qsms` transport, `/dev/smd11` invariant, broker-owned lock contract, inbox CGI, alert library, client-side read/unread state. The daemon in this feature is the only **server-side** inbox consumer — everything else is client-side.
+- [`docs/features/sms.md`](sms.md) — `qsms` transport, `/dev/smd11` invariant, broker-owned lock contract, conversation CGI, sent log, alert library, client-side read/unread state. The daemon in this feature is the only **server-side** inbox consumer — everything else is client-side.
 - [`docs/features/error-codes.md`](error-codes.md) — `resolveErrorMessage`, `errors.json` namespace, adding new error codes.

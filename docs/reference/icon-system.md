@@ -14,7 +14,7 @@ Material Symbols is a **self-hosted, ligature-driven icon font**, not an SVG com
 | **Canonical glyph list (single source of truth)** | `MATERIAL_SYMBOL_NAMES` in `components/ui/material-symbol-names.ts` |
 | Allowed glyph names (TS type) | `MaterialSymbolName`, **derived** from that array |
 | Subset generator | `scripts-dev/subset-icons.ts` (imports the same array) |
-| Shipped font file | `app/fonts/MaterialSymbolsRounded-subset.woff2` (117 glyphs, 43,488 bytes, as counted from the manifest 2026-10-06) |
+| Shipped font file | `app/fonts/MaterialSymbolsRounded-subset.woff2` (123 glyphs, 45,472 bytes, 2026-10-18) |
 | Generator manifest | `app/fonts/MaterialSymbolsRounded-subset.json` — what was requested + sha256 of what shipped |
 | Font binding | `app/layout.tsx` (`next/font/local`, bound to a CSS variable) |
 | Regenerate the font | `bun run icons:subset` |
@@ -150,6 +150,7 @@ Subset growth, by the change that caused it:
 | + `/cellular/` sub-routes (17) | 95 | 35.2 KB |
 | + SMS Center / SMS Forwarding tonal rebuild | 97 | 36.3 KB |
 | **Current manifest on the fork** (`MaterialSymbolsRounded-subset.json`, 2026-10-06) | **117** | **43,488 bytes** |
+| Target, after the SMS two-pane redesign (2026-10-18) | **123** | **45,472 bytes** |
 
 The eight glyphs added for the pre-auth retarget: `dark_mode`, `error`, `light_mode`, `lock`, `lock_clock`, `translate`, `wifi_off`, `wifi_tethering_off`. (The row above reads 64 because one further glyph landed between that change and this one without the table being touched; the baseline this change grew from was 65 glyphs / 24.6 KB.)
 
@@ -158,6 +159,8 @@ The **six** glyphs added for the `/cellular/` index: `content_copy`, `expand_mor
 The **24** glyphs added for the 17 `/cellular/` sub-routes, each verified against the live Google Fonts endpoint before use (see "Verifying a glyph name and its substitution" below): `add`, `auto_awesome`, `bolt`, `call`, `delete`, `done_all`, `drag_indicator`, `edit`, `explore`, `first_page`, `location_on`, `lock_open`, `more_horiz`, `more_vert`, `rocket_launch`, `route`, `search`, `send`, `shield`, `sos`, `sports_esports`, `trophy`, `videocam`, `work`.
 
 The **20** glyphs added between that rebuild and the current manifest are not itemised here; diff the manifest's `icons` array against git history when you need them.
+
+The **five** glyphs added for the target's SMS two-pane redesign (2026-10-18): `arrow_back` (the conversation's back affordance when one pane replaces the other), `forward` (Forward message), `mark_email_read` (the mark-as-read actions), `person` (the identity disc fallback when a sender has no initials, and the forward dialog's contact rows), `sort` (the thread-list sort control). The target's own growth is not itemised before this row; diff the manifest's `icons` array against git history when you need it.
 
 The **two** glyphs added for the SMS Center / SMS Forwarding tonal rebuild: `mark_email_unread` (the unread row marker, which replaced a bare colour-only dot) and `delete_sweep` (the "Delete all" action, distinct from the single-message `delete`).
 

@@ -7,21 +7,24 @@ import { ConditionScreen } from "@/components/cellular/condition-screen";
 import { CellularPageHeader } from "@/components/cellular/page-header";
 import { useSmsForwarding } from "@/hooks/use-sms-forwarding";
 import { staggerContainer, staggerItem } from "@/lib/motion";
+import { CARD_CELL, CARD_GRID } from "./shapes";
 import SmsForwardingCard from "./sms-forwarding-card";
 import DeliveryHealthCard from "./delivery-health-card";
 
 // =============================================================================
 // ForwardingCenter — the page shell for /cellular/sms/forwarding
 // =============================================================================
-// Status first: the health card (what the relay is doing) leads, and the
-// settings card (what changes it) follows. Side by side on a wide column
-// (container query, never a viewport breakpoint), stacked with status on top
-// below that.
+// A page header over a two-up grid: the left card CONTROLS the relay, the right
+// card REPORTS on it (live state, preview, test, delivery failures). The grid is
+// a container query against `@container/main`, never a viewport breakpoint — the
+// sidebar can expand and collapse underneath it — and the page column is full
+// width. Below the step the cards stack, control first.
 //
-// The hook is lifted here so both cards share one fetch and one 20 s poll; two
-// hook calls would land their polls at different instants and show a saved
-// change on one card a cycle before the other. A failed first read replaces
-// both cards with one condition screen rather than two copies of it.
+// The hook is lifted here so both cards read one source of truth and share a
+// single fetch/poll loop; two hook calls would land two 20 s polls at different
+// instants and show a saved change on one card a cycle before the other. A
+// failed first read replaces both cards with one condition screen rather than
+// two copies of it.
 // =============================================================================
 
 const ForwardingCenterComponent = () => {
@@ -48,16 +51,19 @@ const ForwardingCenterComponent = () => {
         />
       ) : (
         <motion.div
-          className="grid grid-cols-1 items-stretch gap-4 @4xl/main:grid-cols-2"
+          className={CARD_GRID}
           variants={staggerContainer}
           initial="hidden"
           animate="visible"
         >
-          <motion.div variants={staggerItem} className="h-full">
-            <DeliveryHealthCard fwd={fwd} />
-          </motion.div>
-          <motion.div variants={staggerItem} className="h-full">
+          {/* `CARD_CELL` pins both cards to the row height rather than letting
+              each size to its own content, so the control card (the shorter of
+              the two) isn't stubby beside a health card carrying failure rows. */}
+          <motion.div variants={staggerItem} className={CARD_CELL}>
             <SmsForwardingCard fwd={fwd} />
+          </motion.div>
+          <motion.div variants={staggerItem} className={CARD_CELL}>
+            <DeliveryHealthCard fwd={fwd} />
           </motion.div>
         </motion.div>
       )}

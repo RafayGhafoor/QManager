@@ -594,6 +594,11 @@ remove_config() {
         rm -rf /usrdata/qmanager/sites
         info "Removed Sites monitor history"
     fi
+    # SMS sent log (created lazily by cellular/sms.sh).
+    if [ -f /usrdata/qmanager/sms_sent.json ]; then
+        rm -f /usrdata/qmanager/sms_sent.json
+        info "Removed SMS sent log"
+    fi
 }
 
 # --- Summary -----------------------------------------------------------------

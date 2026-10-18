@@ -518,105 +518,37 @@
       "description": "查看、管理并从调制解调器发送短信。"
     },
     "inbox": {
-      "title": "收件箱",
-      "description": "查看和管理您的短信",
-      "table": {
-        "headers": {
-          "from": "发件人",
-          "message": "消息",
-          "date": "日期"
-        },
-        "actions": {
-          "open_menu": "打开菜单",
-          "view": "查看",
-          "delete": "删除"
-        },
-        "empty_row": "未找到消息。",
-        "select_all_aria": "全选",
-        "select_row_aria": "选择行",
-        "sim_badge": "SIM",
-        "empty_unread": "没有未读消息。",
-        "empty_read": "没有已读消息。",
-        "empty_search": "没有符合搜索条件的短信。"
-      },
-      "empty_state": {
-        "title": "暂无消息",
-        "description": "收到的短信将显示在这里。发送一条短信即可开始。"
-      },
       "buttons": {
-        "refresh_aria": "刷新收件箱",
-        "delete_selected": "删除 ({{count}})",
-        "delete_selected_aria": "删除 {{count}} 条选中的消息",
-        "delete_all": "全部删除",
-        "delete_all_aria": "删除所有消息",
-        "new_message": "新短信",
-        "prev": "上一页",
-        "next": "下一页",
-        "mark_all_read": "全部标为已读",
-        "mark_all_read_aria": "将所有消息标记为已读",
-        "first_page": "转到第一页",
-        "prev_page": "转到上一页",
-        "next_page": "转到下一页",
-        "last_page": "转到最后一页"
-      },
-      "pagination": {
-        "total_one": "{{count}} 条消息",
-        "total_other": "{{count}} 条消息",
-        "page_info": "{{current}} / {{total}}",
-        "rows_per_page": "每页行数",
-        "page_label": "第 {{current}} 页，共 {{total}} 页",
-        "selected_info": "已选择 {{selected}} / {{total}}"
-      },
-      "error": {
-        "title": "加载消息失败"
-      },
-      "view_dialog": {
-        "title": "来自 {{sender}} 的消息",
-        "timestamp_aria": "{{timestamp}}",
-        "heading": "消息"
+        "delete_all": "全部删除"
       },
       "delete_single_confirm": {
-        "title": "删除消息",
-        "description": "确定要删除来自 {{sender}} 的这条消息吗？此操作不可撤销。",
-        "confirm": "删除",
         "deleting": "删除中…"
       },
       "delete_all_confirm": {
         "title": "删除所有消息",
-        "description": "确定要删除全部 {{count}} 条消息吗？此操作不可撤销。",
-        "confirm": "全部删除"
-      },
-      "delete_selected_confirm": {
-        "title": "删除选中的消息",
-        "description_one": "确定要删除 {{count}} 条选中的消息吗？此操作不可撤销。",
-        "description_other": "确定要删除 {{count}} 条选中的消息吗？此操作不可撤销。",
-        "confirm": "删除 ({{count}})",
-        "deleting": "删除中…"
+        "description": "所有已存储的消息和会话都将被永久删除，此操作不可撤销。",
+        "confirm": "全部删除",
+        "cancel": "保留消息",
+        "deleting": "正在全部删除…"
       },
       "toast": {
-        "delete_success": "消息已删除",
-        "delete_all_success": "所有消息已删除",
-        "delete_selected_success_one": "已删除 {{count}} 条消息",
-        "delete_selected_success_other": "已删除 {{count}} 条消息",
-        "mark_all_read_success": "所有消息已标记为已读"
-      },
-      "tabs": {
-        "all": "全部",
-        "unread": "未读",
-        "read": "已读"
-      },
-      "unread_aria": "未读消息",
-      "search": {
-        "placeholder": "搜索短信…",
-        "aria": "搜索短信"
-      },
-      "sort": {
-        "label": "排序",
-        "newest": "最新优先",
-        "oldest": "最早优先",
-        "aria": "排序方式"
-      },
-      "description_storage": "已存储 {{used}} / {{total}} 条短信。"
+        "delete_all_success": "所有消息已删除"
+      }
+    },
+    "settings": {
+      "title": "短信设置",
+      "description": "选择此调制解调器发送和存储短信的方式。",
+      "smsc": {
+        "title": "运营商号码",
+        "description": "用于转发您发出短信的运营商号码。",
+        "hint_label": "关于运营商号码",
+        "hint": "也称为短信中心 (SMSC)。该号码由运营商设定，仅在短信无法发送时才需要修改。",
+        "placeholder": "例如 +639180000101",
+        "invalid": "请输入 3 至 20 位数字，开头可带 +。",
+        "unreadable": "无法读取当前号码，但仍可设置新号码。",
+        "toast_saved": "运营商号码已保存。",
+        "save_failed": "无法保存运营商号码。"
+      }
     },
     "storage": {
       "card_title": "短信存储位置",
@@ -643,17 +575,174 @@
         "phone_label": "电话号码",
         "phone_placeholder": "+1234567890",
         "message_label": "消息",
-        "message_placeholder": "请输入您的消息...",
-        "char_counter": "{{count}}/{{max}}"
+        "message_placeholder": "请输入您的消息..."
       },
-      "unicode_indicator": "（Unicode）",
-      "limit_warning": "消息超过单条短信限制，将作为多部分发送。",
       "buttons": {
         "send": "发送",
         "sending": "发送中…"
       },
       "toast": {
         "success": "短信发送成功"
+      },
+      "encoding": {
+        "gsm7": "GSM 7 位",
+        "ucs2": "UCS-2"
+      },
+      "encoding_hint": "出现非 ASCII 字符时，消息将切换为 UCS-2 编码，单条上限为 70 个字符。"
+    },
+    "center": {
+      "search": {
+        "placeholder": "搜索消息",
+        "aria": "搜索消息"
+      },
+      "filters": {
+        "all": "全部",
+        "unread": "未读"
+      },
+      "sort": {
+        "to_oldest": "最早的在前",
+        "to_newest": "最新的在前"
+      },
+      "actions": {
+        "compose": "新消息",
+        "refresh": "刷新",
+        "more": "更多选项",
+        "back": "返回全部消息",
+        "copy_address": "复制发件人地址",
+        "thread_options": "会话选项",
+        "mark_read": "全部标为已读",
+        "delete_thread": "删除会话",
+        "copy_text": "复制文本",
+        "forward": "转发…",
+        "mark_unread": "标为未读",
+        "details": "详情…",
+        "delete_message": "删除"
+      },
+      "header": {
+        "synced": "{{seconds}} 秒前已同步"
+      },
+      "identity": {
+        "matched": "已匹配"
+      },
+      "preview": {
+        "you": "你："
+      },
+      "time": {
+        "today": "今天",
+        "yesterday": "昨天"
+      },
+      "composer": {
+        "placeholder": "短信",
+        "aria": "回复 {{contact}}",
+        "send": "发送消息",
+        "remaining_one": "还可输入 {{count}} 个字符",
+        "remaining_other": "还可输入 {{count}} 个字符",
+        "segments_one": "{{count}} 条短信",
+        "segments_other": "{{count}} 条短信"
+      },
+      "send": {
+        "sending": "发送中…",
+        "sent_at": "{{time}} 已发送",
+        "failed": "发送失败",
+        "retry": "重试",
+        "discard": "放弃"
+      },
+      "code": {
+        "copy": "复制验证码",
+        "copied": "已复制"
+      },
+      "phishing": {
+        "with_logo": "含有链接。发件人名称可能被伪造，{{name}} 未必发送了此消息。",
+        "generic": "含有链接。仅在您预期收到此消息时才打开。"
+      },
+      "delete_thread": {
+        "title": "删除此会话？",
+        "description": "将移除为 {{contact}} 存储的所有消息，此操作不可撤销。",
+        "confirm": "删除会话"
+      },
+      "toast": {
+        "address_copied": "已复制发件人地址",
+        "copy_failed": "无法复制。此连接下浏览器已禁止访问剪贴板。",
+        "thread_deleted": "会话已删除",
+        "thread_delete_failed": "无法删除会话",
+        "thread_marked_read": "已标为已读",
+        "message_copied": "消息已复制",
+        "message_deleted": "消息已删除",
+        "message_delete_failed": "无法删除消息",
+        "message_marked_unread": "已标为未读",
+        "mark_unread_failed": "无法将消息标为未读"
+      },
+      "a11y": {
+        "unread_count_one": "{{count}} 条未读消息",
+        "unread_count_other": "{{count}} 条未读消息"
+      },
+      "states": {
+        "loading_sr": "正在加载会话",
+        "loading_thread_sr": "正在加载会话",
+        "no_selection": {
+          "title": "选择一个会话",
+          "description": "从左侧选择一个会话，或新建消息。"
+        },
+        "empty": {
+          "title": "暂无消息",
+          "description": "收到的消息将显示在这里。",
+          "action": "写消息"
+        },
+        "no_unread": {
+          "title": "没有未读消息",
+          "description": "所有已存储的消息都已在此浏览器中打开过。"
+        },
+        "no_matches": {
+          "title": "无匹配结果",
+          "description": "没有符合搜索条件的会话。可尝试姓名、号码或消息中的某个词。"
+        },
+        "thread_empty": {
+          "title": "这里还没有内容",
+          "description": "此会话没有已存储的消息。发送一条即可开始。"
+        },
+        "missing": {
+          "title": "该会话已不存在",
+          "description": "它已不再存储，可能在生成此链接后被删除。",
+          "action": "返回全部消息"
+        },
+        "error": {
+          "title": "无法加载消息",
+          "description": "您已存储的消息是安全的。请稍后重试。",
+          "retry": "重试"
+        }
+      },
+      "delete_message": {
+        "title": "删除此消息？",
+        "description": "将被永久移除，此操作不可撤销。",
+        "confirm": "删除消息"
+      },
+      "forward": {
+        "title": "转发消息",
+        "description": "将从此调制解调器发送一条新短信，原消息保持不变。",
+        "to_label": "收件人",
+        "prefix": "来自 {{addr}}：",
+        "include_sender": "包含原发件人",
+        "include_sender_hint": "在顶部添加一行“来自 {{addr}}：”",
+        "alpha_disabled": "发件人名称无法接收短信",
+        "submit": "转发"
+      },
+      "details": {
+        "title": "消息详情",
+        "description": "QManager 掌握的此消息的全部信息。",
+        "from": "发件人",
+        "to": "收件人",
+        "sender_type": "发件人类型",
+        "received_at": "接收时间",
+        "sent_at": "发送时间",
+        "length": "长度",
+        "length_value_one": "{{count}} 个字符",
+        "length_value_other": "{{count}} 个字符",
+        "close": "关闭",
+        "kind": {
+          "msisdn": "电话号码",
+          "shortcode": "短号码",
+          "alphanumeric": "发件人名称"
+        }
       }
     },
     "forwarding": {
@@ -671,7 +760,8 @@
         "validation_phone": "请输入有效的电话号码（例如 +8613800138000）。",
         "toast_save_success": "转发设置已保存。",
         "error_load": "无法加载转发设置",
-        "target_hint_label": "关于转发的短信"
+        "target_hint_label": "关于转发的短信",
+        "loading_label": "正在加载转发设置"
       },
       "health": {
         "card_title": "投递与状态",
@@ -680,10 +770,13 @@
         "state_issue": "投递存在问题",
         "state_off": "转发已关闭",
         "state_unconfigured": "未设置转发号码",
+        "state_unconfigured_description": "转发已开启，但尚无转发目标。添加一个号码即可开始转发。",
         "destination_label": "发送至",
         "destination_none": "开启转发并保存号码后即可开始转发短信。",
         "preview_label": "收件人看到",
         "preview_sample_body": "你好，下午三点还约吗？",
+        "preview_hint_label": "关于此预览",
+        "preview_hint": "“来自”行中的号码是示例发件人。您保存的号码会收到此消息，而不是由它发出。",
         "test_button": "发送测试",
         "test_sending": "发送中…",
         "test_hint": "向您保存的号码发送测试。",
@@ -708,7 +801,6 @@
     "errors": {
       "fetch": "加载消息失败",
       "send": "发送短信失败",
-      "delete": "删除消息失败",
       "delete_all": "删除全部消息失败"
     }
   },

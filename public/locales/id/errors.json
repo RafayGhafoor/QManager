@@ -1,11 +1,6 @@
 {
   "unknown": "Kesalahan tidak diketahui",
   "unknown_with_detail": "Modem melaporkan: {{detail}}",
-  "invalid_host_in_subnet": "Alamat itu tidak dapat digunakan sebagai host di subnet yang dipilih",
-  "invalid_ipaddr": "Alamat IP tidak valid",
-  "invalid_prefix": "Prefiks subnet di luar rentang",
-  "lan_read_failed": "Tidak dapat membaca pengaturan LAN saat ini",
-  "lan_save_failed": "Tidak dapat menyimpan pengaturan LAN",
   "all_steps_failed": "Penerapan profil gagal — tidak ada pengaturan yang berhasil diterapkan",
   "already_installed": "Layanan sudah terinstal",
   "already_running": "Operasi sedang berjalan",
@@ -163,6 +158,11 @@
   "updater_not_executable": "Binary updater tidak dapat dieksekusi",
   "usbnet_failed": "Konfigurasi antarmuka jaringan USB gagal",
   "usb_mode_incompatible_for_verizon": "Profil Verizon memerlukan mode USB ECM atau RNDIS — ubah mode USB di pengaturan IP Passthrough sebelum mengaktifkan",
+  "invalid_host_in_subnet": "Alamat itu tidak dapat digunakan sebagai host di subnet yang dipilih",
+  "invalid_ipaddr": "Alamat IP tidak valid",
+  "invalid_prefix": "Prefiks subnet di luar rentang",
+  "lan_read_failed": "Tidak dapat membaca pengaturan LAN saat ini",
+  "lan_save_failed": "Tidak dapat menyimpan pengaturan LAN",
   "write_failed": "Gagal menulis konfigurasi ke penyimpanan",
   "wrong_schema": "Versi skema cadangan tidak cocok dengan versi saat ini",
   "apply_failed": "Pengaturan tidak dapat diterapkan.",
@@ -184,5 +184,8 @@
   "restore_in_progress": "Pemulihan sedang berjalan.",
   "unknown_section": "Cadangan ini berisi bagian yang tidak dapat dipulihkan oleh versi ini.",
   "invalid_storage": "Pilih penyimpanan modem atau SIM.",
-  "sim_storage_unavailable": "SIM tidak dapat menyimpan pesan. Pastikan SIM terpasang."
+  "sim_storage_unavailable": "SIM tidak dapat menyimpan pesan. Pastikan SIM terpasang.",
+  "invalid_smsc": "Masukkan nomor operator dengan + di awal secara opsional, lalu 3 hingga 20 digit.",
+  "smsc_write_failed": "Tidak dapat menyimpan nomor operator. Periksa lalu coba lagi.",
+  "smsc_read_failed": "Tidak dapat membaca nomor operator dari modem."
 }
