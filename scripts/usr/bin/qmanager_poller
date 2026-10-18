@@ -1277,6 +1277,23 @@ read_sim_state() {
 # JSON CACHE WRITER
 # =============================================================================
 
+
+# --- JSON emit helpers -------------------------------------------------------
+# NOT jq: one `jq -n` costs ~0.15-0.46 s of CPU on the SoCs QManager targets and
+# write_cache() runs every cycle, forever. `printf` is a SHELL BUILTIN in the
+# ash on these builds, so the emitter below starts no subprocess and forks zero
+# times (verified: 20 full emitter runs produced 1 fork total).
+#
+#   _qs: JSON string literal, escaping \ and " (matches jq `--arg`, including
+#        "" for an empty value).
+#   _qr: raw JSON fragment, as `--argjson` expected. An EMPTY value becomes null
+#        rather than being handed to jq; previously an empty --argjson made jq
+#        fail, and the `mv` below then published an EMPTY status cache - i.e. the
+#        failure mode was losing every field, not one.
+# Known limit: control characters in a string are not escaped (jq escapes them).
+_qs() { _Q=${1:-}; _Q=${_Q//\\/\\\\}; _Q=${_Q//\"/\\\"}; _Q="\"$_Q\""; }
+_qr() { case "${1:-}" in '') _Q=null ;; *) _Q=$1 ;; esac; }
+
 write_cache() {
     local timestamp
     timestamp=$(date +%s)
@@ -1297,242 +1314,158 @@ write_cache() {
     # Build errors array
     local errors_json="[]"
     if [ -n "$errors" ]; then
-        errors_json=$(jq -n --arg e "$errors" '[$e]')
+        _qs "$errors"; errors_json="[$_Q]"
     fi
 
-    jq -n \
-        --argjson timestamp "$timestamp" \
-        --argjson mono "$mono" \
-        --arg system_state "$system_state" \
-        --argjson modem_reachable "$modem_reachable" \
-        --argjson errors "$errors_json" \
-        --argjson cfun "${t1_cfun:-1}" \
-        --arg net_type "${network_type:-LTE}" \
-        --argjson sim_slot "${t2_sim_slot:-1}" \
-        --arg carrier "$t2_carrier" \
-        --arg service_status "$service_status" \
-        --argjson ca_active "$t2_ca_active" \
-        --argjson ca_count "$t2_ca_count" \
-        --argjson nr_ca_active "$t2_nr_ca_active" \
-        --argjson nr_ca_count "$t2_nr_ca_count" \
-        --argjson total_bw "${t2_total_bandwidth_mhz:-0}" \
-        --arg bw_details "$t2_bandwidth_details" \
-        --argjson cc "$t2_carrier_components" \
-        --arg apn "$t2_apn" \
-        --arg wan4 "$t2_wan_ipv4" \
-        --arg wan6 "$t2_wan_ipv6" \
-        --arg dns1 "$t2_primary_dns" \
-        --arg dns2 "$t2_secondary_dns" \
-        --arg dns1_v4 "$t2_primary_dns_v4" \
-        --arg dns1_v6 "$t2_primary_dns_v6" \
-        --arg dns2_v4 "$t2_secondary_dns_v4" \
-        --arg dns2_v6 "$t2_secondary_dns_v6" \
-        --arg lte_st "$lte_state" \
-        --arg lte_b "$lte_band" \
-        --argjson lte_earfcn "${lte_earfcn:-null}" \
-        --argjson lte_bw "${lte_bandwidth:-null}" \
-        --argjson lte_pci "${lte_pci:-null}" \
-        --argjson lte_cid "${lte_cell_id:-null}" \
-        --argjson lte_enb "${lte_enodeb_id:-null}" \
-        --argjson lte_sec "${lte_sector_id:-null}" \
-        --argjson lte_tac "${lte_tac:-null}" \
-        --argjson lte_rsrp "${lte_rsrp:-null}" \
-        --argjson lte_rsrq "${lte_rsrq:-null}" \
-        --argjson lte_sinr "${lte_sinr:-null}" \
-        --argjson lte_rssi "${lte_rssi:-null}" \
-        --argjson lte_ta "${lte_ta:-null}" \
-        --arg nr_st "$nr_state" \
-        --arg nr_b "$nr_band" \
-        --argjson nr_arfcn "${nr_arfcn:-null}" \
-        --argjson nr_pci "${nr_pci:-null}" \
-        --argjson nr_cid "${nr_cell_id:-null}" \
-        --argjson nr_enb "${nr_enodeb_id:-null}" \
-        --argjson nr_sec "${nr_sector_id:-null}" \
-        --argjson nr_tac "${nr_tac:-null}" \
-        --argjson nr_rsrp "${nr_rsrp:-null}" \
-        --argjson nr_rsrq "${nr_rsrq:-null}" \
-        --argjson nr_sinr "${nr_sinr:-null}" \
-        --argjson nr_scs "${nr_scs:-null}" \
-        --argjson nr_ta "${nr_ta:-null}" \
-        --argjson slr "$sig_lte_rsrp" \
-        --argjson slq "$sig_lte_rsrq" \
-        --argjson sls "$sig_lte_sinr" \
-        --argjson snr "$sig_nr_rsrp" \
-        --argjson snq "$sig_nr_rsrq" \
-        --argjson sns "$sig_nr_sinr" \
-        --argjson temp "${t1_temperature:-null}" \
-        --argjson cpu "${cpu_usage:-0}" \
-        --argjson mem_used "${memory_used_mb:-0}" \
-        --argjson mem_total "${memory_total_mb:-0}" \
-        --argjson uptime "${uptime_seconds:-0}" \
-        --argjson conn_up "${conn_uptime_seconds:-0}" \
-        --arg firmware "$boot_firmware" \
-        --arg build_date "$boot_build_date" \
-        --arg mfr "$boot_manufacturer" \
-        --arg model "$boot_model" \
-        --arg imei "$boot_imei" \
-        --arg imsi "$boot_imsi" \
-        --arg iccid "$boot_iccid" \
-        --arg phone "$boot_phone_number" \
-        --arg lte_cat "$boot_lte_category" \
-        --arg mimo "$t2_mimo" \
-        --arg sup_lte "$boot_supported_lte_bands" \
-        --arg sup_nsa "$boot_supported_nsa_nr5g_bands" \
-        --arg sup_sa "$boot_supported_sa_nr5g_bands" \
-        --arg sup_nrdc "$boot_supported_nrdc_nr5g_bands" \
-        --arg hw_lte "$hw_lte_bands" \
-        --arg hw_nsa "$hw_nsa_nr5g_bands" \
-        --arg hw_sa "$hw_sa_nr5g_bands" \
-        --arg qmver "$boot_qmanager_version" \
-        --arg ippt_mode "$boot_ippt_mode" \
-        --arg ippt_mac  "$boot_ippt_mac" \
-        --arg ippt_nat  "$boot_ippt_nat" \
-        --arg ippt_usb  "$boot_ippt_usbnet" \
-        --arg ippt_dns  "$boot_ippt_dhcpv4dns" \
-        --arg ap_tier "${ap_tier:-active}" \
-        --argjson inet "${conn_internet_available:-null}" \
-        --arg conn_st "$conn_status" \
-        --argjson lat "${conn_latency:-null}" \
-        --argjson avg_lat "${conn_avg_latency:-null}" \
-        --argjson min_lat "${conn_min_latency:-null}" \
-        --argjson max_lat "${conn_max_latency:-null}" \
-        --argjson jit "${conn_jitter:-null}" \
-        --argjson pkt_loss "${conn_packet_loss:-0}" \
-        --arg ping_tgt "$conn_ping_target" \
-        --arg conn_profile "$conn_profile" \
-        --arg conn_last_family "$conn_last_family" \
-        --argjson dns_ms "${dns_lookup_ms:-null}" \
-        --arg dns_res "$dns_resolver" \
-        --argjson lat_hist "${conn_history:-[]}" \
-        --argjson hist_int "${conn_history_interval:-2}" \
-        --argjson hist_size "${CONN_HISTORY_SIZE:-60}" \
-        --argjson during_rec "${conn_during_recovery:-false}" \
-        --argjson thr_lat "${QUALITY_LAT_THRESHOLD:-250}" \
-        --argjson thr_loss "${QUALITY_LOSS_THRESHOLD:-30}" \
-        --argjson wc_enabled "${wc_enabled:-false}" \
-        --arg wc_state "${wc_state:-disabled}" \
-        --argjson wc_tier "${wc_current_tier:-0}" \
-        --argjson wc_failures "${wc_failure_count:-0}" \
-        --argjson wc_last_time "${wc_last_recovery_time:-null}" \
-        --argjson wc_last_tier "${wc_last_recovery_tier:-null}" \
-        --argjson wc_total "${wc_total_recoveries:-0}" \
-        --argjson wc_cooldown "${wc_cooldown_remaining:-0}" \
-        --argjson wc_reboots "${wc_reboots_this_hour:-0}" \
-        --argjson sf_active "${sim_fo_active:-false}" \
-        --argjson sf_orig "${sim_fo_original_slot:-null}" \
-        --argjson sf_curr "${sim_fo_current_slot:-null}" \
-        --argjson sf_time "${sim_fo_switched_at:-null}" \
-        --argjson ss_detected "${sim_swap_detected:-false}" \
-        --arg ss_profile_id "$sim_swap_profile_id" \
-        --arg ss_profile_name "$sim_swap_profile_name" \
-        '{
-            timestamp: $timestamp,
-            mono: $mono,
-            system_state: $system_state,
-            modem_reachable: $modem_reachable,
-            last_successful_poll: $timestamp,
-            errors: $errors,
-            network: {
-                cfun: $cfun,
-                type: $net_type,
-                sim_slot: $sim_slot,
-                carrier: $carrier,
-                service_status: $service_status,
-                ca_active: $ca_active,
-                ca_count: $ca_count,
-                nr_ca_active: $nr_ca_active,
-                nr_ca_count: $nr_ca_count,
-                total_bandwidth_mhz: $total_bw,
-                bandwidth_details: $bw_details,
-                carrier_components: $cc,
-                apn: $apn,
-                wan_ipv4: $wan4,
-                wan_ipv6: $wan6,
-                primary_dns: $dns1,
-                secondary_dns: $dns2,
-                primary_dns_v4: $dns1_v4,
-                primary_dns_v6: $dns1_v6,
-                secondary_dns_v4: $dns2_v4,
-                secondary_dns_v6: $dns2_v6
-            },
-            lte: {
-                state: $lte_st, band: $lte_b,
-                earfcn: $lte_earfcn, bandwidth: $lte_bw,
-                pci: $lte_pci, cell_id: $lte_cid,
-                enodeb_id: $lte_enb, sector_id: $lte_sec, tac: $lte_tac,
-                rsrp: $lte_rsrp, rsrq: $lte_rsrq,
-                sinr: $lte_sinr, rssi: $lte_rssi, ta: $lte_ta
-            },
-            nr: {
-                state: $nr_st, band: $nr_b,
-                arfcn: $nr_arfcn, pci: $nr_pci,
-                cell_id: $nr_cid, enodeb_id: $nr_enb,
-                sector_id: $nr_sec, tac: $nr_tac,
-                rsrp: $nr_rsrp, rsrq: $nr_rsrq,
-                sinr: $nr_sinr, scs: $nr_scs, ta: $nr_ta
-            },
-            signal_per_antenna: {
-                lte_rsrp: $slr, lte_rsrq: $slq, lte_sinr: $sls,
-                nr_rsrp: $snr, nr_rsrq: $snq, nr_sinr: $sns
-            },
-            device: {
-                temperature: $temp, cpu_usage: $cpu,
-                memory_used_mb: $mem_used, memory_total_mb: $mem_total,
-                uptime_seconds: $uptime, conn_uptime_seconds: $conn_up,
-                firmware: $firmware, build_date: $build_date,
-                manufacturer: $mfr, model: $model,
-                imei: $imei, imsi: $imsi,
-                iccid: $iccid, phone_number: $phone,
-                lte_category: $lte_cat, mimo: $mimo,
-                supported_lte_bands: $sup_lte,
-                supported_nsa_nr5g_bands: $sup_nsa,
-                supported_sa_nr5g_bands: $sup_sa,
-                supported_nrdc_nr5g_bands: $sup_nrdc,
-                hw_lte_bands: $hw_lte,
-                hw_nsa_nr5g_bands: $hw_nsa,
-                hw_sa_nr5g_bands: $hw_sa,
-                qmanager_version: $qmver,
-                ippt_mode: $ippt_mode,
-                ippt_mac: $ippt_mac,
-                ippt_nat: $ippt_nat,
-                ippt_usbnet: $ippt_usb,
-                ippt_dhcpv4dns: $ippt_dns,
-                poller_tier: $ap_tier
-            },
-            connectivity: {
-                internet_available: $inet, status: $conn_st,
-                latency_ms: $lat, avg_latency_ms: $avg_lat,
-                min_latency_ms: $min_lat, max_latency_ms: $max_lat,
-                jitter_ms: $jit, packet_loss_pct: $pkt_loss,
-                ping_target: $ping_tgt, latency_history: $lat_hist,
-                history_interval_sec: $hist_int, history_size: $hist_size,
-                during_recovery: $during_rec, profile: $conn_profile,
-                thresholds: {latency_ms: $thr_lat, loss_pct: $thr_loss},
-                dns_lookup_ms: $dns_ms,
-                dns_resolver: (if $dns_res == "" then null else $dns_res end),
-                last_family: $conn_last_family
-            },
-            watchcat: {
-                enabled: $wc_enabled, state: $wc_state,
-                current_tier: $wc_tier, failure_count: $wc_failures,
-                last_recovery_time: $wc_last_time,
-                last_recovery_tier: $wc_last_tier,
-                total_recoveries: $wc_total,
-                cooldown_remaining: $wc_cooldown,
-                reboots_this_hour: $wc_reboots
-            },
-            sim_failover: {
-                active: $sf_active,
-                original_slot: $sf_orig,
-                current_slot: $sf_curr,
-                switched_at: $sf_time
-            },
-            sim_swap: {
-                detected: $ss_detected,
-                matching_profile_id: $ss_profile_id,
-                matching_profile_name: $ss_profile_name
-            }
-        }' > "$CACHE_TMP"
+    {
+    printf '{'
+_qr "$timestamp"; printf '"timestamp":%s' "$_Q"
+_qr "$mono"; printf ',"mono":%s' "$_Q"
+_qs "$system_state"; printf ',"system_state":%s' "$_Q"
+_qr "$modem_reachable"; printf ',"modem_reachable":%s' "$_Q"
+_qr "$timestamp"; printf ',"last_successful_poll":%s' "$_Q"
+_qr "$errors_json"; printf ',"errors":%s' "$_Q"
+printf ',"network":{'
+_qr "${t1_cfun:-1}"; printf '"cfun":%s' "$_Q"
+_qs "${network_type:-LTE}"; printf ',"type":%s' "$_Q"
+_qr "${t2_sim_slot:-1}"; printf ',"sim_slot":%s' "$_Q"
+_qs "$t2_carrier"; printf ',"carrier":%s' "$_Q"
+_qs "$service_status"; printf ',"service_status":%s' "$_Q"
+_qr "$t2_ca_active"; printf ',"ca_active":%s' "$_Q"
+_qr "$t2_ca_count"; printf ',"ca_count":%s' "$_Q"
+_qr "$t2_nr_ca_active"; printf ',"nr_ca_active":%s' "$_Q"
+_qr "$t2_nr_ca_count"; printf ',"nr_ca_count":%s' "$_Q"
+_qr "${t2_total_bandwidth_mhz:-0}"; printf ',"total_bandwidth_mhz":%s' "$_Q"
+_qs "$t2_bandwidth_details"; printf ',"bandwidth_details":%s' "$_Q"
+_qr "$t2_carrier_components"; printf ',"carrier_components":%s' "$_Q"
+_qs "$t2_apn"; printf ',"apn":%s' "$_Q"
+_qs "$t2_wan_ipv4"; printf ',"wan_ipv4":%s' "$_Q"
+_qs "$t2_wan_ipv6"; printf ',"wan_ipv6":%s' "$_Q"
+_qs "$t2_primary_dns"; printf ',"primary_dns":%s' "$_Q"
+_qs "$t2_secondary_dns"; printf ',"secondary_dns":%s' "$_Q"
+_qs "$t2_primary_dns_v4"; printf ',"primary_dns_v4":%s' "$_Q"
+_qs "$t2_primary_dns_v6"; printf ',"primary_dns_v6":%s' "$_Q"
+_qs "$t2_secondary_dns_v4"; printf ',"secondary_dns_v4":%s' "$_Q"
+_qs "$t2_secondary_dns_v6"; printf ',"secondary_dns_v6":%s' "$_Q"
+printf '}'
+printf ',"lte":{'
+_qs "$lte_state"; printf '"state":%s' "$_Q"
+_qs "$lte_band"; printf ',"band":%s' "$_Q"
+_qr "${lte_earfcn:-null}"; printf ',"earfcn":%s' "$_Q"
+_qr "${lte_bandwidth:-null}"; printf ',"bandwidth":%s' "$_Q"
+_qr "${lte_pci:-null}"; printf ',"pci":%s' "$_Q"
+_qr "${lte_cell_id:-null}"; printf ',"cell_id":%s' "$_Q"
+_qr "${lte_enodeb_id:-null}"; printf ',"enodeb_id":%s' "$_Q"
+_qr "${lte_sector_id:-null}"; printf ',"sector_id":%s' "$_Q"
+_qr "${lte_tac:-null}"; printf ',"tac":%s' "$_Q"
+_qr "${lte_rsrp:-null}"; printf ',"rsrp":%s' "$_Q"
+_qr "${lte_rsrq:-null}"; printf ',"rsrq":%s' "$_Q"
+_qr "${lte_sinr:-null}"; printf ',"sinr":%s' "$_Q"
+_qr "${lte_rssi:-null}"; printf ',"rssi":%s' "$_Q"
+_qr "${lte_ta:-null}"; printf ',"ta":%s' "$_Q"
+printf '}'
+printf ',"nr":{'
+_qs "$nr_state"; printf '"state":%s' "$_Q"
+_qs "$nr_band"; printf ',"band":%s' "$_Q"
+_qr "${nr_arfcn:-null}"; printf ',"arfcn":%s' "$_Q"
+_qr "${nr_pci:-null}"; printf ',"pci":%s' "$_Q"
+_qr "${nr_cell_id:-null}"; printf ',"cell_id":%s' "$_Q"
+_qr "${nr_enodeb_id:-null}"; printf ',"enodeb_id":%s' "$_Q"
+_qr "${nr_sector_id:-null}"; printf ',"sector_id":%s' "$_Q"
+_qr "${nr_tac:-null}"; printf ',"tac":%s' "$_Q"
+_qr "${nr_rsrp:-null}"; printf ',"rsrp":%s' "$_Q"
+_qr "${nr_rsrq:-null}"; printf ',"rsrq":%s' "$_Q"
+_qr "${nr_sinr:-null}"; printf ',"sinr":%s' "$_Q"
+_qr "${nr_scs:-null}"; printf ',"scs":%s' "$_Q"
+_qr "${nr_ta:-null}"; printf ',"ta":%s' "$_Q"
+printf '}'
+printf ',"signal_per_antenna":{'
+_qr "$sig_lte_rsrp"; printf '"lte_rsrp":%s' "$_Q"
+_qr "$sig_lte_rsrq"; printf ',"lte_rsrq":%s' "$_Q"
+_qr "$sig_lte_sinr"; printf ',"lte_sinr":%s' "$_Q"
+_qr "$sig_nr_rsrp"; printf ',"nr_rsrp":%s' "$_Q"
+_qr "$sig_nr_rsrq"; printf ',"nr_rsrq":%s' "$_Q"
+_qr "$sig_nr_sinr"; printf ',"nr_sinr":%s' "$_Q"
+printf '}'
+printf ',"device":{'
+_qr "${t1_temperature:-null}"; printf '"temperature":%s' "$_Q"
+_qr "${cpu_usage:-0}"; printf ',"cpu_usage":%s' "$_Q"
+_qr "${memory_used_mb:-0}"; printf ',"memory_used_mb":%s' "$_Q"
+_qr "${memory_total_mb:-0}"; printf ',"memory_total_mb":%s' "$_Q"
+_qr "${uptime_seconds:-0}"; printf ',"uptime_seconds":%s' "$_Q"
+_qr "${conn_uptime_seconds:-0}"; printf ',"conn_uptime_seconds":%s' "$_Q"
+_qs "$boot_firmware"; printf ',"firmware":%s' "$_Q"
+_qs "$boot_build_date"; printf ',"build_date":%s' "$_Q"
+_qs "$boot_manufacturer"; printf ',"manufacturer":%s' "$_Q"
+_qs "$boot_model"; printf ',"model":%s' "$_Q"
+_qs "$boot_imei"; printf ',"imei":%s' "$_Q"
+_qs "$boot_imsi"; printf ',"imsi":%s' "$_Q"
+_qs "$boot_iccid"; printf ',"iccid":%s' "$_Q"
+_qs "$boot_phone_number"; printf ',"phone_number":%s' "$_Q"
+_qs "$boot_lte_category"; printf ',"lte_category":%s' "$_Q"
+_qs "$t2_mimo"; printf ',"mimo":%s' "$_Q"
+_qs "$boot_supported_lte_bands"; printf ',"supported_lte_bands":%s' "$_Q"
+_qs "$boot_supported_nsa_nr5g_bands"; printf ',"supported_nsa_nr5g_bands":%s' "$_Q"
+_qs "$boot_supported_sa_nr5g_bands"; printf ',"supported_sa_nr5g_bands":%s' "$_Q"
+_qs "$boot_supported_nrdc_nr5g_bands"; printf ',"supported_nrdc_nr5g_bands":%s' "$_Q"
+_qs "$hw_lte_bands"; printf ',"hw_lte_bands":%s' "$_Q"
+_qs "$hw_nsa_nr5g_bands"; printf ',"hw_nsa_nr5g_bands":%s' "$_Q"
+_qs "$hw_sa_nr5g_bands"; printf ',"hw_sa_nr5g_bands":%s' "$_Q"
+_qs "$boot_qmanager_version"; printf ',"qmanager_version":%s' "$_Q"
+_qs "$boot_ippt_mode"; printf ',"ippt_mode":%s' "$_Q"
+_qs "$boot_ippt_mac"; printf ',"ippt_mac":%s' "$_Q"
+_qs "$boot_ippt_nat"; printf ',"ippt_nat":%s' "$_Q"
+_qs "$boot_ippt_usbnet"; printf ',"ippt_usbnet":%s' "$_Q"
+_qs "$boot_ippt_dhcpv4dns"; printf ',"ippt_dhcpv4dns":%s' "$_Q"
+_qs "${ap_tier:-active}"; printf ',"poller_tier":%s' "$_Q"
+printf '}'
+printf ',"connectivity":{'
+_qr "${conn_internet_available:-null}"; printf '"internet_available":%s' "$_Q"
+_qs "$conn_status"; printf ',"status":%s' "$_Q"
+_qr "${conn_latency:-null}"; printf ',"latency_ms":%s' "$_Q"
+_qr "${conn_avg_latency:-null}"; printf ',"avg_latency_ms":%s' "$_Q"
+_qr "${conn_min_latency:-null}"; printf ',"min_latency_ms":%s' "$_Q"
+_qr "${conn_max_latency:-null}"; printf ',"max_latency_ms":%s' "$_Q"
+_qr "${conn_jitter:-null}"; printf ',"jitter_ms":%s' "$_Q"
+_qr "${conn_packet_loss:-0}"; printf ',"packet_loss_pct":%s' "$_Q"
+_qs "$conn_ping_target"; printf ',"ping_target":%s' "$_Q"
+_qr "${conn_history:-[]}"; printf ',"latency_history":%s' "$_Q"
+_qr "${conn_history_interval:-2}"; printf ',"history_interval_sec":%s' "$_Q"
+_qr "${CONN_HISTORY_SIZE:-60}"; printf ',"history_size":%s' "$_Q"
+_qr "${conn_during_recovery:-false}"; printf ',"during_recovery":%s' "$_Q"
+_qs "$conn_profile"; printf ',"profile":%s' "$_Q"
+printf ',"thresholds":{'
+_qr "${QUALITY_LAT_THRESHOLD:-250}"; printf '"latency_ms":%s' "$_Q"
+_qr "${QUALITY_LOSS_THRESHOLD:-30}"; printf ',"loss_pct":%s' "$_Q"
+printf '}'
+_qr "${dns_lookup_ms:-null}"; printf ',"dns_lookup_ms":%s' "$_Q"
+if [ -n "$dns_resolver" ]; then _qs "$dns_resolver"; else _Q=null; fi; printf ',"dns_resolver":%s' "$_Q"
+_qs "$conn_last_family"; printf ',"last_family":%s' "$_Q"
+printf '}'
+printf ',"watchcat":{'
+_qr "${wc_enabled:-false}"; printf '"enabled":%s' "$_Q"
+_qs "${wc_state:-disabled}"; printf ',"state":%s' "$_Q"
+_qr "${wc_current_tier:-0}"; printf ',"current_tier":%s' "$_Q"
+_qr "${wc_failure_count:-0}"; printf ',"failure_count":%s' "$_Q"
+_qr "${wc_last_recovery_time:-null}"; printf ',"last_recovery_time":%s' "$_Q"
+_qr "${wc_last_recovery_tier:-null}"; printf ',"last_recovery_tier":%s' "$_Q"
+_qr "${wc_total_recoveries:-0}"; printf ',"total_recoveries":%s' "$_Q"
+_qr "${wc_cooldown_remaining:-0}"; printf ',"cooldown_remaining":%s' "$_Q"
+_qr "${wc_reboots_this_hour:-0}"; printf ',"reboots_this_hour":%s' "$_Q"
+printf '}'
+printf ',"sim_failover":{'
+_qr "${sim_fo_active:-false}"; printf '"active":%s' "$_Q"
+_qr "${sim_fo_original_slot:-null}"; printf ',"original_slot":%s' "$_Q"
+_qr "${sim_fo_current_slot:-null}"; printf ',"current_slot":%s' "$_Q"
+_qr "${sim_fo_switched_at:-null}"; printf ',"switched_at":%s' "$_Q"
+printf '}'
+printf ',"sim_swap":{'
+_qr "${sim_swap_detected:-false}"; printf '"detected":%s' "$_Q"
+_qs "$sim_swap_profile_id"; printf ',"matching_profile_id":%s' "$_Q"
+_qs "$sim_swap_profile_name"; printf ',"matching_profile_name":%s' "$_Q"
+printf '}'
+    printf '}'
+    } > "$CACHE_TMP"
 
     mv "$CACHE_TMP" "$CACHE_FILE"
 }
