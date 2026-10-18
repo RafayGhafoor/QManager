@@ -68,7 +68,10 @@ function Unreported({ label }: { label: string }) {
   );
 }
 
-function getColumns(
+/** The neighbour read's columns. Exported for `neighbour-scan-result.test.ts`,
+ *  which pins the column set so a later edit cannot silently drop a measurement
+ *  the worker collects and the CSV export already writes. */
+export function getColumns(
   t: TFunction,
   onLockCell?: (cell: NeighbourCellResult) => void,
 ): ColumnDef<NeighbourCellResult>[] {
