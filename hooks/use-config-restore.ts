@@ -6,6 +6,7 @@ import {
   deriveKey,
   decryptPayload,
   base64Decode,
+  DecryptAuthError,
 } from "@/lib/config-backup/crypto";
 import {
   parseEnvelope,
@@ -123,8 +124,14 @@ export function useConfigRestore(currentModel: string) {
         const needsWarning =
           currentModel !== "" && state.envelope.device.model !== currentModel;
         dispatch({ type: "decrypted", payload, needsModelWarning: needsWarning });
-      } catch {
-        dispatch({ type: "password_bad" });
+      } catch (e) {
+        // Only a tag that fails to verify means a wrong passphrase; anything
+        // else (bad base64, key derivation, payload JSON) is a real fault.
+        if (e instanceof DecryptAuthError) {
+          dispatch({ type: "password_bad" });
+        } else {
+          dispatch({ type: "error", message: e instanceof Error ? e.message : String(e) });
+        }
       }
     },
     [state.envelope, currentModel],
