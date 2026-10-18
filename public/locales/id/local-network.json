@@ -163,7 +163,12 @@
     "toast_error_save": "Gagal menerapkan pengaturan LAN",
     "error_invalid_ipaddr": "Masukkan alamat IPv4 unicast yang valid (mis. 192.168.1.1).",
     "error_invalid_host_in_subnet": "Ini adalah alamat jaringan atau broadcast untuk subnet yang dipilih. Pilih alamat host yang dapat digunakan.",
-    "error_invalid_prefix": "Pilih prefiks subnet antara /16 dan /30."
+    "error_invalid_prefix": "Pilih prefiks subnet antara /16 dan /30.",
+    "errors": {
+      "fetch_failed": "Gagal memuat pengaturan LAN",
+      "save_failed": "Gagal menyimpan pengaturan LAN",
+      "parse_failed": "Gagal membaca respons penyimpanan"
+    }
   },
   "dns": {
     "page_title": "Pengaturan DNS Kustom",
@@ -196,7 +201,11 @@
     "receipt_secondary": "Sekunder",
     "receipt_none": "Tidak ada",
     "error_load_title": "Tidak dapat membaca pengaturan DNS",
-    "error_load_desc": "Modem tidak merespons. Periksa koneksi lalu coba lagi."
+    "error_load_desc": "Modem tidak merespons. Periksa koneksi lalu coba lagi.",
+    "errors": {
+      "fetch_failed": "Tidak dapat memuat pengaturan DNS",
+      "apply_failed": "Tidak dapat menerapkan pengaturan DNS"
+    }
   },
   "ttl_mtu": {
     "page_title": "Pengaturan TTL dan MTU",
@@ -363,7 +372,13 @@
     "test_title": "Uji Injeksi",
     "test_description": "Konfirmasi bahwa paket SNI palsu sedang disuntikkan ke lalu lintas HTTPS",
     "state_testing": "Menguji…",
-    "button_run_test": "Jalankan Uji"
+    "button_run_test": "Jalankan Uji",
+    "errors": {
+      "load_failed": "Gagal memuat pengaturan",
+      "save_failed": "Gagal menyimpan pengaturan",
+      "uninstall_failed": "Gagal mencopot",
+      "test_failed": "Pengujian gagal"
+    }
   },
   "video_optimizer": {
     "page_title": "Video Optimizer",
@@ -414,6 +429,17 @@
     "state_restoring": "Memulihkan…",
     "dialog_restore_title": "Pulihkan Hostname Default?",
     "dialog_restore_desc": "Ini akan mengganti daftar saat ini dengan hostname CDN default pabrik. Domain kustom yang Anda tambahkan akan dihapus.",
-    "dialog_action_restore": "Pulihkan Default"
+    "dialog_action_restore": "Pulihkan Default",
+    "errors": {
+      "load_failed": "Gagal memuat pengaturan",
+      "save_failed": "Gagal menyimpan pengaturan",
+      "uninstall_failed": "Gagal mencopot",
+      "verify_start_failed": "Gagal memulai verifikasi",
+      "install_start_failed": "Gagal memulai instalasi",
+      "install_starting": "Memulai instalasi…",
+      "hostlist_load_failed": "Gagal memuat daftar hostname",
+      "hostlist_save_failed": "Gagal menyimpan daftar hostname",
+      "hostlist_restore_failed": "Gagal memulihkan default"
+    }
   }
 }

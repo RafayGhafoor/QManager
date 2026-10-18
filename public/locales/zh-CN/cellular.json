@@ -488,13 +488,28 @@
     },
     "dialog": {
       "description": "频段字段留空即由调制解调器自动选择。",
-      "name_required": "请为场景命名。"
+      "name_required": "请为场景命名。",
+      "icon_label": "图标"
     },
     "errors": {
       "load_failed": "调制解调器未返回您的场景，请稍后重试。",
       "activate_failed": "无法激活场景。",
       "save_failed": "无法保存场景。",
       "delete_failed": "无法删除场景。"
+    },
+    "icons": {
+      "sparkles": "闪光",
+      "gamepad": "游戏",
+      "play": "媒体",
+      "zap": "性能",
+      "globe": "浏览",
+      "rocket": "速度",
+      "video": "视频通话",
+      "download": "下载",
+      "shield": "安全",
+      "plane": "旅行",
+      "moon": "夜间",
+      "briefcase": "工作"
     }
   },
   "sms": {
@@ -1706,11 +1721,6 @@
         "errors": {
           "load_failed": "调制解调器未返回运营商配置文件，请稍后重试。",
           "save_failed": "无法应用运营商配置文件设置。"
-        },
-        "pending_reboot": {
-          "title": "重启以完成运营商配置文件更改",
-          "description": "新的运营商配置文件将在调制解调器重启后生效。",
-          "dismiss": "关闭"
         }
       },
       "profile_gate_title": "{{profile}} 自定义 SIM 配置正在管理您的 APN",

@@ -592,5 +592,27 @@
       "title": "已安装其他 VPN",
       "description": "同一时间只能安装一个 VPN。请先在 <link>NetBird 页面</link>卸载 {{other_vpn}}。"
     }
+  },
+  "pending_reboot": {
+    "title": "重启以完成更改",
+    "reboot_now": "立即重启",
+    "rebooting": "正在重启…",
+    "dismiss": "忽略",
+    "reboot_failed_toast": "无法启动重启，请重试。",
+    "description": {
+      "config_restore": "恢复的 IMEI 更改或 SIM 配置将在下次重启后生效。",
+      "verizon_revert": "Verizon 配置的还原将在下次重启后完成。",
+      "imei": "新的 IMEI 将在下次重启后生效。",
+      "netbird": "NetBird 已移除。重启可清除残留的防火墙规则。",
+      "mbn": "新的运营商配置文件将在调制解调器重启后生效。",
+      "ipa_offload": "硬件卸载的更改将在下次重启后生效。",
+      "default": "部分更改将在下次重启后生效。"
+    },
+    "dismiss_dialog": {
+      "title": "忽略重启提醒？",
+      "description": "需要重启的更改在调制解调器重启前不会生效。仅在已重启后才忽略。",
+      "keep": "保留提醒",
+      "confirm": "忽略"
+    }
   }
 }

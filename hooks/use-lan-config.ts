@@ -96,7 +96,7 @@ export function useLanConfig(): UseLanConfigReturn {
       try {
         const resp = await authFetch(CGI_ENDPOINT);
         if (!resp.ok) {
-          throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+          throw new Error(`HTTP ${resp.status}`); // replaced by the catch below
         }
 
         const json = await resp.json();
@@ -108,17 +108,17 @@ export function useLanConfig(): UseLanConfigReturn {
               t,
               json.error,
               json.detail,
-              "Failed to fetch LAN settings",
+              t("lan_config.errors.fetch_failed", { ns: "local-network" }),
             ),
           );
           return;
         }
 
         setData(json as LanConfigStatus);
-      } catch (err) {
+      } catch {
         if (!mountedRef.current) return;
         setError(
-          err instanceof Error ? err.message : "Failed to fetch LAN settings",
+          t("lan_config.errors.fetch_failed", { ns: "local-network" }),
         );
       } finally {
         if (mountedRef.current && !silent) {
@@ -149,9 +149,8 @@ export function useLanConfig(): UseLanConfigReturn {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ipaddr, prefix }),
         });
-      } catch (err) {
-        const detail =
-          err instanceof Error ? err.message : "Failed to save LAN settings";
+      } catch {
+        const detail = t("lan_config.errors.save_failed", { ns: "local-network" });
         if (mountedRef.current) {
           setError(detail);
           setIsSaving(false);
@@ -189,7 +188,7 @@ export function useLanConfig(): UseLanConfigReturn {
         json = await resp.json();
       } catch {
         if (mountedRef.current) {
-          setError("Failed to parse save response");
+          setError(t("lan_config.errors.parse_failed", { ns: "local-network" }));
           setIsSaving(false);
         }
         return { success: false };
@@ -202,7 +201,7 @@ export function useLanConfig(): UseLanConfigReturn {
               t,
               json.error,
               json.detail,
-              "Failed to save LAN settings",
+              t("lan_config.errors.save_failed", { ns: "local-network" }),
             ),
           );
           setIsSaving(false);

@@ -44,16 +44,8 @@
   "config_backup": {
     "page_title": "Cadangan Konfigurasi",
     "page_description": "Simpan salinan terenkripsi pengaturan Anda, atau pulihkan satu salinan ke modem ini.",
-    "pending_reboot_title": "Reboot untuk menyelesaikan pemulihan",
-    "pending_reboot_description": "Perubahan IMEI atau profil SIM dari pemulihan akan berlaku setelah reboot berikutnya.",
     "reboot_now_button": "Reboot sekarang",
-    "rebooting_button": "Memulai ulang…",
     "reboot_failed_toast": "Tidak dapat memulai reboot. Coba lagi.",
-    "dismiss_button": "Tutup",
-    "dismiss_dialog_title": "Tutup pengingat reboot?",
-    "dismiss_dialog_description": "Perubahan hasil pemulihan yang memerlukan reboot tetap tidak aktif sampai modem dimulai ulang. Tutup hanya jika Anda sudah me-reboot.",
-    "dismiss_keep": "Pertahankan pengingat",
-    "dismiss_confirm": "Tutup",
     "sections": {
       "network_mode_apn": "Mode jaringan dan APN",
       "bands": "Band LTE dan 5G yang diinginkan",

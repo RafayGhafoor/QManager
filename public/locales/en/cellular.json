@@ -488,13 +488,28 @@
     },
     "dialog": {
       "description": "Leave a band field empty to let the modem choose.",
-      "name_required": "Give the scenario a name."
+      "name_required": "Give the scenario a name.",
+      "icon_label": "Icon"
     },
     "errors": {
       "load_failed": "The modem didn't answer with your scenarios. Try again in a moment.",
       "activate_failed": "Couldn't activate the scenario.",
       "save_failed": "Couldn't save the scenario.",
       "delete_failed": "Couldn't delete the scenario."
+    },
+    "icons": {
+      "sparkles": "Sparkles",
+      "gamepad": "Gaming",
+      "play": "Media",
+      "zap": "Performance",
+      "globe": "Browsing",
+      "rocket": "Speed",
+      "video": "Video calls",
+      "download": "Downloads",
+      "shield": "Secure",
+      "plane": "Travel",
+      "moon": "Overnight",
+      "briefcase": "Work"
     }
   },
   "sms": {
@@ -1706,11 +1721,6 @@
         "errors": {
           "load_failed": "The modem didn't answer with its carrier profiles. Try again in a moment.",
           "save_failed": "Couldn't apply the carrier profile setting."
-        },
-        "pending_reboot": {
-          "title": "Reboot to finish the carrier profile change",
-          "description": "The new carrier profile takes effect after the modem restarts.",
-          "dismiss": "Dismiss"
         }
       },
       "profile_gate_title": "The {{profile}} Custom SIM Profile manages your APN",

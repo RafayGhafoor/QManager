@@ -488,13 +488,28 @@
     },
     "dialog": {
       "description": "頻段欄位留空即由數據機自動選擇。",
-      "name_required": "請為場景命名。"
+      "name_required": "請為場景命名。",
+      "icon_label": "圖示"
     },
     "errors": {
       "load_failed": "數據機未回傳您的場景，請稍後再試。",
       "activate_failed": "無法啟用場景。",
       "save_failed": "無法儲存場景。",
       "delete_failed": "無法刪除場景。"
+    },
+    "icons": {
+      "sparkles": "閃光",
+      "gamepad": "遊戲",
+      "play": "媒體",
+      "zap": "效能",
+      "globe": "瀏覽",
+      "rocket": "速度",
+      "video": "視訊通話",
+      "download": "下載",
+      "shield": "安全",
+      "plane": "旅行",
+      "moon": "夜間",
+      "briefcase": "工作"
     }
   },
   "sms": {
@@ -1706,11 +1721,6 @@
         "errors": {
           "load_failed": "數據機未回傳電信業者設定檔，請稍後再試。",
           "save_failed": "無法套用電信業者設定檔設定。"
-        },
-        "pending_reboot": {
-          "title": "重新啟動以完成電信業者設定檔變更",
-          "description": "新的電信業者設定檔會在數據機重新啟動後生效。",
-          "dismiss": "關閉"
         }
       },
       "profile_gate_title": "{{profile}} 自訂 SIM 設定正在管理您的 APN",

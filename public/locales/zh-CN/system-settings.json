@@ -44,16 +44,8 @@
   "config_backup": {
     "page_title": "配置备份",
     "page_description": "保存设置的加密副本，或将备份恢复到此调制解调器。",
-    "pending_reboot_title": "重启以完成恢复",
-    "pending_reboot_description": "恢复的 IMEI 更改或 SIM 配置将在下次重启后生效。",
     "reboot_now_button": "立即重启",
-    "rebooting_button": "正在重启…",
     "reboot_failed_toast": "无法启动重启，请重试。",
-    "dismiss_button": "忽略",
-    "dismiss_dialog_title": "忽略重启提醒？",
-    "dismiss_dialog_description": "需要重启的恢复更改在调制解调器重启前不会生效。仅在已重启后才忽略。",
-    "dismiss_keep": "保留提醒",
-    "dismiss_confirm": "忽略",
     "sections": {
       "network_mode_apn": "网络模式和 APN",
       "bands": "首选 LTE 和 5G 频段",

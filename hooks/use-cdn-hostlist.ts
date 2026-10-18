@@ -41,22 +41,22 @@ export function useCdnHostlist() {
       if (!mountedRef.current) return;
 
       if (!data.success) {
-        setError("Failed to load hostname list");
+        setError(t("video_optimizer.errors.hostlist_load_failed", { ns: "local-network" }));
         return;
       }
 
       setDomains(data.domains);
       setDefaultDomains(data.default_domains ?? []);
       setCount(data.count);
-    } catch (err) {
+    } catch {
       if (!mountedRef.current) return;
       setError(
-        err instanceof Error ? err.message : "Failed to fetch hostname list"
+        t("video_optimizer.errors.hostlist_load_failed", { ns: "local-network" })
       );
     } finally {
       if (mountedRef.current && !silent) setIsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const saveHostlist = useCallback(
     async (newDomains: string[]): Promise<MutationResult> => {
@@ -74,19 +74,19 @@ export function useCdnHostlist() {
 
         const data = await response.json();
         if (!data.success) {
-          setError(resolveErrorMessage(t, data.error, data.detail, "Failed to save hostname list"));
+          setError(resolveErrorMessage(t, data.error, data.detail, t("video_optimizer.errors.hostlist_save_failed", { ns: "local-network" })));
           return { ok: false, code: data.error ?? null, error: data.detail ?? null };
         }
 
         await fetchHostlist(true);
         return SUCCEEDED;
-      } catch (err) {
+      } catch {
         if (mountedRef.current) {
           setError(
-            err instanceof Error ? err.message : "Failed to save hostname list"
+            t("video_optimizer.errors.hostlist_save_failed", { ns: "local-network" })
           );
         }
-        return { ok: false, code: null, error: err instanceof Error ? err.message : null };
+        return { ok: false, code: null, error: null };
       } finally {
         if (mountedRef.current) setIsSaving(false);
       }
@@ -109,19 +109,19 @@ export function useCdnHostlist() {
 
       const data = await response.json();
       if (!data.success) {
-        setError(resolveErrorMessage(t, data.error, data.detail, "Failed to restore defaults"));
+        setError(resolveErrorMessage(t, data.error, data.detail, t("video_optimizer.errors.hostlist_restore_failed", { ns: "local-network" })));
         return { ok: false, code: data.error ?? null, error: data.detail ?? null };
       }
 
       await fetchHostlist(true);
       return SUCCEEDED;
-    } catch (err) {
+    } catch {
       if (mountedRef.current) {
         setError(
-          err instanceof Error ? err.message : "Failed to restore defaults"
+          t("video_optimizer.errors.hostlist_restore_failed", { ns: "local-network" })
         );
       }
-      return { ok: false, code: null, error: err instanceof Error ? err.message : null };
+      return { ok: false, code: null, error: null };
     } finally {
       if (mountedRef.current) setIsRestoring(false);
     }

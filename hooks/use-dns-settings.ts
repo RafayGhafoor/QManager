@@ -100,7 +100,7 @@ export function useDnsSettings(): UseDnsSettingsReturn {
       if (!mountedRef.current) return;
 
       if (!json.success) {
-        setError(resolveErrorMessage(t, json.error, undefined, "Failed to fetch DNS settings"));
+        setError(resolveErrorMessage(t, json.error, undefined, t("dns.errors.fetch_failed", { ns: "local-network" })));
         return;
       }
 
@@ -127,10 +127,10 @@ export function useDnsSettings(): UseDnsSettingsReturn {
         dns1v6: parts6[0] || "",
         dns2v6: parts6[1] || "",
       });
-    } catch (err) {
+    } catch {
       if (!mountedRef.current) return;
       setError(
-        err instanceof Error ? err.message : "Failed to fetch DNS settings",
+        t("dns.errors.fetch_failed", { ns: "local-network" }),
       );
     } finally {
       if (mountedRef.current && !silent) {
@@ -167,19 +167,19 @@ export function useDnsSettings(): UseDnsSettingsReturn {
         if (!mountedRef.current) return UNMOUNTED;
 
         if (!json.success) {
-          setError(resolveErrorMessage(t, json.error, json.detail, "Failed to apply DNS settings"));
+          setError(resolveErrorMessage(t, json.error, json.detail, t("dns.errors.apply_failed", { ns: "local-network" })));
           return { ok: false, code: json.error ?? null, error: json.detail ?? null };
         }
 
         // Silent re-fetch to update local state
         await fetchDns(true);
         return SUCCEEDED;
-      } catch (err) {
+      } catch {
         if (!mountedRef.current) return UNMOUNTED;
         setError(
-          err instanceof Error ? err.message : "Failed to apply DNS settings",
+          t("dns.errors.apply_failed", { ns: "local-network" }),
         );
-        return { ok: false, code: null, error: err instanceof Error ? err.message : null };
+        return { ok: false, code: null, error: null };
       } finally {
         if (mountedRef.current) {
           setIsSaving(false);

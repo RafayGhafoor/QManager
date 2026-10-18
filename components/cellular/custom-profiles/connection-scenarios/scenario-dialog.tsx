@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { SaveButton } from "@/components/ui/save-button";
 import {
   Select,
@@ -23,13 +24,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { DEFAULT_SCENARIO_ICON_ID, SCENARIO_ICONS } from "./scenario-icons";
 
 // =============================================================================
 // ScenarioDialog — ONE dialog for adding and editing a custom scenario
 // =============================================================================
 // Replaces the two near-identical Add / Edit dialogs. No theme picker: the page
-// draws no gradients. The draft is seeded once per open from `initial` (the
-// parent remounts this component per open through its `key`).
+// draws no gradients; identity is the glyph picked here (persisted as an id,
+// see `scenario-icons.ts`). The draft is seeded once per open from `initial`
+// (the parent remounts this component per open through its `key`).
 // =============================================================================
 
 export interface ScenarioDraft {
@@ -37,6 +41,8 @@ export interface ScenarioDraft {
   description: string;
   mode: string;
   optimization: string;
+  /** Glyph id from `SCENARIO_ICONS`. */
+  icon: string;
   lteBands: string;
   saBands: string;
   nsaBands: string;
@@ -47,6 +53,7 @@ export const EMPTY_SCENARIO_DRAFT: ScenarioDraft = {
   description: "",
   mode: "AUTO",
   optimization: "",
+  icon: DEFAULT_SCENARIO_ICON_ID,
   lteBands: "",
   saBands: "",
   nsaBands: "",
@@ -128,6 +135,40 @@ export function ScenarioDialog({
                 onChange={(e) => set("description")(e.target.value)}
                 placeholder={t(`${F}.description_placeholder`)}
               />
+            </Field>
+
+            <Field>
+              <FieldLabel id={`${formId}-icon-label`}>
+                {t("scenarios.dialog.icon_label")}
+              </FieldLabel>
+              <div
+                role="group"
+                aria-labelledby={`${formId}-icon-label`}
+                className="grid grid-cols-6 gap-2"
+              >
+                {SCENARIO_ICONS.map(({ id, icon, labelKey }) => {
+                  const selected = draft.icon === id;
+                  const label = t(labelKey);
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => set("icon")(id)}
+                      aria-pressed={selected}
+                      aria-label={label}
+                      title={label}
+                      className={cn(
+                        "grid h-9 place-items-center rounded-inline transition-colors duration-[var(--duration-quick)] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                        selected
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-surface-container-high text-on-surface-variant hover:bg-primary-container hover:text-on-primary-container",
+                      )}
+                    >
+                      <MaterialSymbol name={icon} size={16} />
+                    </button>
+                  );
+                })}
+              </div>
             </Field>
 
             <Field>

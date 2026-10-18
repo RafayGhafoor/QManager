@@ -163,7 +163,12 @@
     "toast_error_save": "Impossibile applicare le impostazioni LAN",
     "error_invalid_ipaddr": "Inserisci un indirizzo IPv4 unicast valido (es. 192.168.1.1).",
     "error_invalid_host_in_subnet": "Questo è l'indirizzo di rete o di broadcast per la sottorete scelta. Scegli un indirizzo host utilizzabile.",
-    "error_invalid_prefix": "Scegli un prefisso di sottorete tra /16 e /30."
+    "error_invalid_prefix": "Scegli un prefisso di sottorete tra /16 e /30.",
+    "errors": {
+      "fetch_failed": "Impossibile caricare le impostazioni LAN",
+      "save_failed": "Impossibile salvare le impostazioni LAN",
+      "parse_failed": "Impossibile leggere la risposta di salvataggio"
+    }
   },
   "dns": {
     "page_title": "Impostazioni DNS personalizzate",
@@ -196,7 +201,11 @@
     "receipt_secondary": "Secondario",
     "receipt_none": "Nessuno",
     "error_load_title": "Impossibile leggere le impostazioni DNS",
-    "error_load_desc": "Il modem non ha risposto. Controlla la connessione e riprova."
+    "error_load_desc": "Il modem non ha risposto. Controlla la connessione e riprova.",
+    "errors": {
+      "fetch_failed": "Impossibile caricare le impostazioni DNS",
+      "apply_failed": "Impossibile applicare le impostazioni DNS"
+    }
   },
   "ttl_mtu": {
     "page_title": "Impostazioni TTL e MTU",
@@ -363,7 +372,13 @@
     "test_title": "Prova di iniezione",
     "test_description": "Conferma che i pacchetti SNI falsi vengano inseriti nel traffico HTTPS",
     "state_testing": "Prova…",
-    "button_run_test": "Esegui prova"
+    "button_run_test": "Esegui prova",
+    "errors": {
+      "load_failed": "Impossibile caricare le impostazioni",
+      "save_failed": "Impossibile salvare le impostazioni",
+      "uninstall_failed": "Impossibile disinstallare",
+      "test_failed": "Test non riuscito"
+    }
   },
   "video_optimizer": {
     "page_title": "Ottimizzatore video",
@@ -414,6 +429,17 @@
     "state_restoring": "Ripristino…",
     "dialog_restore_title": "Ripristinare i nomi host predefiniti?",
     "dialog_restore_desc": "Ciò sostituirà l'elenco corrente con i nomi host CDN predefiniti di fabbrica. Tutti i domini personalizzati che hai aggiunto verranno rimossi.",
-    "dialog_action_restore": "Ripristina le impostazioni predefinite"
+    "dialog_action_restore": "Ripristina le impostazioni predefinite",
+    "errors": {
+      "load_failed": "Impossibile caricare le impostazioni",
+      "save_failed": "Impossibile salvare le impostazioni",
+      "uninstall_failed": "Impossibile disinstallare",
+      "verify_start_failed": "Impossibile avviare la verifica",
+      "install_start_failed": "Impossibile avviare l'installazione",
+      "install_starting": "Avvio dell'installazione…",
+      "hostlist_load_failed": "Impossibile caricare l'elenco dei nomi host",
+      "hostlist_save_failed": "Impossibile salvare l'elenco dei nomi host",
+      "hostlist_restore_failed": "Impossibile ripristinare le impostazioni predefinite"
+    }
   }
 }

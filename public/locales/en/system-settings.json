@@ -44,16 +44,8 @@
   "config_backup": {
     "page_title": "Configuration Backup",
     "page_description": "Save an encrypted copy of your settings, or restore one onto this modem.",
-    "pending_reboot_title": "Reboot to finish the restore",
-    "pending_reboot_description": "An IMEI change or SIM profile from the restore takes effect after the next reboot.",
     "reboot_now_button": "Reboot now",
-    "rebooting_button": "Rebooting…",
     "reboot_failed_toast": "Couldn't start the reboot. Try again.",
-    "dismiss_button": "Dismiss",
-    "dismiss_dialog_title": "Dismiss the reboot reminder?",
-    "dismiss_dialog_description": "Restored changes that need a reboot stay inactive until the modem restarts. Dismiss only if you have already rebooted.",
-    "dismiss_keep": "Keep reminder",
-    "dismiss_confirm": "Dismiss",
     "sections": {
       "network_mode_apn": "Network mode and APN",
       "bands": "Preferred LTE and 5G bands",
