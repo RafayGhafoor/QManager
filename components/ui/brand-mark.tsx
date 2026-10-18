@@ -192,7 +192,9 @@ export function BrandMark({
             onLoad={() => setLoadedSrc(src)}
             onError={() => setBrokenSrc(src)}
             className={cn(
-              fill ? "size-full rounded-full object-cover" : faviconClassName,
+              // Zoomed past the asset's own edge: many logos are a round mark on a
+              // square (BDO), whose corners would otherwise ring the disc.
+              fill ? "size-full scale-[1.15] rounded-full object-cover" : faviconClassName,
               FADE,
               ready ? "opacity-100" : "opacity-0",
             )}
