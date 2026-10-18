@@ -20,7 +20,7 @@ import {
   type BandActionResult,
   type BandCategory,
 } from "@/types/band-locking";
-import { DEFAULT_SCENARIOS } from "@/types/connection-scenario";
+import { builtInScenarioNameKey } from "@/types/connection-scenario";
 
 import BandGridCard from "./band-grid-card";
 import BandStatusCard from "./band-status-card";
@@ -101,12 +101,12 @@ const BandLockingComponent = () => {
   const isScenarioControlled = activeScenarioId !== "balanced";
   const activeScenarioName = useMemo(() => {
     if (!isScenarioControlled) return "";
-    const fromDefaults = DEFAULT_SCENARIOS.find((s) => s.id === activeScenarioId);
-    if (fromDefaults) return fromDefaults.name;
+    const builtInKey = builtInScenarioNameKey(activeScenarioId);
+    if (builtInKey) return t(builtInKey);
     const fromCustom = customScenarios.find((s) => s.id === activeScenarioId);
     if (fromCustom) return fromCustom.name;
     return activeScenarioId;
-  }, [activeScenarioId, isScenarioControlled, customScenarios]);
+  }, [activeScenarioId, isScenarioControlled, customScenarios, t]);
 
   // --- Band layers -----------------------------------------------------------
   const policyBands: Record<BandCategory, number[]> = {

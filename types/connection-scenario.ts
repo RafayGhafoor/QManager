@@ -59,6 +59,21 @@ export function optimizationLabelKey(value: string): string | null {
   return OPTIMIZATION_LABEL_KEY[value.trim()] ?? null;
 }
 
+const BUILT_IN_NAME_KEY: Record<string, string> = {
+  balanced: "scenarios.default_balanced_name",
+  gaming: "scenarios.default_gaming_name",
+  streaming: "scenarios.default_streaming_name",
+};
+
+/**
+ * A built-in scenario id -> its `cellular` name key, or `null` for a custom
+ * scenario, whose user-given name prints verbatim. `DEFAULT_SCENARIOS` holds
+ * English names and must never be shown directly.
+ */
+export function builtInScenarioNameKey(id: string): string | null {
+  return BUILT_IN_NAME_KEY[id] ?? null;
+}
+
 // --- Band Format Helpers -----------------------------------------------------
 
 import type { TFunction } from "i18next";
