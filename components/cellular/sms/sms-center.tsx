@@ -413,8 +413,17 @@ export default function SmsCenterComponent() {
     setIsDeletingMessage(true);
     const result = await deleteSms(deleteMessageTarget);
     setIsDeletingMessage(false);
+    const deleted = deleteMessageTarget;
     setDeleteMessageTarget(null);
     if (result.ok) {
+      // The open thread unions the polled list with `detail`, which is fetched
+      // once per open; drop the message here too or the union keeps it.
+      setDetailState((prev) => ({
+        ...prev,
+        messages: prev.messages.filter((m) =>
+          deleted.identity ? m.identity !== deleted.identity : m !== deleted,
+        ),
+      }));
       toast.success(t("sms.center.toast.message_deleted"));
     } else {
       toast.error(
