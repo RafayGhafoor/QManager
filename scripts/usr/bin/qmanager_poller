@@ -1252,12 +1252,22 @@ read_sim_state() {
     sim_swap_profile_id=""
     sim_swap_profile_name=""
     if [ -f "$SIM_SWAP_FLAG" ]; then
-        local _dismissed
-        _dismissed=$(jq -r '(.dismissed) | if . == null then "false" else tostring end' "$SIM_SWAP_FLAG" 2>/dev/null)
+        # Change 5: ONE jq for this file instead of one per field (3 -> 1), using
+        # the @tsv idiom from read_watchcat_state. jq startup is the device's
+        # dominant CPU cost (docs/cpu-optimization.md). Every array element is
+        # forced to a string so a null field cannot drop out of the array and
+        # shift the field numbers `cut` reads.
+        local _sdata _dismissed
+        _sdata=$(jq -r '[
+            ((.dismissed) | if . == null then "false" else tostring end),
+            ((.matching_profile_id) | if . == null then "" else tostring end),
+            ((.matching_profile_name) | if . == null then "" else tostring end)
+        ] | @tsv' "$SIM_SWAP_FLAG" 2>/dev/null)
+        _dismissed=$(printf '%s' "$_sdata" | cut -f1)
         if [ "$_dismissed" != "true" ]; then
             sim_swap_detected="true"
-            sim_swap_profile_id=$(jq -r '(.matching_profile_id) | if . == null then empty else . end' "$SIM_SWAP_FLAG" 2>/dev/null)
-            sim_swap_profile_name=$(jq -r '(.matching_profile_name) | if . == null then empty else . end' "$SIM_SWAP_FLAG" 2>/dev/null)
+            sim_swap_profile_id=$(printf '%s' "$_sdata" | cut -f2)
+            sim_swap_profile_name=$(printf '%s' "$_sdata" | cut -f3)
         fi
     fi
     # SIM failover state (written by watchcat Tier 3)
@@ -1266,10 +1276,21 @@ read_sim_state() {
     sim_fo_current_slot="null"
     sim_fo_switched_at="null"
     if [ -f "$SIM_FAILOVER_FILE" ]; then
-        sim_fo_active=$(jq -r '(.active) | if . == null then "false" else tostring end' "$SIM_FAILOVER_FILE" 2>/dev/null)
-        sim_fo_original_slot=$(jq -r '(.original_slot) | if . == null then "null" else tostring end' "$SIM_FAILOVER_FILE" 2>/dev/null)
-        sim_fo_current_slot=$(jq -r '(.current_slot) | if . == null then "null" else tostring end' "$SIM_FAILOVER_FILE" 2>/dev/null)
-        sim_fo_switched_at=$(jq -r '(.switched_at) | if . == null then "null" else tostring end' "$SIM_FAILOVER_FILE" 2>/dev/null)
+        # Change 5: one jq for all four fields (4 -> 1), same @tsv idiom. The
+        # defaults above survive only when the file is ABSENT, exactly as before:
+        # a present-but-unreadable file still yields empty values from `cut`,
+        # because the old per-field jq failures assigned "" over the defaults.
+        local _fdata
+        _fdata=$(jq -r '[
+            ((.active) | if . == null then "false" else tostring end),
+            ((.original_slot) | if . == null then "null" else tostring end),
+            ((.current_slot) | if . == null then "null" else tostring end),
+            ((.switched_at) | if . == null then "null" else tostring end)
+        ] | @tsv' "$SIM_FAILOVER_FILE" 2>/dev/null)
+        sim_fo_active=$(printf '%s' "$_fdata" | cut -f1)
+        sim_fo_original_slot=$(printf '%s' "$_fdata" | cut -f2)
+        sim_fo_current_slot=$(printf '%s' "$_fdata" | cut -f3)
+        sim_fo_switched_at=$(printf '%s' "$_fdata" | cut -f4)
     fi
 }
 
