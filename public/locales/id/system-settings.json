@@ -1279,5 +1279,22 @@
       "update_failed": "Gagal memperbarui jadwal hemat daya",
       "unsaved": "Perubahan jadwal hemat daya tidak tersimpan: Anda meninggalkan halaman sebelum selesai."
     }
+  },
+  "web_port": {
+    "card_title": "Port Web",
+    "card_description": "Port yang didengarkan antarmuka ini. LuCI ikut pindah.",
+    "http_label": "Port HTTP",
+    "https_label": "Port HTTPS",
+    "pending": "Akan terbuka di {{origin}} setelah diterapkan.",
+    "moving": "Pindah ke {{origin}}…",
+    "invalid": "Gunakan bilangan bulat dari 1 sampai 65535.",
+    "same": "HTTP dan HTTPS harus memakai port yang berbeda.",
+    "discard": "Buang",
+    "confirm_title": "Ubah port web?",
+    "confirm_description": "QManager dimulai ulang di port baru dan halaman ini pindah ke {{origin}}. Jika port baru gagal dimulai, port lama kembali dengan sendirinya.",
+    "confirm_action": "Ubah port",
+    "toast_failed": "Tidak dapat mengubah port web.",
+    "toast_unchanged": "Port web disimpan.",
+    "toast_unreachable": "Port baru tidak merespons, jadi QManager tetap di port lama."
   }
 }

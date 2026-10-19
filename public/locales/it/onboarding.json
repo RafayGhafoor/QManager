@@ -11,6 +11,7 @@
     "step_label_network_mode": "Modalità di rete",
     "step_label_connection": "Connessione",
     "step_label_band_preferences": "Preferenze della banda",
+    "step_label_web_port": "Porta web",
     "step_label_complete": "Completo",
     "aria_live_step_indicator": "Passaggio {{step}} di {{total}}: {{label}}",
     "aria_progressbar_label": "Passaggio {{step}} di {{total}}",
@@ -107,5 +108,17 @@
     "description": "QManager è pronto. Tutto ciò che hai configurato è attivo e puoi modificare qualsiasi impostazione in qualsiasi momento dalla barra laterale.",
     "callout_body": "<bold>Suggerimento per i professionisti:</bold> visita <menu>Cellulare › Blocco banda</menu> per ottimizzare la potenza del segnale oppure <menu>Monitoraggio › Watchdog</menu> per impostare il ripristino automatico.",
     "button_dashboard": "Vai alla dashboard"
+  },
+  "web_port": {
+    "heading": "Porta web",
+    "description": "QManager usa le porte 80 e 443 per impostazione predefinita. Cambiale solo se un altro servizio ne ha bisogno.",
+    "label_http": "Porta HTTP",
+    "label_https": "Porta HTTPS",
+    "hint_default": "Lascia invariato per mantenere i valori predefiniti.",
+    "error_invalid": "Usa un numero intero da 1 a 65535.",
+    "error_same": "HTTP e HTTPS richiedono porte diverse.",
+    "toast_failed": "Impossibile cambiare la porta web.",
+    "toast_unreachable": "La nuova porta non ha risposto, quindi QManager è rimasto su quella precedente.",
+    "opening": "Apertura sulla nuova porta…"
   }
 }

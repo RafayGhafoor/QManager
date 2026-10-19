@@ -11,6 +11,7 @@
     "step_label_network_mode": "網路模式",
     "step_label_connection": "連線",
     "step_label_band_preferences": "頻段偏好",
+    "step_label_web_port": "網頁連接埠",
     "step_label_complete": "完成",
     "aria_live_step_indicator": "第 {{step}} 步，共 {{total}} 步：{{label}}",
     "aria_progressbar_label": "第 {{step}} 步，共 {{total}} 步",
@@ -107,5 +108,17 @@
     "description": "QManager 已準備就緒。您設定的所有內容都已生效，並且可以隨時從側邊欄變更任何設定。",
     "callout_body": "<bold>小提示：</bold>存取 <menu>蜂窩網路 › 基站鎖定</menu> 來精細調整訊號強度，或者透過 <menu>監控 › 看門狗</menu> 設定自動恢復。",
     "button_dashboard": "前往儀表板"
+  },
+  "web_port": {
+    "heading": "網頁連接埠",
+    "description": "QManager 預設使用 80 與 443 連接埠。僅在其他服務需要這些連接埠時才變更。",
+    "label_http": "HTTP 連接埠",
+    "label_https": "HTTPS 連接埠",
+    "hint_default": "保持不變即使用預設連接埠。",
+    "error_invalid": "請輸入 1 到 65535 之間的整數。",
+    "error_same": "HTTP 與 HTTPS 需要使用不同的連接埠。",
+    "toast_failed": "無法變更網頁連接埠。",
+    "toast_unreachable": "新連接埠沒有回應，QManager 仍使用舊連接埠。",
+    "opening": "正在新連接埠上開啟…"
   }
 }

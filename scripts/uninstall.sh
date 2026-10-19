@@ -287,6 +287,24 @@ remove_backend() {
         info "Re-enabled host AT ports (port-bridged)"
     fi
 
+    # --- Web port: hand uhttpd back on 80 / 443 ---
+    # Only when QManager moved it (quecmanager.web set and uhttpd off the
+    # defaults), so LuCI is back where users expect it. Config only: the
+    # uninstaller reboots afterwards, or restarts uhttpd itself with
+    # --no-reboot. Must run before /usr/lib/qmanager and the quecmanager UCI
+    # namespace are deleted below.
+    if [ -f "$LIB_DIR/web_port.sh" ] && uci -q get quecmanager.web >/dev/null 2>&1; then
+        (
+            . "$LIB_DIR/web_port.sh"
+            if [ "$(wp_uhttpd_http)" != "$WP_DEFAULT_HTTP" ] \
+                || [ "$(wp_uhttpd_https)" != "$WP_DEFAULT_HTTPS" ]; then
+                wp_write_uhttpd "$WP_DEFAULT_HTTP" "$WP_DEFAULT_HTTPS"
+                [ "$DO_REBOOT" = "1" ] || /etc/init.d/uhttpd restart >/dev/null 2>&1 || true
+                echo "restored"
+            fi
+        ) 2>>"$LOG_FILE" | grep -q restored && info "Restored the web server to ports 80 / 443" || true
+    fi
+
     # --- Binaries in /usr/bin/ ---
     local bin_count=0
 

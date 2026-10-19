@@ -198,5 +198,8 @@
   "sim_storage_unavailable": "The SIM can't store messages. Check that a SIM is inserted.",
   "invalid_smsc": "Enter the provider number with an optional leading +, then 3 to 20 digits.",
   "smsc_write_failed": "Couldn't save the provider number. Check it and try again.",
-  "smsc_read_failed": "Couldn't read the provider number from the modem."
+  "smsc_read_failed": "Couldn't read the provider number from the modem.",
+  "invalid_port": "Ports must be whole numbers from 1 to 65535.",
+  "ports_equal": "HTTP and HTTPS need different ports.",
+  "port_in_use": "That port is already used by another service."
 }

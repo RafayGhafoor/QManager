@@ -1279,5 +1279,22 @@
       "update_failed": "更新低功耗计划失败",
       "unsaved": "低功耗计划的更改未保存：保存完成前您已离开页面。"
     }
+  },
+  "web_port": {
+    "card_title": "网页端口",
+    "card_description": "本界面监听的端口，LuCI 随之一起变更。",
+    "http_label": "HTTP 端口",
+    "https_label": "HTTPS 端口",
+    "pending": "应用后将在 {{origin}} 打开。",
+    "moving": "正在切换到 {{origin}}…",
+    "invalid": "请输入 1 到 65535 之间的整数。",
+    "same": "HTTP 和 HTTPS 需要使用不同的端口。",
+    "discard": "放弃",
+    "confirm_title": "更改网页端口？",
+    "confirm_description": "QManager 将在新端口上重启，本页面会跳转到 {{origin}}。如果新端口无法启动，将自动恢复旧端口。",
+    "confirm_action": "更改端口",
+    "toast_failed": "无法更改网页端口。",
+    "toast_unchanged": "网页端口已保存。",
+    "toast_unreachable": "新端口没有响应，QManager 仍使用旧端口。"
   }
 }

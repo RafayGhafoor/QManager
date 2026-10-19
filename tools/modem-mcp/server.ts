@@ -505,7 +505,8 @@ server.registerTool(
   "modem_cgi",
   {
     description:
-      "Call a QManager CGI endpoint on-device via curl to http://127.0.0.1/cgi-bin/quecmanager/<endpoint>. " +
+      "Call a QManager CGI endpoint on-device via curl to http://127.0.0.1:<http port>/cgi-bin/quecmanager/<endpoint> " +
+      "(the port is read from uhttpd.main.listen_http, so a moved web port still works). " +
       "Authenticates with a throwaway session minted on-device and removed afterwards. Returns {status, body} (body parsed as JSON when possible).",
     inputSchema: {
       endpoint: z.string().min(1).describe("e.g. 'at_cmd/fetch_data.sh' or 'system/settings.sh?x=1'"),
@@ -525,8 +526,10 @@ server.registerTool(
     const curl =
       `curl -s -m ${t} -X ${m} -H 'Cookie: qm_session=${tok}' ` +
       (payload !== undefined ? `-H 'Content-Type: application/json' --data-binary @- ` : "") +
-      `-w '\\n__HTTP_STATUS__%{http_code}' ${sq(`http://127.0.0.1/cgi-bin/quecmanager/${ep}`)}`;
-    const cmd = `mkdir -p /tmp/qmanager_sessions && date +%s > ${sess}; ${curl}; rc=$?; rm -f ${sess}; exit $rc`;
+      `-w '\\n__HTTP_STATUS__%{http_code}' "http://127.0.0.1:$p/cgi-bin/quecmanager/"${sq(ep)}`;
+    // The web port is user-configurable (qmanager_web_port), so read it live.
+    const port = `p=$(uci -q get uhttpd.main.listen_http | awk '{n=split($1,a,":"); print a[n]}'); [ -n "$p" ] || p=80`;
+    const cmd = `${port}; mkdir -p /tmp/qmanager_sessions && date +%s > ${sess}; ${curl}; rc=$?; rm -f ${sess}; exit $rc`;
     try {
       const r = await run(cmd, t + 5, payload, extra.signal);
       const idx = r.stdout.lastIndexOf("\n__HTTP_STATUS__");

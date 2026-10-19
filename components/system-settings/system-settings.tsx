@@ -20,6 +20,7 @@ import SSHPasswordCard from "@/components/system-settings/ssh-password-card";
 import { StatusBand } from "@/components/system-settings/status-band";
 import SystemSettingsCard from "@/components/system-settings/system-settings-card";
 import TrackedSimsCard from "@/components/system-settings/tracked-sims-card";
+import WebPortCard from "@/components/system-settings/web-port/web-port-card";
 
 import {
   CARD_CELL,
@@ -128,6 +129,9 @@ const SystemSettings = () => {
         </motion.div>
         <motion.div variants={staggerItem} className={CARD_CELL}>
           <HostAtPortsCard />
+        </motion.div>
+        <motion.div variants={staggerItem} className={CARD_CELL}>
+          <WebPortCard />
         </motion.div>
         <motion.div variants={staggerItem} className={CARD_CELL}>
           <DiagnosticsCard />

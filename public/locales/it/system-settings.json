@@ -1279,5 +1279,22 @@
       "update_failed": "Impossibile aggiornare la pianificazione a basso consumo",
       "unsaved": "La modifica alla pianificazione a basso consumo non è stata salvata: hai lasciato la pagina prima del salvataggio."
     }
+  },
+  "web_port": {
+    "card_title": "Porta web",
+    "card_description": "Le porte su cui risponde questa interfaccia. LuCI si sposta con lei.",
+    "http_label": "Porta HTTP",
+    "https_label": "Porta HTTPS",
+    "pending": "Si aprirà su {{origin}} dopo l'applicazione.",
+    "moving": "Spostamento su {{origin}}…",
+    "invalid": "Usa un numero intero da 1 a 65535.",
+    "same": "HTTP e HTTPS richiedono porte diverse.",
+    "discard": "Annulla modifiche",
+    "confirm_title": "Cambiare la porta web?",
+    "confirm_description": "QManager si riavvia sulla nuova porta e questa pagina passa a {{origin}}. Se la nuova porta non si avvia, torna da sola quella precedente.",
+    "confirm_action": "Cambia porta",
+    "toast_failed": "Impossibile cambiare la porta web.",
+    "toast_unchanged": "Porta web salvata.",
+    "toast_unreachable": "La nuova porta non ha risposto, quindi QManager è rimasto su quella precedente."
   }
 }

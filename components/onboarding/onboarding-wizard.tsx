@@ -7,10 +7,11 @@ import { StepPassword } from "./steps/step-password";
 import { StepNetworkMode } from "./steps/step-network-mode";
 import { StepConnection } from "./steps/step-connection";
 import { StepBandLocking } from "./steps/step-band-locking";
+import { StepWebPort } from "./steps/step-web-port";
 import { StepDone } from "./steps/step-done";
 
 // =============================================================================
-// OnboardingWizard — Orchestrates all 6 onboarding steps
+// OnboardingWizard — Orchestrates all 7 onboarding steps
 // =============================================================================
 // Steps:
 //   1  Welcome       — static intro
@@ -18,7 +19,8 @@ import { StepDone } from "./steps/step-done";
 //   3  Network Mode  — optional, calls cellular/settings.sh
 //   4  Connection    — optional, calls apn.sh or profiles/save.sh
 //   5  Band Locking  — optional, calls bands/lock.sh
-//   6  Done          — redirects to /dashboard/
+//   6  Web Port      — optional, calls system/web_port.sh
+//   7  Done          — redirects to /dashboard/ (on the new port if moved)
 // =============================================================================
 
 // Per-step submit fns registered by each step component
@@ -29,12 +31,14 @@ export function OnboardingWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [passwordValid, setPasswordValid] = useState(false);
+  // Set by the Web Port step when the server is moving to new ports.
+  const [movedOrigin, setMovedOrigin] = useState<string | null>(null);
 
   // Each step can register a submit fn. The shell's Continue button calls it.
   const submitFnRef = useRef<AsyncVoidFn | SyncVoidFn | null>(null);
 
   const advance = useCallback(() => {
-    setCurrentStep((s) => Math.min(s + 1, 6));
+    setCurrentStep((s) => Math.min(s + 1, 7));
   }, []);
 
   const goBack = useCallback(() => {
@@ -64,7 +68,7 @@ export function OnboardingWizard() {
       currentStep={currentStep}
       onNext={currentStep === 1 ? handleWelcomeContinue : handleContinue}
       onBack={goBack}
-      onSkip={currentStep >= 3 && currentStep <= 5 ? advance : undefined}
+      onSkip={currentStep >= 3 && currentStep <= 6 ? advance : undefined}
       isLoading={isLoading}
       continueDisabled={currentStep === 2 && !passwordValid}
     >
@@ -112,7 +116,18 @@ export function OnboardingWizard() {
         />
       )}
 
-      {currentStep === 6 && <StepDone />}
+      {currentStep === 6 && (
+        <StepWebPort
+          onSubmitRef={(fn) => {
+            submitFnRef.current = fn;
+          }}
+          onLoadingChange={setIsLoading}
+          onSuccess={advance}
+          onMove={setMovedOrigin}
+        />
+      )}
+
+      {currentStep === 7 && <StepDone movedOrigin={movedOrigin} />}
     </OnboardingShell>
   );
 }

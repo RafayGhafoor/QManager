@@ -633,6 +633,96 @@ preflight() {
     info "Pre-flight checks passed"
 }
 
+# --- Web Port ----------------------------------------------------------------
+
+# Ask, once, which ports QManager should be served on. Only when the shell is
+# interactive (the OTA updater runs detached with no tty, so it never stops
+# here) and only while quecmanager.web is unset (an existing choice is
+# preserved). Defaults are the ports uhttpd uses now (80 / 443 on stock).
+# Sets WEB_HTTP_PORT / WEB_HTTPS_PORT; seed_uci_defaults writes them.
+WEB_HTTP_PORT=""
+WEB_HTTPS_PORT=""
+
+prompt_web_port() {
+    local lib="$SRC_SCRIPTS/usr/lib/qmanager/web_port.sh"
+    [ -f "$lib" ] || return 0
+    . "$lib"
+
+    WEB_HTTP_PORT=$(wp_conf_http)
+    WEB_HTTPS_PORT=$(wp_conf_https)
+
+    [ -t 0 ] || return 0
+    uci -q get quecmanager.web >/dev/null 2>&1 && return 0
+
+    printf "\n  QManager is served on HTTP %s and HTTPS %s (LuCI moves with it).\n" \
+        "$WEB_HTTP_PORT" "$WEB_HTTPS_PORT"
+    printf "  Use different ports? [y/N] "
+    local answer=""
+    read -r answer || answer=""
+    case "$answer" in
+        y|Y|yes|YES) ;;
+        *) return 0 ;;
+    esac
+
+    local tries=0
+    local h=""
+    local s=""
+    local err=""
+    while [ "$tries" -lt 3 ]; do
+        printf "    HTTP port [%s]: " "$WEB_HTTP_PORT"
+        read -r h || h=""
+        [ -n "$h" ] || h="$WEB_HTTP_PORT"
+        printf "    HTTPS port [%s]: " "$WEB_HTTPS_PORT"
+        read -r s || s=""
+        [ -n "$s" ] || s="$WEB_HTTPS_PORT"
+        err=$(wp_validate "$h" "$s") || true
+        if [ -z "$err" ]; then
+            WEB_HTTP_PORT="$h"
+            WEB_HTTPS_PORT="$s"
+            info "QManager will use HTTP $h and HTTPS $s"
+            return 0
+        fi
+        case "$err" in
+            ports_equal)   warn "HTTP and HTTPS need different ports" ;;
+            port_in_use:*) warn "Port ${err#port_in_use:} is already used by another service" ;;
+            *)             warn "Ports must be whole numbers from 1 to 65535" ;;
+        esac
+        tries=$(( tries + 1 ))
+    done
+    warn "Keeping HTTP $WEB_HTTP_PORT and HTTPS $WEB_HTTPS_PORT (change later in System Settings or with qmanager_web_port)"
+    return 0
+}
+
+# Persist the chosen ports and point uhttpd at them. A full install reboots
+# right after, which brings uhttpd up on the new ports; without a reboot,
+# wp_apply restarts uhttpd now (and rolls back if it cannot bind).
+seed_web_port() {
+    command -v wp_save_conf >/dev/null 2>&1 || return 0
+    wp_port_valid "$WEB_HTTP_PORT" && wp_port_valid "$WEB_HTTPS_PORT" || return 0
+
+    if uci -q get quecmanager.web >/dev/null 2>&1; then
+        info "quecmanager.web already set — preserving user choice ($(wp_conf_http) / $(wp_conf_https))"
+        return 0
+    fi
+    wp_save_conf "$WEB_HTTP_PORT" "$WEB_HTTPS_PORT" || { warn "Could not save the web port"; return 0; }
+    info "Seeded quecmanager.web (HTTP $WEB_HTTP_PORT, HTTPS $WEB_HTTPS_PORT)"
+
+    if [ "$WEB_HTTP_PORT" = "$(wp_uhttpd_http)" ] && [ "$WEB_HTTPS_PORT" = "$(wp_uhttpd_https)" ]; then
+        return 0
+    fi
+    if [ "$DO_REBOOT" = "1" ]; then
+        wp_write_uhttpd "$WEB_HTTP_PORT" "$WEB_HTTPS_PORT"
+        info "Web server moves to HTTP $WEB_HTTP_PORT / HTTPS $WEB_HTTPS_PORT after the reboot"
+    else
+        local r
+        r=$(wp_apply) || true
+        case "$r" in
+            applied*) info "Web server now on HTTP $WEB_HTTP_PORT / HTTPS $WEB_HTTPS_PORT" ;;
+            *)        warn "Could not move the web server ($r); it stays on its current ports" ;;
+        esac
+    fi
+}
+
 # --- Version Markers ---------------------------------------------------------
 
 mark_version_pending() {
@@ -1176,6 +1266,8 @@ seed_uci_defaults() {
     fi
 
     uci commit quecmanager 2>/dev/null || warn "uci commit quecmanager failed"
+
+    seed_web_port
 
     # Point /usr/bin/qcmd + /usr/bin/qsms at qmanager_atd (atomic symlink swap). Must run after
     # install_backend + install_bundled_binaries.
@@ -1819,7 +1911,13 @@ print_summary() {
     printf "\n"
     local device_ip
     device_ip=$(uci get network.lan.ipaddr 2>/dev/null | cut -d'/' -f1 || echo "192.168.1.1")
-    printf "  Open in browser:  ${BOLD}http://%s${NC}\n\n" "$device_ip"
+    local web_port=""
+    command -v wp_conf_http >/dev/null 2>&1 && web_port=$(wp_conf_http)
+    if [ -n "$web_port" ] && [ "$web_port" != "80" ]; then
+        printf "  Open in browser:  ${BOLD}http://%s:%s${NC}\n\n" "$device_ip" "$web_port"
+    else
+        printf "  Open in browser:  ${BOLD}http://%s${NC}\n\n" "$device_ip"
+    fi
 
     if [ ! -f "$CONF_DIR/auth.json" ]; then
         info "First-time setup: you will be prompted to create a password"
@@ -1948,6 +2046,9 @@ main() {
     printf "  ══════════════════════════════════════════\n"
 
     preflight
+
+    # Asked before any long-running work so the user answers up front.
+    [ "$DO_BACKEND" = "1" ] && prompt_web_port
 
     mark_version_pending
 

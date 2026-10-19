@@ -3,21 +3,28 @@
 import { useEffect, useRef, useState } from "react";
 import { CircleCheckIcon } from "lucide-react";
 import { useTranslation, Trans } from "react-i18next";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useMotionReduced } from "@/components/motion-preference";
+import { waitForOrigin } from "@/lib/web-port";
 
 // =============================================================================
-// StepDone — Onboarding step 6: completion screen + confetti
+// StepDone — Onboarding step 7: completion screen + confetti
+// =============================================================================
+// When the Web Port step moved the server, the dashboard button waits for the
+// new origin to answer and opens it there; if it never does (the server rolled
+// back), it stays on this origin and says so.
 // =============================================================================
 
 // Brand-derived confetti colors (primary blue-indigo palette)
 const CONFETTI_COLORS = ["#4f46e5", "#6366f1", "#818cf8", "#a5b4fc", "#c7d2fe", "#e0e7ff"];
 
-export function StepDone() {
+export function StepDone({ movedOrigin = null }: { movedOrigin?: string | null }) {
   const { t } = useTranslation("onboarding");
   const prefersReducedMotion = useMotionReduced();
 
   const [show, setShow] = useState(prefersReducedMotion);
+  const [opening, setOpening] = useState(false);
   const dashboardBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -79,7 +86,17 @@ export function StepDone() {
     dashboardBtnRef.current?.focus();
   }, []);
 
-  const handleGoToDashboard = () => {
+  const handleGoToDashboard = async () => {
+    if (!movedOrigin) {
+      window.location.href = "/dashboard/";
+      return;
+    }
+    setOpening(true);
+    if (await waitForOrigin(movedOrigin, { graceMs: 0 })) {
+      window.location.href = `${movedOrigin}/dashboard/`;
+      return;
+    }
+    toast.error(t("web_port.toast_unreachable"));
     window.location.href = "/dashboard/";
   };
 
@@ -117,8 +134,14 @@ export function StepDone() {
         </p>
       </div>
 
-      <Button ref={dashboardBtnRef} onClick={handleGoToDashboard} className="w-full" size="lg">
-        {t("done.button_dashboard")}
+      <Button
+        ref={dashboardBtnRef}
+        onClick={() => void handleGoToDashboard()}
+        disabled={opening}
+        className="w-full"
+        size="lg"
+      >
+        {opening ? t("web_port.opening") : t("done.button_dashboard")}
       </Button>
     </div>
   );

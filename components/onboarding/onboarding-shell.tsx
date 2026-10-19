@@ -12,7 +12,7 @@ import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 // OnboardingShell — Full-screen centered card wrapper for onboarding wizard
 // =============================================================================
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 
 interface OnboardingShellProps {
@@ -49,6 +49,7 @@ export function OnboardingShell({
     "step_label_network_mode",
     "step_label_connection",
     "step_label_band_preferences",
+    "step_label_web_port",
     "step_label_complete",
   ];
 

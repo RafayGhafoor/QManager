@@ -11,6 +11,7 @@
     "step_label_network_mode": "Network Mode",
     "step_label_connection": "Connection",
     "step_label_band_preferences": "Band Preferences",
+    "step_label_web_port": "Web Port",
     "step_label_complete": "Complete",
     "aria_live_step_indicator": "Step {{step}} of {{total}}: {{label}}",
     "aria_progressbar_label": "Step {{step}} of {{total}}",
@@ -107,5 +108,17 @@
     "description": "QManager is ready. Everything you configured is active, and you can change any setting anytime from the sidebar.",
     "callout_body": "<bold>Pro tip:</bold> Visit <menu>Cellular › Band Locking</menu> to fine-tune signal strength, or <menu>Monitoring › Watchdog</menu> to set up automatic recovery.",
     "button_dashboard": "Go to Dashboard"
+  },
+  "web_port": {
+    "heading": "Web Port",
+    "description": "QManager uses ports 80 and 443 by default. Change them only if something else needs those ports.",
+    "label_http": "HTTP port",
+    "label_https": "HTTPS port",
+    "hint_default": "Leave as is to keep the defaults.",
+    "error_invalid": "Use a whole number from 1 to 65535.",
+    "error_same": "HTTP and HTTPS need different ports.",
+    "toast_failed": "Couldn't change the web port.",
+    "toast_unreachable": "The new port didn't answer, so QManager stayed on the old one.",
+    "opening": "Opening on the new port…"
   }
 }

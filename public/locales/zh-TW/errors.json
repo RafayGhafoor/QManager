@@ -198,5 +198,8 @@
   "sim_storage_unavailable": "SIM 卡無法儲存簡訊，請檢查是否已插入 SIM 卡。",
   "invalid_smsc": "請輸入運營商號碼：開頭可帶 +，後跟 3 至 20 位數字。",
   "smsc_write_failed": "無法儲存運營商號碼。請檢查後重試。",
-  "smsc_read_failed": "無法從數據機讀取運營商號碼。"
+  "smsc_read_failed": "無法從數據機讀取運營商號碼。",
+  "invalid_port": "連接埠必須是 1 到 65535 之間的整數。",
+  "ports_equal": "HTTP 與 HTTPS 需要使用不同的連接埠。",
+  "port_in_use": "該連接埠已被其他服務佔用。"
 }

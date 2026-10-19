@@ -90,7 +90,10 @@ export function LanReconnecting({
   const pollingRef = useRef(false);
   const navigatedRef = useRef(false);
 
-  const url = `http://${newIpaddr}`;
+  // Keep this page's protocol and port: the web port is user-configurable
+  // (System Settings > Web Port), so the new address answers on the same one.
+  const loc = typeof window === "undefined" ? null : window.location;
+  const url = `${loc?.protocol ?? "http:"}//${newIpaddr}${loc?.port ? `:${loc.port}` : ""}`;
   const address = `${newIpaddr}/${prefix}`;
 
   // Single guarded navigation (survives StrictMode's double-invoke).

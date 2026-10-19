@@ -786,21 +786,28 @@ t_net_reachable() {
     esac
 }
 
+# Ports are user-configurable (qmanager_web_port), so read them from uhttpd.
 t_net_uhttpd_listen() {
     local out
-    local h80="no"
-    local h443="no"
-    local want443="no"
+    local hp
+    local sp
+    local hok="no"
+    local sok="no"
+    local want_https="no"
+    hp=$(uci -q get uhttpd.main.listen_http 2>/dev/null | awk '{n=split($1,a,":"); print a[n]}')
+    sp=$(uci -q get uhttpd.main.listen_https 2>/dev/null | awk '{n=split($1,a,":"); print a[n]}')
+    [ -n "$hp" ] || hp=80
+    [ -n "$sp" ] && want_https="yes"
+    [ -n "$sp" ] || sp=443
     out=$(netstat -ltn 2>/dev/null)
-    printf '%s\n' "$out" | grep -E '[:.](80|443)[[:space:]]' >> "$OUT"
-    printf '%s\n' "$out" | grep -qE '[:.]80[[:space:]]' && h80="yes"
-    printf '%s\n' "$out" | grep -qE '[:.]443[[:space:]]' && h443="yes"
-    [ -n "$(uci -q get uhttpd.main.listen_https 2>/dev/null)" ] && want443="yes"
-    echo "port80=$h80 port443=$h443 https_configured=$want443" >> "$OUT"
-    if [ "$h80" != "yes" ]; then echo "fail|not listening on port 80"
-    elif [ "$want443" = "yes" ] && [ "$h443" != "yes" ]; then echo "warn|HTTPS configured but port 443 not listening"
-    elif [ "$h443" = "yes" ]; then echo "pass|listening on 80 and 443"
-    else echo "pass|listening on 80"; fi
+    printf '%s\n' "$out" | grep -E "[:.]($hp|$sp)[[:space:]]" >> "$OUT"
+    printf '%s\n' "$out" | grep -qE "[:.]$hp[[:space:]]" && hok="yes"
+    printf '%s\n' "$out" | grep -qE "[:.]$sp[[:space:]]" && sok="yes"
+    echo "http_port=$hp listening=$hok https_port=$sp listening=$sok https_configured=$want_https" >> "$OUT"
+    if [ "$hok" != "yes" ]; then echo "fail|not listening on port $hp"
+    elif [ "$want_https" = "yes" ] && [ "$sok" != "yes" ]; then echo "warn|HTTPS configured but port $sp not listening"
+    elif [ "$sok" = "yes" ]; then echo "pass|listening on $hp and $sp"
+    else echo "pass|listening on $hp"; fi
 }
 
 t_net_fw4() {

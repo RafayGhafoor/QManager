@@ -1279,5 +1279,22 @@
       "update_failed": "Failed to update low power schedule",
       "unsaved": "Low power schedule change wasn't saved. You left the page before it could save."
     }
+  },
+  "web_port": {
+    "card_title": "Web Port",
+    "card_description": "The ports this interface listens on. LuCI moves with it.",
+    "http_label": "HTTP port",
+    "https_label": "HTTPS port",
+    "pending": "Opens at {{origin}} after you apply.",
+    "moving": "Moving to {{origin}}…",
+    "invalid": "Use a whole number from 1 to 65535.",
+    "same": "HTTP and HTTPS need different ports.",
+    "discard": "Discard",
+    "confirm_title": "Change the web port?",
+    "confirm_description": "QManager restarts on the new port and this page moves to {{origin}}. If the new port can't start, the old one comes back on its own.",
+    "confirm_action": "Change port",
+    "toast_failed": "Couldn't change the web port.",
+    "toast_unchanged": "Web port saved.",
+    "toast_unreachable": "The new port didn't answer, so QManager stayed on the old one."
   }
 }

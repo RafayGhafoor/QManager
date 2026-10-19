@@ -198,5 +198,8 @@
   "sim_storage_unavailable": "SIM 卡无法存储短信，请检查是否已插入 SIM 卡。",
   "invalid_smsc": "请输入运营商号码：开头可带 +，后跟 3 至 20 位数字。",
   "smsc_write_failed": "无法保存运营商号码。请检查后重试。",
-  "smsc_read_failed": "无法从调制解调器读取运营商号码。"
+  "smsc_read_failed": "无法从调制解调器读取运营商号码。",
+  "invalid_port": "端口必须是 1 到 65535 之间的整数。",
+  "ports_equal": "HTTP 和 HTTPS 需要使用不同的端口。",
+  "port_in_use": "该端口已被其他服务占用。"
 }

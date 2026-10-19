@@ -11,6 +11,7 @@
     "step_label_network_mode": "Mode Jaringan",
     "step_label_connection": "Koneksi",
     "step_label_band_preferences": "Preferensi Band",
+    "step_label_web_port": "Port Web",
     "step_label_complete": "Selesai",
     "aria_live_step_indicator": "Langkah {{step}} dari {{total}}: {{label}}",
     "aria_progressbar_label": "Langkah {{step}} dari {{total}}",
@@ -107,5 +108,17 @@
     "description": "QManager siap digunakan. Semua yang Anda konfigurasikan sudah aktif, dan Anda dapat mengubah pengaturan kapan saja dari sidebar.",
     "callout_body": "<bold>Tips:</bold> Kunjungi <menu>Seluler › Penguncian Band</menu> untuk menyetel kekuatan sinyal, atau <menu>Monitoring › Watchdog</menu> untuk mengatur pemulihan otomatis.",
     "button_dashboard": "Ke Dashboard"
+  },
+  "web_port": {
+    "heading": "Port Web",
+    "description": "QManager memakai port 80 dan 443 secara bawaan. Ubah hanya jika layanan lain membutuhkan port tersebut.",
+    "label_http": "Port HTTP",
+    "label_https": "Port HTTPS",
+    "hint_default": "Biarkan apa adanya untuk memakai bawaan.",
+    "error_invalid": "Gunakan bilangan bulat dari 1 sampai 65535.",
+    "error_same": "HTTP dan HTTPS harus memakai port yang berbeda.",
+    "toast_failed": "Tidak dapat mengubah port web.",
+    "toast_unreachable": "Port baru tidak merespons, jadi QManager tetap di port lama.",
+    "opening": "Membuka di port baru…"
   }
 }
