@@ -13,6 +13,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { HintIcon } from "@/components/ui/hint-icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SwapLabel } from "@/components/ui/swap-label";
 import { TickGroup } from "@/components/ui/tick-group";
@@ -603,30 +605,17 @@ export function CellularInformationCard({
                   <Value value={null} fallback={unknown} />
                 ) : (
                   <>
-                    {/* The marker is FIRST and focusable, so the caveat is read
-                        before the number rather than after it, and is reachable
-                        by keyboard. Same construction as the derived-SCS field
-                        on the spectrum card — one pattern for "this is our
-                        arithmetic, not the modem's reading". */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className="inline-flex shrink-0 items-center gap-1 rounded-pill text-on-surface-variant outline-none focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-[3px]"
-                        >
-                          <span className="text-xs font-semibold tracking-wide uppercase">
-                            {t("radio_info.value.estimated")}
-                          </span>
-                          <MaterialSymbol name="help" size={14} />
-                          <span className="sr-only">
-                            {t("radio_info.value.distance_hint")}
-                          </span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-64">
-                        {t("radio_info.value.distance_hint")}
-                      </TooltipContent>
-                    </Tooltip>
+                    {/* Fact-Is-Info: the estimate caveat is a filled info
+                        chip with a glyph, and the explanation sits behind a
+                        HintIcon toggletip (never a Tooltip). First, so the
+                        caveat is read before the number. */}
+                    <Badge variant="info">
+                      <MaterialSymbol name="my_location" size={12} />
+                      {t("radio_info.value.estimated")}
+                    </Badge>
+                    <HintIcon label={t("radio_info.value.distance_hint")}>
+                      {t("radio_info.value.distance_hint")}
+                    </HintIcon>
                     <TickingValue
                       value={distance}
                       className={cn(ROW_VALUE, "tabular-nums")}
