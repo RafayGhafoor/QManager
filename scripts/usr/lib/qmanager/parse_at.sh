@@ -85,10 +85,38 @@ map_scs_to_khz() {
     esac
 }
 
+# --- LTE SINR scale conversion -----------------------------------------------
+# AT+QENG's LTE <SINR> field is NOT dB. Per the RG520N/RM5xxN AT commands manual
+# (5.20, <SINR>, "In LTE mode"): "The conversion formula for actual SINR is
+# Y = (1/5) x X x 10 - 20", i.e. Y = 2X - 20 dB for raw X in 0..25 (Y -20..30).
+# The same field is used by BOTH QENG LTE lines - the LTE-only "servingcell"
+# line and the EN-DC "LTE" line. The 5G <SINR> values ("NR5G-NSA"/"NR5G-SA")
+# are already dB and must NOT go through this.
+#
+# Measured on the Suncomm X75 (RM551EGL00AAR02A02M8G, 2026-10-19) while one cell
+# was read three ways: QENG raw X 9..12, AT+QCAINFO RSSNR 0..2 dB, AT+QSINR
+# -4..5 dB, and QENG CQI 4. The raw field read ~10 dB high - publishing X
+# verbatim made the dashboard show "10 dB" for an actual 0 dB.
+#
+# Anything not convertible (empty, "-", -32768, non-numeric, X outside 0..25,
+# or a digit string longer than two characters) prints nothing, so the caller
+# publishes null instead of a fabricated dB value. The length guard keeps the
+# arithmetic below inside ash's integer range whatever the modem sends.
+# Usage: db=$(_lte_sinr_to_db "$raw")   ("-20".."30", or empty)
+_lte_sinr_to_db() {
+    case "$1" in
+        ''|*[!0-9]*) return ;;
+    esac
+    [ ${#1} -le 2 ] || return
+    [ "$1" -le 25 ] || return
+    echo $(( $1 * 2 - 20 ))
+}
+
 # -----------------------------------------------------------------------------
 # Parse AT+QENG="servingcell"
 # Populates: lte_state, lte_band, lte_earfcn, lte_bandwidth, lte_pci,
-#            lte_rsrp, lte_rsrq, lte_sinr, lte_rssi,
+#            lte_rsrp, lte_rsrq, lte_sinr (dB, converted from the raw QENG
+#            scale), lte_rssi,
 #            lte_cell_id, lte_enodeb_id, lte_sector_id, lte_tac,
 #            nr_state, nr_band, nr_arfcn, nr_pci, nr_rsrp, nr_rsrq, nr_sinr,
 #            nr_scs, nr_cell_id, nr_enodeb_id, nr_sector_id, nr_tac,
@@ -164,7 +192,7 @@ parse_serving_cell() {
             lte_rsrp=$(printf '%s' "$csv" | cut -d',' -f12)
             lte_rsrq=$(printf '%s' "$csv" | cut -d',' -f13)
             lte_rssi=$(printf '%s' "$csv" | cut -d',' -f14)
-            lte_sinr=$(printf '%s' "$csv" | cut -d',' -f15)
+            lte_sinr=$(_lte_sinr_to_db "$(printf '%s' "$csv" | cut -d',' -f15 | tr -d '\r')")
         fi
 
         # NR5G-NSA line
@@ -257,7 +285,7 @@ parse_serving_cell() {
         lte_rsrp=$(printf '%s' "$csv" | cut -d',' -f14)
         lte_rsrq=$(printf '%s' "$csv" | cut -d',' -f15)
         lte_rssi=$(printf '%s' "$csv" | cut -d',' -f16)
-        lte_sinr=$(printf '%s' "$csv" | cut -d',' -f17)
+        lte_sinr=$(_lte_sinr_to_db "$(printf '%s' "$csv" | cut -d',' -f17 | tr -d '\r')")
 
     else
         lte_state="unknown"
