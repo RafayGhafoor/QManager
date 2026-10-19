@@ -219,7 +219,7 @@ export const STRIP = {
     "text-on-surface-variant truncate text-[0.6875rem] font-semibold tracking-[0.02em]",
   /**
    * The figure. `tabular-nums` and NOT `font-mono`: a slot number and a carrier
-   * count are changing figures, not identifiers (The Machine-Voice Rule).
+   * count are figures, not opaque strings (The Machine-Voice Rule).
    * `min-w-0` rather than `truncate` — this is a flex container, so the
    * truncation has to happen on the text child (`VALUE_TEXT`).
    */
@@ -1006,11 +1006,10 @@ export const READOUT_ROW = {
   /** Machine strings: identifiers, MCCMNC, slot names. */
   VALUE_MONO: "font-mono text-[0.8125rem] font-semibold tabular-nums truncate",
   /**
-   * Human-authored labels never take mono (The Machine-Voice Rule) — but this
-   * slot also carries CHANGING FIGURES that are not identifiers: a slot number
-   * and a carrier-aggregation breakdown, both of which the poller re-writes
-   * under the reader. `tabular-nums` is the Numeric step's defining property
-   * and belongs on any figure that ticks, mono or not.
+   * Human-authored labels never take mono (The Machine-Voice Rule) — and this
+   * slot also carries FIGURES: a slot number and a carrier-aggregation
+   * breakdown. Figures are Rethink Sans; `tabular-nums` is the Numeric step's
+   * defining property and belongs on every one.
    */
   VALUE_TEXT: "text-[0.8125rem] font-semibold tabular-nums truncate",
   /** Mirrors ROOT's resolved height AND radius for the skeleton. */
@@ -1167,8 +1166,8 @@ export const REORDER_ROW_SKELETON = {
  * Each entry is a complete FILL pair, so it stays correct sitting on a neutral
  * row or on a promoted `primary-container` one (same reasoning as RATE_CHIP).
  *
- * `tabular-nums` in font-sans, NOT mono: the rank changes while the user drags
- * it, which is the Machine-Voice Rule's tell for the interface voice.
+ * `tabular-nums` in font-sans, NOT mono: the rank is a short numeric label,
+ * which the Machine-Voice Rule sets in the interface voice.
  */
 export const RANK_PILL = {
   ROOT: "grid size-[1.875rem] flex-none place-items-center rounded-pill text-[0.8125rem] font-semibold tabular-nums",
@@ -1330,7 +1329,7 @@ export const AMBR_BLOCK = {
  * declared here, so consumers must NOT also set an ink class on the chip.
  */
 export const RATE_CHIP = {
-  ROOT: "inline-flex h-[1.875rem] items-center gap-1.5 rounded-pill px-3 font-mono text-[0.8125rem] font-semibold tabular-nums",
+  ROOT: "inline-flex h-[1.875rem] items-center gap-1.5 rounded-pill px-3 text-[0.8125rem] font-semibold tabular-nums",
   ON_DOWNLOAD: "bg-downlink text-downlink-foreground",
   ON_UPLOAD: "bg-uplink text-uplink-foreground",
   GLYPH: 15,

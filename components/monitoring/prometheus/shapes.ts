@@ -104,7 +104,7 @@ export const STATUS_BAND = {
   SHELL: "@container/card rounded-card border-0 bg-card py-4 shadow-[var(--shadow-whisper)]!",
   ROW: "flex min-h-8 flex-wrap items-center gap-x-4 gap-y-2 px-6",
   LABEL: "text-[0.9375rem] font-semibold",
-  CHIPS: "flex flex-wrap items-center gap-1.5 sm:ml-auto",
+  CHIPS: "flex flex-wrap items-center gap-1.5 @xl/card:ml-auto",
 } as const;
 
 // -----------------------------------------------------------------------------

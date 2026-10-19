@@ -404,9 +404,9 @@ function MetricCell({
 /** One label/value line, shared by both rows of `IdentityMetricCell` — the
  *  same top-line geometry `MetricCell` uses, so the column's baselines line
  *  up with its neighbours even though this cell has no meter lane of its
- *  own. Mono per the Machine-Voice Rule: both PCI and EARFCN are identifiers,
- *  not readings. A null value prints `Not reported` rather than vanishing —
- *  the same answer `MetricCell` gives, and the same reason
+ *  own. Rethink Sans with tabular figures per the Machine-Voice Rule: PCI and
+ *  EARFCN are short numeric device labels, not opaque strings. A null value
+ *  prints `Not reported` rather than vanishing — the same answer `MetricCell` gives, and the same reason
  *  `cellular-information-card.tsx` refuses a bare dash: an empty slot reads
  *  as a rendering failure, not as a fact the radio declined to report. */
 function IdentityFieldLine({
@@ -423,9 +423,9 @@ function IdentityFieldLine({
       <span className="text-xs font-semibold text-on-surface-variant">
         {label}
       </span>
-      <span className="truncate font-mono text-[13px] font-semibold tabular-nums text-on-surface">
+      <span className="truncate text-[13px] font-semibold tabular-nums text-on-surface">
         {value === null ? (
-          <span className="font-sans text-on-surface-variant">
+          <span className="text-on-surface-variant">
             {t("radio_info.bands.metric.not_reported_short")}
           </span>
         ) : (
@@ -782,7 +782,7 @@ export function ActiveBandsCard({
                         <ReferenceField
                           label={t("radio_info.bands.detail.bandwidth")}
                         >
-                          <span className="truncate font-mono tabular-nums">
+                          <span className="truncate tabular-nums">
                             {mhz(c.bandwidthMhz)}
                           </span>
                         </ReferenceField>
@@ -790,7 +790,7 @@ export function ActiveBandsCard({
                         <ReferenceField
                           label={t("radio_info.bands.detail.dl_frequency")}
                         >
-                          <span className="truncate font-mono tabular-nums">
+                          <span className="truncate tabular-nums">
                             {c.dlFrequencyMhz === null
                               ? unknown
                               : t("radio_info.bands.units.mhz", {
@@ -802,7 +802,7 @@ export function ActiveBandsCard({
                         <ReferenceField
                           label={t("radio_info.bands.detail.ul_frequency")}
                         >
-                          <span className="truncate font-mono tabular-nums">
+                          <span className="truncate tabular-nums">
                             {c.ulFrequencyMhz === null
                               ? unknown
                               : t("radio_info.bands.units.mhz", {
@@ -854,7 +854,7 @@ export function ActiveBandsCard({
                               ) : undefined
                             }
                           >
-                            <span className="truncate font-mono tabular-nums">
+                            <span className="truncate tabular-nums">
                               {c.scsKhz === null
                                 ? unknown
                                 : t("radio_info.bands.units.khz", {

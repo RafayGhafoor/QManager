@@ -24,6 +24,23 @@
     "full": "Full",
     "reduced": "Reduced"
   },
+  "account": {
+    "photo_invalid": "Please select an image file.",
+    "photo_updated": "Profile photo updated.",
+    "change_photo_aria": "Change profile photo",
+    "name_placeholder": "Your name",
+    "name_saved": "Display name updated.",
+    "name_save_failed": "Failed to update display name.",
+    "reconnect_description": "This will disconnect the modem for a few seconds, then reconnect it automatically.",
+    "disconnecting_description": "Disconnecting modem from network…",
+    "reconnecting_description": "Reconnecting modem to network…",
+    "reconnect_action": "Reconnect",
+    "reconnect_complete": "Modem reconnect complete.",
+    "reconnect_failed": "Failed to reconnect modem.",
+    "reboot_description": "The device will restart and all network connections will drop until it comes back online.",
+    "reboot_sent": "Reboot command sent. You will be logged out shortly…",
+    "reboot_now": "Reboot Now"
+  },
   "state": {
     "loading": "Loading…",
     "saving": "Saving…",

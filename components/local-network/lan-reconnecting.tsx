@@ -176,7 +176,7 @@ export function LanReconnecting({
   const addressLink = (
     <a
       href={url}
-      className="inline-flex items-center gap-1.5 font-mono text-[0.8125rem] font-medium underline underline-offset-4"
+      className="inline-flex min-w-0 items-center gap-1.5 break-all font-mono text-[0.8125rem] font-medium underline underline-offset-4"
     >
       <ExternalLinkIcon className="size-3.5" />
       {url}

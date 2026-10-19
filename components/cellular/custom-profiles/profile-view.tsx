@@ -520,7 +520,7 @@ const ConfigPills = ({
         {apn.name.trim() ? (
           <>
             {t("custom_profiles.pills.apn_prefix")}
-            <span className="font-mono">{apn.name}</span>
+            <span className="font-mono break-all">{apn.name}</span>
           </>
         ) : (
           t("custom_profiles.pills.apn_default")

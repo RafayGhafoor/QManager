@@ -431,8 +431,8 @@ dropping `_one` there reads as a missing key. `it` genuinely inflects.
 
 - **Runtime pack loading.** The fork's `runtime-pack.ts` / `installed-store.ts` were not ported;
   downloaded packs are served from `/www/locales/<code>` as before.
-- **`components/ui/copyable-command.tsx`** is still used by the Tailscale and NetBird cards; the
-  Languages recovery command uses the local `CMD` box.
+- **The Languages recovery command** uses the local `CMD` box. (`components/ui/copyable-command.tsx`
+  had no callers left and was deleted by U4.23.)
 - **`refetch` in `hooks/use-language-packs.ts` is always silent** (`fetchList(true)`), so the
   header's Refresh and both condition-block retries spin the header pill and leave the page.
 - **The `Empty` primitive is unusable here** (`md:p-12` viewport breakpoint inside a

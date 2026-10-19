@@ -568,7 +568,7 @@ export function CellularInformationCard({
             <Eyebrow>{t("radio_info.groups.cell_identity")}</Eyebrow>
             <div className={ROW_STACK}>
               <Row label={t("radio_info.rows.cell_id")}>
-                <Value value={cellId} fallback={unknown} mono />
+                <Value value={cellId} fallback={unknown} />
               </Row>
 
               <motion.div
@@ -579,18 +579,18 @@ export function CellularInformationCard({
                   <span className={cn(ROW_LABEL, "shrink-0")}>
                     {nodeLabel}
                   </span>
-                  <Value value={enodebId} fallback={unknown} mono />
+                  <Value value={enodebId} fallback={unknown} />
                 </div>
                 <div className={ROW_SHAPE_COMPACT}>
                   <span className={cn(ROW_LABEL, "shrink-0")}>
                     {t("radio_info.rows.sector")}
                   </span>
-                  <Value value={sectorId} fallback={unknown} mono />
+                  <Value value={sectorId} fallback={unknown} />
                 </div>
               </motion.div>
 
               <Row label={t("radio_info.rows.tac")}>
-                <Value value={tac} fallback={unknown} mono />
+                <Value value={tac} fallback={unknown} />
                 {tac != null ? (
                   <span className="rounded-pill bg-surface-container-high px-2.5 py-[0.1875rem] font-mono text-xs font-semibold text-on-surface-variant">
                     0x{decToHex(tac)}

@@ -24,6 +24,23 @@
     "full": "完整",
     "reduced": "减弱"
   },
+  "account": {
+    "photo_invalid": "请选择图片文件。",
+    "photo_updated": "头像已更新。",
+    "change_photo_aria": "更换头像",
+    "name_placeholder": "你的名称",
+    "name_saved": "显示名称已更新。",
+    "name_save_failed": "更新显示名称失败。",
+    "reconnect_description": "这将使调制解调器断开几秒钟，然后自动重新连接。",
+    "disconnecting_description": "正在将调制解调器从网络断开…",
+    "reconnecting_description": "正在将调制解调器重新连接到网络…",
+    "reconnect_action": "重新连接",
+    "reconnect_complete": "调制解调器已重新连接。",
+    "reconnect_failed": "重新连接调制解调器失败。",
+    "reboot_description": "设备将重启，在其重新上线之前所有网络连接都会中断。",
+    "reboot_sent": "重启命令已发送，你即将退出登录…",
+    "reboot_now": "立即重启"
+  },
   "state": {
     "loading": "加载中…",
     "saving": "保存中…",
