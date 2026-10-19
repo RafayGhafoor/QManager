@@ -15,7 +15,7 @@
 # status_period seconds between consecutive changes of the integer ".mono" in
 #               /tmp/qmanager_status.json (resolution 0.25 s; .mono is whole
 #               seconds, so a sub-second write cadence reads as ~1 s). mono is
-#               line 3 of the pretty-printed file and is read with builtins.
+#               found by key (pretty or compact JSON) and read with builtins.
 # mono_age_max  max over samples of (/proc/uptime seconds - .mono).
 # tiers         .network.poller_tier sampled every 10 s (counts of samples).
 # hb_age        now - epoch in /tmp/qmanager_ui_active, every 10 s (-1 if absent).
@@ -60,23 +60,32 @@ read_cs() {
     CS=$((UPI * 100 + ${FRN:-0}))
 }
 
-# read_mono -> sets MONO (integer or empty): line 3 of the pretty-printed JSON
+# Both readers find their key by name, so they work on the pretty-printed file
+# (jq composer) and on the compact one-line file (B5.29 Phase C printf
+# composer). The first "mono": is the top-level one (it is the second key).
+
+# read_mono -> sets MONO (integer or empty)
 read_mono() {
     MONO=""
-    { read -r _a; read -r _b; read -r _c; } 2>/dev/null < "$STATUS" || return 1
-    _c=${_c#*:}
-    _c=${_c%,*}
-    MONO=${_c# }
+    while read -r _l || [ -n "$_l" ]; do
+        case "$_l" in
+            *'"mono":'*)
+                _l=${_l#*\"mono\":}; _l=${_l# }
+                _l=${_l%%,*}; MONO=${_l%%\}*}
+                break
+                ;;
+        esac
+    done 2>/dev/null < "$STATUS"
     case "$MONO" in ''|*[!0-9]*) MONO="" ;; esac
 }
 
 # read_tier -> sets TIER (poller_tier) with builtins only
 read_tier() {
     TIER=""
-    while read -r _l; do
+    while read -r _l || [ -n "$_l" ]; do
         case "$_l" in
-            *'"poller_tier"'*)
-                _l=${_l#*:}; _l=${_l#* \"}; TIER=${_l%%\"*}
+            *'"poller_tier":'*)
+                _l=${_l#*\"poller_tier\":}; _l=${_l# }; _l=${_l#\"}; TIER=${_l%%\"*}
                 break
                 ;;
         esac
