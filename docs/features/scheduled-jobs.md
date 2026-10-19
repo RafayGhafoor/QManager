@@ -10,6 +10,8 @@ QManager's scheduled actions are BusyBox `crond` jobs in the single root crontab
 | Scenario transitions | `qmanager_scenario_schedule <id>` | `scenario_mgr.sh` | none (a multi-block timeline; clock + uptime only) |
 | Auto-update | `qmanager_auto_update` | `system/update.sh` | UCI `quecmanager.update.auto_update_time` |
 
+**Idempotent writes.** Every writer reads `crontab -l`, drops its own lines, then appends its block, so a re-save never duplicates. The `# QManager … — DO NOT EDIT MANUALLY` header carries no marker, so a writer that has one must strip it by its `^# QManager <Job>` prefix as well as the marker. Before 2026-10-19 `settings.sh` (reboot, low power) and `tower/schedule.sh` stripped only the marker and stacked a header per save; `scenario_mgr.sh` already stripped its header, and `update.sh` writes no header. Nothing else writes the crontab: `install.sh`, the update path and config restore do not touch it, and `uninstall.sh` removes every `qmanager` line. As a backstop, `qmanager_scheduled_reboot` claims the minute with an atomic `mkdir $(qm_run_dir)/sched_reboot.<YYYYmmddHHMM>`; a second copy started in the same minute exits.
+
 ## Why a guard is needed
 
 The RM551E has no RTC that keeps real time. The PMIC RTC (`rtc-pm8xxx`) counts from its own reset, so the kernel boots at 1970. Then `sysfixtime` sets the clock to the newest file mtime under `/etc`, which is often minutes or days stale. `time_daemon` (NITZ, after SIM registration) or `sysntpd` step it to real time later, at an unbounded moment. crond starts at ~35 s uptime.

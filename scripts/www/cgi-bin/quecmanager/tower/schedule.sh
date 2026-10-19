@@ -133,8 +133,10 @@ SCHEDULE_SCRIPT="/usr/bin/qmanager_tower_schedule"
 # Read current crontab (suppress "no crontab" message)
 current_cron=$(crontab -l 2>/dev/null || true)
 
-# Remove any existing QManager tower schedule entries
-cleaned_cron=$(printf '%s\n' "$current_cron" | grep -v "$CRON_MARKER")
+# Remove any existing QManager tower schedule entries, header included (it
+# carries no marker, so it would otherwise stack up on every save)
+cleaned_cron=$(printf '%s\n' "$current_cron" | grep -v "$CRON_MARKER" \
+    | grep -v "^# QManager Tower Lock Schedule")
 
 if [ "$ENABLED" = "true" ]; then
     # Parse times into hour/minute
