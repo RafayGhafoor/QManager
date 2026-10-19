@@ -1760,105 +1760,178 @@
       }
     }
   },
-  "antennas": {
-    "statistics": {
-      "page": {
-        "title": "天线统计",
-        "description": "每条接收链的逐天线信号指标。比较主天线、分集天线和 MIMO 天线端口的信号质量。"
-      },
-      "lte_card": {
-        "title": "LTE 信号",
-        "description": "4G LTE 的逐天线指标",
-        "empty_title": "无 LTE 信号",
-        "empty_description": "4G LTE 活动时将显示天线指标。"
-      },
-      "nr_card": {
-        "title": "NR5G 信号",
-        "description": "5G NR 的逐天线指标",
-        "empty_title": "无 NR5G 信号",
-        "empty_description": "5G NR 活动时将显示天线指标。"
-      },
-      "signal_strength_aria": "{{metric}} 信号强度"
+  "antenna_statistics": {
+    "page": {
+      "title": "天线统计",
+      "description": "各接收链路的天线信号。对比 Main、Diversity 与 MIMO 端口，找出信号弱或未工作的天线。"
     },
-    "ports": {
-      "main_name": "主天线",
-      "main_description": "主发射/接收天线 (ANT0)",
-      "diversity_name": "分集天线",
-      "diversity_description": "分集/接收天线 (ANT1)",
-      "mimo3_name": "MIMO 3",
-      "mimo3_description": "MIMO 空间流 1 (ANT2)",
-      "mimo4_name": "MIMO 4",
-      "mimo4_description": "MIMO 空间流 2 (ANT3)"
+    "context": {
+      "mimo": {
+        "label": "活动 MIMO",
+        "caption": "调制解调器上报的层数",
+        "unavailable": "未上报"
+      },
+      "mode": {
+        "label": "服务模式",
+        "caption": "当前上报的射频",
+        "lte": "4G LTE",
+        "nr": "5G NR",
+        "endc": "5G NSA (EN-DC)",
+        "none": "无服务"
+      },
+      "chains": {
+        "label": "上报中的链路",
+        "caption": "有读数的天线端口",
+        "value": "{{total}} 个中有 {{live}} 个"
+      }
+    },
+    "card": {
+      "lte": {
+        "title": "LTE 信号",
+        "description": "4G LTE 的各天线指标",
+        "identity": "LTE"
+      },
+      "nr": {
+        "title": "NR5G 信号",
+        "description": "5G NR 的各天线指标",
+        "identity": "5G NR"
+      }
+    },
+    "empty": {
+      "lte": {
+        "title": "无 LTE 信号",
+        "description": "4G LTE 激活后即会显示各天线指标。"
+      },
+      "nr": {
+        "title": "无 5G NR 信号",
+        "description": "5G NR 激活后即会显示各天线指标。"
+      }
+    },
+    "port": {
+      "not_reporting": "无数据",
+      "not_reported": "未上报"
     },
     "quality": {
-      "excellent": "优秀",
+      "excellent": "极佳",
       "good": "良好",
       "fair": "一般",
       "poor": "较差",
-      "none": "无"
+      "bad": "极弱",
+      "none": "无读数"
     },
-    "alignment": {
-      "page": {
-        "title": "天线对准",
-        "description": "每条接收链的逐天线信号强度。记录并比较位置，找到最佳瞄准方向或摆放位置。"
+    "states": {
+      "loading_sr": "正在加载天线统计",
+      "retry": "重试",
+      "error_banner": "无法连接调制解调器。以下读数可能已过期。",
+      "stale_banner": "信号数据已过期。调制解调器可能无响应。",
+      "unreachable": {
+        "title": "无法连接调制解调器",
+        "description": "无法加载天线读数。请检查轮询服务是否在运行，然后重试。"
+      }
+    }
+  },
+  "antenna_alignment": {
+    "page": {
+      "title": "天线对准",
+      "description": "一边观察实时评分一边调整天线朝向或位置，然后记录最多三个位置进行对比。"
+    },
+    "mode": {
+      "lte": "4G LTE",
+      "nr": "5G NR",
+      "lte_short": "LTE",
+      "nr_short": "NR"
+    },
+    "aim": {
+      "title": "实时对准",
+      "description": "主接收链路，评分标准与已记录的位置相同。",
+      "score_label": "对准评分",
+      "score_sr": "对准评分 {{score}}，满分 100",
+      "no_reading": "无对准评分 — 主链路无数据",
+      "peak": "峰值",
+      "updated": "更新于",
+      "delta_up": "较上次读数有提升",
+      "delta_down": "较上次读数有下降",
+      "partial": "仅 {{leg}}",
+      "not_reported": "未上报",
+      "primary_chain": "Main / PRX 是评分所依据的链路"
+    },
+    "quality": {
+      "excellent": "极佳",
+      "good": "良好",
+      "fair": "一般",
+      "poor": "较差",
+      "bad": "极弱",
+      "none": "无读数"
+    },
+    "recorder": {
+      "title": "位置记录",
+      "description_directional": "记录最多三个角度并进行对比。每次记录会对调制解调器的 {{samples}} 次读数取平均，需要几秒钟。",
+      "description_omni": "记录最多三个摆放位置并进行对比。每次记录会对调制解调器的 {{samples}} 次读数取平均，需要几秒钟。",
+      "type_directional": "定向",
+      "type_omni": "全向",
+      "reset": "重置",
+      "position": "位置 {{letter}}",
+      "placeholder_angle": "角度",
+      "placeholder_position": "位置",
+      "record_angle": "记录角度",
+      "record_position": "记录位置",
+      "not_recorded": "未记录",
+      "recorded_at": "记录于 {{time}}",
+      "sample_progress": "第 {{current}} 次读数，共 {{total}} 次",
+      "waiting": "正在等待调制解调器",
+      "cancel": "取消",
+      "clear": "清除 {{label}}",
+      "label_sr": "第 {{index}} 个槽位的标签",
+      "slot_sr": "槽位 {{index}}：{{label}} — {{status}}",
+      "status": {
+        "recording": "正在记录",
+        "recorded": "已记录",
+        "recorded_best": "已记录，结果最佳",
+        "empty": "空"
       },
-      "stale_warning": "信号数据已过期——调制解调器可能无响应。",
-      "error_warning": "无法连接到调制解调器，显示的数据可能已过时。",
-      "empty_title": "无天线数据",
-      "empty_description": "当调制解调器轮询器运行并报告逐天线信号数据时，天线指标将显示。",
-      "card": {
-        "active": "活动",
-        "inactive": "非活动",
-        "lte_heading": "4G / LTE",
-        "lte_heading_anchor": "4G / LTE（锚点）",
-        "nr_heading": "5G / NR",
-        "nr_heading_secondary": "5G / NR（辅助）"
+      "best": "最佳",
+      "best_margin": "最佳，领先 {{margin}}",
+      "not_comparable": "没有可排序的读数，因此无法比较该位置。",
+      "partial": "仅按单项指标评分。",
+      "confirm_cancel": "保留",
+      "reset_confirm_title": "清除所有已记录的位置？",
+      "reset_confirm_body": "你记录的所有位置都将被删除。此操作无法撤销。",
+      "reset_confirm_action": "全部清除",
+      "clear_confirm_title": "清除这条记录？",
+      "clear_confirm_body": "为 {{label}} 记录的读数将被删除。此操作无法撤销。",
+      "clear_confirm_action": "清除",
+      "all_recorded_hint": "三个位置均已记录。清除其中一个即可重新记录。",
+      "recording_hint": "请先完成或取消正在进行的记录。",
+      "record_slot": "记录 {{label}}",
+      "cancel_slot": "取消记录 {{label}}"
+    },
+    "recommendation": {
+      "title": "目前最佳：{{label}}",
+      "body_directional": "在你已记录的位置中，该角度的综合信号最强。",
+      "body_omni": "在你已记录的位置中，该摆放位置的综合信号最强。",
+      "mixed_radios": "你的记录跨越了两种射频，因此对比结果不如平时精确。",
+      "remaining": "记录剩余槽位可获得更完整的对比。"
+    },
+    "ports": {
+      "title": "接收链路",
+      "description": "哪些天线参与了评分。",
+      "reporting": "{{total}} 个中有 {{live}} 个在上报",
+      "not_reporting": "无数据",
+      "twin_hint": "如需查看每条链路的各项指标详情，请前往",
+      "twin_link": "天线统计"
+    },
+    "states": {
+      "loading_sr": "正在加载天线对准",
+      "retry": "重试",
+      "error_banner": "无法连接调制解调器。以下读数可能已过期。",
+      "stale_banner": "信号数据已过期。调制解调器可能无响应。",
+      "unreachable": {
+        "title": "无法连接调制解调器",
+        "description": "无法加载天线读数。请检查轮询服务是否在运行，然后重试。"
       },
-      "meter": {
-        "title": "对准仪",
-        "description_directional": "记录 3 个角度以找到最佳瞄准方向。每次记录平均 {{samples}} 个采样。",
-        "description_omni": "记录 3 个位置以找到最佳摆放位置。每次记录平均 {{samples}} 个采样。",
-        "toggle_directional": "定向",
-        "toggle_omni": "全向",
-        "reset": "重置",
-        "live_signal_heading": "实时信号（主天线）",
-        "lte_rsrp": "LTE RSRP",
-        "lte_sinr": "LTE SINR",
-        "nr_rsrp": "NR RSRP",
-        "nr_sinr": "NR SINR",
-        "slot_aria": "槽位 {{n}}：{{label}} — {{status}}",
-        "slot_status_recording": "记录中",
-        "slot_status_recorded": "已记录",
-        "slot_status_recorded_best": "已记录，最佳结果",
-        "slot_status_empty": "空",
-        "angle_placeholder": "角度…",
-        "location_placeholder": "位置…",
-        "best_badge": "最佳",
-        "sample_progress": "采样 {{current}} / {{total}}",
-        "cancel": "取消",
-        "recorded_at": "记录于 {{time}}",
-        "not_recorded": "未记录",
-        "record_angle": "记录角度",
-        "record_position": "记录位置",
-        "recommended_prefix": "推荐：",
-        "recommendation_directional": "此角度在您所记录的位置中产生了最强的综合信号。",
-        "recommendation_omni": "此位置在您所记录的位置中产生了最强的综合信号。",
-        "recommendation_remaining_one": " 记录剩余的 {{count}} 个槽位以获得更完整的比较。",
-        "recommendation_remaining_other": " 记录剩余的 {{count}} 个槽位以获得更完整的比较。",
-        "lte_label": "LTE",
-        "nr_label": "NR",
-        "rsrp_label": "RSRP",
-        "sinr_label": "SINR",
-        "default_positions": {
-          "a": "位置 A",
-          "b": "位置 B",
-          "c": "位置 C"
-        },
-        "radio_mode": {
-          "lte": "4G LTE",
-          "nr": "5G SA",
-          "endc": "5G NSA (EN-DC)"
-        }
+      "no_readings": {
+        "title": "无天线读数",
+        "description": "调制解调器有响应，但没有任何接收链路上报测量值。可能正在搜索网络，也可能有天线未连接 — 一旦某条链路开始上报，读数会自动恢复。"
       }
     }
   },
@@ -2055,126 +2128,236 @@
     "imei": {
       "page": {
         "title": "IMEI 设置",
-        "description": "查看、修改或备份设备 IMEI。"
+        "description": "查看、写入并验证调制解调器向网络出示的标识符。",
+        "error_title": "无法读取 IMEI 设置",
+        "error_body": "调制解调器没有响应：{{detail}}"
       },
-      "settings_card": {
-        "title": "IMEI 设置",
-        "description": "更改设备的 IMEI 标识符。更改后需要重启。修改前请检查当地法规。",
-        "field_label": "设置设备 IMEI",
-        "field_placeholder": "输入设备 IMEI",
-        "field_description": "更改 IMEI 需要重启设备才能生效。",
-        "length_error_one": "IMEI 必须正好为 15 位数字（{{count}}/15）",
-        "length_error_other": "IMEI 必须正好为 15 位数字（{{count}}/15）",
-        "warning_aria": "IMEI 法律警告",
-        "warning_content": "IMEI 修改法规因国家/地区而异。更改 IMEI 前请检查当地法律。",
-        "write_button": "写入 IMEI",
-        "reboot_dialog": {
-          "title": "需要重启",
-          "description": "IMEI 更改需要重启设备才能生效。是否立即重启?",
-          "cancel": "稍后重启",
-          "reboot": "立即重启",
-          "rebooting": "正在重启…"
+      "legal": {
+        "title": "多数国家对修改 IMEI 有法律限制",
+        "body": "在许多司法辖区，写入不属于自己的标识符属于违法行为。修改本页任何内容之前，请先了解当地法律。"
+      },
+      "reboot": {
+        "banner": {
+          "title": "需要重启才能应用新的 IMEI",
+          "description": "标识符已写入。在重启之前，调制解调器仍会出示原来的 IMEI。",
+          "review": "查看",
+          "reboot": "重启"
         },
-        "toast": {
-          "no_changes": "没有需要保存的更改",
-          "success": "IMEI 已保存 — 需要重启才能应用",
-          "error": "保存 IMEI 失败",
-          "rebooting": "设备正在重启…",
-          "reboot_error": "重启失败 — 请手动重启设备"
+        "dialog": {
+          "title": "重启以应用新的 IMEI",
+          "description": "IMEI 已保存，但在重启之前调制解调器仍会出示原来的 IMEI。重启会中断连接约一分钟。",
+          "now": "立即重启",
+          "later": "稍后重启"
+        },
+        "toast_failed": "无法启动重启。重启仍处于待处理状态，可以从横幅中重试。"
+      },
+      "device": {
+        "title": "设备 IMEI",
+        "description": "调制解调器当前上报的值，以及下次启动后将上报的值。",
+        "rows": {
+          "current": {
+            "label": "当前",
+            "consequence": "直接从调制解调器读取，而非来自本地存储。",
+            "unavailable": "尚未上报"
+          },
+          "write": {
+            "label": "写入新 IMEI",
+            "consequence": "15 位数字。仅在重启后生效。",
+            "placeholder": "15 位数字"
+          }
+        },
+        "errors": {
+          "length": "IMEI 必须正好是 15 位数字，您已输入 {{entered}} 位。",
+          "luhn": "这 15 位数字未通过校验位检验，网络会拒绝该号码。请修改最后一位，或在“IMEI 工具”中生成一个有效号码。"
+        },
+        "status": {
+          "empty": "没有可写入的内容，输入框为空。",
+          "unchanged": "这已经是调制解调器上的 IMEI。",
+          "ready": "可以写入。在重启之前，调制解调器仍保持当前身份。"
+        },
+        "actions": {
+          "write": "写入 IMEI",
+          "reset": "恢复为调制解调器上的 IMEI",
+          "copy": "复制当前 IMEI"
+        },
+        "toasts": {
+          "saved": "IMEI 已写入，将在下次重启后生效。",
+          "failed": "调制解调器未接受该 IMEI。",
+          "copied": "IMEI 已复制。",
+          "copy_failed": "无法复制 IMEI。"
         }
       },
-      "backup_card": {
-        "title": "备份设备 IMEI",
-        "description_loading": "自动为您的设备设置备份 IMEI,以确保在主 IMEI 出现问题时保持连接。",
-        "description": "如果网络在重启后拒绝当前 IMEI,设备可以自动切换到备份 IMEI 并重启。",
-        "enable_label": "启用备份 IMEI",
-        "enable_tooltip_aria": "更多信息",
-        "enable_tooltip_content": "当主 IMEI 被网络拒绝时,切换到备份 IMEI。",
-        "field_label": "设置备份 IMEI",
-        "field_placeholder": "输入备份 IMEI",
-        "field_description": "切换到备份 IMEI 需要重启设备才能生效。",
-        "warning_aria": "IMEI 法律警告",
-        "warning_content": "IMEI 修改法规因国家/地区而异。更改 IMEI 前请检查当地法律。",
-        "enable_dialog": {
-          "title": "备份 IMEI 自动恢复",
-          "description": "启用备份 IMEI 后,设备将在每次 IMEI 更改后的重启中自动检查 IMEI 拒绝情况。如果网络拒绝主 IMEI,设备将切换到备份 IMEI 并自动重启。",
-          "confirm": "启用备份"
+      "backup": {
+        "title": "备用 IMEI",
+        "description": "第二个标识符；当固件事件导致主 IMEI 失效时，设备会自动恢复使用它。",
+        "rows": {
+          "keep": {
+            "label": "保留备用 IMEI",
+            "consequence_off": "已关闭。未保存任何备用标识符。",
+            "consequence_on": "已开启。若主 IMEI 被拒绝，设备将恢复使用 {{imei}}。"
+          },
+          "value": {
+            "label": "备用标识符",
+            "consequence": "15 位数字。仅在主 IMEI 被拒绝时使用。",
+            "placeholder": "15 位数字"
+          }
         },
-        "toast": {
-          "success": "备份 IMEI 配置已保存",
-          "invalid": "备份 IMEI 必须正好为 15 位数字",
-          "error": "保存备份配置失败",
-          "no_changes": "没有需要保存的更改"
+        "errors": {
+          "length": "IMEI 必须正好是 15 位数字，您已输入 {{entered}} 位。",
+          "luhn": "这 15 位数字未通过校验位检验，网络同样会拒绝该备用号码。请修改最后一位，或在“IMEI 工具”中生成一个有效号码。"
+        },
+        "actions": {
+          "save": "保存备用设置",
+          "reset": "恢复为已保存的备用设置"
+        },
+        "toasts": {
+          "saved": "备用设置已保存。",
+          "failed": "无法保存备用设置。"
+        },
+        "dialog": {
+          "title": "关于备用恢复",
+          "description": "保存备用 IMEI 后，设备会在每次重启后检查网络是否拒绝了当前 IMEI。若被拒绝，设备会自动切换到备用标识符并再次重启。",
+          "confirm": "保留备用 IMEI"
         }
       },
-      "tools_card": {
+      "tools": {
         "title": "IMEI 工具",
-        "description": "使用 Luhn 算法生成和验证 IMEI 号码。仅供教育用途。",
-        "preset_label": "设备预设",
-        "preset_description": "选择设备 TAC 或输入自定义 8–12 位前缀。",
-        "preset_placeholder": "选择设备",
-        "preset_custom": "自定义前缀",
-        "custom_prefix_label": "自定义前缀",
-        "custom_prefix_placeholder": "输入 8–12 位前缀",
-        "custom_prefix_error_one": "前缀必须为 8–12 位数字（已输入 {{count}} 位）",
-        "custom_prefix_error_other": "前缀必须为 8–12 位数字（已输入 {{count}} 位）",
-        "custom_prefix_description": "其余数字和校验位会自动生成。",
-        "imei_label": "IMEI",
-        "imei_placeholder": "生成或输入 15 位 IMEI",
-        "imei_description": "在 15 位时自动进行 Luhn 校验。也可以输入或粘贴任何 IMEI 进行验证。",
-        "copy_aria": "复制 IMEI",
-        "copy_tooltip": "复制到剪贴板",
-        "breakdown_label": "分解",
-        "breakdown_validity": "有效性",
-        "breakdown_tac": "TAC (1–8)",
-        "breakdown_snr": "SNR (9–14)",
-        "breakdown_check": "校验 (15)",
-        "breakdown_valid": "有效 IMEI",
-        "breakdown_invalid": "无效 IMEI",
-        "generate_button": "生成 IMEI",
-        "check_info_button": "查询 IMEI 信息",
-        "copy_success": "已复制到剪贴板"
+        "description": "根据型号分配码生成符合 Luhn 校验的号码，或检验已有的号码。",
+        "generate": {
+          "tac_label": "型号分配码",
+          "tac_consequence": "前八位数字，用于表明该号码所声称的机型。",
+          "tac_placeholder": "选择机型",
+          "custom": "自定义代码",
+          "prefix_label": "前缀",
+          "prefix_consequence": "8 至 12 位数字。其余部分会自动补全。",
+          "prefix_placeholder": "8–12 位数字",
+          "prefix_error": "前缀应为 8 至 12 位数字，您已输入 {{entered}} 位。",
+          "action": "生成"
+        },
+        "check": {
+          "label": "检验号码",
+          "placeholder": "粘贴或生成 15 位数字",
+          "valid": "Luhn 校验通过",
+          "invalid": "Luhn 校验失败",
+          "empty": "输入 15 位数字即可查看该号码的构成。",
+          "lookup": "在线查询"
+        },
+        "actions": {
+          "copy": "复制该号码"
+        },
+        "toasts": {
+          "copied": "号码已复制。",
+          "copy_failed": "无法复制该号码。"
+        },
+        "breakdown": {
+          "tac": "TAC",
+          "serial": "序列号",
+          "check": "校验位"
+        },
+        "footnote": "结构有效并不代表你有权使用该号码。此处的内容不会写入调制解调器。"
       }
     },
     "network_priority": {
       "page": {
-        "title": "网络优先级设置",
-        "description": "设置网络连接的首选顺序。"
+        "title": "网络优先级",
+        "description": "调制解调器注册网络时尝试各种无线技术的顺序。"
       },
       "card": {
-        "title": "网络优先级",
-        "description": "设置网络连接的优先级顺序。"
+        "title": "搜网顺序",
+        "description": "拖动即可调整顺序。保存后调制解调器会重新注册网络，连接会中断几秒钟。"
       },
-      "drag_aria": "拖动以重新排序",
-      "priority_label": "优先级 {{number}}",
+      "rats": {
+        "NR5G": "5G NR",
+        "LTE": "LTE",
+        "WCDMA": "WCDMA"
+      },
+      "hints": {
+        "WCDMA": "此技术的数据速率会大幅下降。"
+      },
+      "position": {
+        "first": "最先尝试。若此处没有小区响应，会自动回退。",
+        "middle": "当上方技术均无法注册时，接着尝试。",
+        "last": "最后的备用选择。仅当上方技术均无法注册时才使用。",
+        "only": "调制解调器唯一会尝试的技术。"
+      },
+      "serving_now": "当前使用中",
+      "handle_aria": "重新排序 {{name}}，当前第 {{rank}} 项，共 {{total}} 项",
+      "save_bar": {
+        "count_one": "有 {{count}} 项更改待保存",
+        "count_other": "有 {{count}} 项更改待保存",
+        "note": "保存后调制解调器会重新注册网络，预计约 3 秒无数据连接。",
+        "discard": "放弃更改",
+        "save": "保存优先级"
+      },
+      "apply": {
+        "writing": "正在写入新顺序",
+        "recovering": "正在重新注册网络",
+        "verifying": "正在读回顺序"
+      },
+      "states": {
+        "error": {
+          "title": "无法读取优先级顺序",
+          "description": "调制解调器未响应搜网顺序查询。它可能正忙，请稍后重试。"
+        },
+        "empty": {
+          "title": "未报告任何无线技术",
+          "description": "调制解调器返回的搜网顺序为空，因此没有可排序的项目。请重新读取，或确认射频是否已开启。"
+        }
+      },
       "toast": {
-        "success": "网络优先级已更新",
-        "error_fallback": "设置网络优先级失败",
-        "no_changes": "没有需要保存的更改"
+        "saved": "网络优先级已更新",
+        "save_error": "无法设置网络优先级"
       }
     },
     "fplmn": {
       "page": {
-        "title": "FPLMN 设备设置",
-        "description": "检查并清除 SIM 卡上的禁用网络列表。"
+        "title": "被阻止的网络",
+        "description": "SIM 卡会保存曾经拒绝过本设备的网络列表。清除该列表可以恢复连接并改善漫游。",
+        "note": "清除操作写入的是 SIM 卡而非调制解调器，并且不会重启任何设备。如果某个网络再次拒绝本设备，该列表会重新生成。"
       },
       "card": {
-        "title": "禁用网络",
-        "description": "SIM 卡会存储先前拒绝您设备的网络列表。清除此列表可能恢复连接并改善漫游。<link>了解更多</link>。"
+        "title": "禁用网络列表",
+        "description": "每次打开本页面时，QManager 都会直接从 SIM 卡读取该列表。",
+        "learn_more": "了解更多"
       },
       "states": {
-        "error_title": "无法检查",
-        "found_title": "发现禁用网络",
-        "found_description": "您的 SIM 卡屏蔽了一个或多个网络,这可能会阻止连接。建议清除该列表。",
-        "found_clear": "清除禁用网络",
-        "found_clearing": "正在清除…",
-        "none_title": "无禁用网络",
-        "none_description": "您的 SIM 卡没有禁用网络。无需操作。",
-        "none_refresh": "刷新状态"
+        "loading": {
+          "title": "正在检查 SIM 卡",
+          "description": "正在读取卡上存储的禁用网络列表。"
+        },
+        "clean": {
+          "title": "没有被阻止的网络",
+          "description": "SIM 卡的禁用列表为空，无需任何操作。"
+        },
+        "entries": {
+          "title": "发现被阻止的网络",
+          "description": "SIM 卡正在拒绝一个或多个网络，这可能导致调制解调器无法注册。建议清除该列表。"
+        },
+        "error": {
+          "title": "无法检查 SIM 卡"
+        },
+        "unknown": {
+          "title": "状态未知",
+          "description": "QManager 无法确定此 SIM 卡是否存在被阻止的网络。未作任何更改，请重试读取。"
+        }
+      },
+      "actions": {
+        "refresh": "刷新状态",
+        "clear": "清除被阻止的网络",
+        "clearing": "正在清除…"
+      },
+      "confirm": {
+        "title": "要清除被阻止的网络列表吗？",
+        "description": "此操作将擦除存储在 SIM 卡上的禁用网络列表，且无法撤销。设备不会重启，调制解调器保持连接。如果某个网络再次拒绝本设备，该列表会重新生成。",
+        "confirm": "清除列表"
       },
       "toast": {
-        "success": "禁用网络已清除",
-        "error_fallback": "清除禁用网络失败"
+        "cleared": "已清除被阻止的网络",
+        "clear_failed": "无法清除被阻止的网络"
+      },
+      "errors": {
+        "read_failed": "设备无法读取 SIM 卡的禁用网络列表。",
+        "unreachable": "无法连接到设备。"
       }
     }
   }
