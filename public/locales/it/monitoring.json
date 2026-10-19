@@ -453,8 +453,9 @@
     },
     "strip": {
       "title": "Controlli",
-      "noReply": "{{n}} senza risposta",
-      "average": "{{ms}} ms di media",
+      "noReply": "Nessuna risposta",
+      "reply": "{{ms}} ms",
+      "tipAgo": "{{time}} fa",
       "ago": "{{minutes}} min fa",
       "now": "Ora",
       "empty": "Nessun dato di controllo dal modem",

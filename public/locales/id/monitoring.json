@@ -453,8 +453,9 @@
     },
     "strip": {
       "title": "Pemeriksaan",
-      "noReply": "{{n}} tanpa balasan",
-      "average": "rata-rata {{ms}} ms",
+      "noReply": "Tanpa balasan",
+      "reply": "{{ms}} ms",
+      "tipAgo": "{{time}} lalu",
       "ago": "{{minutes}} mnt lalu",
       "now": "Sekarang",
       "empty": "Tidak ada data pemeriksaan dari modem",

@@ -453,8 +453,9 @@
     },
     "strip": {
       "title": "探測",
-      "noReply": "{{n}} 次無回應",
-      "average": "平均 {{ms}} 毫秒",
+      "noReply": "無回應",
+      "reply": "{{ms}} 毫秒",
+      "tipAgo": "{{time}}前",
       "ago": "{{minutes}} 分鐘前",
       "now": "現在",
       "empty": "數據機沒有探測資料",
