@@ -201,5 +201,6 @@
   "smsc_read_failed": "无法从调制解调器读取运营商号码。",
   "invalid_port": "端口必须是 1 到 65535 之间的整数。",
   "ports_equal": "HTTP 和 HTTPS 需要使用不同的端口。",
-  "port_in_use": "该端口已被其他服务占用。"
+  "port_in_use": "该端口已被其他服务占用。",
+  "token_generation_failed": "无法创建安全令牌。请重试。"
 }

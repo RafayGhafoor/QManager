@@ -201,5 +201,6 @@
   "smsc_read_failed": "Couldn't read the provider number from the modem.",
   "invalid_port": "Ports must be whole numbers from 1 to 65535.",
   "ports_equal": "HTTP and HTTPS need different ports.",
-  "port_in_use": "That port is already used by another service."
+  "port_in_use": "That port is already used by another service.",
+  "token_generation_failed": "Couldn't create a secure token. Try again."
 }

@@ -729,5 +729,86 @@
         "range": "Masukkan bilangan bulat dari {{min}} sampai {{max}}."
       }
     }
+  },
+  "prometheus": {
+    "page": {
+      "title": "Prometheus",
+      "description": "Izinkan server Prometheus mengumpulkan data sinyal dan kondisi modem ini."
+    },
+    "card": {
+      "title": "Metrik Prometheus",
+      "description": "Scrape memerlukan token di bawah; pengenal perangkat tidak pernah disertakan."
+    },
+    "endpoint": {
+      "label": "Endpoint metrik",
+      "consequence_off": "Prometheus tidak dapat membaca modem ini.",
+      "consequence_on": "Prometheus dapat membaca data sinyal, operator, dan kondisi dengan token."
+    },
+    "freshness": {
+      "label": "Kesegaran scrape",
+      "hint_label": "Tentang kesegaran scrape",
+      "hint": "Hanya berlaku selama Prometheus melakukan scrape setidaknya sekali per menit. Polling normal dilanjutkan dua menit setelah scrape terakhir.",
+      "options": {
+        "adaptive": "Adaptif",
+        "balanced": "Seimbang",
+        "realtime": "Waktu nyata"
+      },
+      "consequence": {
+        "adaptive": "Scrape tidak mengubah seberapa sering modem dibaca.",
+        "balanced": "Modem tidak pernah turun ke polling paling lambat selama Prometheus melakukan scrape.",
+        "realtime": "Modem dibaca setiap 2 detik selama Prometheus melakukan scrape, seperti dasbor yang sedang dibuka."
+      }
+    },
+    "facts": {
+      "no_scrapes": "Belum ada scrape",
+      "last_scrape_seconds_one": "Scrape terakhir {{count}} dtk lalu",
+      "last_scrape_seconds_other": "Scrape terakhir {{count}} dtk lalu",
+      "last_scrape_minutes_one": "Scrape terakhir {{count}} mnt lalu",
+      "last_scrape_minutes_other": "Scrape terakhir {{count}} mnt lalu",
+      "last_scrape_hours_one": "Scrape terakhir {{count}} j lalu",
+      "last_scrape_hours_other": "Scrape terakhir {{count}} j lalu",
+      "holding": "Polling cepat dipertahankan",
+      "adaptive_off": "Polling adaptif nonaktif, sehingga data selalu langsung"
+    },
+    "token": {
+      "label": "Token Bearer",
+      "consequence": "Tempelkan ke Prometheus sebagai kredensial scrape.",
+      "show": "Tampilkan token",
+      "hide": "Sembunyikan token",
+      "copy": "Salin",
+      "regenerate": "Buat ulang…"
+    },
+    "regenerate_dialog": {
+      "title": "Buat token baru?",
+      "description": "Prometheus tidak dapat melakukan scrape sampai Anda menempelkan token baru ke konfigurasinya.",
+      "cancel": "Batal",
+      "confirm": "Buat token"
+    },
+    "config": {
+      "label": "Konfigurasi scrape",
+      "consequence": "Tambahkan job ini ke konfigurasi Prometheus Anda.",
+      "hint_label": "Tentang konfigurasi scrape",
+      "hint": "Sertifikat modem ditandatangani sendiri, sehingga verifikasi dilewati. Melalui Tailscale, http biasa juga berfungsi.",
+      "copy": "Salin konfigurasi"
+    },
+    "foot": {
+      "save": "Simpan",
+      "discard": "Buang",
+      "token_on_save": "Token dibuat saat Anda menyimpan."
+    },
+    "toast": {
+      "saved": "Pengaturan Prometheus disimpan.",
+      "save_failed": "Tidak dapat menyimpan pengaturan Prometheus.",
+      "regenerated": "Token baru dibuat.",
+      "regenerate_failed": "Tidak dapat membuat token baru.",
+      "token_copied": "Token disalin.",
+      "config_copied": "Konfigurasi scrape disalin.",
+      "copy_failed": "Tidak dapat menyalin ke papan klip."
+    },
+    "error": {
+      "title": "Tidak dapat memuat pengaturan Prometheus",
+      "description": "Modem tidak merespons. Periksa koneksi lalu coba lagi.",
+      "retry": "Coba lagi"
+    }
   }
 }

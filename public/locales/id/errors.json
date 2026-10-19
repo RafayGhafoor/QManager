@@ -201,5 +201,6 @@
   "smsc_read_failed": "Tidak dapat membaca nomor operator dari modem.",
   "invalid_port": "Port harus berupa bilangan bulat dari 1 sampai 65535.",
   "ports_equal": "HTTP dan HTTPS harus memakai port yang berbeda.",
-  "port_in_use": "Port tersebut sudah dipakai layanan lain."
+  "port_in_use": "Port tersebut sudah dipakai layanan lain.",
+  "token_generation_failed": "Tidak dapat membuat token yang aman. Coba lagi."
 }

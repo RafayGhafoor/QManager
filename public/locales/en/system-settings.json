@@ -58,7 +58,8 @@
       "sites": "Latency monitor sites",
       "sms_alerts": "SMS alerts",
       "alert_routing": "Alert routing",
-      "sms_storage": "SMS storage"
+      "sms_storage": "SMS storage",
+      "metrics": "Prometheus metrics"
     },
     "create": {
       "card_title": "Create backup",

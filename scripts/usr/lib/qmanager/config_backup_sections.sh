@@ -25,6 +25,9 @@
 _CFG_BACKUP_SECTIONS_LOADED=1
 
 [ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+# qm_api_token_generate (apply_metrics). Guarded: a missing lib only makes an
+# enable-with-no-token restore fail, never enable without a token.
+[ -f /usr/lib/qmanager/api_auth.sh ] && . /usr/lib/qmanager/api_auth.sh
 
 # --- Logging ---
 if [ -f /usr/lib/qmanager/qlog.sh ]; then
@@ -42,7 +45,7 @@ fi
 # two alert-config sections restore together, ahead of the risky AT/IMEI work.
 # quality_thresholds precedes watchdog because watchcat quality recovery reads
 # them; sites is a plain JSON write with no modem side effects.
-CFG_BACKUP_APPLY_ORDER="sms_alerts alert_routing sms_storage quality_thresholds sites watchdog network_mode_apn bands tower_lock ttl_hl imei profiles"
+CFG_BACKUP_APPLY_ORDER="sms_alerts alert_routing sms_storage quality_thresholds sites metrics watchdog network_mode_apn bands tower_lock ttl_hl imei profiles"
 
 # --- Known section keys (used for validation) ---
 CFG_BACKUP_KNOWN_SECTIONS="$CFG_BACKUP_APPLY_ORDER"
@@ -63,6 +66,7 @@ cfg_backup_collect() {
         sms_storage)      collect_sms_storage ;;
         quality_thresholds) collect_quality_thresholds ;;
         sites)            collect_sites ;;
+        metrics)          collect_metrics ;;
         watchdog)         collect_watchdog ;;
         network_mode_apn) collect_network_mode_apn ;;
         bands)            collect_bands ;;
@@ -83,6 +87,7 @@ cfg_backup_apply() {
         sms_storage)      apply_sms_storage ;;
         quality_thresholds) apply_quality_thresholds ;;
         sites)            apply_sites ;;
+        metrics)          apply_metrics ;;
         watchdog)         apply_watchdog ;;
         network_mode_apn) apply_network_mode_apn ;;
         bands)            apply_bands ;;
@@ -406,6 +411,86 @@ EOF
     fi
     rm -f "$tmp"
     return 1
+}
+
+# =============================================================================
+# Prometheus metrics — UCI quecmanager.metrics.{enabled,freshness}
+# =============================================================================
+# Mirrors monitoring/prometheus.sh. The bearer token is DELIBERATELY not part of
+# the backup (a shared .qmbackup must not be able to scrape anyone's modem):
+# collect emits only enabled + freshness, and apply generates a fresh token when
+# the section is enabled and the device has none. Invalid / missing stored values
+# read as the defaults (disabled, adaptive).
+_metrics_token_valid() {
+    case "$1" in
+        ''|*[!0-9a-f]*) return 1 ;;
+    esac
+    [ "${#1}" -eq 64 ]
+}
+
+collect_metrics() {
+    local en
+    local fr
+    en=$(uci -q get quecmanager.metrics.enabled 2>/dev/null)
+    fr=$(uci -q get quecmanager.metrics.freshness 2>/dev/null)
+    [ "$en" = "1" ] || en=0
+    case "$fr" in
+        adaptive|balanced|realtime) ;;
+        *) fr="adaptive" ;;
+    esac
+    jq -n -c --argjson en "$en" --arg fr "$fr" \
+        '{enabled: ($en == 1), freshness: $fr}'
+}
+
+apply_metrics() {
+    local input
+    local en
+    local fr
+    local tok
+    local scrape
+    local smode
+    local sup
+    input=$(cat)
+    en=$(printf '%s' "$input" | jq -r 'if .enabled == null then empty else (.enabled | tostring) end' 2>/dev/null)
+    fr=$(printf '%s' "$input" | jq -r 'if .freshness == null then empty else (.freshness | tostring) end' 2>/dev/null)
+    case "$en" in
+        true) en=1 ;;
+        false) en=0 ;;
+        *) qlog_error "apply_metrics: invalid enabled"; return 1 ;;
+    esac
+    case "$fr" in
+        adaptive|balanced|realtime) ;;
+        *) qlog_error "apply_metrics: invalid freshness"; return 1 ;;
+    esac
+
+    tok=$(uci -q get quecmanager.metrics.token 2>/dev/null)
+    # Token first (shared helper: uci batch on stdin, committed), so the
+    # endpoint never sees enabled=1 without a valid token.
+    if [ "$en" = "1" ] && ! _metrics_token_valid "$tok"; then
+        tok=""
+        if ! command -v qm_api_token_generate >/dev/null 2>&1 \
+           || ! qm_api_token_generate metrics; then
+            qlog_error "apply_metrics: token generation failed"
+            return 1
+        fi
+    fi
+    tok=""
+    printf 'set quecmanager.metrics=metrics\nset quecmanager.metrics.enabled=%s\nset quecmanager.metrics.freshness=%s\n' \
+        "$en" "$fr" | uci batch || return 1
+    uci commit quecmanager || return 1
+
+    # Keep the poller's scrape lease consistent with the new mode.
+    scrape="/var/run/qmanager/metrics_scrape"
+    if [ "$en" = "0" ]; then
+        rm -f "$scrape"
+    elif [ -f "$scrape" ]; then
+        { read -r smode sup < "$scrape"; } 2>/dev/null
+        case "$sup" in
+            ''|*[!0-9]*) rm -f "$scrape" ;;
+            *) printf '%s %s\n' "$fr" "$sup" | qm_atomic_write "$scrape" ;;
+        esac
+    fi
+    return 0
 }
 
 # =============================================================================

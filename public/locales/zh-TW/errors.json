@@ -201,5 +201,6 @@
   "smsc_read_failed": "無法從數據機讀取運營商號碼。",
   "invalid_port": "連接埠必須是 1 到 65535 之間的整數。",
   "ports_equal": "HTTP 與 HTTPS 需要使用不同的連接埠。",
-  "port_in_use": "該連接埠已被其他服務佔用。"
+  "port_in_use": "該連接埠已被其他服務佔用。",
+  "token_generation_failed": "無法建立安全權杖。請重試。"
 }

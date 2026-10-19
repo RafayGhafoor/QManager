@@ -201,5 +201,6 @@
   "smsc_read_failed": "Impossibile leggere il numero del gestore dal modem.",
   "invalid_port": "Le porte devono essere numeri interi da 1 a 65535.",
   "ports_equal": "HTTP e HTTPS richiedono porte diverse.",
-  "port_in_use": "Questa porta è già usata da un altro servizio."
+  "port_in_use": "Questa porta è già usata da un altro servizio.",
+  "token_generation_failed": "Impossibile creare un token sicuro. Riprova."
 }

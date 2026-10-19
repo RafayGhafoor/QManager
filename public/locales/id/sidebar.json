@@ -52,7 +52,8 @@
     "about_device": "Tentang Perangkat",
     "support": "Dukungan",
     "donate": "Donasi untuk Proyek",
-    "languages": "Bahasa"
+    "languages": "Bahasa",
+    "prometheus": "Prometheus"
   },
   "switcher": {
     "opens_new_tab": "Membuka di tab baru"

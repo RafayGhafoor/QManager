@@ -192,6 +192,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       },
       { t_key: "tailscale", url: "/monitoring/tailscale", icon: "vpn_lock" },
       { t_key: "netbird", url: "/monitoring/netbird", icon: "hub" },
+      {
+        t_key: "prometheus",
+        url: "/monitoring/prometheus",
+        icon: "stacked_line_chart",
+      },
     ],
     [watchdog, t],
   );

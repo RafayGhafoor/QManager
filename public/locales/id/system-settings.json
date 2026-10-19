@@ -58,7 +58,8 @@
       "sites": "Situs monitor latensi",
       "sms_alerts": "Peringatan SMS",
       "alert_routing": "Perutean peringatan",
-      "sms_storage": "Penyimpanan SMS"
+      "sms_storage": "Penyimpanan SMS",
+      "metrics": "Metrik Prometheus"
     },
     "create": {
       "card_title": "Buat cadangan",

@@ -729,5 +729,86 @@
         "range": "請輸入 {{min}} 到 {{max}} 之間的整數。"
       }
     }
+  },
+  "prometheus": {
+    "page": {
+      "title": "Prometheus",
+      "description": "讓 Prometheus 伺服器採集此數據機的訊號與運作狀態資料。"
+    },
+    "card": {
+      "title": "Prometheus 指標",
+      "description": "抓取需要下方的權杖；裝置識別碼絕不會包含在內。"
+    },
+    "endpoint": {
+      "label": "指標端點",
+      "consequence_off": "Prometheus 無法讀取此數據機。",
+      "consequence_on": "Prometheus 憑權杖可讀取訊號、運營商和運作狀態資料。"
+    },
+    "freshness": {
+      "label": "抓取時效",
+      "hint_label": "關於抓取時效",
+      "hint": "僅在 Prometheus 至少每分鐘抓取一次時生效。最後一次抓取兩分鐘後恢復正常輪詢。",
+      "options": {
+        "adaptive": "自適應",
+        "balanced": "均衡",
+        "realtime": "即時"
+      },
+      "consequence": {
+        "adaptive": "抓取不會改變數據機的讀取頻率。",
+        "balanced": "Prometheus 抓取期間，數據機不會降到最慢的輪詢頻率。",
+        "realtime": "Prometheus 抓取期間，每 2 秒讀取一次數據機，與開啟儀表板時相同。"
+      }
+    },
+    "facts": {
+      "no_scrapes": "尚無抓取記錄",
+      "last_scrape_seconds_one": "上次抓取在 {{count}} 秒前",
+      "last_scrape_seconds_other": "上次抓取在 {{count}} 秒前",
+      "last_scrape_minutes_one": "上次抓取在 {{count}} 分鐘前",
+      "last_scrape_minutes_other": "上次抓取在 {{count}} 分鐘前",
+      "last_scrape_hours_one": "上次抓取在 {{count}} 小時前",
+      "last_scrape_hours_other": "上次抓取在 {{count}} 小時前",
+      "holding": "保持較快輪詢",
+      "adaptive_off": "自適應輪詢已關閉，因此資料始終是即時的"
+    },
+    "token": {
+      "label": "Bearer 權杖",
+      "consequence": "將其貼上到 Prometheus 中作為抓取認證資訊。",
+      "show": "顯示權杖",
+      "hide": "隱藏權杖",
+      "copy": "複製",
+      "regenerate": "重新產生…"
+    },
+    "regenerate_dialog": {
+      "title": "產生新權杖？",
+      "description": "在您把新權杖貼上到 Prometheus 配置之前，它無法抓取。",
+      "cancel": "取消",
+      "confirm": "產生權杖"
+    },
+    "config": {
+      "label": "抓取配置",
+      "consequence": "將此 job 新增到您的 Prometheus 配置中。",
+      "hint_label": "關於抓取配置",
+      "hint": "數據機的憑證為自行簽署，因此跳過驗證。透過 Tailscale 時，也可以使用普通 http。",
+      "copy": "複製配置"
+    },
+    "foot": {
+      "save": "儲存",
+      "discard": "放棄",
+      "token_on_save": "儲存時會建立權杖。"
+    },
+    "toast": {
+      "saved": "Prometheus 設定已儲存。",
+      "save_failed": "無法儲存 Prometheus 設定。",
+      "regenerated": "已產生新權杖。",
+      "regenerate_failed": "無法產生新權杖。",
+      "token_copied": "權杖已複製。",
+      "config_copied": "抓取配置已複製。",
+      "copy_failed": "無法複製到剪貼簿。"
+    },
+    "error": {
+      "title": "無法載入 Prometheus 設定",
+      "description": "數據機沒有回應。請檢查連線後重試。",
+      "retry": "重試"
+    }
   }
 }
