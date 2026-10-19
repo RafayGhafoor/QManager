@@ -20,20 +20,20 @@ import { Button } from "@/components/ui/button";
 import type { TailscaleActionResult } from "@/hooks/use-tailscale";
 import { rebootNow } from "@/lib/reboot";
 
-import { DANGER } from "./shapes";
-
 // -----------------------------------------------------------------------------
-// Remove Tailscale — a low-emphasis row. Destructive is the button, not the row.
+// Uninstall: the destructive action at the end of the Connection card's rail.
 // -----------------------------------------------------------------------------
 
-export function DangerRow({
+export function UninstallButton({
   isUninstalling,
   uninstall,
   onUninstalled,
+  className,
 }: {
   isUninstalling: boolean;
   uninstall: () => Promise<TailscaleActionResult>;
   onUninstalled: () => void;
+  className?: string;
 }) {
   const { t } = useTranslation("common");
 
@@ -48,54 +48,47 @@ export function DangerRow({
   };
 
   return (
-    <div className={DANGER.ROOT}>
-      <div className={DANGER.TEXT}>
-        <p className={DANGER.TITLE}>{t("tailscale.danger.title")}</p>
-        <p className={DANGER.DESC}>{t("tailscale.danger.description")}</p>
-      </div>
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button
-            type="button"
-            variant="destructive"
-            disabled={isUninstalling}
-            size="action"
-          >
-            {isUninstalling ? (
-              <Loader2Icon className="size-4 motion-safe:animate-spin" />
-            ) : (
-              <Trash2Icon className="size-4" />
-            )}
-            {isUninstalling
-              ? t("tailscale.danger.removing")
-              : t("tailscale.danger.uninstall")}
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("tailscale.danger.dialogTitle")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("tailscale.danger.dialogDescription")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("tailscale.actions.cancel")}</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={handleUninstall}>
-              {t("tailscale.danger.uninstall")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          type="button"
+          variant="destructive"
+          disabled={isUninstalling}
+          size="action"
+          className={className}
+        >
+          {isUninstalling ? (
+            <Loader2Icon className="size-4 motion-safe:animate-spin" />
+          ) : (
+            <Trash2Icon className="size-4" />
+          )}
+          {isUninstalling
+            ? t("tailscale.danger.removing")
+            : t("tailscale.danger.uninstall")}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t("tailscale.danger.dialogTitle")}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {t("tailscale.danger.dialogDescription")}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t("tailscale.actions.cancel")}</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={handleUninstall}>
+            {t("tailscale.danger.uninstall")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
 /**
- * The post-uninstall reboot handoff. Owned by the page shell, not by the row —
+ * The post-uninstall reboot handoff. Owned by the page shell, not by the card —
  * a successful uninstall flips the surface to its not-installed shape, which
- * would unmount the row and take the dialog with it.
+ * would unmount the Connection card and take the dialog with it.
  */
 export function RebootDialog({
   open,

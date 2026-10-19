@@ -54,7 +54,7 @@ Three views land on `muted`, which is why each carries its own glyph. `STATUS_VA
 - **Other VPN installed** (`other_vpn_installed`): the header and one `Banner` (`degraded`) naming the other VPN with a link to its page. No band, no cards; only one VPN can exist at a time.
 - **`notInstalled`**: the install hero alone. No band, no peers card, no danger row.
 - **No status at all** (`!status && !isLoading`): a destructive `ConditionBlock` with Retry. The peers card is a separate read and mounts with its own condition.
-- **Everything else**: header, four-tile status band, the Connection / This device pair, the full-width peers table, the danger row.
+- **Everything else**: header, four-tile status band, the Connection / This device pair, the full-width peers table.
 
 A failed poll on top of good data is a non-blocking notice above the content, never a replacement for it.
 
@@ -66,12 +66,12 @@ A failed poll on top of good data is a non-blocking notice above the content, ne
 | --- | --- |
 | `tailscale.tsx` | Page shell, `deriveView`, the four band tiles, the reboot dialog owner |
 | `status-band.tsx` | Four pinned-height tiles, the verdict chip (`SwapLabel` morph) |
-| `connection-card.tsx` | Rail of actions per view, Start on boot, Advertise as exit node and Tailscale SSH rows (On / Off `SegmentedField`), health notice, auth `ConditionBlock` with the one ambient loop |
+| `connection-card.tsx` | Rail of actions per view (see below), Start on boot, Advertise as exit node and Tailscale SSH rows (On / Off `SegmentedField`), health notice, auth `ConditionBlock` with the one ambient loop |
 | `device-card.tsx` | Tailnet identity as pill rows; every value is mono (identifiers the device emitted) |
 | `peers-card.tsx` | The peer table; the only hairline surface |
 | `install-card.tsx` | The not-installed hero: build choice (`SegmentedField`, Official / Tiny), install and Check again, transcript, manual command |
 | `install-log-viewer.tsx` | Install transcript: the last 50 lines `install_status` sends as `log` (B5.7) |
-| `danger-card.tsx` | Low-emphasis uninstall row, plus `RebootDialog` |
+| `danger-card.tsx` | `UninstallButton` (confirm dialog, trailing end of the Connection rail), plus `RebootDialog` |
 | `condition-block.tsx` | The family's state block; the block IS the state |
 
 ### Target-only behaviour
@@ -86,9 +86,22 @@ Every hook mutation returns `TailscaleActionResult { ok, reason }`. `reason` is 
 
 Install is asynchronous: the POST starts a background job and `install_status` is polled every 2 s. The install card fires one toast with the deterministic id `tailscale-install` when a run it watched goes `running` to `complete` or `error`; a result that was already terminal on mount never toasts. A refused start (`other_vpn_installed`, `already_running`) lands as an error notice with no job to poll.
 
+### The action rail
+
+At most one destructive button shows per state, and each is a step further from the live link than the last:
+
+| View | Rail |
+| --- | --- |
+| `serviceStopped` | Start service |
+| `needsLogin` | Connect (hidden while an auth URL is pending), Stop service, **Uninstall** (trailing edge) |
+| `running` | Disconnect only |
+| `disconnected` | Connect, **Log out** |
+
+Log out appears only after Disconnect, and Uninstall only once the node is logged out (`NeedsLogin`), so neither sits one click from a working tunnel.
+
 ### Uninstall and the reboot hand-off
 
-A successful uninstall flips the view to `notInstalled`, which would unmount the danger row and its dialog. `RebootDialog` is therefore owned by the page shell. "Reboot now" calls `rebootNow("tailscale")` from `@/lib/reboot` (fire-and-forget POST, then the `/reboot/` countdown); "Reboot later" just closes it.
+A successful uninstall flips the view to `notInstalled`, which would unmount the Connection card and its dialog. `RebootDialog` is therefore owned by the page shell. "Reboot now" calls `rebootNow("tailscale")` from `@/lib/reboot` (fire-and-forget POST, then the `/reboot/` countdown); "Reboot later" just closes it.
 
 ---
 

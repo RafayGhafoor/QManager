@@ -558,8 +558,6 @@
       }
     },
     "danger": {
-      "title": "移除 Tailscale",
-      "description": "從此數據機解除安裝 Tailscale 套件及其防火牆規則。",
       "uninstall": "解除安裝",
       "removing": "移除中…",
       "dialogTitle": "解除安裝 Tailscale？",
