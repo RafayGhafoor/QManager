@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { authFetch } from "@/lib/auth-fetch";
+import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
+import type { MutationResult } from "@/types/mutation-result";
 
 // =============================================================================
 // useMtuSettings — One-Shot MTU Fetch & Save Hook
@@ -31,15 +34,19 @@ export interface UseMtuSettingsReturn {
   isSaving: boolean;
   /** Error message if fetch or save failed */
   error: string | null;
-  /** Apply a new MTU value. Returns true on success. */
-  saveMtu: (mtu: number) => Promise<boolean>;
-  /** Disable custom MTU (revert to default). Returns true on success. */
-  disableMtu: () => Promise<boolean>;
-  /** Re-fetch MTU data */
-  refresh: () => void;
+  /** Apply a new MTU value. The caller toasts from the returned result. */
+  saveMtu: (mtu: number) => Promise<MutationResult>;
+  /** Disable custom MTU (revert to default). The caller toasts from the returned result. */
+  disableMtu: () => Promise<MutationResult>;
+  /** Re-fetch MTU data. Wrap it in an arrow: a bare `onClick` hands a truthy event in as `silent`. */
+  refresh: (silent?: boolean) => Promise<void>;
 }
 
+const SUCCEEDED: MutationResult = { ok: true, code: null, error: null };
+const UNMOUNTED: MutationResult = { ok: false, code: null, error: null };
+
 export function useMtuSettings(): UseMtuSettingsReturn {
+  const { t } = useTranslation("errors");
   const [data, setData] = useState<MtuSettingsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -71,7 +78,7 @@ export function useMtuSettings(): UseMtuSettingsReturn {
       if (!mountedRef.current) return;
 
       if (!json.success) {
-        setError(json.error || "Failed to fetch MTU settings");
+        setError(resolveErrorMessage(t, json.error, undefined, "Failed to fetch MTU settings"));
         return;
       }
 
@@ -89,7 +96,7 @@ export function useMtuSettings(): UseMtuSettingsReturn {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [t]);
 
   // Fetch on mount
   useEffect(() => {
@@ -100,7 +107,7 @@ export function useMtuSettings(): UseMtuSettingsReturn {
   // Save new MTU value
   // ---------------------------------------------------------------------------
   const saveMtu = useCallback(
-    async (mtu: number): Promise<boolean> => {
+    async (mtu: number): Promise<MutationResult> => {
       setError(null);
       setIsSaving(true);
 
@@ -116,33 +123,34 @@ export function useMtuSettings(): UseMtuSettingsReturn {
         }
 
         const json = await resp.json();
-        if (!mountedRef.current) return false;
+        if (!mountedRef.current) return UNMOUNTED;
 
         if (!json.success) {
-          setError(json.detail || json.error || "Failed to apply MTU");
-          return false;
+          setError(resolveErrorMessage(t, json.error, json.detail, "Failed to apply MTU"));
+          return { ok: false, code: json.error ?? null, error: json.detail ?? null };
         }
 
         // Silent re-fetch to update local state
         await fetchMtu(true);
-        return true;
+        return SUCCEEDED;
       } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(err instanceof Error ? err.message : "Failed to apply MTU");
-        return false;
+        if (!mountedRef.current) return UNMOUNTED;
+        const message = err instanceof Error ? err.message : "Failed to apply MTU";
+        setError(message);
+        return { ok: false, code: null, error: message };
       } finally {
         if (mountedRef.current) {
           setIsSaving(false);
         }
       }
     },
-    [fetchMtu],
+    [fetchMtu, t],
   );
 
   // ---------------------------------------------------------------------------
   // Disable custom MTU
   // ---------------------------------------------------------------------------
-  const disableMtu = useCallback(async (): Promise<boolean> => {
+  const disableMtu = useCallback(async (): Promise<MutationResult> => {
     setError(null);
     setIsSaving(true);
 
@@ -158,26 +166,27 @@ export function useMtuSettings(): UseMtuSettingsReturn {
       }
 
       const json = await resp.json();
-      if (!mountedRef.current) return false;
+      if (!mountedRef.current) return UNMOUNTED;
 
       if (!json.success) {
-        setError(json.detail || json.error || "Failed to disable MTU");
-        return false;
+        setError(resolveErrorMessage(t, json.error, json.detail, "Failed to disable MTU"));
+        return { ok: false, code: json.error ?? null, error: json.detail ?? null };
       }
 
       // Silent re-fetch to update local state
       await fetchMtu(true);
-      return true;
+      return SUCCEEDED;
     } catch (err) {
-      if (!mountedRef.current) return false;
-      setError(err instanceof Error ? err.message : "Failed to disable MTU");
-      return false;
+      if (!mountedRef.current) return UNMOUNTED;
+      const message = err instanceof Error ? err.message : "Failed to disable MTU";
+      setError(message);
+      return { ok: false, code: null, error: message };
     } finally {
       if (mountedRef.current) {
         setIsSaving(false);
       }
     }
-  }, [fetchMtu]);
+  }, [fetchMtu, t]);
 
   return {
     data,

@@ -208,33 +208,97 @@
     }
   },
   "ttl_mtu": {
-    "page_title": "Impostazioni TTL e MTU",
-    "page_description": "Impostare i valori personalizzati di Time To Live, Hop Limit e Maximum Transmission Unit sull'interfaccia dati cellulare."
-  },
-  "ttl": {
-    "card_title": "TTL e configurazione limite hop",
-    "card_description": "Imposta i valori TTL (IPv4) e Hop Limit (IPv6) personalizzati applicati ai pacchetti in uscita sull'interfaccia cellulare.",
-    "alert_profile_override": "La configurazione di TTL/HL è gestita dal profilo personalizzato SIM <strong>{{profileName}}</strong>.",
-    "label_enable": "Abilita TTL/HL personalizzato",
-    "label_ttl": "TTL Valore",
-    "placeholder_ttl": "ad es. 64",
-    "label_hl": "Valore limite hop (HL).",
-    "placeholder_hl": "ad es. 64",
-    "error_at_least_one": "Inserisci almeno un valore TTL o Hop Limit",
-    "toast_success_enabled": "Applicato: TTL: {{ttl}}, Limite hop: {{hl}}",
-    "toast_success_disabled": "Personalizzato TTL/Limite hop disabilitato",
-    "toast_error_apply": "Impossibile applicare le impostazioni TTL/Limite hop"
-  },
-  "mtu": {
-    "card_title": "Configurazione dell'unità di trasmissione massima (MTU).",
-    "card_description": "Imposta la dimensione massima del pacchetto sull'interfaccia dati cellulare. Valori più bassi possono aiutare con problemi di frammentazione.",
-    "label_enable": "Abilita MTU personalizzato",
-    "label_mtu": "MTU Valore",
-    "placeholder_mtu": "ad es. 1500",
-    "error_range": "MTU deve essere compreso tra 576 e 9000",
-    "toast_success_enabled": "MTU impostato su {{mtu}}",
-    "toast_success_disabled": "Personalizzato MTU disabilitato",
-    "toast_error_apply": "Impossibile applicare le impostazioni MTU"
+    "page_title": "TTL e MTU",
+    "page_description": "Riscrivi il conteggio degli hop e la dimensione dei pacchetti che il modem applica sull'interfaccia cellulare.",
+    "refresh": "Aggiorna",
+    "strip": {
+      "label": "Attivo ora",
+      "chip_custom": "Personalizzati",
+      "chip_default": "Valori predefiniti dell'operatore",
+      "retry": "Riprova",
+      "unavailable_title": "Impossibile leggere TTL o MTU",
+      "unavailable_body": "Il modem non ha risposto. Non è stato modificato nulla.",
+      "idle_title": "Nessuna sostituzione attiva",
+      "idle_body": "Il modem usa TTL e MTU dell'operatore esattamente come sono stati negoziati. Attivane uno qui sotto per cambiarli."
+    },
+    "tiles": {
+      "shared": {
+        "caption_pending": "Lettura in corso",
+        "caption_unread": "Il modem non ha risposto"
+      },
+      "ttl": {
+        "label": "TTL (IPv4)",
+        "caption_active": "Riscritto su ogni pacchetto",
+        "caption_idle": "Non riscritto"
+      },
+      "hl": {
+        "label": "Limite di hop (IPv6)",
+        "caption_active": "Riscritto su ogni pacchetto",
+        "caption_idle": "Non riscritto"
+      },
+      "mtu": {
+        "label": "MTU",
+        "unit": "byte",
+        "caption_active": "Il valore predefinito dell'operatore è {{carrier}}",
+        "caption_idle": "Negoziata con l'operatore"
+      }
+    },
+    "banner": {
+      "title": "TTL e limite di hop arrivano dal profilo {{profile}}",
+      "body": "Attivare quel profilo scrive entrambi i valori, quindi questa scheda resta bloccata per evitare che i due scrittori si sovrascrivano a vicenda. Cambiali nel profilo, oppure attiva un profilo che lascia il TTL non impostato."
+    },
+    "cards": {
+      "ttl": {
+        "title": "TTL e limite di hop",
+        "description": "Applicati ai pacchetti in uscita sull'interfaccia cellulare."
+      },
+      "mtu": {
+        "title": "Unità massima di trasmissione",
+        "description": "Il pacchetto più grande che l'interfaccia cellulare invia senza frammentarlo."
+      }
+    },
+    "rows": {
+      "shared": {
+        "consequence_off": "Attiva la riscrittura per impostare un valore.",
+        "consequence_unread": "Il modem non ha risposto, quindi per ora non c'è nulla da modificare."
+      },
+      "rewrite": {
+        "label": "Riscrivi il conteggio degli hop",
+        "consequence": "Se disattivata, il modem inoltra il conteggio di hop così come lo ha inviato il client. Alcuni operatori contano gli hop per individuare il tethering."
+      },
+      "ttl_value": {
+        "label": "Valore TTL",
+        "consequence": "{{min}}–{{max}}. Un dispositivo a un hop dal modem di solito vuole 64."
+      },
+      "hl_value": {
+        "label": "Valore del limite di hop",
+        "consequence": "L'equivalente IPv6. Impostali entrambi, a meno che tu non sappia che il client è single-stack."
+      },
+      "mtu_toggle": {
+        "label": "Sostituisci la MTU",
+        "consequence": "Se disattivata, sull'interfaccia cellulare viene ripristinato il valore negoziato con l'operatore."
+      },
+      "mtu_value": {
+        "label": "Valore MTU",
+        "consequence": "{{min}}–{{max}}. Sotto circa 1400 si può rompere la path MTU discovery sui siti che scartano ICMP.",
+        "consequence_off": "Attiva la sostituzione per impostare un valore."
+      }
+    },
+    "values": {
+      "on": "Attivo",
+      "off": "Disattivo"
+    },
+    "errors": {
+      "value_range": "TTL e limite di hop devono essere entrambi compresi tra {{min}} e {{max}}.",
+      "no_value": "Inserisci un TTL o un limite di hop prima di applicare.",
+      "mtu_range": "La MTU deve essere compresa tra {{min}} e {{max}}."
+    },
+    "toast_ttl_applied": "Applicati (TTL {{ttl}}, limite di hop {{hl}}).",
+    "toast_ttl_cleared": "Il modem è tornato al conteggio di hop dell'operatore.",
+    "toast_ttl_error": "Impossibile applicare TTL e limite di hop.",
+    "toast_mtu_applied": "MTU impostata a {{mtu}}.",
+    "toast_mtu_cleared": "La MTU è tornata al valore negoziato con l'operatore.",
+    "toast_mtu_error": "Impossibile applicare la MTU."
   },
   "ippt": {
     "page": {
