@@ -38,7 +38,31 @@ export interface ModemStatus {
   sim_failover: SimFailoverStatus;
   /** SIM swap detection (physical SIM card change at boot) */
   sim_swap: SimSwapStatus;
+  /**
+   * SIM readiness snapshot (optional: a device OTA-upgraded from an older
+   * poller does not emit this block, so every consumer must tolerate
+   * `undefined` rather than assuming a card is present).
+   */
+  sim?: SimBlock;
 }
+
+/** SIM readiness block published by the poller from AT+CPIN?. */
+export interface SimBlock {
+  /** Classified readiness state ("unknown" until the first Tier-2 read) */
+  status: SimStatus;
+}
+
+/**
+ * SIM readiness from AT+CPIN? as classified by `parse_at.sh`.
+ * These are the exact strings the poller emits; do not add synonyms.
+ */
+export type SimStatus =
+  | "ready"
+  | "pin_required"
+  | "puk_required"
+  | "not_inserted"
+  | "error"
+  | "unknown";
 
 // --- Enums & Unions ----------------------------------------------------------
 
@@ -75,6 +99,26 @@ export type ConnectionState =
   | "error";
 
 export type NetworkType = "LTE" | "5G-NSA" | "5G-SA" | "";
+
+/** Display label for a {@link NetworkType}. */
+export type NetworkTypeLabel = "LTE" | "5G NSA" | "5G SA" | "Unknown";
+
+/**
+ * Map an access technology to its display label. Never invents a technology:
+ * an empty or unrecognised value returns "Unknown" rather than guessing LTE.
+ */
+export function networkTypeLabel(type: NetworkType): NetworkTypeLabel {
+  switch (type) {
+    case "LTE":
+      return "LTE";
+    case "5G-NSA":
+      return "5G NSA";
+    case "5G-SA":
+      return "5G SA";
+    default:
+      return "Unknown";
+  }
+}
 
 // --- Sub-Interfaces ----------------------------------------------------------
 

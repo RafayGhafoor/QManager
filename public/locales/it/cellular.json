@@ -1830,83 +1830,157 @@
   "core_settings": {
     "basic": {
       "page": {
-        "title": "Impostazioni di base cellulare",
-        "description": "SIM preferenze relative a slot, stato radio e modalità di rete.",
-        "error_load": "Impossibile caricare le impostazioni del cellulare. I valori visualizzati potrebbero essere obsoleti."
+        "title": "Impostazioni cellulari di base",
+        "description": "Modifica come il modem usa le sue SIM, la radio e le reti a cui si collega.",
+        "error_title": "Impossibile leggere il modem",
+        "error_body": "I valori visualizzati potrebbero essere obsoleti.",
+        "retry": "Riprova"
       },
-      "radio": {
-        "card": {
-          "title": "Impostazioni della radio del modem",
-          "description": "Configura lo slot SIM, la potenza della radio, il tipo di rete e le preferenze di roaming."
-        },
+      "sim_card": {
+        "title": "SIM e Alimentazione radio",
+        "description": "Quale SIM usa il modem e se la radio è alimentata."
+      },
+      "network_card": {
+        "title": "Modalità di rete e roaming",
+        "description": "Come il modem sceglie la rete a cui collegarsi."
+      },
+      "cards": {
+        "unread": "Non è stato letto nulla dal modem, quindi qui non c'è ancora nulla da modificare."
+      },
+      "rows": {
         "sim_slot": {
-          "label": "Slot per SIM",
-          "placeholder": "Scegli SIM Slot",
+          "label": "Slot SIM",
+          "consequence": "Il cambio di slot interrompe la connessione per circa 15 secondi.",
           "options": {
-            "sim1": "SIM 1",
-            "sim2": "SIM 2"
+            "slot_1": "SIM 1",
+            "slot_2": "SIM 2"
           }
         },
-        "radio_power": {
-          "label": "Potenza radiofonica",
-          "placeholder": "Scegli la modalità di alimentazione radio",
+        "cfun": {
+          "label": "Alimentazione radio",
+          "consequence": "Radio spenta toglie alimentazione anche alla SIM, modalità aereo la mantiene alimentata e in entrambi i casi la console resta raggiungibile via Ethernet.",
           "options": {
-            "low_power": "Radio spenta (bassa potenza)",
-            "normal": "Funzionamento normale",
-            "airplane": "Modalità aereo (RF disattivato)"
+            "normal": "Normale",
+            "radio_off": "Radio spenta",
+            "airplane": "Modalità aereo"
           }
         },
-        "network_type": {
+        "mode_pref": {
           "label": "Tipo di rete preferito",
-          "placeholder": "Scegli Tipo di rete",
+          "consequence": "Fissa una tecnologia solo durante la diagnostica.",
           "options": {
             "auto": "Automatico",
-            "lte": "LTE Solo",
-            "nr5g": "5G Solo",
-            "lte_nr5g": "LTE + 5G"
+            "lte_nr": "LTE + 5G",
+            "nr_only": "Solo 5G",
+            "lte_only": "Solo LTE"
           }
         },
-        "architecture": {
-          "label": "5G Architettura",
-          "placeholder": "Scegli la modalità 5G",
+        "nr5g_mode": {
+          "label": "Architettura 5G",
+          "consequence": "Lascia su Auto a meno che il tuo operatore non richieda standalone (5G da solo) o non-standalone (5G ancorato all'LTE).",
           "options": {
-            "auto": "Automatico (SA + NSA)",
-            "nsa": "Solo NSA (5G tramite LTE)",
-            "sa": "Solo SA (autonomo)"
+            "auto": "Auto",
+            "nsa": "Solo NSA",
+            "sa": "Solo SA"
           }
         },
-        "roaming": {
+        "roam_pref": {
           "label": "Preferenza di roaming",
-          "placeholder": "Scegli Preferenza roaming",
+          "consequence": "Le reti partner possono essere fatturate a parte.",
           "options": {
             "any": "Qualsiasi rete",
-            "home": "Solo rete domestica",
-            "partner": "Reti di partner"
+            "home": "Solo rete di casa",
+            "partner": "Reti partner"
           }
         },
-        "toast": {
-          "success": "Impostazioni del modem salvate",
-          "error": "Impossibile salvare le impostazioni del modem",
-          "no_changes": "Nessuna modifica da salvare"
+        "sim_detect": {
+          "label": "Rilevamento sostituzione SIM a caldo",
+          "consequence": "Senza, una SIM sostituita resta ignorata fino al riavvio successivo.",
+          "on": "Attivo",
+          "off": "Disattivo"
         }
       },
+      "save_bar": {
+        "count_one": "{{count}} modifica in sospeso",
+        "count_other": "{{count}} modifiche in sospeso",
+        "note": "L'applicazione interrompe brevemente la connessione. Il modem non si riavvia.",
+        "discard": "Annulla modifiche",
+        "save": "Salva impostazioni",
+        "failed": "Impossibile applicare {{fields}}. Le altre modifiche sono state salvate."
+      },
+      "toast": {
+        "saved": "Impostazioni applicate.",
+        "save_failed": "Impossibile applicare le impostazioni."
+      },
+      "apply": {
+        "writing": "Scrittura sul modem",
+        "recovering": "In attesa che la radio si stabilizzi",
+        "verifying": "Verifica di ciò che il modem ha applicato"
+      },
+      "footer": {
+        "reread": "Rileggi dal modem",
+        "in_sync": "Le impostazioni salvate corrispondono al modem."
+      },
+      "strip": {
+        "label": "Stato in tempo reale",
+        "stale": "Obsoleto",
+        "network": "Rete",
+        "sim": "SIM",
+        "aggregation": "Aggregazione",
+        "data_path": "Percorso dati",
+        "carrier_none": "Nessun operatore riportato",
+        "bands_none": "Nessuna banda segnalata",
+        "ip_dual": "IPv4 e IPv6 assegnati",
+        "ip_v4": "Solo IPv4",
+        "ip_v6": "Solo IPv6",
+        "ip_none": "Nessun indirizzo assegnato",
+        "unavailable_title": "Impossibile leggere il modem",
+        "unavailable_retrying": "L'ultima lettura non è riuscita. QManager sta ancora provando."
+      },
+      "rate_ceiling": {
+        "eyebrow": "Tetto di velocità concesso dalla rete",
+        "in_force": "AMBR {{radio}} in vigore",
+        "no_ceiling": "Nessun tetto letto",
+        "sr_rate_block": "{{radio}}: {{state}}",
+        "provenance": "I limiti di velocità sono tetti concessi dalla rete, non velocità misurate. Vengono letti all'apertura della pagina e di nuovo dopo ogni salvataggio.",
+        "unavailable": "L'ultima lettura non è riuscita. Usa «Rileggi dal modem» qui sotto per riprovare."
+      },
+      "readout": {
+        "slot_n": "SIM {{slot}}",
+        "unknown": "Sconosciuto",
+        "no_apn": "Non segnalato",
+        "ca_none": "Non attiva",
+        "ca_breakdown": "LTE {{lte}} + NR {{nr}}",
+        "ca_lte_only": "LTE {{lte}}",
+        "ca_nr_only": "NR {{nr}}"
+      },
+      "sim_status": {
+        "ready": "Pronta",
+        "pin_required": "PIN richiesto",
+        "puk_required": "PUK richiesto",
+        "not_inserted": "Nessuna SIM",
+        "error": "Errore",
+        "unknown": "Sconosciuto"
+      },
+      "sim_slots": {
+        "empty": "Vuoto",
+        "sr_active": "SIM {{slot}}, attiva, scheda che termina con {{last4}}",
+        "sr_standby": "SIM {{slot}}, in standby, scheda che termina con {{last4}}",
+        "sr_empty": "SIM {{slot}}, nessuna scheda rilevata"
+      },
       "ambr": {
-        "card": {
-          "title": "Limiti di velocità dati",
-          "description": "Le velocità massime di caricamento e download consentite dal tuo operatore per ciascuna connessione dati. Questi limiti sono stabiliti dalla politica di rete del tuo operatore."
-        },
-        "section": {
-          "lte": "LTE Tariffe",
-          "nr5g": "5G Tariffe"
-        },
-        "empty": {
-          "lte": "Nessun dato sulla tariffa LTE: non connesso a LTE",
-          "nr5g": "Nessun dato sulla tariffa 5G: non connesso a 5G"
-        },
-        "tooltip": {
-          "aria": "Maggiori informazioni",
-          "content": "Sebbene i dispositivi possano richiedere valori AMBR specifici, gli operatori possono ignorarli e imporre i propri limiti di velocità in base a piani di abbonamento, politiche di rete o condizioni di congestione."
-        }
+        "lte_heading": "Limiti di velocità LTE",
+        "nr_heading": "Limiti di velocità 5G",
+        "governing": "In uso",
+        "not_governing": "Non in uso",
+        "nsa_note": "Il 5G non-standalone viaggia sulla sessione dati LTE, quindi vale questo limite.",
+        "lte_empty_reason": "Il modem pubblica un limite LTE solo mentre è attiva una sessione dati LTE.",
+        "nr_empty_reason": "Il modem pubblica un limite 5G solo mentre è attiva una sessione dati 5G.",
+        "download": "Download",
+        "upload": "Upload",
+        "governing_unread": "La tua connessione usa questa radio. Nessun limite è stato letto per essa all’apertura della pagina.",
+        "lte_short": "LTE",
+        "nr_short": "5G NR"
       }
     },
     "apn": {

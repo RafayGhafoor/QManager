@@ -65,6 +65,7 @@
   "invalid_roam_pref": "无效的漫游偏好",
   "invalid_scs": "无效的子载波间距值",
   "invalid_sim_slot": "无效的 SIM 卡槽号",
+  "invalid_sim_detect": "无效的 SIM 热插拔检测值",
   "invalid_start_time": "无效的开始时间（使用 HH:MM 格式）",
   "invalid_target_mac": "无效的目标 MAC 地址格式",
   "invalid_temp_unit": "无效的温度单位 — 必须是 C 或 F",

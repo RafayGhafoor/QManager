@@ -554,8 +554,16 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
     if [ -n "$sim_unverified" ]; then
         # The user's primary action (slot switch) did not take effect and
         # auto-apply did not run. Surface a dedicated code so the UI can prompt
-        # a retry rather than reporting a generic partial failure.
-        cgi_error "sim_slot_switch_unverified" "SIM slot switch did not take effect — please try again"
+        # a retry rather than reporting a generic partial failure. The field
+        # lists ride along so the UI clears whatever else did land.
+        jq -n --arg errors "$errors" --arg applied "$applied" \
+            '{
+                success: false,
+                error: "sim_slot_switch_unverified",
+                detail: "SIM slot switch did not take effect — please try again",
+                failed_fields: ($errors | split(",") | map(select(length > 0))),
+                applied_fields: ($applied | split(",") | map(select(length > 0)))
+            }'
     elif [ -z "$errors" ]; then
         cgi_success
     else

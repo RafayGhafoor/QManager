@@ -1831,82 +1831,156 @@
     "basic": {
       "page": {
         "title": "Pengaturan Dasar Seluler",
-        "description": "Slot SIM, status radio, dan preferensi mode jaringan.",
-        "error_load": "Gagal memuat pengaturan seluler. Nilai yang ditampilkan mungkin sudah usang."
+        "description": "Ubah cara modem menggunakan SIM, radio, dan jaringan yang dihubunginya.",
+        "error_title": "Gagal membaca modem",
+        "error_body": "Nilai yang ditampilkan mungkin sudah usang.",
+        "retry": "Coba lagi"
       },
-      "radio": {
-        "card": {
-          "title": "Pengaturan Radio Modem",
-          "description": "Konfigurasi slot SIM, daya radio, jenis jaringan, dan preferensi roaming."
-        },
+      "sim_card": {
+        "title": "SIM & Daya Radio",
+        "description": "SIM mana yang dipakai modem, dan apakah radionya diberi daya."
+      },
+      "network_card": {
+        "title": "Mode Jaringan & Roaming",
+        "description": "Cara modem memilih jaringan untuk dihubungi."
+      },
+      "cards": {
+        "unread": "Belum ada data yang terbaca dari modem, jadi di sini belum ada yang bisa diubah."
+      },
+      "rows": {
         "sim_slot": {
           "label": "Slot SIM",
-          "placeholder": "Pilih Slot SIM",
+          "consequence": "Berpindah slot memutus koneksi sekitar 15 detik.",
           "options": {
-            "sim1": "SIM 1",
-            "sim2": "SIM 2"
+            "slot_1": "SIM 1",
+            "slot_2": "SIM 2"
           }
         },
-        "radio_power": {
+        "cfun": {
           "label": "Daya Radio",
-          "placeholder": "Pilih Mode Daya Radio",
+          "consequence": "Radio nonaktif juga mematikan daya SIM, mode pesawat tetap memberi daya pada SIM, dan konsol tetap dapat diakses melalui Ethernet pada kedua kondisi.",
           "options": {
-            "low_power": "Radio Mati (Daya Rendah)",
-            "normal": "Operasi Normal",
-            "airplane": "Mode Pesawat (RF Mati)"
+            "normal": "Normal",
+            "radio_off": "Radio nonaktif",
+            "airplane": "Mode pesawat"
           }
         },
-        "network_type": {
-          "label": "Jenis Jaringan Pilihan",
-          "placeholder": "Pilih Jenis Jaringan",
+        "mode_pref": {
+          "label": "Tipe Jaringan Pilihan",
+          "consequence": "Kunci satu teknologi hanya saat memecahkan masalah.",
           "options": {
             "auto": "Otomatis",
-            "lte": "Hanya LTE",
-            "nr5g": "Hanya 5G",
-            "lte_nr5g": "LTE + 5G"
+            "lte_nr": "LTE + 5G",
+            "nr_only": "Hanya 5G",
+            "lte_only": "Hanya LTE"
           }
         },
-        "architecture": {
+        "nr5g_mode": {
           "label": "Arsitektur 5G",
-          "placeholder": "Pilih Mode 5G",
+          "consequence": "Biarkan pada Otomatis kecuali operator Anda mengharuskan standalone (5G berjalan mandiri) atau non-standalone (5G ditambatkan ke LTE).",
           "options": {
-            "auto": "Otomatis (SA + NSA)",
-            "nsa": "Hanya NSA (5G melalui LTE)",
-            "sa": "Hanya SA (Standalone)"
+            "auto": "Otomatis",
+            "nsa": "Hanya NSA",
+            "sa": "Hanya SA"
           }
         },
-        "roaming": {
+        "roam_pref": {
           "label": "Preferensi Roaming",
-          "placeholder": "Pilih Preferensi Roaming",
+          "consequence": "Jaringan mitra mungkin ditagih terpisah.",
           "options": {
-            "any": "Semua Jaringan",
-            "home": "Hanya Jaringan Asal",
-            "partner": "Jaringan Mitra"
+            "any": "Jaringan apa pun",
+            "home": "Hanya jaringan asal",
+            "partner": "Jaringan mitra"
           }
         },
-        "toast": {
-          "success": "Pengaturan modem tersimpan",
-          "error": "Gagal menyimpan pengaturan modem",
-          "no_changes": "Tidak ada perubahan untuk disimpan"
+        "sim_detect": {
+          "label": "Deteksi Hot-Swap SIM",
+          "consequence": "Tanpa ini, SIM yang diganti tidak terdeteksi sampai reboot berikutnya.",
+          "on": "Aktif",
+          "off": "Nonaktif"
         }
       },
+      "save_bar": {
+        "count_one": "{{count}} perubahan tertunda",
+        "count_other": "{{count}} perubahan tertunda",
+        "note": "Menerapkan akan memutus koneksi sebentar. Modem tidak melakukan reboot.",
+        "discard": "Buang",
+        "save": "Simpan Pengaturan",
+        "failed": "Gagal menerapkan {{fields}}. Perubahan Anda yang lain telah disimpan."
+      },
+      "toast": {
+        "saved": "Pengaturan diterapkan.",
+        "save_failed": "Gagal menerapkan pengaturan Anda."
+      },
+      "apply": {
+        "writing": "Menulis ke modem",
+        "recovering": "Menunggu radio stabil",
+        "verifying": "Memastikan apa yang diterapkan modem"
+      },
+      "footer": {
+        "reread": "Baca ulang dari modem",
+        "in_sync": "Pengaturan tersimpan cocok dengan modem."
+      },
+      "strip": {
+        "label": "Status langsung",
+        "stale": "Usang",
+        "network": "Jaringan",
+        "sim": "SIM",
+        "aggregation": "Agregasi",
+        "data_path": "Jalur data",
+        "carrier_none": "Tidak ada operator yang dilaporkan",
+        "bands_none": "Tidak ada band yang dilaporkan",
+        "ip_dual": "IPv4 dan IPv6 diberikan",
+        "ip_v4": "Hanya IPv4",
+        "ip_v6": "Hanya IPv6",
+        "ip_none": "Tidak ada alamat yang diberikan",
+        "unavailable_title": "Gagal membaca modem",
+        "unavailable_retrying": "Pembacaan terakhir gagal. QManager masih mencoba."
+      },
+      "rate_ceiling": {
+        "eyebrow": "Plafon kecepatan yang diberikan jaringan",
+        "in_force": "AMBR {{radio}} berlaku",
+        "no_ceiling": "Plafon tidak terbaca",
+        "sr_rate_block": "{{radio}}: {{state}}",
+        "provenance": "Batas kecepatan adalah plafon yang diberikan jaringan, bukan kecepatan terukur. Nilainya dibaca saat halaman dibuka dan sekali lagi setiap kali selesai menyimpan.",
+        "unavailable": "Pembacaan terakhir gagal. Gunakan \"Baca ulang dari modem\" di bawah untuk mencoba lagi."
+      },
+      "readout": {
+        "slot_n": "SIM {{slot}}",
+        "unknown": "Tidak diketahui",
+        "no_apn": "Tidak dilaporkan",
+        "ca_none": "Tidak aktif",
+        "ca_breakdown": "LTE {{lte}} + NR {{nr}}",
+        "ca_lte_only": "LTE {{lte}}",
+        "ca_nr_only": "NR {{nr}}"
+      },
+      "sim_status": {
+        "ready": "Siap",
+        "pin_required": "Perlu PIN",
+        "puk_required": "Perlu PUK",
+        "not_inserted": "Tanpa SIM",
+        "error": "Kesalahan",
+        "unknown": "Tidak diketahui"
+      },
+      "sim_slots": {
+        "empty": "Kosong",
+        "sr_active": "SIM {{slot}}, aktif, kartu berakhiran {{last4}}",
+        "sr_standby": "SIM {{slot}}, siaga, kartu berakhiran {{last4}}",
+        "sr_empty": "SIM {{slot}}, tidak ada kartu terdeteksi"
+      },
       "ambr": {
-        "card": {
-          "title": "Batas Kecepatan Data",
-          "description": "Kecepatan unggah dan unduh maksimum yang diizinkan operator Anda untuk setiap koneksi data. Batas ini ditetapkan oleh kebijakan jaringan operator Anda."
-        },
-        "section": {
-          "lte": "Kecepatan LTE",
-          "nr5g": "Kecepatan 5G"
-        },
-        "empty": {
-          "lte": "Tidak ada data kecepatan LTE — tidak terhubung ke LTE",
-          "nr5g": "Tidak ada data kecepatan 5G — tidak terhubung ke 5G"
-        },
-        "tooltip": {
-          "aria": "Info lebih lanjut",
-          "content": "Meskipun perangkat dapat meminta nilai AMBR tertentu, operator dapat mengabaikannya dan menerapkan batas kecepatan sendiri berdasarkan paket berlangganan, kebijakan jaringan, atau kondisi kepadatan."
-        }
+        "lte_heading": "Batas kecepatan LTE",
+        "nr_heading": "Batas kecepatan 5G",
+        "governing": "Berlaku",
+        "not_governing": "Tidak berlaku",
+        "nsa_note": "5G non-standalone berjalan di atas sesi data LTE, jadi batas inilah yang berlaku.",
+        "lte_empty_reason": "Modem hanya menerbitkan batas LTE selama sesi data LTE aktif.",
+        "nr_empty_reason": "Modem hanya menerbitkan batas 5G selama sesi data 5G aktif.",
+        "download": "Unduh",
+        "upload": "Unggah",
+        "governing_unread": "Koneksi Anda memakai radio ini. Tidak ada batas yang terbaca untuknya saat halaman dibuka.",
+        "lte_short": "LTE",
+        "nr_short": "5G NR"
       }
     },
     "apn": {

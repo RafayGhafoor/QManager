@@ -65,6 +65,7 @@
   "invalid_roam_pref": "Preferensi roaming tidak valid",
   "invalid_scs": "Nilai subcarrier spacing tidak valid",
   "invalid_sim_slot": "Nomor slot SIM tidak valid",
+  "invalid_sim_detect": "Nilai deteksi hot-swap SIM tidak valid",
   "invalid_start_time": "Waktu mulai tidak valid (gunakan format HH:MM)",
   "invalid_target_mac": "Format alamat MAC target tidak valid",
   "invalid_temp_unit": "Satuan suhu tidak valid — harus C atau F",

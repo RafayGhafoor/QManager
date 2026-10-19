@@ -1831,82 +1831,156 @@
     "basic": {
       "page": {
         "title": "蜂窩基本設定",
-        "description": "SIM 卡槽、射頻狀態與網路模式偏好。",
-        "error_load": "載入蜂窩設定失敗。顯示的值可能已過時。"
+        "description": "變更數據機使用 SIM 卡、射頻以及連線網路的方式。",
+        "error_title": "無法讀取數據機",
+        "error_body": "顯示的值可能已過時。",
+        "retry": "重試"
       },
-      "radio": {
-        "card": {
-          "title": "調變解調器射頻設定",
-          "description": "設定 SIM 卡槽、射頻電源、網路型別和漫遊偏好。"
-        },
+      "sim_card": {
+        "title": "SIM 卡與射頻電源",
+        "description": "數據機使用哪張 SIM 卡，以及射頻是否供電。"
+      },
+      "network_card": {
+        "title": "網路模式與漫遊",
+        "description": "數據機如何選擇要連線的網路。"
+      },
+      "cards": {
+        "unread": "尚未從數據機讀取到任何資料，因此這裡暫時沒有可變更的設定。"
+      },
+      "rows": {
         "sim_slot": {
-          "label": "SIM 卡槽",
-          "placeholder": "選擇 SIM 卡槽",
+          "label": "SIM 卡插槽",
+          "consequence": "切換插槽會中斷連線約 15 秒。",
           "options": {
-            "sim1": "SIM 1",
-            "sim2": "SIM 2"
+            "slot_1": "SIM 1",
+            "slot_2": "SIM 2"
           }
         },
-        "radio_power": {
+        "cfun": {
           "label": "射頻電源",
-          "placeholder": "選擇射頻電源模式",
+          "consequence": "關閉射頻同時會切斷 SIM 卡供電，飛航模式則仍為 SIM 卡供電，兩種情況下主控台都仍可透過 Ethernet 存取。",
           "options": {
-            "low_power": "射頻關閉（低功耗）",
-            "normal": "正常工作",
-            "airplane": "飛航模式（RF 關閉）"
+            "normal": "正常",
+            "radio_off": "關閉射頻",
+            "airplane": "飛航模式"
           }
         },
-        "network_type": {
-          "label": "首選網路型別",
-          "placeholder": "選擇網路型別",
+        "mode_pref": {
+          "label": "偏好網路類型",
+          "consequence": "僅在排查問題時才固定某一種技術。",
           "options": {
             "auto": "自動",
-            "lte": "僅 LTE",
-            "nr5g": "僅 5G",
-            "lte_nr5g": "LTE + 5G"
+            "lte_nr": "LTE + 5G",
+            "nr_only": "僅 5G",
+            "lte_only": "僅 LTE"
           }
         },
-        "architecture": {
+        "nr5g_mode": {
           "label": "5G 架構",
-          "placeholder": "選擇 5G 模式",
+          "consequence": "除非電信商要求獨立組網（5G 獨立運作）或非獨立組網（5G 錨定至 LTE），否則請保持自動。",
           "options": {
-            "auto": "自動（SA + NSA）",
-            "nsa": "僅 NSA（透過 LTE 的 5G）",
-            "sa": "僅 SA（獨立組網）"
+            "auto": "自動",
+            "nsa": "僅 NSA",
+            "sa": "僅 SA"
           }
         },
-        "roaming": {
+        "roam_pref": {
           "label": "漫遊偏好",
-          "placeholder": "選擇漫遊偏好",
+          "consequence": "合作網路可能單獨計費。",
           "options": {
             "any": "任意網路",
-            "home": "僅本地網路",
-            "partner": "合作伙伴網路"
+            "home": "僅歸屬網路",
+            "partner": "合作網路"
           }
         },
-        "toast": {
-          "success": "調變解調器設定已儲存",
-          "error": "儲存調變解調器設定失敗",
-          "no_changes": "沒有需要儲存的變更"
+        "sim_detect": {
+          "label": "SIM 卡熱插拔偵測",
+          "consequence": "未啟用時，更換過的 SIM 卡要到下次重新啟動才會被發現。",
+          "on": "開啟",
+          "off": "關閉"
         }
       },
+      "save_bar": {
+        "count_one": "{{count}} 項變更待套用",
+        "count_other": "{{count}} 項變更待套用",
+        "note": "套用時連線會短暫中斷。數據機不會重新啟動。",
+        "discard": "捨棄",
+        "save": "儲存設定",
+        "failed": "無法套用 {{fields}}。您的其他變更已儲存。"
+      },
+      "toast": {
+        "saved": "設定已套用。",
+        "save_failed": "無法套用您的設定。"
+      },
+      "apply": {
+        "writing": "正在寫入數據機",
+        "recovering": "正在等待射頻穩定",
+        "verifying": "正在確認數據機已套用的設定"
+      },
+      "footer": {
+        "reread": "從數據機重新讀取",
+        "in_sync": "已儲存的設定與數據機一致。"
+      },
+      "strip": {
+        "label": "即時狀態",
+        "stale": "已過時",
+        "network": "網路",
+        "sim": "SIM 卡",
+        "aggregation": "載波聚合",
+        "data_path": "資料通道",
+        "carrier_none": "未回報電信業者",
+        "bands_none": "未回報頻段",
+        "ip_dual": "已指派 IPv4 與 IPv6",
+        "ip_v4": "僅 IPv4",
+        "ip_v6": "僅 IPv6",
+        "ip_none": "未指派位址",
+        "unavailable_title": "無法讀取數據機",
+        "unavailable_retrying": "上次讀取失敗。QManager 仍在重試。"
+      },
+      "rate_ceiling": {
+        "eyebrow": "網路授予的速率上限",
+        "in_force": "{{radio}} AMBR 生效中",
+        "no_ceiling": "未讀到上限",
+        "sr_rate_block": "{{radio}}：{{state}}",
+        "provenance": "速率上限是網路授予的上限值，不是實測速度。它們在頁面開啟時讀取，每次儲存後再讀取一次。",
+        "unavailable": "上次讀取失敗。請使用下方的「從數據機重新讀取」再試一次。"
+      },
+      "readout": {
+        "slot_n": "SIM {{slot}}",
+        "unknown": "未知",
+        "no_apn": "未回報",
+        "ca_none": "未啟用",
+        "ca_breakdown": "LTE {{lte}} + NR {{nr}}",
+        "ca_lte_only": "LTE {{lte}}",
+        "ca_nr_only": "NR {{nr}}"
+      },
+      "sim_status": {
+        "ready": "就緒",
+        "pin_required": "需要 PIN",
+        "puk_required": "需要 PUK",
+        "not_inserted": "無 SIM 卡",
+        "error": "錯誤",
+        "unknown": "未知"
+      },
+      "sim_slots": {
+        "empty": "空",
+        "sr_active": "SIM {{slot}}，使用中，卡號末四碼 {{last4}}",
+        "sr_standby": "SIM {{slot}}，備用，卡號末四碼 {{last4}}",
+        "sr_empty": "SIM {{slot}}，未偵測到卡片"
+      },
       "ambr": {
-        "card": {
-          "title": "資料速率限制",
-          "description": "運營商允許每條資料連線使用的最大上傳和下載速度。這些限制由運營商的網路策略設定。"
-        },
-        "section": {
-          "lte": "LTE 速率",
-          "nr5g": "5G 速率"
-        },
-        "empty": {
-          "lte": "沒有 LTE 速率資料 — 未連線到 LTE",
-          "nr5g": "沒有 5G 速率資料 — 未連線到 5G"
-        },
-        "tooltip": {
-          "aria": "更多資訊",
-          "content": "雖然裝置可以請求特定的 AMBR 值,但運營商可能會忽略這些值,並根據訂閱方案、網路策略或擁塞情況強制執行自己的速度限制。"
-        }
+        "lte_heading": "LTE 速率上限",
+        "nr_heading": "5G 速率上限",
+        "governing": "生效中",
+        "not_governing": "未生效",
+        "nsa_note": "5G 非獨立組網走 LTE 資料工作階段，因此以這條上限為準。",
+        "lte_empty_reason": "數據機僅在 LTE 資料工作階段建立期間才發布 LTE 上限。",
+        "nr_empty_reason": "數據機僅在 5G 資料工作階段建立期間才發布 5G 上限。",
+        "download": "下載",
+        "upload": "上傳",
+        "governing_unread": "您的連線正在使用此射頻。開啟本頁時未讀到它的上限。",
+        "lte_short": "LTE",
+        "nr_short": "5G NR"
       }
     },
     "apn": {

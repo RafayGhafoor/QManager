@@ -1831,82 +1831,156 @@
     "basic": {
       "page": {
         "title": "Cellular Basic Settings",
-        "description": "SIM slot, radio state, and network mode preferences.",
-        "error_load": "Failed to load cellular settings. Displayed values may be outdated."
+        "description": "Change how the modem uses its SIMs, its radio, and the networks it attaches to.",
+        "error_title": "Couldn't read the modem",
+        "error_body": "The values shown may be out of date.",
+        "retry": "Try again"
       },
-      "radio": {
-        "card": {
-          "title": "Modem Radio Settings",
-          "description": "Configure SIM slot, radio power, network type, and roaming preferences."
-        },
+      "sim_card": {
+        "title": "SIM & Radio Power",
+        "description": "Which SIM the modem uses, and whether the radio is powered."
+      },
+      "network_card": {
+        "title": "Network Mode & Roaming",
+        "description": "How the modem chooses a network to attach to."
+      },
+      "cards": {
+        "unread": "Nothing was read from the modem, so there's nothing to change here yet."
+      },
+      "rows": {
         "sim_slot": {
           "label": "SIM Slot",
-          "placeholder": "Choose SIM Slot",
+          "consequence": "Switching slots drops the connection for about 15 seconds.",
           "options": {
-            "sim1": "SIM 1",
-            "sim2": "SIM 2"
+            "slot_1": "SIM 1",
+            "slot_2": "SIM 2"
           }
         },
-        "radio_power": {
+        "cfun": {
           "label": "Radio Power",
-          "placeholder": "Choose Radio Power Mode",
+          "consequence": "Radio off also powers down the SIM, Airplane keeps it powered, and the console stays reachable over Ethernet either way.",
           "options": {
-            "low_power": "Radio Off (Low Power)",
-            "normal": "Normal Operation",
-            "airplane": "Airplane Mode (RF Off)"
+            "normal": "Normal",
+            "radio_off": "Radio off",
+            "airplane": "Airplane"
           }
         },
-        "network_type": {
+        "mode_pref": {
           "label": "Preferred Network Type",
-          "placeholder": "Choose Network Type",
+          "consequence": "Pin a technology only while troubleshooting.",
           "options": {
             "auto": "Automatic",
-            "lte": "LTE Only",
-            "nr5g": "5G Only",
-            "lte_nr5g": "LTE + 5G"
+            "lte_nr": "LTE + 5G",
+            "nr_only": "5G only",
+            "lte_only": "LTE only"
           }
         },
-        "architecture": {
+        "nr5g_mode": {
           "label": "5G Architecture",
-          "placeholder": "Choose 5G Mode",
+          "consequence": "Leave this on Auto unless your carrier requires standalone (5G on its own) or non-standalone (5G anchored to LTE).",
           "options": {
-            "auto": "Auto (SA + NSA)",
-            "nsa": "NSA Only (5G via LTE)",
-            "sa": "SA Only (Standalone)"
+            "auto": "Auto",
+            "nsa": "NSA only",
+            "sa": "SA only"
           }
         },
-        "roaming": {
+        "roam_pref": {
           "label": "Roaming Preference",
-          "placeholder": "Choose Roaming Preference",
+          "consequence": "Partner networks may be billed separately.",
           "options": {
-            "any": "Any Network",
-            "home": "Home Network Only",
-            "partner": "Partner Networks"
+            "any": "Any network",
+            "home": "Home only",
+            "partner": "Partner networks"
           }
         },
-        "toast": {
-          "success": "Modem settings saved",
-          "error": "Failed to save modem settings",
-          "no_changes": "No changes to save"
+        "sim_detect": {
+          "label": "SIM Hot-Swap Detection",
+          "consequence": "Without it, a swapped SIM goes unnoticed until the next reboot.",
+          "on": "On",
+          "off": "Off"
         }
       },
+      "save_bar": {
+        "count_one": "{{count}} change pending",
+        "count_other": "{{count}} changes pending",
+        "note": "Applying interrupts the connection briefly. The modem does not reboot.",
+        "discard": "Discard",
+        "save": "Save Settings",
+        "failed": "Couldn't apply {{fields}}. Your other changes were saved."
+      },
+      "toast": {
+        "saved": "Settings applied.",
+        "save_failed": "Couldn't apply your settings."
+      },
+      "apply": {
+        "writing": "Writing to the modem",
+        "recovering": "Waiting for the radio to settle",
+        "verifying": "Confirming what the modem applied"
+      },
+      "footer": {
+        "reread": "Re-read from modem",
+        "in_sync": "Saved settings match the modem."
+      },
+      "strip": {
+        "label": "Live state",
+        "stale": "Stale",
+        "network": "Network",
+        "sim": "SIM",
+        "aggregation": "Aggregation",
+        "data_path": "Data path",
+        "carrier_none": "No carrier reported",
+        "bands_none": "No bands reported",
+        "ip_dual": "IPv4 and IPv6 assigned",
+        "ip_v4": "IPv4 only",
+        "ip_v6": "IPv6 only",
+        "ip_none": "No address assigned",
+        "unavailable_title": "Couldn't read the modem",
+        "unavailable_retrying": "The last read failed. QManager is still trying."
+      },
+      "rate_ceiling": {
+        "eyebrow": "Rate ceiling granted by the network",
+        "in_force": "{{radio}} AMBR in force",
+        "no_ceiling": "No ceiling read",
+        "sr_rate_block": "{{radio}}: {{state}}",
+        "provenance": "Rate limits are ceilings the network grants, not measured speed. They are read when the page opens and again after each save.",
+        "unavailable": "The last read failed. Use \"Re-read from modem\" below to try again."
+      },
+      "readout": {
+        "slot_n": "SIM {{slot}}",
+        "unknown": "Unknown",
+        "no_apn": "None reported",
+        "ca_none": "Not active",
+        "ca_breakdown": "LTE {{lte}} + NR {{nr}}",
+        "ca_lte_only": "LTE {{lte}}",
+        "ca_nr_only": "NR {{nr}}"
+      },
+      "sim_status": {
+        "ready": "Ready",
+        "pin_required": "PIN required",
+        "puk_required": "PUK required",
+        "not_inserted": "No SIM",
+        "error": "Error",
+        "unknown": "Unknown"
+      },
+      "sim_slots": {
+        "empty": "Empty",
+        "sr_active": "SIM {{slot}}, active, card ending {{last4}}",
+        "sr_standby": "SIM {{slot}}, standby, card ending {{last4}}",
+        "sr_empty": "SIM {{slot}}, no card detected"
+      },
       "ambr": {
-        "card": {
-          "title": "Data Rate Limits",
-          "description": "The maximum upload and download speeds your carrier allows for each data connection. These limits are set by your carrier's network policy."
-        },
-        "section": {
-          "lte": "LTE Rates",
-          "nr5g": "5G Rates"
-        },
-        "empty": {
-          "lte": "No LTE rate data — not connected to LTE",
-          "nr5g": "No 5G rate data — not connected to 5G"
-        },
-        "tooltip": {
-          "aria": "More info",
-          "content": "While devices can request specific AMBR values, operators may ignore these and enforce their own speed limits based on subscription plans, network policies, or congestion conditions."
-        }
+        "lte_heading": "LTE rate limits",
+        "nr_heading": "5G rate limits",
+        "governing": "In use",
+        "not_governing": "Not in use",
+        "nsa_note": "5G non-standalone runs over the LTE data session, so this limit applies.",
+        "lte_empty_reason": "The modem publishes an LTE limit only while an LTE data session is up.",
+        "nr_empty_reason": "The modem publishes a 5G limit only while a 5G data session is up.",
+        "download": "Download",
+        "upload": "Upload",
+        "governing_unread": "Your connection uses this radio. No limit was read for it when the page opened.",
+        "lte_short": "LTE",
+        "nr_short": "5G NR"
       }
     },
     "apn": {

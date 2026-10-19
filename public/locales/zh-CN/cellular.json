@@ -1831,82 +1831,156 @@
     "basic": {
       "page": {
         "title": "蜂窝基本设置",
-        "description": "SIM 卡槽、射频状态与网络模式偏好。",
-        "error_load": "加载蜂窝设置失败。显示的值可能已过时。"
+        "description": "更改调制解调器使用 SIM 卡、射频以及接入网络的方式。",
+        "error_title": "无法读取调制解调器",
+        "error_body": "显示的值可能已过时。",
+        "retry": "重试"
       },
-      "radio": {
-        "card": {
-          "title": "调制解调器射频设置",
-          "description": "配置 SIM 卡槽、射频电源、网络类型和漫游偏好。"
-        },
+      "sim_card": {
+        "title": "SIM 卡与射频电源",
+        "description": "调制解调器使用哪张 SIM 卡，以及射频是否供电。"
+      },
+      "network_card": {
+        "title": "网络模式与漫游",
+        "description": "调制解调器如何选择要接入的网络。"
+      },
+      "cards": {
+        "unread": "尚未从调制解调器读取到任何数据，因此这里暂时没有可更改的设置。"
+      },
+      "rows": {
         "sim_slot": {
-          "label": "SIM 卡槽",
-          "placeholder": "选择 SIM 卡槽",
+          "label": "SIM 卡插槽",
+          "consequence": "切换插槽会中断连接约 15 秒。",
           "options": {
-            "sim1": "SIM 1",
-            "sim2": "SIM 2"
+            "slot_1": "SIM 1",
+            "slot_2": "SIM 2"
           }
         },
-        "radio_power": {
+        "cfun": {
           "label": "射频电源",
-          "placeholder": "选择射频电源模式",
+          "consequence": "关闭射频同时会切断 SIM 卡供电，飞行模式则保持 SIM 卡供电，两种情况下控制台都仍可通过 Ethernet 访问。",
           "options": {
-            "low_power": "射频关闭（低功耗）",
-            "normal": "正常工作",
-            "airplane": "飞行模式（RF 关闭）"
+            "normal": "正常",
+            "radio_off": "关闭射频",
+            "airplane": "飞行模式"
           }
         },
-        "network_type": {
+        "mode_pref": {
           "label": "首选网络类型",
-          "placeholder": "选择网络类型",
+          "consequence": "仅在排查故障时才固定某一种技术。",
           "options": {
             "auto": "自动",
-            "lte": "仅 LTE",
-            "nr5g": "仅 5G",
-            "lte_nr5g": "LTE + 5G"
+            "lte_nr": "LTE + 5G",
+            "nr_only": "仅 5G",
+            "lte_only": "仅 LTE"
           }
         },
-        "architecture": {
+        "nr5g_mode": {
           "label": "5G 架构",
-          "placeholder": "选择 5G 模式",
+          "consequence": "除非运营商要求独立组网（5G 独立运行）或非独立组网（5G 锚定到 LTE），否则请保持自动。",
           "options": {
-            "auto": "自动（SA + NSA）",
-            "nsa": "仅 NSA（通过 LTE 的 5G）",
-            "sa": "仅 SA（独立组网）"
+            "auto": "自动",
+            "nsa": "仅 NSA",
+            "sa": "仅 SA"
           }
         },
-        "roaming": {
+        "roam_pref": {
           "label": "漫游偏好",
-          "placeholder": "选择漫游偏好",
+          "consequence": "合作网络可能单独计费。",
           "options": {
             "any": "任意网络",
-            "home": "仅本地网络",
-            "partner": "合作伙伴网络"
+            "home": "仅归属网络",
+            "partner": "合作网络"
           }
         },
-        "toast": {
-          "success": "调制解调器设置已保存",
-          "error": "保存调制解调器设置失败",
-          "no_changes": "没有需要保存的更改"
+        "sim_detect": {
+          "label": "SIM 卡热插拔检测",
+          "consequence": "不启用时，更换过的 SIM 卡要到下次重启才会被发现。",
+          "on": "开启",
+          "off": "关闭"
         }
       },
+      "save_bar": {
+        "count_one": "{{count}} 项更改待应用",
+        "count_other": "{{count}} 项更改待应用",
+        "note": "应用时连接会短暂中断。调制解调器不会重启。",
+        "discard": "放弃",
+        "save": "保存设置",
+        "failed": "无法应用 {{fields}}。您的其他更改已保存。"
+      },
+      "toast": {
+        "saved": "设置已应用。",
+        "save_failed": "无法应用您的设置。"
+      },
+      "apply": {
+        "writing": "正在写入调制解调器",
+        "recovering": "正在等待射频稳定",
+        "verifying": "正在确认调制解调器已应用的设置"
+      },
+      "footer": {
+        "reread": "从调制解调器重新读取",
+        "in_sync": "已保存的设置与调制解调器一致。"
+      },
+      "strip": {
+        "label": "实时状态",
+        "stale": "已过时",
+        "network": "网络",
+        "sim": "SIM 卡",
+        "aggregation": "载波聚合",
+        "data_path": "数据通道",
+        "carrier_none": "未报告运营商",
+        "bands_none": "未报告频段",
+        "ip_dual": "已分配 IPv4 和 IPv6",
+        "ip_v4": "仅 IPv4",
+        "ip_v6": "仅 IPv6",
+        "ip_none": "未分配地址",
+        "unavailable_title": "无法读取调制解调器",
+        "unavailable_retrying": "上次读取失败。QManager 仍在重试。"
+      },
+      "rate_ceiling": {
+        "eyebrow": "网络授予的速率上限",
+        "in_force": "{{radio}} AMBR 生效中",
+        "no_ceiling": "未读到上限",
+        "sr_rate_block": "{{radio}}：{{state}}",
+        "provenance": "速率上限是网络授予的上限值，不是实测速度。它们在页面打开时读取，每次保存后再读取一次。",
+        "unavailable": "上次读取失败。请使用下方的“从调制解调器重新读取”再试一次。"
+      },
+      "readout": {
+        "slot_n": "SIM {{slot}}",
+        "unknown": "未知",
+        "no_apn": "未报告",
+        "ca_none": "未启用",
+        "ca_breakdown": "LTE {{lte}} + NR {{nr}}",
+        "ca_lte_only": "LTE {{lte}}",
+        "ca_nr_only": "NR {{nr}}"
+      },
+      "sim_status": {
+        "ready": "就绪",
+        "pin_required": "需要 PIN",
+        "puk_required": "需要 PUK",
+        "not_inserted": "无 SIM 卡",
+        "error": "错误",
+        "unknown": "未知"
+      },
+      "sim_slots": {
+        "empty": "空",
+        "sr_active": "SIM {{slot}}，使用中，卡号尾号 {{last4}}",
+        "sr_standby": "SIM {{slot}}，备用，卡号尾号 {{last4}}",
+        "sr_empty": "SIM {{slot}}，未检测到卡"
+      },
       "ambr": {
-        "card": {
-          "title": "数据速率限制",
-          "description": "运营商允许每条数据连接使用的最大上传和下载速度。这些限制由运营商的网络策略设置。"
-        },
-        "section": {
-          "lte": "LTE 速率",
-          "nr5g": "5G 速率"
-        },
-        "empty": {
-          "lte": "没有 LTE 速率数据 — 未连接到 LTE",
-          "nr5g": "没有 5G 速率数据 — 未连接到 5G"
-        },
-        "tooltip": {
-          "aria": "更多信息",
-          "content": "虽然设备可以请求特定的 AMBR 值,但运营商可能会忽略这些值,并根据订阅计划、网络策略或拥塞情况强制执行自己的速度限制。"
-        }
+        "lte_heading": "LTE 速率上限",
+        "nr_heading": "5G 速率上限",
+        "governing": "生效中",
+        "not_governing": "未生效",
+        "nsa_note": "5G 非独立组网走 LTE 数据会话，因此以这条上限为准。",
+        "lte_empty_reason": "调制解调器仅在 LTE 数据会话建立期间才发布 LTE 上限。",
+        "nr_empty_reason": "调制解调器仅在 5G 数据会话建立期间才发布 5G 上限。",
+        "download": "下载",
+        "upload": "上传",
+        "governing_unread": "您的连接正在使用该射频。打开本页时未读到它的上限。",
+        "lte_short": "LTE",
+        "nr_short": "5G NR"
       }
     },
     "apn": {
