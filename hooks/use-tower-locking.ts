@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { authFetch } from "@/lib/auth-fetch";
+import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type {
   TowerLockConfig,
   TowerModemState,
@@ -12,9 +14,12 @@ import type {
   TowerSettingsResponse,
   TowerScheduleResponse,
   TowerFailoverStatusResponse,
+  TowerActionResult,
   LteLockCell,
   NrSaLockCell,
 } from "@/types/tower-locking";
+
+export type { TowerActionResult, TowerWarningCode } from "@/types/tower-locking";
 
 // =============================================================================
 // useTowerLocking — Tower Lock State, Lock/Unlock, Settings & Schedule Hook
@@ -28,6 +33,11 @@ import type {
 // process completes. This detects whether failover activated and updates
 // the UI accordingly — without touching the modem.
 //
+// Read and write failures are separate channels. `readError` belongs to the
+// `status.sh` read; each mutator RETURNS its own result, with the failure
+// already resolved through `resolveErrorMessage`, so the page can toast it and
+// scope it to the card that wrote without reading hook state after an `await`.
+//
 // Backend endpoints:
 //   GET  /cgi-bin/quecmanager/tower/status.sh           → full state
 //   GET  /cgi-bin/quecmanager/tower/failover_status.sh  → lightweight flag check
@@ -38,6 +48,7 @@ import type {
 
 const CGI_BASE = "/cgi-bin/quecmanager/tower";
 const FAILOVER_POLL_INTERVAL = 3000; // 3s — watcher sleeps 20s then checks
+const K = "cell_locking.tower_locking.errors";
 
 const DEFAULT_FAILOVER_THRESHOLD = 20;
 const DEFAULT_SCHEDULE: TowerScheduleConfig = {
@@ -102,63 +113,78 @@ export interface UseTowerLockingReturn {
   modemState: TowerModemState | null;
   /** Failover watcher state (from flag files) */
   failoverState: TowerFailoverState | null;
-  /** True during initial data fetch */
+  /** True during the INITIAL fetch only. A manual refresh sets `isRefreshing`. */
   isLoading: boolean;
+  /** True while a manual `refresh()` is in flight; the loaded layout stays up. */
+  isRefreshing: boolean;
   /** True while an LTE lock/unlock operation is in progress */
   isLteLocking: boolean;
   /** True while an NR-SA lock/unlock operation is in progress */
   isNrLocking: boolean;
-  /** Error message from the last operation */
-  error: string | null;
-
+  /** True while a persist / failover settings save is in flight */
+  isSavingSettings: boolean;
   /**
-   * Lock LTE to specific cells (1-3 EARFCN+PCI pairs).
-   * @returns success boolean
+   * Why the last `status.sh` read failed, or null. A failed read keeps the
+   * previous state (`null` on first load), so this is the only signal that the
+   * figures on screen are not the modem's.
    */
-  lockLte: (cells: LteLockCell[]) => Promise<boolean>;
+  readError: string | null;
+
+  /** Lock LTE to specific cells (1-3 EARFCN+PCI pairs). */
+  lockLte: (cells: LteLockCell[]) => Promise<TowerActionResult>;
   /** Clear LTE tower lock. */
-  unlockLte: () => Promise<boolean>;
-  /**
-   * Lock NR-SA to a specific cell (PCI + ARFCN + SCS + Band).
-   * @returns success boolean
-   */
-  lockNrSa: (cell: NrSaLockCell) => Promise<boolean>;
+  unlockLte: () => Promise<TowerActionResult>;
+  /** Lock NR-SA to a specific cell (PCI + ARFCN + SCS + Band). */
+  lockNrSa: (cell: NrSaLockCell) => Promise<TowerActionResult>;
   /** Clear NR-SA tower lock. */
-  unlockNrSa: () => Promise<boolean>;
+  unlockNrSa: () => Promise<TowerActionResult>;
 
   /**
-   * Update persist and failover settings.
+   * Update persist and failover settings (`settings.sh` takes both together).
    * Persist changes are sent to the modem immediately via AT command.
    */
   updateSettings: (
     persist: boolean,
     failover: { enabled: boolean; threshold: number }
-  ) => Promise<boolean>;
+  ) => Promise<TowerActionResult>;
 
   /** Update schedule configuration and manage cron entries. */
-  updateSchedule: (schedule: TowerScheduleConfig) => Promise<boolean>;
+  updateSchedule: (schedule: TowerScheduleConfig) => Promise<TowerActionResult>;
 
-  /** True while the failover watcher is running (anti-spam guard) */
+  /** True while the failover watcher is running */
   isWatcherRunning: boolean;
 
-  /** Manually refresh all tower lock state. */
-  refresh: () => void;
+  /** Quietly re-read all tower lock state. Resolves true on success. */
+  refresh: () => Promise<boolean>;
 }
 
 export function useTowerLocking(): UseTowerLockingReturn {
+  const { t } = useTranslation("cellular");
   const [config, setConfig] = useState<TowerLockConfig | null>(null);
   const [modemState, setModemState] = useState<TowerModemState | null>(null);
   const [failoverState, setFailoverState] =
     useState<TowerFailoverState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLteLocking, setIsLteLocking] = useState(false);
   const [isNrLocking, setIsNrLocking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [readError, setReadError] = useState<string | null>(null);
 
   const mountedRef = useRef(true);
   const failoverPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const retryCountRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * True while ANY lock/unlock request is in flight. A ref so `sendLockRequest`
+   * reads it at call time without re-creating itself on each flip.
+   *
+   * This replaces a guard that blocked a lock while `watcher_running` was true.
+   * The tower watcher is `while true` and only exits once no lock is active, so
+   * with failover on and a leg locked that guard made re-targeting permanently
+   * impossible. In-flight is the fact the guard actually wanted.
+   */
+  const lockInFlightRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -178,68 +204,71 @@ export function useTowerLocking(): UseTowerLockingReturn {
   // ---------------------------------------------------------------------------
   // Fetch full tower lock status (modem queries + config + failover flags)
   // ---------------------------------------------------------------------------
+  // Resolves whether the READ succeeded. Only the first-load path auto-retries.
   const MAX_RETRIES = 3;
 
-  const fetchStatus = useCallback(async (isRetry = false) => {
-    try {
-      const resp = await authFetch(`${CGI_BASE}/status.sh`);
-      if (!resp.ok) {
-        throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
-      }
+  const fetchStatus = useCallback(
+    async (autoRetry = false): Promise<boolean> => {
+      try {
+        const resp = await authFetch(`${CGI_BASE}/status.sh?_t=${Date.now()}`);
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
 
-      const data: TowerStatusResponse = await resp.json();
-      if (!mountedRef.current) return;
+        const data: TowerStatusResponse = await resp.json();
+        if (!mountedRef.current) return data.success === true;
 
-      if (!data.success) {
-        setError(data.error || "Failed to fetch tower lock status");
-        return;
-      }
+        if (!data.success) {
+          setReadError(
+            resolveErrorMessage(t, data.error, data.detail, t(`${K}.read_failed`))
+          );
+          return false;
+        }
 
-      // Fix: use explicit null/undefined checks instead of truthy checks.
-      // Objects like {enabled: false} are truthy but would pass, while
-      // the truthy check is really guarding against null/undefined.
-      if (data.modem_state !== null && data.modem_state !== undefined) {
-        setModemState(data.modem_state);
-      }
-      if (data.config !== null && data.config !== undefined) {
-        setConfig(
-          normalizeTowerConfig(
-            data.config,
-            data.failover_state?.enabled === true
-          )
-        );
-      }
-      if (data.failover_state !== null && data.failover_state !== undefined) {
-        setFailoverState(data.failover_state);
-      }
-      setError(null);
-      retryCountRef.current = 0; // Reset retry counter on success
-    } catch (err) {
-      if (!mountedRef.current) return;
-      const msg =
-        err instanceof Error ? err.message : "Failed to fetch tower lock status";
-      setError(msg);
+        if (data.modem_state !== null && data.modem_state !== undefined) {
+          setModemState(data.modem_state);
+        }
+        if (data.config !== null && data.config !== undefined) {
+          setConfig(
+            normalizeTowerConfig(
+              data.config,
+              data.failover_state?.enabled === true
+            )
+          );
+        }
+        if (data.failover_state !== null && data.failover_state !== undefined) {
+          setFailoverState(data.failover_state);
+        }
+        setReadError(null);
+        retryCountRef.current = 0;
+        return true;
+      } catch {
+        if (!mountedRef.current) return false;
+        setReadError(t(`${K}.read_failed`));
 
-      // Auto-retry with exponential backoff (2s, 4s, 8s)
-      if (retryCountRef.current < MAX_RETRIES) {
-        const delay = Math.pow(2, retryCountRef.current + 1) * 1000;
-        retryCountRef.current += 1;
-        retryTimerRef.current = setTimeout(() => {
-          if (mountedRef.current) {
-            fetchStatus(true);
-          }
-        }, delay);
+        // First load only: retry with exponential backoff (2s, 4s, 8s)
+        if (autoRetry && retryCountRef.current < MAX_RETRIES) {
+          const delay = Math.pow(2, retryCountRef.current + 1) * 1000;
+          retryCountRef.current += 1;
+          retryTimerRef.current = setTimeout(() => {
+            if (mountedRef.current) {
+              void fetchStatus(true);
+            }
+          }, delay);
+        }
+        return false;
+      } finally {
+        if (mountedRef.current) {
+          setIsLoading(false);
+        }
       }
-    } finally {
-      if (mountedRef.current) {
-        setIsLoading(false);
-      }
-    }
-  }, []);
+    },
+    [t]
+  );
 
   // Initial fetch
   useEffect(() => {
-    fetchStatus();
+    void fetchStatus(true);
   }, [fetchStatus]);
 
   // ---------------------------------------------------------------------------
@@ -296,32 +325,22 @@ export function useTowerLocking(): UseTowerLockingReturn {
   // Generic lock/unlock helper
   // ---------------------------------------------------------------------------
   const isWatcherRunning = failoverState?.watcher_running ?? false;
-  const modemReportsUnlocked =
-    modemState?.lte_locked === false && modemState?.nr_locked === false;
-  const hasAnyActiveLock =
-    modemState?.lte_locked === true ||
-    modemState?.nr_locked === true ||
-    (!modemReportsUnlocked &&
-      (config?.lte?.enabled === true || config?.nr_sa?.enabled === true));
 
   const sendLockRequest = useCallback(
     async (
       body: Record<string, unknown>,
       setLocking: (v: boolean) => void
-    ): Promise<boolean> => {
-      // Anti-spam: block new LOCK operations while failover watcher is running.
-      // Unlock operations are allowed through — the backend will stop the
-      // watcher before sending the AT unlock command.
-      if (
-        body.action === "lock" &&
-        failoverState?.watcher_running &&
-        hasAnyActiveLock
-      ) {
-        setError("Please wait — failover check is still in progress");
-        return false;
+    ): Promise<TowerActionResult> => {
+      const fallback =
+        body.action === "unlock" ? t(`${K}.unlock_failed`) : t(`${K}.lock_failed`);
+
+      // Block a second write while one is in flight. Unlock always passes: it
+      // is the recovery action, and the backend stops the watcher first.
+      if (body.action === "lock" && lockInFlightRef.current) {
+        return { ok: false, error: t(`${K}.in_flight`) };
       }
 
-      setError(null);
+      lockInFlightRef.current = true;
       setLocking(true);
 
       try {
@@ -332,22 +351,26 @@ export function useTowerLocking(): UseTowerLockingReturn {
         });
 
         if (!resp.ok) {
-          throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+          throw new Error(`HTTP ${resp.status}`);
         }
 
         const data: TowerLockResponse = await resp.json();
-        if (!mountedRef.current) return false;
+        if (!mountedRef.current) return { ok: data.success === true };
 
         if (!data.success) {
-          setError(data.detail || data.error || "Tower lock operation failed");
-          return false;
+          return {
+            ok: false,
+            error: resolveErrorMessage(t, data.error, data.detail, fallback),
+          };
         }
 
         // Wait for modem to reconnect after lock/unlock command (3-5s typical).
         // isLocking stays true so the spinner remains visible to the user.
         await new Promise((resolve) => setTimeout(resolve, 5000));
+        if (!mountedRef.current) return { ok: true };
 
-        // Re-fetch full state — modem should have reconnected by now
+        // Re-fetch full state. A failed re-read lands on `readError`, never on
+        // the write that succeeded.
         await fetchStatus();
 
         // On unlock, stop any active failover polling — the backend killed the
@@ -370,59 +393,47 @@ export function useTowerLocking(): UseTowerLockingReturn {
           startFailoverPolling();
         }
 
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Tower lock operation failed"
-        );
-        return false;
+        return { ok: true };
+      } catch {
+        return { ok: false, error: fallback };
       } finally {
+        lockInFlightRef.current = false;
         if (mountedRef.current) {
           setLocking(false);
         }
       }
     },
-    [
-      fetchStatus,
-      startFailoverPolling,
-      failoverState?.watcher_running,
-      hasAnyActiveLock,
-    ]
+    [fetchStatus, startFailoverPolling, t]
   );
 
   // ---------------------------------------------------------------------------
   // LTE Lock/Unlock
   // ---------------------------------------------------------------------------
   const lockLte = useCallback(
-    async (cells: LteLockCell[]): Promise<boolean> => {
+    async (cells: LteLockCell[]): Promise<TowerActionResult> => {
       if (cells.length === 0) {
-        setError("At least one EARFCN + PCI pair is required");
-        return false;
+        return { ok: false, error: t(`${K}.no_cells`) };
       }
       return sendLockRequest(
         { type: "lte", action: "lock", cells },
         setIsLteLocking
       );
     },
-    [sendLockRequest]
+    [sendLockRequest, t]
   );
 
-  const unlockLte = useCallback(async (): Promise<boolean> => {
-    return sendLockRequest(
-      { type: "lte", action: "unlock" },
-      setIsLteLocking
-    );
-  }, [sendLockRequest]);
+  const unlockLte = useCallback(
+    async (): Promise<TowerActionResult> =>
+      sendLockRequest({ type: "lte", action: "unlock" }, setIsLteLocking),
+    [sendLockRequest]
+  );
 
   // ---------------------------------------------------------------------------
   // NR-SA Lock/Unlock
   // ---------------------------------------------------------------------------
   const lockNrSa = useCallback(
-    async (cell: NrSaLockCell): Promise<boolean> => {
-      return sendLockRequest(
+    async (cell: NrSaLockCell): Promise<TowerActionResult> =>
+      sendLockRequest(
         {
           type: "nr_sa",
           action: "lock",
@@ -432,17 +443,15 @@ export function useTowerLocking(): UseTowerLockingReturn {
           band: cell.band,
         },
         setIsNrLocking
-      );
-    },
+      ),
     [sendLockRequest]
   );
 
-  const unlockNrSa = useCallback(async (): Promise<boolean> => {
-    return sendLockRequest(
-      { type: "nr_sa", action: "unlock" },
-      setIsNrLocking
-    );
-  }, [sendLockRequest]);
+  const unlockNrSa = useCallback(
+    async (): Promise<TowerActionResult> =>
+      sendLockRequest({ type: "nr_sa", action: "unlock" }, setIsNrLocking),
+    [sendLockRequest]
+  );
 
   // ---------------------------------------------------------------------------
   // Update Settings (persist + failover)
@@ -451,8 +460,9 @@ export function useTowerLocking(): UseTowerLockingReturn {
     async (
       persist: boolean,
       failover: { enabled: boolean; threshold: number }
-    ): Promise<boolean> => {
-      setError(null);
+    ): Promise<TowerActionResult> => {
+      const fallback = t(`${K}.settings_failed`);
+      setIsSavingSettings(true);
 
       try {
         const resp = await authFetch(`${CGI_BASE}/settings.sh`, {
@@ -466,23 +476,28 @@ export function useTowerLocking(): UseTowerLockingReturn {
         });
 
         if (!resp.ok) {
-          throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+          throw new Error(`HTTP ${resp.status}`);
         }
 
         const data: TowerSettingsResponse = await resp.json();
-        if (!mountedRef.current) return false;
+        if (!mountedRef.current) return { ok: data.success === true };
 
         if (!data.success) {
-          setError(data.detail || data.error || "Failed to update settings");
-          return false;
+          return {
+            ok: false,
+            error: resolveErrorMessage(t, data.error, data.detail, fallback),
+          };
         }
 
-        // Optimistic update of config
+        // The config was written but the modem rejected the `save_ctrl` write,
+        // so "Keep lock after reboot" did NOT take. Keep the config's persist as
+        // it was and report the partial success instead of claiming it.
+        const persistTook = !data.persist_command_failed;
         setConfig((prev) =>
           prev
             ? {
                 ...prev,
-                persist,
+                persist: persistTook ? persist : prev.persist,
                 failover: {
                   enabled: failover.enabled,
                   threshold: failover.threshold,
@@ -491,10 +506,8 @@ export function useTowerLocking(): UseTowerLockingReturn {
             : prev
         );
 
-        // Update failoverState to match (prevents badge desync).
-        // When disabling failover, the backend kills the watcher daemon,
-        // so clear watcher_running. When the backend spawned the watcher
-        // (enabled failover with active lock), set watcher_running.
+        // Keep failoverState in step. Disabling failover kills the watcher;
+        // enabling it with an active lock spawns one.
         if (data.watcher_spawned) {
           setFailoverState((prev) =>
             prev
@@ -503,6 +516,10 @@ export function useTowerLocking(): UseTowerLockingReturn {
           );
           startFailoverPolling();
         } else {
+          if (!failover.enabled && failoverPollRef.current) {
+            clearInterval(failoverPollRef.current);
+            failoverPollRef.current = null;
+          }
           setFailoverState((prev) =>
             prev
               ? {
@@ -514,25 +531,24 @@ export function useTowerLocking(): UseTowerLockingReturn {
           );
         }
 
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(
-          err instanceof Error ? err.message : "Failed to update settings"
-        );
-        return false;
+        return persistTook
+          ? { ok: true }
+          : { ok: true, warning: "persist_command_failed" };
+      } catch {
+        return { ok: false, error: fallback };
+      } finally {
+        if (mountedRef.current) setIsSavingSettings(false);
       }
     },
-    [startFailoverPolling]
+    [startFailoverPolling, t]
   );
 
   // ---------------------------------------------------------------------------
   // Update Schedule
   // ---------------------------------------------------------------------------
   const updateSchedule = useCallback(
-    async (schedule: TowerScheduleConfig): Promise<boolean> => {
-      setError(null);
-
+    async (schedule: TowerScheduleConfig): Promise<TowerActionResult> => {
+      const fallback = t(`${K}.schedule_failed`);
       try {
         const resp = await authFetch(`${CGI_BASE}/schedule.sh`, {
           method: "POST",
@@ -541,40 +557,38 @@ export function useTowerLocking(): UseTowerLockingReturn {
         });
 
         if (!resp.ok) {
-          throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+          throw new Error(`HTTP ${resp.status}`);
         }
 
         const data: TowerScheduleResponse = await resp.json();
-        if (!mountedRef.current) return false;
+        if (!mountedRef.current) return { ok: data.success === true };
 
         if (!data.success) {
-          setError(data.detail || data.error || "Failed to update schedule");
-          return false;
+          return {
+            ok: false,
+            error: resolveErrorMessage(t, data.error, data.detail, fallback),
+          };
         }
 
-        // Optimistic update of config
-        setConfig((prev) =>
-          prev ? { ...prev, schedule } : prev
-        );
-
-        return true;
-      } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(
-          err instanceof Error ? err.message : "Failed to update schedule"
-        );
-        return false;
+        setConfig((prev) => (prev ? { ...prev, schedule } : prev));
+        return { ok: true };
+      } catch {
+        return { ok: false, error: fallback };
       }
     },
-    []
+    [t]
   );
 
   // ---------------------------------------------------------------------------
-  // Manual refresh
+  // Manual refresh — quiet: raises `isRefreshing`, never the skeleton
   // ---------------------------------------------------------------------------
-  const refresh = useCallback(() => {
-    setIsLoading(true);
-    fetchStatus();
+  const refresh = useCallback(async (): Promise<boolean> => {
+    setIsRefreshing(true);
+    try {
+      return await fetchStatus();
+    } finally {
+      if (mountedRef.current) setIsRefreshing(false);
+    }
   }, [fetchStatus]);
 
   return {
@@ -582,10 +596,12 @@ export function useTowerLocking(): UseTowerLockingReturn {
     modemState,
     failoverState,
     isLoading,
+    isRefreshing,
     isLteLocking,
     isNrLocking,
+    isSavingSettings,
+    readError,
     isWatcherRunning,
-    error,
     lockLte,
     unlockLte,
     lockNrSa,

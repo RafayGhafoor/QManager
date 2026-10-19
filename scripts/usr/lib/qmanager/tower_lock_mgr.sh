@@ -285,9 +285,10 @@ tower_read_nr_lock() {
     line=$(printf '%s' "$result" | grep '+QNWLOCK:' | head -1 | tr -d '\r')
 
     if [ -z "$line" ]; then
-        # No +QNWLOCK line could mean unlocked or error
-        printf 'unlocked'
-        return 0
+        # No +QNWLOCK line is an unanswered read, not "unlocked": an OK-only
+        # reply carries no lock state. Fail closed like the LTE twin.
+        printf 'error'
+        return 1
     fi
 
     # Extract params after "common/5g"

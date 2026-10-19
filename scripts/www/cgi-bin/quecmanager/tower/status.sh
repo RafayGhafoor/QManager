@@ -35,18 +35,24 @@ fi
 tower_config_init
 
 # --- Query LTE lock state ----------------------------------------------------
+# Each reader's rc becomes a *_read_ok flag, so a failed read is reported as
+# unknown instead of a confident "unlocked" / "disabled". Clients treat an
+# absent flag as true (older backends emit none).
 qlog_debug "Querying LTE lock state"
-lte_state=$(tower_read_lte_lock)
+lte_read_ok="true"
+lte_state=$(tower_read_lte_lock) || lte_read_ok="false"
 sleep 0.1
 
 # --- Query NR-SA lock state --------------------------------------------------
 qlog_debug "Querying NR-SA lock state"
-nr_state=$(tower_read_nr_lock)
+nr_read_ok="true"
+nr_state=$(tower_read_nr_lock) || nr_read_ok="false"
 sleep 0.1
 
 # --- Query persist state -----------------------------------------------------
 qlog_debug "Querying persist state"
-persist_state=$(tower_read_persist)
+persist_read_ok="true"
+persist_state=$(tower_read_persist) || persist_read_ok="false"
 
 # --- Parse LTE lock state into JSON ------------------------------------------
 lte_locked="false"
@@ -140,13 +146,19 @@ modem_json=$(jq -n \
     --argjson nr_cell "$nr_cell_json" \
     --argjson persist_lte "$persist_lte" \
     --argjson persist_nr "$persist_nr" \
+    --argjson lte_read_ok "$lte_read_ok" \
+    --argjson nr_read_ok "$nr_read_ok" \
+    --argjson persist_read_ok "$persist_read_ok" \
     '{
         lte_locked: $lte_locked,
         lte_cells: $lte_cells,
         nr_locked: $nr_locked,
         nr_cell: $nr_cell,
         persist_lte: $persist_lte,
-        persist_nr: $persist_nr
+        persist_nr: $persist_nr,
+        lte_read_ok: $lte_read_ok,
+        nr_read_ok: $nr_read_ok,
+        persist_read_ok: $persist_read_ok
     }' 2>/dev/null)
 
 # Construct failover_state as a JSON string

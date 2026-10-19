@@ -70,6 +70,18 @@ export interface TowerModemState {
   nr_cell: NrSaLockCell | null;
   persist_lte: boolean;
   persist_nr: boolean;
+  /**
+   * Whether each AT read came back with a trustworthy answer. `status.sh`
+   * defaults `lte_locked` / `nr_locked` / `persist_*` to false before it asks
+   * the modem, so without these a failed read looks like a confident
+   * "unlocked" or "disabled".
+   *
+   * Optional, and ABSENT MEANS TRUE: a cached page can meet an older
+   * `status.sh` that emits none of them. Test `=== false`, never `!== true`.
+   */
+  lte_read_ok?: boolean;
+  nr_read_ok?: boolean;
+  persist_read_ok?: boolean;
 }
 
 // --- Failover ----------------------------------------------------------------
@@ -90,6 +102,7 @@ export interface TowerStatusResponse {
   config: TowerLockConfig;
   failover_state: TowerFailoverState;
   error?: string;
+  detail?: string;
 }
 
 /** Response from POST /cgi-bin/quecmanager/tower/lock.sh */
@@ -132,6 +145,26 @@ export interface TowerFailoverStatusResponse {
   enabled: boolean;
   activated: boolean;
   watcher_running: boolean;
+}
+
+// --- Hook results --------------------------------------------------------------
+
+/**
+ * A non-fatal partial success: the write landed but something alongside it did
+ * not. `settings.sh` emits `persist_command_failed` when the config was written
+ * but the modem rejected the `save_ctrl` write.
+ */
+export type TowerWarningCode = "persist_command_failed";
+
+/**
+ * What every tower mutation resolves to. `error` is already translated
+ * (through `resolveErrorMessage`), so the caller can toast it without reading
+ * hook state after an `await`.
+ */
+export interface TowerActionResult {
+  ok: boolean;
+  error?: string;
+  warning?: TowerWarningCode;
 }
 
 // --- Utility Functions -------------------------------------------------------
