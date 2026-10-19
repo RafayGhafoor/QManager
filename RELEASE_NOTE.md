@@ -17,6 +17,7 @@ v0.1.32 is in progress, headlined by a much faster connection to the modem: ever
 
 ## ✅ Improvements
 
+- **Data Used and Storage are back on the dashboard.** The Device & Speed card shows how much you have downloaded and uploaded since your last reset, kept across reboots and connection drops, with a reset button beside it, and how full the modem's storage is.
 - **First-time setup no longer skips settings that didn't apply.** Choosing "APN only" during setup never actually saved the APN, and a network mode or band lock the modem rejected was silently dropped while setup moved on. Each of these now saves for real, and if the modem refuses one, setup stays on that step and tells you why, so you can try again or skip it. The setup wizard also has a refreshed look in the new design, with the QManager mark on the welcome screen.
 
 - **Redesigned Tower Locking page.** Tower Locking now opens by showing whether the modem is on the cell you locked, with every cell it is using as a tile you can tap to fill in a lock. Keep after reboot, signal failover and the lock schedule sit together under what the lock does while nobody is watching, and each lock card saves from its own footer. If the modem doesn't report its lock state, the page now says so instead of showing "Unlocked", and Remove lock stays available. Changing the locked cell is no longer blocked while signal failover is watching.

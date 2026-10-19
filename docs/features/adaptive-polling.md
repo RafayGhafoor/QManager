@@ -219,6 +219,10 @@ Live parity: 200 of 200 snapshot pairs (both composers fed the same globals) wer
 
 Three producers write an additive `.env` file beside their JSON in `/var/run/qmanager` (tmp then `mv`, right after the JSON): `qmanager_ping` writes `ping.env` and `dns.env` ([connection-quality.md](connection-quality.md#poller-sidecars-pingenv-and-dnsenv)), and `ondemand_radio.sh` writes `ondemand.env` ([ondemand-radio-details.md](ondemand-radio-details.md#sidecar-ondemandenv)). The poller reads them with builtins instead of forking `jq`. A sidecar is used only when it is complete (every line a single-quoted assignment, last line `qm_sidecar_end='1'`) and not older than its JSON; otherwise the reader falls back to the JSON path, so an upgrade window or a failed sidecar write costs a few forks, not correctness. The JSON files and `conn_state_read` (the watchdog's reader) are unchanged. `init.d/qmanager` `stop_service` removes the sidecars.
 
+### 12. The Data Used sampler stays off the hot path
+
+`du_tick` (lib `data_used.sh`, ledger U4.22) runs every cycle but only tests the reset flag (`[ -f ]`, no fork); the netdev sample is every 15 cycles and costs one `mv`, and the flash write is every 5 min, on reset and from the `TERM`/`INT` trap. It writes its own files, never `status.json`. Keep any new Data Used work on that cadence. See [`data-used.md`](data-used.md).
+
 ### 11. Prometheus scrape hold rewrites the effective age, never the ladder
 
 The scrape CGI ([prometheus-metrics.md](prometheus-metrics.md)) writes `/var/run/qmanager/metrics_scrape` = `"<mode> <uptime_s>"` on every authenticated scrape. In `poll_cycle`, right after the heartbeat age `_age` is computed and before the tier comparison, the poller reads it as a **third tier input after the force flags and the heartbeat**:
