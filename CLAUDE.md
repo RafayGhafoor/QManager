@@ -53,6 +53,12 @@ Rules reviews enforce most (detail and rationale in `DESIGN.md`):
 
 Probe the live test modem instead of guessing: backend behaviour, CGI output, BusyBox compatibility, whether a fix landed. Use the `mcp__modem__*` bridge (reads `.env` itself; secrets never enter the transcript); `confirm: true` on its deny-listed commands (reboot, `AT+CFUN=1,1`, factory reset, `opkg remove`, raw `mtd`/`dd`, …) only for an action the user explicitly approved. UCI package: `quecmanager`. Avoid destructive commands without a stated reason; never echo `.env` values. Tool details, typical probes and the Posh-SSH fallback: `docs/reference/modem-probing.md`.
 
+## Commits
+
+- **Small, frequent, atomic:** one logical change per commit; commit as each step lands rather than one commit for a whole session.
+- **Subject only by default:** Conventional Commits (`type(scope): summary`, e.g. `fix(sms): retry CPMS restore on busy`), imperative, lowercase, no trailing period, ≤ 72 chars.
+- **Body only when the why isn't obvious** from the diff: 1–3 short lines on why, never a recap of the task or a file-by-file list.
+
 ## Release Notes (`RELEASE_NOTE.md`)
 
 Version heading, then a 2–3 sentence summary (theme, headline features, features vs fixes vs polish; no bullets), then `## ✨ New Features` (headline additions, user-facing bullets, no internal names), `## ✅ Improvements` (headline fixes first), `## 📥 Installation` (one-line fresh install + Software Update path), `## 💙 Thank You`.
