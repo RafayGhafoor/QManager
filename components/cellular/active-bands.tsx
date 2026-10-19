@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { CarrierComponent } from "@/types/modem-status";
 import {
   getSignalQuality,
+  normalizeMetricValue,
   signalToProgress,
   RSRP_THRESHOLDS,
   RSRQ_THRESHOLDS,
@@ -187,9 +188,20 @@ const ActiveBandsComponent = ({
             variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
           >
             {components.map((cc, idx) => {
-              const rsrpQuality = getSignalQuality(cc.rsrp, RSRP_THRESHOLDS);
-              const rsrqQuality = getSignalQuality(cc.rsrq, RSRQ_THRESHOLDS);
-              const sinrQuality = getSignalQuality(cc.sinr, SINR_THRESHOLDS);
+              // One read boundary for every rated metric, the same one the public
+              // band rows use: a value outside the 3GPP reported range is not a
+              // bad reading, it is not a reading, so the number and its bar
+              // leave together. AT+QCAINFO's LTE line is documented as RSSNR in
+              // dB (-10 to +30), but this firmware
+              // (RM551EGL00AAR02A02M8G) returns a raw 250 in EN-DC mode - which
+              // `getSignalQuality()` rated "excellent" and the row printed as
+              // "250 dB" next to a full bar.
+              const rsrp = normalizeMetricValue(cc.rsrp, "rsrp");
+              const rsrq = normalizeMetricValue(cc.rsrq, "rsrq");
+              const sinr = normalizeMetricValue(cc.sinr, "sinr");
+              const rsrpQuality = getSignalQuality(rsrp, RSRP_THRESHOLDS);
+              const rsrqQuality = getSignalQuality(rsrq, RSRQ_THRESHOLDS);
+              const sinrQuality = getSignalQuality(sinr, SINR_THRESHOLDS);
 
               return (
                 <motion.div
@@ -226,18 +238,18 @@ const ActiveBandsComponent = ({
                         <motion.div variants={{ hidden: { opacity: 0, x: -6 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.18, ease: "easeOut" }}>
                           <SignalRow
                             label={t("core_settings.info.active_bands.metrics.rsrp")}
-                            value={cc.rsrp}
+                            value={rsrp}
                             unit="dBm"
-                            progress={signalToProgress(cc.rsrp, RSRP_THRESHOLDS)}
+                            progress={signalToProgress(rsrp, RSRP_THRESHOLDS)}
                             quality={rsrpQuality}
                           />
                         </motion.div>
                         <motion.div variants={{ hidden: { opacity: 0, x: -6 }, visible: { opacity: 1, x: 0 } }} transition={{ duration: 0.18, ease: "easeOut" }}>
                           <SignalRow
                             label={t("core_settings.info.active_bands.metrics.rsrq")}
-                            value={cc.rsrq}
+                            value={rsrq}
                             unit="dB"
-                            progress={signalToProgress(cc.rsrq, RSRQ_THRESHOLDS)}
+                            progress={signalToProgress(rsrq, RSRQ_THRESHOLDS)}
                             quality={rsrqQuality}
                           />
                         </motion.div>
@@ -248,9 +260,9 @@ const ActiveBandsComponent = ({
                                 ? t("core_settings.info.active_bands.metrics.snr")
                                 : t("core_settings.info.active_bands.metrics.sinr")
                             }
-                            value={cc.sinr}
+                            value={sinr}
                             unit="dB"
-                            progress={signalToProgress(cc.sinr, SINR_THRESHOLDS)}
+                            progress={signalToProgress(sinr, SINR_THRESHOLDS)}
                             quality={sinrQuality}
                           />
                         </motion.div>
