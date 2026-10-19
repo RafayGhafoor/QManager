@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2Icon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 // =============================================================================
@@ -13,17 +14,18 @@ import { cn } from "@/lib/utils";
 //   scripts/www/cgi-bin/quecmanager/auth/login.sh
 //   scripts/www/cgi-bin/quecmanager/auth/password.sh
 
+type RuleKey = "length" | "uppercase" | "lowercase" | "number";
+
 interface Rule {
-  key: string;
-  label: string;
+  key: RuleKey;
   test: (pw: string) => boolean;
 }
 
 const RULES: Rule[] = [
-  { key: "length",    label: "At least 5 characters", test: (pw) => pw.length >= 5 },
-  { key: "uppercase", label: "Uppercase letter",      test: (pw) => /[A-Z]/.test(pw) },
-  { key: "lowercase", label: "Lowercase letter",      test: (pw) => /[a-z]/.test(pw) },
-  { key: "number",    label: "Number",                test: (pw) => /[0-9]/.test(pw) },
+  { key: "length",    test: (pw) => pw.length >= 5 },
+  { key: "uppercase", test: (pw) => /[A-Z]/.test(pw) },
+  { key: "lowercase", test: (pw) => /[a-z]/.test(pw) },
+  { key: "number",    test: (pw) => /[0-9]/.test(pw) },
 ];
 
 /** Returns true when the password satisfies every rule shown in the checklist. */
@@ -43,13 +45,14 @@ export function PasswordRequirements({
   className?: string;
   id?: string;
 }) {
+  const { t } = useTranslation("common");
   const activeRules = enforceStrong ? RULES : RULES.filter((r) => r.key === "length");
 
   return (
     <ul
       id={id}
       className={cn("flex flex-col gap-1 text-xs", className)}
-      aria-label="Password requirements"
+      aria-label={t("password_rules.requirements_label")}
     >
       {activeRules.map((rule) => {
         const met = rule.test(password);
@@ -58,19 +61,21 @@ export function PasswordRequirements({
             <CheckCircle2Icon
               aria-hidden
               className={cn(
-                "size-3.5 shrink-0 transition-colors duration-200",
+                "size-3.5 shrink-0 transition-colors duration-[var(--duration-quick)] ease-[var(--ease-standard)]",
                 met ? "text-success" : "text-muted-foreground/40"
               )}
             />
             <span
               className={cn(
-                "transition-colors duration-200",
+                "transition-colors duration-[var(--duration-quick)] ease-[var(--ease-standard)]",
                 met ? "text-foreground" : "text-muted-foreground"
               )}
             >
-              {rule.label}
+              {t(`password_rules.rule.${rule.key}`)}
             </span>
-            <span className="sr-only">{met ? " (met)" : " (not met)"}</span>
+            <span className="sr-only">
+              {met ? t("password_rules.met") : t("password_rules.not_met")}
+            </span>
           </li>
         );
       })}

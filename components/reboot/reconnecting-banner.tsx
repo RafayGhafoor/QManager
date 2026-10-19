@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useConnectionStatus } from "@/lib/reboot/connection";
@@ -11,27 +10,25 @@ import { useConnectionStatus } from "@/lib/reboot/connection";
  * user a heads-up ("reconnecting…") instead of an abrupt logout. Driven by the
  * connection-status signal reported from use-auto-logout. Distinct from the
  * deferred pending-reboot banner, so the two never collide.
+ *
+ * Motion: the shared `animate-banner-in` entrance (emphasized clock, stops
+ * under Reduced) and no exit. DESIGN.md > The Enter-Only Rule: the banner
+ * leaving means contact came back, and that should read as immediate.
  */
 export function ReconnectingBanner() {
   const { reconnecting } = useConnectionStatus();
   const { t } = useTranslation("common");
 
+  if (!reconnecting) return null;
+
   return (
-    <AnimatePresence>
-      {reconnecting && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          role="status"
-          aria-live="polite"
-          className="mx-2 mb-2 flex items-center gap-2 rounded-md border border-warning/30 bg-warning/15 px-3 py-2 text-sm text-warning lg:mx-6"
-        >
-          <Loader2 className="size-3 animate-spin" />
-          <span>{t("connection.reconnecting")}</span>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div
+      role="status"
+      aria-live="polite"
+      className="animate-banner-in mx-2 mb-2 flex items-center gap-2 rounded-field bg-warning-container px-3 py-2 text-sm text-on-warning-container lg:mx-6"
+    >
+      <Loader2 className="size-4 shrink-0 motion-safe:animate-spin" aria-hidden="true" />
+      <span>{t("connection.reconnecting")}</span>
+    </div>
   );
 }

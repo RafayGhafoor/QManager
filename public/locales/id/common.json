@@ -625,5 +625,63 @@
       "keep": "Pertahankan pengingat",
       "confirm": "Tutup"
     }
+  },
+  "reboot_page": {
+    "phase": {
+      "shutting_down": "Mematikan…",
+      "restarting": "Memulai ulang layanan…",
+      "almost_ready": "Hampir siap…",
+      "overtime": "Memakan waktu lebih lama dari biasanya…"
+    },
+    "subtitle": {
+      "normal": "Perangkat Anda akan segera online kembali",
+      "overtime": "Perangkat masih memulai ulang"
+    },
+    "timer_aria_one": "Tersisa {{count}} detik",
+    "timer_aria_other": "Tersisa {{count}} detik",
+    "timer_overtime_aria": "Menyambungkan ulang, memakan waktu lebih lama dari biasanya",
+    "seconds_unit": "dtk",
+    "escape": "Perangkat mungkin perlu ditangani manual. Buka halaman masuk"
+  },
+  "change_password": {
+    "title": "Ubah Kata Sandi",
+    "description": "Anda akan keluar setelah mengubah kata sandi.",
+    "current_label": "Kata Sandi Saat Ini",
+    "new_label": "Kata Sandi Baru",
+    "confirm_label": "Konfirmasi Kata Sandi Baru",
+    "match": "Kata sandi cocok",
+    "mismatch": "Kata sandi tidak cocok",
+    "error_weak": "Kata sandi baru minimal 5 karakter.",
+    "error_weak_strong": "Kata sandi baru minimal 5 karakter dan harus berisi huruf besar, huruf kecil, dan angka.",
+    "error_mismatch": "Kata sandi baru tidak cocok.",
+    "failed_toast": "Tidak dapat mengubah kata sandi. Coba lagi.",
+    "cancel": "Batal",
+    "submit": "Ubah Kata Sandi",
+    "submitting": "Mengubah…"
+  },
+  "password_rules": {
+    "requirements_label": "Persyaratan kata sandi",
+    "rule": {
+      "length": "Minimal 5 karakter",
+      "uppercase": "Huruf besar",
+      "lowercase": "Huruf kecil",
+      "number": "Angka"
+    },
+    "met": "(terpenuhi)",
+    "not_met": "(belum terpenuhi)",
+    "strong_label": "Gunakan kata sandi kuat",
+    "strong_hint_label": "Tentang kata sandi kuat",
+    "strong_hint": "Memerlukan huruf besar, huruf kecil, dan angka."
+  },
+  "not_found": {
+    "scan_label": "Tidak ada sinyal: konsol tidak dapat memperoleh rute untuk alamat ini",
+    "code_label": "Kesalahan 404",
+    "badge": "Tidak ada rute",
+    "title": "Rute ini tidak ada",
+    "description": "Tidak ada yang menjawab di alamat ini; mungkin sudah dipindahkan atau tautannya salah ketik.",
+    "requested_route": "Rute yang diminta",
+    "back": "Kembali",
+    "home": "Kembali ke Dasbor",
+    "footer": "QManager (Manajemen Modem Quectel)"
   }
 }
