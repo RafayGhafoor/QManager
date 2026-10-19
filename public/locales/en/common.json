@@ -625,5 +625,63 @@
       "keep": "Keep reminder",
       "confirm": "Dismiss"
     }
+  },
+  "reboot_page": {
+    "phase": {
+      "shutting_down": "Shutting down…",
+      "restarting": "Restarting services…",
+      "almost_ready": "Almost ready…",
+      "overtime": "Taking longer than usual…"
+    },
+    "subtitle": {
+      "normal": "Your device will be back online shortly",
+      "overtime": "The device is still restarting"
+    },
+    "timer_aria_one": "{{count}} second remaining",
+    "timer_aria_other": "{{count}} seconds remaining",
+    "timer_overtime_aria": "Reconnecting, taking longer than usual",
+    "seconds_unit": "sec",
+    "escape": "Device may need manual attention. Go to login"
+  },
+  "change_password": {
+    "title": "Change Password",
+    "description": "You will be logged out after changing your password.",
+    "current_label": "Current Password",
+    "new_label": "New Password",
+    "confirm_label": "Confirm New Password",
+    "match": "Passwords match",
+    "mismatch": "Passwords don’t match",
+    "error_weak": "New password must be at least 5 characters.",
+    "error_weak_strong": "New password must be at least 5 characters and include uppercase, lowercase, and a number.",
+    "error_mismatch": "New passwords do not match.",
+    "failed_toast": "Couldn't change the password. Try again.",
+    "cancel": "Cancel",
+    "submit": "Change Password",
+    "submitting": "Changing…"
+  },
+  "password_rules": {
+    "requirements_label": "Password requirements",
+    "rule": {
+      "length": "At least 5 characters",
+      "uppercase": "Uppercase letter",
+      "lowercase": "Lowercase letter",
+      "number": "Number"
+    },
+    "met": "(met)",
+    "not_met": "(not met)",
+    "strong_label": "Use strong password",
+    "strong_hint_label": "About strong passwords",
+    "strong_hint": "Requires uppercase, lowercase, and numeric characters."
+  },
+  "not_found": {
+    "scan_label": "No signal: the console can't acquire a route for this address",
+    "code_label": "Error 404",
+    "badge": "No route acquired",
+    "title": "This route doesn't exist",
+    "description": "Nothing answers at this address; it may have moved, or the link was mistyped.",
+    "requested_route": "Requested route",
+    "back": "Go back",
+    "home": "Return to Dashboard",
+    "footer": "QManager (Quectel Modem Management)"
   }
 }

@@ -265,7 +265,7 @@ export async function changePassword(
   current: string,
   newPassword: string,
   enforceStrong: boolean = true
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; detail?: string }> {
   try {
     const resp = await fetch(PASSWORD_ENDPOINT, {
       method: "POST",
@@ -284,11 +284,10 @@ export async function changePassword(
       return { success: true };
     }
 
-    return {
-      success: false,
-      error: data.detail || data.error || "Password change failed",
-    };
+    // `error` is the backend code (errors.json), `detail` its English text;
+    // the caller resolves the pair through resolveErrorMessage.
+    return { success: false, error: data.error, detail: data.detail };
   } catch {
-    return { success: false, error: "Connection failed" };
+    return { success: false };
   }
 }

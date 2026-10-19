@@ -625,5 +625,63 @@
       "keep": "保留提醒",
       "confirm": "忽略"
     }
+  },
+  "reboot_page": {
+    "phase": {
+      "shutting_down": "正在關機…",
+      "restarting": "正在重新啟動服務…",
+      "almost_ready": "即將就緒…",
+      "overtime": "耗時比平常更久…"
+    },
+    "subtitle": {
+      "normal": "裝置很快就會恢復上線",
+      "overtime": "裝置仍在重新啟動"
+    },
+    "timer_aria_one": "剩餘 {{count}} 秒",
+    "timer_aria_other": "剩餘 {{count}} 秒",
+    "timer_overtime_aria": "正在重新連線，耗時比平常更久",
+    "seconds_unit": "秒",
+    "escape": "裝置可能需要人工處理。前往登入"
+  },
+  "change_password": {
+    "title": "變更密碼",
+    "description": "變更密碼後您將被登出。",
+    "current_label": "目前密碼",
+    "new_label": "新密碼",
+    "confirm_label": "確認新密碼",
+    "match": "密碼一致",
+    "mismatch": "密碼不一致",
+    "error_weak": "新密碼至少需要 5 個字元。",
+    "error_weak_strong": "新密碼至少需要 5 個字元，並包含大寫字母、小寫字母和數字。",
+    "error_mismatch": "兩次輸入的新密碼不一致。",
+    "failed_toast": "無法變更密碼，請再試一次。",
+    "cancel": "取消",
+    "submit": "變更密碼",
+    "submitting": "正在變更…"
+  },
+  "password_rules": {
+    "requirements_label": "密碼要求",
+    "rule": {
+      "length": "至少 5 個字元",
+      "uppercase": "大寫字母",
+      "lowercase": "小寫字母",
+      "number": "數字"
+    },
+    "met": "（已符合）",
+    "not_met": "（未符合）",
+    "strong_label": "使用強密碼",
+    "strong_hint_label": "關於強密碼",
+    "strong_hint": "需要包含大寫字母、小寫字母和數字。"
+  },
+  "not_found": {
+    "scan_label": "無訊號：主控台無法為此位址取得路由",
+    "code_label": "錯誤 404",
+    "badge": "未取得路由",
+    "title": "此路由不存在",
+    "description": "此位址沒有回應；它可能已被移動，或連結輸入錯誤。",
+    "requested_route": "請求的路由",
+    "back": "返回",
+    "home": "返回儀表板",
+    "footer": "QManager（Quectel 模組管理）"
   }
 }

@@ -625,5 +625,63 @@
       "keep": "保留提醒",
       "confirm": "忽略"
     }
+  },
+  "reboot_page": {
+    "phase": {
+      "shutting_down": "正在关机…",
+      "restarting": "正在重启服务…",
+      "almost_ready": "即将就绪…",
+      "overtime": "耗时比平时更长…"
+    },
+    "subtitle": {
+      "normal": "设备很快就会恢复在线",
+      "overtime": "设备仍在重启"
+    },
+    "timer_aria_one": "剩余 {{count}} 秒",
+    "timer_aria_other": "剩余 {{count}} 秒",
+    "timer_overtime_aria": "正在重新连接，耗时比平时更长",
+    "seconds_unit": "秒",
+    "escape": "设备可能需要人工处理。前往登录"
+  },
+  "change_password": {
+    "title": "修改密码",
+    "description": "修改密码后您将被注销。",
+    "current_label": "当前密码",
+    "new_label": "新密码",
+    "confirm_label": "确认新密码",
+    "match": "密码一致",
+    "mismatch": "密码不一致",
+    "error_weak": "新密码至少需要 5 个字符。",
+    "error_weak_strong": "新密码至少需要 5 个字符，并包含大写字母、小写字母和数字。",
+    "error_mismatch": "两次输入的新密码不一致。",
+    "failed_toast": "无法修改密码，请重试。",
+    "cancel": "取消",
+    "submit": "修改密码",
+    "submitting": "正在修改…"
+  },
+  "password_rules": {
+    "requirements_label": "密码要求",
+    "rule": {
+      "length": "至少 5 个字符",
+      "uppercase": "大写字母",
+      "lowercase": "小写字母",
+      "number": "数字"
+    },
+    "met": "（已满足）",
+    "not_met": "（未满足）",
+    "strong_label": "使用强密码",
+    "strong_hint_label": "关于强密码",
+    "strong_hint": "需要包含大写字母、小写字母和数字。"
+  },
+  "not_found": {
+    "scan_label": "无信号：控制台无法为此地址获取路由",
+    "code_label": "错误 404",
+    "badge": "未获取到路由",
+    "title": "此路由不存在",
+    "description": "此地址无响应；它可能已被移动，或链接输入有误。",
+    "requested_route": "请求的路由",
+    "back": "返回",
+    "home": "返回仪表盘",
+    "footer": "QManager（Quectel 模组管理）"
   }
 }
