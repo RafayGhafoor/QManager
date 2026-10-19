@@ -1336,9 +1336,15 @@ resolve_poller_config() {
 # DNS lookup time from qmanager_ping's detached job. A number only when the last
 # lookup succeeded and the sample is fresh (mono age 0..DNS_MAX_AGE_SEC).
 DNS_CACHE="${DNS_CACHE:-/tmp/qmanager_dns.json}"
+DNS_ENV="${DNS_ENV:-/var/run/qmanager/dns.env}"
 DNS_MAX_AGE_SEC=180
 dns_lookup_ms="null"
 dns_resolver=""
+
+# Sidecar helpers (B5.29 Phase C). They live in conn_state.sh; a poller running
+# against an older library set degrades to the JSON paths instead of failing.
+command -v cq_env_source >/dev/null 2>&1 || cq_env_source() { return 1; }
+command -v conn_state_read_env >/dev/null 2>&1 || conn_state_read_env() { return 2; }
 
 read_dns_data() {
     dns_lookup_ms="null"
@@ -1364,7 +1370,16 @@ read_dns_data() {
     # the original jq path below, so the result is the same either way.
     _ok="null"; _ms="null"; _mono="null"; _res="null"
     _shape=0
-    {
+    # Sidecar from qmanager_ping (written right after dns.json): used only when
+    # it is not older than the JSON and is complete, else the paths below run.
+    if [ -f "$DNS_ENV" ] && ! [ "$DNS_CACHE" -nt "$DNS_ENV" ]; then
+        dns_s_ok=""; dns_s_ms=""; dns_s_mono=""; dns_s_res=""
+        if cq_env_source "$DNS_ENV"; then
+            _ok="$dns_s_ok"; _ms="$dns_s_ms"; _mono="$dns_s_mono"; _res="$dns_s_res"
+            _shape=2
+        fi
+    fi
+    [ "$_shape" = "2" ] || {
         while IFS= read -r _l; do
             case "$_shape" in
                 0)
@@ -1432,7 +1447,16 @@ read_ping_data() {
     # owns the staleness rule: age > max(3 * interval_sec, 15) on the monotonic
     # clock. Missing, stale or unreadable data marks connectivity unknown.
     # ping.json carries no stats/history — those are computed here from raw file.
-    if ! conn_state_read; then
+    # The sidecar reader (builtins, no jq) goes first; rc 2 = no usable sidecar
+    # (upgrade window, failed write), so conn_state_read parses ping.json.
+    local _rp_rc
+    conn_state_read_env
+    _rp_rc=$?
+    if [ "$_rp_rc" -eq 2 ]; then
+        conn_state_read
+        _rp_rc=$?
+    fi
+    if [ "$_rp_rc" -ne 0 ]; then
         conn_internet_available="null"
         conn_status="unknown"
         conn_latency="null"
@@ -1577,11 +1601,46 @@ sim_swap_detected="false"
 sim_swap_profile_id=""
 sim_swap_profile_name=""
 
+# Re-read gate (B5.29 Phase C). These state files change rarely, so each is
+# parsed only when it is newer than a stamp under /var/run/qmanager, plus a
+# forced re-read every STATE_FORCE_EVERY calls (the mtime compare is whole
+# seconds and the wall clock can step). Unchanged files hold the values from the
+# last read. The stamp is armed one second BEFORE the read (touch -d, one fork
+# per reload, not per cycle) so a write landing in the same second as the read
+# still compares newer next time; the cost is at most one redundant reload. A
+# missing stamp degrades to a re-read on every call, i.e. the old behaviour.
+WC_STAMP="/var/run/qmanager/watchcat.stamp"
+SIM_SWAP_STAMP="/var/run/qmanager/sim_swap.stamp"
+SIM_FO_STAMP="/var/run/qmanager/sim_failover.stamp"
+STATE_FORCE_EVERY=30
+_wc_rd_n=30
+_ss_rd_n=30
+_sf_rd_n=30
+
+# _state_reload <src> <stamp> <calls since the last reload>: 0 = re-read now
+# (the stamp is armed), 1 = hold the current values.
+_state_reload() {
+    if [ "$3" -lt "$STATE_FORCE_EVERY" ] && [ -f "$2" ] && ! [ "$1" -nt "$2" ]; then
+        return 1
+    fi
+    # `true`, not `:` — a redirect error on a special builtin exits the shell.
+    if [ "${_NOW:-0}" -gt 1 ] 2>/dev/null; then
+        touch -d "@$((_NOW - 1))" "$2" 2>/dev/null || true 2>/dev/null > "$2"
+    else
+        true 2>/dev/null > "$2"
+    fi
+    return 0
+}
+
 read_watchcat_state() {
     if [ ! -f "$WATCHCAT_CACHE" ]; then
         wc_enabled="false"; wc_state="disabled"
+        _wc_rd_n="$STATE_FORCE_EVERY"
         return
     fi
+    _wc_rd_n=$((_wc_rd_n + 1))
+    _state_reload "$WATCHCAT_CACHE" "$WC_STAMP" "$_wc_rd_n" || return 0
+    _wc_rd_n=0
     local _wdata
     # One jq, fields joined with US (0x1f). US is not IFS whitespace, so an empty
     # field stays an empty field in the `read` below (a tab separator would
@@ -1598,7 +1657,10 @@ read_watchcat_state() {
         ((.reboots_this_hour) | if . == null then "0" else tostring end)
     ] | join("\u001f")' "$WATCHCAT_CACHE" 2>/dev/null)
 
-    [ -z "$_wdata" ] && return
+    if [ -z "$_wdata" ]; then
+        _wc_rd_n="$STATE_FORCE_EVERY"
+        return
+    fi
 
     IFS="$_US" read -r wc_enabled wc_state wc_current_tier wc_failure_count \
         wc_last_recovery_time wc_last_recovery_tier wc_total_recoveries \
@@ -1612,90 +1674,373 @@ read_sim_state() {
     local _rs_dismissed
     local _rs_id
     local _rs_name
-    # SIM swap flag (boot-time, changes rarely)
-    sim_swap_detected="false"
-    sim_swap_profile_id=""
-    sim_swap_profile_name=""
+    # SIM swap flag (boot-time, changes rarely). Absent file = defaults; an
+    # unchanged file holds the values from the last read.
     if [ -f "$SIM_SWAP_FLAG" ]; then
-        _rs_row=$(jq -r '[
-            ((.dismissed) | if . == null then "false" else tostring end),
-            ((.matching_profile_id) | if . == null then "" else tostring end),
-            ((.matching_profile_name) | if . == null then "" else tostring end)
-        ] | join("\u001f")' "$SIM_SWAP_FLAG" 2>/dev/null)
-        IFS="$_US" read -r _rs_dismissed _rs_id _rs_name <<EOF
+        _ss_rd_n=$((_ss_rd_n + 1))
+        if _state_reload "$SIM_SWAP_FLAG" "$SIM_SWAP_STAMP" "$_ss_rd_n"; then
+            _ss_rd_n=0
+            sim_swap_detected="false"
+            sim_swap_profile_id=""
+            sim_swap_profile_name=""
+            _rs_row=$(jq -r '[
+                ((.dismissed) | if . == null then "false" else tostring end),
+                ((.matching_profile_id) | if . == null then "" else tostring end),
+                ((.matching_profile_name) | if . == null then "" else tostring end)
+            ] | join("\u001f")' "$SIM_SWAP_FLAG" 2>/dev/null)
+            [ -n "$_rs_row" ] || _ss_rd_n="$STATE_FORCE_EVERY"
+            IFS="$_US" read -r _rs_dismissed _rs_id _rs_name <<EOF
 $_rs_row
 EOF
-        if [ "$_rs_dismissed" != "true" ]; then
-            sim_swap_detected="true"
-            sim_swap_profile_id="$_rs_id"
-            sim_swap_profile_name="$_rs_name"
+            if [ "$_rs_dismissed" != "true" ]; then
+                sim_swap_detected="true"
+                sim_swap_profile_id="$_rs_id"
+                sim_swap_profile_name="$_rs_name"
+            fi
         fi
+    else
+        sim_swap_detected="false"
+        sim_swap_profile_id=""
+        sim_swap_profile_name=""
+        _ss_rd_n="$STATE_FORCE_EVERY"
     fi
     # SIM failover state (written by watchcat Tier 3)
-    sim_fo_active="false"
-    sim_fo_original_slot="null"
-    sim_fo_current_slot="null"
-    sim_fo_switched_at="null"
     if [ -f "$SIM_FAILOVER_FILE" ]; then
-        _rs_row=$(jq -r '[
-            ((.active) | if . == null then "false" else tostring end),
-            ((.original_slot) | if . == null then "null" else tostring end),
-            ((.current_slot) | if . == null then "null" else tostring end),
-            ((.switched_at) | if . == null then "null" else tostring end)
-        ] | join("\u001f")' "$SIM_FAILOVER_FILE" 2>/dev/null)
-        IFS="$_US" read -r sim_fo_active sim_fo_original_slot sim_fo_current_slot sim_fo_switched_at <<EOF
+        _sf_rd_n=$((_sf_rd_n + 1))
+        if _state_reload "$SIM_FAILOVER_FILE" "$SIM_FO_STAMP" "$_sf_rd_n"; then
+            _sf_rd_n=0
+            sim_fo_active="false"
+            sim_fo_original_slot="null"
+            sim_fo_current_slot="null"
+            sim_fo_switched_at="null"
+            _rs_row=$(jq -r '[
+                ((.active) | if . == null then "false" else tostring end),
+                ((.original_slot) | if . == null then "null" else tostring end),
+                ((.current_slot) | if . == null then "null" else tostring end),
+                ((.switched_at) | if . == null then "null" else tostring end)
+            ] | join("\u001f")' "$SIM_FAILOVER_FILE" 2>/dev/null)
+            [ -n "$_rs_row" ] || _sf_rd_n="$STATE_FORCE_EVERY"
+            IFS="$_US" read -r sim_fo_active sim_fo_original_slot sim_fo_current_slot sim_fo_switched_at <<EOF
 $_rs_row
 EOF
+        fi
+    else
+        sim_fo_active="false"
+        sim_fo_original_slot="null"
+        sim_fo_current_slot="null"
+        sim_fo_switched_at="null"
+        _sf_rd_n="$STATE_FORCE_EVERY"
     fi
 }
 
 # =============================================================================
 # JSON CACHE WRITER
 # =============================================================================
+# B5.29 Phase C. status.json is composed with shell builtins (printf, parameter
+# expansion) instead of a single jq with ~124 --arg/--argjson. The jq composer
+# stays as write_cache_jq: it is the safety net (see write_cache) and the
+# reference the dev parity harness compares against. Both emit the same JSON
+# value for the same globals (key order inside objects is kept too).
+#
+# Strings: _jstr escapes \ " newline CR tab with builtins. Any other control
+# character (0x01-0x1f, 0x7f) makes that ONE value go through jq (one fork,
+# rare), so no hand-rolled \u escapes. Modem text is untrusted: values are only
+# ever concatenated, never evaluated.
+# Numbers: _jnumv takes a token only if it is a plain JSON number (no exponent,
+# no leading zero) or null; anything else becomes the field's default. That also
+# removes the old failure mode where one non-numeric --argjson made jq exit 2 and
+# the whole snapshot stop updating.
 
-write_cache() {
-    local timestamp
-    local mono
-    # Uptime is read with a builtin. The wall clock is the cycle's single
-    # `date` (poll_cycle's _NOW); it is re-read only when the cycle has run
-    # long (2s+ of uptime since it started, e.g. a slow AT reply), so the
-    # published timestamp never lags the write by more than a couple of seconds.
-    mono_now_set
-    mono="$_MONO"
-    if [ -z "$_NOW" ] || [ $((mono - ${_MONO_TOP:-$mono})) -ge 2 ]; then
-        _NOW=$(date +%s)
-        _MONO_TOP="$mono"
-    fi
-    timestamp="$_NOW"
+# tools/poller-parity/status_parity.sh extracts the block between these markers
+# (BEGIN/END WC COMPOSER) to test the composers on the device. Keep it
+# self-contained: only builtins, jq, and the poller globals it is handed.
+# --- BEGIN WC COMPOSER -------------------------------------------------------
+_JC_NL='
+'
+_JC_CR=$(printf '\r')
+_JC_TAB=$(printf '\t')
+# One bracket expression for every control char _jstr does not escape inline.
+_JC_CTL=$(printf '[\001-\010\013\014\016-\037\177]')
+_JC_BS='\'
+_JC_BS2='\\'
+_JC_QT='"'
+_JC_QBS='\"'
+_JV=""
+_jc_acc=""
+_jc_sep=""
+_JC_CH_RAW=""
+_JC_CH_JSON="[]"
 
-    # Refresh last-known on-demand radio values (mimo / TA / APN / WAN / DNS)
-    # from /tmp/qmanager_ondemand.json. The poller no longer FETCHES these
-    # (cellular/radio_details.sh and the apply paths do); reading them every
-    # cycle keeps the published snapshot showing the most recent on-demand value
-    # instead of a stale boot-time copy. No-op when the cache file is absent, so
-    # the initialized-empty defaults pass through cleanly. This runs BEFORE the
-    # jq emit so the t2_mimo / lte_ta / nr_ta / t2_apn / t2_wan_* / t2_*_dns_*
-    # variables below reflect the latest cache. Does NOT touch any Tier-1 signal
-    # or .connectivity field, so the watchdog's write_cache dependency is intact.
-    load_ondemand_cache_gated
+# _jstr <text>: _JV = <text> as a JSON string literal.
+_jstr() {
+    _js_v="$1"
+    case "$_js_v" in
+        *$_JC_CTL*)
+            _js_v=$(jq -n --arg v "$_js_v" '$v' 2>/dev/null)
+            _JV="${_js_v:-\"\"}"
+            return 0
+            ;;
+        *[\\\"$_JC_NL$_JC_CR$_JC_TAB]*)
+            _js_v=${_js_v//"$_JC_BS"/"$_JC_BS2"}
+            _js_v=${_js_v//"$_JC_QT"/"$_JC_QBS"}
+            _js_v=${_js_v//"$_JC_NL"/\\n}
+            _js_v=${_js_v//"$_JC_CR"/\\r}
+            _js_v=${_js_v//"$_JC_TAB"/\\t}
+            ;;
+    esac
+    _JV="\"${_js_v}\""
+}
 
-    # Build errors array. $errors is only ever one of the fixed snake_case
-    # tokens assigned in this file (modem_timeout, sim_not_inserted), which need
-    # no JSON escaping; anything else still goes through jq.
-    local errors_json="[]"
-    if [ -n "$errors" ]; then
-        case "$errors" in
-            *[!a-zA-Z0-9_]*) errors_json=$(jq -n --arg e "$errors" '[$e]') ;;
-            *)               errors_json="[\"${errors}\"]" ;;
+# _jnumv <token> <default>: _JV = <token> if it is a JSON number or null, else
+# <default> (also used for an empty token).
+_jnumv() {
+    case "$1" in
+        null) _JV=null ;;
+        ''|-|*[!0-9.-]*|?*-*|.*|-.*|*.|*.*.*|0[0-9]*|-0[0-9]*) _JV="$2" ;;
+        *) _JV="$1" ;;
+    esac
+}
+
+# _jboolv <token> <default>: _JV = true / false / null as given, else <default>.
+_jboolv() {
+    case "$1" in
+        true|false|null) _JV="$1" ;;
+        *) _JV="$2" ;;
+    esac
+}
+
+# _jarrv <text> <default>: _JV = <text> if it is a flat JSON array of numbers
+# and nulls, else <default>.
+_jarrv() {
+    local _ja_def
+    local _ja_t
+    local _ja_oifs
+    local _ja_e
+    _ja_def="$2"
+    _ja_t="$1"
+    case "$_ja_t" in
+        '[]') _JV="[]"; return 0 ;;
+        \[*\]) ;;
+        *) _JV="$_ja_def"; return 0 ;;
+    esac
+    _ja_t="${_ja_t#\[}"
+    _ja_t="${_ja_t%\]}"
+    case "$_ja_t" in ,*|*,|*,,*) _JV="$_ja_def"; return 0 ;; esac
+    _ja_oifs="$IFS"
+    IFS=","
+    set -f
+    set -- $_ja_t
+    set +f
+    IFS="$_ja_oifs"
+    for _ja_e; do
+        case "$_ja_e" in
+            null) ;;
+            *)
+                _jnumv "$_ja_e" "!"
+                if [ "$_JV" = "!" ]; then
+                    _JV="$_ja_def"
+                    return 0
+                fi
+                ;;
         esac
-    fi
+    done
+    _JV="[${_ja_t}]"
+}
 
+# Field emitters. Each appends "key":value to the document under construction.
+_kS()  { _jstr "$2"; _jc_acc="${_jc_acc}${_jc_sep}\"$1\":${_JV}"; _jc_sep=","; }
+_kN()  { _jnumv "$2" "$3"; _jc_acc="${_jc_acc}${_jc_sep}\"$1\":${_JV}"; _jc_sep=","; }
+_kB()  { _jboolv "$2" "$3"; _jc_acc="${_jc_acc}${_jc_sep}\"$1\":${_JV}"; _jc_sep=","; }
+_kA()  { _jarrv "$2" "$3"; _jc_acc="${_jc_acc}${_jc_sep}\"$1\":${_JV}"; _jc_sep=","; }
+_kR()  { _jc_acc="${_jc_acc}${_jc_sep}\"$1\":$2"; _jc_sep=","; }
+# String, or null when empty.
+_kSN() {
+    if [ -z "$2" ]; then _JV=null; else _jstr "$2"; fi
+    _jc_acc="${_jc_acc}${_jc_sep}\"$1\":${_JV}"
+    _jc_sep=","
+}
+# Array of objects (carrier_components): passed through when it looks like an
+# array. The jq-built text is trusted; the periodic jq check backs it up.
+_kC() {
+    case "$2" in
+        \[*\]) _JV="$2" ;;
+        *) _JV="$3" ;;
+    esac
+    _jc_acc="${_jc_acc}${_jc_sep}\"$1\":${_JV}"
+    _jc_sep=","
+}
+_kO()  { _jc_acc="${_jc_acc}${_jc_sep}\"$1\":{"; _jc_sep=""; }
+_kE()  { _jc_acc="${_jc_acc}}"; _jc_sep=","; }
+
+# _wc_compose_pf <outfile>: the printf composer. Needs _WC_TS, _WC_MONO and
+# _WC_ERRJ (set by _wc_prepare) plus the poller globals. Returns the write status.
+_wc_compose_pf() {
+    _jc_acc="{"
+    _jc_sep=""
+    _kN timestamp "$_WC_TS" 0
+    _kN mono "$_WC_MONO" 0
+    _kS system_state "$system_state"
+    _kB modem_reachable "$modem_reachable" false
+    _kN last_successful_poll "$_WC_TS" 0
+    _kR errors "$_WC_ERRJ"
+    _kO network
+    _kN cfun "$t1_cfun" 1
+    _kS type "${network_type:-LTE}"
+    _kN sim_slot "$t2_sim_slot" 1
+    _kS carrier "$t2_carrier"
+    _kS service_status "$service_status"
+    _kB ca_active "$t2_ca_active" false
+    _kN ca_count "$t2_ca_count" 0
+    _kB nr_ca_active "$t2_nr_ca_active" false
+    _kN nr_ca_count "$t2_nr_ca_count" 0
+    _kN total_bandwidth_mhz "$t2_total_bandwidth_mhz" 0
+    _kS bandwidth_details "$t2_bandwidth_details"
+    _kC carrier_components "$t2_carrier_components" "[]"
+    _kS apn "$t2_apn"
+    _kS wan_ipv4 "$t2_wan_ipv4"
+    _kS wan_ipv6 "$t2_wan_ipv6"
+    _kS primary_dns "$t2_primary_dns"
+    _kS secondary_dns "$t2_secondary_dns"
+    _kS primary_dns_v4 "$t2_primary_dns_v4"
+    _kS primary_dns_v6 "$t2_primary_dns_v6"
+    _kS secondary_dns_v4 "$t2_secondary_dns_v4"
+    _kS secondary_dns_v6 "$t2_secondary_dns_v6"
+    _kE
+    _kO lte
+    _kS state "$lte_state"
+    _kS band "$lte_band"
+    _kN earfcn "$lte_earfcn" null
+    _kN bandwidth "$lte_bandwidth" null
+    _kN pci "$lte_pci" null
+    _kN cell_id "$lte_cell_id" null
+    _kN enodeb_id "$lte_enodeb_id" null
+    _kN sector_id "$lte_sector_id" null
+    _kN tac "$lte_tac" null
+    _kN rsrp "$lte_rsrp" null
+    _kN rsrq "$lte_rsrq" null
+    _kN sinr "$lte_sinr" null
+    _kN rssi "$lte_rssi" null
+    _kN ta "$lte_ta" null
+    _kE
+    _kO nr
+    _kS state "$nr_state"
+    _kS band "$nr_band"
+    _kN arfcn "$nr_arfcn" null
+    _kN pci "$nr_pci" null
+    _kN cell_id "$nr_cell_id" null
+    _kN enodeb_id "$nr_enodeb_id" null
+    _kN sector_id "$nr_sector_id" null
+    _kN tac "$nr_tac" null
+    _kN rsrp "$nr_rsrp" null
+    _kN rsrq "$nr_rsrq" null
+    _kN sinr "$nr_sinr" null
+    _kN scs "$nr_scs" null
+    _kN ta "$nr_ta" null
+    _kE
+    _kO signal_per_antenna
+    _kA lte_rsrp "$sig_lte_rsrp" "[null,null,null,null]"
+    _kA lte_rsrq "$sig_lte_rsrq" "[null,null,null,null]"
+    _kA lte_sinr "$sig_lte_sinr" "[null,null,null,null]"
+    _kA nr_rsrp "$sig_nr_rsrp" "[null,null,null,null]"
+    _kA nr_rsrq "$sig_nr_rsrq" "[null,null,null,null]"
+    _kA nr_sinr "$sig_nr_sinr" "[null,null,null,null]"
+    _kE
+    _kO device
+    _kN temperature "$t1_temperature" null
+    _kN cpu_usage "$cpu_usage" 0
+    _kN memory_used_mb "$memory_used_mb" 0
+    _kN memory_total_mb "$memory_total_mb" 0
+    _kN uptime_seconds "$uptime_seconds" 0
+    _kN conn_uptime_seconds "$conn_uptime_seconds" 0
+    _kS firmware "$boot_firmware"
+    _kS build_date "$boot_build_date"
+    _kS manufacturer "$boot_manufacturer"
+    _kS model "$boot_model"
+    _kS imei "$boot_imei"
+    _kS imsi "$boot_imsi"
+    _kS iccid "$boot_iccid"
+    _kS phone_number "$boot_phone_number"
+    _kS lte_category "$boot_lte_category"
+    _kS mimo "$t2_mimo"
+    _kS supported_lte_bands "$boot_supported_lte_bands"
+    _kS supported_nsa_nr5g_bands "$boot_supported_nsa_nr5g_bands"
+    _kS supported_sa_nr5g_bands "$boot_supported_sa_nr5g_bands"
+    _kS supported_nrdc_nr5g_bands "$boot_supported_nrdc_nr5g_bands"
+    _kS hw_lte_bands "$hw_lte_bands"
+    _kS hw_nsa_nr5g_bands "$hw_nsa_nr5g_bands"
+    _kS hw_sa_nr5g_bands "$hw_sa_nr5g_bands"
+    _kS qmanager_version "$boot_qmanager_version"
+    _kS ippt_mode "$boot_ippt_mode"
+    _kS ippt_mac "$boot_ippt_mac"
+    _kS ippt_nat "$boot_ippt_nat"
+    _kS ippt_usbnet "$boot_ippt_usbnet"
+    _kS ippt_dhcpv4dns "$boot_ippt_dhcpv4dns"
+    _kS poller_tier "${ap_tier:-active}"
+    _kE
+    _kO connectivity
+    _kB internet_available "$conn_internet_available" null
+    _kS status "$conn_status"
+    _kN latency_ms "$conn_latency" null
+    _kN avg_latency_ms "$conn_avg_latency" null
+    _kN min_latency_ms "$conn_min_latency" null
+    _kN max_latency_ms "$conn_max_latency" null
+    _kN jitter_ms "$conn_jitter" null
+    _kN packet_loss_pct "$conn_packet_loss" 0
+    _kS ping_target "$conn_ping_target"
+    # The history array only changes when a new ping row lands (every few
+    # cycles), so its validation is remembered.
+    if [ "$conn_history" != "$_JC_CH_RAW" ] || [ -z "$_JC_CH_RAW" ]; then
+        _jarrv "${conn_history:-[]}" "[]"
+        _JC_CH_RAW="$conn_history"
+        _JC_CH_JSON="$_JV"
+    fi
+    _kR latency_history "$_JC_CH_JSON"
+    _kN history_interval_sec "$conn_history_interval" 2
+    _kN history_size "${CONN_HISTORY_SIZE:-}" 60
+    _kB during_recovery "$conn_during_recovery" false
+    _kS profile "$conn_profile"
+    _kO thresholds
+    _kN latency_ms "$QUALITY_LAT_THRESHOLD" 250
+    _kN loss_pct "$QUALITY_LOSS_THRESHOLD" 30
+    _kE
+    _kN dns_lookup_ms "$dns_lookup_ms" null
+    _kSN dns_resolver "$dns_resolver"
+    _kS last_family "$conn_last_family"
+    _kE
+    _kO watchcat
+    _kB enabled "$wc_enabled" false
+    _kS state "${wc_state:-disabled}"
+    _kN current_tier "$wc_current_tier" 0
+    _kN failure_count "$wc_failure_count" 0
+    _kN last_recovery_time "$wc_last_recovery_time" null
+    _kN last_recovery_tier "$wc_last_recovery_tier" null
+    _kN total_recoveries "$wc_total_recoveries" 0
+    _kN cooldown_remaining "$wc_cooldown_remaining" 0
+    _kN reboots_this_hour "$wc_reboots_this_hour" 0
+    _kE
+    _kO sim_failover
+    _kB active "$sim_fo_active" false
+    _kN original_slot "$sim_fo_original_slot" null
+    _kN current_slot "$sim_fo_current_slot" null
+    _kN switched_at "$sim_fo_switched_at" null
+    _kE
+    _kO sim_swap
+    _kB detected "$sim_swap_detected" false
+    _kS matching_profile_id "$sim_swap_profile_id"
+    _kS matching_profile_name "$sim_swap_profile_name"
+    _kE
+    printf '%s\n' "${_jc_acc}}" 2>/dev/null > "$1"
+}
+
+# write_cache_jq <outfile>: the original jq composer, same inputs as
+# _wc_compose_pf. Used as the safety net and by the parity harness.
+write_cache_jq() {
     jq -n \
-        --argjson timestamp "$timestamp" \
-        --argjson mono "$mono" \
+        --argjson timestamp "$_WC_TS" \
+        --argjson mono "$_WC_MONO" \
         --arg system_state "$system_state" \
         --argjson modem_reachable "$modem_reachable" \
-        --argjson errors "$errors_json" \
+        --argjson errors "$_WC_ERRJ" \
         --argjson cfun "${t1_cfun:-1}" \
         --arg net_type "${network_type:-LTE}" \
         --argjson sim_slot "${t2_sim_slot:-1}" \
@@ -1922,12 +2267,109 @@ write_cache() {
                 matching_profile_id: $ss_profile_id,
                 matching_profile_name: $ss_profile_name
             }
-        }' > "$CACHE_TMP"
-    local _wc_rc=$?
+        }' > "$1"
+}
 
-    # Replace status.json only with a complete file. A jq failure (a bad
-    # --argjson, a full tmpfs) used to mv an empty file over it; now the
-    # previous snapshot stays and .mono ages, which the watchdog reads as stale.
+# Safety net: every WC_VALIDATE_EVERY printf-composed cycles the file is checked
+# with one `jq empty`; a failure switches to write_cache_jq for WC_JQ_PENALTY
+# cycles (10 minutes at the 2 s cycle), then printf is tried again (and checked
+# on its first cycle back).
+WC_VALIDATE_EVERY=30
+WC_JQ_PENALTY=300
+_WC_JQ_LEFT=0
+_WC_CHK=$((WC_VALIDATE_EVERY - 1))
+
+# Dev-only status parity capture (tools/poller-parity/status_parity.sh). While
+# WC_PARITY_FLAG exists, every write_cache also writes the jq composer's and the
+# printf composer's output for the SAME globals to WC_PARITY_DIR/<n>.jq.json and
+# <n>.pf.json, n = 0..WC_PARITY_COUNT-1, then removes the flag. Removed by
+# init.d stop_service and uninstall; never created by the product.
+WC_PARITY_FLAG="/var/run/qmanager/wc_parity"
+WC_PARITY_DIR="/var/run/qmanager/wcp"
+WC_PARITY_COUNT=200
+_WCP_N=0
+
+_WC_TS=""
+_WC_MONO=0
+_WC_ERRJ="[]"
+
+# _wc_prepare: the cycle's inputs shared by both composers: _WC_TS, _WC_MONO,
+# _WC_ERRJ, plus the refreshed on-demand values.
+_wc_prepare() {
+    # Uptime is read with a builtin. The wall clock is the cycle's single
+    # `date` (poll_cycle's _NOW); it is re-read only when the cycle has run
+    # long (2s+ of uptime since it started, e.g. a slow AT reply), so the
+    # published timestamp never lags the write by more than a couple of seconds.
+    mono_now_set
+    _WC_MONO="$_MONO"
+    if [ -z "$_NOW" ] || [ $((_WC_MONO - ${_MONO_TOP:-$_WC_MONO})) -ge 2 ]; then
+        _NOW=$(date +%s)
+        _MONO_TOP="$_WC_MONO"
+    fi
+    _WC_TS="$_NOW"
+
+    # Refresh last-known on-demand radio values (mimo / TA / APN / WAN / DNS)
+    # from /tmp/qmanager_ondemand.json (or its sidecar). The poller no longer
+    # FETCHES these (cellular/radio_details.sh and the apply paths do); reading
+    # them every cycle keeps the published snapshot showing the most recent
+    # on-demand value instead of a stale boot-time copy. This runs BEFORE the
+    # emit so the t2_mimo / lte_ta / nr_ta / t2_apn / t2_wan_* / t2_*_dns_*
+    # variables reflect the latest cache. Does NOT touch any Tier-1 signal or
+    # .connectivity field, so the watchdog's write_cache dependency is intact.
+    load_ondemand_cache_gated
+
+    # $errors is only ever one of the fixed snake_case tokens assigned in this
+    # file (modem_timeout, sim_not_inserted); _jstr escapes anything else.
+    _WC_ERRJ="[]"
+    if [ -n "$errors" ]; then
+        _jstr "$errors"
+        _WC_ERRJ="[${_JV}]"
+    fi
+}
+
+# _wc_parity_dump: dev capture, see WC_PARITY_FLAG.
+_wc_parity_dump() {
+    [ -d "$WC_PARITY_DIR" ] || mkdir -p "$WC_PARITY_DIR" 2>/dev/null
+    write_cache_jq "$WC_PARITY_DIR/${_WCP_N}.jq.json"
+    _wc_compose_pf "$WC_PARITY_DIR/${_WCP_N}.pf.json"
+    _WCP_N=$((_WCP_N + 1))
+    if [ "$_WCP_N" -ge "$WC_PARITY_COUNT" ]; then
+        rm -f "$WC_PARITY_FLAG"
+        _WCP_N=0
+    fi
+}
+
+write_cache() {
+    local _wc_rc
+
+    _wc_prepare
+
+    if [ "$_WC_JQ_LEFT" -gt 0 ]; then
+        # Safety-net mode: the jq composer, until the penalty runs out.
+        _WC_JQ_LEFT=$((_WC_JQ_LEFT - 1))
+        [ "$_WC_JQ_LEFT" -eq 0 ] && _WC_CHK=$((WC_VALIDATE_EVERY - 1))
+        write_cache_jq "$CACHE_TMP"
+        _wc_rc=$?
+    else
+        _wc_compose_pf "$CACHE_TMP"
+        _wc_rc=$?
+        _WC_CHK=$((_WC_CHK + 1))
+        if [ "$_WC_CHK" -ge "$WC_VALIDATE_EVERY" ] && [ "$_wc_rc" -eq 0 ]; then
+            _WC_CHK=0
+            # One `jq empty` every WC_VALIDATE_EVERY cycles, on the file BEFORE it
+            # is published, so a bad composition never replaces the good file.
+            if ! jq empty "$CACHE_TMP" >/dev/null 2>&1; then
+                qlog_error "write_cache: printf composer produced invalid JSON, using the jq composer for ${WC_JQ_PENALTY} cycles"
+                _WC_JQ_LEFT="$WC_JQ_PENALTY"
+                write_cache_jq "$CACHE_TMP"
+                _wc_rc=$?
+            fi
+        fi
+    fi
+
+    # Replace status.json only with a complete file. A composer failure (a full
+    # tmpfs, a jq error) leaves the previous snapshot and .mono ages, which the
+    # watchdog reads as stale.
     if [ "$_wc_rc" -eq 0 ] && [ -s "$CACHE_TMP" ]; then
         mv "$CACHE_TMP" "$CACHE_FILE"
         if [ "$_WC_FAILS" -gt 0 ]; then
@@ -1937,9 +2379,17 @@ write_cache() {
     else
         rm -f "$CACHE_TMP"
         _WC_FAILS=$((_WC_FAILS + 1))
-        [ "$_WC_FAILS" -eq 1 ] && qlog_error "write_cache: jq failed (rc=${_wc_rc}), kept the previous status.json"
+        [ "$_WC_FAILS" -eq 1 ] && qlog_error "write_cache: composer failed (rc=${_wc_rc}), kept the previous status.json"
+    fi
+
+    # Dev-only: status parity capture (see WC_PARITY_FLAG). One [ -f ] when off.
+    if [ -f "$WC_PARITY_FLAG" ]; then
+        _wc_parity_dump
+    else
+        _WCP_N=0
     fi
 }
+# --- END WC COMPOSER ---------------------------------------------------------
 
 # =============================================================================
 # FORCED SIM IDENTITY REFRESH

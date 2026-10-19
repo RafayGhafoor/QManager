@@ -51,6 +51,9 @@ qlog_init "ping"
 # --- Cadence table (conn_state_resolve) --------------------------------------
 [ -f /usr/lib/qmanager/conn_state.sh ] && . /usr/lib/qmanager/conn_state.sh
 
+# --- Root-safe runtime dir for the poller sidecars (qm_root_dir) -------------
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+
 # --- Bounded command runner --------------------------------------------------
 # No platform.sh on this target, so qm_timeout is defined here: the BusyBox
 # `timeout SECS cmd` applet (exits 143 on kill), else the command runs unbounded.
@@ -93,6 +96,14 @@ HISTORY_FILE="/tmp/qmanager_ping_history"
 RECOVERY_FLAG="/tmp/qmanager_recovery_active"
 RELOAD_FLAG="/tmp/qmanager_ping_reload"
 PID_FILE="/tmp/qmanager_ping.pid"
+
+# Sidecars for the poller (B5.29 Phase C): the values it would otherwise extract
+# from ping.json / dns.json with jq, as shell assignments, written tmp + mv right
+# AFTER the JSON so they are never older than it unless a write failed (the
+# poller then falls back to the JSON). Last line is an end marker.
+SC_DIR="/var/run/qmanager"
+SC_PING="$SC_DIR/ping.env"
+SC_DNS="$SC_DIR/dns.env"
 
 # --- State Variables ---------------------------------------------------------
 streak_success=0
@@ -312,8 +323,85 @@ write_cache() {
             during_recovery: $during_rec,
             last_family: $last_family
         }' > "$CACHE_TMP"
+    local _wc_rc=$?
 
-    mv "$CACHE_TMP" "$CACHE_FILE"
+    mv "$CACHE_TMP" "$CACHE_FILE" && [ "$_wc_rc" -eq 0 ] \
+        && write_ping_env "$timestamp" "$mono" "$rtt" "$during_recovery"
+    return 0
+}
+
+# --- Sidecar helpers ---------------------------------------------------------
+# _sc_sq <value>: _SCQ = value single-quoted for sh ('  ->  '\''). Empty -> '-'
+# (the poller's "no value" token, same as conn_state_read's jq mapping).
+_sc_sq() {
+    _scq_in="${1:--}"
+    _SCQ=""
+    while :; do
+        case "$_scq_in" in
+            *\'*)
+                _SCQ="${_SCQ}${_scq_in%%\'*}'\\''"
+                _scq_in="${_scq_in#*\'}"
+                ;;
+            *)
+                _SCQ="'${_SCQ}${_scq_in}'"
+                break
+                ;;
+        esac
+    done
+}
+
+# _sc_dir_ok: SC_DIR exists as a root-owned dir (re-created if /var/run was cleared).
+_sc_dir_ok() {
+    [ -d "$SC_DIR" ] && return 0
+    if command -v qm_root_dir >/dev/null 2>&1; then
+        qm_root_dir "$SC_DIR" 0700
+    else
+        mkdir -m 0700 "$SC_DIR" 2>/dev/null
+    fi
+}
+
+# write_ping_env <timestamp> <mono> <rtt> <during_recovery>: the 13 raw fields
+# conn_state_read extracts from ping.json (null/empty -> '-'), i.e. what
+# conn_state_read_env sources. Best effort: a failure only means the poller
+# falls back to reading ping.json.
+write_ping_env() {
+    _sc_dir_ok || return 1
+    {
+        _sc_sq "$1";                printf '_cq_ts=%s\n' "$_SCQ"
+        _sc_sq "$2";                printf '_cq_mono=%s\n' "$_SCQ"
+        _sc_sq "$reachable";        printf '_cq_reach=%s\n' "$_SCQ"
+        case "$3" in null) _sc_sq "-" ;; *) _sc_sq "$3" ;; esac
+        printf '_cq_rtt=%s\n' "$_SCQ"
+        _sc_sq "$streak_success";   printf '_cq_ss=%s\n' "$_SCQ"
+        _sc_sq "$streak_fail";      printf '_cq_sf=%s\n' "$_SCQ"
+        _sc_sq "$4";                printf '_cq_dr=%s\n' "$_SCQ"
+        _sc_sq "$PING_INTERVAL";    printf '_cq_iv=%s\n' "$_SCQ"
+        _sc_sq "$PING_FAIL_SECS";   printf '_cq_fs=%s\n' "$_SCQ"
+        _sc_sq "$PING_RECOVER_SECS"; printf '_cq_rs=%s\n' "$_SCQ"
+        _sc_sq "$PING_PROFILE";     printf '_cq_prof=%s\n' "$_SCQ"
+        _sc_sq "$last_family";      printf '_cq_fam=%s\n' "$_SCQ"
+        _sc_sq "$PING_TARGET_IPV4"; printf '_cq_tgt=%s\n' "$_SCQ"
+        printf "qm_sidecar_end='1'\n"
+    } 2>/dev/null > "${SC_PING}.new" \
+        && mv -f "${SC_PING}.new" "$SC_PING" 2>/dev/null \
+        || { rm -f "${SC_PING}.new" 2>/dev/null; return 1; }
+    return 0
+}
+
+# write_dns_env <ok> <ms> <mono> <resolver>: the four fields the poller reads
+# from dns.json (ms is "null" when the lookup failed).
+write_dns_env() {
+    _sc_dir_ok || return 1
+    {
+        _sc_sq "$1"; printf 'dns_s_ok=%s\n' "$_SCQ"
+        _sc_sq "$2"; printf 'dns_s_ms=%s\n' "$_SCQ"
+        _sc_sq "$3"; printf 'dns_s_mono=%s\n' "$_SCQ"
+        _sc_sq "${4:-null}"; printf 'dns_s_res=%s\n' "$_SCQ"
+        printf "qm_sidecar_end='1'\n"
+    } 2>/dev/null > "${SC_DNS}.new" \
+        && mv -f "${SC_DNS}.new" "$SC_DNS" 2>/dev/null \
+        || { rm -f "${SC_DNS}.new" 2>/dev/null; return 1; }
+    return 0
 }
 
 # =============================================================================
@@ -387,7 +475,7 @@ dns_job() {
             --argjson mono "$((_CS / 100))" --argjson ts "$(date +%s)" \
             '{ms: $ms, ok: $ok, resolver: $res, name: $name, mono: $mono, ts: $ts}' > "$_tmp" 2>/dev/null \
         && chmod 644 "$_tmp" && mv "$_tmp" "$DNS_FILE"; then
-        :
+        write_dns_env "$_ok" "$_ms" "$((_CS / 100))" "$_res"
     else
         rm -f "$_tmp"
     fi
@@ -460,8 +548,8 @@ main() {
     # restart leaves a zombie until procd's SIGKILL fallback. The EXIT trap covers
     # the cleanup on every path; INT/TERM additionally force the exit.
     # (confirmed on RM551E 2026-06-26 — see docs/development/busybox-quirks.md)
-    trap 'rm -f "$PID_FILE" "$CACHE_TMP"' EXIT
-    trap 'rm -f "$PID_FILE" "$CACHE_TMP"; exit' INT TERM
+    trap 'rm -f "$PID_FILE" "$CACHE_TMP" "${SC_PING}.new"' EXIT
+    trap 'rm -f "$PID_FILE" "$CACHE_TMP" "${SC_PING}.new"; exit' INT TERM
 
     # Load profile + targets from UCI (resolves interval/thresholds), then detect
     # the IPv6 ping invocation once (cheap loopback probe).
@@ -478,7 +566,8 @@ main() {
     qlog_info "========================================"
 
     # Clean up stale files from previous run
-    rm -f "$CACHE_TMP" /tmp/qmanager_dns_out.* "${DNS_FILE}".??????
+    rm -f "$CACHE_TMP" /tmp/qmanager_dns_out.* "${DNS_FILE}".?????? "${SC_PING}.new" "${SC_DNS}.new"
+    _sc_dir_ok
     : > "$HISTORY_FILE"  # Start with empty history
     history_count=0
 

@@ -20,6 +20,27 @@ there. Nothing here is installed by the product.
 | `shim.sh` | qlog stubs + the poller's call shapes (`qcmd_exec` strip, `poll_*` guards) + sentinel / default initialisers |
 | `measure.sh [seconds]` | on-device poller cost sampler (one summary line) |
 | `gen_fixtures.sh [dir]` | regenerates the whole fixture corpus byte for byte (device or Git Bash) |
+| `status_parity.sh` | Phase C gate for the status.json composers: printf composer vs the jq composer (`write_cache_jq`) over synthetic scenarios, seeded random values, hostile text and the write_cache safety net; and the live 200-pair capture from the deployed poller (`arm` / `compare` / `live`) |
+| `sidecar_parity.sh` | Phase C gate for the `.env` sidecars (`ping.env`, `dns.env`, `ondemand.env`) and the `-nt`-gated watchcat / SIM state readers, in a scratch dir; also asserts the sidecar paths fork no `jq` / `date` / `touch` / `awk` |
+
+### Status composer gate (Phase C)
+
+Stage the poller under test, `qmanager_ping`, `conn_state.sh`, `ondemand_radio.sh`
+and both scripts flat in `/tmp/pcx` (absolute paths: `.` does not search the
+current directory), then:
+
+```
+sh status_parity.sh all /tmp/pcx/qmanager_poller 500     # synthetic + hostile + safety net
+sh sidecar_parity.sh /tmp/pcx/qmanager_poller /tmp/pcx/qmanager_ping /tmp/pcx/conn_state.sh /tmp/pcx/ondemand_radio.sh
+
+# live, after the orchestrator deploys the poller (about 7 minutes: 200 cycles of 2 s)
+sh status_parity.sh live 900        # arm, wait for the 200 pairs, compare
+```
+
+The live capture needs the deployed poller; `arm` creates
+`/var/run/qmanager/wc_parity`, the poller writes `wcp/<n>.jq.json` and
+`<n>.pf.json` (same globals, both composers) for n = 0..199 and removes the flag.
+`init.d/qmanager` `stop_service` clears the flag and the capture dir.
 | `fixtures/` | corpus, CRLF bytes preserved (`.gitattributes`: `fixtures/** -text`) |
 
 `dump_globals.sh` prints `set | grep -E '^(lte_|nr_|t1_|t2_|sig_|network_type=|service_status=|_cid_)' | sort`

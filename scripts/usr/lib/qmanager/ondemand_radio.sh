@@ -114,8 +114,84 @@ ONDEMAND_STAMP="${ONDEMAND_STAMP:-/var/run/qmanager/ondemand.stamp}"
 ONDEMAND_FORCE_EVERY="${TIER2_EVERY:-15}"
 _olc_calls=0
 
+# Sidecar (B5.29 Phase C): _ondemand_write_cache also writes the 12 values
+# load_ondemand_cache extracts as shell assignments, so the poller can read them
+# with builtins instead of a jq plus 12 reads. Written tmp + mv right after the
+# JSON, so it is never older than the JSON it mirrors unless a write failed.
+ONDEMAND_ENV="${ONDEMAND_ENV:-/var/run/qmanager/ondemand.env}"
+
+# _od_env_source: source ONDEMAND_ENV only if every line is a single-quoted
+# assignment and the last is the end marker (a syntax error in a dot-sourced file
+# aborts the whole script). Returns 1 without sourcing otherwise.
+_od_env_source() {
+    _oes_last=""
+    _oes_bad=0
+    [ -f "$ONDEMAND_ENV" ] || return 1
+    {
+        while IFS= read -r _oes_l; do
+            case "$_oes_l" in
+                [A-Za-z_]*=\'*\') ;;
+                *) _oes_bad=1 ;;
+            esac
+            _oes_last="$_oes_l"
+        done < "$ONDEMAND_ENV"
+    } 2>/dev/null
+    [ "$_oes_bad" = "0" ] || return 1
+    [ "$_oes_last" = "qm_sidecar_end='1'" ] || return 1
+    . "$ONDEMAND_ENV"
+}
+
+# _od_sq <value>: _ODSQ = value single-quoted for sh ('  ->  '\'').
+_od_sq() {
+    _odsq_in="$1"
+    _ODSQ=""
+    while :; do
+        case "$_odsq_in" in
+            *\'*)
+                _ODSQ="${_ODSQ}${_odsq_in%%\'*}'\\''"
+                _odsq_in="${_odsq_in#*\'}"
+                ;;
+            *)
+                _ODSQ="'${_ODSQ}${_odsq_in}'"
+                break
+                ;;
+        esac
+    done
+}
+
+# _ondemand_write_env: write the sidecar from the current t2_*/lte_ta/nr_ta
+# values. Best effort: any failure leaves the previous file or none, and the
+# poller then falls back to the JSON.
+_ondemand_write_env() {
+    _owe_dir="${ONDEMAND_ENV%/*}"
+    [ -d "$_owe_dir" ] || mkdir -m 0700 "$_owe_dir" 2>/dev/null || return 1
+    {
+        _od_sq "${t2_mimo:-}";                printf 't2_mimo=%s\n' "$_ODSQ"
+        _od_sq "${lte_ta:-}";                 printf 'lte_ta=%s\n' "$_ODSQ"
+        _od_sq "${nr_ta:-}";                  printf 'nr_ta=%s\n' "$_ODSQ"
+        _od_sq "${t2_apn:-}";                 printf 't2_apn=%s\n' "$_ODSQ"
+        _od_sq "${t2_wan_ipv4:-}";            printf 't2_wan_ipv4=%s\n' "$_ODSQ"
+        _od_sq "${t2_wan_ipv6:-}";            printf 't2_wan_ipv6=%s\n' "$_ODSQ"
+        _od_sq "${t2_primary_dns:-}";         printf 't2_primary_dns=%s\n' "$_ODSQ"
+        _od_sq "${t2_secondary_dns:-}";       printf 't2_secondary_dns=%s\n' "$_ODSQ"
+        _od_sq "${t2_primary_dns_v4:-}";      printf 't2_primary_dns_v4=%s\n' "$_ODSQ"
+        _od_sq "${t2_primary_dns_v6:-}";      printf 't2_primary_dns_v6=%s\n' "$_ODSQ"
+        _od_sq "${t2_secondary_dns_v4:-}";    printf 't2_secondary_dns_v4=%s\n' "$_ODSQ"
+        _od_sq "${t2_secondary_dns_v6:-}";    printf 't2_secondary_dns_v6=%s\n' "$_ODSQ"
+        printf "qm_sidecar_end='1'\n"
+    } 2>/dev/null > "${ONDEMAND_ENV}.new" \
+        && mv -f "${ONDEMAND_ENV}.new" "$ONDEMAND_ENV" 2>/dev/null \
+        || { rm -f "${ONDEMAND_ENV}.new" 2>/dev/null; return 1; }
+    return 0
+}
+
 load_ondemand_cache_gated() {
     [ -s "$ONDEMAND_CACHE_FILE" ] || return 0
+    # Sidecar first: pure builtins, so it is read every cycle with no stamp or
+    # force counter. Used only when it is not older than the JSON.
+    if [ -f "$ONDEMAND_ENV" ] && ! [ "$ONDEMAND_CACHE_FILE" -nt "$ONDEMAND_ENV" ]; then
+        _od_env_source && return 0
+    fi
     _olc_calls=$((_olc_calls + 1))
     if [ "$_olc_calls" -lt "$ONDEMAND_FORCE_EVERY" ] && [ -f "$ONDEMAND_STAMP" ] \
         && ! [ "$ONDEMAND_CACHE_FILE" -nt "$ONDEMAND_STAMP" ]; then
@@ -167,7 +243,9 @@ _ondemand_write_cache() {
             secondary_dns_v4: $dns2_v4,
             secondary_dns_v6: $dns2_v6,
             updated_at: ($ts | tonumber)
-        }' > "$ONDEMAND_CACHE_TMP" 2>/dev/null && mv "$ONDEMAND_CACHE_TMP" "$ONDEMAND_CACHE_FILE"
+        }' > "$ONDEMAND_CACHE_TMP" 2>/dev/null && mv "$ONDEMAND_CACHE_TMP" "$ONDEMAND_CACHE_FILE" || return 1
+    _ondemand_write_env
+    return 0
 }
 
 # ---------------------------------------------------------------------------

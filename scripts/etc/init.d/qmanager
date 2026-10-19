@@ -96,6 +96,16 @@ stop_service() {
     rm -rf /var/run/qmanager/tap
     # Poller's on-demand cache read stamp (B5.29): a fresh start re-reads once.
     rm -f /var/run/qmanager/ondemand.stamp
+    # B5.29 Phase C runtime files: the poller's jq-free sidecars (written by
+    # qmanager_ping and ondemand_radio.sh), the state-file read stamps, and the
+    # dev-only status parity hook. A fresh start rebuilds them.
+    rm -f /var/run/qmanager/ping.env /var/run/qmanager/ping.env.new
+    rm -f /var/run/qmanager/dns.env /var/run/qmanager/dns.env.new
+    rm -f /var/run/qmanager/ondemand.env /var/run/qmanager/ondemand.env.new
+    rm -f /var/run/qmanager/watchcat.stamp /var/run/qmanager/sim_swap.stamp
+    rm -f /var/run/qmanager/sim_failover.stamp
+    rm -f /var/run/qmanager/wc_parity
+    rm -rf /var/run/qmanager/wcp
     # Note: Ping cache and history are left for post-mortem debugging
     # Note: Logs in /tmp/qmanager.log are preserved for post-mortem debugging
 }
