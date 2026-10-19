@@ -2115,6 +2115,12 @@ _wc_compose_pf() {
     _kS matching_profile_id "$sim_swap_profile_id"
     _kS matching_profile_name "$sim_swap_profile_name"
     _kE
+    # SIM card state from AT+CPIN? (parse_sim_status). "" until the first
+    # Tier-2 read lands, published as "unknown" so a consumer never reads
+    # an unread card as ready.
+    _kO sim
+    _kS status "${t2_sim_status:-unknown}"
+    _kE
     printf '%s\n' "${_jc_acc}}" 2>/dev/null > "$1"
 }
 
@@ -2245,7 +2251,7 @@ write_cache_jq() {
         --argjson sf_time "${sim_fo_switched_at:-null}" \
         --argjson ss_detected "${sim_swap_detected:-false}" \
         --arg ss_profile_id "$sim_swap_profile_id" \
-        --arg ss_profile_name "$sim_swap_profile_name" \
+        --arg ss_profile_name "$sim_swap_profile_name"         --arg sim_status "${t2_sim_status:-unknown}" \
         '{
             timestamp: $timestamp,
             mono: $mono,
@@ -2352,6 +2358,9 @@ write_cache_jq() {
                 detected: $ss_detected,
                 matching_profile_id: $ss_profile_id,
                 matching_profile_name: $ss_profile_name
+            },
+            sim: {
+                status: $sim_status
             }
         }' > "$1"
 }

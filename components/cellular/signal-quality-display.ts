@@ -29,8 +29,9 @@ import type { SignalQuality } from "@/types/modem-status";
 // `quality-1`, `text-quality-1`) and the exhaustive switches will demand it.
 //
 // The antenna surfaces (`antenna-statistics/tech-card.tsx`,
-// `antenna-alignment/**`) still carry private copies of these maps in the
-// target; they adopt this module when their own ledger rows port them.
+// `antenna-alignment/live-aim.tsx`, `antenna-alignment/port-strip.tsx`) adopted
+// this module in ledger rows U4.14 / U4.15; there are no private copies left in
+// that family, so do not re-introduce one.
 //
 // `cell-scanner/**` is deliberately NOT a consumer. It runs a separate 3-tier
 // scale by design and its own comment forbids drive-by unification.

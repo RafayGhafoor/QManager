@@ -65,6 +65,7 @@
   "invalid_roam_pref": "Preferenza di roaming non valida",
   "invalid_scs": "Valore di spaziatura sottoportante non valido",
   "invalid_sim_slot": "Numero di slot SIM non valido",
+  "invalid_sim_detect": "Valore di rilevamento sostituzione SIM non valido",
   "invalid_start_time": "Ora di inizio non valida (utilizza il formato HH:MM)",
   "invalid_target_mac": "Formato dell'indirizzo MAC di destinazione non valido",
   "invalid_temp_unit": "Unità di temperatura non valida: deve essere C o F",

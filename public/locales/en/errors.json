@@ -65,6 +65,7 @@
   "invalid_roam_pref": "Invalid roaming preference",
   "invalid_scs": "Invalid subcarrier spacing value",
   "invalid_sim_slot": "Invalid SIM slot number",
+  "invalid_sim_detect": "Invalid SIM hot-swap detection value",
   "invalid_start_time": "Invalid start time (use HH:MM format)",
   "invalid_target_mac": "Invalid target MAC address format",
   "invalid_temp_unit": "Invalid temperature unit — must be C or F",

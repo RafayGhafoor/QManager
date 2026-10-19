@@ -581,7 +581,7 @@ line' ;;
             cmp -s "$PH_TMP/exp" "$PH_TMP/got" || { PH_FAIL=$((PH_FAIL + 1)); [ -z "$PH_FIRST" ] && PH_FIRST="hostile#$_n: errors[0] did not round-trip"; continue; }
         fi
         # No injected key: the document keeps exactly the top-level keys it had.
-        if [ "$(jq -c 'keys' "$PH_TMP/b.json")" != '["connectivity","device","errors","last_successful_poll","lte","modem_reachable","mono","network","nr","signal_per_antenna","sim_failover","sim_swap","system_state","timestamp","watchcat"]' ]; then
+        if [ "$(jq -c 'keys' "$PH_TMP/b.json")" != '["connectivity","device","errors","last_successful_poll","lte","modem_reachable","mono","network","nr","signal_per_antenna","sim","sim_failover","sim_swap","system_state","timestamp","watchcat"]' ]; then
             PH_FAIL=$((PH_FAIL + 1))
             [ -z "$PH_FIRST" ] && PH_FIRST="hostile#$_n: top-level keys changed"
             continue

@@ -1323,119 +1323,154 @@
         "applying": "Applicazione del blocco della torre {{leg}}",
         "refreshing": "Aggiornamento dello stato del blocco della torre"
       }
+    }
+  },
+  "frequency_locking": {
+    "a11y": {
+      "add_carrier": "Aggiungi questa portante all'elenco",
+      "refresh": "Aggiorna lo stato del blocco",
+      "remove_entry": "Rimuovi questo canale"
     },
-    "frequency_locking": {
-      "page": {
-        "title": "Blocco della frequenza",
-        "description": "Blocca su EARFCN/NR-ARFCN specifici. Sperimentale: da usare con cautela."
-      },
+    "actions": {
+      "add": "Aggiungi",
+      "apply_lte": "Applica blocco LTE",
+      "apply_nr": "Applica blocco NR",
+      "clear_all": "Cancella tutto",
+      "clear_fields": "Cancella campi",
+      "clear_lte": "Rimuovi blocco LTE",
+      "clear_nr": "Rimuovi blocco NR",
+      "use_current": "Usa attuali",
+      "use_current_hint": "Compila con i canali che il modem sta usando adesso",
+      "use_current_none": "Nessuna portante attiva"
+    },
+    "apply": {
+      "applying_title": "In attesa che il modem torni",
+      "blocked_readback": "Blocco BTS attivo, blocco delle frequenze non disponibile",
+      "blocked_title": "Applica non è disponibile mentre è attivo un blocco BTS",
+      "blocked_unknown_readback": "Stato del blocco BTS sconosciuto, quindi la scrittura è bloccata",
+      "blocked_unknown_title": "Applica non è disponibile finché non si riesce a leggere lo stato del blocco BTS",
+      "disclaimer": "L'applicazione interrompe brevemente la connessione mentre la radio si registra di nuovo. Un canale senza copertura lascia il modem senza servizio finché non rimuovi il blocco.",
+      "live_title": "Blocco attivo sul modem",
+      "no_recovery": "Il blocco delle frequenze non ha alcun controllo di failover. A differenza del blocco delle bande e del blocco BTS, nulla ripristina il servizio da solo se questi canali perdono copertura.",
+      "readback_lte": "LTE {{channels}}",
+      "readback_none": "Nessun blocco delle frequenze sul modem",
+      "readback_nr": "NR {{channels}}",
+      "readback_serving": "in uso {{channel}}"
+    },
+    "bands": {
+      "none": "Nessuna banda corrispondente per {{label}}",
+      "possible": "Bande possibili:",
+      "this_frequency": "questo canale",
+      "unsupported_suffix": "non supportata"
+    },
+    "blocked": {
+      "tower_lock_active": "Un blocco BTS sta trattenendo questa radio. Rimuovilo prima di bloccare una frequenza.",
+      "tower_lock_unknown": "Non è stato possibile leggere lo stato del blocco BTS, quindi questo blocco viene rifiutato finché il modem non risponde. Aggiorna per riprovare."
+    },
+    "card": {
+      "blocked_body": "Rimuovi il blocco BTS per modificare questo elenco.",
+      "count": "{{used}} di {{max}}",
+      "empty_body_nr": "Aggiungi la portante NR qui sopra, oppure inserisci un ARFCN e scegline la spaziatura.",
+      "empty_title": "Nessun canale nell'elenco",
+      "scs_warning": "Una spaziatura sbagliata sembra una voce valida, ma il modem non la usa mai. Il valore viene copiato dalla portante quando la aggiungi da sopra.",
+      "status_applying": "In applicazione",
+      "status_blocked": "Non consentito",
+      "status_locked": "Bloccato",
+      "status_unknown": "Non segnalato",
+      "status_unlocked": "Sbloccato"
+    },
+    "dialog": {
+      "cancel": "Annulla",
+      "confirm_lock": "Blocca canali",
+      "confirm_unlock": "Rimuovi blocco",
+      "lock_lte_body": "Il modem userà solo {{channels}} e potrebbe disconnettersi brevemente mentre si registra di nuovo.",
+      "lock_lte_title": "Bloccare i canali LTE?",
+      "lock_nr_body": "Il modem userà solo {{channels}} e potrebbe disconnettersi brevemente mentre si registra di nuovo.",
+      "lock_nr_title": "Bloccare i canali 5G NR?",
+      "unlock_lte_body": "Il modem sarà libero di usare qualsiasi canale offerto dalle sue bande attive e potrebbe disconnettersi brevemente.",
+      "unlock_lte_title": "Rimuovere il blocco LTE?",
+      "unlock_nr_body": "Il modem sarà libero di usare qualsiasi canale offerto dalle sue bande attive e potrebbe disconnettersi brevemente.",
+      "unlock_nr_title": "Rimuovere il blocco 5G NR?",
+      "unsupported_body": "Bloccare su una banda che il modem non supporta può farlo riavviare all'improvviso, e nulla qui lo ripristinerà automaticamente.",
+      "unsupported_confirm": "Blocca comunque",
+      "unsupported_matched": "Bande corrispondenti",
+      "unsupported_supported": "Bande supportate",
+      "unsupported_title": "Questi canali sono fuori dalle bande del tuo modem",
+      "unsupported_unknown": "Sconosciuta"
+    },
+    "error": {
+      "invalid_channel": "I numeri di canale devono contenere solo cifre.",
+      "load_body": "Il modem non ha risposto. Aggiorna per riprovare.",
+      "load_title": "Impossibile leggere lo stato del blocco"
+    },
+    "legs": {
       "lte": {
-        "title": "LTE Blocco della frequenza",
-        "description_loading": "Blocca su frequenze specifiche del canale LTE.",
-        "description": "Blocca su frequenze specifiche del canale LTE. Massimo 2 canali.",
-        "tower_lock_active": "LTE Il blocco della torre è attivo. Disabilitarlo prima di utilizzare il blocco della frequenza.",
-        "experimental_warning": "Caratteristica sperimentale",
-        "enabled_label": "LTE Blocco frequenza abilitato",
-        "enabled_tooltip": "Il blocco su una frequenza non supportata potrebbe causare il riavvio imprevisto del modem. Non può essere utilizzato mentre il Blocco BTS è attivo.",
-        "enabled_info_aria": "LTE informazioni sul blocco della frequenza",
-        "channel_label": "Canale (EARFCN)",
-        "channel_label_optional": "Canale 2 (opzionale)",
-        "channel_placeholder": "Inserisci EARFCN",
-        "channel_placeholder_2": "Inserisci EARFCN 2",
-        "use_current": "Usa corrente",
-        "error_title": "Impossibile caricare lo stato di blocco della frequenza",
-        "lock_dialog": {
-          "title": "Blocca LTE Frequenza?",
-          "description_single": "In questo modo il modem verrà bloccato su EARFCN {{earfcn}}. Il modem utilizzerà solo questa frequenza e potrebbe disconnettersi brevemente.",
-          "description_multi": "Ciò bloccherà il tuo modem su EARFCN {{earfcns}}. Il modem utilizzerà solo queste frequenze e potrebbe disconnettersi brevemente.",
-          "confirm": "Blocca frequenza"
-        },
-        "unsupported_dialog": {
-          "title": "Avviso di frequenza non supportata",
-          "description_prefix": "Le frequenze inserite corrispondono a bande non supportate dal modem. Il blocco su una frequenza non supportata potrebbe causare il riavvio imprevisto del modem.",
-          "matched_bands_label": "Bande abbinate:",
-          "supported_bands_label": "Bande supportate:",
-          "confirm": "Blocca comunque",
-          "confirm_prompt": "Sei sicuro di voler procedere?",
-          "unknown": "Sconosciuto"
-        },
-        "unlock_dialog": {
-          "title": "Sbloccare la frequenza LTE?",
-          "description": "Ciò rimuoverà il blocco della frequenza LTE. Il modem sarà libero di utilizzare qualsiasi frequenza disponibile e potrebbe disconnettersi brevemente.",
-          "confirm": "Rimuovi blocco"
-        },
-        "toast": {
-          "no_frequencies_title": "Nessuna frequenza inserita",
-          "no_frequencies_description": "Immettere almeno un numero di canale prima dell'abilitazione.",
-          "lock_success": "LTE blocco della frequenza applicato",
-          "lock_error": "Impossibile applicare il blocco della frequenza LTE",
-          "unlock_success": "LTE blocco della frequenza cancellato",
-          "unlock_error": "Impossibile eliminare il blocco della frequenza LTE",
-          "filled_current": "Riempito dalla torre attualmente collegata",
-          "no_active_connection": "Nessuna connessione LTE attiva"
-        }
+        "description": "Fino a 2 EARFCN. Il modem può usare solo questi.",
+        "title": "Canali LTE"
       },
       "nr": {
-        "title": "Blocco della frequenza NR5G",
-        "description_loading": "Blocca su frequenze NR specifiche (NR-ARFCN).",
-        "description": "Blocca su frequenze NR specifiche. Supporta fino a 32 voci (4 mostrate).",
-        "tower_lock_active": "NR Il blocco della torre è attivo. Disabilitarlo prima di utilizzare il blocco della frequenza.",
-        "experimental_warning": "Caratteristica sperimentale",
-        "enabled_label": "Blocco frequenza NR5G abilitato",
-        "enabled_tooltip": "Non può essere utilizzato insieme a NR Blocco torre (AT+QNWLOCK). SCS viene rilevato automaticamente dal tipo di banda ma può essere ignorato.",
-        "enabled_info_aria": "Informazioni sul blocco della frequenza NR5G",
-        "arfcn_label": "NR-ARFCN",
-        "arfcn_label_n": "NR-ARFCN {{n}}",
-        "arfcn_placeholder": "Inserisci {{label}}",
-        "scs_label": "SCS",
-        "scs_label_n": "SCS {{n}}",
-        "scs_placeholder": "SCS",
-        "scs_slot_aria": "{{label}} spazio {{n}}",
-        "use_current": "Usa corrente",
-        "error_title": "Impossibile caricare lo stato di blocco della frequenza",
-        "lock_dialog": {
-          "title": "Bloccare la frequenza NR5G?",
-          "description_single": "Ciò bloccherà il modem su NR-ARFCN {{arfcn}} (SCS {{scs}} kHz). Il modem utilizzerà solo questa frequenza e potrebbe disconnettersi brevemente.",
-          "description_multi": "Ciò bloccherà il tuo modem sulle frequenze {{count}} NR. Il modem utilizzerà solo queste frequenze e potrebbe disconnettersi brevemente.",
-          "confirm": "Blocca frequenza"
-        },
-        "unsupported_dialog": {
-          "title": "Avviso di banda non supportata",
-          "description_prefix": "I NR-ARFCN inseriti corrispondono a bande non supportate dal tuo modem. Il blocco su una frequenza non supportata può causare comportamenti imprevisti.",
-          "matched_bands_label": "Bande abbinate:",
-          "supported_bands_label": "Bande supportate:",
-          "confirm": "Blocca comunque",
-          "confirm_prompt": "Sei sicuro di voler procedere?",
-          "unknown": "Sconosciuto"
-        },
-        "unlock_dialog": {
-          "title": "Sbloccare la frequenza NR5G?",
-          "description": "Ciò rimuoverà il blocco della frequenza NR5G. Il modem sarà libero di utilizzare qualsiasi frequenza NR disponibile e potrebbe disconnettersi brevemente.",
-          "confirm": "Sblocca"
-        },
-        "toast": {
-          "no_frequencies_title": "Nessuna frequenza inserita",
-          "no_frequencies_description": "Inserisci almeno un NR-ARFCN e SCS prima di abilitare.",
-          "missing_scs_title": "SCS mancante",
-          "missing_scs_description": "Ciascun NR-ARFCN richiede un valore SCS. Seleziona la spaziatura della sottoportante.",
-          "lock_success": "Blocco della frequenza NR5G applicato",
-          "lock_error": "Impossibile applicare il blocco della frequenza NR5G",
-          "unlock_success": "Blocco della frequenza NR5G cancellato",
-          "unlock_error": "Impossibile eliminare il blocco della frequenza NR5G",
-          "filled_current": "Compilato da NR PCell attivo",
-          "no_active_connection": "Nessuna cella NR attiva"
-        }
-      },
-      "band_match": {
-        "no_match": "Nessun gruppo corrispondente trovato per {{label}}",
-        "possible_prefix": "Bande possibili: ",
-        "unsupported_suffix": " - non supportato",
-        "no_match_label": {
-          "this_channel": "questo canale",
-          "this_nr_arfcn": "questo NR-ARFCN",
-          "this_frequency": "questa frequenza"
-        }
+        "description": "Fino a 32 ARFCN, ciascuno con la sua spaziatura sottoportanti.",
+        "title": "Canali 5G NR"
       }
+    },
+    "live": {
+      "add_blocked": "L'aggiunta è disattivata finché il blocco BTS non viene rimosso.",
+      "add_blocked_unknown": "L'aggiunta è disattivata finché non si riesce a leggere lo stato del blocco BTS.",
+      "add_hint": "Aggiungi copia il canale nell'elenco qui sotto. Un blocco delle frequenze non usa il PCI, quindi la cella la sceglie ancora il modem.",
+      "camped_empty_body": "Il modem non segnala alcuna cella di servizio. I canali si possono comunque inserire a mano.",
+      "camped_empty_title": "Nessuna portante segnalata",
+      "camped_meta": "{{count}} portanti ({{bandwidth}} MHz)",
+      "camped_title": "Agganciato adesso",
+      "compare_hint": "Un blocco BTS fissa sia il canale sia la cella. Il blocco delle frequenze è l'opzione più permissiva: stesso canale, qualsiasi cella.",
+      "compare_hint_unknown": "Non è stato possibile leggere lo stato del blocco BTS. Un blocco delle frequenze viene rifiutato mentre è attivo un blocco BTS, quindi qui non si può applicare nulla finché quella lettura non riesce.",
+      "title": "Adesso"
+    },
+    "page": {
+      "description": "Limita la radio a canali specifici. Solo canali, nessun PCI, quindi la cella la sceglie ancora il modem.",
+      "experimental": "Sperimentale",
+      "title": "Blocco delle frequenze"
+    },
+    "progress": {
+      "wait_note": "Richiede qualche secondo. Non riavviare."
+    },
+    "slots": {
+      "arfcn_placeholder": "NR-ARFCN",
+      "earfcn_placeholder": "EARFCN",
+      "in_list": "Nell'elenco",
+      "optional": "Facoltativo. Un secondo canale amplia l'elenco dei consentiti.",
+      "scs_label": "Spaziatura",
+      "scs_unit": "{{value}} kHz",
+      "slot": "Slot {{index}}",
+      "staged_count": "{{count}} di {{max}} voci pronte. Non c'è ancora nulla sul modem."
+    },
+    "toast": {
+      "all_cleared": "Tutti i blocchi delle frequenze rimossi",
+      "lte_clear_failed": "Impossibile rimuovere il blocco delle frequenze LTE",
+      "lte_cleared": "Blocco delle frequenze LTE rimosso",
+      "lte_lock_failed": "Impossibile applicare il blocco delle frequenze LTE",
+      "lte_locked": "Blocco delle frequenze LTE applicato",
+      "no_channels_body": "Inserisci almeno un canale prima di applicare.",
+      "no_channels_title": "Nessun canale inserito",
+      "nr_clear_failed": "Impossibile rimuovere il blocco delle frequenze 5G NR",
+      "nr_cleared": "Blocco delle frequenze 5G NR rimosso",
+      "nr_lock_failed": "Impossibile applicare il blocco delle frequenze 5G NR",
+      "nr_locked": "Blocco delle frequenze 5G NR applicato"
+    },
+    "verdict": {
+      "blocked_body": "QManager non scrive un blocco delle frequenze mentre è attivo un blocco BTS. Rimuovi il blocco BTS per usare questa pagina.",
+      "blocked_title": "Il blocco BTS sta tenendo la radio",
+      "blocked_unknown_body": "QManager non è riuscito a leggere se un blocco BTS è attivo. Le modifiche al blocco delle frequenze restano bloccate finché quella lettura non riesce, perché applicarne uno mentre è attivo un blocco BTS può mandare in crash il modem. Aggiorna per riprovare.",
+      "blocked_unknown_title": "Stato del blocco BTS non confermato",
+      "locked_body": "Il modem può usare solo i canali qui sotto. La cella la sceglie comunque lui, quindi il PCI può cambiare.",
+      "locked_title": "Bloccato sul tuo elenco di canali",
+      "no_recovery": "Nessun ripristino automatico",
+      "serving_in_list": "Il canale in uso è nell'elenco",
+      "serving_out_of_list": "Il canale in uso è fuori dall'elenco",
+      "tower_lock_off": "Blocco BTS disattivo, quindi è disponibile",
+      "unknown_body": "Il modem non ha risposto all'ultima lettura di stato. Aggiorna per riprovare.",
+      "unknown_title": "Stato del blocco non segnalato",
+      "unlocked_body": "Il modem può usare qualsiasi canale offerto dalle sue bande attive e riseleziona liberamente. Consenti un canale per restringere il campo.",
+      "unlocked_title": "Tutti i canali consentiti"
     }
   },
   "cell_scanner": {
@@ -1739,188 +1774,335 @@
       }
     }
   },
-  "antennas": {
-    "statistics": {
-      "page": {
-        "title": "Statistiche dell'antenna",
-        "description": "Metriche del segnale per antenna per ciascuna catena di ricevitori. Confronta la qualità del segnale tra le porte dell'antenna Principale, Diversity e MIMO."
-      },
-      "lte_card": {
-        "title": "LTE Segnale",
-        "description": "Metriche per antenna per 4G LTE",
-        "empty_title": "Nessun segnale LTE",
-        "empty_description": "Le metriche dell'antenna verranno visualizzate quando 4G LTE è attivo."
-      },
-      "nr_card": {
-        "title": "Segnale NR5G",
-        "description": "Metriche per antenna per 5G NR",
-        "empty_title": "Nessun segnale NR5G",
-        "empty_description": "Le metriche dell'antenna verranno visualizzate quando 5G NR è attivo."
-      },
-      "signal_strength_aria": "Potenza del segnale {{metric}}"
+  "antenna_statistics": {
+    "page": {
+      "title": "Statistiche dell'antenna",
+      "description": "Segnale per antenna di ogni catena di ricezione. Confronta le porte Main, Diversity e MIMO per individuare un'antenna debole o inattiva."
     },
-    "ports": {
-      "main_name": "Principale",
-      "main_description": "Antenna di trasmissione/ricezione principale (ANT0)",
-      "diversity_name": "Diversità",
-      "diversity_description": "Antenna Diversity/ricezione (ANT1)",
-      "mimo3_name": "MIMO 3",
-      "mimo3_description": "MIMO flusso spaziale 1 (ANT2)",
-      "mimo4_name": "MIMO 4",
-      "mimo4_description": "MIMO flusso spaziale 2 (ANT3)"
+    "context": {
+      "mimo": {
+        "label": "MIMO attivo",
+        "caption": "Layer riportati dal modem",
+        "unavailable": "Non riportato"
+      },
+      "mode": {
+        "label": "Modalità di servizio",
+        "caption": "Radio che riportano ora",
+        "lte": "4G LTE",
+        "nr": "5G NR",
+        "endc": "5G NSA (EN-DC)",
+        "none": "Nessun servizio"
+      },
+      "chains": {
+        "label": "Catene che riportano",
+        "caption": "Porte d'antenna con una lettura",
+        "value": "{{live}} di {{total}}"
+      }
+    },
+    "card": {
+      "lte": {
+        "title": "Segnale LTE",
+        "description": "Metriche per antenna per il 4G LTE",
+        "identity": "LTE"
+      },
+      "nr": {
+        "title": "Segnale NR5G",
+        "description": "Metriche per antenna per il 5G NR",
+        "identity": "5G NR"
+      }
+    },
+    "empty": {
+      "lte": {
+        "title": "Nessun segnale LTE",
+        "description": "Le metriche per antenna compaiono quando il 4G LTE è attivo."
+      },
+      "nr": {
+        "title": "Nessun segnale 5G NR",
+        "description": "Le metriche per antenna compaiono quando il 5G NR è attivo."
+      }
+    },
+    "port": {
+      "not_reporting": "Inattiva",
+      "not_reported": "Non riportato"
     },
     "quality": {
       "excellent": "Eccellente",
-      "good": "Bene",
-      "fair": "Giusto",
-      "poor": "Povero",
-      "none": "Nessuno"
+      "good": "Buono",
+      "fair": "Discreto",
+      "poor": "Scarso",
+      "bad": "Molto debole",
+      "none": "Nessuna lettura"
     },
-    "alignment": {
-      "page": {
-        "title": "Allineamento dell'antenna",
-        "description": "Intensità del segnale per antenna per ciascuna catena di ricevitori. Registra e confronta le posizioni per trovare l'obiettivo o il posizionamento migliore."
+    "states": {
+      "loading_sr": "Caricamento delle statistiche dell'antenna",
+      "retry": "Riprova",
+      "error_banner": "Impossibile raggiungere il modem. Queste letture potrebbero non essere aggiornate.",
+      "stale_banner": "I dati di segnale non sono aggiornati. Il modem potrebbe non rispondere.",
+      "unreachable": {
+        "title": "Impossibile raggiungere il modem",
+        "description": "Non è stato possibile caricare le letture dell'antenna. Verifica che il servizio poller sia in esecuzione, poi riprova."
+      }
+    }
+  },
+  "antenna_alignment": {
+    "page": {
+      "title": "Allineamento dell'antenna",
+      "description": "Orienta o riposiziona l'antenna osservando il punteggio in tempo reale, poi registra fino a tre posizioni per confrontarle."
+    },
+    "mode": {
+      "lte": "4G LTE",
+      "nr": "5G NR",
+      "lte_short": "LTE",
+      "nr_short": "NR"
+    },
+    "aim": {
+      "title": "Puntamento in tempo reale",
+      "description": "La catena di ricezione principale, valutata con la stessa scala delle posizioni registrate.",
+      "score_label": "Punteggio di puntamento",
+      "score_sr": "Punteggio di puntamento {{score}} su 100",
+      "no_reading": "Nessun punteggio di puntamento — la catena principale non riporta dati",
+      "peak": "Picco",
+      "updated": "Aggiornato",
+      "delta_up": "migliorato dall'ultima lettura",
+      "delta_down": "calato dall'ultima lettura",
+      "partial": "Solo {{leg}}",
+      "not_reported": "Non riportato",
+      "primary_chain": "Main / PRX è la catena su cui si basa il punteggio"
+    },
+    "quality": {
+      "excellent": "Eccellente",
+      "good": "Buono",
+      "fair": "Discreto",
+      "poor": "Scarso",
+      "bad": "Molto debole",
+      "none": "Nessuna lettura"
+    },
+    "recorder": {
+      "title": "Posizioni",
+      "description_directional": "Registra fino a tre angoli e confrontali. Ogni registrazione media {{samples}} letture del modem e richiede qualche secondo.",
+      "description_omni": "Registra fino a tre posizionamenti e confrontali. Ogni registrazione media {{samples}} letture del modem e richiede qualche secondo.",
+      "type_directional": "Direzionale",
+      "type_omni": "Omni",
+      "reset": "Reimposta",
+      "position": "Posizione {{letter}}",
+      "placeholder_angle": "Angolo",
+      "placeholder_position": "Posizione",
+      "record_angle": "Registra l'angolo",
+      "record_position": "Registra la posizione",
+      "not_recorded": "Non registrato",
+      "recorded_at": "Registrato {{time}}",
+      "sample_progress": "Lettura {{current}} di {{total}}",
+      "waiting": "In attesa del modem",
+      "cancel": "Annulla",
+      "clear": "Cancella {{label}}",
+      "label_sr": "Etichetta per lo slot {{index}}",
+      "slot_sr": "Slot {{index}}: {{label}} — {{status}}",
+      "status": {
+        "recording": "registrazione in corso",
+        "recorded": "registrato",
+        "recorded_best": "registrato, miglior risultato",
+        "empty": "vuoto"
       },
-      "stale_warning": "I dati del segnale sono obsoleti: il modem potrebbe non rispondere.",
-      "error_warning": "Impossibile raggiungere il modem. I dati mostrati potrebbero essere obsoleti.",
-      "empty_title": "Nessun dato dell'antenna",
-      "empty_description": "Le metriche dell'antenna verranno visualizzate quando il poller del modem è in esecuzione e riporta i dati del segnale per antenna.",
-      "card": {
-        "active": "Attivo",
-        "inactive": "Inattivo",
-        "lte_heading": "4G / LTE",
-        "lte_heading_anchor": "4G / LTE (Ancora)",
-        "nr_heading": "5G / NR",
-        "nr_heading_secondary": "5G / NR (Secondario)"
+      "best": "Migliore",
+      "best_margin": "Migliore di {{margin}}",
+      "not_comparable": "Nessuna lettura classificabile, quindi questa posizione non può essere confrontata.",
+      "partial": "Valutato su una sola metrica.",
+      "confirm_cancel": "Mantieni",
+      "reset_confirm_title": "Cancellare tutte le posizioni registrate?",
+      "reset_confirm_body": "Tutte le posizioni che hai registrato verranno eliminate. L'operazione non può essere annullata.",
+      "reset_confirm_action": "Cancella tutto",
+      "clear_confirm_title": "Cancellare questa registrazione?",
+      "clear_confirm_body": "La lettura registrata per {{label}} verrà eliminata. L'operazione non può essere annullata.",
+      "clear_confirm_action": "Cancella",
+      "all_recorded_hint": "Tutte e tre le posizioni sono registrate. Cancellane una per registrare di nuovo.",
+      "recording_hint": "Completa o annulla prima la registrazione in corso.",
+      "record_slot": "Registra {{label}}",
+      "cancel_slot": "Annulla la registrazione di {{label}}"
+    },
+    "recommendation": {
+      "title": "Migliore finora: {{label}}",
+      "body_directional": "Questo angolo ha prodotto il segnale composito più forte tra le posizioni che hai registrato.",
+      "body_omni": "Questo posizionamento ha prodotto il segnale composito più forte tra le posizioni che hai registrato.",
+      "mixed_radios": "Le tue registrazioni coprono entrambe le radio, quindi il confronto è più approssimativo del solito.",
+      "remaining": "Registra gli slot rimanenti per un confronto più completo."
+    },
+    "ports": {
+      "title": "Catene di ricezione",
+      "description": "Quali antenne contribuiscono al punteggio.",
+      "reporting": "{{live}} di {{total}} riportano dati",
+      "not_reporting": "Inattiva",
+      "twin_hint": "Per il dettaglio metrica per metrica di ogni catena, vedi",
+      "twin_link": "Statistiche dell'antenna"
+    },
+    "states": {
+      "loading_sr": "Caricamento dell'allineamento dell'antenna",
+      "retry": "Riprova",
+      "error_banner": "Impossibile raggiungere il modem. Queste letture potrebbero non essere aggiornate.",
+      "stale_banner": "I dati di segnale non sono aggiornati. Il modem potrebbe non rispondere.",
+      "unreachable": {
+        "title": "Impossibile raggiungere il modem",
+        "description": "Non è stato possibile caricare le letture dell'antenna. Verifica che il servizio poller sia in esecuzione, poi riprova."
       },
-      "meter": {
-        "title": "Misuratore di allineamento",
-        "description_directional": "Registra 3 angoli per trovare la mira migliore. Ciascuna registrazione ha una media di {{samples}} campioni.",
-        "description_omni": "Registra 3 posizioni per trovare il posizionamento migliore. Ciascuna registrazione ha una media di {{samples}} campioni.",
-        "toggle_directional": "Direzionale",
-        "toggle_omni": "Omni",
-        "reset": "Ripristina",
-        "live_signal_heading": "Segnale in tempo reale (antenna primaria)",
-        "lte_rsrp": "LTE RSRP",
-        "lte_sinr": "LTE SINR",
-        "nr_rsrp": "NR RSRP",
-        "nr_sinr": "NR SINR",
-        "slot_aria": "Spazio {{n}}: {{label}} — {{status}}",
-        "slot_status_recording": "registrazione",
-        "slot_status_recorded": "registrato",
-        "slot_status_recorded_best": "registrato, miglior risultato",
-        "slot_status_empty": "vuoto",
-        "angle_placeholder": "Angolo…",
-        "location_placeholder": "Posizione…",
-        "best_badge": "Migliore",
-        "sample_progress": "Esempio {{current}} di {{total}}",
-        "cancel": "Annulla",
-        "recorded_at": "Registrato {{time}}",
-        "not_recorded": "Non registrato",
-        "record_angle": "Angolo di registrazione",
-        "record_position": "Registra la posizione",
-        "recommended_prefix": "Consigliato: ",
-        "recommendation_directional": "Questo angolo ha prodotto il segnale composito più forte tra le posizioni registrate.",
-        "recommendation_omni": "Questa posizione ha prodotto il segnale composito più forte tra le posizioni registrate.",
-        "recommendation_remaining_one": " Registra lo slot rimanente {{count}} per un confronto più completo.",
-        "recommendation_remaining_other": " Registra gli slot rimanenti {{count}} per un confronto più completo.",
-        "lte_label": "LTE",
-        "nr_label": "NR",
-        "rsrp_label": "RSRP",
-        "sinr_label": "SINR",
-        "default_positions": {
-          "a": "Posizione A",
-          "b": "Posizione B",
-          "c": "Posizione C"
-        },
-        "radio_mode": {
-          "lte": "4G LTE",
-          "nr": "5GSA",
-          "endc": "5G NSA (EN-DC)"
-        }
+      "no_readings": {
+        "title": "Nessuna lettura dell'antenna",
+        "description": "Il modem ha risposto, ma nessuna catena di ricezione ha riportato una misurazione. Potrebbe essere in ricerca di rete, oppure un'antenna potrebbe essere scollegata — le letture tornano da sole appena una catena riporta dati."
       }
     }
   },
   "core_settings": {
     "basic": {
       "page": {
-        "title": "Impostazioni di base cellulare",
-        "description": "SIM preferenze relative a slot, stato radio e modalità di rete.",
-        "error_load": "Impossibile caricare le impostazioni del cellulare. I valori visualizzati potrebbero essere obsoleti."
+        "title": "Impostazioni cellulari di base",
+        "description": "Modifica come il modem usa le sue SIM, la radio e le reti a cui si collega.",
+        "error_title": "Impossibile leggere il modem",
+        "error_body": "I valori visualizzati potrebbero essere obsoleti.",
+        "retry": "Riprova"
       },
-      "radio": {
-        "card": {
-          "title": "Impostazioni della radio del modem",
-          "description": "Configura lo slot SIM, la potenza della radio, il tipo di rete e le preferenze di roaming."
-        },
+      "sim_card": {
+        "title": "SIM e Alimentazione radio",
+        "description": "Quale SIM usa il modem e se la radio è alimentata."
+      },
+      "network_card": {
+        "title": "Modalità di rete e roaming",
+        "description": "Come il modem sceglie la rete a cui collegarsi."
+      },
+      "cards": {
+        "unread": "Non è stato letto nulla dal modem, quindi qui non c'è ancora nulla da modificare."
+      },
+      "rows": {
         "sim_slot": {
-          "label": "Slot per SIM",
-          "placeholder": "Scegli SIM Slot",
+          "label": "Slot SIM",
+          "consequence": "Il cambio di slot interrompe la connessione per circa 15 secondi.",
           "options": {
-            "sim1": "SIM 1",
-            "sim2": "SIM 2"
+            "slot_1": "SIM 1",
+            "slot_2": "SIM 2"
           }
         },
-        "radio_power": {
-          "label": "Potenza radiofonica",
-          "placeholder": "Scegli la modalità di alimentazione radio",
+        "cfun": {
+          "label": "Alimentazione radio",
+          "consequence": "Radio spenta toglie alimentazione anche alla SIM, modalità aereo la mantiene alimentata e in entrambi i casi la console resta raggiungibile via Ethernet.",
           "options": {
-            "low_power": "Radio spenta (bassa potenza)",
-            "normal": "Funzionamento normale",
-            "airplane": "Modalità aereo (RF disattivato)"
+            "normal": "Normale",
+            "radio_off": "Radio spenta",
+            "airplane": "Modalità aereo"
           }
         },
-        "network_type": {
+        "mode_pref": {
           "label": "Tipo di rete preferito",
-          "placeholder": "Scegli Tipo di rete",
+          "consequence": "Fissa una tecnologia solo durante la diagnostica.",
           "options": {
             "auto": "Automatico",
-            "lte": "LTE Solo",
-            "nr5g": "5G Solo",
-            "lte_nr5g": "LTE + 5G"
+            "lte_nr": "LTE + 5G",
+            "nr_only": "Solo 5G",
+            "lte_only": "Solo LTE"
           }
         },
-        "architecture": {
-          "label": "5G Architettura",
-          "placeholder": "Scegli la modalità 5G",
+        "nr5g_mode": {
+          "label": "Architettura 5G",
+          "consequence": "Lascia su Auto a meno che il tuo operatore non richieda standalone (5G da solo) o non-standalone (5G ancorato all'LTE).",
           "options": {
-            "auto": "Automatico (SA + NSA)",
-            "nsa": "Solo NSA (5G tramite LTE)",
-            "sa": "Solo SA (autonomo)"
+            "auto": "Auto",
+            "nsa": "Solo NSA",
+            "sa": "Solo SA"
           }
         },
-        "roaming": {
+        "roam_pref": {
           "label": "Preferenza di roaming",
-          "placeholder": "Scegli Preferenza roaming",
+          "consequence": "Le reti partner possono essere fatturate a parte.",
           "options": {
             "any": "Qualsiasi rete",
-            "home": "Solo rete domestica",
-            "partner": "Reti di partner"
+            "home": "Solo rete di casa",
+            "partner": "Reti partner"
           }
         },
-        "toast": {
-          "success": "Impostazioni del modem salvate",
-          "error": "Impossibile salvare le impostazioni del modem",
-          "no_changes": "Nessuna modifica da salvare"
+        "sim_detect": {
+          "label": "Rilevamento sostituzione SIM a caldo",
+          "consequence": "Senza, una SIM sostituita resta ignorata fino al riavvio successivo.",
+          "on": "Attivo",
+          "off": "Disattivo"
         }
       },
+      "save_bar": {
+        "count_one": "{{count}} modifica in sospeso",
+        "count_other": "{{count}} modifiche in sospeso",
+        "note": "L'applicazione interrompe brevemente la connessione. Il modem non si riavvia.",
+        "discard": "Annulla modifiche",
+        "save": "Salva impostazioni",
+        "failed": "Impossibile applicare {{fields}}. Le altre modifiche sono state salvate."
+      },
+      "toast": {
+        "saved": "Impostazioni applicate.",
+        "save_failed": "Impossibile applicare le impostazioni."
+      },
+      "apply": {
+        "writing": "Scrittura sul modem",
+        "recovering": "In attesa che la radio si stabilizzi",
+        "verifying": "Verifica di ciò che il modem ha applicato"
+      },
+      "footer": {
+        "reread": "Rileggi dal modem",
+        "in_sync": "Le impostazioni salvate corrispondono al modem."
+      },
+      "strip": {
+        "label": "Stato in tempo reale",
+        "stale": "Obsoleto",
+        "network": "Rete",
+        "sim": "SIM",
+        "aggregation": "Aggregazione",
+        "data_path": "Percorso dati",
+        "carrier_none": "Nessun operatore riportato",
+        "bands_none": "Nessuna banda segnalata",
+        "ip_dual": "IPv4 e IPv6 assegnati",
+        "ip_v4": "Solo IPv4",
+        "ip_v6": "Solo IPv6",
+        "ip_none": "Nessun indirizzo assegnato",
+        "unavailable_title": "Impossibile leggere il modem",
+        "unavailable_retrying": "L'ultima lettura non è riuscita. QManager sta ancora provando."
+      },
+      "rate_ceiling": {
+        "eyebrow": "Tetto di velocità concesso dalla rete",
+        "in_force": "AMBR {{radio}} in vigore",
+        "no_ceiling": "Nessun tetto letto",
+        "sr_rate_block": "{{radio}}: {{state}}",
+        "provenance": "I limiti di velocità sono tetti concessi dalla rete, non velocità misurate. Vengono letti all'apertura della pagina e di nuovo dopo ogni salvataggio.",
+        "unavailable": "L'ultima lettura non è riuscita. Usa «Rileggi dal modem» qui sotto per riprovare."
+      },
+      "readout": {
+        "slot_n": "SIM {{slot}}",
+        "unknown": "Sconosciuto",
+        "no_apn": "Non segnalato",
+        "ca_none": "Non attiva",
+        "ca_breakdown": "LTE {{lte}} + NR {{nr}}",
+        "ca_lte_only": "LTE {{lte}}",
+        "ca_nr_only": "NR {{nr}}"
+      },
+      "sim_status": {
+        "ready": "Pronta",
+        "pin_required": "PIN richiesto",
+        "puk_required": "PUK richiesto",
+        "not_inserted": "Nessuna SIM",
+        "error": "Errore",
+        "unknown": "Sconosciuto"
+      },
+      "sim_slots": {
+        "empty": "Vuoto",
+        "sr_active": "SIM {{slot}}, attiva, scheda che termina con {{last4}}",
+        "sr_standby": "SIM {{slot}}, in standby, scheda che termina con {{last4}}",
+        "sr_empty": "SIM {{slot}}, nessuna scheda rilevata"
+      },
       "ambr": {
-        "card": {
-          "title": "Limiti di velocità dati",
-          "description": "Le velocità massime di caricamento e download consentite dal tuo operatore per ciascuna connessione dati. Questi limiti sono stabiliti dalla politica di rete del tuo operatore."
-        },
-        "section": {
-          "lte": "LTE Tariffe",
-          "nr5g": "5G Tariffe"
-        },
-        "empty": {
-          "lte": "Nessun dato sulla tariffa LTE: non connesso a LTE",
-          "nr5g": "Nessun dato sulla tariffa 5G: non connesso a 5G"
-        },
-        "tooltip": {
-          "aria": "Maggiori informazioni",
-          "content": "Sebbene i dispositivi possano richiedere valori AMBR specifici, gli operatori possono ignorarli e imporre i propri limiti di velocità in base a piani di abbonamento, politiche di rete o condizioni di congestione."
-        }
+        "lte_heading": "Limiti di velocità LTE",
+        "nr_heading": "Limiti di velocità 5G",
+        "governing": "In uso",
+        "not_governing": "Non in uso",
+        "nsa_note": "Il 5G non-standalone viaggia sulla sessione dati LTE, quindi vale questo limite.",
+        "lte_empty_reason": "Il modem pubblica un limite LTE solo mentre è attiva una sessione dati LTE.",
+        "nr_empty_reason": "Il modem pubblica un limite 5G solo mentre è attiva una sessione dati 5G.",
+        "download": "Download",
+        "upload": "Upload",
+        "governing_unread": "La tua connessione usa questa radio. Nessun limite è stato letto per essa all’apertura della pagina.",
+        "lte_short": "LTE",
+        "nr_short": "5G NR"
       }
     },
     "apn": {
@@ -2034,126 +2216,236 @@
     "imei": {
       "page": {
         "title": "Impostazioni IMEI",
-        "description": "Visualizza, modifica o esegui il backup del dispositivo IMEI."
+        "description": "Leggi, scrivi e verifica l'identificativo che il modem presenta alla rete.",
+        "error_title": "Impossibile leggere le impostazioni IMEI",
+        "error_body": "Il modem non ha risposto: {{detail}}"
       },
-      "settings_card": {
-        "title": "Impostazioni IMEI",
-        "description": "Modifica l'identificatore IMEI del dispositivo. Dopo le modifiche è necessario un riavvio. Controllare le normative locali prima di apportare modifiche.",
-        "field_label": "Imposta dispositivo IMEI",
-        "field_placeholder": "Inserisci il dispositivo IMEI",
-        "field_description": "La modifica di IMEI richiederà il riavvio del dispositivo per avere effetto.",
-        "length_error_one": "IMEI deve essere esattamente 15 cifre ({{count}}/15)",
-        "length_error_other": "IMEI deve essere esattamente 15 cifre ({{count}}/15)",
-        "warning_aria": "IMEI avviso legale",
-        "warning_content": "Le normative sulle modifiche IMEI variano in base al Paese. Controlla le leggi locali prima di modificare IMEI.",
-        "write_button": "Scrivi IMEI",
-        "reboot_dialog": {
-          "title": "Riavvio obbligatorio",
-          "description": "Le modifiche di IMEI richiedono il riavvio del dispositivo per avere effetto. Desideri riavviare adesso?",
-          "cancel": "Riavvia più tardi",
-          "reboot": "Riavvia ora",
-          "rebooting": "Riavvio…"
+      "legal": {
+        "title": "La modifica dell'IMEI è regolamentata nella maggior parte dei paesi",
+        "body": "In molte giurisdizioni scrivere un identificativo che non ti appartiene costituisce reato. Verifica la legge locale prima di modificare qualsiasi voce in questa pagina."
+      },
+      "reboot": {
+        "banner": {
+          "title": "È necessario un riavvio per applicare il nuovo IMEI",
+          "description": "L'identificativo è stato scritto. Il modem continua a presentare quello precedente finché non si riavvia.",
+          "review": "Rivedi",
+          "reboot": "Riavvia"
         },
-        "toast": {
-          "no_changes": "Nessuna modifica da salvare",
-          "success": "IMEI salvato: è necessario riavviare per applicare",
-          "error": "Impossibile salvare IMEI",
-          "rebooting": "Il dispositivo si sta riavviando...",
-          "reboot_error": "Riavvio non riuscito: riavvia il dispositivo manualmente"
+        "dialog": {
+          "title": "Riavvia per applicare il nuovo IMEI",
+          "description": "L'IMEI è memorizzato, ma il modem continua a presentare quello precedente finché non si riavvia. Il riavvio interrompe la connessione per circa un minuto.",
+          "now": "Riavvia ora",
+          "later": "Riavvia più tardi"
+        },
+        "toast_failed": "Impossibile avviare il riavvio. È ancora in sospeso, quindi puoi riprovare dal banner."
+      },
+      "device": {
+        "title": "IMEI del dispositivo",
+        "description": "Ciò che il modem riporta ora e ciò che riporterà dopo il prossimo avvio.",
+        "rows": {
+          "current": {
+            "label": "Attuale",
+            "consequence": "Letto dal modem, non dall'archivio locale.",
+            "unavailable": "Non ancora riportato"
+          },
+          "write": {
+            "label": "Scrivi nuovo IMEI",
+            "consequence": "15 cifre. Ha effetto solo dopo un riavvio.",
+            "placeholder": "15 cifre"
+          }
+        },
+        "errors": {
+          "length": "Un IMEI è composto esattamente da 15 cifre. Ne hai inserite {{entered}}.",
+          "luhn": "Queste 15 cifre non superano il controllo della cifra di controllo, quindi la rete le rifiuterà. Cambia l'ultima cifra o genera un numero valido in Strumenti IMEI."
+        },
+        "status": {
+          "empty": "Niente da scrivere. Il campo è vuoto.",
+          "unchanged": "Questo è già l'IMEI presente sul modem.",
+          "ready": "Pronto per la scrittura. Il modem mantiene l'identità attuale fino al riavvio."
+        },
+        "actions": {
+          "write": "Scrivi IMEI",
+          "reset": "Ripristina l'IMEI presente sul modem",
+          "copy": "Copia l'IMEI attuale"
+        },
+        "toasts": {
+          "saved": "IMEI scritto. Si applica al prossimo riavvio.",
+          "failed": "Il modem non ha accettato quell'IMEI.",
+          "copied": "IMEI copiato.",
+          "copy_failed": "Impossibile copiare l'IMEI."
         }
       },
-      "backup_card": {
-        "title": "Dispositivo di backup IMEI",
-        "description_loading": "Configura automaticamente un backup IMEI per il tuo dispositivo per garantire la connettività in caso di problemi primari IMEI.",
-        "description": "Se la rete rifiuta l'attuale IMEI dopo un riavvio, il dispositivo può passare automaticamente a un backup IMEI e riavviarsi.",
-        "enable_label": "Abilita backup IMEI",
-        "enable_tooltip_aria": "Maggiori informazioni",
-        "enable_tooltip_content": "Passa a un IMEI di backup quando IMEI primario è stato rifiutato dalla rete.",
-        "field_label": "Imposta backup IMEI",
-        "field_placeholder": "Inserisci Backup IMEI",
-        "field_description": "Il passaggio al backup IMEI richiederà il riavvio del dispositivo per avere effetto.",
-        "warning_aria": "IMEI avviso legale",
-        "warning_content": "Le normative sulle modifiche IMEI variano in base al Paese. Controlla le leggi locali prima di modificare IMEI.",
-        "enable_dialog": {
-          "title": "Backup IMEI Ripristino automatico",
-          "description": "Quando il backup IMEI è abilitato, il dispositivo controllerà automaticamente il rifiuto di IMEI dopo ogni riavvio successivo a una modifica di IMEI. Se la rete rifiuta IMEI primario, il dispositivo passerà al backup IMEI e si riavvierà automaticamente.",
-          "confirm": "Abilita backup"
+      "backup": {
+        "title": "IMEI di riserva",
+        "description": "Un secondo identificativo che il dispositivo ripristina se quello primario viene perso dopo un evento del firmware.",
+        "rows": {
+          "keep": {
+            "label": "Conserva una riserva",
+            "consequence_off": "Disattivato. Nessun identificativo di riserva è memorizzato.",
+            "consequence_on": "Attivo. Il dispositivo ripristina {{imei}} se quello primario viene rifiutato."
+          },
+          "value": {
+            "label": "Identificativo di riserva",
+            "consequence": "15 cifre. Usato solo se quello primario viene rifiutato.",
+            "placeholder": "15 cifre"
+          }
         },
-        "toast": {
-          "success": "Salvataggio backup configurazione IMEI",
-          "invalid": "Il backup IMEI deve contenere esattamente 15 cifre",
-          "error": "Impossibile salvare la configurazione di backup",
-          "no_changes": "Nessuna modifica da salvare"
+        "errors": {
+          "length": "Un IMEI è composto esattamente da 15 cifre. Ne hai inserite {{entered}}.",
+          "luhn": "Queste 15 cifre non superano il controllo della cifra di controllo, quindi la rete rifiuterebbe anche la riserva. Cambia l'ultima cifra o genera un numero valido in Strumenti IMEI."
+        },
+        "actions": {
+          "save": "Salva riserva",
+          "reset": "Ripristina la riserva salvata"
+        },
+        "toasts": {
+          "saved": "Impostazioni di riserva salvate.",
+          "failed": "Impossibile salvare le impostazioni di riserva."
+        },
+        "dialog": {
+          "title": "Informazioni sul ripristino di riserva",
+          "description": "Con una riserva memorizzata, dopo ogni riavvio il dispositivo verifica se la rete ha rifiutato il suo IMEI. In tal caso passa all'identificativo di riserva e si riavvia da solo.",
+          "confirm": "Conserva una riserva"
         }
       },
-      "tools_card": {
-        "title": "IMEI Strumenti",
-        "description": "Genera e convalida i numeri IMEI utilizzando l'algoritmo Luhn. Solo per scopi didattici.",
-        "preset_label": "Preimpostazione del dispositivo",
-        "preset_description": "Seleziona un dispositivo TAC o inserisci un prefisso personalizzato di 8-12 cifre.",
-        "preset_placeholder": "Seleziona un dispositivo",
-        "preset_custom": "Prefisso personalizzato",
-        "custom_prefix_label": "Prefisso personalizzato",
-        "custom_prefix_placeholder": "Inserisci un prefisso di 8-12 cifre",
-        "custom_prefix_error_one": "Il prefisso deve contenere 8-12 cifre ({{count}} immesso)",
-        "custom_prefix_error_other": "Il prefisso deve contenere 8-12 cifre ({{count}} immesso)",
-        "custom_prefix_description": "Le cifre rimanenti e la cifra di controllo vengono generate automaticamente.",
-        "imei_label": "IMEI",
-        "imei_placeholder": "Genera o inserisci un IMEI di 15 cifre",
-        "imei_description": "La convalida Luhn viene eseguita automaticamente a 15 cifre. Puoi anche digitare o incollare qualsiasi IMEI per convalidarlo.",
-        "copy_aria": "Copia IMEI",
-        "copy_tooltip": "Copia negli appunti",
-        "breakdown_label": "Guasto",
-        "breakdown_validity": "Validità",
-        "breakdown_tac": "TAC (1–8)",
-        "breakdown_snr": "SNR (9-14)",
-        "breakdown_check": "Controllare (15)",
-        "breakdown_valid": "Valido IMEI",
-        "breakdown_invalid": "IMEI non valido",
-        "generate_button": "Genera IMEI",
-        "check_info_button": "Controlla le informazioni IMEI",
-        "copy_success": "Copiato negli appunti"
+      "tools": {
+        "title": "Strumenti IMEI",
+        "description": "Genera un numero valido secondo Luhn da un type allocation code, oppure verifica un numero che hai già.",
+        "generate": {
+          "tac_label": "Codice di allocazione tipo",
+          "tac_consequence": "Le prime otto cifre, che indicano il modello dichiarato dal numero.",
+          "tac_placeholder": "Scegli un modello",
+          "custom": "Codice personalizzato",
+          "prefix_label": "Prefisso",
+          "prefix_consequence": "Da 8 a 12 cifre. Tutto il resto viene compilato automaticamente.",
+          "prefix_placeholder": "8–12 cifre",
+          "prefix_error": "Un prefisso è di 8-12 cifre. Ne hai inserite {{entered}}.",
+          "action": "Genera"
+        },
+        "check": {
+          "label": "Verifica un numero",
+          "placeholder": "Incolla o genera 15 cifre",
+          "valid": "Luhn valido",
+          "invalid": "Luhn non valido",
+          "empty": "Inserisci 15 cifre per vedere come è composto il numero.",
+          "lookup": "Cerca online"
+        },
+        "actions": {
+          "copy": "Copia questo numero"
+        },
+        "toasts": {
+          "copied": "Numero copiato.",
+          "copy_failed": "Impossibile copiare il numero."
+        },
+        "breakdown": {
+          "tac": "TAC",
+          "serial": "Seriale",
+          "check": "Controllo"
+        },
+        "footnote": "Una struttura valida non significa che il numero sia tuo da usare. Nulla di quanto sta qui viene scritto sul modem."
       }
     },
     "network_priority": {
       "page": {
-        "title": "Impostazioni priorità di rete",
-        "description": "Imposta l'ordine preferito delle connessioni di rete."
+        "title": "Priorità di rete",
+        "description": "L'ordine in cui il modem prova le tecnologie radio quando si registra."
       },
       "card": {
-        "title": "Priorità di rete",
-        "description": "Imposta l'ordine di priorità delle tue connessioni di rete."
+        "title": "Ordine di acquisizione",
+        "description": "Trascina per riordinare. Al salvataggio il modem si registra di nuovo e la connessione cade per qualche secondo."
       },
-      "drag_aria": "Trascina per riordinare",
-      "priority_label": "Priorità {{number}}",
+      "rats": {
+        "NR5G": "5G NR",
+        "LTE": "LTE",
+        "WCDMA": "WCDMA"
+      },
+      "hints": {
+        "WCDMA": "Qui la velocità dei dati cala nettamente."
+      },
+      "position": {
+        "first": "Provata per prima. Ripiega automaticamente se nessuna cella risponde.",
+        "middle": "Provata subito dopo, se nessuna di quelle sopra si registra.",
+        "last": "Ultima risorsa. Usata solo se nessuna di quelle sopra si registra.",
+        "only": "L'unica tecnologia che il modem proverà."
+      },
+      "serving_now": "In uso ora",
+      "handle_aria": "Riordina {{name}}, posizione {{rank}} di {{total}}",
+      "save_bar": {
+        "count_one": "{{count}} modifica in sospeso",
+        "count_other": "{{count}} modifiche in sospeso",
+        "note": "Al salvataggio il modem si registra di nuovo. Prevedi circa 3 secondi senza dati.",
+        "discard": "Scarta",
+        "save": "Salva priorità"
+      },
+      "apply": {
+        "writing": "Scrittura del nuovo ordine",
+        "recovering": "Nuova registrazione sulla rete",
+        "verifying": "Rilettura dell'ordine"
+      },
+      "states": {
+        "error": {
+          "title": "Impossibile leggere l'ordine di priorità",
+          "description": "Il modem non ha risposto alla richiesta dell'ordine di acquisizione. Potrebbe essere occupato: riprova tra poco."
+        },
+        "empty": {
+          "title": "Nessuna tecnologia riportata",
+          "description": "Il modem ha restituito un ordine di acquisizione vuoto, quindi non c'è nulla da ordinare. Rileggilo o verifica che la radio sia accesa."
+        }
+      },
       "toast": {
-        "success": "Priorità di rete aggiornata",
-        "error_fallback": "Impossibile impostare la priorità di rete",
-        "no_changes": "Nessuna modifica da salvare"
+        "saved": "Priorità di rete aggiornata",
+        "save_error": "Impossibile impostare la priorità di rete"
       }
     },
     "fplmn": {
       "page": {
-        "title": "Impostazioni FPLMN del dispositivo",
-        "description": "Controlla e cancella l'elenco delle reti vietate sul tuo SIM."
+        "title": "Reti bloccate",
+        "description": "La tua SIM conserva un elenco di reti che in passato hanno rifiutato questo dispositivo. Cancellarlo può ripristinare la connettività e migliorare il roaming.",
+        "note": "La cancellazione scrive sulla SIM, non sul modem, e nulla viene riavviato. L'elenco si ricostruisce se una rete rifiuta di nuovo il dispositivo."
       },
       "card": {
-        "title": "Reti bloccate",
-        "description": "Il tuo SIM memorizza un elenco di reti che in precedenza hanno rifiutato il tuo dispositivo. La cancellazione di questo elenco potrebbe ripristinare la connettività e migliorare il roaming. <link>Ulteriori informazioni</link>."
+        "title": "Elenco delle reti vietate",
+        "description": "QManager legge questo elenco direttamente dalla SIM ogni volta che apri questa pagina.",
+        "learn_more": "Scopri di più"
       },
       "states": {
-        "error_title": "Impossibile controllare",
-        "found_title": "Reti bloccate trovate",
-        "found_description": "Il tuo SIM ha bloccato una o più reti, il che potrebbe impedire la connessione. Si consiglia di cancellare l'elenco.",
-        "found_clear": "Cancella reti bloccate",
-        "found_clearing": "Cancellazione…",
-        "none_title": "Nessuna rete bloccata",
-        "none_description": "Il tuo SIM non ha reti bloccate. Nessuna azione necessaria.",
-        "none_refresh": "Aggiorna stato"
+        "loading": {
+          "title": "Controllo della SIM",
+          "description": "Lettura dell'elenco delle reti vietate memorizzato sulla scheda."
+        },
+        "clean": {
+          "title": "Nessuna rete bloccata",
+          "description": "La SIM non ha nulla nel suo elenco di reti vietate. Nessuna azione necessaria."
+        },
+        "entries": {
+          "title": "Rilevate reti bloccate",
+          "description": "La SIM sta rifiutando una o più reti, il che può impedire al modem di registrarsi. Si consiglia di cancellare l'elenco."
+        },
+        "error": {
+          "title": "Impossibile controllare la SIM"
+        },
+        "unknown": {
+          "title": "Stato sconosciuto",
+          "description": "QManager non è riuscito a determinare se questa SIM ha reti bloccate. Non è stato modificato nulla: riprova la lettura."
+        }
+      },
+      "actions": {
+        "refresh": "Aggiorna stato",
+        "clear": "Cancella le reti bloccate",
+        "clearing": "Cancellazione…"
+      },
+      "confirm": {
+        "title": "Cancellare l'elenco delle reti bloccate?",
+        "description": "Questa operazione cancella in modo definitivo l'elenco delle reti vietate memorizzato sulla scheda SIM. Nulla viene riavviato e il modem resta connesso. L'elenco si ricostruisce se una rete rifiuta di nuovo questo dispositivo.",
+        "confirm": "Cancella elenco"
       },
       "toast": {
-        "success": "Le reti bloccate sono state cancellate",
-        "error_fallback": "Impossibile eliminare le reti bloccate"
+        "cleared": "Reti bloccate cancellate",
+        "clear_failed": "Impossibile cancellare le reti bloccate"
+      },
+      "errors": {
+        "read_failed": "Il dispositivo non è riuscito a leggere l'elenco delle reti vietate della SIM.",
+        "unreachable": "Impossibile raggiungere il dispositivo."
       }
     }
   }

@@ -4,8 +4,10 @@
 # =============================================================================
 # settings.sh — CGI Endpoint: Cellular Basic Settings (GET + POST)
 # =============================================================================
-# GET:  Reads current SIM slot, CFUN, mode_pref, nr5g_disable_mode, and AMBR
-# POST: Applies settings changes (sim_slot, cfun, mode_pref, nr5g_mode)
+# GET:  Reads current SIM slot, CFUN, mode_pref, nr5g_disable_mode, roam_pref,
+#       SIM detect, AMBR, and the dual-slot readout
+# POST: Applies settings changes (sim_slot, cfun, mode_pref, nr5g_mode,
+#       roam_pref, sim_detect)
 #
 # AT commands used (GET):
 #   AT+QUIMSLOT?                        -> SIM slot (1 or 2)
@@ -15,6 +17,13 @@
 #   AT+QNWPREFCFG="roam_pref"          -> Roaming preference (1, 3, 255)
 #   AT+QNWCFG="lte_ambr"               -> LTE AMBR per APN
 #   AT+QNWCFG="nr5g_ambr"              -> NR5G AMBR per DNN
+#   AT+QSIMDET?                        -> SIM hot-swap detect enable + insert level
+#
+#   AT+QSIMCFG="dual_slot_status"      -> per-slot active flag + ICCID (read-only)
+#     Issued as its OWN qcmd call, never appended to the compound read: it is
+#     documented only in firmware release notes and may be rejected on another
+#     build, and a rejection inside the compound would abort the lines after
+#     it. Isolated, a rejection only omits the `dual_slot` key.
 #
 # AT commands used (POST):
 #   AT+QUIMSLOT=<1|2>
@@ -22,6 +31,7 @@
 #   AT+QNWPREFCFG="mode_pref",<value>
 #   AT+QNWPREFCFG="nr5g_disable_mode",<0|1|2>
 #   AT+QNWPREFCFG="roam_pref",<1|3|255>
+#   AT+QSIMDET=<0|1>,<insert_level>    -> insert_level preserved from a read-back
 #
 # Endpoint: GET/POST /cgi-bin/quecmanager/cellular/settings.sh
 # Install location: /www/cgi-bin/quecmanager/cellular/settings.sh
@@ -81,7 +91,9 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     # --- Compound AT: fetch all settings in one call ---
     # Transport failure (rc 1) must not masquerade as defaults; a modem ERROR
     # (rc 2, e.g. an unsupported AMBR query) keeps the partial-parse behaviour.
-    at_exec 'AT+QUIMSLOT?;+CFUN?;+QNWPREFCFG="mode_pref";+QNWPREFCFG="nr5g_disable_mode";+QNWPREFCFG="roam_pref";+QNWCFG="lte_ambr";+QNWCFG="nr5g_ambr"'
+    # +QSIMDET? is LAST: the modem stops at a rejected sub-command, so a
+    # firmware without it can only lose its own line, never the ones before.
+    at_exec 'AT+QUIMSLOT?;+CFUN?;+QNWPREFCFG="mode_pref";+QNWPREFCFG="nr5g_disable_mode";+QNWPREFCFG="roam_pref";+QNWCFG="lte_ambr";+QNWCFG="nr5g_ambr";+QSIMDET?'
     if [ $? -eq 1 ]; then
         cgi_error "modem_error" "Failed to read cellular settings"
         exit 0
@@ -113,11 +125,22 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     val=$(printf '%s\n' "$raw" | grep '+QNWPREFCFG:.*"roam_pref"' | head -1 | sed 's/.*"roam_pref",//' | tr -d ' \r')
     [ -n "$val" ] && roam_pref="$val"
 
+    # --- SIM Detect (absent line -> keys omitted, never a fabricated "off") ---
+    sim_detect=""
+    sim_detect_level=""
+    val=$(printf '%s\n' "$raw" | grep '+QSIMDET:' | head -1 | sed 's/+QSIMDET: //' | tr -d ' \r')
+    if [ -n "$val" ]; then
+        sim_detect=$(printf '%s' "$val" | cut -d',' -f1)
+        sim_detect_level=$(printf '%s' "$val" | cut -d',' -f2)
+        case "$sim_detect" in 0|1) ;; *) sim_detect="" ;; esac
+        case "$sim_detect_level" in ''|*[!0-9]*) sim_detect_level="1" ;; esac
+    fi
+
     # --- LTE AMBR ---
     lte_ambr_json="[]"
     lte_ambr_lines=$(printf '%s\n' "$raw" | grep '+QNWCFG: "lte_ambr"')
     if [ -n "$lte_ambr_lines" ]; then
-        lte_tmpfile="/tmp/qmanager_lte_ambr.tmp"
+        lte_tmpfile="/tmp/qmanager_lte_ambr.tmp.$$"
         : > "$lte_tmpfile"
         printf '%s\n' "$lte_ambr_lines" | while IFS= read -r line; do
             csv=$(printf '%s' "$line" | sed 's/+QNWCFG: "lte_ambr",//g' | tr -d ' \r')
@@ -141,7 +164,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     nr5g_ambr_json="[]"
     nr5g_ambr_lines=$(printf '%s\n' "$raw" | grep '+QNWCFG: "nr5g_ambr"')
     if [ -n "$nr5g_ambr_lines" ]; then
-        nr5g_tmpfile="/tmp/qmanager_nr5g_ambr.tmp"
+        nr5g_tmpfile="/tmp/qmanager_nr5g_ambr.tmp.$$"
         : > "$nr5g_tmpfile"
         printf '%s\n' "$nr5g_ambr_lines" | while IFS= read -r line; do
             csv=$(printf '%s' "$line" | sed 's/+QNWCFG: "nr5g_ambr",//g' | tr -d ' \r')
@@ -151,13 +174,18 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             unit_ul=$(printf '%s' "$csv" | cut -d',' -f4)
             session_ul=$(printf '%s' "$csv" | cut -d',' -f5)
 
-            mult_dl=$(nr5g_unit_to_kbps "$unit_dl")
-            mult_ul=$(nr5g_unit_to_kbps "$unit_ul")
-            dl_kbps=$((mult_dl * session_dl))
-            ul_kbps=$((mult_ul * session_ul))
-
-            [ -n "$dnn" ] && \
+            # Guard BEFORE the arithmetic: a short line leaves a field empty,
+            # and a shell arithmetic error would print into this JSON body.
+            # The multiply runs in awk because ash arithmetic is 32-bit and
+            # wraps silently (unit 256000000 x a modest session count).
+            case "$session_dl$session_ul" in *[!0-9]*) session_dl="" ;; esac
+            if [ -n "$dnn" ] && [ -n "$session_dl" ] && [ -n "$session_ul" ]; then
+                mult_dl=$(nr5g_unit_to_kbps "$unit_dl")
+                mult_ul=$(nr5g_unit_to_kbps "$unit_ul")
+                dl_kbps=$(awk -v m="$mult_dl" -v n="$session_dl" 'BEGIN{printf "%.0f", m*n}')
+                ul_kbps=$(awk -v m="$mult_ul" -v n="$session_ul" 'BEGIN{printf "%.0f", m*n}')
                 printf '%s\t%s\t%s\n' "$dnn" "$dl_kbps" "$ul_kbps" >> "$nr5g_tmpfile"
+            fi
         done
         if [ -s "$nr5g_tmpfile" ]; then
             nr5g_ambr_json=$(jq -Rsc '
@@ -169,8 +197,36 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         rm -f "$nr5g_tmpfile"
     fi
 
+    # --- Dual SIM slot status (own call, isolated failure) ---
+    # Wire shape: two positional 6-field groups (slot 1, then slot 2), no
+    # slot-index token. Only field 2 (active, 1/0) and field 6 (ICCID, or the
+    # literal 0 for an empty slot) of each group have confirmed meaning; the
+    # others are never surfaced. Any other token count -> key omitted.
+    dual_slot_json="null"
+    if at_exec 'AT+QSIMCFG="dual_slot_status"'; then
+        ds_line=$(printf '%s\n' "$AT_RAW" | grep '+QSIMCFG:.*"dual_slot_status"' | head -1 | sed 's/.*"dual_slot_status",//' | tr -d ' \r')
+        ds_count=$(printf '%s' "$ds_line" | awk -F',' '{print NF}')
+        if [ -n "$ds_line" ] && [ "$ds_count" = "12" ]; then
+            s1_active=$(printf '%s' "$ds_line" | cut -d',' -f2)
+            s1_iccid=$(printf '%s' "$ds_line" | cut -d',' -f6)
+            s2_active=$(printf '%s' "$ds_line" | cut -d',' -f8)
+            s2_iccid=$(printf '%s' "$ds_line" | cut -d',' -f12)
+            if [ -n "$s1_active" ] && [ -n "$s1_iccid" ] && [ -n "$s2_active" ] && [ -n "$s2_iccid" ]; then
+                dual_slot_json=$(jq -nc \
+                    --arg s1a "$s1_active" --arg s1i "$s1_iccid" \
+                    --arg s2a "$s2_active" --arg s2i "$s2_iccid" \
+                    '[{slot: 1, active: ($s1a == "1"), iccid: $s1i},
+                      {slot: 2, active: ($s2a == "1"), iccid: $s2i}]') || dual_slot_json="null"
+            fi
+        fi
+        [ -n "$dual_slot_json" ] || dual_slot_json="null"
+        [ "$dual_slot_json" = "null" ] && qlog_warn "dual_slot_status did not parse as 12 fields; omitting dual_slot"
+    else
+        qlog_warn "dual_slot_status read failed; omitting dual_slot"
+    fi
+
     # --- Build response ---
-    qlog_info "Settings: slot=$sim_slot cfun=$cfun mode=$mode_pref nr5g=$nr5g_mode roam=$roam_pref"
+    qlog_info "Settings: slot=$sim_slot cfun=$cfun mode=$mode_pref nr5g=$nr5g_mode roam=$roam_pref sim_detect=${sim_detect:-n/a}"
     jq -n \
         --arg sim_slot "$sim_slot" \
         --arg cfun "$cfun" \
@@ -179,20 +235,27 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         --arg roam_pref "$roam_pref" \
         --argjson lte_ambr "$lte_ambr_json" \
         --argjson nr5g_ambr "$nr5g_ambr_json" \
-        '{
+        --arg sim_detect "$sim_detect" \
+        --arg sim_detect_level "$sim_detect_level" \
+        --argjson dual_slot "$dual_slot_json" \
+        '(if $sim_detect == "" then {}
+          else {sim_detect: ($sim_detect | tonumber),
+                sim_detect_level: ($sim_detect_level | tonumber)} end) as $sd
+        | (if $dual_slot == null then {} else {dual_slot: $dual_slot} end) as $ds
+        | {
             success: true,
-            settings: {
+            settings: ({
                 sim_slot: ($sim_slot | tonumber),
                 cfun: ($cfun | tonumber),
                 mode_pref: $mode_pref,
                 nr5g_mode: ($nr5g_mode | tonumber),
                 roam_pref: ($roam_pref | tonumber)
-            },
+            } + $sd),
             ambr: {
                 lte: $lte_ambr,
                 nr5g: $nr5g_ambr
             }
-        }'
+        } + $ds'
     exit 0
 fi
 
@@ -209,8 +272,9 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
     MODE_PREF=$(printf '%s' "$POST_DATA" | jq -r 'if has("mode_pref") then .mode_pref else "unset" end')
     NR5G_MODE=$(printf '%s' "$POST_DATA" | jq -r 'if has("nr5g_mode") then (.nr5g_mode | tostring) else "unset" end')
     ROAM_PREF=$(printf '%s' "$POST_DATA" | jq -r 'if has("roam_pref") then (.roam_pref | tostring) else "unset" end')
+    SIM_DETECT=$(printf '%s' "$POST_DATA" | jq -r 'if has("sim_detect") then (.sim_detect | tostring) else "unset" end')
 
-    qlog_info "Apply settings: slot=$SIM_SLOT cfun=$CFUN mode=$MODE_PREF nr5g=$NR5G_MODE roam=$ROAM_PREF"
+    qlog_info "Apply settings: slot=$SIM_SLOT cfun=$CFUN mode=$MODE_PREF nr5g=$NR5G_MODE roam=$ROAM_PREF sim_detect=$SIM_DETECT"
 
     # --- Validate ---
     if [ "$SIM_SLOT" != "unset" ]; then
@@ -263,7 +327,18 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         esac
     fi
 
-    # --- Apply in safe order: nr5g_mode, mode_pref, sim_slot (w/ CFUN procedure), cfun ---
+    if [ "$SIM_DETECT" != "unset" ]; then
+        case "$SIM_DETECT" in
+            0|1) ;;
+            *)
+                cgi_error "invalid_sim_detect" "SIM detect must be 0 or 1"
+                exit 0
+                ;;
+        esac
+    fi
+
+    # --- Apply in safe order: nr5g_mode, roam_pref, sim_detect, mode_pref,
+    #     sim_slot (w/ CFUN procedure), cfun ---
     errors=""
     applied=""
     sim_cfun_restored=""
@@ -295,7 +370,29 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         sleep "$CMD_GAP"
     fi
 
-    # 3. Network mode
+    # 3. SIM detect (NVM write, no radio impact). insert_level is not
+    #    user-exposed: read it back and preserve it. A FAILED read skips the
+    #    write (never stomp a level set outside the UI with a guess); only a
+    #    successful read without the line falls back to 1.
+    if [ "$SIM_DETECT" != "unset" ]; then
+        if at_exec 'AT+QSIMDET?'; then
+            sd_level=$(printf '%s\n' "$AT_RAW" | grep '+QSIMDET:' | head -1 | sed 's/+QSIMDET: //' | tr -d ' \r' | cut -d',' -f2)
+            case "$sd_level" in ''|*[!0-9]*) sd_level="1" ;; esac
+            if at_exec "AT+QSIMDET=$SIM_DETECT,$sd_level"; then
+                qlog_info "Set sim_detect=$SIM_DETECT,$sd_level"
+                applied="${applied}sim_detect,"
+            else
+                qlog_error "Failed to set sim_detect=$SIM_DETECT,$sd_level: ${AT_RAW:-no reply}"
+                errors="${errors}sim_detect,"
+            fi
+        else
+            qlog_error "AT+QSIMDET? read failed before write; skipping sim_detect so insert_level is not clobbered"
+            errors="${errors}sim_detect,"
+        fi
+        sleep "$CMD_GAP"
+    fi
+
+    # 4. Network mode
     if [ "$MODE_PREF" != "unset" ]; then
         if at_exec "AT+QNWPREFCFG=\"mode_pref\",$MODE_PREF"; then
             qlog_info "Set mode_pref=$MODE_PREF"
@@ -307,7 +404,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         sleep "$CMD_GAP"
     fi
 
-    # 4. SIM slot change (CFUN=0 -> sleep 2 -> QUIMSLOT -> sleep 2 -> CFUN=1,
+    # 5. SIM slot change (CFUN=0 -> sleep 2 -> QUIMSLOT -> sleep 2 -> CFUN=1,
     #    then a read-back verification). AT+QUIMSLOT=N can return OK while the
     #    modem silently STAYS on the old slot under qcmd lock contention (e.g. a
     #    poller storm during the CFUN cycle); trusting the OK there applies the
@@ -435,7 +532,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         touch /tmp/qmanager_refresh_policy_band
     fi
 
-    # 5. CFUN change (skip if SIM procedure already restored to user's desired value)
+    # 6. CFUN change (skip if SIM procedure already restored to user's desired value)
     if [ "$CFUN" != "unset" ]; then
         if [ -n "$sim_cfun_restored" ] && [ "$CFUN" = "1" ]; then
             # SIM slot procedure already set CFUN=1
@@ -457,8 +554,16 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
     if [ -n "$sim_unverified" ]; then
         # The user's primary action (slot switch) did not take effect and
         # auto-apply did not run. Surface a dedicated code so the UI can prompt
-        # a retry rather than reporting a generic partial failure.
-        cgi_error "sim_slot_switch_unverified" "SIM slot switch did not take effect — please try again"
+        # a retry rather than reporting a generic partial failure. The field
+        # lists ride along so the UI clears whatever else did land.
+        jq -n --arg errors "$errors" --arg applied "$applied" \
+            '{
+                success: false,
+                error: "sim_slot_switch_unverified",
+                detail: "SIM slot switch did not take effect — please try again",
+                failed_fields: ($errors | split(",") | map(select(length > 0))),
+                applied_fields: ($applied | split(",") | map(select(length > 0)))
+            }'
     elif [ -z "$errors" ]; then
         cgi_success
     else
