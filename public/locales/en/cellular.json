@@ -212,7 +212,13 @@
       "scenario_always_on": "{{scenario}}, always on",
       "delete_description": "This removes the profile from the device. Any schedule bound to it is cleared. This cannot be undone.",
       "delete_keep": "Keep profile",
-      "mismatch_note": "The SIM in the modem does not match this profile's ICCID. The device keeps its current settings until a matching SIM is inserted.",
+      "mismatch_note": "Applied to the SIM in the modem, not the one this profile is bound to. It turns off at the next restart or SIM change.",
+      "mismatch_confirm": {
+        "title": "Apply “{{name}}” to this SIM?",
+        "description": "This profile is bound to a different SIM. Its settings apply to the SIM in the modem now and turn off at the next restart or SIM change.",
+        "verizon_note": "The Verizon data routing rule is set on this SIM too.",
+        "confirm": "Apply to this SIM"
+      },
       "toast": {
         "deactivated": "{{name}} deactivated",
         "deleted": "{{name}} deleted",
@@ -536,6 +542,7 @@
       "hl": "HL {{value}}",
       "imei_override": "IMEI override",
       "mpdn_locked": "MPDN locked",
+      "other_sim": "Other SIM",
       "apn_prefix": "APN "
     },
     "active_card": {

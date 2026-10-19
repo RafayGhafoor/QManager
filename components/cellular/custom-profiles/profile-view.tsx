@@ -70,14 +70,33 @@ import { setPendingReboot } from "@/lib/reboot/pending";
 //
 // Data-shape note: list.sh returns summaries only, so every profile's full
 // config is prefetched in parallel and ONE skeleton is held until all are in
-// (rows never shimmer twice). SIM mismatch is derived client-side: only the
-// active profile with a stored ICCID that differs from the live SIM.
+// (rows never shimmer twice). SIM mismatch is derived client-side through
+// `iccidMismatch` (canonical compare, mirrors `iccid_canonicalize`).
 //
 // Activation opens the Sequenced Pipeline Dialog first; its outcome toasts
-// once on close, and a needed reboot defers to the persistent banner.
+// once on close, and a needed reboot defers to the persistent banner. A
+// profile bound to another SIM confirms first: apply.sh never checks the
+// ICCID, so the profile lands on the SIM in the modem and lasts until the next
+// auto-apply (boot, SIM switch, watchdog) finds no match and clears it.
 // =============================================================================
 
 type ProfileStatus = "active" | "mismatch" | "inactive";
+
+/** Compare-time ICCID form, mirroring `iccid_canonicalize` (`sim_db.sh`):
+ *  drop whitespace, uppercase, strip one trailing BCD pad nibble. */
+function canonicalIccid(iccid: string): string {
+  return iccid.replace(/\s+/g, "").toUpperCase().replace(/F$/, "");
+}
+
+/** Bound to a SIM other than the live one. An empty binding is SIM-agnostic;
+ *  an unknown live ICCID is "don't know", never a mismatch. */
+function iccidMismatch(
+  profileIccid: string,
+  currentIccid: string | null,
+): boolean {
+  if (!profileIccid || !currentIccid) return false;
+  return canonicalIccid(profileIccid) !== canonicalIccid(currentIccid);
+}
 
 function deriveStatus(
   isActive: boolean,
@@ -85,9 +104,7 @@ function deriveStatus(
   currentIccid: string | null,
 ): ProfileStatus {
   if (!isActive) return "inactive";
-  if (profileIccid && currentIccid && profileIccid !== currentIccid) {
-    return "mismatch";
-  }
+  if (iccidMismatch(profileIccid, currentIccid)) return "mismatch";
   return "active";
 }
 
@@ -142,10 +159,28 @@ const ProfileViewComponent = ({
   const [applyOpen, setApplyOpen] = React.useState(false);
   const [pendingDelete, setPendingDelete] =
     React.useState<ProfileSummary | null>(null);
+  const [pendingMismatch, setPendingMismatch] =
+    React.useState<ProfileSummary | null>(null);
 
-  const handleActivate = (id: string) => {
+  const startApply = (id: string) => {
     setApplyOpen(true);
     applyProfile(id);
+  };
+
+  // A profile bound to another SIM confirms before anything is written.
+  const handleActivate = (profile: ProfileSummary) => {
+    if (iccidMismatch(profile.sim_iccid, currentIccid)) {
+      setPendingMismatch(profile);
+      return;
+    }
+    startApply(profile.id);
+  };
+
+  const confirmMismatch = () => {
+    if (!pendingMismatch) return;
+    const target = pendingMismatch;
+    setPendingMismatch(null);
+    startApply(target.id);
   };
 
   // On close (only reachable at a terminal state): one toast for the outcome,
@@ -314,8 +349,9 @@ const ProfileViewComponent = ({
                   !applyTerminal &&
                   applyState?.profile_id === profile.id
                 }
+                otherSim={iccidMismatch(profile.sim_iccid, currentIccid)}
                 full={details[profile.id] ?? null}
-                onActivate={() => handleActivate(profile.id)}
+                onActivate={() => handleActivate(profile)}
                 onDeactivate={() => handleDeactivate(profile)}
                 onEdit={() => onEdit(profile.id)}
                 onDelete={() => setPendingDelete(profile)}
@@ -351,6 +387,38 @@ const ProfileViewComponent = ({
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog
+        open={pendingMismatch !== null}
+        onOpenChange={(open) => !open && setPendingMismatch(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("custom_profiles.view.mismatch_confirm.title", {
+                name: pendingMismatch?.name ?? "",
+              })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("custom_profiles.view.mismatch_confirm.description")}
+              {pendingMismatch?.mno === "Verizon" ? (
+                <>
+                  {" "}
+                  {t("custom_profiles.view.mismatch_confirm.verizon_note")}
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {t("actions.cancel", { ns: "common" })}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmMismatch}>
+              {t("custom_profiles.view.mismatch_confirm.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <ApplyProgressDialog
         open={applyOpen}
         applyState={applyState}
@@ -370,6 +438,7 @@ const ProfileRow = ({
   status,
   scenarioName,
   busy,
+  otherSim,
   full,
   onActivate,
   onDeactivate,
@@ -380,6 +449,8 @@ const ProfileRow = ({
   status: ProfileStatus;
   scenarioName: string;
   busy: boolean;
+  /** Bound to a SIM other than the one in the modem. */
+  otherSim: boolean;
   full: SimProfile | null;
   onActivate: () => void;
   onDeactivate: () => void;
@@ -421,7 +492,11 @@ const ProfileRow = ({
             </span>
           </div>
           {full ? (
-            <ConfigPills profile={full} verizonMpdn={verizonMpdn} />
+            <ConfigPills
+              profile={full}
+              verizonMpdn={verizonMpdn}
+              otherSim={otherSim && !isActive}
+            />
           ) : null}
         </div>
 
@@ -508,9 +583,12 @@ const PDP_PILL_KEY: Record<PdpType, string> = {
 const ConfigPills = ({
   profile,
   verizonMpdn,
+  otherSim,
 }: {
   profile: SimProfile;
   verizonMpdn: boolean;
+  /** Inactive and bound to another SIM (the active row has its own chip). */
+  otherSim: boolean;
 }) => {
   const { t } = useTranslation("cellular");
   const { apn, imei, ttl, hl } = profile.settings;
@@ -552,6 +630,12 @@ const ConfigPills = ({
         <Badge variant="info">
           <MaterialSymbol name="alt_route" size={12} />
           {t("custom_profiles.pills.mpdn_locked")}
+        </Badge>
+      ) : null}
+      {otherSim ? (
+        <Badge variant="info">
+          <MaterialSymbol name="sim_card_alert" size={12} />
+          {t("custom_profiles.pills.other_sim")}
         </Badge>
       ) : null}
     </div>
