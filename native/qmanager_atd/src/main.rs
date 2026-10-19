@@ -16,10 +16,16 @@
 
 mod channel;
 mod classify;
+// B5.29 Phase D poll parsers + env writer; wired to `qcmd --poll` /
+// `--parse-only` by the orchestrator.
+#[allow(dead_code)]
+mod envout;
 mod exec;
 mod lock;
 mod log;
 mod output;
+#[allow(dead_code)]
+mod parse;
 mod pdu;
 mod proto;
 mod safefs;
@@ -541,8 +547,11 @@ mod tests {
         assert!(t.elapsed() < Duration::from_millis(900), "{:?}", t.elapsed());
         // Dropping the client is what the broker's peer_gone check sees.
         drop(client);
+        // Wait for the hang-up rather than sampling it: a test running in
+        // parallel that spawns a process holds a forked copy of `client` until
+        // its exec, which delays the close by a few milliseconds.
         let mut p = libc::pollfd { fd: broker.as_raw_fd(), events: 0, revents: 0 };
-        unsafe { libc::poll(&mut p, 1, 0) };
+        unsafe { libc::poll(&mut p, 1, 2000) };
         assert!(p.revents & libc::POLLHUP != 0);
     }
 

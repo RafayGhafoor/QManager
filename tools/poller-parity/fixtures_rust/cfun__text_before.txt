@@ -1,0 +1,4 @@
+AT+CFUN?
+x+CFUN: 7
+
+OK
