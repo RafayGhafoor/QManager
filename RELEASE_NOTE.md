@@ -17,6 +17,7 @@ v0.1.32 is in progress, headlined by a much faster connection to the modem: ever
 
 ## ✅ Improvements
 
+- **Data Used and Storage are back on the dashboard.** The Device & Speed card shows how much you have downloaded and uploaded since your last reset, kept across reboots and connection drops, with a reset button beside it, and how full the modem's storage is.
 - **First-time setup no longer skips settings that didn't apply.** Choosing "APN only" during setup never actually saved the APN, and a network mode or band lock the modem rejected was silently dropped while setup moved on. Each of these now saves for real, and if the modem refuses one, setup stays on that step and tells you why, so you can try again or skip it. The setup wizard also has a refreshed look in the new design, with the QManager mark on the welcome screen.
 
 - **Activating a profile made for another SIM now asks first.** Custom SIM Profiles marks profiles bound to a different SIM, and activating one asks you to confirm applying it to the SIM in the modem. The note on an active profile like this now says what really happened: it is in use on this SIM and turns off at the next restart or SIM change (it used to say the device kept its old settings).
