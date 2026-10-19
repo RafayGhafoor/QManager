@@ -2020,126 +2020,236 @@
     "imei": {
       "page": {
         "title": "IMEI 設定",
-        "description": "檢視、修改或備份裝置 IMEI。"
+        "description": "檢視、寫入並驗證數據機向網路出示的識別碼。",
+        "error_title": "無法讀取 IMEI 設定",
+        "error_body": "數據機沒有回應：{{detail}}"
       },
-      "settings_card": {
-        "title": "IMEI 設定",
-        "description": "變更裝置的 IMEI 識別符號。變更後需要重啟。修改前請檢查當地法規。",
-        "field_label": "設定裝置 IMEI",
-        "field_placeholder": "輸入裝置 IMEI",
-        "field_description": "變更 IMEI 需要重啟裝置才能生效。",
-        "length_error_one": "IMEI 必須正好為 15 位數字（{{count}}/15）",
-        "length_error_other": "IMEI 必須正好為 15 位數字（{{count}}/15）",
-        "warning_aria": "IMEI 法律警告",
-        "warning_content": "IMEI 修改法規因國家/地區而異。變更 IMEI 前請檢查當地法律。",
-        "write_button": "寫入 IMEI",
-        "reboot_dialog": {
-          "title": "需要重啟",
-          "description": "IMEI 變更需要重啟裝置才能生效。是否立即重啟?",
-          "cancel": "稍後重啟",
-          "reboot": "立即重啟",
-          "rebooting": "正在重啟…"
+      "legal": {
+        "title": "多數國家對修改 IMEI 有法律限制",
+        "body": "在許多司法管轄區，寫入不屬於自己的識別碼屬於違法行為。修改本頁任何內容前，請先了解當地法律。"
+      },
+      "reboot": {
+        "banner": {
+          "title": "需要重新啟動才能套用新的 IMEI",
+          "description": "識別碼已寫入。在重新啟動之前，數據機仍會出示原本的 IMEI。",
+          "review": "檢視",
+          "reboot": "重新啟動"
         },
-        "toast": {
-          "no_changes": "沒有需要儲存的變更",
-          "success": "IMEI 已儲存 — 需要重啟才能套用",
-          "error": "儲存 IMEI 失敗",
-          "rebooting": "裝置正在重啟…",
-          "reboot_error": "重啟失敗 — 請手動重啟裝置"
+        "dialog": {
+          "title": "重新啟動以套用新的 IMEI",
+          "description": "IMEI 已儲存，但在重新啟動之前數據機仍會出示原本的 IMEI。重新啟動會中斷連線約一分鐘。",
+          "now": "立即重新啟動",
+          "later": "稍後重新啟動"
+        },
+        "toast_failed": "無法啟動重新啟動。重新啟動仍處於待處理狀態，可以從橫幅中重試。"
+      },
+      "device": {
+        "title": "裝置 IMEI",
+        "description": "數據機目前回報的值，以及下次開機後將回報的值。",
+        "rows": {
+          "current": {
+            "label": "目前",
+            "consequence": "直接從數據機讀取，而非來自本機儲存。",
+            "unavailable": "尚未回報"
+          },
+          "write": {
+            "label": "寫入新 IMEI",
+            "consequence": "15 位數字。僅在重新啟動後生效。",
+            "placeholder": "15 位數字"
+          }
+        },
+        "errors": {
+          "length": "IMEI 必須正好是 15 位數字，您已輸入 {{entered}} 位。",
+          "luhn": "這 15 位數字未通過檢查碼檢驗，網路會拒絕該號碼。請修改最後一位，或在「IMEI 工具」中產生一個有效號碼。"
+        },
+        "status": {
+          "empty": "沒有可寫入的內容，輸入欄為空。",
+          "unchanged": "這已經是數據機上的 IMEI。",
+          "ready": "可以寫入。在重新啟動之前，數據機仍保持目前身分。"
+        },
+        "actions": {
+          "write": "寫入 IMEI",
+          "reset": "還原為數據機上的 IMEI",
+          "copy": "複製目前 IMEI"
+        },
+        "toasts": {
+          "saved": "IMEI 已寫入，將在下次重新啟動後生效。",
+          "failed": "數據機未接受該 IMEI。",
+          "copied": "IMEI 已複製。",
+          "copy_failed": "無法複製 IMEI。"
         }
       },
-      "backup_card": {
-        "title": "備份裝置 IMEI",
-        "description_loading": "自動為您的裝置設定備份 IMEI,以確保在主 IMEI 出現問題時保持連線。",
-        "description": "如果網路在重啟後拒絕當前 IMEI,裝置可以自動切換到備份 IMEI 並重啟。",
-        "enable_label": "啟用備份 IMEI",
-        "enable_tooltip_aria": "更多資訊",
-        "enable_tooltip_content": "當主 IMEI 被網路拒絕時,切換到備份 IMEI。",
-        "field_label": "設定備份 IMEI",
-        "field_placeholder": "輸入備份 IMEI",
-        "field_description": "切換到備份 IMEI 需要重啟裝置才能生效。",
-        "warning_aria": "IMEI 法律警告",
-        "warning_content": "IMEI 修改法規因國家/地區而異。變更 IMEI 前請檢查當地法律。",
-        "enable_dialog": {
-          "title": "備份 IMEI 自動恢復",
-          "description": "啟用備份 IMEI 後,裝置將在每次 IMEI 變更後的重啟中自動檢查 IMEI 拒絕情況。如果網路拒絕主 IMEI,裝置將切換到備份 IMEI 並自動重啟。",
-          "confirm": "啟用備份"
+      "backup": {
+        "title": "備用 IMEI",
+        "description": "第二個識別碼；當韌體事件導致主 IMEI 失效時，裝置會自動改用它。",
+        "rows": {
+          "keep": {
+            "label": "保留備用 IMEI",
+            "consequence_off": "已關閉。未儲存任何備用識別碼。",
+            "consequence_on": "已開啟。若主 IMEI 被拒絕，裝置將改用 {{imei}}。"
+          },
+          "value": {
+            "label": "備用識別碼",
+            "consequence": "15 位數字。僅在主 IMEI 被拒絕時使用。",
+            "placeholder": "15 位數字"
+          }
         },
-        "toast": {
-          "success": "備份 IMEI 設定已儲存",
-          "invalid": "備份 IMEI 必須正好為 15 位數字",
-          "error": "儲存備份設定失敗",
-          "no_changes": "沒有需要儲存的變更"
+        "errors": {
+          "length": "IMEI 必須正好是 15 位數字，您已輸入 {{entered}} 位。",
+          "luhn": "這 15 位數字未通過檢查碼檢驗，網路同樣會拒絕該備用號碼。請修改最後一位，或在「IMEI 工具」中產生一個有效號碼。"
+        },
+        "actions": {
+          "save": "儲存備用設定",
+          "reset": "還原為已儲存的備用設定"
+        },
+        "toasts": {
+          "saved": "備用設定已儲存。",
+          "failed": "無法儲存備用設定。"
+        },
+        "dialog": {
+          "title": "關於備用還原",
+          "description": "儲存備用 IMEI 後，裝置會在每次重新啟動後檢查網路是否拒絕了目前 IMEI。若被拒絕，裝置會自動切換到備用識別碼並再次重新啟動。",
+          "confirm": "保留備用 IMEI"
         }
       },
-      "tools_card": {
+      "tools": {
         "title": "IMEI 工具",
-        "description": "使用 Luhn 演算法生成和驗證 IMEI 號碼。僅供教育用途。",
-        "preset_label": "裝置預設",
-        "preset_description": "選擇裝置 TAC 或輸入自訂 8–12 位字首。",
-        "preset_placeholder": "選擇裝置",
-        "preset_custom": "自訂字首",
-        "custom_prefix_label": "自訂字首",
-        "custom_prefix_placeholder": "輸入 8–12 位字首",
-        "custom_prefix_error_one": "字首必須為 8–12 位數字（已輸入 {{count}} 位）",
-        "custom_prefix_error_other": "字首必須為 8–12 位數字（已輸入 {{count}} 位）",
-        "custom_prefix_description": "其餘數字和校驗位會自動生成。",
-        "imei_label": "IMEI",
-        "imei_placeholder": "生成或輸入 15 位 IMEI",
-        "imei_description": "在 15 位時自動進行 Luhn 校驗。也可以輸入或貼上任何 IMEI 進行驗證。",
-        "copy_aria": "複製 IMEI",
-        "copy_tooltip": "複製到剪貼簿",
-        "breakdown_label": "分解",
-        "breakdown_validity": "有效性",
-        "breakdown_tac": "TAC (1–8)",
-        "breakdown_snr": "SNR (9–14)",
-        "breakdown_check": "校驗 (15)",
-        "breakdown_valid": "有效 IMEI",
-        "breakdown_invalid": "無效 IMEI",
-        "generate_button": "生成 IMEI",
-        "check_info_button": "查詢 IMEI 資訊",
-        "copy_success": "已複製到剪貼簿"
+        "description": "依型號分配碼產生符合 Luhn 檢驗的號碼，或檢驗既有的號碼。",
+        "generate": {
+          "tac_label": "型號分配碼",
+          "tac_consequence": "前八位數字，用於表明該號碼所宣稱的機型。",
+          "tac_placeholder": "選擇機型",
+          "custom": "自訂代碼",
+          "prefix_label": "前置碼",
+          "prefix_consequence": "8 至 12 位數字。其餘部分會自動補齊。",
+          "prefix_placeholder": "8–12 位數字",
+          "prefix_error": "前置碼應為 8 至 12 位數字，您已輸入 {{entered}} 位。",
+          "action": "產生"
+        },
+        "check": {
+          "label": "檢驗號碼",
+          "placeholder": "貼上或產生 15 位數字",
+          "valid": "Luhn 檢驗通過",
+          "invalid": "Luhn 檢驗失敗",
+          "empty": "輸入 15 位數字即可查看該號碼的組成。",
+          "lookup": "線上查詢"
+        },
+        "actions": {
+          "copy": "複製該號碼"
+        },
+        "toasts": {
+          "copied": "號碼已複製。",
+          "copy_failed": "無法複製該號碼。"
+        },
+        "breakdown": {
+          "tac": "TAC",
+          "serial": "序號",
+          "check": "檢查碼"
+        },
+        "footnote": "結構有效並不代表你有權使用該號碼。此處的內容不會寫入數據機。"
       }
     },
     "network_priority": {
       "page": {
-        "title": "網路優先順序設定",
-        "description": "設定網路連線的首選順序。"
+        "title": "網路優先順序",
+        "description": "數據機註冊網路時嘗試各種無線技術的順序。"
       },
       "card": {
-        "title": "網路優先順序",
-        "description": "設定網路連線的優先順序順序。"
+        "title": "搜網順序",
+        "description": "拖曳即可調整順序。儲存後數據機會重新註冊網路，連線會中斷幾秒鐘。"
       },
-      "drag_aria": "拖動以重新排序",
-      "priority_label": "優先順序 {{number}}",
+      "rats": {
+        "NR5G": "5G NR",
+        "LTE": "LTE",
+        "WCDMA": "WCDMA"
+      },
+      "hints": {
+        "WCDMA": "此技術的資料速率會大幅下降。"
+      },
+      "position": {
+        "first": "最先嘗試。若此處沒有基地台回應，會自動回退。",
+        "middle": "當上方技術均無法註冊時，接著嘗試。",
+        "last": "最後的備用選擇。僅當上方技術均無法註冊時才使用。",
+        "only": "數據機唯一會嘗試的技術。"
+      },
+      "serving_now": "目前使用中",
+      "handle_aria": "重新排序 {{name}}，目前第 {{rank}} 項，共 {{total}} 項",
+      "save_bar": {
+        "count_one": "有 {{count}} 項變更待儲存",
+        "count_other": "有 {{count}} 項變更待儲存",
+        "note": "儲存後數據機會重新註冊網路，預計約 3 秒無資料連線。",
+        "discard": "捨棄變更",
+        "save": "儲存優先順序"
+      },
+      "apply": {
+        "writing": "正在寫入新順序",
+        "recovering": "正在重新註冊網路",
+        "verifying": "正在讀回順序"
+      },
+      "states": {
+        "error": {
+          "title": "無法讀取優先順序",
+          "description": "數據機未回應搜網順序查詢。它可能正忙，請稍後重試。"
+        },
+        "empty": {
+          "title": "未回報任何無線技術",
+          "description": "數據機回傳的搜網順序為空，因此沒有可排序的項目。請重新讀取，或確認射頻是否已開啟。"
+        }
+      },
       "toast": {
-        "success": "網路優先順序已更新",
-        "error_fallback": "設定網路優先順序失敗",
-        "no_changes": "沒有需要儲存的變更"
+        "saved": "網路優先順序已更新",
+        "save_error": "無法設定網路優先順序"
       }
     },
     "fplmn": {
       "page": {
-        "title": "FPLMN 裝置設定",
-        "description": "檢查並清除 SIM 卡上的停用網路列表。"
+        "title": "被封鎖的網路",
+        "description": "SIM 卡會保存曾經拒絕過本裝置的網路清單。清除該清單可以恢復連線並改善漫遊。",
+        "note": "清除操作寫入的是 SIM 卡而非數據機，並且不會重新啟動任何裝置。如果某個網路再次拒絕本裝置，該清單會重新產生。"
       },
       "card": {
-        "title": "停用網路",
-        "description": "SIM 卡會儲存先前拒絕您裝置的網路列表。清除此列表可能恢復連線並改善漫遊。<link>瞭解更多</link>。"
+        "title": "禁用網路清單",
+        "description": "每次開啟本頁面時，QManager 都會直接從 SIM 卡讀取該清單。",
+        "learn_more": "瞭解更多"
       },
       "states": {
-        "error_title": "無法檢查",
-        "found_title": "發現停用網路",
-        "found_description": "您的 SIM 卡遮蔽了一個或多個網路,這可能會阻止連線。建議清除該列表。",
-        "found_clear": "清除停用網路",
-        "found_clearing": "正在清除…",
-        "none_title": "無停用網路",
-        "none_description": "您的 SIM 卡沒有停用網路。無需操作。",
-        "none_refresh": "重新整理狀態"
+        "loading": {
+          "title": "正在檢查 SIM 卡",
+          "description": "正在讀取卡片上儲存的禁用網路清單。"
+        },
+        "clean": {
+          "title": "沒有被封鎖的網路",
+          "description": "SIM 卡的禁用清單為空，無需任何操作。"
+        },
+        "entries": {
+          "title": "發現被封鎖的網路",
+          "description": "SIM 卡正在拒絕一個或多個網路，這可能導致數據機無法註冊。建議清除該清單。"
+        },
+        "error": {
+          "title": "無法檢查 SIM 卡"
+        },
+        "unknown": {
+          "title": "狀態未知",
+          "description": "QManager 無法確定此 SIM 卡是否存在被封鎖的網路。未做任何變更，請重試讀取。"
+        }
+      },
+      "actions": {
+        "refresh": "重新整理狀態",
+        "clear": "清除被封鎖的網路",
+        "clearing": "正在清除…"
+      },
+      "confirm": {
+        "title": "要清除被封鎖的網路清單嗎？",
+        "description": "此操作將清除儲存在 SIM 卡上的禁用網路清單，且無法復原。裝置不會重新啟動，數據機保持連線。如果某個網路再次拒絕本裝置，該清單會重新產生。",
+        "confirm": "清除清單"
       },
       "toast": {
-        "success": "停用網路已清除",
-        "error_fallback": "清除停用網路失敗"
+        "cleared": "已清除被封鎖的網路",
+        "clear_failed": "無法清除被封鎖的網路"
+      },
+      "errors": {
+        "read_failed": "裝置無法讀取 SIM 卡的禁用網路清單。",
+        "unreachable": "無法連線到裝置。"
       }
     }
   }

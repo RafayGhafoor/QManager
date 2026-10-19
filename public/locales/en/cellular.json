@@ -2020,126 +2020,236 @@
     "imei": {
       "page": {
         "title": "IMEI Settings",
-        "description": "View, modify, or back up the device IMEI."
+        "description": "Read, write and verify the identifier the modem presents to the network.",
+        "error_title": "Could not read the IMEI settings",
+        "error_body": "The modem did not answer: {{detail}}"
       },
-      "settings_card": {
-        "title": "IMEI Settings",
-        "description": "Change the device's IMEI identifier. A reboot is required after changes. Check your local regulations before modifying.",
-        "field_label": "Set Device IMEI",
-        "field_placeholder": "Enter Device IMEI",
-        "field_description": "Changing the IMEI will require a device reboot to take effect.",
-        "length_error_one": "IMEI must be exactly 15 digits ({{count}}/15)",
-        "length_error_other": "IMEI must be exactly 15 digits ({{count}}/15)",
-        "warning_aria": "IMEI legal warning",
-        "warning_content": "IMEI modification regulations vary by country. Check your local laws before changing the IMEI.",
-        "write_button": "Write IMEI",
-        "reboot_dialog": {
-          "title": "Reboot Required",
-          "description": "IMEI changes require a device reboot to take effect. Would you like to reboot now?",
-          "cancel": "Reboot Later",
-          "reboot": "Reboot Now",
-          "rebooting": "Rebooting…"
+      "legal": {
+        "title": "IMEI modification is regulated in most countries",
+        "body": "Writing an identifier you do not own is an offence in many jurisdictions. Check your local law before you change anything on this page."
+      },
+      "reboot": {
+        "banner": {
+          "title": "A reboot is needed to apply the new IMEI",
+          "description": "The identifier is written. The modem still presents the old one until it restarts.",
+          "review": "Review",
+          "reboot": "Reboot"
         },
-        "toast": {
-          "no_changes": "No changes to save",
-          "success": "IMEI saved — reboot required to apply",
-          "error": "Failed to save IMEI",
-          "rebooting": "Device is rebooting…",
-          "reboot_error": "Reboot failed — restart the device manually"
+        "dialog": {
+          "title": "Restart to apply the new IMEI",
+          "description": "The IMEI is stored, but the modem keeps presenting the old one until it restarts. Restarting drops the connection for about a minute.",
+          "now": "Reboot now",
+          "later": "Reboot later"
+        },
+        "toast_failed": "Couldn't start the reboot. It is still pending, so you can retry from the banner."
+      },
+      "device": {
+        "title": "Device IMEI",
+        "description": "What the modem reports now, and what it will report after the next boot.",
+        "rows": {
+          "current": {
+            "label": "Current",
+            "consequence": "Read from the modem, not from storage.",
+            "unavailable": "Not reported yet"
+          },
+          "write": {
+            "label": "Write new IMEI",
+            "consequence": "15 digits. Takes effect only after a reboot.",
+            "placeholder": "15 digits"
+          }
+        },
+        "errors": {
+          "length": "An IMEI is exactly 15 digits. You have entered {{entered}}.",
+          "luhn": "These 15 digits fail the check-digit test, so the network will reject them. Change the last digit, or generate a valid number in IMEI Tools."
+        },
+        "status": {
+          "empty": "Nothing to write. The field is empty.",
+          "unchanged": "This is already the IMEI on the modem.",
+          "ready": "Ready to write. The modem keeps its current identity until it reboots."
+        },
+        "actions": {
+          "write": "Write IMEI",
+          "reset": "Reset to the IMEI on the modem",
+          "copy": "Copy the current IMEI"
+        },
+        "toasts": {
+          "saved": "IMEI written. It applies at the next reboot.",
+          "failed": "The modem did not accept that IMEI.",
+          "copied": "IMEI copied.",
+          "copy_failed": "Could not copy the IMEI."
         }
       },
-      "backup_card": {
-        "title": "Backup Device IMEI",
-        "description_loading": "Automatically sets up a backup IMEI for your device to ensure connectivity in case of primary IMEI issues.",
-        "description": "If the network rejects the current IMEI after a reboot, the device can automatically switch to a backup IMEI and restart.",
-        "enable_label": "Enable Backup IMEI",
-        "enable_tooltip_aria": "More info",
-        "enable_tooltip_content": "Switch to a backup IMEI when the primary IMEI was rejected by the network.",
-        "field_label": "Set Backup IMEI",
-        "field_placeholder": "Enter Backup IMEI",
-        "field_description": "Switching to the backup IMEI will require a device reboot to take effect.",
-        "warning_aria": "IMEI legal warning",
-        "warning_content": "IMEI modification regulations vary by country. Check your local laws before changing the IMEI.",
-        "enable_dialog": {
-          "title": "Backup IMEI Auto-Recovery",
-          "description": "When backup IMEI is enabled, the device will automatically check for IMEI rejection after each reboot following an IMEI change. If the network rejects the primary IMEI, the device will switch to the backup IMEI and reboot automatically.",
-          "confirm": "Enable Backup"
+      "backup": {
+        "title": "Backup IMEI",
+        "description": "A second identifier the device restores if the primary is lost after a firmware event.",
+        "rows": {
+          "keep": {
+            "label": "Keep a backup",
+            "consequence_off": "Off. No backup identifier is stored.",
+            "consequence_on": "On. The device restores {{imei}} if the primary is rejected."
+          },
+          "value": {
+            "label": "Backup identifier",
+            "consequence": "15 digits. Used only if the primary is rejected.",
+            "placeholder": "15 digits"
+          }
         },
-        "toast": {
-          "success": "Backup IMEI configuration saved",
-          "invalid": "Backup IMEI must be exactly 15 digits",
-          "error": "Failed to save backup configuration",
-          "no_changes": "No changes to save"
+        "errors": {
+          "length": "An IMEI is exactly 15 digits. You have entered {{entered}}.",
+          "luhn": "These 15 digits fail the check-digit test, so the network would reject the backup too. Change the last digit, or generate a valid number in IMEI Tools."
+        },
+        "actions": {
+          "save": "Save backup",
+          "reset": "Reset to the saved backup"
+        },
+        "toasts": {
+          "saved": "Backup settings saved.",
+          "failed": "Could not save the backup settings."
+        },
+        "dialog": {
+          "title": "About backup recovery",
+          "description": "With a backup stored, the device checks after each reboot whether the network rejected its IMEI. If it did, the device switches to the backup identifier and restarts on its own.",
+          "confirm": "Keep a backup"
         }
       },
-      "tools_card": {
+      "tools": {
         "title": "IMEI Tools",
-        "description": "Generate and validate IMEI numbers using the Luhn algorithm. For educational purposes only.",
-        "preset_label": "Device Preset",
-        "preset_description": "Select a device TAC or enter a custom 8–12 digit prefix.",
-        "preset_placeholder": "Select a device",
-        "preset_custom": "Custom Prefix",
-        "custom_prefix_label": "Custom Prefix",
-        "custom_prefix_placeholder": "Enter 8–12 digit prefix",
-        "custom_prefix_error_one": "Prefix must be 8–12 digits ({{count}} entered)",
-        "custom_prefix_error_other": "Prefix must be 8–12 digits ({{count}} entered)",
-        "custom_prefix_description": "The remaining digits and check digit are generated automatically.",
-        "imei_label": "IMEI",
-        "imei_placeholder": "Generate or enter a 15-digit IMEI",
-        "imei_description": "Luhn validation runs automatically at 15 digits. You can also type or paste any IMEI to validate it.",
-        "copy_aria": "Copy IMEI",
-        "copy_tooltip": "Copy to clipboard",
-        "breakdown_label": "Breakdown",
-        "breakdown_validity": "Validity",
-        "breakdown_tac": "TAC (1–8)",
-        "breakdown_snr": "SNR (9–14)",
-        "breakdown_check": "Check (15)",
-        "breakdown_valid": "Valid IMEI",
-        "breakdown_invalid": "Invalid IMEI",
-        "generate_button": "Generate IMEI",
-        "check_info_button": "Check IMEI Info",
-        "copy_success": "Copied to clipboard"
+        "description": "Generate a Luhn-valid number from a type allocation code, or check one you already have.",
+        "generate": {
+          "tac_label": "Type allocation code",
+          "tac_consequence": "The first eight digits, which name the model the number claims to be.",
+          "tac_placeholder": "Choose a model",
+          "custom": "Custom code",
+          "prefix_label": "Prefix",
+          "prefix_consequence": "8 to 12 digits. Everything after them is filled in for you.",
+          "prefix_placeholder": "8–12 digits",
+          "prefix_error": "A prefix is 8 to 12 digits. You have entered {{entered}}.",
+          "action": "Generate"
+        },
+        "check": {
+          "label": "Check a number",
+          "placeholder": "Paste or generate 15 digits",
+          "valid": "Luhn valid",
+          "invalid": "Luhn invalid",
+          "empty": "Enter 15 digits to see how the number is built.",
+          "lookup": "Look up online"
+        },
+        "actions": {
+          "copy": "Copy this number"
+        },
+        "toasts": {
+          "copied": "Number copied.",
+          "copy_failed": "Could not copy the number."
+        },
+        "breakdown": {
+          "tac": "TAC",
+          "serial": "Serial",
+          "check": "Check"
+        },
+        "footnote": "Valid structure does not mean the number is yours to use. Nothing here is written to the modem."
       }
     },
     "network_priority": {
       "page": {
-        "title": "Network Priority Settings",
-        "description": "Set the preferred order of network connections."
+        "title": "Network Priority",
+        "description": "The order the modem tries radio technologies when it registers."
       },
       "card": {
-        "title": "Network Priority",
-        "description": "Set the priority order of your network connections."
+        "title": "Acquisition Order",
+        "description": "Drag to reorder. The modem re-registers when you save, which drops the connection for a few seconds."
       },
-      "drag_aria": "Drag to reorder",
-      "priority_label": "Priority {{number}}",
+      "rats": {
+        "NR5G": "5G NR",
+        "LTE": "LTE",
+        "WCDMA": "WCDMA"
+      },
+      "hints": {
+        "WCDMA": "Data rates drop sharply here."
+      },
+      "position": {
+        "first": "Tried first. Falls back automatically when no cell answers here.",
+        "middle": "Tried next when nothing above it registers.",
+        "last": "Last resort. Used only when nothing above it registers.",
+        "only": "The only technology the modem will try."
+      },
+      "serving_now": "Serving now",
+      "handle_aria": "Reorder {{name}}, position {{rank}} of {{total}}",
+      "save_bar": {
+        "count_one": "{{count}} change pending",
+        "count_other": "{{count}} changes pending",
+        "note": "The modem re-registers on save. Expect about 3 seconds without data.",
+        "discard": "Discard",
+        "save": "Save Priority"
+      },
+      "apply": {
+        "writing": "Writing the new order",
+        "recovering": "Re-registering on the network",
+        "verifying": "Reading the order back"
+      },
+      "states": {
+        "error": {
+          "title": "Couldn't read the priority order",
+          "description": "The modem didn't answer the acquisition-order query. It may be busy — try again in a moment."
+        },
+        "empty": {
+          "title": "No technologies reported",
+          "description": "The modem returned an empty acquisition order, so there is nothing to rank. Re-read it, or check that the radio is on."
+        }
+      },
       "toast": {
-        "success": "Network priority updated",
-        "error_fallback": "Failed to set network priority",
-        "no_changes": "No changes to save"
+        "saved": "Network priority updated",
+        "save_error": "Couldn't set network priority"
       }
     },
     "fplmn": {
       "page": {
-        "title": "FPLMN Device Settings",
-        "description": "Check and clear the forbidden network list on your SIM."
+        "title": "Blocked Networks",
+        "description": "Your SIM stores a list of networks that previously rejected this device. Clearing it can restore connectivity and improve roaming.",
+        "note": "Clearing writes to the SIM, not the modem, and nothing reboots. The list rebuilds itself if a network rejects the device again."
       },
       "card": {
-        "title": "Blocked Networks",
-        "description": "Your SIM stores a list of networks that previously rejected your device. Clearing this list may restore connectivity and improve roaming. <link>Learn more</link>."
+        "title": "Forbidden network list",
+        "description": "QManager reads this list straight from the SIM each time you open this page.",
+        "learn_more": "Learn more"
       },
       "states": {
-        "error_title": "Unable to Check",
-        "found_title": "Blocked Networks Found",
-        "found_description": "Your SIM has blocked one or more networks, which may prevent connection. Clearing the list is recommended.",
-        "found_clear": "Clear Blocked Networks",
-        "found_clearing": "Clearing…",
-        "none_title": "No Blocked Networks",
-        "none_description": "Your SIM has no blocked networks. No action needed.",
-        "none_refresh": "Refresh Status"
+        "loading": {
+          "title": "Checking the SIM",
+          "description": "Reading the forbidden network list stored on the card."
+        },
+        "clean": {
+          "title": "No blocked networks",
+          "description": "The SIM has nothing on its forbidden list. No action needed."
+        },
+        "entries": {
+          "title": "Blocked networks found",
+          "description": "The SIM is refusing one or more networks, which can keep the modem from attaching. Clearing the list is recommended."
+        },
+        "error": {
+          "title": "Couldn't check the SIM"
+        },
+        "unknown": {
+          "title": "Status unknown",
+          "description": "QManager could not determine whether this SIM has blocked networks. Nothing was changed — try reading it again."
+        }
+      },
+      "actions": {
+        "refresh": "Refresh status",
+        "clear": "Clear blocked networks",
+        "clearing": "Clearing…"
+      },
+      "confirm": {
+        "title": "Clear the blocked network list?",
+        "description": "This erases the forbidden network list stored on the SIM card and cannot be undone. Nothing reboots and the modem stays connected. The list rebuilds itself if a network rejects this device again.",
+        "confirm": "Clear list"
       },
       "toast": {
-        "success": "Blocked networks cleared",
-        "error_fallback": "Failed to clear blocked networks"
+        "cleared": "Blocked networks cleared",
+        "clear_failed": "Couldn't clear the blocked networks"
+      },
+      "errors": {
+        "read_failed": "The device could not read the SIM's forbidden network list.",
+        "unreachable": "Unable to reach the device."
       }
     }
   }
