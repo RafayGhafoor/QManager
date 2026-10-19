@@ -283,6 +283,8 @@ Main polling endpoint. Returns the cached modem status JSON (built by `qmanager_
 
 `connectivity.status` is `"recovery"` during a watchdog recovery, `"connected"` / `"degraded"` while the internet is reachable, `"disconnected"` when it is not, and `"unknown"` on stale data; `"degraded"` means packet loss is at or above `connectivity.thresholds.loss_pct` (the configured Connection Quality loss cut, default 30 %; it was a fixed 10 % before ledger B2.3). Latency alone never degrades the status. `connectivity.thresholds` is `{ latency_ms, loss_pct }` and is absent on an older poller.
 
+`lte.sinr` and `nr.sinr` are dB. `nr.sinr` is QENG's 5G `<SINR>`, which is already dB. `lte.sinr` is converted from QENG's LTE `<SINR>`, which is a **raw** value on RG520N/RM5xxN-class firmware: the manual gives the actual value as `Y = (1/5) x X x 10 - 20`, i.e. `Y = 2X - 20` dB for `X` in 0..25. Publishing `X` unchanged read ~10 dB high (raw `10` printed as "10 dB" for an actual `0 dB`). A QENG field that is not a reading - empty, `-`, `-32768`, non-numeric or out of range - is `null`.
+
 ### GET `/at_cmd/fetch_events.sh`
 
 Returns network events as a JSON array. `internet_lost`/`internet_restored` and the latency/loss pairs come from the single detector (one outage logs one lost/restored pair); `ca_change` events are settled and debounced (a one-sample carrier dip logs nothing, a flapping carrier logs one "CA churn detected" warning per episode). See [`docs/features/connection-quality.md`](features/connection-quality.md#one-detector-eventssh).
