@@ -729,5 +729,86 @@
         "range": "Enter a whole number from {{min}} to {{max}}."
       }
     }
+  },
+  "prometheus": {
+    "page": {
+      "title": "Prometheus",
+      "description": "Let a Prometheus server collect this modem's signal and health readings."
+    },
+    "card": {
+      "title": "Prometheus metrics",
+      "description": "Scraping needs the token below; device identifiers are never included."
+    },
+    "endpoint": {
+      "label": "Metrics endpoint",
+      "consequence_off": "Prometheus can't read this modem.",
+      "consequence_on": "Prometheus can read signal, carrier and health readings with the token."
+    },
+    "freshness": {
+      "label": "Scrape freshness",
+      "hint_label": "About scrape freshness",
+      "hint": "Applies only while Prometheus scrapes at least once a minute. Normal polling resumes two minutes after the last scrape.",
+      "options": {
+        "adaptive": "Adaptive",
+        "balanced": "Balanced",
+        "realtime": "Real-time"
+      },
+      "consequence": {
+        "adaptive": "Scrapes don't change how often the modem is read.",
+        "balanced": "The modem never drops to its slowest polling while Prometheus scrapes.",
+        "realtime": "The modem is read every 2 seconds while Prometheus scrapes, like an open dashboard."
+      }
+    },
+    "facts": {
+      "no_scrapes": "No scrapes yet",
+      "last_scrape_seconds_one": "Last scrape {{count}} s ago",
+      "last_scrape_seconds_other": "Last scrape {{count}} s ago",
+      "last_scrape_minutes_one": "Last scrape {{count}} min ago",
+      "last_scrape_minutes_other": "Last scrape {{count}} min ago",
+      "last_scrape_hours_one": "Last scrape {{count}} h ago",
+      "last_scrape_hours_other": "Last scrape {{count}} h ago",
+      "holding": "Holding faster polling",
+      "adaptive_off": "Adaptive polling is off, so readings are always live"
+    },
+    "token": {
+      "label": "Bearer token",
+      "consequence": "Paste it into Prometheus as the scrape credential.",
+      "show": "Show token",
+      "hide": "Hide token",
+      "copy": "Copy",
+      "regenerate": "Regenerate…"
+    },
+    "regenerate_dialog": {
+      "title": "Generate a new token?",
+      "description": "Prometheus can't scrape until you paste the new token into its config.",
+      "cancel": "Cancel",
+      "confirm": "Generate token"
+    },
+    "config": {
+      "label": "Scrape config",
+      "consequence": "Add this job to your Prometheus configuration.",
+      "hint_label": "About the scrape config",
+      "hint": "The modem's certificate is self-signed, so verification is skipped. Over Tailscale, plain http works too.",
+      "copy": "Copy config"
+    },
+    "foot": {
+      "save": "Save",
+      "discard": "Discard",
+      "token_on_save": "A token is created when you save."
+    },
+    "toast": {
+      "saved": "Prometheus settings saved.",
+      "save_failed": "Couldn't save Prometheus settings.",
+      "regenerated": "New token generated.",
+      "regenerate_failed": "Couldn't generate a new token.",
+      "token_copied": "Token copied.",
+      "config_copied": "Scrape config copied.",
+      "copy_failed": "Couldn't copy to the clipboard."
+    },
+    "error": {
+      "title": "Couldn't load Prometheus settings",
+      "description": "The modem didn't answer. Check the connection and try again.",
+      "retry": "Retry"
+    }
   }
 }

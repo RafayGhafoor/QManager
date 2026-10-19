@@ -125,6 +125,7 @@ section_label() {
         quality_thresholds) echo "Connection Quality" ;;
         sites)            echo "Sites Monitor" ;;
         watchdog)         echo "Watchdog/Watchcat" ;;
+        metrics)          echo "Prometheus Metrics" ;;
         network_mode_apn) echo "Network Mode and APN" ;;
         bands)            echo "LTE/5G Bands" ;;
         tower_lock)       echo "Tower Lock" ;;

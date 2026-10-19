@@ -1175,6 +1175,25 @@ seed_uci_defaults() {
         info "quecmanager.ports.host_at already set — preserving user choice"
     fi
 
+    # Prometheus metrics endpoint — opt-in, off by default. The bearer token is
+    # NEVER seeded: the settings CGI generates it on first enable, and it stays
+    # out of config backups. Idempotent + preserve-user-choice across upgrade.
+    if ! uci -q get quecmanager.metrics >/dev/null 2>&1; then
+        uci set quecmanager.metrics=metrics
+    fi
+    if ! uci -q get quecmanager.metrics.enabled >/dev/null 2>&1; then
+        uci set quecmanager.metrics.enabled='0'
+        info "Seeded quecmanager.metrics.enabled=0 (off by default)"
+    else
+        info "quecmanager.metrics.enabled already set — preserving user choice"
+    fi
+    if ! uci -q get quecmanager.metrics.freshness >/dev/null 2>&1; then
+        uci set quecmanager.metrics.freshness='adaptive'
+        info "Seeded quecmanager.metrics.freshness=adaptive"
+    else
+        info "quecmanager.metrics.freshness already set — preserving user choice"
+    fi
+
     uci commit quecmanager 2>/dev/null || warn "uci commit quecmanager failed"
 
     # Point /usr/bin/qcmd + /usr/bin/qsms at qmanager_atd (atomic symlink swap). Must run after

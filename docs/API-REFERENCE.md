@@ -2,7 +2,7 @@
 
 Complete reference for all CGI endpoints. All endpoints are under `/cgi-bin/quecmanager/`.
 
-All authenticated endpoints require a valid `qm_session` cookie (auto-sent by the browser). A `401` response means the session is expired or missing.
+All authenticated endpoints require a valid `qm_session` cookie (auto-sent by the browser). A `401` response means the session is expired or missing. The one exception is the machine endpoint `/metrics/prometheus.sh`, which takes a bearer token instead of the cookie (see Monitoring).
 
 ---
 
@@ -214,6 +214,8 @@ Main polling endpoint. Returns the cached modem status JSON (built by `qmanager_
     "memory_total_mb": 256,
     "uptime_seconds": 86400,
     "conn_uptime_seconds": 43200,
+    "serving_read_mono": 123456,
+    "ca_read_mono": 123450,
     "firmware": "RM520NGLAAR03A04M4GA",
     "build_date": "Jun 25 2025",
     "manufacturer": "Quectel",
@@ -280,6 +282,8 @@ Main polling endpoint. Returns the cached modem status JSON (built by `qmanager_
   }
 }
 ```
+
+`device.serving_read_mono` and `device.ca_read_mono` are the uptime seconds (same clock as `mono`) of the last `AT+QENG` reply carrying `+QENG:` lines and the last `AT+QCAINFO` parse; `0` means never read since the poller started. Age them with `mono - value`; the deep poller tier freezes CA values, so `ca_read_mono` can be hours old. Backs `qmanager_serving_cell_age_seconds` / `qmanager_carrier_components_age_seconds` ([`features/prometheus-metrics.md`](features/prometheus-metrics.md)).
 
 `connectivity.status` is `"recovery"` during a watchdog recovery, `"connected"` / `"degraded"` while the internet is reachable, `"disconnected"` when it is not, and `"unknown"` on stale data; `"degraded"` means packet loss is at or above `connectivity.thresholds.loss_pct` (the configured Connection Quality loss cut, default 30 %; it was a fixed 10 % before ledger B2.3). Latency alone never degrades the status. `connectivity.thresholds` is `{ latency_ms, loss_pct }` and is absent on an older poller.
 
@@ -1215,6 +1219,45 @@ Sites monitor: per-site TCP-handshake latency from the `qmanager_sites` daemon, 
 **POST** `{"action":"check_now"}` (also `?action=check_now`) → `{"success":true}`, or `disabled` / `flag_failed`.
 
 **POST** `{"action":"save","enabled":true,"interval_sec":300,"sites":[{"host":"youtube.com","label":"YouTube"}]}` → echoes the saved config `{"success":true,"enabled":…,"interval_sec":…,"sites":[…]}`. `interval_sec` is clamped to 60–3600; at most 32 sites; hosts are lower-cased, validated and deduped; labels are cleaned to printable, cut to 40 and fall back to the host. A bad field → `{"success":false,"error":"invalid_field","field":"sites","reason":"invalid host"}`; write failure → `save_failed`.
+
+### GET `/metrics/prometheus.sh`
+
+Prometheus scrape endpoint. **Not cookie-authenticated**: `Authorization: Bearer <64 lowercase hex>` (UCI `quecmanager.metrics.token`), checked by `api_auth.sh`. Opt-in, off by default. Full contract, metric catalog and data classification: [`features/prometheus-metrics.md`](features/prometheus-metrics.md).
+
+| Case | Response |
+|---|---|
+| Authenticated | `200`, `Content-Type: text/plain; version=0.0.4; charset=utf-8`, `Cache-Control: no-store`; Prometheus text exposition (all gauges). A missing or stale (> 30 s) snapshot yields only `qmanager_snapshot_up 0`, `qmanager_snapshot_age_seconds` and `qmanager_build_info` |
+| Disabled, setup required, missing / malformed / wrong token | `403 Forbidden`, `text/plain`, body `Forbidden`, identical bytes for every reason |
+| Any method other than GET | `405`, `Allow: GET`, `text/plain` |
+
+No CORS headers and no JSON envelope. An authenticated scrape renews the poller's scrape hold (`/var/run/qmanager/metrics_scrape`) but does not count as an open browser.
+
+```text
+# HELP qmanager_ping_rtt_seconds Latest ping round-trip time.
+# TYPE qmanager_ping_rtt_seconds gauge
+qmanager_ping_rtt_seconds 0.0342
+```
+
+### GET/POST `/monitoring/prometheus.sh`
+
+Settings for the scrape endpoint (cookie auth). Full contract: [`features/prometheus-metrics.md`](features/prometheus-metrics.md).
+
+**GET** (and the response to every successful POST):
+
+```json
+{
+  "success": true,
+  "settings": { "enabled": true, "freshness": "balanced", "token": "<64 hex or empty>" },
+  "endpoint_path": "/cgi-bin/quecmanager/metrics/prometheus.sh",
+  "last_scrape": { "age_seconds": 12, "mode": "balanced" },
+  "holding": true,
+  "poller": { "adaptive_enabled": true, "tier": "idle" }
+}
+```
+
+`freshness` is `adaptive`, `balanced` or `realtime`. `last_scrape` is `null` until an authenticated scrape has arrived since boot. `holding` is true while an enabled `balanced`/`realtime` scrape is younger than 120 s. `token` is only ever returned to the signed-in owner.
+
+**POST** `{"action":"save","enabled":true,"freshness":"balanced"}`: enabling with no token generates one first. `{"action":"regenerate_token"}`: only while enabled. Errors: `invalid_json`, `missing_action`, `unknown_action`, `invalid_value` (`detail` = `enabled` / `freshness`), `token_generation_failed`, `save_failed`, `method_not_allowed`.
 
 ---
 

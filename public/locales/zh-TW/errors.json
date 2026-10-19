@@ -198,5 +198,6 @@
   "sim_storage_unavailable": "SIM 卡無法儲存簡訊，請檢查是否已插入 SIM 卡。",
   "invalid_smsc": "請輸入運營商號碼：開頭可帶 +，後跟 3 至 20 位數字。",
   "smsc_write_failed": "無法儲存運營商號碼。請檢查後重試。",
-  "smsc_read_failed": "無法從數據機讀取運營商號碼。"
+  "smsc_read_failed": "無法從數據機讀取運營商號碼。",
+  "token_generation_failed": "無法建立安全權杖。請重試。"
 }

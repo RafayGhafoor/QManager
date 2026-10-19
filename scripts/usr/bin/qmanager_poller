@@ -100,6 +100,16 @@ AP_IDLE_INTERVAL=15     # AT-read cadence (s) in the Idle tier
 AP_IDLE_THRESHOLD=300   # seconds of idle before dropping to Deep
 AP_DEEP_INTERVAL=60     # AT-read cadence (s) in the Deep tier
 ap_tier="active"        # current tier ("active"|"idle"|"deep"); emitted in .device.poller_tier
+# Prometheus scrape hold: each authenticated scrape writes "<mode> <uptime_s>"
+# here. While it is younger than the TTL (uptime clock), balanced caps the tier
+# age at idle and realtime pins active. It only ever raises the cadence.
+METRICS_SCRAPE_FILE="/var/run/qmanager/metrics_scrape"
+METRICS_LEASE_TTL=120
+# Uptime (s) of the last AT+QENG reply carrying +QENG: lines, and of the last
+# AT+QCAINFO reply parsed; 0 = never. Emitted as .device.serving_read_mono /
+# .device.ca_read_mono so a consumer can age the radio data (deep tier freezes CA).
+_SERVING_READ_MONO=0
+_CA_READ_MONO=0
 
 # Signal history (NDJSON file for chart data)
 SIGNAL_HISTORY_FILE="/tmp/qmanager_signal_history.json"
@@ -963,6 +973,9 @@ poll_serving_cell() {
         local prev_lte_state="$lte_state"
         local prev_nr_state="$nr_state"
         parse_serving_cell "$_QR"
+        case "$_QR" in
+            *'+QENG:'*) _SERVING_READ_MONO="${_MONO_TOP:-0}" ;;
+        esac
         # Log state transitions
         qlog_state_change "network_type" "$prev_network_type" "$network_type"
         qlog_state_change "lte_state" "$prev_lte_state" "$lte_state"
@@ -2061,6 +2074,8 @@ _wc_compose_pf() {
     _kS ippt_nat "$boot_ippt_nat"
     _kS ippt_usbnet "$boot_ippt_usbnet"
     _kS ippt_dhcpv4dns "$boot_ippt_dhcpv4dns"
+    _kN serving_read_mono "$_SERVING_READ_MONO" 0
+    _kN ca_read_mono "$_CA_READ_MONO" 0
     _kS poller_tier "${ap_tier:-active}"
     _kE
     _kO connectivity
@@ -2216,6 +2231,8 @@ write_cache_jq() {
         --arg ippt_nat  "$boot_ippt_nat" \
         --arg ippt_usb  "$boot_ippt_usbnet" \
         --arg ippt_dns  "$boot_ippt_dhcpv4dns" \
+        --argjson sc_read_mono "${_SERVING_READ_MONO:-0}" \
+        --argjson ca_read_mono "${_CA_READ_MONO:-0}" \
         --arg ap_tier "${ap_tier:-active}" \
         --argjson inet "${conn_internet_available:-null}" \
         --arg conn_st "$conn_status" \
@@ -2324,6 +2341,8 @@ write_cache_jq() {
                 ippt_nat: $ippt_nat,
                 ippt_usbnet: $ippt_usb,
                 ippt_dhcpv4dns: $ippt_dns,
+                serving_read_mono: $sc_read_mono,
+                ca_read_mono: $ca_read_mono,
                 poller_tier: $ap_tier
             },
             connectivity: {
@@ -2682,6 +2701,26 @@ poll_cycle() {
             _age=$((_NOW - _hb))
         fi
 
+        # Prometheus scrape hold: rewrite the effective age, never the ladder.
+        # Builtins only. Skipped when /proc/uptime is unreadable (_MONO_TOP 0).
+        local _ms_mode
+        local _ms_up
+        _ms_mode=""
+        _ms_up=""
+        if [ "$_MONO_TOP" -gt 0 ]; then
+            { read -r _ms_mode _ms_up < "$METRICS_SCRAPE_FILE"; } 2>/dev/null
+            _ms_up="${_ms_up%"$_CR"}"
+            # Digits only, no leading zero (ash aborts on $((08))), <= 10 digits.
+            case "$_ms_up" in ''|*[!0-9]*|0?*|???????????*) _ms_mode="" ;; esac
+            if [ -n "$_ms_mode" ] && [ "$_ms_up" -le "$_MONO_TOP" ] \
+               && [ $((_MONO_TOP - _ms_up)) -le "$METRICS_LEASE_TTL" ]; then
+                case "$_ms_mode" in
+                    realtime) _age=0 ;;
+                    balanced) [ "$_age" -gt "$AP_IDLE_THRESHOLD" ] && _age="$AP_IDLE_THRESHOLD" ;;
+                esac
+            fi
+        fi
+
         if [ "$_age" -le "$AP_ACTIVE_GRACE" ]; then
             ap_tier="active"
             _at_due=1
@@ -2739,6 +2778,7 @@ poll_cycle() {
             ca_rc=$?
             if [ $ca_rc -eq 0 ] && [ -n "$_QR" ]; then
                 parse_ca_info "$_QR"
+                _CA_READ_MONO="${_MONO_TOP:-0}"
             elif [ $ca_rc -ne 3 ]; then
                 # Busy (rc 3) keeps the last CA values, like the deep tier.
                 t2_ca_active=false

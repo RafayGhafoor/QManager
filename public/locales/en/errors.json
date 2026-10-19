@@ -198,5 +198,6 @@
   "sim_storage_unavailable": "The SIM can't store messages. Check that a SIM is inserted.",
   "invalid_smsc": "Enter the provider number with an optional leading +, then 3 to 20 digits.",
   "smsc_write_failed": "Couldn't save the provider number. Check it and try again.",
-  "smsc_read_failed": "Couldn't read the provider number from the modem."
+  "smsc_read_failed": "Couldn't read the provider number from the modem.",
+  "token_generation_failed": "Couldn't create a secure token. Try again."
 }

@@ -14,8 +14,10 @@ Adaptive Polling makes the QManager AT poller ease off modem interrogation when 
 | Heartbeat file | `/tmp/qmanager_ui_active` (epoch seconds, written by status CGIs) |
 | Poller reload flag | `/tmp/qmanager_poller_reload` |
 | Force-active flag | `/tmp/qmanager_force_tier2` |
+| Prometheus scrape file | `/var/run/qmanager/metrics_scrape` (`"<mode> <uptime_s>"`, written by the scrape CGI; TTL `METRICS_LEASE_TTL=120`; Invariant 11) |
 | SIM-switch quiesce flag | `/tmp/qmanager_sim_switch_active` (producer `cellular/settings.sh`; early-return alongside `LONG_FLAG`; mtime-bounded 60 s) |
 | Tier field in status.json | `.device.poller_tier` — `"active"` | `"idle"` | `"deep"` |
+| Radio read-age fields | `.device.serving_read_mono`, `.device.ca_read_mono` (uptime s of the last `+QENG:` reply / `AT+QCAINFO` parse; `0` = never) |
 | AT read cap | `QC_WAIT_MS=2500`, passed per call as `QCMD_WAIT_MS` (Invariant 8); per-cycle busy latch `_AT_LATCH` / `_AT_BUSY`, rc 3 = not run |
 | status.json composer | `_wc_compose_pf` (printf, compact one line); `write_cache_jq` is the safety net (Invariant 9) |
 | Sidecars | `/var/run/qmanager/{ping,dns,ondemand}.env` (Invariant 10) |
@@ -217,6 +219,21 @@ Live parity: 200 of 200 snapshot pairs (both composers fed the same globals) wer
 
 Three producers write an additive `.env` file beside their JSON in `/var/run/qmanager` (tmp then `mv`, right after the JSON): `qmanager_ping` writes `ping.env` and `dns.env` ([connection-quality.md](connection-quality.md#poller-sidecars-pingenv-and-dnsenv)), and `ondemand_radio.sh` writes `ondemand.env` ([ondemand-radio-details.md](ondemand-radio-details.md#sidecar-ondemandenv)). The poller reads them with builtins instead of forking `jq`. A sidecar is used only when it is complete (every line a single-quoted assignment, last line `qm_sidecar_end='1'`) and not older than its JSON; otherwise the reader falls back to the JSON path, so an upgrade window or a failed sidecar write costs a few forks, not correctness. The JSON files and `conn_state_read` (the watchdog's reader) are unchanged. `init.d/qmanager` `stop_service` removes the sidecars.
 
+### 11. Prometheus scrape hold rewrites the effective age, never the ladder
+
+The scrape CGI ([prometheus-metrics.md](prometheus-metrics.md)) writes `/var/run/qmanager/metrics_scrape` = `"<mode> <uptime_s>"` on every authenticated scrape. In `poll_cycle`, right after the heartbeat age `_age` is computed and before the tier comparison, the poller reads it as a **third tier input after the force flags and the heartbeat**:
+
+- `realtime` sets `_age=0` (tier `active`). `balanced` caps `_age` at `AP_IDLE_THRESHOLD` (never deeper than `idle`). `adaptive` and any other mode are ignored.
+- It can only **raise** the cadence: `balanced` never lowers an `_age` already below the threshold, and nothing here lengthens an interval.
+- It holds only while `0 <= _MONO_TOP - uptime_s <= METRICS_LEASE_TTL` (120 s), on the uptime clock, so it is immune to NITZ / ntpd steps. A future value is ignored.
+- It is skipped entirely when `/proc/uptime` is unreadable (`_MONO_TOP` is 0); the wall-clock fallback age is used unchanged.
+- It costs **zero forks**: one builtin `read`, a `case` that accepts digits only (no leading zero, at most 10 digits) and arithmetic. Reading it never writes or removes the file.
+- The ladder, AT-due modulo, full-refresh-on-re-entry and the force flags are untouched; this only changes the age they see.
+
+**Why:** the scrape file doubles as the card's "Last scrape" fact and lives in the root-only run dir, so a parse failure or a planted file can at worst raise the cadence for 120 s. Only an authenticated scrape renews it, so an unauthenticated flood cannot pin the poller. `Real-time` lands in `active` like an open browser; `balanced` lands in `idle`, so data (including QCAINFO and per-antenna) is at most `idle_interval` old.
+
+The poller also exports `.device.serving_read_mono` (set when a `poll_serving_cell` reply contains `+QENG:`) and `.device.ca_read_mono` (set after `parse_ca_info`). They let a consumer age the radio data, because the deep tier freezes CA values. Both are `_kN` integer keys in `_wc_compose_pf` and `--argjson` in `write_cache_jq`, so the two composers stay in parity; they default to `0`.
+
 ---
 
 ## CGI Envelopes
@@ -295,6 +312,8 @@ Sidebar entry key: `adaptive_polling`. Available in all 5 shipped locales.
 ---
 
 ## status.json Surface
+
+The poller also writes `.device.serving_read_mono` and `.device.ca_read_mono` (integers, uptime seconds of the last serving-cell / carrier-aggregation read, `0` = never; see Invariant 11).
 
 The poller writes `.device.poller_tier` as one of `"active"`, `"idle"`, or `"deep"` on every `write_cache` call. Consumers (the frontend tier badge, the CGI GET fallback) should treat the field as optional — it is absent on older builds and on the first write if the poller starts before the cache is populated.
 

@@ -198,5 +198,6 @@
   "sim_storage_unavailable": "SIM tidak dapat menyimpan pesan. Pastikan SIM terpasang.",
   "invalid_smsc": "Masukkan nomor operator dengan + di awal secara opsional, lalu 3 hingga 20 digit.",
   "smsc_write_failed": "Tidak dapat menyimpan nomor operator. Periksa lalu coba lagi.",
-  "smsc_read_failed": "Tidak dapat membaca nomor operator dari modem."
+  "smsc_read_failed": "Tidak dapat membaca nomor operator dari modem.",
+  "token_generation_failed": "Tidak dapat membuat token yang aman. Coba lagi."
 }

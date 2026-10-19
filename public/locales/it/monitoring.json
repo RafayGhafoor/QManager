@@ -729,5 +729,86 @@
         "range": "Inserisci un numero intero da {{min}} a {{max}}."
       }
     }
+  },
+  "prometheus": {
+    "page": {
+      "title": "Prometheus",
+      "description": "Permetti a un server Prometheus di raccogliere i dati di segnale e stato di questo modem."
+    },
+    "card": {
+      "title": "Metriche Prometheus",
+      "description": "Per lo scrape serve il token qui sotto; gli identificativi del dispositivo non sono mai inclusi."
+    },
+    "endpoint": {
+      "label": "Endpoint delle metriche",
+      "consequence_off": "Prometheus non può leggere questo modem.",
+      "consequence_on": "Prometheus può leggere i dati di segnale, operatore e stato con il token."
+    },
+    "freshness": {
+      "label": "Aggiornamento dello scrape",
+      "hint_label": "Informazioni sull'aggiornamento dello scrape",
+      "hint": "Vale solo mentre Prometheus fa scrape almeno una volta al minuto. Il polling normale riprende due minuti dopo l'ultimo scrape.",
+      "options": {
+        "adaptive": "Adattivo",
+        "balanced": "Bilanciato",
+        "realtime": "Tempo reale"
+      },
+      "consequence": {
+        "adaptive": "Gli scrape non cambiano la frequenza di lettura del modem.",
+        "balanced": "Il modem non scende mai al polling più lento mentre Prometheus fa scrape.",
+        "realtime": "Il modem viene letto ogni 2 secondi mentre Prometheus fa scrape, come con una dashboard aperta."
+      }
+    },
+    "facts": {
+      "no_scrapes": "Nessuno scrape finora",
+      "last_scrape_seconds_one": "Ultimo scrape {{count}} s fa",
+      "last_scrape_seconds_other": "Ultimo scrape {{count}} s fa",
+      "last_scrape_minutes_one": "Ultimo scrape {{count}} min fa",
+      "last_scrape_minutes_other": "Ultimo scrape {{count}} min fa",
+      "last_scrape_hours_one": "Ultimo scrape {{count}} h fa",
+      "last_scrape_hours_other": "Ultimo scrape {{count}} h fa",
+      "holding": "Polling più rapido mantenuto",
+      "adaptive_off": "Il polling adattivo è disattivato, quindi i dati sono sempre in tempo reale"
+    },
+    "token": {
+      "label": "Token Bearer",
+      "consequence": "Incollalo in Prometheus come credenziale di scrape.",
+      "show": "Mostra token",
+      "hide": "Nascondi token",
+      "copy": "Copia",
+      "regenerate": "Rigenera…"
+    },
+    "regenerate_dialog": {
+      "title": "Generare un nuovo token?",
+      "description": "Prometheus non può fare scrape finché non incolli il nuovo token nella sua configurazione.",
+      "cancel": "Annulla",
+      "confirm": "Genera token"
+    },
+    "config": {
+      "label": "Configurazione dello scrape",
+      "consequence": "Aggiungi questo job alla configurazione di Prometheus.",
+      "hint_label": "Informazioni sulla configurazione dello scrape",
+      "hint": "Il certificato del modem è autofirmato, quindi la verifica viene saltata. Con Tailscale funziona anche http semplice.",
+      "copy": "Copia configurazione"
+    },
+    "foot": {
+      "save": "Salva",
+      "discard": "Scarta",
+      "token_on_save": "Un token viene creato al salvataggio."
+    },
+    "toast": {
+      "saved": "Impostazioni Prometheus salvate.",
+      "save_failed": "Impossibile salvare le impostazioni Prometheus.",
+      "regenerated": "Nuovo token generato.",
+      "regenerate_failed": "Impossibile generare un nuovo token.",
+      "token_copied": "Token copiato.",
+      "config_copied": "Configurazione dello scrape copiata.",
+      "copy_failed": "Impossibile copiare negli appunti."
+    },
+    "error": {
+      "title": "Impossibile caricare le impostazioni Prometheus",
+      "description": "Il modem non ha risposto. Controlla la connessione e riprova.",
+      "retry": "Riprova"
+    }
   }
 }

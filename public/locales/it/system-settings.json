@@ -58,7 +58,8 @@
       "sites": "Siti del monitor della latenza",
       "sms_alerts": "Avvisi SMS",
       "alert_routing": "Instradamento degli avvisi",
-      "sms_storage": "Memoria degli SMS"
+      "sms_storage": "Memoria degli SMS",
+      "metrics": "Metriche Prometheus"
     },
     "create": {
       "card_title": "Crea backup",

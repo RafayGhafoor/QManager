@@ -7,6 +7,7 @@ export type BackupSectionKey =
   | "sms_storage"
   | "quality_thresholds"
   | "sites"
+  | "metrics"
   | "watchdog"
   | "network_mode_apn"
   | "bands"

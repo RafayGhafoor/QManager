@@ -58,7 +58,8 @@
       "sites": "延遲監控站點",
       "sms_alerts": "簡訊提醒",
       "alert_routing": "提醒路由",
-      "sms_storage": "簡訊儲存位置"
+      "sms_storage": "簡訊儲存位置",
+      "metrics": "Prometheus 指標"
     },
     "create": {
       "card_title": "建立備份",

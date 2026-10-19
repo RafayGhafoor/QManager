@@ -729,5 +729,86 @@
         "range": "请输入 {{min}} 到 {{max}} 之间的整数。"
       }
     }
+  },
+  "prometheus": {
+    "page": {
+      "title": "Prometheus",
+      "description": "让 Prometheus 服务器采集此调制解调器的信号与运行状态数据。"
+    },
+    "card": {
+      "title": "Prometheus 指标",
+      "description": "抓取需要下方的令牌；设备标识符绝不会包含在内。"
+    },
+    "endpoint": {
+      "label": "指标端点",
+      "consequence_off": "Prometheus 无法读取此调制解调器。",
+      "consequence_on": "Prometheus 凭令牌可读取信号、运营商和运行状态数据。"
+    },
+    "freshness": {
+      "label": "抓取时效",
+      "hint_label": "关于抓取时效",
+      "hint": "仅在 Prometheus 至少每分钟抓取一次时生效。最后一次抓取两分钟后恢复正常轮询。",
+      "options": {
+        "adaptive": "自适应",
+        "balanced": "均衡",
+        "realtime": "实时"
+      },
+      "consequence": {
+        "adaptive": "抓取不会改变调制解调器的读取频率。",
+        "balanced": "Prometheus 抓取期间，调制解调器不会降到最慢的轮询频率。",
+        "realtime": "Prometheus 抓取期间，每 2 秒读取一次调制解调器，与打开仪表盘时相同。"
+      }
+    },
+    "facts": {
+      "no_scrapes": "尚无抓取记录",
+      "last_scrape_seconds_one": "上次抓取在 {{count}} 秒前",
+      "last_scrape_seconds_other": "上次抓取在 {{count}} 秒前",
+      "last_scrape_minutes_one": "上次抓取在 {{count}} 分钟前",
+      "last_scrape_minutes_other": "上次抓取在 {{count}} 分钟前",
+      "last_scrape_hours_one": "上次抓取在 {{count}} 小时前",
+      "last_scrape_hours_other": "上次抓取在 {{count}} 小时前",
+      "holding": "保持较快轮询",
+      "adaptive_off": "自适应轮询已关闭，因此数据始终是实时的"
+    },
+    "token": {
+      "label": "Bearer 令牌",
+      "consequence": "将其粘贴到 Prometheus 中作为抓取凭据。",
+      "show": "显示令牌",
+      "hide": "隐藏令牌",
+      "copy": "复制",
+      "regenerate": "重新生成…"
+    },
+    "regenerate_dialog": {
+      "title": "生成新令牌？",
+      "description": "在您把新令牌粘贴到 Prometheus 配置之前，它无法抓取。",
+      "cancel": "取消",
+      "confirm": "生成令牌"
+    },
+    "config": {
+      "label": "抓取配置",
+      "consequence": "将此 job 添加到您的 Prometheus 配置中。",
+      "hint_label": "关于抓取配置",
+      "hint": "调制解调器的证书为自签名，因此跳过验证。通过 Tailscale 时，也可以使用普通 http。",
+      "copy": "复制配置"
+    },
+    "foot": {
+      "save": "保存",
+      "discard": "放弃",
+      "token_on_save": "保存时会创建令牌。"
+    },
+    "toast": {
+      "saved": "Prometheus 设置已保存。",
+      "save_failed": "无法保存 Prometheus 设置。",
+      "regenerated": "已生成新令牌。",
+      "regenerate_failed": "无法生成新令牌。",
+      "token_copied": "令牌已复制。",
+      "config_copied": "抓取配置已复制。",
+      "copy_failed": "无法复制到剪贴板。"
+    },
+    "error": {
+      "title": "无法加载 Prometheus 设置",
+      "description": "调制解调器没有响应。请检查连接后重试。",
+      "retry": "重试"
+    }
   }
 }

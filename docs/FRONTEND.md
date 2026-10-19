@@ -55,6 +55,7 @@ app/                            # Next.js App Router
 │   ├── latency/                # Latency monitoring
 │   ├── alerts/                 # Centralized SMS + email connection alerts
 │   ├── watchdog/               # Watchdog settings
+│   ├── prometheus/             # Prometheus metrics endpoint (token, scrape freshness, scrape config)
 │   ├── logs/                   # System logs
 │   └── tailscale/              # Tailscale VPN
 ├── system-settings/            # System settings & scheduled ops
@@ -124,6 +125,7 @@ constants/                      # Static configuration data
 | `/monitoring/latency` | LatencyMonitoring | Right now + History cards, Sites card (per-site latency, live Now); see `docs/reference/latency-monitor.md` |
 | `/monitoring/alerts` | Alerts | Centralized SMS + email connection alerts (routing matrix + capability, readiness status, merged log) |
 | `/monitoring/watchdog` | Watchdog | Connection health |
+| `/monitoring/prometheus` | Prometheus | Prometheus scrape endpoint settings (enable, scrape freshness, bearer token, scrape config); see `docs/features/prometheus-metrics.md` |
 | `/monitoring/logs` | SystemLogs | Log viewer |
 | `/monitoring/tailscale` | Tailscale | VPN status |
 | `/system-settings` | SystemSettings | System preferences, scheduled ops |
@@ -224,6 +226,7 @@ if (result.success) { /* toast success */ }
 | `useAlerts` | `/monitoring/alerts.sh` | `alerts.ts` |
 | `useAlertsLog` | `/monitoring/alerts.sh` (`action: "get_log"`) | `alerts.ts` |
 | `useWatchdogSettings` | `/monitoring/watchdog.sh` | In hook file |
+| `usePrometheusMetrics` | `/monitoring/prometheus.sh` | `prometheus-metrics.ts` |
 | `useSystemSettings` | `/system/settings.sh` | `system-settings.ts` |
 | `useTailscale` | `/vpn/tailscale.sh` | — |
 

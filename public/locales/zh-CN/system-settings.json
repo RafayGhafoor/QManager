@@ -58,7 +58,8 @@
       "sites": "延迟监控站点",
       "sms_alerts": "短信提醒",
       "alert_routing": "提醒路由",
-      "sms_storage": "短信存储位置"
+      "sms_storage": "短信存储位置",
+      "metrics": "Prometheus 指标"
     },
     "create": {
       "card_title": "创建备份",

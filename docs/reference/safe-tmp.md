@@ -93,6 +93,17 @@ either: UBIFS can commit the rename before the temp's data. So:
   background `( ... ) &` worker records `qm_self_pid`, or the spawner records
   `$!`; never `echo $$` from the subshell (that is the caller, so a later
   `kill` would hit the calling daemon).
+- Machine-API state lives in `/var/run/qmanager` (Prometheus metrics, see
+  [`../features/prometheus-metrics.md`](../features/prometheus-metrics.md)):
+  `metrics_scrape` (`"<mode> <uptime_s>"`, written by the scrape CGI, read by
+  the poller) and `api_authfail_<scope>.stamp` (uptime seconds of the last
+  logged auth failure, one line, from `api_auth.sh`). Both are written with a
+  `$$`-suffixed temp and `mv -f` instead of `qm_atomic_write`, which saves the
+  `mktemp` fork on a request path. **That shortcut is acceptable only inside
+  the root-only run dir**, where nobody else can plant the final name or a
+  predictable temp. Do not copy it into `/tmp`. Readers parse defensively
+  (digits only, no leading zero, at most 10 digits, uptime not in the future)
+  and the stamp is read on the uptime clock.
 - Fail closed: when the helper is missing, a feature refuses to download,
   execute, source or kill, rather than falling back to the old fixed path.
 - Not moved: lock files and their FD numbers (a flock target only needs to
