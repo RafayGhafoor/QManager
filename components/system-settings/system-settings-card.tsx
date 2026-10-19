@@ -43,7 +43,6 @@ import {
 } from "@/components/ui/select";
 import { CardFoot } from "@/components/ui/card-foot";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
-import { SEGMENTED, SegmentedField } from "@/components/ui/segmented-field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { staggerRowItem, staggerRows } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -93,12 +92,6 @@ const TZ_LABEL_ID = "preferences-timezone-label";
 const TZ_LIST_ID = "preferences-timezone-list";
 const TEMP_LABEL_ID = "preferences-temperature-label";
 const DISTANCE_LABEL_ID = "preferences-distance-label";
-const TAILSCALE_LABEL_ID = "preferences-tailscale-label";
-
-/** The lucide check that `SegmentedField` reserves on every segment. */
-const renderCheckGlyph = (className: string) => (
-  <CheckIcon size={SEGMENTED.GLYPH} className={className} aria-hidden="true" />
-);
 
 // -----------------------------------------------------------------------------
 
@@ -223,18 +216,10 @@ function PreferencesForm({
   const [zonename, setZonename] = useState(settings?.zonename ?? "UTC");
   const [timezone, setTimezone] = useState(settings?.timezone ?? "UTC0");
   const [tzOpen, setTzOpen] = useState(false);
-  // The Tailscale row saves on its own, immediately, so it is not part of the
-  // draft or the dirty check.
-  const [forceTs, setForceTs] = useState(
-    settings?.force_tailscale_fixes ?? false,
-  );
-  const [tsSaving, setTsSaving] = useState(false);
 
   // Server -> local during render, never in an effect: a data-derived remount
   // would kill the pending `saved` flash, since the refetch and markSaved()
   // land in one React batch. `tzOpen` is popover state, deliberately not synced.
-  // Field by field: the Tailscale row's own refetch must not wipe an unsaved
-  // edit to a unit or the zone.
   if (settings !== prevSettings) {
     setPrevSettings(settings);
     if (settings?.temp_unit !== prevSettings?.temp_unit) {
@@ -249,9 +234,6 @@ function PreferencesForm({
     ) {
       setZonename(settings?.zonename ?? "UTC");
       setTimezone(settings?.timezone ?? "UTC0");
-    }
-    if (settings?.force_tailscale_fixes !== prevSettings?.force_tailscale_fixes) {
-      setForceTs(settings?.force_tailscale_fixes ?? false);
     }
   }
 
@@ -313,32 +295,6 @@ function PreferencesForm({
     markSaved,
     t,
   ]);
-
-  const handleTailscaleChange = useCallback(
-    async (next: "on" | "off") => {
-      const checked = next === "on";
-      setForceTs(checked);
-      setTsSaving(true);
-      const result = await saveSettings({
-        action: "save_settings",
-        force_tailscale_fixes: checked,
-      });
-      setTsSaving(false);
-      if (result.success) {
-        toast.success(
-          t(
-            checked
-              ? `${K}.rows.tailscale.toast_enabled`
-              : `${K}.rows.tailscale.toast_disabled`,
-          ),
-        );
-      } else {
-        setForceTs(!checked);
-        toast.error(result.message ?? t(`${K}.rows.tailscale.toast_failed`));
-      }
-    },
-    [saveSettings, t],
-  );
 
   const unsaved = t(`${K}.rows.unsaved`);
 
@@ -516,32 +472,6 @@ function PreferencesForm({
                 </SelectItem>
               </SelectContent>
             </Select>
-          </div>
-        </motion.div>
-
-        {/* ── Force Tailscale Fixes ───────────────────────────────────── */}
-        <motion.div variants={staggerRowItem} className={ROW.ROOT}>
-          <div className={ROW.TEXT}>
-            <span id={TAILSCALE_LABEL_ID} className={ROW.LABEL}>
-              {t(`${K}.rows.tailscale.label`)}
-            </span>
-            <span className={ROW.CONSEQUENCE}>
-              {t(`${K}.rows.tailscale.consequence`)}
-            </span>
-          </div>
-          <div className={ROW.CONTROL}>
-            <SegmentedField
-              value={forceTs ? "on" : "off"}
-              onValueChange={(next) => void handleTailscaleChange(next)}
-              options={[
-                { value: "off", label: t("state.off", { ns: "common" }) },
-                { value: "on", label: t("state.on", { ns: "common" }) },
-              ]}
-              ariaLabel={t(`${K}.rows.tailscale.label`)}
-              disabled={tsSaving}
-              breakpoint="never"
-              glyph={renderCheckGlyph}
-            />
           </div>
         </motion.div>
       </motion.div>

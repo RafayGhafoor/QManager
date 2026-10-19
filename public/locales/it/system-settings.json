@@ -1147,13 +1147,6 @@
         "consequence": "Vale per la distanza dalla cella nelle pagine dello scanner delle celle e delle antenne.",
         "km": "Chilometri (km)",
         "miles": "Miglia (mi)"
-      },
-      "tailscale": {
-        "label": "Forza correzioni Tailscale",
-        "consequence": "Applica le correzioni di firewall e routing Tailscale di QManager sopra il firmware. Consigliato per il firmware R02.",
-        "toast_failed": "Impossibile aggiornare Forza correzioni Tailscale",
-        "toast_enabled": "Forza correzioni Tailscale abilitato. Applicazione delle modifiche al firewall in corso.",
-        "toast_disabled": "Forza correzioni Tailscale disabilitato. Rimozione delle modifiche al firewall in corso."
       }
     },
     "states": {

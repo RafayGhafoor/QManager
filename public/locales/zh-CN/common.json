@@ -487,7 +487,16 @@
       "sshLocked": "连接 Tailscale 后才能更改此设置。",
       "sshDialogTitle": "开启 Tailscale SSH？",
       "sshDialogDescription": "tailnet 成员将能够根据你的 Tailscale 管理后台 ACL 通过 SSH 连接此调制解调器。请先检查该策略，确保只有你允许的人能访问此设备。",
-      "sshConfirm": "开启 SSH"
+      "sshConfirm": "开启 SSH",
+      "updateAvailable": "有可用更新（{{version}}）",
+      "update": "更新",
+      "updating": "正在更新…",
+      "updateDialogTitle": "将 Tailscale 更新到 {{version}}？",
+      "updateDialogDescription": "新版本启动期间，隧道会重新连接几秒钟。",
+      "updateLogTitle": "更新日志",
+      "communityBuild": "社区版",
+      "netFixesTitle": "网络修复",
+      "netFixesDescription": "让你的 tailnet 设备能够访问这台调制解调器及其局域网。"
     },
     "device": {
       "title": "此设备",
@@ -499,6 +508,7 @@
       "tailnet": "Tailnet",
       "magicDns": "MagicDNS",
       "relay": "DERP 中继",
+      "version": "版本",
       "emptyTitle": "尚未加入 tailnet",
       "emptyDescription": "连接 Tailscale 后，此调制解调器的地址、DNS 名称和中继信息会显示在这里。"
     },
@@ -532,7 +542,7 @@
     },
     "install": {
       "title": "Tailscale",
-      "description": "无需开放端口，即可从任何地方访问这台调制解调器的 mesh VPN。",
+      "description": "安装 Tailscale 官方版本。这是一种 mesh VPN，无需开放端口即可从任何地方访问这台调制解调器。",
       "conditionTitle": "尚未安装 Tailscale",
       "conditionDescription": "安装会通过当前这条蜂窝连接下载 Tailscale 安装包，因此会消耗你的流量，安装期间连接也会变慢。",
       "install": "安装 Tailscale",
@@ -540,22 +550,8 @@
       "checkAgain": "再次检查",
       "done": "Tailscale 已安装。",
       "failed": "安装未完成。",
-      "manualLabel": "或通过命令行安装",
-      "copyCommand": "复制安装命令",
       "logTitle": "安装日志",
-      "logWaiting": "等待输出…",
-      "chooseLabel": "选择要安装的版本",
-      "manualCommand": "opkg update && opkg install luci-app-tailscale-community-tiny",
-      "variant": {
-        "official": {
-          "title": "官方版",
-          "description": "最新版本，直接来自 Tailscale。占用约 50 MB 磁盘空间。"
-        },
-        "tiny": {
-          "title": "Tiny",
-          "description": "轻量级社区软件包。体积更小，但版本较旧。"
-        }
-      }
+      "logWaiting": "等待输出…"
     },
     "danger": {
       "uninstall": "卸载",
@@ -584,8 +580,6 @@
       "serviceStopFailed": "无法停止 Tailscale 服务",
       "uninstalled": "Tailscale 已卸载",
       "uninstallFailed": "无法卸载 Tailscale",
-      "copied": "命令已复制",
-      "copyFailed": "无法复制命令",
       "exitNodeEnabled": "已宣告为出口节点",
       "exitNodeDisabled": "已停止宣告为出口节点",
       "exitNodeFailed": "无法更改出口节点宣告",
@@ -594,11 +588,20 @@
       "sshDisabled": "Tailscale SSH 已关闭",
       "sshDisableFailed": "无法关闭 Tailscale SSH",
       "installed": "Tailscale 已安装",
-      "installFailed": "Tailscale 安装未完成"
+      "installFailed": "Tailscale 安装未完成",
+      "updated": "Tailscale 已更新到 {{version}}",
+      "updateFailed": "无法更新 Tailscale",
+      "netFixesOn": "网络修复已开启",
+      "netFixesOff": "网络修复已关闭",
+      "netFixesFailed": "无法更改网络修复设置"
     },
     "mutex": {
       "title": "已安装其他 VPN",
       "description": "同一时间只能安装一个 VPN。请先在 <link>NetBird 页面</link>卸载 {{other_vpn}}。"
+    },
+    "legacy": {
+      "title": "旧版社区版本",
+      "description": "这台调制解调器运行的是 Tailscale 旧版社区版本。请先卸载，再重新安装，即可切换到官方版本。"
     }
   },
   "pending_reboot": {

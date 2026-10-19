@@ -1147,13 +1147,6 @@
         "consequence": "Applies to tower distance on the cell scanner and antenna pages.",
         "km": "Kilometers (km)",
         "miles": "Miles (mi)"
-      },
-      "tailscale": {
-        "label": "Force Tailscale Fixes",
-        "consequence": "Applies QManager's own Tailscale firewall and routing fixes on top of your firmware. Recommended for R02 firmware.",
-        "toast_failed": "Failed to update Force Tailscale Fixes",
-        "toast_enabled": "Force Tailscale Fixes enabled. Applying firewall changes.",
-        "toast_disabled": "Force Tailscale Fixes disabled. Removing firewall changes."
       }
     },
     "states": {

@@ -1147,13 +1147,6 @@
         "consequence": "適用於基地台掃描與天線頁面上的基地台距離。",
         "km": "公里（km）",
         "miles": "英里（mi）"
-      },
-      "tailscale": {
-        "label": "強制 Tailscale 修復",
-        "consequence": "在韌體之上疊加套用 QManager 自身的 Tailscale 防火牆與路由修復。推薦 R02 韌體使用者啟用。",
-        "toast_failed": "更新強制 Tailscale 修復失敗",
-        "toast_enabled": "已啟用強制 Tailscale 修復，正在套用防火牆變更。",
-        "toast_disabled": "已停用強制 Tailscale 修復，正在移除防火牆變更。"
       }
     },
     "states": {

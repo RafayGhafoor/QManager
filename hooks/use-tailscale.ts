@@ -10,9 +10,14 @@ import type { InstallResult } from "@/types/video-optimizer";
 // useTailscale — Fetch & Action Hook for Tailscale VPN Management
 // =============================================================================
 // Fetches Tailscale status on mount (tiered: not installed → stopped → full).
-// Provides action methods for connect, disconnect, logout, service, boot and
-// exit-node toggles, install and uninstall.
+// Provides action methods for connect, disconnect, logout, service, boot,
+// exit-node and network-fixes toggles, install, update and uninstall.
 // Adaptive polling: 10s normal, 3s during auth wait.
+//
+// Update: the official build is replaced in place and tailscaled restarts, so
+// the tunnel (and this page, when it is served over it) drops for a few
+// seconds. `runUpdate` therefore tolerates a window of failed progress polls
+// instead of reading them as a failed update.
 //
 // Every action RETURNS its outcome (`TailscaleActionResult`) instead of parking
 // the failure reason in hook state: a caller that toasts after an `await` would
@@ -25,6 +30,12 @@ const CGI_ENDPOINT = "/cgi-bin/quecmanager/vpn/tailscale.sh";
 
 const POLL_NORMAL_MS = 10_000;
 const POLL_AUTH_MS = 3_000;
+
+const INSTALL_POLL_MS = 2_000;
+/** Failed progress reads this long in a row mean the update is not coming back. */
+const UPDATE_FAIL_TOLERANCE_MS = 20_000;
+/** Upper bound on one update, download over cellular included. */
+const UPDATE_MAX_MS = 10 * 60_000;
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -65,8 +76,17 @@ export interface TailscaleStatus {
   tailnet?: TailscaleTailnet;
   peers?: TailscalePeer[];
   health?: string[];
-  install_hint?: string;
   install_variant?: "official" | "tiny" | "opkg";
+  /** Newest official version, "" when it could not be determined. */
+  latest_version?: string;
+  /** Official builds only; always false on a legacy build. */
+  update_available?: boolean;
+  /** The older community (tiny / opkg) build. It cannot be updated in place. */
+  legacy_build?: boolean;
+  /** Reachability fixes for tailnet devices (fw4 zone + routing rule). */
+  net_fixes_enabled?: boolean;
+  /** An install or update holds the lock; the other fields may be absent. */
+  busy?: "install" | "update";
   exit_node_advertised?: boolean;
   /** Tailscale SSH server (tailscaled's RunSSH pref); null when unreadable. */
   ssh_enabled?: boolean | null;
@@ -75,7 +95,10 @@ export interface TailscaleStatus {
   other_vpn_name?: string;
 }
 
-export type TailscaleInstallVariant = "official" | "tiny";
+/** `install_status` also reports which operation is (or was) running. */
+export interface TailscaleInstallResult extends InstallResult {
+  op?: "install" | "update";
+}
 
 /**
  * The outcome of one mutation. `reason` is the backend's own explanation,
@@ -97,7 +120,9 @@ export interface UseTailscaleReturn {
   isTogglingExitNode: boolean;
   isTogglingSsh: boolean;
   isUninstalling: boolean;
-  installResult: InstallResult;
+  isUpdating: boolean;
+  isTogglingNetFixes: boolean;
+  installResult: TailscaleInstallResult;
   error: string | null;
   connect: () => Promise<TailscaleActionResult>;
   disconnect: () => Promise<TailscaleActionResult>;
@@ -108,7 +133,10 @@ export interface UseTailscaleReturn {
   setExitNodeAdvertised: (enabled: boolean) => Promise<TailscaleActionResult>;
   setSshEnabled: (enabled: boolean) => Promise<TailscaleActionResult>;
   uninstall: () => Promise<TailscaleActionResult>;
-  runInstall: (variant: TailscaleInstallVariant) => Promise<void>;
+  setNetFixes: (enabled: boolean) => Promise<TailscaleActionResult>;
+  checkUpdate: (force?: boolean) => Promise<TailscaleActionResult>;
+  runUpdate: () => Promise<TailscaleActionResult>;
+  runInstall: () => Promise<void>;
   refresh: () => void;
 }
 
@@ -117,6 +145,21 @@ interface PostResponse {
   error?: string;
   detail?: string;
 }
+
+interface InstallStatusResponse extends PostResponse {
+  status?: TailscaleInstallResult["status"];
+  message?: string;
+  log?: string;
+  op?: "install" | "update";
+}
+
+interface CheckUpdateResponse extends PostResponse {
+  latest_version?: string;
+  update_available?: boolean;
+}
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const OK: TailscaleActionResult = { ok: true, reason: "" };
 
@@ -133,11 +176,15 @@ export function useTailscale(): UseTailscaleReturn {
   const [isTogglingExitNode, setIsTogglingExitNode] = useState(false);
   const [isTogglingSsh, setIsTogglingSsh] = useState(false);
   const [isUninstalling, setIsUninstalling] = useState(false);
-  const [installResult, setInstallResult] = useState<InstallResult>({
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isTogglingNetFixes, setIsTogglingNetFixes] = useState(false);
+  const [installResult, setInstallResult] = useState<TailscaleInstallResult>({
     success: true,
     status: "idle",
   });
   const installPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const updatingRef = useRef(false);
+  const updateCheckedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   const mountedRef = useRef(true);
@@ -176,6 +223,16 @@ export function useTailscale(): UseTailscaleReturn {
               undefined,
               "Failed to fetch Tailscale status",
             ),
+          );
+          return;
+        }
+
+        // While an install or update holds the lock the CGI answers with a bare
+        // `{installed, busy}`. Layered over a good payload it keeps the card on
+        // screen; replacing it would read as "service stopped".
+        if (json.busy) {
+          setStatus((prev) =>
+            prev?.installed ? { ...prev, busy: json.busy } : json,
           );
           return;
         }
@@ -321,7 +378,16 @@ export function useTailscale(): UseTailscaleReturn {
   );
 
   // ---------------------------------------------------------------------------
-  // Install (official tarball or tiny opkg), polled until terminal
+  // Network fixes (reachability for tailnet devices)
+  // ---------------------------------------------------------------------------
+  const setNetFixes = useCallback(
+    (enabled: boolean) =>
+      runAction({ action: "set_net_fixes", enabled }, setIsTogglingNetFixes),
+    [runAction],
+  );
+
+  // ---------------------------------------------------------------------------
+  // Install and update (both background jobs reported through install_status)
   // ---------------------------------------------------------------------------
   const stopInstallPolling = useCallback(() => {
     if (installPollRef.current) {
@@ -330,11 +396,29 @@ export function useTailscale(): UseTailscaleReturn {
     }
   }, []);
 
+  /** Normalise one install_status read; a backend error code beats its prose. */
+  const toInstallResult = useCallback(
+    (r: InstallStatusResponse): TailscaleInstallResult => ({
+      success: r.success,
+      status: r.status ?? "idle",
+      message:
+        r.status === "error"
+          ? resolveErrorMessage(t, r.error, r.detail, r.message ?? "")
+          : r.message,
+      detail: r.detail,
+      log: r.log,
+      op: r.op,
+    }),
+    [t],
+  );
+
   const pollInstallStatus = useCallback(async () => {
     try {
-      const json = await postAction({ action: "install_status" });
+      const json = (await postAction({
+        action: "install_status",
+      })) as InstallStatusResponse;
       if (!mountedRef.current) return;
-      const r = json as unknown as InstallResult;
+      const r = toInstallResult(json);
       setInstallResult(r);
       if (r.status === "complete" || r.status === "error") {
         stopInstallPolling();
@@ -343,38 +427,151 @@ export function useTailscale(): UseTailscaleReturn {
     } catch {
       // Silently retry on next poll
     }
-  }, [postAction, stopInstallPolling, fetchStatus]);
+  }, [postAction, toInstallResult, stopInstallPolling, fetchStatus]);
 
-  const runInstall = useCallback(
-    async (variant: TailscaleInstallVariant) => {
-      stopInstallPolling();
-      setInstallResult({ success: true, status: "running" });
+  const runInstall = useCallback(async () => {
+    stopInstallPolling();
+    setInstallResult({ success: true, status: "running", op: "install" });
+    try {
+      const json = await postAction({ action: "install" });
+      if (!mountedRef.current) return;
+      if (!json.success) {
+        // Refused up front (another VPN, install already running, ...): no
+        // background job exists to poll.
+        setInstallResult({
+          success: false,
+          status: "error",
+          message: resolveErrorMessage(t, json.error, json.detail, ""),
+        });
+        return;
+      }
+      installPollRef.current = setInterval(pollInstallStatus, INSTALL_POLL_MS);
+    } catch (err) {
+      if (mountedRef.current) {
+        setInstallResult({
+          success: false,
+          status: "error",
+          message: err instanceof Error ? err.message : "",
+        });
+      }
+    }
+  }, [postAction, pollInstallStatus, stopInstallPolling, t]);
+
+  /**
+   * Ask for the newest official version. Merges the answer into `status`
+   * instead of refetching, so the card does not flicker for a background read.
+   */
+  const checkUpdate = useCallback(
+    async (force = false): Promise<TailscaleActionResult> => {
       try {
-        const json = await postAction({ action: "install", variant });
-        if (!mountedRef.current) return;
+        const json = (await postAction({
+          action: "check_update",
+          ...(force ? { force: true } : {}),
+        })) as CheckUpdateResponse;
         if (!json.success) {
-          // Refused up front (another VPN, install already running, ...): no
-          // background job exists to poll.
-          setInstallResult({
-            success: false,
-            status: "error",
-            message: resolveErrorMessage(t, json.error, json.detail, ""),
-          });
-          return;
+          return {
+            ok: false,
+            reason: resolveErrorMessage(t, json.error, json.detail, ""),
+          };
         }
-        installPollRef.current = setInterval(pollInstallStatus, 2000);
-      } catch (err) {
         if (mountedRef.current) {
-          setInstallResult({
-            success: false,
-            status: "error",
-            message: err instanceof Error ? err.message : "",
-          });
+          setStatus((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  latest_version: json.latest_version ?? prev.latest_version,
+                  update_available:
+                    json.update_available ?? prev.update_available,
+                }
+              : prev,
+          );
         }
+        return OK;
+      } catch (err) {
+        return {
+          ok: false,
+          reason: err instanceof Error ? err.message : "",
+        };
       }
     },
-    [postAction, pollInstallStatus, stopInstallPolling, t],
+    [postAction, t],
   );
+
+  // One background check per visit, once an official build is known to be
+  // installed. The CGI caches the answer, so this is cheap, and a failure
+  // simply leaves the page without an update badge.
+  const shouldCheckUpdate =
+    !!status?.installed && !status.legacy_build && !status.busy;
+  useEffect(() => {
+    if (!shouldCheckUpdate || updateCheckedRef.current) return;
+    updateCheckedRef.current = true;
+    void checkUpdate();
+  }, [shouldCheckUpdate, checkUpdate]);
+
+  /**
+   * Start the update and follow it to the end. The tunnel restarts partway
+   * through, so a run of failed progress reads is expected and tolerated; only
+   * a longer silence is reported as a failure. The loop deliberately outlives
+   * the component so the toast still lands if the user navigates away.
+   */
+  const runUpdate = useCallback(async (): Promise<TailscaleActionResult> => {
+    if (updatingRef.current) return { ok: false, reason: "" };
+    updatingRef.current = true;
+    setIsUpdating(true);
+    setInstallResult({ success: true, status: "running", op: "update" });
+
+    const fail = (reason: string): TailscaleActionResult => {
+      if (mountedRef.current) {
+        setInstallResult({
+          success: false,
+          status: "error",
+          message: reason,
+          op: "update",
+        });
+      }
+      return { ok: false, reason };
+    };
+
+    try {
+      const started = await postAction({ action: "update" });
+      if (!started.success) {
+        return fail(resolveErrorMessage(t, started.error, started.detail, ""));
+      }
+
+      const startedAt = Date.now();
+      let failingSince: number | null = null;
+      while (Date.now() - startedAt < UPDATE_MAX_MS) {
+        await sleep(INSTALL_POLL_MS);
+        try {
+          const json = (await postAction({
+            action: "install_status",
+          })) as InstallStatusResponse;
+          failingSince = null;
+          const r = toInstallResult({ ...json, op: json.op ?? "update" });
+          if (mountedRef.current) setInstallResult(r);
+          if (r.status === "complete") {
+            await fetchStatus(true);
+            return OK;
+          }
+          if (r.status === "error") {
+            await fetchStatus(true);
+            return { ok: false, reason: r.message ?? "" };
+          }
+        } catch {
+          failingSince ??= Date.now();
+          if (Date.now() - failingSince > UPDATE_FAIL_TOLERANCE_MS) {
+            return fail("");
+          }
+        }
+      }
+      return fail("");
+    } catch (err) {
+      return fail(err instanceof Error ? err.message : "");
+    } finally {
+      updatingRef.current = false;
+      if (mountedRef.current) setIsUpdating(false);
+    }
+  }, [postAction, toInstallResult, fetchStatus, t]);
 
   return {
     status,
@@ -386,6 +583,8 @@ export function useTailscale(): UseTailscaleReturn {
     isTogglingExitNode,
     isTogglingSsh,
     isUninstalling,
+    isUpdating,
+    isTogglingNetFixes,
     installResult,
     error,
     connect,
@@ -397,6 +596,9 @@ export function useTailscale(): UseTailscaleReturn {
     setExitNodeAdvertised,
     setSshEnabled,
     uninstall,
+    setNetFixes,
+    checkUpdate,
+    runUpdate,
     runInstall,
     refresh: fetchStatus,
   };

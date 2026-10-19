@@ -487,7 +487,16 @@
       "sshLocked": "Connettiti a Tailscale per cambiare questa impostazione.",
       "sshDialogTitle": "Attivare Tailscale SSH?",
       "sshDialogDescription": "I membri della tailnet potranno collegarsi via SSH a questo modem in base alle ACL del tuo pannello admin Tailscale. Controlla prima quella policy, così solo le persone che intendi possono raggiungere il dispositivo.",
-      "sshConfirm": "Attiva SSH"
+      "sshConfirm": "Attiva SSH",
+      "updateAvailable": "Aggiornamento disponibile ({{version}})",
+      "update": "Aggiorna",
+      "updating": "Aggiornamento…",
+      "updateDialogTitle": "Aggiornare Tailscale alla versione {{version}}?",
+      "updateDialogDescription": "Il tunnel si riconnette per qualche secondo mentre si avvia la nuova versione.",
+      "updateLogTitle": "Registro dell'aggiornamento",
+      "communityBuild": "Versione community",
+      "netFixesTitle": "Correzioni di rete",
+      "netFixesDescription": "Permette ai dispositivi della tua tailnet di raggiungere questo modem e la sua LAN."
     },
     "device": {
       "title": "Questo dispositivo",
@@ -499,6 +508,7 @@
       "tailnet": "Tailnet",
       "magicDns": "MagicDNS",
       "relay": "Relay DERP",
+      "version": "Versione",
       "emptyTitle": "Non sulla tailnet",
       "emptyDescription": "Connetti Tailscale e qui compariranno l'indirizzo, il nome DNS e il relay di questo modem."
     },
@@ -532,7 +542,7 @@
     },
     "install": {
       "title": "Tailscale",
-      "description": "Una mesh VPN per raggiungere questo modem da ovunque, senza aprire una porta.",
+      "description": "Installa la versione ufficiale di Tailscale, una mesh VPN per raggiungere questo modem da ovunque, senza aprire una porta.",
       "conditionTitle": "Tailscale non è installato",
       "conditionDescription": "L'installazione scarica i pacchetti Tailscale sulla stessa connessione cellulare su cui gira questa sessione, quindi consuma il tuo traffico dati e la connessione sarà più lenta durante l'operazione.",
       "install": "Installa Tailscale",
@@ -540,22 +550,8 @@
       "checkAgain": "Controlla di nuovo",
       "done": "Tailscale installato.",
       "failed": "L'installazione non è andata a buon fine.",
-      "manualLabel": "Oppure installa da shell",
-      "copyCommand": "Copia il comando di installazione",
       "logTitle": "Log di installazione",
-      "logWaiting": "In attesa di output…",
-      "chooseLabel": "Scegli la versione da installare",
-      "manualCommand": "opkg update && opkg install luci-app-tailscale-community-tiny",
-      "variant": {
-        "official": {
-          "title": "Ufficiale",
-          "description": "L'ultima versione, direttamente da Tailscale. Occupa circa 50 MB su disco."
-        },
-        "tiny": {
-          "title": "Tiny",
-          "description": "Un pacchetto community leggero. Più piccolo, ma di una versione meno recente."
-        }
-      }
+      "logWaiting": "In attesa di output…"
     },
     "danger": {
       "uninstall": "Disinstalla",
@@ -584,8 +580,6 @@
       "serviceStopFailed": "Impossibile fermare il servizio Tailscale",
       "uninstalled": "Tailscale disinstallato",
       "uninstallFailed": "Impossibile disinstallare Tailscale",
-      "copied": "Comando copiato",
-      "copyFailed": "Impossibile copiare il comando",
       "exitNodeEnabled": "Annuncio come exit node attivo",
       "exitNodeDisabled": "Annuncio come exit node disattivato",
       "exitNodeFailed": "Impossibile modificare l'annuncio come exit node",
@@ -594,11 +588,20 @@
       "sshDisabled": "Tailscale SSH è disattivo",
       "sshDisableFailed": "Impossibile disattivare Tailscale SSH",
       "installed": "Tailscale installato",
-      "installFailed": "L'installazione di Tailscale non è stata completata"
+      "installFailed": "L'installazione di Tailscale non è stata completata",
+      "updated": "Tailscale aggiornato alla versione {{version}}",
+      "updateFailed": "Impossibile aggiornare Tailscale",
+      "netFixesOn": "Correzioni di rete attivate",
+      "netFixesOff": "Correzioni di rete disattivate",
+      "netFixesFailed": "Impossibile modificare le correzioni di rete"
     },
     "mutex": {
       "title": "È installata un'altra VPN",
       "description": "È possibile installare una sola VPN alla volta. Disinstalla prima {{other_vpn}} dalla pagina <link>NetBird</link>."
+    },
+    "legacy": {
+      "title": "Versione community precedente",
+      "description": "Questo modem usa la versione community precedente di Tailscale. Disinstallala e installala di nuovo per passare alla versione ufficiale."
     }
   },
   "pending_reboot": {

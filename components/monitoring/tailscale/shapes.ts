@@ -255,24 +255,6 @@ export const LOG_PANEL = {
   PLACEHOLDER: "text-on-surface-variant",
 } as const;
 
-/** The build choice: a label, the pill group, and the chosen build's caption. */
-export const VARIANT = {
-  ROOT: "flex w-full flex-col items-center gap-2 text-center",
-  LABEL:
-    "text-on-surface-variant text-[0.6875rem] font-semibold tracking-[0.02em] uppercase",
-  DESC: "text-on-surface-variant max-w-sm text-xs leading-[1.5] text-pretty",
-} as const;
-
-/** One labelled machine-voice row, replacing the "or install manually" ritual. */
-export const COMMAND = {
-  ROOT: "flex w-full flex-col gap-1.5",
-  LABEL:
-    "text-on-surface-variant text-[0.6875rem] font-semibold tracking-[0.02em] uppercase",
-  BOX: "flex items-center gap-2 rounded-tile bg-surface-container px-4 py-2.5",
-  TEXT: "text-on-surface min-w-0 flex-1 overflow-x-auto font-mono text-xs select-all",
-  COPY: "text-on-surface-variant hover:bg-surface-container-high flex-none",
-} as const;
-
 // -----------------------------------------------------------------------------
 // Conditions
 // -----------------------------------------------------------------------------

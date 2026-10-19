@@ -48,7 +48,7 @@ Geometry is restated from the system's numbers, never imported across a family b
 
 ## What the backend actually sends
 
-`system/settings.sh` GET returns `settings` (`force_tailscale_fixes`, `hostname`,
+`system/settings.sh` GET returns `settings` (`hostname`,
 `temp_unit`, `distance_unit`, `timezone`, `zonename`), `scheduled_reboot` and
 `low_power`. It does **not** send the fields the source UI used: `effective_offset`,
 `effective_zone_abbr`, `timezone_applied`, `timezone_apply_status`, and the reboot
@@ -92,9 +92,9 @@ stale notices.
 - **Schedule blocks sync on identity** (`server !== prev`), never on truthiness, and are
   held off while a save is queued or in flight (`savePending`), so a refresh landing
   inside the debounce window cannot overwrite the edit being saved.
-- **Preferences syncs field by field.** The Force Tailscale Fixes row saves
-  immediately and refetches `settings`; resetting every draft on that refetch would wipe
-  an unsaved zone or unit edit.
+- **Preferences syncs field by field.** The draft re-syncs per field when `settings`
+  changes, so a refetch (a poll, or the unit or zone just saved) cannot wipe an unsaved
+  edit to another field.
 - **One cascade root per route, for everything present at mount.** `system-settings.tsx`
   declares `initial`/`animate`; the card grid is a nested `staggerContainer`. A row
   cascade that mounts on a skeleton -> data swap arrives after the page's clock has run,
@@ -110,10 +110,13 @@ stale notices.
 ### Time & Units (`system-settings-card.tsx`)
 
 Time zone, temperature and distance rows in one tonal group, committed from `CardFoot`
-(Discard, then `SaveButton`). Each row has its own `Unsaved` marker. The last row is
-**Force Tailscale Fixes**, target-only: a `SegmentedField` (Off / On, caller passes the
-lucide check through `glyph`) that saves immediately with its own toast and is excluded
-from the draft and the dirty check.
+(Discard, then `SaveButton`). Each row has its own `Unsaved` marker.
+
+> ℹ️ NOTE: The target-only **Force Tailscale Fixes** row was removed with the Tailscale
+> rework. The fw4 zone and routing rule are now automatic, and the on/off lives in the
+> **Network fixes** row on the Tailscale page ([`tailscale.md`](tailscale.md)).
+> `settings.sh` no longer reads or writes `force_tailscale_fixes`; an old client that
+> still posts it is ignored.
 
 ### Scheduled Operations (`scheduled-operations-card.tsx`)
 

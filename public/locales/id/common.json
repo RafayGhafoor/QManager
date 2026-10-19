@@ -487,7 +487,16 @@
       "sshLocked": "Hubungkan ke Tailscale untuk mengubah ini.",
       "sshDialogTitle": "Aktifkan Tailscale SSH?",
       "sshDialogDescription": "Anggota tailnet akan bisa membuka SSH ke modem ini berdasarkan ACL panel admin Tailscale Anda. Tinjau dulu kebijakan itu, agar hanya orang yang Anda maksud yang bisa menjangkau perangkat ini.",
-      "sshConfirm": "Aktifkan SSH"
+      "sshConfirm": "Aktifkan SSH",
+      "updateAvailable": "Pembaruan tersedia ({{version}})",
+      "update": "Perbarui",
+      "updating": "Memperbarui…",
+      "updateDialogTitle": "Perbarui Tailscale ke {{version}}?",
+      "updateDialogDescription": "Tunnel tersambung ulang selama beberapa detik saat versi baru dimulai.",
+      "updateLogTitle": "Log pembaruan",
+      "communityBuild": "Build komunitas",
+      "netFixesTitle": "Perbaikan jaringan",
+      "netFixesDescription": "Memungkinkan perangkat tailnet Anda menjangkau modem ini dan LAN-nya."
     },
     "device": {
       "title": "Perangkat ini",
@@ -499,6 +508,7 @@
       "tailnet": "Tailnet",
       "magicDns": "MagicDNS",
       "relay": "Relay DERP",
+      "version": "Versi",
       "emptyTitle": "Belum di tailnet",
       "emptyDescription": "Hubungkan Tailscale dan alamat, nama DNS, serta relay modem ini akan muncul di sini."
     },
@@ -532,7 +542,7 @@
     },
     "install": {
       "title": "Tailscale",
-      "description": "Mesh VPN untuk menjangkau modem ini dari mana saja, tanpa membuka port.",
+      "description": "Memasang versi resmi dari Tailscale, mesh VPN untuk menjangkau modem ini dari mana saja tanpa membuka port.",
       "conditionTitle": "Tailscale belum terinstal",
       "conditionDescription": "Instalasi mengunduh paket Tailscale lewat koneksi seluler yang sama dengan sesi ini, jadi ini memakai kuota data Anda dan koneksi akan lebih lambat selama berlangsung.",
       "install": "Instal Tailscale",
@@ -540,22 +550,8 @@
       "checkAgain": "Periksa lagi",
       "done": "Tailscale terinstal.",
       "failed": "Instalasi tidak selesai.",
-      "manualLabel": "Atau instal lewat shell",
-      "copyCommand": "Salin perintah instalasi",
       "logTitle": "Log instalasi",
-      "logWaiting": "Menunggu output…",
-      "chooseLabel": "Pilih versi yang akan dipasang",
-      "manualCommand": "opkg update && opkg install luci-app-tailscale-community-tiny",
-      "variant": {
-        "official": {
-          "title": "Resmi",
-          "description": "Versi terbaru, langsung dari Tailscale. Memakan sekitar 50 MB penyimpanan."
-        },
-        "tiny": {
-          "title": "Tiny",
-          "description": "Paket komunitas ringan. Lebih kecil, tetapi versinya lebih lama."
-        }
-      }
+      "logWaiting": "Menunggu output…"
     },
     "danger": {
       "uninstall": "Hapus instalasi",
@@ -584,8 +580,6 @@
       "serviceStopFailed": "Tidak dapat menghentikan layanan Tailscale",
       "uninstalled": "Tailscale dihapus",
       "uninstallFailed": "Tidak dapat menghapus Tailscale",
-      "copied": "Perintah disalin",
-      "copyFailed": "Tidak dapat menyalin perintah",
       "exitNodeEnabled": "Diiklankan sebagai exit node",
       "exitNodeDisabled": "Tidak lagi diiklankan sebagai exit node",
       "exitNodeFailed": "Tidak dapat mengubah pengiklanan exit node",
@@ -594,11 +588,20 @@
       "sshDisabled": "Tailscale SSH nonaktif",
       "sshDisableFailed": "Tidak dapat menonaktifkan Tailscale SSH",
       "installed": "Tailscale terinstal",
-      "installFailed": "Instalasi Tailscale tidak selesai"
+      "installFailed": "Instalasi Tailscale tidak selesai",
+      "updated": "Tailscale diperbarui ke {{version}}",
+      "updateFailed": "Tailscale tidak dapat diperbarui",
+      "netFixesOn": "Perbaikan jaringan aktif",
+      "netFixesOff": "Perbaikan jaringan nonaktif",
+      "netFixesFailed": "Tidak dapat mengubah perbaikan jaringan"
     },
     "mutex": {
       "title": "VPN lain sudah terinstal",
       "description": "Hanya satu VPN yang dapat diinstal dalam satu waktu. Copot {{other_vpn}} dari <link>halaman NetBird</link> terlebih dahulu."
+    },
+    "legacy": {
+      "title": "Build komunitas lama",
+      "description": "Modem ini menjalankan build komunitas Tailscale yang lama. Copot lalu pasang ulang untuk beralih ke build resmi."
     }
   },
   "pending_reboot": {

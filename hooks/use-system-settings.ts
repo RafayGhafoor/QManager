@@ -26,7 +26,6 @@ const CGI_ENDPOINT = "/cgi-bin/quecmanager/system/settings.sh";
 
 export interface SaveSettingsPayload {
   action: "save_settings";
-  force_tailscale_fixes?: boolean;
   hostname?: string;
   temp_unit?: "celsius" | "fahrenheit";
   distance_unit?: "km" | "miles";

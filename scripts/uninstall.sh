@@ -317,20 +317,20 @@ remove_backend() {
     done
     info "Removed $bin_count binary/daemon file(s) from $BIN_DIR"
 
-    # --- Tailscale Force-Fixes firewall cleanup ---
-    # If the user opted into Force Tailscale Fixes, an explicit fw4 zone for
-    # tailscale0 + a mwan3 ipset entry for the CGNAT range were created. Drop
-    # them before /usr/lib/qmanager is wiped (vpn_firewall.sh must still be
-    # sourceable). The library is idempotent — fast no-op if no zone exists,
-    # and preserves the mwan3 entry when NetBird is also installed.
-    if [ -f "$LIB_DIR/vpn_firewall.sh" ]; then
-        # shellcheck disable=SC1091
-        . "$LIB_DIR/vpn_firewall.sh"
-        if command -v vpn_fw_remove_zone >/dev/null 2>&1; then
-            vpn_fw_remove_zone "tailscale" 2>/dev/null || true
-            info "Cleaned up Tailscale firewall workarounds (if present)"
-        fi
+    # --- Tailscale network fixes teardown ---
+    # Drops the fw4 'tailscale' zone + forwardings and the pref-1990 ip rules
+    # (v4 + v6) that tailscale_net.sh owns. Idempotent and independent of the
+    # tailscale_net.enabled toggle, so run it whenever the lib exists; it must
+    # run before /usr/lib/qmanager is wiped below. Subshell keeps the lib's
+    # names out of this script and a failure non-fatal.
+    if [ -f "$LIB_DIR/tailscale_net.sh" ]; then
+        (
+            . "$LIB_DIR/tailscale_net.sh"
+            ts_net_teardown
+        ) >>"$LOG_FILE" 2>&1 || true
+        info "Cleaned up Tailscale network fixes (if present)"
     fi
+    uci -q delete quecmanager.tailscale_net 2>/dev/null && uci -q commit quecmanager 2>/dev/null || true
 
     # --- Official (tarball) Tailscale install cleanup ---
     # An official-variant Tailscale install (QManager static-tarball, not opkg)
@@ -342,6 +342,8 @@ remove_backend() {
         [ -x /etc/init.d/tailscale ] && /etc/init.d/tailscale stop 2>/dev/null || true
         [ -x /etc/init.d/tailscale ] && /etc/init.d/tailscale disable 2>/dev/null || true
         rm -f /usr/bin/tailscale /usr/bin/tailscaled /etc/init.d/tailscale
+        # Update backups / leftovers (hard links pin the old build's flash).
+        rm -f /usr/bin/.tailscale*.old /usr/bin/.tailscale*.new
         rm -f /etc/rc.d/*tailscale 2>/dev/null || true
         uci -q delete tailscale 2>/dev/null && uci -q commit tailscale 2>/dev/null || true
         # uci delete+commit does NOT remove /etc/config/tailscale on-device —
@@ -494,7 +496,9 @@ remove_runtime_state() {
              /tmp/qmanager_language_install_input.json \
              /tmp/qmanager_language_install.cancel \
              /tmp/qmanager_auth_attempts.json \
-             /tmp/qmanager_auth_attempts.json.tmp; do
+             /tmp/qmanager_auth_attempts.json.tmp \
+             /tmp/qmanager_tailscale_install.json \
+             /tmp/qmanager_tailscale_install.json.tmp; do
         [ -f "$f" ] && rm -f "$f" && tmp_count=$(( tmp_count + 1 ))
     done
 
@@ -538,8 +542,10 @@ remove_runtime_state() {
     rm -rf /tmp/qmanager_sites.json /tmp/qmanager_sites_* /tmp/qmanager_sites.?????? \
           2>/dev/null || true
 
-    # PID files in /var/run (config-restore and language-install workers)
-    rm -f /var/run/qmanager_config_restore.pid \
+    # PID files in /var/run (config-restore and language-install workers) and
+    # the Tailscale install/update lock in /var/lock
+    rm -f /var/lock/qmanager_tailscale_migrate.lock \
+          /var/run/qmanager_config_restore.pid \
           /var/run/qmanager_language_install.pid \
           2>/dev/null || true
 

@@ -16,7 +16,12 @@
 #
 # POST body: { "action": "connect"|"disconnect"|"logout"|"start_service"|
 #                         "stop_service"|"set_boot_enabled"|"set_exit_node"|
-#                         "set_ssh"|"install"|"install_status"|"uninstall" }
+#                         "set_ssh"|"install"|"install_status"|"uninstall"|
+#                         "check_update"|"update"|"set_net_fixes" }
+#
+# Install / update logic lives in /usr/lib/qmanager/tailscale_mgr.sh and the
+# reachability fixes (fw4 zone + pref-1990 ip rule) in tailscale_net.sh; this
+# CGI only validates, dispatches and orphans the background workers.
 #
 # Endpoint: GET/POST /cgi-bin/quecmanager/vpn/tailscale.sh
 # Install location: /www/cgi-bin/quecmanager/vpn/tailscale.sh
@@ -30,9 +35,22 @@ AUTH_URL_FILE="/tmp/qmanager_tailscale_auth_url"
 # B4.1: tailscale up output lives in the root-only run dir (jq reads it back)
 TS_UP_OUTPUT="/var/run/qmanager/tailscale_up_output"
 TS_UP_PID_FILE="/tmp/qmanager_tailscale_up_pid"
-# Live install log (install subshell stdout+stderr), root-only run dir.
+# Live install/update log (worker stdout+stderr), root-only run dir.
 TS_INSTALL_LOG="/var/run/qmanager/tailscale_install.log"
+TS_INSTALL_RESULT="/tmp/qmanager_tailscale_install.json"
 [ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+# Install/update pipeline + reachability (zone + pref-1990 rule). Guarded: a
+# dot-source of a missing file aborts the whole CGI under ash.
+[ -f /usr/lib/qmanager/tailscale_net.sh ] && . /usr/lib/qmanager/tailscale_net.sh
+[ -f /usr/lib/qmanager/tailscale_mgr.sh ] && . /usr/lib/qmanager/tailscale_mgr.sh
+
+# The rollback test knob is shell-only; a request can never set it.
+unset TS_TEST_FAIL_HEALTH
+
+if ! command -v ts_variant >/dev/null 2>&1 || ! command -v ts_net_enabled >/dev/null 2>&1; then
+    cgi_error "library_missing" "Tailscale support library is missing"
+    exit 0
+fi
 
 # --- Helper: check if tailscale + tailscaled are installed -------------------
 is_installed() {
@@ -76,10 +94,32 @@ kill_stale_ts_up() {
     fi
 }
 
-# --- Helper: refuse to mutate while install.sh migration is in-flight -------
+# --- Helper: refuse to mutate while an install/update/OTA migration runs -----
+# The lock holds a pid; a dead (or untrusted) holder is stale and is cleared
+# here so a crashed worker can never wedge the page.
 check_migration_lock() {
-    if [ -f /var/lock/qmanager_tailscale_migrate.lock ]; then
-        cgi_error "migration_in_progress" "Tailscale package migration is in progress — try again in a moment"
+    if [ -e "$TS_LOCK_FILE" ] || [ -L "$TS_LOCK_FILE" ]; then
+        if ts_lock_holder >/dev/null; then
+            cgi_error "migration_in_progress" "A Tailscale install or update is in progress, try again in a moment"
+            exit 0
+        fi
+        rm -f "$TS_LOCK_FILE"
+    fi
+}
+
+# --- Helper: refuse to start a worker while one runs -------------------------
+# Our own install/update worker -> already_running; install.sh -> migration.
+check_worker_lock() {
+    local held_op
+    if held_op=$(ts_lock_op); then
+        case "$held_op" in
+            install|update)
+                cgi_error "already_running" "A Tailscale install or update is already running"
+                ;;
+            *)
+                cgi_error "migration_in_progress" "A Tailscale install or update is in progress, try again in a moment"
+                ;;
+        esac
         exit 0
     fi
 }
@@ -89,243 +129,51 @@ get_ts_version() {
     tailscale version 2>/dev/null | head -1 | awk '{print $1}'
 }
 
-# --- Helper: detect how tailscale was installed ------------------------------
-# "official" -> QManager static-tarball install (marker file present)
-# "tiny"     -> tailscale-tiny opkg package (marker, or opkg detection)
-# "opkg"     -> any other opkg-managed tailscale (legacy / luci tiny wrapper)
-# The marker file is authoritative; opkg detection is the fallback for installs
-# that predate the marker.
-TS_INSTALL_MARKER="/etc/tailscale/.qm_install_method"
-get_install_variant() {
-    local marker
-    if [ -f "$TS_INSTALL_MARKER" ]; then
-        marker=$(cat "$TS_INSTALL_MARKER" 2>/dev/null | tr -d ' \n\r')
-        case "$marker" in
-            official) echo "official"; return ;;
-            tiny)     echo "tiny"; return ;;
-        esac
+# --- Helper: spawn an orphaned install/update worker -------------------------
+# The CGI takes the lock first (so a second click cannot start a second
+# worker), writes a fresh "running" progress (so install_status never shows the
+# previous run's terminal state), then the worker takes the lock over.
+spawn_ts_worker() {
+    local op
+    op="$1"
+    if ! qm_run_dir >/dev/null; then
+        cgi_error "${op}_failed" "Cannot prepare the install state directory"
+        exit 0
     fi
-    if opkg list-installed 2>/dev/null | awk '{print $1}' | grep -qx 'tailscale-tiny'; then
-        echo "tiny"
-        return
+    if ! ts_lock_acquire "$op"; then
+        check_worker_lock
+        cgi_error "already_running" "A Tailscale install or update is already running"
+        exit 0
     fi
-    echo "opkg"
-}
-
-# --- Helper: write the procd init script for the official (tarball) install --
-# The official tarball ships no init.d script, so we generate one. The existing
-# CGI helpers (is_daemon_running / connect / start_service / stop_service /
-# set_boot_enabled / uninstall) all branch on [ -x /etc/init.d/tailscale ], so
-# writing this makes them all work unchanged.
-#
-# CRITICAL: this is heredoc-written, NOT shipped as a static
-# scripts/etc/init.d/tailscale file — install.sh force-copies every init.d file
-# on every (OTA) install, which would clobber the opkg-owned
-# /etc/init.d/tailscale of a tiny install. Heredoc keeps the official init
-# script confined to the official path only.
-write_ts_initd() {
-    if [ ! -f /usr/lib/qmanager/tailscale_initd.sh ]; then
-        return 1
-    fi
-    . /usr/lib/qmanager/tailscale_initd.sh
-    qm_write_ts_initd
-}
-
-# --- Helper: seed the tailscale.settings UCI section -------------------------
-# Defensive parity with the tiny package: get_boot_enabled / set_boot_enabled
-# treat tailscale.settings.service_enabled as authoritative. Seed it (off by
-# default) if absent. Idempotent.
-#
-# NOTE: `uci set tailscale=tailscale` cannot create /etc/config/tailscale from
-# scratch — on this device `uci set <pkg>=<type>` returns "Entry not found"
-# when the config FILE does not yet exist (a known BusyBox/UCI quirk; see
-# docs/reference/busybox-shell-quirks.md). On a fresh official install (no prior
-# tiny package), the file is absent, so we bootstrap it on disk first; UCI then
-# reads it cleanly. Without this the connect-time boot-enable would leave the
-# UCI flag unset (boot still works via get_boot_enabled's init.d fallback, but
-# the UCI mirror would drift).
-seed_ts_uci_settings() {
-    if [ ! -f /etc/config/tailscale ]; then
-        # Section TYPE is 'settings' (name also 'settings') to stay byte-identical
-        # with the elif branch below and the legacy `uci set tailscale.settings=
-        # settings`, and to match the tiny package's parity. All readers address
-        # it by section NAME (tailscale.settings.*), never by type.
-        printf 'config settings '\''settings'\''\n\toption service_enabled '\''0'\''\n' \
-            | qm_durable_write /etc/config/tailscale
-    elif ! uci -q get tailscale.settings >/dev/null 2>&1; then
-        uci -q set tailscale.settings=settings 2>/dev/null
-    fi
-    uci -q get tailscale.settings.service_enabled >/dev/null 2>&1 \
-        || uci -q set tailscale.settings.service_enabled='0'
-    uci -q commit tailscale 2>/dev/null
-}
-
-# --- Helper: write install progress + echo it to the install log ------------
-# $1 is the status JSON. The install subshell's stdout is the live install log
-# (TS_INSTALL_LOG), so the phase message lands there next to the tool output.
-ts_status() {
-    printf '%s' "$1" > "$TS_INSTALL_RESULT"
-    printf '%s' "$1" | jq -r '[.message, .detail] | map(select(. != null)) | join(": ")' 2>/dev/null
-}
-
-# --- Helper: official-variant installer (runs inside background subshell) -----
-# Downloads the official static arm64 tarball, installs binaries to /usr/bin,
-# writes the procd init script + marker + UCI parity. Writes phased progress to
-# $TS_INSTALL_RESULT. Must be called from within the orphaned install subshell.
-install_official() {
-    # B4.1: root-owned work dir; a /tmp dir another user made first is not trusted
-    TS_WORK="$(qm_run_dir 2>/dev/null)/tailscale_dl"
-    if [ "$TS_WORK" = "/tailscale_dl" ] || ! qm_root_dir "$TS_WORK" 0700; then
-        ts_status '{"success":false,"status":"error","message":"Cannot prepare work directory"}'
-        exit 1
-    fi
-    TS_TGZ="$TS_WORK/dl.tgz"
-    TS_EXTRACT="$TS_WORK/extract"
-    PKGS_JSON_URL="https://pkgs.tailscale.com/stable/?mode=json"
-
-    rm -rf "$TS_TGZ" "$TS_EXTRACT"
-
-    # Phase: disk space. Tarball ~27MB compressed / ~55MB extracted; guard /tmp
-    # at ~100MB for download + extract headroom.
-    ts_status '{"success":true,"status":"running","message":"Checking disk space..."}'
-    tmp_avail=$(df -k /tmp 2>/dev/null | awk 'NR==2{print $4}')
-    case "$tmp_avail" in ''|*[!0-9]*) tmp_avail=0 ;; esac
-    if [ "$tmp_avail" -lt 102400 ]; then
-        ts_status '{"success":false,"status":"error","message":"Not enough space in /tmp","detail":"Need ~100MB free to download Tailscale"}'
-        exit 1
-    fi
-
-    # Phase: resolve latest version. Plain key access only — device jq has NO
-    # regex. Shape: {"Version":"1.98.4","Tarballs":{"arm64":"tailscale_1.98.4_arm64.tgz"}}
-    ts_status '{"success":true,"status":"running","message":"Resolving latest version..."}'
-    meta=$(curl -fsSL --max-time 20 "$PKGS_JSON_URL" 2>/dev/null)
-    tarball=$(printf '%s' "$meta" | jq -r '.Tarballs.arm64 | if . == null then empty else . end' 2>/dev/null)
-    ts_ver=$(printf '%s' "$meta" | jq -r '.Version | if . == null then empty else . end' 2>/dev/null)
-    if [ -z "$tarball" ]; then
-        ts_status '{"success":false,"status":"error","message":"Could not resolve latest Tailscale version","detail":"pkgs.tailscale.com unreachable or response format changed"}'
-        exit 1
-    fi
-    [ -n "$ts_ver" ] || ts_ver="latest"
-    dl_url="https://pkgs.tailscale.com/stable/${tarball}"
-
-    # Phase: download.
-    ts_status "$(printf '{"success":true,"status":"running","message":"Downloading Tailscale %s..."}' "$ts_ver")"
-    if ! curl -fsSL --max-time 600 -o "$TS_TGZ" "$dl_url"; then
-        rm -f "$TS_TGZ"
-        ts_status '{"success":false,"status":"error","message":"Download failed","detail":"Check internet connection and retry"}'
-        exit 1
-    fi
-
-    # Phase: extract. BusyBox tar handles gzip via -z; fall back to gzip pipe if
-    # the -z applet is stripped from this build.
-    ts_status '{"success":true,"status":"running","message":"Extracting..."}'
-    mkdir -p "$TS_EXTRACT"
-    if ! tar -xzf "$TS_TGZ" -C "$TS_EXTRACT" 2>/dev/null; then
-        if ! gzip -dc "$TS_TGZ" 2>/dev/null | tar -x -C "$TS_EXTRACT" 2>/dev/null; then
-            rm -rf "$TS_TGZ" "$TS_EXTRACT"
-            ts_status '{"success":false,"status":"error","message":"Extraction failed"}'
-            exit 1
-        fi
-    fi
-
-    # Locate the binaries — top dir is e.g. tailscale_1.98.4_arm64/. Don't assume
-    # a glob expands; resolve the dir explicitly.
-    src_dir=$(find "$TS_EXTRACT" -maxdepth 1 -type d -name 'tailscale_*' 2>/dev/null | head -n1)
-    [ -n "$src_dir" ] || src_dir="$TS_EXTRACT"
-    if [ ! -f "$src_dir/tailscale" ] || [ ! -f "$src_dir/tailscaled" ]; then
-        rm -rf "$TS_TGZ" "$TS_EXTRACT"
-        ts_status '{"success":false,"status":"error","message":"Binaries not found in archive"}'
-        exit 1
-    fi
-
-    # Phase: install binaries. Guard overlay at ~80MB.
-    ts_status '{"success":true,"status":"running","message":"Installing binaries..."}'
-    ov_avail=$(df -k /overlay 2>/dev/null | awk 'NR==2{print $4}')
-    case "$ov_avail" in ''|*[!0-9]*) ov_avail=0 ;; esac
-    if [ "$ov_avail" -lt 81920 ]; then
-        rm -rf "$TS_TGZ" "$TS_EXTRACT"
-        ts_status '{"success":false,"status":"error","message":"Not enough space on overlay","detail":"Free space and retry"}'
-        exit 1
-    fi
-    # Temp + sync + rename per binary: works while tailscaled runs (a cp over
-    # it fails with ETXTBSY), and a failure or crash keeps the old binaries
-    # instead of deleting or truncating them.
-    if ! qm_durable_write /usr/bin/tailscale 0755 < "$src_dir/tailscale" \
-            || ! qm_durable_write /usr/bin/tailscaled 0755 < "$src_dir/tailscaled"; then
-        rm -rf "$TS_TGZ" "$TS_EXTRACT"
-        ts_status '{"success":false,"status":"error","message":"Failed to install binaries to /usr/bin"}'
-        exit 1
-    fi
-
-    # Phase: write service + marker + UCI parity.
-    ts_status '{"success":true,"status":"running","message":"Writing service..."}'
-    mkdir -p /etc/tailscale
-    if ! write_ts_initd; then
-        ts_status '{"success":false,"status":"error","message":"Failed to write Tailscale service","detail":"tailscale_initd.sh lib missing"}'
-        exit 1
-    fi
-    printf 'official\n' | qm_durable_write "$TS_INSTALL_MARKER"
-    seed_ts_uci_settings
-
-    # Clean up /tmp artifacts.
-    rm -rf "$TS_TGZ" "$TS_EXTRACT"
-
-    # Verify + optional firewall workaround (mirror the tiny path).
-    if command -v tailscale >/dev/null 2>&1; then
-        if [ "$_TS_WORKAROUNDS" = "1" ]; then
-            vpn_fw_ensure_zone "tailscale" "tailscale0"
-        fi
-        ts_status "$(printf '{"success":true,"status":"complete","message":"Tailscale %s installed successfully","variant":"official"}' "$ts_ver")"
+    : > "$TS_INSTALL_LOG"
+    TS_OP="$op"
+    ts_progress running "Starting..." >/dev/null
+    if [ "$op" = "update" ]; then
+        ( ts_do_update ) </dev/null >>"$TS_INSTALL_LOG" 2>&1 &
     else
-        ts_status '{"success":false,"status":"error","message":"Install completed but binary not found"}'
+        ( ts_do_install ) </dev/null >>"$TS_INSTALL_LOG" 2>&1 &
     fi
 }
 
-# --- Helper: tiny-variant installer (runs inside background subshell) ---------
-# Installs the tailscale-tiny opkg package directly. Seeds tailscale.settings +
-# writes the marker for symmetry with the official path.
-install_tiny() {
-    ts_status '{"success":true,"status":"running","message":"Updating package lists..."}'
-    if ! opkg update; then
-        ts_status '{"success":false,"status":"error","message":"Failed to update package lists","detail":"Check internet connection and opkg feeds"}'
-        exit 1
+# --- Helper: re-assert reachability on connect / daemon start ----------------
+# The ip rules are synchronous and cheap. A missing zone is written to UCI now
+# and fw4 is reloaded from the EXIT trap, after the response has been written.
+TS_FW_RELOAD_PENDING=0
+ts_net_prep() {
+    ts_net_enabled || return 0
+    ts_net_ensure_rules
+    if ! ts_net_zone_present; then
+        ts_net_ensure_zone && TS_FW_RELOAD_PENDING=1
     fi
-
-    ts_status '{"success":true,"status":"running","message":"Installing tailscale-tiny..."}'
-    if ! opkg install tailscale-tiny; then
-        ts_status '{"success":false,"status":"error","message":"opkg install failed","detail":"Package may not be available for this architecture"}'
-        exit 1
-    fi
-
-    # Verify
-    if command -v tailscale >/dev/null 2>&1; then
-        # Defensive UCI parity + marker (package may already ship the section).
-        seed_ts_uci_settings
-        mkdir -p /etc/tailscale
-        printf 'tiny\n' | qm_durable_write "$TS_INSTALL_MARKER"
-        if [ "$_TS_WORKAROUNDS" = "1" ]; then
-            vpn_fw_ensure_zone "tailscale" "tailscale0"
-        fi
-        ts_status '{"success":true,"status":"complete","message":"Tailscale installed successfully","variant":"tiny"}'
-    else
-        ts_status '{"success":false,"status":"error","message":"Package installed but binary not found"}'
+    return 0
+}
+_ts_cgi_exit() {
+    if [ "$TS_FW_RELOAD_PENDING" = "1" ]; then
+        TS_FW_RELOAD_PENDING=0
+        ( ( sleep 1; ts_net_fw_reload ) </dev/null >/dev/null 2>&1 & )
     fi
 }
-
-# --- Force Tailscale Fixes gate ---------------------------------------------
-# Opt-in toggle owned by /cgi-bin/quecmanager/system/settings.sh + the
-# qmanager_vpn_zone init.d boot self-heal. When enabled, this CGI re-acquires
-# the historical fw4 zone + mwan3 ipset workarounds for tailscale0:
-#   - install success: vpn_fw_ensure_zone "tailscale" "tailscale0"
-#   - uninstall success: background vpn_fw_remove_zone "tailscale"
-# Process-lifecycle fixes (orphan double-fork, --accept-dns=false,
-# --accept-routes ban, migration lock) are unconditional and not gated here.
-if [ "$(uci -q get quecmanager.tailscale_workarounds.enabled 2>/dev/null)" = "1" ]; then
-    . /usr/lib/qmanager/vpn_firewall.sh
-    _TS_WORKAROUNDS=1
-else
-    _TS_WORKAROUNDS=0
-fi
+trap '_ts_cgi_exit' EXIT
 
 # =============================================================================
 # GET — Fetch installation status, daemon state, connection info, peers
@@ -338,6 +186,13 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         other_vpn_installed="false"
     fi
 
+    # --- Busy: an install / update worker (or OTA migration) holds the lock --
+    if busy_op=$(ts_lock_op); then
+        [ "$busy_op" = "update" ] || busy_op="install"
+        jq -n --arg busy "$busy_op" '{success: true, installed: true, busy: $busy}'
+        exit 0
+    fi
+
     # --- Tier 1: Not installed -----------------------------------------------
     if ! is_installed; then
         qlog_info "Tailscale not installed"
@@ -346,8 +201,6 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             '{
                 success: true,
                 installed: false,
-                install_hint: "opkg update && opkg install tailscale-tiny",
-                install_variants: ["official", "tiny"],
                 other_vpn_installed: $other_vpn_installed,
                 other_vpn_name: "NetBird"
             }'
@@ -356,7 +209,23 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 
     ts_version=$(get_ts_version)
     boot_enabled=$(get_boot_enabled)
-    install_variant=$(get_install_variant)
+    install_variant=$(ts_variant)
+
+    # Update facts. latest_version comes from the cache only (check_update
+    # refreshes it); this GET never waits on the network.
+    latest_version=$(ts_latest_cache_read)
+    update_available="false"
+    legacy_build="false"
+    case "$install_variant" in
+        official)
+            if [ -n "$latest_version" ] && ts_version_gt "$latest_version" "$ts_version"; then
+                update_available="true"
+            fi
+            ;;
+        tiny|opkg) legacy_build="true" ;;
+    esac
+    net_fixes_enabled="false"
+    ts_net_enabled && net_fixes_enabled="true"
 
     # --- Tier 2: Installed but daemon not running ----------------------------
     if ! is_daemon_running; then
@@ -367,6 +236,10 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             --argjson enabled_on_boot "$boot_enabled" \
             --arg version "$ts_version" \
             --arg install_variant "$install_variant" \
+            --arg latest_version "$latest_version" \
+            --argjson update_available "$update_available" \
+            --argjson legacy_build "$legacy_build" \
+            --argjson net_fixes_enabled "$net_fixes_enabled" \
             --argjson other_vpn_installed "$other_vpn_installed" \
             '{
                 success: true,
@@ -375,6 +248,10 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
                 enabled_on_boot: $enabled_on_boot,
                 version: $version,
                 install_variant: $install_variant,
+                latest_version: $latest_version,
+                update_available: $update_available,
+                legacy_build: $legacy_build,
+                net_fixes_enabled: $net_fixes_enabled,
                 other_vpn_installed: $other_vpn_installed,
                 other_vpn_name: "NetBird"
             }'
@@ -399,6 +276,10 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             --argjson enabled_on_boot "$boot_enabled" \
             --arg version "$ts_version" \
             --arg install_variant "$install_variant" \
+            --arg latest_version "$latest_version" \
+            --argjson update_available "$update_available" \
+            --argjson legacy_build "$legacy_build" \
+            --argjson net_fixes_enabled "$net_fixes_enabled" \
             '{
                 success: true,
                 installed: $installed,
@@ -406,6 +287,10 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
                 enabled_on_boot: $enabled_on_boot,
                 version: $version,
                 install_variant: $install_variant,
+                latest_version: $latest_version,
+                update_available: $update_available,
+                legacy_build: $legacy_build,
+                net_fixes_enabled: $net_fixes_enabled,
                 backend_state: "Unknown",
                 error_detail: "Could not retrieve status from tailscale daemon"
             }'
@@ -489,6 +374,10 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         --arg backend_state "$backend_state" \
         --arg auth_url "$auth_url" \
         --arg install_variant "$install_variant" \
+        --arg latest_version "$latest_version" \
+        --argjson update_available "$update_available" \
+        --argjson legacy_build "$legacy_build" \
+        --argjson net_fixes_enabled "$net_fixes_enabled" \
         --argjson exit_node_advertised "$exit_node_advertised" \
         --argjson ssh_enabled "$ssh_enabled" \
         --argjson self "$self_json" \
@@ -503,6 +392,10 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             enabled_on_boot: $enabled_on_boot,
             version: $version,
             install_variant: $install_variant,
+            latest_version: $latest_version,
+            update_available: $update_available,
+            legacy_build: $legacy_build,
+            net_fixes_enabled: $net_fixes_enabled,
             backend_state: $backend_state,
             exit_node_advertised: $exit_node_advertised,
             ssh_enabled: $ssh_enabled,
@@ -532,39 +425,24 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
     fi
 
     # -------------------------------------------------------------------------
-    # action: install — install tailscale via opkg (background)
+    # action: install — official static build, background worker
     # -------------------------------------------------------------------------
     if [ "$ACTION" = "install" ]; then
-        check_migration_lock
-        TS_INSTALL_RESULT="/tmp/qmanager_tailscale_install.json"
-        # B5.11: root-only run dir (a planted /tmp pidfile could fake "already running")
-        TS_INSTALL_PID="/var/run/qmanager/tailscale_install.pid"
-
-        # Variant selection: "official" (static tarball) or "tiny" (opkg).
-        # Missing -> default "tiny" for backward compatibility with old clients.
-        VARIANT=$(printf '%s' "$POST_DATA" | jq -r '.variant // empty')
+        # Only the official build is installable; "tiny" is retired.
+        VARIANT=$(printf '%s' "$POST_DATA" | jq -r '.variant | if . == null then empty else tostring end')
         case "$VARIANT" in
-            official|tiny) : ;;
-            "") VARIANT="tiny" ;;
+            ""|official) : ;;
             *)
-                cgi_error "invalid_variant" "variant must be 'official' or 'tiny'"
+                cgi_error "invalid_variant" "variant must be 'official'"
                 exit 0
                 ;;
         esac
 
+        check_worker_lock
+
         # Mutual exclusion: refuse if other VPN is installed
         if command -v netbird >/dev/null 2>&1; then
             cgi_error "other_vpn_installed" "NetBird is already installed. Uninstall it before installing Tailscale."
-            exit 0
-        fi
-
-        # Check if already running
-        if ! command -v qm_read_pid >/dev/null 2>&1 || ! qm_run_dir >/dev/null; then
-            cgi_error "install_failed" "Cannot prepare the install state directory"
-            exit 0
-        fi
-        if qm_read_pid "$TS_INSTALL_PID" tailscale.sh >/dev/null; then
-            cgi_error "already_running" "Installation already in progress"
             exit 0
         fi
 
@@ -574,26 +452,8 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
             exit 0
         fi
 
-        qlog_info "Starting Tailscale installation (variant=$VARIANT)"
-        # Fresh log per run (the run dir was checked above).
-        : > "$TS_INSTALL_LOG"
-
-        # Spawn background installer. The variant installers (install_official /
-        # install_tiny) are sourced in the parent and inherit into this orphaned
-        # subshell. They write phased progress to $TS_INSTALL_RESULT and exit
-        # non-zero on failure.
-        (
-            # $$ is the CGI's pid here; record this subshell's own pid
-            qm_self_pid && printf '%s\n' "$QM_SELF_PID" | qm_atomic_write "$TS_INSTALL_PID"
-            trap 'rm -f "$TS_INSTALL_PID"' EXIT
-
-            if [ "$VARIANT" = "official" ]; then
-                install_official
-            else
-                install_tiny
-            fi
-        ) </dev/null >>"$TS_INSTALL_LOG" 2>&1 &
-
+        qlog_info "Starting Tailscale installation (official)"
+        spawn_ts_worker install
         cgi_success
         exit 0
     fi
@@ -602,7 +462,6 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
     # action: install_status — poll install progress + live log tail
     # -------------------------------------------------------------------------
     if [ "$ACTION" = "install_status" ]; then
-        TS_INSTALL_RESULT="/tmp/qmanager_tailscale_install.json"
         if [ -f "$TS_INSTALL_RESULT" ]; then
             status_json=$(cat "$TS_INSTALL_RESULT" 2>/dev/null)
         else
@@ -611,6 +470,25 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         # A half-written status file must not break the poller's JSON.
         if ! printf '%s' "$status_json" | jq -e . >/dev/null 2>&1; then
             status_json='{"success":true,"status":"running","message":"Installing..."}'
+        fi
+        # A worker that died (OOM, kill -9, power-off) never writes its
+        # terminal state. "running" with no live lock holder, older than a
+        # 10 s grace (the CGI pre-writes "Starting..." before the worker takes
+        # the lock), is turned into an error and written back.
+        st_status=$(printf '%s' "$status_json" | jq -r '.status // ""' 2>/dev/null)
+        if [ "$st_status" = "running" ] && [ -f "$TS_INSTALL_RESULT" ] && ! ts_lock_holder >/dev/null; then
+            st_mtime=$(_ts_num "$(stat -c %Y "$TS_INSTALL_RESULT" 2>/dev/null)")
+            st_age=$(( $(_ts_now) - st_mtime ))
+            if [ "$st_mtime" -gt 0 ] && [ "$st_age" -ge 10 ]; then
+                st_op=$(printf '%s' "$status_json" | jq -r '.op // "install"' 2>/dev/null)
+                case "$st_op" in
+                    update) st_msg="The Tailscale update stopped unexpectedly" ;;
+                    *) st_op="install"; st_msg="The Tailscale install stopped unexpectedly" ;;
+                esac
+                status_json=$(jq -cn --arg op "$st_op" --arg error "${st_op}_failed" --arg message "$st_msg" \
+                    '{success: false, status: "error", op: $op, error: $error, message: $message}')
+                printf '%s' "$status_json" | qm_atomic_write "$TS_INSTALL_RESULT"
+            fi
         fi
         # CR -> LF first so \r-separated progress output lands on its own lines.
         log_tail=""
@@ -621,9 +499,114 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         exit 0
     fi
 
+    # -------------------------------------------------------------------------
+    # action: set_net_fixes — the automatic zone + routing fixes on/off.
+    # UCI is written now; apply / teardown (which may reload fw4) runs in an
+    # orphaned worker after the response.
+    # -------------------------------------------------------------------------
+    if [ "$ACTION" = "set_net_fixes" ]; then
+        check_migration_lock
+        nf_value=$(printf '%s' "$POST_DATA" | jq -r '.enabled | if . == null then empty else tostring end')
+        case "$nf_value" in
+            true) nf_uci=1 ;;
+            false) nf_uci=0 ;;
+            "")
+                cgi_error "missing_field" "enabled field is required"
+                exit 0
+                ;;
+            *)
+                cgi_error "invalid_value" "enabled must be true or false"
+                exit 0
+                ;;
+        esac
+        uci -q get quecmanager.tailscale_net >/dev/null 2>&1 \
+            || uci set quecmanager.tailscale_net=tailscale_net
+        uci set quecmanager.tailscale_net.enabled="$nf_uci"
+        if ! uci commit quecmanager; then
+            cgi_error "save_failed" "Could not save the setting"
+            exit 0
+        fi
+        qlog_info "Tailscale network fixes set to $nf_value"
+        jq -n --argjson enabled "$nf_value" '{success: true, enabled: $enabled}'
+        # The job re-reads UCI after the delay, so two quick toggles always
+        # converge on the value saved last.
+        ( (
+            sleep 1
+            if ts_net_enabled; then
+                is_installed && ts_net_apply
+            else
+                ts_net_teardown
+            fi
+        ) </dev/null >/dev/null 2>&1 & )
+        exit 0
+    fi
+
     # All remaining POST actions require tailscale to be installed
     if ! is_installed; then
         cgi_error "not_installed" "Tailscale is not installed"
+        exit 0
+    fi
+
+    # -------------------------------------------------------------------------
+    # action: check_update — latest official version, cached (6 h, 30 min
+    # after a failed check). force:true always asks pkgs.tailscale.com.
+    # -------------------------------------------------------------------------
+    if [ "$ACTION" = "check_update" ]; then
+        cu_force=$(printf '%s' "$POST_DATA" | jq -r 'if .force == true then "1" else "0" end' 2>/dev/null)
+        cu_installed=$(get_ts_version)
+        if [ "$cu_force" = "1" ] || ts_latest_cache_due; then
+            # Bounded for a synchronous request: 2 attempts of 20 s.
+            TS_FETCH_RETRY=1
+            if ! ts_latest_refresh; then
+                cgi_error "update_check_failed" "Could not check for Tailscale updates"
+                exit 0
+            fi
+        fi
+        cu_latest=$(ts_latest_cache_read)
+        if [ -z "$cu_latest" ]; then
+            cgi_error "update_check_failed" "Could not check for Tailscale updates"
+            exit 0
+        fi
+        cu_checked=$(_ts_num "$(_ts_cache_field checked_at)")
+        cu_available="false"
+        if [ "$(ts_variant)" = "official" ] && ts_version_gt "$cu_latest" "$cu_installed"; then
+            cu_available="true"
+        fi
+        jq -n \
+            --arg installed_version "$cu_installed" \
+            --arg latest_version "$cu_latest" \
+            --argjson update_available "$cu_available" \
+            --argjson checked_at "$cu_checked" \
+            '{
+                success: true,
+                installed_version: $installed_version,
+                latest_version: $latest_version,
+                update_available: $update_available,
+                checked_at: $checked_at
+            }'
+        exit 0
+    fi
+
+    # -------------------------------------------------------------------------
+    # action: update — official builds only, background worker. The worker
+    # re-checks the version, swaps binaries, restarts, health-checks and rolls
+    # back on failure (progress via install_status, op "update").
+    # -------------------------------------------------------------------------
+    if [ "$ACTION" = "update" ]; then
+        if [ "$(ts_variant)" != "official" ]; then
+            cgi_error "legacy_build" "This Tailscale build cannot be updated here. Uninstall it, then install the official build."
+            exit 0
+        fi
+        check_worker_lock
+        up_installed=$(get_ts_version)
+        up_latest=$(ts_latest_cache_read)
+        if [ -n "$up_latest" ] && ! ts_version_gt "$up_latest" "$up_installed"; then
+            cgi_error "up_to_date" "Tailscale is already up to date"
+            exit 0
+        fi
+        qlog_info "Starting Tailscale update from $up_installed"
+        spawn_ts_worker update
+        cgi_success
         exit 0
     fi
 
@@ -659,12 +642,15 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         # Connect. The tiny/opkg variant manages its own boot lifecycle and is
         # left untouched. Writes both the UCI flag and the init.d enable so the
         # two stay in lockstep (get_boot_enabled reads UCI first).
-        if [ "$(get_install_variant)" = "official" ]; then
-            uci -q get tailscale.settings >/dev/null 2>&1 || seed_ts_uci_settings
+        if [ "$(ts_variant)" = "official" ]; then
+            uci -q get tailscale.settings >/dev/null 2>&1 || ts_seed_uci_settings
             uci -q set tailscale.settings.service_enabled='1' 2>/dev/null
             uci -q commit tailscale 2>/dev/null
             [ -x /etc/init.d/tailscale ] && /etc/init.d/tailscale enable >/dev/null 2>&1
         fi
+
+        # Reachability: pref-1990 rule now, zone (if missing) after the response.
+        ts_net_prep
 
         # Kill any stale tailscale up process from a previous attempt
         kill_stale_ts_up
@@ -780,6 +766,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         sleep 1
         if is_daemon_running; then
             qlog_info "Tailscale daemon started"
+            ts_net_prep
             cgi_success
         else
             cgi_error "start_failed" "Failed to start tailscale daemon"
@@ -975,9 +962,10 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         # remove the binaries, the heredoc-written init script, its rc.d symlinks
         # and the UCI section directly. Everything else goes through the existing
         # 6-package smart opkg removal.
-        if [ "$(get_install_variant)" = "official" ]; then
+        if [ "$(ts_variant)" = "official" ]; then
             qlog_info "Removing official (tarball) Tailscale install"
             rm -f /usr/bin/tailscale /usr/bin/tailscaled /etc/init.d/tailscale
+            rm -f /usr/bin/.tailscale.old /usr/bin/.tailscaled.old /usr/bin/.tailscale.new /usr/bin/.tailscaled.new
             rm -f /etc/rc.d/*tailscale 2>/dev/null
             uci -q delete tailscale 2>/dev/null && uci -q commit tailscale 2>/dev/null
             # uci delete+commit does NOT remove /etc/config/tailscale on-device —
@@ -1002,6 +990,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         # in /etc/tailscale, removed here).
         rm -rf /var/lib/tailscale/ /etc/tailscale/
         rm -f /tmp/qmanager_tailscale_auth_url /tmp/qmanager_tailscale_up_output /var/run/qmanager/tailscale_up_output /tmp/qmanager_tailscale_up_pid
+        rm -f "$TS_LATEST_CACHE"
 
         # Verify removal (check actual binary paths, not command -v which can be cached).
         hash -r 2>/dev/null
@@ -1014,15 +1003,9 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         qlog_info "Tailscale uninstalled successfully"
         cgi_success
 
-        # If Force Tailscale Fixes was enabled, remove the fw4 zone in
-        # background AFTER the response is sent. vpn_fw_remove_zone runs
-        # /etc/init.d/firewall restart which would kill the HTTP connection
-        # if run synchronously (firewall-restart-kills-http rule). The
-        # function preserves the mwan3 ipset entry when NetBird is still
-        # installed, per the historical guard.
-        if [ "$_TS_WORKAROUNDS" = "1" ]; then
-            ( vpn_fw_remove_zone "tailscale" ) </dev/null >/dev/null 2>&1 &
-        fi
+        # Remove the zone + pref-1990 rules after the response: the fw4 reload
+        # must never run inside the request.
+        ( ( sleep 1; ts_net_teardown ) </dev/null >/dev/null 2>&1 & )
         exit 0
     fi
 

@@ -8,6 +8,7 @@ import {
   ExternalLinkIcon,
   Loader2Icon,
   LogInIcon,
+  RefreshCcwIcon,
   TriangleAlertIcon,
 } from "lucide-react";
 
@@ -57,7 +58,6 @@ import {
   NOTICE_GLYPH,
   NOTICE_LIST,
   NOTICE_TONE,
-  PILL_REST,
   RAIL,
   SKELETON,
   SWITCH_ROW,
@@ -78,6 +78,8 @@ export interface ConnectionCardProps {
   isTogglingExitNode: boolean;
   isTogglingSsh: boolean;
   isUninstalling: boolean;
+  isUpdating: boolean;
+  isTogglingNetFixes: boolean;
   connect: () => Promise<TailscaleActionResult>;
   disconnect: () => Promise<TailscaleActionResult>;
   logout: () => Promise<TailscaleActionResult>;
@@ -86,8 +88,12 @@ export interface ConnectionCardProps {
   setBootEnabled: (enabled: boolean) => Promise<TailscaleActionResult>;
   setExitNodeAdvertised: (enabled: boolean) => Promise<TailscaleActionResult>;
   setSshEnabled: (enabled: boolean) => Promise<TailscaleActionResult>;
+  setNetFixes: (enabled: boolean) => Promise<TailscaleActionResult>;
   uninstall: () => Promise<TailscaleActionResult>;
   onUninstalled: () => void;
+  /** The page's status re-read; an icon at the card's top-right corner. */
+  onRefresh: () => void;
+  isRefreshing: boolean;
 }
 
 /** The lucide check that SegmentedField reserves on every segment. */
@@ -104,6 +110,7 @@ function SettingRow({
   checked,
   disabled,
   onChange,
+  promoteOn = true,
 }: {
   title: string;
   description: string;
@@ -111,6 +118,8 @@ function SettingRow({
   checked: boolean;
   disabled?: boolean;
   onChange: (value: boolean) => void;
+  /** A default-on safety setting stays quiet when on; only opt-ins light up. */
+  promoteOn?: boolean;
 }) {
   const { t } = useTranslation("common");
   return (
@@ -118,7 +127,7 @@ function SettingRow({
       className={cn(
         SWITCH_ROW.ROOT,
         SWITCH_ROW.TRANSITION,
-        checked ? SWITCH_ROW.ON : SWITCH_ROW.REST,
+        checked && promoteOn ? SWITCH_ROW.ON : SWITCH_ROW.REST,
       )}
     >
       <div className={SWITCH_ROW.TEXT}>
@@ -152,6 +161,8 @@ export function ConnectionCard({
   isTogglingExitNode,
   isTogglingSsh,
   isUninstalling,
+  isUpdating,
+  isTogglingNetFixes,
   connect,
   disconnect,
   logout,
@@ -160,19 +171,31 @@ export function ConnectionCard({
   setBootEnabled,
   setExitNodeAdvertised,
   setSshEnabled,
+  setNetFixes,
   uninstall,
   onUninstalled,
+  onRefresh,
+  isRefreshing,
 }: ConnectionCardProps) {
   const { t } = useTranslation("common");
   const [sshDialogOpen, setSshDialogOpen] = React.useState(false);
 
-  const version = status.version;
   const daemonRunning = status.daemon_running ?? false;
   const backendState = status.backend_state ?? "";
   const bootEnabled = status.enabled_on_boot ?? false;
   const exitNodeEnabled = status.exit_node_advertised ?? false;
-  const installVariant = status.install_variant;
   const authUrl = status.auth_url;
+
+  // An update (or an install started elsewhere) swaps the binary under the
+  // running tunnel, so every other action waits for it.
+  const updating = isUpdating || status.busy === "update";
+  const locked = updating || !!status.busy;
+
+  const legacyBuild = status.legacy_build ?? false;
+  // Reported by the CGI on every installed tier; undefined means "not told",
+  // in which case the row is left out rather than shown with a guessed state.
+  const netFixesKnown = status.net_fixes_enabled !== undefined;
+  const netFixesEnabled = status.net_fixes_enabled ?? false;
 
   // The accept-routes advisory is normal on this device and is not a fault.
   const health = (status.health ?? []).filter(
@@ -240,6 +263,19 @@ export function ConnectionCard({
     }
   };
 
+  const handleNetFixes = async (checked: boolean) => {
+    const result = await setNetFixes(checked);
+    if (result.ok) {
+      toast.success(
+        checked
+          ? t("tailscale.toast.netFixesOn")
+          : t("tailscale.toast.netFixesOff"),
+      );
+    } else {
+      toast.error(result.reason || t("tailscale.toast.netFixesFailed"));
+    }
+  };
+
   const run = async (
     action: () => Promise<TailscaleActionResult>,
     successKey: string,
@@ -256,7 +292,7 @@ export function ConnectionCard({
         <Button
           type="button"
           variant="destructive"
-          disabled={isDisconnecting}
+          disabled={isDisconnecting || locked}
           size="action"
         >
           {t("tailscale.connection.logout")}
@@ -295,6 +331,7 @@ export function ConnectionCard({
   const uninstallButton = (
     <UninstallButton
       className="ml-auto"
+      disabled={locked}
       isUninstalling={isUninstalling}
       uninstall={uninstall}
       onUninstalled={onUninstalled}
@@ -311,7 +348,7 @@ export function ConnectionCard({
       <Button
         type="button"
         size="action"
-        disabled={isTogglingService}
+        disabled={isTogglingService || locked}
         onClick={() =>
           run(
             startService,
@@ -333,7 +370,7 @@ export function ConnectionCard({
           <Button
             type="button"
             size="action"
-            disabled={isConnecting}
+            disabled={isConnecting || locked}
             onClick={() =>
               run(
                 connect,
@@ -350,10 +387,9 @@ export function ConnectionCard({
         )}
         <Button
           type="button"
-          variant="ghost"
+          variant="tonal"
           size="action"
-          className={PILL_REST}
-          disabled={isTogglingService}
+          disabled={isTogglingService || locked}
           onClick={() =>
             run(
               stopService,
@@ -367,7 +403,6 @@ export function ConnectionCard({
             ? t("tailscale.connection.stopping")
             : t("tailscale.connection.stopService")}
         </Button>
-        {uninstallButton}
       </>
     );
   } else if (view === "running") {
@@ -377,7 +412,7 @@ export function ConnectionCard({
           type="button"
           variant="tonal"
           size="action"
-          disabled={isDisconnecting}
+          disabled={isDisconnecting || locked}
           onClick={() =>
             run(
               disconnect,
@@ -399,7 +434,7 @@ export function ConnectionCard({
         <Button
           type="button"
           size="action"
-          disabled={isConnecting}
+          disabled={isConnecting || locked}
           onClick={() =>
             run(
               connect,
@@ -429,20 +464,26 @@ export function ConnectionCard({
             {t("tailscale.connection.description")}
           </CardDescription>
         </div>
-        {version || installVariant === "official" || installVariant === "tiny" ? (
-          <div className={CARD_HEAD_ACTIONS}>
-            {installVariant === "official" || installVariant === "tiny" ? (
+        <div className={CARD_HEAD_ACTIONS}>
+            {legacyBuild ? (
               <Tag variant="neutral" className={HEAD_TAG}>
-                {t(`tailscale.install.variant.${installVariant}.title`)}
+                {t("tailscale.connection.communityBuild")}
               </Tag>
             ) : null}
-            {version ? (
-              <Tag variant="neutral" className={HEAD_TAG}>
-                {t("tailscale.connection.version", { version })}
-              </Tag>
-            ) : null}
-          </div>
-        ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              aria-label={t("tailscale.page.refresh")}
+              title={t("tailscale.page.refresh")}
+            >
+              <RefreshCcwIcon
+                className={cn("size-4", isRefreshing && "motion-safe:animate-spin")}
+              />
+            </Button>
+        </div>
       </CardHeader>
 
       {/* No card-level `aria-live`: the health notice and the auth condition
@@ -482,7 +523,7 @@ export function ConnectionCard({
           title={t("tailscale.connection.bootTitle")}
           description={t("tailscale.connection.bootDescription")}
           checked={bootEnabled}
-          disabled={isTogglingBoot}
+          disabled={isTogglingBoot || locked}
           onChange={handleBoot}
         />
 
@@ -493,7 +534,7 @@ export function ConnectionCard({
             exitNodeLocked ? t("tailscale.connection.exitNodeLocked") : undefined
           }
           checked={exitNodeEnabled}
-          disabled={exitNodeLocked || isTogglingExitNode}
+          disabled={exitNodeLocked || isTogglingExitNode || locked}
           onChange={handleExitNode}
         />
 
@@ -503,10 +544,21 @@ export function ConnectionCard({
             description={t("tailscale.connection.sshDescription")}
             note={exitNodeLocked ? t("tailscale.connection.sshLocked") : undefined}
             checked={sshEnabled}
-            disabled={exitNodeLocked || isTogglingSsh}
+            disabled={exitNodeLocked || isTogglingSsh || locked}
             onChange={handleSsh}
           />
         )}
+
+        {netFixesKnown ? (
+          <SettingRow
+            title={t("tailscale.connection.netFixesTitle")}
+            description={t("tailscale.connection.netFixesDescription")}
+            checked={netFixesEnabled}
+            promoteOn={false}
+            disabled={isTogglingNetFixes || locked}
+            onChange={handleNetFixes}
+          />
+        ) : null}
 
         <AlertDialog open={sshDialogOpen} onOpenChange={setSshDialogOpen}>
           <AlertDialogContent>
@@ -527,7 +579,10 @@ export function ConnectionCard({
           </AlertDialogContent>
         </AlertDialog>
 
-        <div className={RAIL}>{rail}</div>
+        <div className={RAIL}>
+          {rail}
+          {view === "needsLogin" ? uninstallButton : null}
+        </div>
       </CardContent>
 
     </Card>
@@ -551,6 +606,7 @@ export function ConnectionCardSkeleton() {
         </div>
       </CardHeader>
       <CardContent className={cn(CARD_PAD, CARD_BODY)} aria-hidden>
+        <Skeleton className={SKELETON.SWITCH} />
         <Skeleton className={SKELETON.SWITCH} />
         <Skeleton className={SKELETON.SWITCH} />
         <Skeleton className={SKELETON.SWITCH} />

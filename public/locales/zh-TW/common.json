@@ -487,7 +487,16 @@
       "sshLocked": "連線 Tailscale 後才能變更此設定。",
       "sshDialogTitle": "開啟 Tailscale SSH？",
       "sshDialogDescription": "tailnet 成員將能依您 Tailscale 管理後台的 ACL 透過 SSH 連線此數據機。請先檢查該政策，確保只有您允許的人能存取此裝置。",
-      "sshConfirm": "開啟 SSH"
+      "sshConfirm": "開啟 SSH",
+      "updateAvailable": "有可用更新（{{version}}）",
+      "update": "更新",
+      "updating": "更新中…",
+      "updateDialogTitle": "將 Tailscale 更新到 {{version}}？",
+      "updateDialogDescription": "新版本啟動期間，隧道會重新連線數秒。",
+      "updateLogTitle": "更新記錄",
+      "communityBuild": "社群版",
+      "netFixesTitle": "網路修復",
+      "netFixesDescription": "讓您 tailnet 中的裝置能夠存取這台數據機及其區域網路。"
     },
     "device": {
       "title": "此裝置",
@@ -499,6 +508,7 @@
       "tailnet": "Tailnet",
       "magicDns": "MagicDNS",
       "relay": "DERP 中繼",
+      "version": "版本",
       "emptyTitle": "尚未加入 tailnet",
       "emptyDescription": "連線 Tailscale 後，此數據機的位址、DNS 名稱與中繼資訊會顯示在這裡。"
     },
@@ -532,7 +542,7 @@
     },
     "install": {
       "title": "Tailscale",
-      "description": "免開放連接埠，即可從任何地方存取這台數據機的 mesh VPN。",
+      "description": "安裝 Tailscale 官方版本。這是一種 mesh VPN，免開放連接埠即可從任何地方存取這台數據機。",
       "conditionTitle": "尚未安裝 Tailscale",
       "conditionDescription": "安裝會透過目前這條行動網路連線下載 Tailscale 安裝套件，因此會消耗您的流量，安裝期間連線也會變慢。",
       "install": "安裝 Tailscale",
@@ -540,22 +550,8 @@
       "checkAgain": "再次檢查",
       "done": "Tailscale 已安裝。",
       "failed": "安裝未完成。",
-      "manualLabel": "或透過命令列安裝",
-      "copyCommand": "複製安裝指令",
       "logTitle": "安裝紀錄",
-      "logWaiting": "等待輸出…",
-      "chooseLabel": "選擇要安裝的版本",
-      "manualCommand": "opkg update && opkg install luci-app-tailscale-community-tiny",
-      "variant": {
-        "official": {
-          "title": "官方版",
-          "description": "最新版本，直接來自 Tailscale。佔用約 50 MB 磁碟空間。"
-        },
-        "tiny": {
-          "title": "Tiny",
-          "description": "輕量級社群套件。體積更小，但版本較舊。"
-        }
-      }
+      "logWaiting": "等待輸出…"
     },
     "danger": {
       "uninstall": "解除安裝",
@@ -584,8 +580,6 @@
       "serviceStopFailed": "無法停止 Tailscale 服務",
       "uninstalled": "Tailscale 已解除安裝",
       "uninstallFailed": "無法解除安裝 Tailscale",
-      "copied": "指令已複製",
-      "copyFailed": "無法複製指令",
       "exitNodeEnabled": "已宣告為出口節點",
       "exitNodeDisabled": "已停止宣告為出口節點",
       "exitNodeFailed": "無法變更出口節點宣告",
@@ -594,11 +588,20 @@
       "sshDisabled": "Tailscale SSH 已關閉",
       "sshDisableFailed": "無法關閉 Tailscale SSH",
       "installed": "Tailscale 已安裝",
-      "installFailed": "Tailscale 安裝未完成"
+      "installFailed": "Tailscale 安裝未完成",
+      "updated": "Tailscale 已更新到 {{version}}",
+      "updateFailed": "無法更新 Tailscale",
+      "netFixesOn": "網路修復已開啟",
+      "netFixesOff": "網路修復已關閉",
+      "netFixesFailed": "無法變更網路修復設定"
     },
     "mutex": {
       "title": "已安裝其他 VPN",
       "description": "同一時間只能安裝一個 VPN。請先在 <link>NetBird 頁面</link>解除安裝 {{other_vpn}}。"
+    },
+    "legacy": {
+      "title": "舊版社群版本",
+      "description": "這台數據機執行的是 Tailscale 舊版社群版本。請先解除安裝，再重新安裝，即可切換到官方版本。"
     }
   },
   "pending_reboot": {

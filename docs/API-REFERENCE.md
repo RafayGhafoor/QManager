@@ -1595,6 +1595,7 @@ System preferences, scheduled reboot, and low power mode.
 }
 ```
 
+- `force_tailscale_fixes` was retired: `settings.sh` neither returns nor reads it (an old client that posts it is ignored). The Tailscale fixes are automatic and toggled with `set_net_fixes` on `/vpn/tailscale.sh`.
 - `temp_unit`: `"celsius"` or `"fahrenheit"`
 - `distance_unit`: `"km"` or `"miles"`
 - `hostname`/`timezone`/`zonename`: written to UCI `system.@system[0]`. Handler compares each incoming value to the current UCI value and only writes when changed. When any of these three actually change, the handler backgrounds `/etc/init.d/system reload` to republish `/tmp/TZ`, `/tmp/localtime`, and kernel hostname. When `timezone` or `zonename` changes, it additionally backgrounds `/etc/init.d/cron restart` so busybox crond (which caches TZ at startup) picks up the new zone for `qmanager_scheduled_reboot` and `qmanager_low_power` entries. Both spawns are fire-and-forget so the HTTP response returns promptly.
@@ -1915,11 +1916,14 @@ Tailscale VPN status and configuration. Full contract: [`docs/features/tailscale
 
 | Condition | Key fields returned |
 |---|---|
-| Not installed | `installed:false`, `install_hint`, `install_variants:["official","tiny"]` |
-| Installed, daemon stopped | `installed:true`, `daemon_running:false`, `version`, `install_variant`, `enabled_on_boot` |
+| Install or update running | `installed:true`, `busy` (`"install"` or `"update"`), nothing else |
+| Not installed | `installed:false`, `other_vpn_installed`, `other_vpn_name` |
+| Installed, daemon stopped | `installed:true`, `daemon_running:false`, `version`, `install_variant`, `enabled_on_boot`, `latest_version`, `update_available`, `legacy_build`, `net_fixes_enabled` |
 | Daemon running | All of the above + `backend_state`, `exit_node_advertised`, `ssh_enabled`, `auth_url`, `self`, `tailnet`, `peers`, `health` |
 
-`install_variant` — `"official"` (QManager static tarball), `"tiny"` (opkg `tailscale-tiny`), or `"opkg"` (pre-marker legacy). The marker file `/etc/tailscale/.qm_install_method` is authoritative; opkg detection is the fallback.
+`install_variant` — `"official"` (QManager static tarball from pkgs.tailscale.com), or the legacy `"tiny"` (opkg `tailscale-tiny`) / `"opkg"` (pre-marker). The marker file `/etc/tailscale/.qm_install_method` is authoritative; opkg detection is the fallback. `legacy_build` is `true` for `tiny` and `opkg`. `install_hint` and `install_variants` are gone.
+
+`latest_version` comes from the cache only (the GET never fetches); `update_available` is `true` only on an official install with a newer cached version. `net_fixes_enabled` is UCI `quecmanager.tailscale_net.enabled` (default on).
 
 `exit_node_advertised` — boolean derived from `.Self.ExitNodeOption` in `tailscale status --json`. Present on the Tier-3 (daemon running) response only.
 
@@ -1929,44 +1933,57 @@ Tailscale VPN status and configuration. Full contract: [`docs/features/tailscale
 
 | Action | Required fields | Notes |
 |---|---|---|
-| `install` | `variant` (`"official"`\|`"tiny"`, absent→`"tiny"`) | Background; poll `install_status` |
-| `install_status` | — | Returns `/tmp/qmanager_tailscale_install.json` plus `log` (last 50 lines of `/var/run/qmanager/tailscale_install.log`) |
-| `connect` | — | Orphaned double-fork `tailscale up --accept-dns=false --json` |
+| `install` | `variant` (optional; only `"official"` accepted) | Background; poll `install_status`. `"tiny"` returns `invalid_variant` |
+| `install_status` | — | Returns `/tmp/qmanager_tailscale_install.json` (`status`, `message`, `detail?`, `error?`, `op`) plus `log` (last 50 lines of `/var/run/qmanager/tailscale_install.log`) |
+| `check_update` | `force` (bool, optional) | Returns `{installed_version, latest_version, update_available, checked_at}`. Cached 6 h (30 min back-off after a failed check); `force` always asks pkgs.tailscale.com |
+| `update` | — | Official builds only. Background; poll `install_status` (`op:"update"`). Stages, swaps, restarts, health-checks, rolls back on failure |
+| `set_net_fixes` | `enabled` (bool) | Writes UCI `quecmanager.tailscale_net.enabled`, returns `{success, enabled}`, then applies or tears down the fw4 zone and the pref-1990 routing rule in the background |
+| `connect` | — | Orphaned double-fork `tailscale up --accept-dns=false --json`; also re-asserts the routing rule |
 | `disconnect` | — | `tailscale down`; stays registered |
 | `logout` | — | `tailscale logout`; removes device from tailnet |
-| `start_service` | — | Starts `tailscaled` |
+| `start_service` | — | Starts `tailscaled`; re-asserts the routing rule |
 | `stop_service` | — | Stops `tailscaled` |
 | `set_boot_enabled` | `enabled` (bool) | Writes `tailscale.settings.service_enabled` + `init.d enable/disable` |
 | `set_exit_node` | `enabled` (bool) | `tailscale set --advertise-exit-node=<bool>`; requires `BackendState=="Running"` |
 | `set_ssh` | `enabled` (bool) | `tailscale set --ssh=<bool>`; requires `BackendState=="Running"` |
-| `uninstall` | — | Method-aware: tarball path removes binaries + init.d + rc.d + UCI + `/etc/config/tailscale`; opkg path uses smart 6-package removal |
+| `uninstall` | — | Method-aware: tarball path removes binaries + init.d + rc.d + UCI + `/etc/config/tailscale`; opkg path uses smart 6-package removal. Network fixes are torn down after the response |
 
-**Install progress shape** (polled via `install_status`):
+**Install / update progress shape** (polled via `install_status`):
 
 ```json
-{ "success": true, "status": "running", "message": "Downloading Tailscale 1.98.4..." }
+{ "success": true, "status": "running", "message": "Downloading Tailscale 1.104.1...", "op": "update" }
 ```
 
-Terminal `status` values: `"complete"` (with `"variant"` field) or `"error"` (with `"detail"` field).
+Terminal `status` values: `"complete"` (with a `"variant"` field) or `"error"` (with `"detail"` and an `"error"` code from the table below). `op` is `"install"` or `"update"`.
 
 **Error codes:**
 
 | Code | Action(s) | Meaning |
 |---|---|---|
-| `invalid_variant` | install | `variant` present but not `"official"` or `"tiny"` |
+| `library_missing` | any | `tailscale_mgr.sh` / `tailscale_net.sh` not installed |
+| `invalid_variant` | install | `variant` present but not `"official"` |
 | `other_vpn_installed` | install | NetBird is installed |
-| `already_running` | install, start_service | Already in progress / already running |
+| `already_running` | install, update, start_service | A worker holds the lock / daemon already up |
 | `already_installed` | install | Binaries already present |
 | `not_installed` | any post-install action | Tailscale not installed |
-| `migration_in_progress` | all mutating | `migrate_tailscale_packages` lock held |
+| `migration_in_progress` | all mutating | Install/update lock held by a live process |
+| `legacy_build` | update | Install is the legacy `tiny`/`opkg` build; uninstall and reinstall |
+| `up_to_date` | update | No newer version |
+| `update_check_failed` | check_update, install, update | pkgs.tailscale.com unreachable or format changed |
+| `insufficient_space` | install, update | Not enough RAM to stage or flash to swap |
+| `unsupported_arch` | install, update | Device is not aarch64 |
+| `checksum_mismatch` | install, update | sha256 missing or does not match (fail closed) |
+| `install_failed`, `update_failed` | install, update | Generic worker failure |
+| `update_rolled_back` | update | New build failed its health check; the old version was restored |
 | `daemon_start_failed` | connect | Daemon did not start within 5 s |
 | `auth_timeout` | connect | No auth URL appeared within 10 s |
 | `disconnect_failed` | disconnect | `tailscale down` non-zero exit |
 | `logout_failed` | logout | `tailscale logout` non-zero exit |
 | `start_failed` | start_service | Daemon not running after start |
-| `missing_field` | set_boot_enabled, set_exit_node, set_ssh | Required field absent |
+| `missing_field` | set_boot_enabled, set_exit_node, set_ssh, set_net_fixes | Required field absent |
 | `no_init_script` | set_boot_enabled | `/etc/init.d/tailscale` absent |
-| `invalid_value` | set_boot_enabled, set_exit_node, set_ssh | Field present but wrong type/value |
+| `invalid_value` | set_boot_enabled, set_exit_node, set_ssh, set_net_fixes | Field present but wrong type/value |
+| `save_failed` | set_net_fixes | `uci commit quecmanager` failed |
 | `not_connected` | set_exit_node, set_ssh | Daemon not running or `BackendState != "Running"` |
 | `set_failed` | set_exit_node, set_ssh | `tailscale set` non-zero exit |
 | `uninstall_failed` | uninstall | Binary still present after removal |

@@ -1147,13 +1147,6 @@
         "consequence": "适用于小区扫描和天线页面上的基站距离。",
         "km": "千米（km）",
         "miles": "英里（mi）"
-      },
-      "tailscale": {
-        "label": "强制 Tailscale 修复",
-        "consequence": "在固件之上叠加应用 QManager 自身的 Tailscale 防火墙与路由修复。推荐 R02 固件用户启用。",
-        "toast_failed": "更新强制 Tailscale 修复失败",
-        "toast_enabled": "已启用强制 Tailscale 修复，正在应用防火墙更改。",
-        "toast_disabled": "已禁用强制 Tailscale 修复，正在移除防火墙更改。"
       }
     },
     "states": {

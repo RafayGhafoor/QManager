@@ -1147,13 +1147,6 @@
         "consequence": "Berlaku untuk jarak menara di halaman pemindai sel dan antena.",
         "km": "Kilometer (km)",
         "miles": "Mil (mi)"
-      },
-      "tailscale": {
-        "label": "Paksa Perbaikan Tailscale",
-        "consequence": "Menerapkan perbaikan firewall dan routing Tailscale milik QManager di atas firmware Anda. Direkomendasikan untuk firmware R02.",
-        "toast_failed": "Gagal memperbarui Paksa Perbaikan Tailscale",
-        "toast_enabled": "Paksa Perbaikan Tailscale diaktifkan. Menerapkan perubahan firewall.",
-        "toast_disabled": "Paksa Perbaikan Tailscale dinonaktifkan. Menghapus perubahan firewall."
       }
     },
     "states": {

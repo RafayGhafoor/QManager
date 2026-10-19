@@ -5,8 +5,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   CheckCircle2Icon,
-  CheckIcon,
-  CopyIcon,
   Loader2Icon,
   PackageIcon,
   RefreshCcwIcon,
@@ -21,11 +19,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { SEGMENTED, SegmentedField } from "@/components/ui/segmented-field";
-import type {
-  TailscaleInstallVariant,
-} from "@/hooks/use-tailscale";
-import { copyText } from "@/lib/clipboard";
 import type { InstallResult } from "@/types/video-optimizer";
 import { cn } from "@/lib/utils";
 
@@ -37,9 +30,7 @@ import {
   CARD_HEAD,
   CARD_HEAD_TEXT,
   CARD_TITLE,
-  COMMAND,
   HERO_PAD,
-  VARIANT,
   HERO_SHELL,
   NOTICE,
   NOTICE_BODY,
@@ -53,61 +44,17 @@ import {
 // Install — the not-installed hero. The only card on this shape.
 // -----------------------------------------------------------------------------
 
-/** The lucide check that SegmentedField reserves on every segment. */
-const renderCheckGlyph = (className: string) => (
-  <CheckIcon size={SEGMENTED.GLYPH} className={className} aria-hidden="true" />
-);
-
-const VARIANTS: readonly TailscaleInstallVariant[] = ["official", "tiny"];
-
-/** One labelled machine-voice row, replacing the "or install manually" ritual. */
-function CommandRow({ command }: { command: string }) {
-  const { t } = useTranslation("common");
-
-  const copy = async () => {
-    if (await copyText(command)) {
-      toast.success(t("tailscale.toast.copied"));
-    } else {
-      toast.error(t("tailscale.toast.copyFailed"));
-    }
-  };
-
-  return (
-    <div className={COMMAND.ROOT}>
-      <span className={COMMAND.LABEL}>{t("tailscale.install.manualLabel")}</span>
-      <div className={COMMAND.BOX}>
-        <code className={COMMAND.TEXT}>{command}</code>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={copy}
-          className={COMMAND.COPY}
-          aria-label={t("tailscale.install.copyCommand")}
-        >
-          <CopyIcon className="size-4" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 export function InstallCard({
   installResult,
   runInstall,
   onRefresh,
-  installHint,
 }: {
   installResult: InstallResult;
-  runInstall: (variant: TailscaleInstallVariant) => Promise<void>;
+  runInstall: () => Promise<void>;
   onRefresh: () => void;
-  installHint?: string;
 }) {
   const { t } = useTranslation("common");
   const running = installResult.status === "running";
-  const [variant, setVariant] = React.useState<TailscaleInstallVariant>("official");
-  // The manual route is the opkg package, which is the tiny build.
-  const command = installHint || t("tailscale.install.manualCommand");
   const showLog =
     running ||
     ((installResult.status === "complete" ||
@@ -174,32 +121,11 @@ export function InstallCard({
           </div>
         ) : null}
 
-        <div className={VARIANT.ROOT}>
-          <span className={VARIANT.LABEL}>
-            {t("tailscale.install.chooseLabel")}
-          </span>
-          <SegmentedField
-            value={variant}
-            onValueChange={setVariant}
-            ariaLabel={t("tailscale.install.chooseLabel")}
-            disabled={running}
-            breakpoint="never"
-            glyph={renderCheckGlyph}
-            options={VARIANTS.map((v) => ({
-              value: v,
-              label: t(`tailscale.install.variant.${v}.title`),
-            }))}
-          />
-          <p className={VARIANT.DESC}>
-            {t(`tailscale.install.variant.${variant}.description`)}
-          </p>
-        </div>
-
         <div className={cn(RAIL, "justify-center")}>
           <Button
             type="button"
             size="action"
-            onClick={() => runInstall(variant)}
+            onClick={() => void runInstall()}
             disabled={running}
           >
             {running ? (
@@ -229,8 +155,6 @@ export function InstallCard({
         {showLog ? (
           <InstallLogViewer log={installResult.log ?? ""} isRunning={running} />
         ) : null}
-
-        {variant === "tiny" ? <CommandRow command={command} /> : null}
       </CardContent>
     </Card>
   );

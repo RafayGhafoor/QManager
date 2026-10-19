@@ -487,7 +487,16 @@
       "sshLocked": "Connect to Tailscale to change this.",
       "sshDialogTitle": "Turn on Tailscale SSH?",
       "sshDialogDescription": "Tailnet members will be able to SSH into this modem based on your Tailscale admin-panel ACLs. Review that policy first, so only the people you intend can reach the device.",
-      "sshConfirm": "Turn on SSH"
+      "sshConfirm": "Turn on SSH",
+      "updateAvailable": "Update available ({{version}})",
+      "update": "Update",
+      "updating": "Updating…",
+      "updateDialogTitle": "Update Tailscale to {{version}}?",
+      "updateDialogDescription": "The tunnel reconnects for a few seconds while the new version starts.",
+      "updateLogTitle": "Update log",
+      "communityBuild": "Community build",
+      "netFixesTitle": "Network fixes",
+      "netFixesDescription": "Lets your tailnet devices reach this modem and its LAN."
     },
     "device": {
       "title": "This device",
@@ -499,6 +508,7 @@
       "tailnet": "Tailnet",
       "magicDns": "MagicDNS",
       "relay": "DERP relay",
+      "version": "Version",
       "emptyTitle": "Not on the tailnet",
       "emptyDescription": "Connect Tailscale and this modem's address, DNS name and relay appear here."
     },
@@ -532,7 +542,7 @@
     },
     "install": {
       "title": "Tailscale",
-      "description": "A mesh VPN for reaching this modem from anywhere, without opening a port.",
+      "description": "Installs the official build from Tailscale, a mesh VPN for reaching this modem from anywhere without opening a port.",
       "conditionTitle": "Tailscale is not installed",
       "conditionDescription": "Installing downloads the Tailscale packages over the same cellular link this session is running on, so it uses your data allowance and the connection will be slower while it runs.",
       "install": "Install Tailscale",
@@ -540,22 +550,8 @@
       "checkAgain": "Check again",
       "done": "Tailscale installed.",
       "failed": "The install did not finish.",
-      "manualLabel": "Or install from a shell",
-      "copyCommand": "Copy the install command",
       "logTitle": "Install log",
-      "logWaiting": "Waiting for output…",
-      "chooseLabel": "Choose a build to install",
-      "manualCommand": "opkg update && opkg install luci-app-tailscale-community-tiny",
-      "variant": {
-        "official": {
-          "title": "Official",
-          "description": "The latest build, straight from Tailscale. Takes about 50 MB on disk."
-        },
-        "tiny": {
-          "title": "Tiny",
-          "description": "A lightweight community package. Smaller, but an older version."
-        }
-      }
+      "logWaiting": "Waiting for output…"
     },
     "danger": {
       "uninstall": "Uninstall",
@@ -584,8 +580,6 @@
       "serviceStopFailed": "Could not stop the Tailscale service",
       "uninstalled": "Tailscale uninstalled",
       "uninstallFailed": "Could not uninstall Tailscale",
-      "copied": "Command copied",
-      "copyFailed": "Could not copy the command",
       "exitNodeEnabled": "Advertising as an exit node",
       "exitNodeDisabled": "No longer advertising as an exit node",
       "exitNodeFailed": "Could not change exit node advertising",
@@ -594,11 +588,20 @@
       "sshDisabled": "Tailscale SSH is off",
       "sshDisableFailed": "Could not turn off Tailscale SSH",
       "installed": "Tailscale installed",
-      "installFailed": "The Tailscale install did not finish"
+      "installFailed": "The Tailscale install did not finish",
+      "updated": "Tailscale updated to {{version}}",
+      "updateFailed": "Tailscale could not be updated",
+      "netFixesOn": "Network fixes are on",
+      "netFixesOff": "Network fixes are off",
+      "netFixesFailed": "Could not change network fixes"
     },
     "mutex": {
       "title": "Another VPN is installed",
       "description": "Only one VPN can be installed at a time. Uninstall {{other_vpn}} from the <link>NetBird page</link> first."
+    },
+    "legacy": {
+      "title": "Older community build",
+      "description": "This modem runs the older community build of Tailscale. Uninstall it and install again to switch to the official build."
     }
   },
   "pending_reboot": {

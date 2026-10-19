@@ -3,7 +3,6 @@
 // =============================================================================
 
 export interface SystemSettings {
-  force_tailscale_fixes: boolean;
   hostname: string; // Device hostname, used as display name
   temp_unit: "celsius" | "fahrenheit";
   distance_unit: "km" | "miles";

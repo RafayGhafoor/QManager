@@ -1,6 +1,10 @@
 # Tailscale VPN
 
-QManager provides a first-class Tailscale integration that installs, connects, and manages the Tailscale daemon entirely from the monitoring UI. Because the modem runs OpenWRT/BusyBox with constrained overlay storage, the feature supports two install variants — an official static-tarball build and a lightweight opkg package — each with its own lifecycle. The CGI is a thin control layer over `tailscale`/`tailscaled`; it does not own Tailscale's config beyond the UCI boot-enable flag and the install-method marker (exit-node and SSH prefs are set through `tailscale set` and live in tailscaled's own state).
+QManager installs, updates, connects and manages the Tailscale daemon from the monitoring UI, and keeps the modem reachable over the tailnet. Because the modem runs OpenWRT/BusyBox with constrained overlay storage, the install and update pipeline (`tailscale_mgr.sh`) stages the official static arm64 build in RAM, verifies it, and swaps it into `/usr/bin` with a kept backup and an automatic rollback. A second library (`tailscale_net.sh`) owns the two things plain IP over the tunnel needs: an fw4 zone and a routing rule. The CGI is a thin control layer over `tailscale`/`tailscaled`; it does not own Tailscale's config beyond the UCI boot-enable flag and the install-method marker (exit-node and SSH prefs are set through `tailscale set` and live in tailscaled's own state).
+
+Only the **official** build is installable. The old "Tiny" opkg variant (iamromulan `tailscale-tiny`) is retired; installs that already exist keep working and are flagged `legacy_build`.
+
+Frontend anatomy lives in [`docs/reference/tailscale.md`](../reference/tailscale.md).
 
 ---
 
@@ -8,24 +12,28 @@ QManager provides a first-class Tailscale integration that installs, connects, a
 
 | Item | Value |
 |---|---|
-| CGI script | `scripts/www/cgi-bin/quecmanager/vpn/tailscale.sh` |
-| Install path | `/www/cgi-bin/quecmanager/vpn/tailscale.sh` |
-| Endpoint | `GET/POST /cgi-bin/quecmanager/vpn/tailscale.sh` |
-| Official init writer (shared lib) | `scripts/usr/lib/qmanager/tailscale_initd.sh` → `/usr/lib/qmanager/tailscale_initd.sh` (canonical `qm_write_ts_initd`; sourced by both the CGI and the OTA migration) |
+| CGI | `scripts/www/cgi-bin/quecmanager/vpn/tailscale.sh` (`GET/POST /cgi-bin/quecmanager/vpn/tailscale.sh`) |
+| Install / update pipeline | `scripts/usr/lib/qmanager/tailscale_mgr.sh` (guard `_TS_MGR_LOADED`) |
+| Reachability (zone + rule) | `scripts/usr/lib/qmanager/tailscale_net.sh` (guard `_TS_NET_LOADED`) |
+| Boot re-assert | `scripts/etc/init.d/qmanager_tailscale_net` (START=99, non-procd, `stop()` is a no-op) |
+| Official init writer (shared lib) | `scripts/usr/lib/qmanager/tailscale_initd.sh` (canonical `qm_write_ts_initd`; sourced by `tailscale_mgr.sh` and the OTA boot-fix migration). Unchanged by the rework |
 | Install marker | `/etc/tailscale/.qm_install_method` (`official` or `tiny`) |
 | Tailscale state | `/etc/tailscale/tailscaled.state` |
-| Install progress | `/tmp/qmanager_tailscale_install.json` |
-| Install PID | `/var/run/qmanager/tailscale_install.pid` (root-only run dir, B5.11) |
+| Install / update progress | `/tmp/qmanager_tailscale_install.json` (`{success,status,message,detail?,error?,op,variant?}`) |
+| Install / update live log | `/var/run/qmanager/tailscale_install.log` |
+| Install / update lock | `/var/lock/qmanager_tailscale_migrate.lock` (`<pid>\n<op>`, stale when the pid is dead) |
+| Latest-version cache | `/var/run/qmanager/tailscale_latest.json` (6 h TTL, 30 min back-off after a failed check) |
 | Auth URL cache | `/tmp/qmanager_tailscale_auth_url` |
-| `tailscale up` PID | `/tmp/qmanager_tailscale_up_pid` |
-| `tailscale up` output | `/tmp/qmanager_tailscale_up_output` |
-| Migration lock | `/var/lock/qmanager_tailscale_migrate.lock` |
-| UCI key (boot enable) | `tailscale.settings.service_enabled` (`0`/`1`) |
-| init.d script | `/etc/init.d/tailscale` (written via `qm_write_ts_initd` from the shared lib on the official path; opkg-owned for tiny) |
+| `tailscale up` PID / output | `/tmp/qmanager_tailscale_up_pid`, `/var/run/qmanager/tailscale_up_output` |
+| UCI (boot enable) | `tailscale.settings.service_enabled` (`0`/`1`) |
+| UCI (network fixes) | `quecmanager.tailscale_net.enabled` (`1` default, `0` = off) |
+| Routing rule | `ip rule to 100.64.0.0/10 lookup 52 pref 1990` plus v6 `to fd7a:115c:a1e0::/48` |
+| fw4 zone | `tailscale` (device `tailscale0`, ACCEPT, `lan` to `tailscale` and `tailscale` to `lan` forwardings) |
+| init.d script | `/etc/init.d/tailscale` (written by `qm_write_ts_initd` on the official path; opkg-owned on legacy installs) |
 | Reboot? | No |
 | Hook | `hooks/use-tailscale.ts` |
-| Frontend component | `components/monitoring/tailscale/tailscale.tsx` (page root; family listed under Frontend Files) |
-| i18n namespace | `tailscale.*` in `common.json`, all five locales |
+| Frontend | `components/monitoring/tailscale/tailscale.tsx` (page root) |
+| i18n | `tailscale.*` in `common.json`; error codes in `errors.json`, all five locales |
 
 ---
 
@@ -33,22 +41,30 @@ QManager provides a first-class Tailscale integration that installs, connects, a
 
 ### GET `/cgi-bin/quecmanager/vpn/tailscale.sh`
 
-Returns a tiered response depending on install and daemon state.
+Returns a tiered response. The GET never touches the network: `latest_version` comes from the cache file only.
 
-**Tier 1 — Not installed:**
+**Busy (checked first).** While `ts_lock_op` finds a live holder (an install or update worker, or a CGI that pre-acquired the lock), the GET answers immediately and reads nothing else:
+
+```json
+{ "success": true, "installed": true, "busy": "install" }
+```
+
+`busy` is `"install"` or `"update"` (any other recorded op reads as `"install"`).
+
+**Tier 1, not installed:**
 
 ```json
 {
   "success": true,
   "installed": false,
-  "install_hint": "opkg update && opkg install tailscale-tiny",
-  "install_variants": ["official", "tiny"],
   "other_vpn_installed": false,
   "other_vpn_name": "NetBird"
 }
 ```
 
-**Tier 2 — Installed, daemon not running:**
+`install_hint` and `install_variants` no longer exist.
+
+**Tier 2, installed, daemon not running:**
 
 ```json
 {
@@ -56,231 +72,232 @@ Returns a tiered response depending on install and daemon state.
   "installed": true,
   "daemon_running": false,
   "enabled_on_boot": false,
-  "version": "1.98.4",
+  "version": "1.102.2",
   "install_variant": "official",
+  "latest_version": "1.104.1",
+  "update_available": true,
+  "legacy_build": false,
+  "net_fixes_enabled": true,
   "other_vpn_installed": false,
   "other_vpn_name": "NetBird"
 }
 ```
 
-**Tier 3 — Daemon running (full status):**
+**Tier 3, daemon running but `tailscale status --json` unparseable:** the tier-2 fields (with `daemon_running: true`) plus `backend_state: "Unknown"` and `error_detail`.
+
+**Tier 4, daemon running, status parsed:** the tier-2 fields plus:
 
 ```json
 {
-  "success": true,
-  "installed": true,
-  "daemon_running": true,
-  "enabled_on_boot": true,
-  "version": "1.98.4",
-  "install_variant": "official",
   "backend_state": "Running",
   "exit_node_advertised": false,
+  "ssh_enabled": false,
   "auth_url": "",
-  "self": {
-    "hostname": "rm551e",
-    "dns_name": "rm551e.tail1234.ts.net.",
-    "tailscale_ips": ["100.x.y.z"],
-    "online": true,
-    "os": "linux",
-    "relay": "sfo"
-  },
-  "tailnet": {
-    "name": "example.com",
-    "magic_dns_suffix": "tail1234.ts.net",
-    "magic_dns_enabled": true
-  },
-  "peers": [
-    {
-      "hostname": "laptop",
-      "dns_name": "laptop.tail1234.ts.net.",
-      "tailscale_ips": ["100.a.b.c"],
-      "os": "windows",
-      "online": true,
-      "last_seen": "",
-      "relay": "sfo",
-      "exit_node": false
-    }
-  ],
-  "health": [],
-  "other_vpn_installed": false,
-  "other_vpn_name": "NetBird"
+  "self": { "hostname": "rm551e", "dns_name": "rm551e.tail1234.ts.net.", "tailscale_ips": ["100.x.y.z"], "online": true, "os": "linux", "relay": "sfo" },
+  "tailnet": { "name": "example.com", "magic_dns_suffix": "tail1234.ts.net", "magic_dns_enabled": true },
+  "peers": [ { "hostname": "laptop", "dns_name": "laptop.tail1234.ts.net.", "tailscale_ips": ["100.a.b.c"], "os": "windows", "online": true, "last_seen": "", "relay": "sfo", "exit_node": false } ],
+  "health": []
 }
 ```
 
-- `install_variant` — `"official"` (tarball), `"tiny"` (opkg), or `"opkg"` (pre-marker legacy detection). The marker file `/etc/tailscale/.qm_install_method` is authoritative; opkg detection is the fallback for installs that predate the marker.
-- `exit_node_advertised` — derived from `.Self.ExitNodeOption` in `tailscale status --json`. `true` means `--advertise-exit-node` is set on the local prefs.
-- `backend_state` — raw string from Tailscale's `BackendState` field (`"Running"`, `"NeedsLogin"`, `"Stopped"`, etc.).
-- `health` — array of Tailscale health-warning strings. IP-forwarding warnings appear here when exit-node advertising is enabled but the kernel hasn't forwarded.
-- `auth_url` — populated from the `tailscale up --json` output stream while authenticating; persisted to `/tmp/qmanager_tailscale_auth_url` and returned until `BackendState == Running`.
+| Field | Meaning |
+|---|---|
+| `install_variant` | `"official"`, `"tiny"` or `"opkg"` from `ts_variant`. The marker file is authoritative; `opkg list-installed` is the fallback for installs that predate it |
+| `legacy_build` | `true` when the variant is `tiny` or `opkg`. The page shows a banner; Update is refused |
+| `latest_version` | Cached official version (`""` when unknown or the last good check is older than 6 h) |
+| `update_available` | `true` only on an `official` install and only when `latest_version` is greater than `version` (`ts_version_gt`, dotted-numeric) |
+| `net_fixes_enabled` | `ts_net_enabled`: UCI `quecmanager.tailscale_net.enabled` is not `0` |
+| `exit_node_advertised` | `.Self.ExitNodeOption` from `tailscale status --json` (tier 4 only) |
+| `ssh_enabled` | `RunSSH` from `tailscale debug prefs`, or `null` when unreadable (tier 4 only) |
+| `backend_state` | Raw `BackendState` (`Running`, `NeedsLogin`, `Stopped`, ...) |
+| `auth_url` | From the status JSON, else the persisted file; cleared once `Running` |
 
 ### POST `/cgi-bin/quecmanager/vpn/tailscale.sh`
 
-All POST bodies are JSON. All actions check `check_migration_lock()` first — if `/var/lock/qmanager_tailscale_migrate.lock` exists the action is refused with `migration_in_progress`.
+All POST bodies are JSON. Mutating actions call `check_migration_lock` first: a live lock holder returns `migration_in_progress`; a dead or untrusted holder is stale and the lock file is removed so a crashed worker can never wedge the page.
 
-#### action: `install`
+| Action | Request | Behaviour |
+|---|---|---|
+| `install` | `{variant?: "official"}` | Background install (below). Any other `variant`, including `"tiny"`, returns `invalid_variant` |
+| `install_status` | none | The progress file plus `log` (see below) |
+| `check_update` | `{force?: bool}` | `{success, installed_version, latest_version, update_available, checked_at}`. Uses the cache unless `force` is true or `ts_latest_cache_due`; a refresh is synchronous and bounded (`TS_FETCH_RETRY=1`: at most two 20 s attempts) |
+| `update` | none | Official builds only. Background update (below). Returns `{success:true}` |
+| `set_net_fixes` | `{enabled: bool}` | Writes UCI now, returns `{success:true, enabled}`, then applies or tears down in an orphaned background job after the response (`ts_net_apply` / `ts_net_teardown`, after `sleep 1`). Apply is skipped when Tailscale is not installed. Runs before the `not_installed` gate |
+| `connect` | none | Starts the daemon if needed, re-asserts reachability (`ts_net_prep`), then `tailscale up --accept-dns=false --json` as a double-forked orphan; polls up to 10 s. On the official variant it also sets `service_enabled=1` and `init.d enable` |
+| `disconnect` | none | `tailscale down`; the device stays registered |
+| `logout` | none | `tailscale logout`; the device leaves the tailnet |
+| `start_service` | none | Starts `tailscaled` via init.d, then `ts_net_prep` |
+| `stop_service` | none | Stops `tailscaled`; kills an in-flight `tailscale up` first |
+| `set_boot_enabled` | `{enabled: bool}` | Toggles `tailscale.settings.service_enabled` and `init.d enable|disable` |
+| `set_exit_node` | `{enabled: bool}` | `tailscale set --advertise-exit-node=<bool>`; requires `BackendState == "Running"` |
+| `set_ssh` | `{enabled: bool}` | `tailscale set --ssh=<bool>`; requires `BackendState == "Running"`. QManager stores no copy; the GET reads it back from prefs |
+| `uninstall` | none | Method-aware removal (see Uninstall Flow), then `ts_net_teardown` in the background after the response |
 
-Spawns the installer in a background subshell. Returns immediately; poll `install_status` for progress.
+> ℹ️ NOTE: Advertising an exit node does not make peers route through it. The node must also be approved in the Tailscale admin console. IP-forwarding warnings appear in the `health` array until the kernel is configured.
 
-**Request:**
+**Error codes** (all in `errors.json`, five locales):
 
-```json
-{ "action": "install", "variant": "official" }
-```
+| Code | Action(s) | Meaning |
+|---|---|---|
+| `library_missing` | any | `tailscale_mgr.sh` or `tailscale_net.sh` is absent |
+| `invalid_variant` | install | `variant` present and not `"official"` |
+| `other_vpn_installed` | install | NetBird is installed |
+| `already_installed` | install | Tailscale binaries already present |
+| `already_running` | install, update, start_service | A worker holds the lock (install or update), or the daemon is already up |
+| `migration_in_progress` | other mutating actions | The lock is held (any op) |
+| `not_installed` | most post-install actions, update | Tailscale not installed |
+| `legacy_build` | update | The variant is `tiny` or `opkg` |
+| `up_to_date` | update | The cached latest is not newer than the installed version (the worker re-checks and reports the same code through progress) |
+| `update_check_failed` | check_update, install, update | `pkgs.tailscale.com` unreachable or the response format changed |
+| `insufficient_space` | install, update | Not enough RAM for staging, or not enough flash for the swap |
+| `unsupported_arch` | install, update | `uname -m` is not `aarch64` |
+| `checksum_mismatch` | install, update | The `.sha256` file is missing, malformed or does not match |
+| `install_failed` / `update_failed` | install / update | Generic worker failure (`<op>_failed`) |
+| `update_rolled_back` | update | The new build failed its health check and the old binaries were restored |
+| `missing_field` / `invalid_value` | set_boot_enabled, set_exit_node, set_ssh, set_net_fixes | Required field absent / wrong type |
+| `save_failed` | set_net_fixes | `uci commit quecmanager` failed |
+| `no_init_script` | set_boot_enabled | `/etc/init.d/tailscale` absent |
+| `not_connected` | set_exit_node, set_ssh | Daemon down or `BackendState != "Running"` |
+| `set_failed` | set_exit_node, set_ssh | `tailscale set` exited non-zero |
+| `daemon_start_failed` / `auth_timeout` | connect | Daemon did not start in 5 s / no auth URL in 10 s |
+| `start_failed` | start_service | Daemon not running after start |
+| `disconnect_failed` / `logout_failed` | disconnect / logout | The CLI exited non-zero |
+| `uninstall_failed` | uninstall | A binary is still present after removal |
 
-- `variant` — `"official"` or `"tiny"`. Absent → defaults to `"tiny"` (backward compatibility with older clients). Invalid → `invalid_variant`.
-
-**Response on spawn:**
-
-```json
-{ "success": true }
-```
-
-**Error codes:**
-
-| Code | Meaning |
-|---|---|
-| `invalid_variant` | `variant` present but not `"official"` or `"tiny"` |
-| `other_vpn_installed` | NetBird is installed — must uninstall it first |
-| `already_running` | Install subshell already in progress |
-| `already_installed` | Tailscale binaries already present |
-
-**Install progress** (`install_status` poll target — `/tmp/qmanager_tailscale_install.json`):
-
-```json
-{ "success": true, "status": "running", "message": "Downloading Tailscale 1.98.4..." }
-```
-
-Terminal (success):
-
-```json
-{ "success": true, "status": "complete", "message": "Tailscale 1.98.4 installed successfully", "variant": "official" }
-```
-
-Terminal (failure):
-
-```json
-{ "success": false, "status": "error", "message": "Not enough space in /tmp", "detail": "Need ~100MB free to download Tailscale" }
-```
-
-`status` values: `"idle"` (file absent), `"running"`, `"complete"`, `"error"`.
-
-#### action: `install_status`
-
-Returns the contents of `/tmp/qmanager_tailscale_install.json` (or `{"success":true,"status":"idle"}` if the file is absent; a half-written file reads as `running`), plus `log`: the last 50 lines of `/var/run/qmanager/tailscale_install.log`, CR translated to LF first so `\r`-separated progress output splits into lines (B5.7). The install action truncates that log and sends the install subshell's stdout and stderr into it; `ts_status` writes each phase JSON and echoes its message (and `detail`) to the log, and the `opkg` / download output is no longer discarded. The log lives in the root-only run dir (tmpfs), so nothing cleans it on uninstall.
-
-#### action: `set_ssh`
-
-`{ "action": "set_ssh", "enabled": true|false }` (B5.7). Mirrors `set_exit_node`: refuses with `not_connected` unless the daemon is up and `BackendState` is `Running`, then runs `tailscale set --ssh=<v>` (`set_failed` with the tool's output on failure). QManager stores no copy: tailscaled persists `RunSSH` itself and our connect never passes `--reset`, so the GET reads it back as `ssh_enabled` from `tailscale debug prefs` (`null` when the prefs can't be read, which hides the row). Who may SSH in is still the tailnet ACL's call. The fork kept its own `/etc/qmanager/tailscale_ssh` flag only because its connect runs `tailscale up --reset`.
-
-#### action: `connect`
-
-Ensures the daemon is running, then launches `tailscale up --accept-dns=false --json` as an orphaned background job. Polls the output file for up to 10 seconds. Returns the auth URL if one appears, or confirms already-authenticated.
-
-On the **official variant only**, a successful connect also auto-enables boot persistence: it sets `tailscale.settings.service_enabled='1'` (UCI) and calls `/etc/init.d/tailscale enable`. This happens after the daemon is confirmed running and before the `tailscale up` launch, covering both the auth-URL and already-authenticated paths. The effect is that "Connect" implies "stay connected across reboot" without the user needing to flip the boot toggle separately. The tiny/opkg variant is not touched — it manages its own boot lifecycle.
-
-**Response (auth URL available):**
+**`install_status`.** Returns `/tmp/qmanager_tailscale_install.json` (or `{"success":true,"status":"idle"}` when absent; a half-written file reads as `running`) plus `log`: the last 50 lines of `/var/run/qmanager/tailscale_install.log`, CR translated to LF first. The progress file carries:
 
 ```json
-{ "success": true, "auth_url": "https://login.tailscale.com/a/..." }
+{ "success": true, "status": "running", "message": "Downloading Tailscale 1.104.1...", "op": "update" }
 ```
 
-**Response (already authenticated):**
-
-```json
-{ "success": true, "already_authenticated": true }
-```
-
-**Error codes:**
-
-| Code | Meaning |
-|---|---|
-| `daemon_start_failed` | Daemon could not be started within 5s |
-| `auth_timeout` | No auth URL appeared within 10s |
-
-#### action: `disconnect`
-
-Runs `tailscale down`. Device stays registered in the tailnet.
-
-#### action: `logout`
-
-Runs `tailscale logout`. Device is removed from the tailnet.
-
-#### action: `start_service`
-
-Starts `tailscaled` via init.d (or direct `tailscaled` invocation as fallback).
-
-**Error codes:** `already_running`, `start_failed`.
-
-#### action: `stop_service`
-
-Stops `tailscaled`. Kills any in-flight `tailscale up` process first.
-
-#### action: `set_boot_enabled`
-
-Toggles the `tailscale.settings.service_enabled` UCI flag and calls `/etc/init.d/tailscale enable|disable`.
-
-**Request:**
-
-```json
-{ "action": "set_boot_enabled", "enabled": true }
-```
-
-**Error codes:** `missing_field`, `no_init_script`, `invalid_value`.
-
-#### action: `set_exit_node`
-
-Enables or disables exit-node advertising on the local node. Only works when Tailscale is connected (`BackendState == "Running"`).
-
-**Request:**
-
-```json
-{ "action": "set_exit_node", "enabled": true }
-```
-
-Applies `tailscale set --advertise-exit-node=<bool>`. Uses `tailscale set`, NOT `tailscale up` — `tailscale up` resets every preference that is not explicitly passed, which would clobber `--accept-dns=false` and any other live prefs.
-
-**Error codes:**
-
-| Code | Meaning |
-|---|---|
-| `missing_field` | `enabled` absent |
-| `invalid_value` | `enabled` not a boolean |
-| `not_connected` | Daemon not running, or `BackendState != "Running"` |
-| `set_failed` | `tailscale set` exited non-zero |
-
-> ℹ️ NOTE: Advertising an exit node does not make peers route through it immediately. The user must also approve the node in the Tailscale admin console. IP-forwarding warnings from the kernel appear in the `health` array of the GET response until the kernel is configured.
-
-#### action: `uninstall`
-
-Stops and removes Tailscale. Method-aware: the official (tarball) path removes binaries, the heredoc-written init.d script, rc.d symlinks, the UCI section, and `/etc/config/tailscale`. The opkg path does a smart 6-package removal.
-
-**Error codes:** `uninstall_failed` (binary still present after removal).
+Terminal success adds `"variant":"official"`. Terminal failure is `{"success":false,"status":"error","message":"...","detail":"...","error":"update_rolled_back","op":"update"}`; `error` is one of the codes above and the frontend resolves it through `resolveErrorMessage`. `status` is `idle`, `running`, `complete` or `error`; `op` is `install` or `update`.
 
 ---
 
-## Install Variants
+## Install (official only)
 
-### Official (static tarball)
+The CGI checks `invalid_variant`, `check_worker_lock`, NetBird and `already_installed`, then `spawn_ts_worker install`: it takes the lock with its own pid, truncates the log, writes a fresh `running` progress (so `install_status` never shows the previous run's terminal state) and orphans `( ts_do_install ) </dev/null >>log 2>&1 &`.
 
-1. Resolves latest stable version from `https://pkgs.tailscale.com/stable/?mode=json` — reads `.Tarballs.arm64` and `.Version` using plain jq key access (no regex; device jq has no Oniguruma).
-2. Guards `/tmp` for ≥ 100 MB free (`df -k`, integer arithmetic).
-3. `curl`-downloads the arm64 tarball to `/tmp/qm_tailscale_dl.tgz`.
-4. Extracts with `tar -xzf`; falls back to `gzip -dc | tar -x` if the BusyBox `tar` applet lacks `-z`.
-5. Guards `/overlay` for ≥ 80 MB free before copying binaries.
-6. Copies `tailscale` and `tailscaled` to `/usr/bin/`.
-7. Writes `/etc/init.d/tailscale` via `write_ts_initd`, which sources `qm_write_ts_initd` from `/usr/lib/qmanager/tailscale_initd.sh` (the shared lib). Returns `1` if the lib is absent; the installer errors the install JSON in that case.
-8. Writes marker: `printf 'official\n' > /etc/tailscale/.qm_install_method`.
-9. Seeds `tailscale.settings.service_enabled = 0` via `seed_ts_uci_settings` (idempotent).
-10. Cleans up `/tmp` artifacts.
+`ts_do_install` runs, under the lock:
 
-The procd init script body lives in `scripts/usr/lib/qmanager/tailscale_initd.sh` — its `qm_write_ts_initd()` function is the single source of truth. It is **never** shipped as a static file under `scripts/etc/init.d/` (see Invariant #3 below).
+1. `ts_stage_official <dir>` (shared with update, below), working dir `/var/run/qmanager/tailscale_dl`.
+2. Flash guard: `/usr/bin` free must be at least the new CLI plus daemon plus 8 MB, else `insufficient_space`.
+3. `ts_swap_binaries` with no backup mode (fresh install). On failure the half-installed files are removed and `install_failed` is reported.
+4. `qm_write_ts_initd` writes `/etc/init.d/tailscale` (fails with `install_failed` if the lib is missing).
+5. Marker `official`, written with `qm_durable_write`; `ts_seed_uci_settings` seeds `tailscale.settings.service_enabled=0`.
+6. `ts_net_apply` when network fixes are enabled.
+7. Progress `complete`.
 
-### Tiny (opkg)
+### Staging (`ts_stage_official`)
 
-1. `opkg update`.
-2. `opkg install tailscale-tiny`.
-3. Seeds `tailscale.settings.service_enabled` (defensive — package may already ship the section).
-4. Writes marker: `tiny`.
+Shared by install and update. Nothing under `/usr/bin` is touched until every step passes.
+
+1. Refuse non-`aarch64` (`unsupported_arch`).
+2. RAM guard: work dir free at least 100 MB and `MemAvailable` at least 128 MB (`insufficient_space`).
+3. `ts_latest_refresh`: reads `https://pkgs.tailscale.com/stable/?mode=json`. The version is `.TarballsVersion`, falling back to `.Version`; the tarball is `.Tarballs.arm64` and must equal `tailscale_<ver>_arm64.tgz`.
+4. `curl --proto =https` download of the tarball, then its `.sha256`. **Fail closed:** a missing, non-hex or wrong-length checksum, or a mismatch, is `checksum_mismatch`.
+5. Extraction needs free RAM of at least 3x the tarball. `tar -xzf`, falling back to `gzip -dc | tar -x` when the BusyBox `tar` lacks `-z`.
+6. Smoke test in RAM: `tailscale version` and `tailscaled --version` must both report the resolved version.
+
+> ℹ️ NOTE: Tailscale's GitHub releases carry no binaries. The official static builds live on `pkgs.tailscale.com/stable`, which is the only source.
+
+**Why `TarballsVersion`:** the old installer read `.Version`, which is not the tarball version in that JSON, so the UI showed "latest" instead of a number.
+
+---
+
+## Update
+
+`update` is available only on `official` installs. The CGI refuses `legacy_build`, `already_running` / `migration_in_progress`, and `up_to_date` (only when the cache holds a latest version), then spawns the worker with op `update`. The worker (`_ts_update_body`):
+
+1. `ts_variant` must be `official` (else `not_installed` / `legacy_build`).
+2. `ts_latest_refresh`, then `ts_version_gt latest installed` or `up_to_date`.
+3. `ts_stage_official`, and a second version check against the staged build.
+4. `ts_space_plan` picks how the old binaries are kept:
+
+   | Mode | Condition | Backup |
+   |---|---|---|
+   | `overlay` | overlay free at least new total + 16 MB | Hard links `/usr/bin/.tailscale.old` and `.tailscaled.old` (no flash cost) |
+   | `tmp` | free at least new CLI + 8 MB, free after the CLI swap at least new daemon + 8 MB, and `MemAvailable` at least old total + 96 MB | Copies in `/var/run/qmanager/tailscale_bak` (RAM) |
+   | neither | | `insufficient_space` |
+
+5. `ts_swap_binaries`: back up per mode, then for the CLI first and `tailscaled` second, `cp` to `/usr/bin/.NAME.new`, `chmod 755`, `sync`, `mv -f` over the target. If the daemon was running before the swap, the old `tailscaled` inode stays allocated; swapping the CLI first frees its inode before the larger daemon file is written, which is what the `tmp` arithmetic assumes.
+6. If the daemon was running: `/etc/init.d/tailscale restart`. The official init's `stop_service` is a no-op, so `tailscaled.state`, `WantRunning` and the command line are preserved and the node stays logged in. The tunnel drops for about 10 s.
+7. `ts_wait_healthy <ver> 30`: the CLI reports the new version, `tailscaled` is running, and `tailscale status --json` parses. When the daemon was not running before, it only checks the CLI version (`nodaemon`).
+8. **Failure:** `ts_restore_binaries` (rename the `.old` links back, or reinstall from RAM), restart again if it had been running, drop the backup and report `update_rolled_back`. If the restore itself fails, the backup is kept (`TS_KEEP_BACKUP=1`) and `update_failed` is reported.
+9. **Success:** drop the backup, `ts_net_ensure_rules` when enabled, progress `complete`.
+
+The worker's EXIT trap (`_ts_worker_exit`) rolls back a swap that was still pending when the worker was killed, removes the work dir and the RAM backup, and releases the lock.
+
+> ⚠️ WARNING: The page may be served over the tunnel that the restart drops. The frontend tolerates up to 20 s of failed `install_status` reads during an update; see [`docs/reference/tailscale.md`](../reference/tailscale.md).
+
+**Shell-only test knob.** `TS_TEST_FAIL_HEALTH=1` makes `ts_wait_healthy` fail so the rollback path can be exercised from a shell. The CGI runs `unset TS_TEST_FAIL_HEALTH` at load, so a request can never set it.
+
+### Latest-version cache
+
+`ts_latest_refresh` writes `/var/run/qmanager/tailscale_latest.json` (`{version, tarball, checked_at, ok_at, ok}`). `ts_latest_cache_read` returns the version only while the last good check (`ok_at`) is under 6 h old and never touches the network. `ts_latest_cache_due` is true when there is no cache, it has expired, or a failed attempt is older than 30 min; a failed check keeps the last good version in the file but stamps the attempt so callers back off. A clock step backwards counts as due. Uninstall deletes the cache.
+
+---
+
+## Lock
+
+`/var/lock/qmanager_tailscale_migrate.lock` holds `<pid>\n<op>` and serializes install and update workers (and any other Tailscale mutation, through `check_migration_lock`).
+
+- The CGI acquires it with its own pid **before** spawning the worker, so a second click cannot start a second worker. The worker then takes it over by rewriting it with its own pid (`ts_lock_acquire`, which accepts a holder equal to `$$`).
+- A pid that is not alive, or a lock file that is not root-owned, is stale (`ts_lock_holder` uses `qm_read_pid`). A crashed holder therefore no longer wedges `migration_in_progress` forever, which the old pid-less lock did.
+- `ts_lock_acquire` creates the file with `set -C` (noclobber) for atomic creation.
+- `check_worker_lock` (install and update actions) returns `already_running` for an `install` / `update` holder and `migration_in_progress` for anything else.
+
+**Why:** the old `/var/run/qmanager/tailscale_install.pid` is gone. `install.sh` no longer takes this lock (`migrate_tailscale_packages` was removed).
+
+---
+
+## Network Reachability (`tailscale_net.sh`)
+
+Two pieces, both required for plain IP (ping, SSH, HTTPS to `100.x.y.z`) over the tailnet. `tailscale_net.sh` is the single owner; it replaces `vpn_firewall.sh` and the `qmanager_vpn_zone` init, both deleted. NetBird keeps its own `netbird_firewall.sh` and `qmanager_netbird_zone`.
+
+**Root cause (validated on the live modem, 2026-10-19).** The old fix added `100.64.0.0/10` to the mwan3 ipset `mwan3_connected_ipv4`. mwan3 flushes and rebuilds that ipset on every refresh, so the add never lasted. Without it, mwan3 marks replies `0x11` and its rule `2005 fwmark 0x11 lookup 5` beats tailscaled's `5270 lookup 52`, so replies to peers and LAN-to-tailnet traffic left through `rmnet_data0`. Adding `ip rule add to 100.64.0.0/10 lookup 52 pref 1990` took peer ping from 100% to 0% loss and moved `ip route get <peer> mark 0x11` from `rmnet_data0 table 5` to `tailscale0 table 52`. The fw4 zone is still needed because fw4's input policy is drop and tailscaled's own accept rules live in a different nft table.
+
+| Piece | Where | Persistence |
+|---|---|---|
+| fw4 zone `tailscale` | UCI `firewall` | Persistent; re-checked at boot |
+| `ip rule ... pref 1990` v4 + v6 | Kernel only | Gone every reboot; re-asserted at boot, on connect and on daemon start |
+
+mwan3 never touches pref 1990, and the rule only reorders what table 52 already routes, so it cannot send traffic anywhere tailscaled would not.
+
+### API
+
+Constants: `TS_NET_ZONE=tailscale`, `TS_NET_DEV=tailscale0`, `TS_NET_PREF=1990`, `TS_NET_TABLE=52`, `TS_NET_V4=100.64.0.0/10`, `TS_NET_V6=fd7a:115c:a1e0::/48`.
+
+| Function | Behaviour |
+|---|---|
+| `ts_net_enabled` | rc 0 unless UCI `quecmanager.tailscale_net.enabled` is `0` |
+| `ts_net_zone_present` | rc 0 if a zone is named `tailscale`, or any zone's `device`/`network` lists `tailscale0` |
+| `ts_net_ensure_zone` | UCI only, commits, never reloads. rc 0 = changed, 1 = no change. Creates the zone when none is present, and the two `lan` forwardings only for **its own** zone. A firmware zone that already lists `tailscale0` is reused and never modified |
+| `ts_net_remove_zone` | Removes the zone named `tailscale` and every forwarding to or from it. UCI only, commits, never reloads |
+| `ts_net_fw_reload` | `/etc/init.d/firewall reload` |
+| `ts_net_ensure_rules` | Idempotent v4 + v6 `ip rule`; v6 is skipped silently when unsupported |
+| `ts_net_remove_rules` | Deletes every pref-1990 rule, v4 and v6 (loop capped at 16) |
+| `ts_net_apply [--no-reload]` | Rules, then zone; reloads fw4 only when the zone changed and `--no-reload` was not given |
+| `ts_net_teardown` | Removes rules and zone (reloads if changed), plus `ipset del mwan3_connected_ipv4 100.64.0.0/10` when no `netbird` binary exists (NetBird shares the range) |
+| `ts_net_status_json` | `{"enabled":bool,"zone":bool,"rule_v4":bool,"rule_v6":bool}` |
+
+### Who calls what
+
+| Caller | When |
+|---|---|
+| `qmanager_tailscale_net` (boot init) | At boot, when a Tailscale binary exists and `ts_net_enabled`: `ts_net_apply`, then logs `ts_net_status_json` via `logger` |
+| CGI `connect`, `start_service` | `ts_net_prep`: `ts_net_ensure_rules` immediately; a missing zone is written to UCI now and fw4 is reloaded by the CGI's EXIT trap in an orphaned job one second after the response |
+| CGI `set_net_fixes` | Apply or teardown in the background after the response |
+| CGI `uninstall` | `ts_net_teardown` in the background after the response |
+| `tailscale_mgr.sh` | `ts_net_apply` after install, `ts_net_ensure_rules` after a successful update |
+| `install.sh migrate_tailscale_net` | OTA, see Lifecycle Scripts |
+| `uninstall.sh` | `ts_net_teardown` |
+
+**Why not reload in the request:** `firewall reload` inside an HTTP response can drop the connection that carries it, and the page is often served over the very tunnel being changed. Every request-path caller uses `ts_net_ensure_zone` / `--no-reload` and reloads after the response.
+
+### Always on, with an escape hatch
+
+The fixes are on by default for every Tailscale install. The Tailscale page's **Network fixes** row toggles UCI `quecmanager.tailscale_net.enabled` through `set_net_fixes`. The old **Force Tailscale Fixes** toggle (`force_tailscale_fixes` in `system/settings.sh`) and its UCI key `quecmanager.tailscale_workarounds` are removed; a client that still posts `force_tailscale_fixes` is ignored.
 
 ---
 
@@ -288,119 +305,60 @@ The procd init script body lives in `scripts/usr/lib/qmanager/tailscale_initd.sh
 
 ### 1. `tailscale up` must be double-forked
 
-`tailscale up` is run with:
-
 ```sh
 ( tailscale up --accept-dns=false --json </dev/null >"$TS_UP_OUTPUT" 2>&1 &
-  echo $! > "$TS_UP_PID_FILE"
+  echo $! | qm_atomic_write "$TS_UP_PID_FILE"
 )
 ```
 
-A simple `( cmd ) &` without stdin redirection keeps the process in the CGI's process group. When uhttpd closes the HTTP connection it sends SIGHUP/SIGPIPE to the group, killing `tailscale up` before it can push post-auth prefs to `tailscaled`. The result is the device appears "registered but disconnected" in the admin console until the user stops/starts the service and re-authenticates. The double-fork (inner `&` + `</dev/null`) orphans the process to init, guaranteeing it survives the CGI exiting.
+A plain `( cmd ) &` without stdin redirection stays in the CGI's process group. When uhttpd closes the connection it signals the group, killing `tailscale up` before it pushes post-auth prefs to `tailscaled`; the device then shows as "registered but disconnected" until the user stops, starts and re-authenticates. The inner `&` with `</dev/null` orphans the process to init.
 
 ### 2. `--accept-routes` and `--advertise-routes` are permanently banned
 
-`tailscale up --accept-routes` causes the device to accept every route advertised by every peer in the tailnet. On this hardware, accepting routes disconnects the device from the network entirely and requires a **physical reboot** to recover — there is no software way back. The flag is banned by design and is never passed, even as an opt-in. `--advertise-routes` is similarly banned; use `set_exit_node` for controlled exit-node advertising.
+`--accept-routes` makes the device accept every route every peer advertises. On this hardware that disconnects the modem from the network entirely and only a physical reboot recovers it. The flag is never passed, even as an opt-in. `--advertise-routes` is banned too; use `set_exit_node` for controlled exit-node advertising.
 
 ### 3. The init.d script must never be shipped as a static file
 
-The official tarball ships no init.d script. `write_ts_initd` in the CGI writes `/etc/init.d/tailscale` by sourcing `qm_write_ts_initd` from `/usr/lib/qmanager/tailscale_initd.sh`. This file must NOT be placed under `scripts/etc/init.d/tailscale` in the repo.
+The official tarball ships no init script. `qm_write_ts_initd` (in `tailscale_initd.sh`) writes `/etc/init.d/tailscale`. Never add `scripts/etc/init.d/tailscale` to the repo.
 
-**Why:** `scripts/install.sh` force-copies every file under `scripts/etc/init.d/` to the device on every install and OTA upgrade. If a static `scripts/etc/init.d/tailscale` existed, it would be copied unconditionally — clobbering the opkg-owned `/etc/init.d/tailscale` of a tiny install and breaking its daemon management. Keeping the init body in the shared lib, written only on the official variant path, confines it correctly.
+**Why:** `scripts/install.sh` force-copies every file under `scripts/etc/init.d/` on every install and OTA, which would clobber the opkg-owned init of a legacy install.
 
-### 9. The official init `stop_service()` must be a no-op
+### 4. The official init `stop_service()` must be a no-op
 
-The official `/etc/init.d/tailscale` `stop_service()` function returns `0` immediately and does NOT run `tailscale down`.
+It returns `0` and does NOT run `tailscale down`.
 
-**Why:** `tailscale down` persists `WantRunning=false` in `tailscaled.state`. If `stop_service()` called it, procd would run the hook on every reboot/shutdown, saving the node as "down." The daemon would then boot idle on every restart, requiring a manual "Connect" click. procd kills the tracked `tailscaled` instance on service stop without `stop_service()` doing anything — the hook is only needed to block procd's default kill behavior, but procd handles the kill correctly for `USE_PROCD=1` services already.
+**Why:** `tailscale down` persists `WantRunning=false` in `tailscaled.state`; if `stop_service()` ran it, every reboot would save the node as "down" and boot idle. procd already kills the tracked instance for `USE_PROCD=1`. Deliberate disconnects belong to the CGI `disconnect` action. The same property is what lets **update** restart the daemon without logging the node out.
 
-Deliberate disconnects belong in the CGI `disconnect` action (`tailscale down`), not the init script. This preserves the semantics: a **plain reboot reconnects**; a **deliberate Disconnect stays down across reboot** (because `WantRunning=false` was persisted by the CGI action, not the init hook).
+### 5. Boot-reconnect relies on persisted `WantRunning`; no boot-time `tailscale up`
 
-### 10. Boot-reconnect relies on Tailscale's persisted `WantRunning` — no boot-time `tailscale up`
-
-There is intentionally no boot-time `tailscale up` call in the init script. When `WantRunning=true` is in `tailscaled.state`, `tailscaled` reconnects itself on startup without any external trigger. A boot-time `tailscale up` would override a deliberate Disconnect (`WantRunning=false`), which is the wrong behavior.
-
-The reboot/disconnect semantics in full:
+A boot-time `tailscale up` would override a deliberate Disconnect.
 
 | Event | `WantRunning` after | Result on next boot |
 |---|---|---|
-| Plain reboot (`/etc/init.d/tailscale stop` → start) | Unchanged (preserved) | Daemon reconnects automatically |
-| Deliberate Disconnect (CGI `disconnect` → `tailscale down`) | `false` (persisted by `tailscale down`) | Daemon boots idle; stays disconnected |
-| "Stop Service" (init stop, boot still enabled) | Unchanged | Daemon restarts on boot and reconnects |
-| Successful Connect (official variant) | `true` (set by `tailscale up`) | Auto-boot enabled; reconnects after reboot |
+| Plain reboot or `init.d restart` (including update) | Unchanged | Daemon reconnects |
+| Deliberate Disconnect (`tailscale down`) | `false` | Daemon boots idle |
+| Stop Service (boot still enabled) | Unchanged | Daemon restarts and reconnects |
+| Successful Connect (official) | `true` (set by `tailscale up`) | Boot-enable is also set, so it reconnects |
 
-### 4. `uci delete` + `uci commit` does NOT remove the config file
+### 6. `uci delete` + `uci commit` does NOT remove the config file
 
-On this device, `uci -q delete tailscale && uci -q commit tailscale` removes the in-memory section and flushes it, but `/etc/config/tailscale` persists on disk. On the next `uci get tailscale.*`, UCI re-reads the file and the section is back — it resurrects. The uninstall path (both `tailscale.sh` and `uninstall.sh`) therefore always follows the UCI delete with an explicit `rm -f /etc/config/tailscale`.
+`uci -q delete tailscale && uci -q commit tailscale` leaves `/etc/config/tailscale` on disk and the section resurrects on the next read. Uninstall always follows the delete with `rm -f /etc/config/tailscale`. See [`docs/reference/busybox-shell-quirks.md`](../reference/busybox-shell-quirks.md).
 
-This quirk is a known OpenWRT/UCI behavior and is not specific to Tailscale. See also [`docs/reference/busybox-shell-quirks.md`](../reference/busybox-shell-quirks.md) for the full BusyBox/deploy quirk catalog.
+### 7. The marker file is the authoritative variant detector
 
-### 5. Marker file is the authoritative install-method detector
-
-`get_install_variant()` reads `/etc/tailscale/.qm_install_method` first. If the file is absent (pre-marker installs), it falls back to `opkg list-installed | grep tailscale-tiny`. This fallback reports `"opkg"` (not `"tiny"`) for any other opkg-managed tailscale, distinguishing legacy luci-wrapper installs from the current tiny package.
-
-### 6. Migration lock guards concurrent operations
-
-`/var/lock/qmanager_tailscale_migrate.lock` is set by `migrate_tailscale_packages` in `install.sh` while an opkg package migration is running. All mutating POST actions check this lock and return `migration_in_progress` if held. The lock file uses `set -C` (noclobber) for atomic creation and is `trap`-cleaned on EXIT/INT/TERM.
-
-### 7. `migrate_tailscale_packages` skips official installs entirely
-
-`install.sh`'s `migrate_tailscale_packages` reads the marker file early and returns immediately if the value is `official`. An official tarball install has no opkg entry — trying to `opkg remove` it would fail or do nothing, and the migration logic is irrelevant.
+`ts_variant` reads `/etc/tailscale/.qm_install_method` (`official` / `tiny`) first. Without it, `opkg list-installed` containing `tailscale-tiny` reports `tiny`; any other opkg-managed Tailscale reports `opkg`. Both are `legacy_build`.
 
 ### 8. Boot-enable UCI key is the authoritative flag
 
-`tailscale.settings.service_enabled` is seeded on both install paths for symmetry. `get_boot_enabled()` reads it first; the `/etc/init.d/tailscale enabled` check is the fallback only when the UCI section is absent. Writing both (UCI + `init.d enable/disable`) keeps them in sync.
+`tailscale.settings.service_enabled` is read first by `get_boot_enabled`; `init.d enabled` is the fallback only when the UCI section is absent. Writes always do both. `ts_seed_uci_settings` bootstraps a missing `/etc/config/tailscale` file because `uci set pkg=type` cannot create one on this device.
 
----
+### 9. Binaries are replaced by `.new` + `sync` + `mv`, never copied in place
 
-## Apply Flow — Official Install
+**Why:** an in-place copy over the running daemon fails with "text file busy", and UBIFS can persist an unsynced rename as a 0-byte binary after a power cut. Every swap syncs before the `mv`.
 
-```
-POST { action:"install", variant:"official" }
-  ↓
-check_migration_lock → refuse if locked
-check other_vpn_installed (NetBird) → refuse if present
-is_installed → refuse if already installed
-  ↓
-Spawn background subshell (orphaned, no stdout):
-  1. df -k /tmp  → guard ≥100MB
-  2. curl pkgs.tailscale.com/stable/?mode=json → resolve tarball filename + version
-     (plain jq key access — no regex)
-  3. curl download arm64 tarball → /tmp/qm_tailscale_dl.tgz
-  4. tar -xzf (gzip -dc | tar -x fallback)
-  5. df -k /overlay → guard ≥80MB
-  6. cp tailscale tailscaled → /usr/bin/; chmod 755
-  7. write_ts_initd → sources qm_write_ts_initd from /usr/lib/qmanager/tailscale_initd.sh
-        → /etc/init.d/tailscale (chmod 755); errors install JSON if lib absent
-  8. printf 'official\n' → /etc/tailscale/.qm_install_method
-  9. seed_ts_uci_settings (idempotent)
-  10. rm -rf /tmp/qm_tailscale_dl.tgz /tmp/qm_tailscale_extract
-  ↓
-Each phase writes {"success":true,"status":"running","message":"..."} to
-  /tmp/qmanager_tailscale_install.json
-Terminal: {"success":true,"status":"complete","variant":"official",...}
-         or {"success":false,"status":"error",...}
-  ↓
-Frontend polls POST { action:"install_status" } every ~2s until status ∈ {complete,error}
-```
+### 10. Update never changes tailscaled's parameters
 
----
-
-## Apply Flow — Exit Node
-
-```
-POST { action:"set_exit_node", enabled: true }
-  ↓
-check_migration_lock
-is_installed → not_installed if false
-is_daemon_running → not_connected if false
-tailscale status --json → BackendState must be "Running" → not_connected otherwise
-  ↓
-tailscale set --advertise-exit-node=true
-  → set_failed on non-zero exit
-  ↓
-{ "success": true }
-```
+`tailscaled --state=/etc/tailscale/tailscaled.state` under procd with respawn, START=99 / STOP=10, is unchanged. `tailscale_initd.sh` is the only init writer.
 
 ---
 
@@ -408,29 +366,20 @@ tailscale set --advertise-exit-node=true
 
 ```
 POST { action:"uninstall" }
-  ↓
-check_migration_lock
-is_daemon_running → stop daemon (init.d stop or killall tailscaled)
-/etc/init.d/tailscale disable  (if init script present)
-  ↓
-get_install_variant == "official" ?
-  YES:
-    rm /usr/bin/tailscale /usr/bin/tailscaled /etc/init.d/tailscale
-    rm /etc/rc.d/*tailscale
-    uci delete tailscale; uci commit tailscale
-    rm -f /etc/config/tailscale    ← explicit: uci delete alone does not remove the file
-    rm -rf /etc/tailscale /var/lib/tailscale
-  NO (opkg path):
-    enumerate installed from {tailscale,tailscaled,tailscale-tiny,
-      luci-app-tailscale,luci-app-tailscale-community,
-      luci-app-tailscale-community-tiny}
-    opkg remove <present packages>
-  ↓
-hash -r (flush command cache)
-verify no binary at /usr/bin/tailscale, /usr/sbin/tailscale, /usr/sbin/tailscaled
-  → uninstall_failed if any remain
-  ↓
-{ "success": true }
+  check_migration_lock
+  daemon up -> kill stale `tailscale up`, `tailscale down`, init.d stop (or killall)
+  /etc/init.d/tailscale disable
+  ts_variant == "official" ?
+    YES: rm /usr/bin/tailscale{,d} /etc/init.d/tailscale, the .X.old/.X.new leftovers,
+         /etc/rc.d/*tailscale; uci delete tailscale + commit;
+         rm -f /etc/config/tailscale   (explicit: uci delete alone does not remove the file)
+    NO (tiny / opkg): opkg remove of whichever of the 6 known packages is installed
+         {tailscale, tailscaled, tailscale-tiny, luci-app-tailscale,
+          luci-app-tailscale-community, luci-app-tailscale-community-tiny}
+  rm -rf /var/lib/tailscale /etc/tailscale; rm auth-url / up-output / up-pid / latest cache
+  hash -r; verify /usr/bin/tailscale, /usr/sbin/tailscale, /usr/sbin/tailscaled are gone
+    -> uninstall_failed if any remain
+  cgi_success, then (after the response, sleep 1) ts_net_teardown
 ```
 
 ---
@@ -439,50 +388,39 @@ verify no binary at /usr/bin/tailscale, /usr/sbin/tailscale, /usr/sbin/tailscale
 
 ### `scripts/install.sh`
 
-- `migrate_tailscale_firewall_zone()` — removes the legacy fw4 tailscale zone unconditionally (idempotent; skipped when `quecmanager.tailscale_workarounds.enabled=1`).
-- `migrate_tailscale_packages()` — migrates legacy opkg tailscale packages to `tailscale-tiny`. Reads the marker file first; returns immediately (no-op) when marker = `official`. Lock-protected (`/var/lock/qmanager_tailscale_migrate.lock`, noclobber + EXIT trap). Preserves node identity by copying `tailscaled.state` before removing legacy packages.
-- `migrate_tailscale_initd_boot_fix()` — **official variant only** (returns immediately if marker is absent or not `official`). Sources `qm_write_ts_initd` from `/usr/lib/qmanager/tailscale_initd.sh` and rewrites the on-disk `/etc/init.d/tailscale`. Called after `migrate_tailscale_packages` on every OTA upgrade. Idempotent — safe to run multiple times. This is what makes existing official installs self-heal: the CGI heredoc change alone only affects fresh installs; this migration patches the init on disk for devices that installed before the boot-reconnect fix.
+- `migrate_tailscale_net()` (replaces `migrate_tailscale_firewall_zone`, which deleted the zone). Runs after `install_backend`, because it sources the freshly copied `tailscale_net.sh`. When the old `quecmanager.tailscale_workarounds` section exists, it deletes it and forces `quecmanager.tailscale_net.enabled=1` (the seeded `0` cannot be told apart from a user choice and the new default is on); otherwise an existing `tailscale_net.enabled` value is left alone. When a Tailscale binary exists and the fixes are not `0`, it runs `ts_net_ensure_rules` and, if the zone changed, `ts_net_fw_reload`, in a subshell, so the `--no-reboot` OTA path is reachable over Tailscale without waiting for a boot. A failure is a warning; `qmanager_tailscale_net` retries at boot.
+- `migrate_tailscale_packages` is **removed**. OTA never downloads Tailscale binaries and never moves a legacy install onto the tiny package.
+- `migrate_tailscale_initd_boot_fix()` is unchanged: official variant only, sources `qm_write_ts_initd` and rewrites `/etc/init.d/tailscale`, idempotent.
+- `cleanup_legacy_scripts()` retires `qmanager_vpn_zone` (disable, remove, drop rc.d links) and `vpn_firewall.sh`.
+- `seed_uci_defaults()` seeds `quecmanager.tailscale_net.enabled=1` only when absent. The old `tailscale_workarounds` seed is gone, and `qmanager_vpn_zone` is no longer in `UCI_GATED_SERVICES`.
 
 ### `scripts/uninstall.sh`
 
-`remove_backend()` has an official-variant branch: reads the marker, stops and disables the service, removes binaries + init.d + rc.d + UCI section + `/etc/config/tailscale` + `/etc/tailscale/` + `/var/lib/tailscale/`.
+`remove_backend()` runs `ts_net_teardown` in a subshell (before `/usr/lib/qmanager` is wiped), deletes `quecmanager.tailscale_net`, and keeps its official-variant branch (binaries, init.d, rc.d, UCI section, `/etc/config/tailscale`, `/etc/tailscale/`, `/var/lib/tailscale/`). `remove_runtime_state()` also removes `/tmp/qmanager_tailscale_install.json` (and `.tmp`) and `/var/lock/qmanager_tailscale_migrate.lock`.
 
 ---
 
 ## Frontend Files
 
-The page was re-authored to the RM520N canon in ledger U4.2 (see [`docs/reference/tailscale.md`](../reference/tailscale.md) for the anatomy). Target-only behaviour that the re-author kept:
-
-| Target-only feature | Where it lives |
-|---|---|
-| Install variants official / tiny | `install-card.tsx`: `SegmentedField` (Official / Tiny) with the chosen build's caption; `runInstall(variant)`. The installed variant is a `Tag` in the Connection card header. |
-| Manual install command | `install-card.tsx` `CommandRow`, shown only while Tiny is selected: `status.install_hint`, else the fixed opkg command in `tailscale.install.manualCommand`. |
-| Exit-node advertising | `connection-card.tsx`: an On / Off `SegmentedField` row beside Start on boot; locked with a note until the node is connected (`set_exit_node` needs a running node). |
-| Other-VPN mutex | `tailscale.tsx`: a `Banner` (`degraded`) with a link to the NetBird page replaces the page body while `other_vpn_installed`. |
-| Uninstall reboot | `danger-card.tsx` `RebootDialog` calls `rebootNow("tailscale")` (`lib/reboot`). |
-| Install log | `install-log-viewer.tsx` renders the `log` tail `install_status` sends (B5.7). |
-| Tailscale SSH | `connection-card.tsx`: an On / Off row under exit node, locked until `Running`; turning it on goes through a confirm `AlertDialog` (remote shell access), turning it off applies at once. Hidden while connected if `ssh_enabled` is `null`. |
-
-The hook returns `TailscaleActionResult { ok, reason }` from every mutation (reason already resolved through `resolveErrorMessage`), so handlers toast the returned reason and never read hook state after an `await`. `error` is the status read only.
-
----
-
-## i18n
-
-Namespace: `common.json`, key prefix `tailscale.*` (`page`, `status`, `band`, `connection`, `device`, `peers`, `install`, `danger`, `mutex`, `toast`, `actions`), at parity in en, zh-CN, zh-TW, it and id. The old `monitoring.json` `tailscale.*` block is gone.
+See [`docs/reference/tailscale.md`](../reference/tailscale.md). The hook returns `TailscaleActionResult { ok, reason }` from every mutation (reason already resolved through `resolveErrorMessage`), so handlers toast the returned reason and never read hook state after an `await`. `runUpdate()` follows `install_status` (`op: "update"`) and tolerates the failed reads the tunnel restart causes.
 
 ---
 
 ## Gotchas
 
-- **`tailscale up` orphan requirement.** If `tailscale up` is not double-forked (`</dev/null` + inner `&`), uhttpd kills it when the HTTP connection closes, leaving the device in a "registered but disconnected" state requiring a stop/start + re-auth cycle.
-- **`--accept-routes` is destructive.** Never pass it. There is no software recovery path on this hardware — only a physical reboot restores network connectivity.
-- **`tailscale set` vs `tailscale up` for pref changes.** `tailscale up` resets every preference not explicitly passed. Use `tailscale set` for targeted preference changes like exit-node advertising, so `--accept-dns=false` and other live prefs are preserved.
-- **UCI delete leaves the config file.** `uci delete tailscale && uci commit tailscale` removes the section from uci's in-memory map but the `/etc/config/tailscale` file persists. The next `uci get` re-reads it and the section reappears. Always follow UCI delete with `rm -f /etc/config/tailscale` during uninstall.
-- **No static init.d file in the repo.** `scripts/install.sh` force-copies all files under `scripts/etc/init.d/` on every install. A static `tailscale` init script would clobber the opkg-owned one on tiny installs. The official variant writes it via `qm_write_ts_initd` (shared lib) only.
-- **The official init `stop_service()` must never call `tailscale down`.** That call persists `WantRunning=false`, stranding the node disconnected across every reboot. procd kills the daemon instance on its own when the service stops. See Invariants #9 and #10.
-- **Boot-reconnect is passive — no boot-time `tailscale up`.** Reconnect after reboot depends on Tailscale's persisted `WantRunning=true`. A boot-time `tailscale up` would override a deliberate Disconnect. Do not add one.
-- **UCI `service_enabled` may not be seeded on very old installs.** `seed_ts_uci_settings` cannot create an `/etc/config/tailscale` file if it does not exist — the `uci set <pkg>=<type>` pattern requires the config file to already exist on some BusyBox builds. `get_boot_enabled()` falls back to the `init.d enabled` check when the UCI section is absent, so boot-enable still works.
-- **Device jq has no regex.** Version resolution from `pkgs.tailscale.com` uses plain key access (`.Tarballs.arm64`, `.Version`) — no `test()`, `match()`, or `sub()`. See [`docs/reference/busybox-shell-quirks.md`](../reference/busybox-shell-quirks.md).
-- **Exit-node advertising requires admin console approval.** Setting `--advertise-exit-node=true` does not make peers route through the device. The node must be approved in the Tailscale admin console. IP-forwarding warnings surface in the `health` array until the kernel is configured.
-- **`timeout` command may be absent.** `tailscale status --json` calls are guarded with `command -v timeout` and fall back to direct calls when `timeout` is not in the path.
+- **`tailscale up` orphan requirement.** Without the double-fork, uhttpd kills it when the connection closes (Invariant 1).
+- **`--accept-routes` is destructive.** Never pass it (Invariant 2).
+- **`tailscale set` vs `tailscale up`.** `tailscale up` resets every pref not passed, clobbering `--accept-dns=false`. Use `tailscale set` for exit node and SSH.
+- **UCI delete leaves the config file.** Follow it with `rm -f /etc/config/tailscale` (Invariant 6).
+- **No static init.d file in the repo** (Invariant 3).
+- **The official init `stop_service()` must never call `tailscale down`** (Invariant 4). Update relies on it.
+- **Boot-reconnect is passive.** Do not add a boot-time `tailscale up` (Invariant 5).
+- **Never `firewall reload` inside a response.** Use `--no-reload` / `ts_net_ensure_zone` and reload after the response (Network Reachability).
+- **The pref-1990 rule is kernel-only.** It disappears on reboot; the boot init, `connect` and `start_service` re-assert it. If peers cannot reach the modem, check `ip rule show | grep 1990` before suspecting the firewall.
+- **Do not put `100.64.0.0/10` back into `mwan3_connected_ipv4`.** mwan3 rebuilds that ipset on every refresh.
+- **The shared CGNAT range.** `ts_net_teardown` skips the legacy `ipset del` when a `netbird` binary exists, because NetBird shares the range.
+- **A firmware-provided zone is never edited or removed.** `ts_net_ensure_zone` reuses any zone listing `tailscale0` and only adds forwardings to its own `tailscale` zone.
+- **Device jq has no regex.** Version resolution uses plain key access and `tostring`; no `test()`, `match()` or `sub()`. See [`docs/reference/busybox-shell-quirks.md`](../reference/busybox-shell-quirks.md).
+- **`timeout` may be absent.** `tailscale status --json` calls are guarded with `command -v timeout`.
+- **Exit-node advertising requires admin-console approval** (see the NOTE under POST).
+- **Legacy installs are not auto-converted.** A `tiny` / `opkg` install keeps running until the user uninstalls and installs again; the UI banner says so. There is no switch action.

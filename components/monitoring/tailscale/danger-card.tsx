@@ -29,7 +29,10 @@ export function UninstallButton({
   uninstall,
   onUninstalled,
   className,
+  disabled,
 }: {
+  /** Held off while another operation (an update) owns the binary. */
+  disabled?: boolean;
   isUninstalling: boolean;
   uninstall: () => Promise<TailscaleActionResult>;
   onUninstalled: () => void;
@@ -53,7 +56,7 @@ export function UninstallButton({
         <Button
           type="button"
           variant="destructive"
-          disabled={isUninstalling}
+          disabled={isUninstalling || disabled}
           size="action"
           className={className}
         >

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Trans, useTranslation } from "react-i18next";
 import {
   GlobeIcon,
+  InfoIcon,
   LaptopIcon,
   RefreshCcwIcon,
   TriangleAlertIcon,
@@ -15,7 +16,6 @@ import {
 
 import { MonitoringPageHeader } from "@/components/monitoring/page-header";
 import { Banner } from "@/components/ui/banner";
-import { Button } from "@/components/ui/button";
 import { useTailscale, type TailscaleStatus } from "@/hooks/use-tailscale";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -34,13 +34,10 @@ import {
   NOTICE_GLYPH,
   NOTICE_TONE,
   PAGE_ROOT,
-  PILL_GLYPH,
-  PILL_REST,
   STATUS_LABEL_KEY,
   type TailscaleView,
 } from "./shapes";
 import {
-  ConnectionChip,
   STATUS_GLYPH,
   StatusBand,
   StatusBandSkeleton,
@@ -61,6 +58,9 @@ import {
 function deriveView(status: TailscaleStatus | null): TailscaleView {
   if (!status) return "unknown";
   if (!status.installed) return "notInstalled";
+  // An install or update holds the lock and the CGI sent only that fact, so
+  // there is no daemon reading to derive a verdict from.
+  if (status.busy && status.daemon_running === undefined) return "unknown";
   if (!(status.daemon_running ?? false)) return "serviceStopped";
   const backend = status.backend_state ?? "";
   if (backend === "NeedsLogin" || backend === "NeedsMachineAuth")
@@ -81,6 +81,7 @@ const TailscaleComponent = () => {
     refresh,
     uninstall,
     isUninstalling,
+    isUpdating,
   } = hook;
 
   const [showReboot, setShowReboot] = React.useState(false);
@@ -171,6 +172,8 @@ const TailscaleComponent = () => {
   // Only one VPN may be installed at a time: while NetBird is present this page
   // states why and offers the way out, instead of controls that cannot work.
   const blockedByOtherVpn = !isLoading && !!status?.other_vpn_installed;
+  const legacyBuild =
+    !blockedByOtherVpn && !!status?.installed && !!status.legacy_build;
 
   let body: React.ReactNode;
   if (blockedByOtherVpn) {
@@ -204,7 +207,6 @@ const TailscaleComponent = () => {
           installResult={installResult}
           runInstall={runInstall}
           onRefresh={reload}
-          installHint={status?.install_hint}
         />
       </motion.div>
     );
@@ -246,6 +248,8 @@ const TailscaleComponent = () => {
               isTogglingExitNode={hook.isTogglingExitNode}
               isTogglingSsh={hook.isTogglingSsh}
               isUninstalling={isUninstalling}
+              isUpdating={isUpdating}
+              isTogglingNetFixes={hook.isTogglingNetFixes}
               connect={hook.connect}
               disconnect={hook.disconnect}
               logout={hook.logout}
@@ -254,14 +258,23 @@ const TailscaleComponent = () => {
               setBootEnabled={hook.setBootEnabled}
               setExitNodeAdvertised={hook.setExitNodeAdvertised}
               setSshEnabled={hook.setSshEnabled}
+              setNetFixes={hook.setNetFixes}
               uninstall={uninstall}
               onUninstalled={() => setShowReboot(true)}
+              onRefresh={reload}
+              isRefreshing={isLoading}
             />
           ) : (
             <ConnectionCardSkeleton />
           )}
           {status ? (
-            <DeviceCard view={view} status={status} />
+            <DeviceCard
+              view={view}
+              status={status}
+              isUpdating={isUpdating}
+              installResult={installResult}
+              runUpdate={hook.runUpdate}
+            />
           ) : (
             <DeviceCardSkeleton />
           )}
@@ -283,35 +296,26 @@ const TailscaleComponent = () => {
         <MonitoringPageHeader
           title={t("tailscale.page.title")}
           description={t("tailscale.page.description")}
-          actions={
-            <>
-              {view === "notInstalled" || blockedByOtherVpn ? null : (
-                <ConnectionChip view={view} />
-              )}
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={reload}
-                disabled={isLoading}
-                size="action"
-                className={PILL_REST}
-              >
-                <RefreshCcwIcon
-                  className={cn(
-                    PILL_GLYPH,
-                    isLoading && "motion-safe:animate-spin",
-                  )}
-                />
-                {t("tailscale.page.refresh")}
-              </Button>
-            </>
-          }
         />
       </motion.div>
 
+      {/* The older community build cannot be updated in place, so the way
+          forward is stated once, at the top, and stays until it is gone. */}
+      {legacyBuild ? (
+        <motion.div variants={staggerItem}>
+          <Banner
+            role="in-progress"
+            icon={InfoIcon}
+            title={t("tailscale.legacy.title")}
+            description={t("tailscale.legacy.description")}
+          />
+        </motion.div>
+      ) : null}
+
       {/* A failed poll with a payload still in hand is a notice above the
-          content, never a replacement for it. */}
-      {error && status && !blockedByOtherVpn ? (
+          content, never a replacement for it. While an update restarts the
+          daemon the poll is expected to fail, and that is not news. */}
+      {error && status && !blockedByOtherVpn && !isUpdating ? (
         <motion.div variants={staggerItem}>
           <div role="alert" className={cn(NOTICE, NOTICE_TONE.destructive)}>
             <TriangleAlertIcon className={NOTICE_GLYPH} />
