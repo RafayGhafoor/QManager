@@ -15,6 +15,10 @@ import {
   CARD_PAD,
 } from "./shapes";
 
+// Re-exported so the family's sub-pages (Network Priority) can type their
+// own step ledger without importing the parent page's hook.
+export type { ApplyPhase };
+
 // The settings family's persistent apply footer: change count, consequence or
 // the running step ledger on the left; Discard then Save on the right.
 

@@ -1,33 +1,10 @@
 "use client";
 
-import { useId, useState, type FormEvent, type ChangeEvent } from "react";
-import { useTranslation } from "react-i18next";
+import * as React from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldSet,
-} from "@/components/ui/field";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { useTranslation } from "react-i18next";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,245 +15,387 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, AlertTriangleIcon } from "lucide-react";
-import { SaveButton } from "@/components/ui/save-button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { CardFoot } from "@/components/ui/card-foot";
+import { FieldError } from "@/components/ui/field";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
+import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { copyText } from "@/lib/clipboard";
+import { validateImei } from "@/lib/imei-utils";
+import { staggerRowItem } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 
-interface IMEISettingsCardProps {
+import { ApplyFootSkeleton } from "../apply-foot";
+import SettingRow from "../setting-row";
+import {
+  BADGE_GLYPH_SIZE,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_TITLE,
+  FIELD_CLUSTER,
+  FIELD_COUNTER,
+  FIELD_SHELL,
+  INLINE_ERROR,
+  READOUT_ICON_ACTION,
+  READOUT_ICON_GLYPH,
+  READOUT_ROW,
+  ROW_GROUP,
+  SETTING_ROW,
+} from "../shapes";
+
+// =============================================================================
+// Device IMEI — the write surface
+// =============================================================================
+// Two rows: what the modem reports now, and what it will report after the next
+// boot. The split is the whole point — an IMEI write lands in NVM immediately
+// and in the network's view of the device only after a restart, and the previous
+// single-field form collapsed those two facts into one input that was sometimes
+// a readout and sometimes a draft.
+//
+// -----------------------------------------------------------------------------
+// THE LUHN GATE
+// -----------------------------------------------------------------------------
+// The incumbent guard was a bare shape regex, `/^\d{15}$/`, which happily let a
+// Luhn-invalid identifier through to NVM — a number the network will reject,
+// written to a device that then needs a reboot to find out. `validateImei()` has
+// been sitting in `lib/imei-utils.ts` (used only by the Tools card) the whole
+// time. It is now the gate, and it fails INLINE with a named recovery rather
+// than as a toast: a toast is gone in four seconds, and this is the one message
+// the user has to act on to proceed.
+//
+// -----------------------------------------------------------------------------
+// THE FIELD SHAPE
+// -----------------------------------------------------------------------------
+// `<Input host="container">` with the family `FIELD_SHELL`: the row group is the host.
+//
+// =============================================================================
+
+export interface IMEISettingsCardProps {
+  /** Scroll anchor for the deferred-reboot banner's "Review" action. */
+  anchorId?: string;
   currentImei: string | null;
   isLoading: boolean;
   isSaving: boolean;
   onSave: (imei: string) => Promise<boolean>;
-  onReboot: () => Promise<boolean>;
+  /** Fire the reboot and hand off to /reboot/. */
+  onRebootNow: () => void;
+  /** Record that a reboot is owed, so the page can keep asking. */
+  onRebootDeferred: () => void;
 }
 
 const IMEISettingsCard = ({
+  anchorId,
   currentImei,
   isLoading,
   isSaving,
   onSave,
-  onReboot,
+  onRebootNow,
+  onRebootDeferred,
 }: IMEISettingsCardProps) => {
   const { t } = useTranslation("cellular");
-  const formId = useId();
-  const [imei, setImei] = useState<string>("");
-  const [showRebootDialog, setShowRebootDialog] = useState(false);
-  const [isRebooting, setIsRebooting] = useState(false);
+  const K = "core_settings.imei.device";
 
-  // Seed local form state from fetched data using the render-phase derived-state
-  // pattern (React docs: "You Might Not Need an Effect") instead of useEffect, so
-  // the sync lands in the same commit. prevImei keeps it to one sync per source
-  // change — identical semantics to the previous [currentImei] effect.
-  const [prevImei, setPrevImei] = useState(currentImei);
-  if (currentImei !== null && currentImei !== prevImei) {
-    setPrevImei(currentImei);
+  const { saved, markSaved } = useSaveFlash();
+  const formId = React.useId();
+  const [imei, setImei] = React.useState("");
+  const [rebootOpen, setRebootOpen] = React.useState(false);
+  // Set when "Reboot now" closes the dialog, so the close isn't also read as a
+  // deferral. Every other way out (Later, Escape) records the owed reboot.
+  const rebootingNowRef = React.useRef(false);
+
+  // Seed the draft from the modem once it is known. Only when the user has not
+  // started typing — a silent re-fetch must never overwrite an edit in progress.
+  const seededRef = React.useRef(false);
+  React.useEffect(() => {
+    if (seededRef.current) return;
+    if (currentImei === null) return;
+    seededRef.current = true;
     setImei(currentImei);
-  }
+  }, [currentImei]);
 
-  const isValidImei = /^\d{15}$/.test(imei);
-  const hasChanged = imei !== (currentImei ?? "");
-  const showImeiError = imei.length > 0 && !isValidImei;
+  const reported = currentImei ?? "";
+  const hasReading = reported.length > 0;
 
-  const handleSave = async (e: FormEvent) => {
-    e.preventDefault();
+  const isEmpty = imei.length === 0;
+  const isComplete = /^\d{15}$/.test(imei);
+  const isLuhnValid = validateImei(imei);
+  const hasChanged = imei !== reported;
 
-    if (!isValidImei) return;
+  // Shape first, then checksum: naming "not 15 digits" while the number is still
+  // being typed would be noise, so the length message waits for a full field.
+  const shapeError = !isEmpty && !isComplete;
+  const luhnError = isComplete && !isLuhnValid;
+  const canWrite = isComplete && isLuhnValid && hasChanged && !isSaving;
 
-    if (!hasChanged) {
-      toast.info(t("core_settings.imei.settings_card.toast.no_changes"));
-      return;
-    }
+  // Hoisted, because the row's promotion and the field's own fill are ONE fact.
+  // Computing it twice is how the field ended up neutral on a promoted row.
+  const writeDirty = hasChanged && !isEmpty;
 
-    const success = await onSave(imei);
-    if (success) {
-      toast.success(t("core_settings.imei.settings_card.toast.success"));
-      setShowRebootDialog(true);
-    } else {
-      toast.error(t("core_settings.imei.settings_card.toast.error"));
-    }
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setImei(event.target.value.replace(/\D/g, "").slice(0, 15));
   };
 
   const handleReset = () => {
-    if (currentImei !== null) {
-      setImei(currentImei);
-    }
+    setImei(reported);
   };
 
-  const handleReboot = async (e: React.MouseEvent) => {
-    e.preventDefault(); // Keep dialog open to show rebooting state
-    setIsRebooting(true);
-    const sent = await onReboot();
-    if (sent) {
-      toast.success(t("core_settings.imei.settings_card.toast.rebooting"));
+  const handleCopy = async () => {
+    if (!hasReading) return;
+    if (await copyText(reported)) {
+      toast.success(t(`${K}.toasts.copied`));
     } else {
-      toast.error(t("core_settings.imei.settings_card.toast.reboot_error"));
-      setIsRebooting(false);
+      toast.error(t(`${K}.toasts.copy_failed`));
     }
   };
 
-  // Only allow digits in the input
-  const handleImeiChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, "").slice(0, 15);
-    setImei(value);
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!canWrite) return;
+
+    const success = await onSave(imei);
+    if (!success) {
+      toast.error(t(`${K}.toasts.failed`));
+      return;
+    }
+
+    markSaved();
+    toast.success(t(`${K}.toasts.saved`));
+    rebootingNowRef.current = false;
+    setRebootOpen(true);
   };
 
-  if (isLoading) {
-    return (
-      <Card className="@container/card">
-        <CardHeader>
-          <CardTitle>{t("core_settings.imei.settings_card.title")}</CardTitle>
-          <CardDescription>
-            {t("core_settings.imei.settings_card.description")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-36" />
-              <Skeleton className="h-9 w-full" />
-              <Skeleton className="h-3 w-64" />
-            </div>
-          </div>
-        </CardContent>
-        <CardFoot
-          className="px-6"
-          liveStatus={false}
-          aria-hidden="true"
-          actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
+  const handleRebootDialogChange = (open: boolean) => {
+    setRebootOpen(open);
+    if (!open && !rebootingNowRef.current) onRebootDeferred();
+  };
+
+  const handleRebootNow = () => {
+    rebootingNowRef.current = true;
+    onRebootNow();
+  };
+
+  // --- Loading ---------------------------------------------------------------
+  // Geometry is MIRRORED from the shape constants (`SETTING_ROW.HEIGHT`), never
+  // restated, and the header text is the real one in both states — the incumbent
+  // skeleton carried a third, differently worded legal sentence that visibly
+  // swapped out when the data landed.
+  //
+  // THE CARD NO LONGER REBUILDS ITSELF. Each state used to `return` its own
+  // `<Card>`, so the header — an identical title and description in both
+  // branches — was torn down and remounted the instant the read landed, and
+  // blinked. One shell renders unconditionally now and only the BODY swaps,
+  // keyed by state, inside an enter-only `AnimatePresence`. Same pattern as
+  // Network Priority and Blocked Networks; `initial={false}` is what keeps this
+  // crossfade from firing on top of the page's own card cascade on first paint.
+
+  const skeleton = (
+    <div className={ROW_GROUP.ROOT}>
+      <Skeleton className={cn(SETTING_ROW.HEIGHT, "rounded-field")} />
+      <div className={ROW_GROUP.DIVIDER} />
+      <Skeleton className={cn(SETTING_ROW.HEIGHT, "rounded-field")} />
+    </div>
+  );
+
+  const form = (
+    <form id={formId} className="flex flex-col gap-4" onSubmit={handleSubmit}>
+      <div className={ROW_GROUP.ROOT}>
+        <SettingRow
+          label={t(`${K}.rows.current.label`)}
+          consequence={t(`${K}.rows.current.consequence`)}
+          control={
+            hasReading ? (
+              <span
+                className={cn(
+                  READOUT_ROW.ROOT,
+                  // One tone step up: this pill sits INSIDE the group's own
+                  // `surface-container` fill, so it needs the next step to
+                  // read as a distinct object rather than as flat text.
+                  "gap-2 bg-surface-container-high",
+                )}
+              >
+                <span className={READOUT_ROW.VALUE_MONO}>{reported}</span>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  aria-label={t(`${K}.actions.copy`)}
+                  className={READOUT_ICON_ACTION}
+                >
+                  <MaterialSymbol
+                    name="content_copy"
+                    size={READOUT_ICON_GLYPH}
+                  />
+                </button>
+              </span>
+            ) : (
+              // Honest empty state. `muted`, not `destructive`: the poller
+              // simply has not published an IMEI yet, which is a wait, not a
+              // fault.
+              <Badge variant="muted">
+                <MaterialSymbol name="help" size={BADGE_GLYPH_SIZE} />
+                {t(`${K}.rows.current.unavailable`)}
+              </Badge>
+            )
+          }
         />
-      </Card>
-    );
-  }
+
+        <div className={ROW_GROUP.DIVIDER} />
+
+        <SettingRow
+          label={t(`${K}.rows.write.label`)}
+          consequence={t(`${K}.rows.write.consequence`)}
+          dirty={writeDirty}
+          labelId="imei-write-label"
+          control={
+            <div className={FIELD_CLUSTER}>
+              <Input
+                host="container"
+                id="imei-write-input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={15}
+                value={imei}
+                onChange={handleChange}
+                disabled={isSaving}
+                placeholder={t(`${K}.rows.write.placeholder`)}
+                aria-labelledby="imei-write-label"
+                aria-invalid={shapeError || luhnError}
+                aria-describedby={
+                  shapeError
+                    ? "imei-write-shape-error"
+                    : luhnError
+                      ? "imei-write-luhn-error"
+                      : "imei-write-status"
+                }
+                className={cn(FIELD_SHELL, "@2xl/card:w-[14.5rem]")}
+              />
+              {/* A count that changes while the user watches is the
+                      interface speaking, not the machine — sans + tabular-nums,
+                      never mono (The Machine-Voice Rule). See `FIELD_COUNTER`. */}
+              <span aria-hidden="true" className={FIELD_COUNTER}>
+                {imei.length}/15
+              </span>
+            </div>
+          }
+        />
+      </div>
+
+      {shapeError ? (
+        <FieldError id="imei-write-shape-error" className={INLINE_ERROR}>
+          {t(`${K}.errors.length`, { entered: imei.length })}
+        </FieldError>
+      ) : luhnError ? (
+        <FieldError id="imei-write-luhn-error" className={INLINE_ERROR}>
+          {t(`${K}.errors.luhn`)}
+        </FieldError>
+      ) : null}
+
+    </form>
+  );
 
   return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardTitle>{t("core_settings.imei.settings_card.title")}</CardTitle>
-        <CardDescription>
-          {t("core_settings.imei.settings_card.description")}
-        </CardDescription>
+    <Card id={anchorId} className={cn(CARD_SHELL)}>
+      <CardHeader className={CARD_PAD}>
+        <CardTitle className={CARD_TITLE}>{t(`${K}.title`)}</CardTitle>
+        <CardDescription>{t(`${K}.description`)}</CardDescription>
       </CardHeader>
-      <CardContent>
-        <form id={formId} className="grid gap-4" onSubmit={handleSave}>
-          <div className="w-full">
-            <FieldSet>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="device-imei-input">
-                    {t("core_settings.imei.settings_card.field_label")}
-                  </FieldLabel>
-                  <InputGroup>
-                    <InputGroupInput
-                      id="device-imei-input"
-                      placeholder={t("core_settings.imei.settings_card.field_placeholder")}
-                      value={imei}
-                      onChange={handleImeiChange}
-                      maxLength={15}
-                      inputMode="numeric"
-                      disabled={isSaving}
-                      aria-invalid={showImeiError}
-                      aria-describedby={showImeiError ? "imei-error" : undefined}
-                    />
-                    <InputGroupAddon align="inline-start">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            className="pl-1.5 inline-flex items-center"
-                            aria-label={t("core_settings.imei.settings_card.warning_aria")}
-                          >
-                            <AlertTriangleIcon className="text-muted-foreground size-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>
-                            {t("core_settings.imei.settings_card.warning_content")}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </InputGroupAddon>
-                  </InputGroup>
-                  {showImeiError && (
-                    <FieldError id="imei-error">
-                      {t("core_settings.imei.settings_card.length_error", { count: imei.length })}
-                    </FieldError>
-                  )}
-                  <FieldDescription>
-                    {t("core_settings.imei.settings_card.field_description")}
-                  </FieldDescription>
-                </Field>
-              </FieldGroup>
-            </FieldSet>
-          </div>
-        </form>
 
-        {/* Reboot confirmation dialog */}
-        <AlertDialog open={showRebootDialog} onOpenChange={(open) => {
-          if (!isRebooting) setShowRebootDialog(open);
-        }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {t("core_settings.imei.settings_card.reboot_dialog.title")}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {t("core_settings.imei.settings_card.reboot_dialog.description")}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isRebooting}>
-                {t("core_settings.imei.settings_card.reboot_dialog.cancel")}
-              </AlertDialogCancel>
-              <AlertDialogAction
-                disabled={isRebooting}
-                onClick={handleReboot}
-              >
-                {isRebooting ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    {t("core_settings.imei.settings_card.reboot_dialog.rebooting")}
-                  </>
-                ) : (
-                  t("core_settings.imei.settings_card.reboot_dialog.reboot")
-                )}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      <CardContent className={CARD_PAD}>
+        <AnimatePresence initial={false}>
+          <motion.div
+            // The key IS the swap. `initial`/`animate` are declared here even
+            // though the variant carries both states: an `AnimatePresence`
+            // child remounts on every key change, so there is no parent clock
+            // left to inherit and a variants-only child would render blank.
+            key={isLoading ? "loading" : "loaded"}
+            variants={staggerRowItem}
+            initial="hidden"
+            animate="visible"
+          >
+            {isLoading ? skeleton : form}
+          </motion.div>
+        </AnimatePresence>
       </CardContent>
+
       {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
-      <CardFoot
-        className="px-6"
-        status={
-          hasChanged ? (
-            <span className="font-medium">{t("common:state.unsaved")}</span>
-          ) : null
-        }
-        actions={
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="action"
-              onClick={handleReset}
-              disabled={!hasChanged || isSaving}
-            >
-              {t("common:actions.discard")}
-            </Button>
-            <SaveButton
-              type="submit"
-              form={formId}
-              isSaving={isSaving}
-              saved={false}
-              label={t("core_settings.imei.settings_card.write_button")}
-              disabled={!isValidImei || !hasChanged}
-              size="action"
-            />
-          </>
-        }
-      />
+      {isLoading ? (
+        <ApplyFootSkeleton />
+      ) : (
+        <CardFoot
+          className={CARD_PAD}
+          // The status span is its own live region; one announcement per change.
+          liveStatus={false}
+          status={
+            // Hidden while a field error owns the message, so two sentences never contradict.
+            !shapeError && !luhnError ? (
+              <span id="imei-write-status" aria-live="polite">
+                {isEmpty
+                  ? t(`${K}.status.empty`)
+                  : !hasChanged
+                    ? t(`${K}.status.unchanged`)
+                    : t(`${K}.status.ready`)}
+              </span>
+            ) : null
+          }
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleReset}
+                disabled={isSaving || !hasChanged}
+                size="action" className="gap-0"
+              >
+                {t(`${K}.actions.reset`)}
+              </Button>
+              <SaveButton
+                type="submit"
+                form={formId}
+                isSaving={isSaving}
+                saved={saved}
+                label={t(`${K}.actions.write`)}
+                disabled={!canWrite}
+                size="action"
+              />
+            </>
+          }
+        />
+      )}
+
+      {/* Deferred-reboot dialog. "Later" is a real answer that is RECORDED:
+          the page sets the app-wide pending-reboot flag, so the shell's
+          deferred-reboot banner stays on every route until the modem restarts.
+          Nothing reboots inline: the app is served by the device it restarts. */}
+      <AlertDialog open={rebootOpen} onOpenChange={handleRebootDialogChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("core_settings.imei.reboot.dialog.title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("core_settings.imei.reboot.dialog.description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {t("core_settings.imei.reboot.dialog.later")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleRebootNow}>
+              {t("core_settings.imei.reboot.dialog.now")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
