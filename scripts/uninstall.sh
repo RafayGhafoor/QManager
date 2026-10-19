@@ -298,7 +298,8 @@ remove_backend() {
             bin_count=$(( bin_count + 1 ))
         fi
     done
-    rm -f /var/run/qmanager_atd.sock "$BIN_DIR"/.qcmd.* "$BIN_DIR"/.qsms.* 2>/dev/null || true
+    rm -f /var/run/qmanager_atd.sock /var/run/qmanager_atd.proto /var/run/qmanager_atd.proto.new \
+        "$BIN_DIR"/.qcmd.* "$BIN_DIR"/.qsms.* 2>/dev/null || true
 
     for f in "$BIN_DIR"/qmanager_*; do
         [ -f "$f" ] || continue

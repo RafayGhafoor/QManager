@@ -1,7 +1,14 @@
 //! qmanager_atd — one static aarch64-musl multicall binary.
 //!
-//! Invoked as `qmanager_atd` (or `--daemon`): run the broker — own /dev/smd11,
-//! serve one request per unix-socket connection, serialised by the modem lock.
+//! Invoked as `qmanager_atd` with no arguments (or `-d` / `--daemon`): run the
+//! broker — own /dev/smd11, serve one request per unix-socket connection,
+//! serialised by the modem lock. Any other argument under that name is refused
+//! (see `mode`), and the daemon refuses to start while another one listens.
+//! `--version` (any name) prints the crate version and protocol number; the
+//! daemon also publishes them in /var/run/qmanager_atd.proto for scripts.
+//!
+//! `qcmd -t <ms>` (or `QCMD_WAIT_MS=<ms>` for that one call): read-only
+//! callers (the poller) cap their wait; see `try_broker_raw`.
 //!
 //! Invoked as `qcmd` (argv[0] basename; any name without "atd"): behave
 //! exactly like the original shell qcmd. Try the broker socket first; if it is absent or errors at
@@ -63,14 +70,54 @@ fn main() {
         std::process::exit(run_qsms(&args[1..]));
     }
 
-    let daemon_mode = base.contains("atd")
-        || args.iter().any(|a| a == "--daemon")
-        || args.iter().any(|a| a == "-d" && base != "qcmd");
-
-    if daemon_mode {
-        std::process::exit(run_daemon());
+    match mode(&base, args.get(1..).unwrap_or(&[])) {
+        Mode::Version => {
+            let _ = writeln!(std::io::stdout(), "{}", proto::version_line());
+            std::process::exit(0);
+        }
+        Mode::Usage => {
+            let _ = writeln!(
+                std::io::stderr(),
+                "usage: qmanager_atd [-d|--daemon] | --version (AT commands go through qcmd)"
+            );
+            std::process::exit(2);
+        }
+        Mode::Daemon => std::process::exit(run_daemon()),
+        Mode::Client => std::process::exit(run_qcmd(&args)),
     }
-    std::process::exit(run_qcmd(&args));
+}
+
+#[derive(Debug, PartialEq)]
+enum Mode {
+    Daemon,
+    Client,
+    Version,
+    Usage,
+}
+
+/// Picks the role from the invoked name and the arguments after it.
+/// `--version` alone is answered by every name. Under the `qmanager_atd` name
+/// the daemon starts only with no arguments or `-d` / `--daemon`: anything
+/// else is refused, because a stray daemon unlinks the live broker's socket
+/// (a v0.1.32 binary run as `qmanager_atd --version` did exactly that).
+fn mode(base: &str, rest: &[String]) -> Mode {
+    if let [only] = rest {
+        if only == "--version" {
+            return Mode::Version;
+        }
+    }
+    if base.contains("atd") {
+        return match rest {
+            [] => Mode::Daemon,
+            [a] if a == "-d" || a == "--daemon" => Mode::Daemon,
+            _ => Mode::Usage,
+        };
+    }
+    if rest.iter().any(|a| a == "--daemon") || rest.iter().any(|a| a == "-d" && base != "qcmd") {
+        Mode::Daemon
+    } else {
+        Mode::Client
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -86,6 +133,13 @@ fn run_daemon() -> i32 {
             return 1;
         }
     };
+    // Never take over a live broker: unlinking its socket would leave it
+    // serving nobody while every client fell back to in-process. A stale
+    // socket (no listener) refuses the connect and is replaced as before.
+    if UnixStream::connect(proto::SOCKET_PATH).is_ok() {
+        log.error(&format!("another broker is listening on {}; not starting", proto::SOCKET_PATH));
+        return 1;
+    }
     let _ = std::fs::remove_file(proto::SOCKET_PATH);
     // Root-only from the instant it exists: /dev/smd11 is crw------- root, and
     // uhttpd runs CGIs as root, so no legitimate caller needs more. Setting the
@@ -102,6 +156,10 @@ fn run_daemon() -> i32 {
         }
     };
     log.info(&format!("broker up, listening on {}", proto::SOCKET_PATH));
+    // After the bind: the file promises a broker that is already reachable.
+    if let Err(e) = proto::write_proto_file(proto::PROTO_PATH) {
+        log.warn(&format!("cannot write {}: {e}", proto::PROTO_PATH));
+    }
     exec::clear_stale_long_flag(&lock, &log);
 
     let mut ch = new_channel();
@@ -232,12 +290,30 @@ fn serve_sms(mut stream: UnixStream, buf: &[u8], ch: &mut Channel<std::fs::File>
 // ---------------------------------------------------------------------------
 
 fn run_qcmd(args: &[String]) -> i32 {
-    // Parse `qcmd [-j] "AT..."`, matching the shell script.
+    let started = Instant::now();
+    // Parse `qcmd [-j] [-t MS] "AT..."`, matching the shell script for `-j`.
+    // `-t` counts only before the command: a later one is an extra argument,
+    // ignored as before.
     let mut json = false;
+    let mut cap: Option<Duration> = None;
     let mut rest: Vec<&String> = Vec::new();
-    for a in &args[1..] {
+    let mut it = args.get(1..).unwrap_or(&[]).iter();
+    while let Some(a) = it.next() {
         if a == "-j" && !json {
             json = true;
+        } else if a == "-t" && cap.is_none() && rest.is_empty() {
+            match it.next().and_then(|v| parse_cap(v)) {
+                Some(c) => cap = Some(c),
+                None => {
+                    let _ = writeln!(
+                        std::io::stderr(),
+                        r#"{{"error":"bad_cap","detail":"Usage: qcmd [-j] [-t MS] \"AT+COMMAND\" (MS {}-{})"}}"#,
+                        CAP_MIN_MS,
+                        CAP_MAX_MS
+                    );
+                    return 1;
+                }
+            }
         } else {
             rest.push(a);
         }
@@ -266,12 +342,39 @@ fn run_qcmd(args: &[String]) -> i32 {
         return emit(json, command, proto::Reply::Err(Code::ScanInProgress));
     }
 
-    let reply = match try_broker(command) {
+    // QCMD_WAIT_MS=<ms> is the same cap for scripts: a binary that predates it
+    // ignores an unknown variable, while an unknown flag would reach the modem
+    // as a command. Set per call (`QCMD_WAIT_MS=2500 qcmd ...`), never exported,
+    // so a write run from the same script keeps its full wait. An invalid value
+    // is ignored. `-t` wins.
+    let cap = cap.or_else(|| cap_from_env(std::env::var("QCMD_WAIT_MS").ok().as_deref()));
+    // A long command (a scan) is never cut short: giving up would only discard
+    // a reply the broker still spends minutes producing.
+    let cap = if classify::is_long(command) { None } else { cap };
+
+    let reply = match try_broker(command, cap) {
         Broker::Reply(r) => r,
-        Broker::Unreachable => run_in_process(command),
+        Broker::Unreachable => run_in_process(command, cap.map(|c| c.saturating_sub(started.elapsed()))),
         Broker::Lost(code) => proto::Reply::Err(code),
     };
     emit(json, command, reply)
+}
+
+/// Bounds of `qcmd -t`, in milliseconds.
+const CAP_MIN_MS: u64 = 50;
+const CAP_MAX_MS: u64 = 60_000;
+
+/// `-t` value: plain decimal milliseconds within the bounds.
+fn parse_cap(v: &str) -> Option<Duration> {
+    if v.is_empty() || v.len() > 6 || !v.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let ms: u64 = v.parse().ok()?;
+    (CAP_MIN_MS..=CAP_MAX_MS).contains(&ms).then(|| Duration::from_millis(ms))
+}
+
+fn cap_from_env(v: Option<&str>) -> Option<Duration> {
+    v.and_then(parse_cap)
 }
 
 /// Longest an exchange can take inside the broker: the long deadline, the long
@@ -287,19 +390,25 @@ enum Broker {
     Lost(Code),
 }
 
-fn try_broker(cmd: &str) -> Broker {
-    try_broker_raw(&proto::encode_request(cmd, proto::mono_ms()), !classify::is_long(cmd), cmd)
+fn try_broker(cmd: &str, cap: Option<Duration>) -> Broker {
+    try_broker_raw(&proto::encode_request(cmd, proto::mono_ms()), !classify::is_long(cmd), cmd, cap)
 }
 
 /// Sends one encoded request (AT or SMS). `short` requests watch the long
 /// flag while queued; `label` is what the logs name (never message text).
-fn try_broker_raw(req: &[u8], short: bool, label: &str) -> Broker {
+/// With `cap` (`qcmd -t`), the client stops waiting `cap` after it started and
+/// reports modem_busy: the broker skips the request if it is still queued
+/// (peer_gone), or discards the reply if it is already running. A capped wait
+/// is never read as a frozen broker. Only read-only callers should cap.
+fn try_broker_raw(req: &[u8], short: bool, label: &str, cap: Option<Duration>) -> Broker {
+    let started = Instant::now();
+    let wait = cap.unwrap_or(CLIENT_REPLY_TIMEOUT);
     let mut stream = match UnixStream::connect(proto::SOCKET_PATH) {
         Ok(s) => s,
         Err(_) => return Broker::Unreachable,
     };
-    if stream.set_read_timeout(Some(CLIENT_REPLY_TIMEOUT)).is_err()
-        || stream.set_write_timeout(Some(Duration::from_secs(10))).is_err()
+    if stream.set_read_timeout(Some(wait)).is_err()
+        || stream.set_write_timeout(Some(wait.min(Duration::from_secs(10)))).is_err()
     {
         return Broker::Unreachable;
     }
@@ -318,12 +427,22 @@ fn try_broker_raw(req: &[u8], short: bool, label: &str) -> Broker {
     // flag cannot appear: seeing it means we are still queued. Dropping the
     // socket then makes the broker skip us (peer_gone), so nothing runs twice.
     let watch = || short && exec::long_running();
-    match await_reply(&mut stream, Instant::now() + CLIENT_REPLY_TIMEOUT, &watch) {
+    let w = await_reply(&mut stream, started + wait, &watch);
+    // Dropping the stream (on return) is what the broker's peer_gone sees.
+    settle(w, cap.is_some(), label)
+}
+
+/// Maps the end of a wait to the client's result.
+fn settle(w: Wait, capped: bool, label: &str) -> Broker {
+    match w {
         Wait::Reply(buf) => match proto::decode_reply(&buf) {
             Some(r) => Broker::Reply(r),
             None => Broker::Lost(Code::CommandFailed),
         },
         Wait::Abandoned => Broker::Lost(Code::ScanInProgress),
+        // The caller's own budget ran out: the modem is busy for it, nothing
+        // says the broker is stuck.
+        Wait::TimedOut if capped => Broker::Lost(Code::ModemBusy),
         Wait::TimedOut => {
             restart_frozen_broker(label);
             Broker::Lost(Code::CommandTimeout)
@@ -435,14 +554,18 @@ fn restart_frozen_broker(cmd: &str) {
     }
 }
 
-fn run_in_process(cmd: &str) -> proto::Reply {
+/// `left`: what remains of a `qcmd -t` cap. It bounds the lock wait (counted
+/// as time already queued against the 5 s short budget); the exchange itself
+/// keeps its deadline, as the broker does.
+fn run_in_process(cmd: &str, left: Option<Duration>) -> proto::Reply {
     let log = Logger::new("qcmd");
     let lock = match LockFile::open(lock::LOCK_FILE) {
         Ok(l) => l,
         Err(_) => return proto::Reply::Err(Code::ModemBusy),
     };
+    let waited = left.map_or(Duration::ZERO, |l| exec::LOCK_WAIT_SHORT.saturating_sub(l));
     let mut ch = new_channel();
-    match (Executor { ch: &mut ch, lock: &lock, log: &log }).run(cmd) {
+    match (Executor { ch: &mut ch, lock: &lock, log: &log }).run_after(cmd, waited) {
         Outcome::Ok(raw) => proto::Reply::Ok(raw),
         Outcome::Err(code) => proto::Reply::Err(code),
     }
@@ -465,7 +588,7 @@ fn run_qsms(args: &[String]) -> i32 {
     }
     let label = op.label();
     let req = proto::encode_sms_request(args, proto::mono_ms());
-    let (ok, json) = match try_broker_raw(&req, true, &label) {
+    let (ok, json) = match try_broker_raw(&req, true, &label, None) {
         Broker::Reply(proto::Reply::Res(ok, body)) => (ok, String::from_utf8_lossy(&body).into_owned()),
         Broker::Reply(proto::Reply::Err(code)) | Broker::Lost(code) => (false, sms::error_json(code.as_str(), None)),
         Broker::Reply(proto::Reply::Ok(_)) => (false, sms::error_json(Code::CommandFailed.as_str(), None)),
@@ -547,6 +670,84 @@ mod tests {
             assert_eq!(run_qcmd(&args), 1, "{a:?}");
             assert!(t.elapsed() < Duration::from_millis(200), "{a:?}");
         }
+    }
+
+    fn sv(a: &[&str]) -> Vec<String> {
+        a.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn the_atd_name_starts_a_daemon_only_when_asked_plainly() {
+        assert_eq!(mode("qmanager_atd", &sv(&[])), Mode::Daemon);
+        assert_eq!(mode("qmanager_atd", &sv(&["-d"])), Mode::Daemon);
+        assert_eq!(mode("qmanager_atd", &sv(&["--daemon"])), Mode::Daemon);
+        assert_eq!(mode("qmanager_atd", &sv(&["--version"])), Mode::Version);
+        for bad in [&["--bogus"][..], &["AT+CSQ"], &["-t", "2500"], &["--version", "x"], &["-d", "-d"]] {
+            assert_eq!(mode("qmanager_atd", &sv(bad)), Mode::Usage, "{bad:?}");
+        }
+        assert_eq!(mode("qcmd", &sv(&["--version"])), Mode::Version);
+        assert_eq!(mode("qcmd", &sv(&["AT+CSQ"])), Mode::Client);
+        assert_eq!(mode("qcmd", &sv(&["-t", "2500", "AT+CSQ"])), Mode::Client);
+        assert_eq!(mode("qcmd", &sv(&["-d"])), Mode::Client);
+        assert_eq!(mode("qcmd", &sv(&["--daemon"])), Mode::Daemon);
+    }
+
+    #[test]
+    fn cap_accepts_plain_milliseconds_in_range_only() {
+        assert_eq!(parse_cap("2500"), Some(Duration::from_millis(2500)));
+        assert_eq!(parse_cap("50"), Some(Duration::from_millis(50)));
+        assert_eq!(parse_cap("60000"), Some(Duration::from_millis(60000)));
+        for bad in ["", "0", "49", "60001", "-5", "+5", "2.5", "2500ms", "abc", "99999999999999999999", " 25"] {
+            assert_eq!(parse_cap(bad), None, "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn the_env_cap_is_ignored_unless_valid() {
+        assert_eq!(cap_from_env(Some("2500")), Some(Duration::from_millis(2500)));
+        assert_eq!(cap_from_env(None), None);
+        for bad in ["", "x", "0", "2500 ", "1e3"] {
+            assert_eq!(cap_from_env(Some(bad)), None, "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn a_bad_cap_is_refused_before_anything_runs() {
+        for a in [&["qcmd", "-t"][..], &["qcmd", "-t", "AT+CSQ"], &["qcmd", "-t", "0", "AT+CSQ"], &["qcmd", "-j", "-t", "x", "AT"]] {
+            let t = Instant::now();
+            assert_eq!(run_qcmd(&sv(a)), 1, "{a:?}");
+            assert!(t.elapsed() < Duration::from_millis(200), "{a:?}");
+        }
+    }
+
+    #[test]
+    fn a_capped_wait_that_runs_out_is_busy_not_a_frozen_broker() {
+        // Capped: modem_busy, and settle must not reach restart_frozen_broker
+        // (which would spawn the init script).
+        assert!(matches!(settle(Wait::TimedOut, true, "AT+CSQ"), Broker::Lost(Code::ModemBusy)));
+        assert!(matches!(settle(Wait::Abandoned, true, "AT+CSQ"), Broker::Lost(Code::ScanInProgress)));
+        assert!(matches!(settle(Wait::Failed, true, "AT+CSQ"), Broker::Lost(Code::CommandFailed)));
+        match settle(Wait::Reply(b"OK 2\nhi".to_vec()), true, "AT") {
+            Broker::Reply(proto::Reply::Ok(raw)) => assert_eq!(raw, b"hi"),
+            _ => panic!("expected the reply"),
+        }
+    }
+
+    #[test]
+    fn a_capped_client_hangs_up_on_time_so_the_broker_skips_it() {
+        // A broker that accepted but never answers: the capped wait ends at
+        // the cap, and the hang-up is visible to the broker's peer_gone.
+        let (mut client, broker) = UnixStream::pair().unwrap();
+        let t = Instant::now();
+        let w = await_reply(&mut client, t + Duration::from_millis(300), &|| false);
+        assert!(matches!(w, Wait::TimedOut));
+        let e = t.elapsed();
+        assert!(e >= Duration::from_millis(300) && e < Duration::from_millis(700), "{e:?}");
+        assert!(matches!(settle(w, true, "AT+CSQ"), Broker::Lost(Code::ModemBusy)));
+        drop(client);
+        let mut p = libc::pollfd { fd: broker.as_raw_fd(), events: 0, revents: 0 };
+        unsafe { libc::poll(&mut p, 1, 2000) };
+        assert!(peer_gone(&broker));
     }
 
     #[test]

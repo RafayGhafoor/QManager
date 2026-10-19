@@ -496,6 +496,14 @@ _first_line_with() {
 # lone "\r" are NOT matched by those greps and are kept, as before. _QR is
 # empty for rc 1 and 3. qcmd_exec is the old echo form, kept for compatibility.
 
+# Wait cap for the poller's per-cycle READ queries (B5.29 Phase B): qcmd stops
+# waiting after this long and answers modem_busy (rc 3 here), so one stuck
+# exchange ahead in the broker's queue cannot stall the cycle and write_cache.
+# Passed per call as QCMD_WAIT_MS=..., never exported: a write sent from this
+# script (boot one-shots, APN reconcile) keeps qcmd's full wait, and a qcmd
+# that predates the cap ignores the variable. Read-only callers only.
+QC_WAIT_MS=2500
+
 _QR=""
 qcmd_exec_g() {
     local cmd
@@ -506,7 +514,7 @@ qcmd_exec_g() {
     cmd="$1"
     _QR=""
 
-    result=$(qcmd "$cmd" 2>&1)
+    result=$(QCMD_WAIT_MS="$QC_WAIT_MS" qcmd "$cmd" 2>&1)
     exit_code=$?
     _tap_at "$cmd" "$exit_code" "$result"
 
@@ -944,7 +952,7 @@ poll_serving_cell() {
 poll_per_antenna_signal() {
     # Compound AT: fetch all per-antenna signal data in one call
     local result
-    result=$(qcmd 'AT+QRSRP;+QRSRQ;+QSINR' 2>/dev/null)
+    result=$(QCMD_WAIT_MS="$QC_WAIT_MS" qcmd 'AT+QRSRP;+QRSRQ;+QSINR' 2>/dev/null)
     _tap_at 'AT+QRSRP;+QRSRQ;+QSINR' "$?" "$result"
 
     if [ -n "$result" ]; then
@@ -1184,7 +1192,7 @@ poll_tier2() {
     # CPIN? is last — it can ERROR when SIM is absent; placing it last
     # ensures earlier responses (COPS, QUIMSLOT, CNUM) are preserved
     # even if the modem aborts on CPIN ERROR.
-    result=$(qcmd 'AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?' 2>/dev/null)
+    result=$(QCMD_WAIT_MS="$QC_WAIT_MS" qcmd 'AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?' 2>/dev/null)
     _tap_at 'AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?' "$?" "$result"
 
     if [ -n "$result" ]; then
@@ -2440,7 +2448,7 @@ refresh_sim_identity() {
     local _rsi_oifs
     local _rsi_l
     local _rsi_acc
-    _rsi_result=$(qcmd 'AT+CIMI;+QCCID' 2>/dev/null)
+    _rsi_result=$(QCMD_WAIT_MS="$QC_WAIT_MS" qcmd 'AT+CIMI;+QCCID' 2>/dev/null)
     if [ -n "$_rsi_result" ]; then
         # IMSI: first line that is exactly 15 digits once CRs are removed.
         _rsi_imsi=""
@@ -2694,7 +2702,7 @@ poll_cycle() {
             # CFUN — standalone query (compound commands timeout in CFUN=0).
             # Active/idle only; deep tier skips this read.
             local cfun_result
-            cfun_result=$(qcmd 'AT+CFUN?' 2>/dev/null)
+            cfun_result=$(QCMD_WAIT_MS="$QC_WAIT_MS" qcmd 'AT+CFUN?' 2>/dev/null)
             _tap_at 'AT+CFUN?' "$?" "$cfun_result"
             if [ -n "$cfun_result" ]; then
                 # Value after the first ": " on the first +CFUN: line, CRs and

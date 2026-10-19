@@ -16,7 +16,7 @@ pub const PID_FILE: &str = "/var/lock/qmanager.pid";
 pub const SHORT_DEADLINE: Duration = Duration::from_secs(20);
 pub const LONG_DEADLINE: Duration = Duration::from_secs(300);
 pub const SLOW_DEADLINE: Duration = Duration::from_secs(60);
-const LOCK_WAIT_SHORT: Duration = Duration::from_secs(5);
+pub const LOCK_WAIT_SHORT: Duration = Duration::from_secs(5);
 const LOCK_WAIT_LONG: Duration = Duration::from_secs(10);
 
 pub enum Outcome {
