@@ -1249,6 +1249,7 @@ Settings for the scrape endpoint (cookie auth). Full contract: [`features/promet
   "success": true,
   "settings": { "enabled": true, "freshness": "balanced", "token": "<64 hex or empty>" },
   "endpoint_path": "/cgi-bin/quecmanager/metrics/prometheus.sh",
+  "https_port": 443,
   "last_scrape": { "age_seconds": 12, "mode": "balanced" },
   "holding": true,
   "poller": { "adaptive_enabled": true, "tier": "idle" }

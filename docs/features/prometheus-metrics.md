@@ -57,6 +57,7 @@ Measured on the RM551E: 200 median ~88 ms (p95 ~91 ms), 403 ~22 ms. The 403 path
   "success": true,
   "settings": { "enabled": false, "freshness": "adaptive", "token": "" },
   "endpoint_path": "/cgi-bin/quecmanager/metrics/prometheus.sh",
+  "https_port": 443,
   "last_scrape": { "age_seconds": 12, "mode": "realtime" },
   "holding": true,
   "poller": { "adaptive_enabled": true, "tier": "active" }
@@ -67,6 +68,7 @@ Measured on the RM551E: 200 median ~88 ms (p95 ~91 ms), 403 ~22 ms. The 403 path
 - `last_scrape` is `null` when the scrape file is absent, not `qm_trusted_file`, malformed, has an unknown mode, or its uptime is in the future.
 - `holding` = enabled AND file mode `balanced`/`realtime` AND `age_seconds <= 120` (same TTL as the poller).
 - `poller.adaptive_enabled` is `quecmanager.poller.enabled != 0`; `poller.tier` is `.device.poller_tier` or `null`.
+- `https_port` is the port the scrape-config snippet targets: `wp_conf_https` from `web_port.sh` (custom web ports, [`web-port.md`](web-port.md)) when that lib is installed (sourced behind `[ -f ]`), otherwise the port of the first `uhttpd.main.listen_https` entry, otherwise `443`.
 
 ### Settings: `POST monitoring/prometheus.sh`
 
@@ -102,7 +104,9 @@ Default: **excluded**. The scrape CGI is a strict allowlist, a named set of `jq`
 
 ## Metric Catalog
 
-Every family is typed `gauge`. Info and stateset families carry value `1` (or `1`/`0` per state). A missing reading emits no sample (never `NaN`); a family with no samples is omitted entirely, HELP and TYPE included. Labels with an empty or null value are dropped; label values are control-stripped, `\` and `"` escaped, and capped at 64 characters; duplicate label sets within a family collapse to one sample.
+Every family is typed `gauge`. Info and stateset families carry value `1` (or `1`/`0` per state). A missing reading emits no sample (never `NaN`); a family with no samples is omitted entirely, HELP and TYPE included. Labels with an empty or null value are dropped, and so is a label whose value is not a string or number (an object or array never becomes label text); label values are control-stripped, `\` and `"` escaped, and capped at 64 characters; duplicate label sets within a family collapse to one sample.
+
+**State labels are closed sets** (`enum` in the jq program): `system_state`, `network_type`, `service_status`, the LTE/NR serving `state`, `connectivity_status` and `sim_status` emit only values from a fixed list matching what the poller writes; anything else reads `other`. **Why:** a future poller change that put free text or an identifier into one of those fields would otherwise be exported silently. A legitimate new state value shows as `other` until it is added to the list (update the list in `metrics/prometheus.sh` together with the poller). `carrier` stays free text by nature and relies on `lbl` escaping.
 
 **Staleness gate:** the snapshot age is `uptime - .mono` (monotonic; falls back to wall-clock `timestamp` when `.mono` is absent or invalid). The snapshot is fresh when it parses as an object and is at most 30 s old (the watchdog's `STATUS_STALE_THRESHOLD`). When it is missing or stale, the response contains only the three "always" families below, so frozen numbers are never served as live.
 
@@ -188,12 +192,12 @@ A scope is one UCI section `quecmanager.<scope>` of type `<scope>`:
 
 | Function | Args | Returns / sets |
 |---|---|---|
-| `qm_api_auth <scope>` | scope name | On success returns `0` with `QM_API_SCOPE=<scope>` and `QM_API_CFG` set. On failure writes the uniform 403 via `qm_api_deny` and **exits the script** (it does not return). |
+| `qm_api_auth <scope> [https]` | scope name; optional `https` | On success returns `0` with `QM_API_SCOPE=<scope>` and `QM_API_CFG` set (minus the token line). On failure writes the uniform 403 via `qm_api_deny` and **exits the script** (it does not return). With `https`, a request without `HTTPS=on` (plain HTTP) is denied as well; metrics does not pass it (read-only telemetry, and `http` over Tailscale is a supported setup), but any scope that acts must. |
 | `qm_api_opt <option>` | option name | Sets `QM_API_VAL` from the same `uci show` read (empty when absent). Returns `1` and sets nothing when called before a successful `qm_api_auth`, with an invalid option name, or with `token` (so `QM_API_VAL` never holds the token). Values are uci-quoted text up to the first `'`, so callers must enumerate / validate what they get. |
 | `qm_api_deny` | none | Prints `Status: 403 Forbidden`, `Content-Type: text/plain; charset=utf-8`, `Cache-Control: no-store`, blank line, `Forbidden`. A caller that cannot load the lib prints these same bytes. |
 | `qm_api_token_generate <scope>` | scope name | `0` ok; `1` invalid scope; `2` generation failed (no `qm_generate_token`, or its output is not 64 hex); `3` UCI write or commit failed. Writes `set quecmanager.<scope>=<scope>` + the token through `uci batch` on stdin, then `uci commit quecmanager`. |
 
-Variables: `QM_API_SCOPE` (the authenticated scope), `QM_API_CFG` (the scope's `uci -q show` output, cleared on denial), `QM_API_VAL` (last `qm_api_opt` result). Tunables: `QM_API_AUTHFAIL_INTERVAL=60`, `QM_API_RUN_DIR=/var/run/qmanager`.
+Variables: `QM_API_SCOPE` (the authenticated scope), `QM_API_CFG` (the scope's `uci -q show` lines with the token line removed, cleared on denial), `QM_API_VAL` (last `qm_api_opt` result). Tunables: `QM_API_AUTHFAIL_INTERVAL=60`, `QM_API_RUN_DIR=/var/run/qmanager`.
 
 `qm_api_auth` accepts only `Bearer <64 lowercase hex>` (scheme word `Bearer` or `bearer`) and denies when the scope is disabled, the stored token is invalid, the presentation is malformed, or setup is required (no password set yet).
 
@@ -204,6 +208,8 @@ Variables: `QM_API_SCOPE` (the authenticated scope), `QM_API_CFG` (the scope's `
 - **Header out of the environment before the first fork.** `qm_api_auth` moves `HTTP_AUTHORIZATION` into a local and unsets it before `uci` runs. **Why:** forked children inherit the environment, and `/proc/<pid>/environ` would carry the token.
 - **Enable = generate the token first.** Generate with `qm_api_token_generate`, then set `enabled=1`. **Why:** the scrape endpoint reads UCI per request, so `enabled=1` without a valid token would be a window where a scope is "on" with nothing to compare.
 - **Fail closed if the lib is missing**, with the same 403 bytes.
+- **Only a clean one-line-per-option read is trusted.** `_qm_api_sanitize` denies when any line of the `uci show` output is not the scope's own, or when a value spans lines: after removing uci's `'\''` escapes, a complete line has an even number of `'` (`_qm_api_line_closed`). **Why:** options are parsed by first match, so a free-text option value carrying a newline could inject a `quecmanager.<scope>.enabled=`/`token=` line that shadows the real one. Verified on-device with three newline forms (all denied) and a value containing `'` (allowed).
+- **The stored token does not outlive the compare.** The token line is dropped from `QM_API_CFG`, and the locals holding it are cleared, so a later `set`/`set -x`/debug dump in a caller cannot print it.
 - **Never log, echo or put the token or Authorization header on argv.** The token reaches `uci` on stdin through the `printf` builtin. The failed-auth log line carries `REMOTE_ADDR` only.
 - **Auth-fail logging is rate limited.** A denial on an *enabled* scope logs at most one `qlog_warn` per 60 s per scope, tracked by `/var/run/qmanager/api_authfail_<scope>.stamp` (one line of uptime seconds, written with a `$$` temp and `mv`). A denial on a disabled scope never logs, so the log cannot reveal that the scope exists. The stamp is read on the uptime clock, so a wall-clock step cannot mute or flood it. No throttling or lockout of failed tokens: 256-bit tokens make brute force moot, and a lockout would let any LAN host lock out the real scraper (uhttpd `-n 3` already bounds concurrency).
 
@@ -224,6 +230,15 @@ Not part of v1; recorded here so a later design starts from the right constraint
 - cap the **message length** so it can never become a multi-part message;
 - record **every send in the existing sent log** (see [`sms.md`](sms.md) for `sms_sent.sh` and the sent log), so API sends appear in the Cellular SMS conversation view;
 - surface **`modem_busy` to the caller** (a retryable error), never drop the message silently.
+
+The independent security review of `api_auth.sh` (2026-10-19) adds what a send scope must not inherit from the read-only metrics setup:
+
+- **Require TLS:** call `qm_api_auth sms_api https`, so a token never crosses the LAN in cleartext.
+- **Bound the damage of a leaked token:** the rate limits above, plus an audit record of every accepted call (metadata only). Rejected attempts alone are logged at most once a minute, which is not an abuse ceiling.
+- **Don't keep a re-servable plaintext token for a write scope:** store only `sha256(token)`, compare hashes, show the token once at generation, and never return it on GET.
+- **Authenticate before reading the body, and cap `CONTENT_LENGTH`** (`cgi_read_post` reads without a bound).
+- **Bearer only on that endpoint:** never also accept the session cookie, whose POST path has no CSRF check.
+- **Never pass phone numbers or message text through `qm_api_opt`** (values are cut at the first `'`); read and validate them on their own.
 
 ## Lifecycle
 
@@ -248,11 +263,19 @@ Not part of v1; recorded here so a later design starts from the right constraint
 | Token leakage: logs | Header and token never logged; failed-auth log is `REMOTE_ADDR` only, 1 per 60 s per scope |
 | Token leakage: backups and diagnostics | Excluded from the `metrics` backup section; the option is named `token`, which both the debug-report and health-check redactors match |
 | Token leakage: UI | Returned only to the cookie-authenticated owner, `no-store`, masked until revealed |
-| Token in transit | The snippet defaults to HTTPS (self-signed, `insecure_skip_verify`); Tailscale/NetBird are encrypted. MITM on a LAN with a self-signed cert is out of scope |
+| Token in transit | The snippet defaults to HTTPS (self-signed, `insecure_skip_verify`) on the device's configured HTTPS port; Tailscale/NetBird are encrypted. Passive sniffing is stopped; an active LAN MITM is out of scope (that attacker can already take the admin session cookie, usually sent over plain HTTP). The endpoint still accepts plain HTTP by design (see `[https]` above). Follow-up: certificate pinning, below |
+| UCI value injection | Free-text option values with newlines are denied by `_qm_api_sanitize` (fail closed); state labels are closed sets; non-scalar label values are dropped |
 | Label / exposition injection | `carrier` comes from COPS and a rogue cell can influence it. The `lbl` filter drops control characters, escapes `\` and `"`, caps at 64 chars, using only `explode`/`implode`/`split`/`join` (device `jq` has no regex). Numbers are type-checked; the jq program writes every family, shell never interpolates a value into the body |
 | Scrape flood | The unauthenticated path exits before `jq`; only authenticated scrapes renew the hold, so a flood cannot pin the poller. uhttpd `-n 3` still bounds concurrency (slot contention, same as `public/overview.sh`) |
 | Scrape-file planting | Lives in the root-only run dir; the poller parses defensively (allowlisted mode, digits only, no leading zero, at most 10 digits, not in the future); worst case raises the cadence for at most 120 s |
 | WAN exposure | fw4 `wan` input is REJECT, and uhttpd `-R` rejects public-to-RFC1918 (not public IPv6). Never enable the vendor's WAN TCP-input rules; the token is the only remaining gate |
+
+## Follow-ups (not built)
+
+- **Certificate pinning for the scrape config.** `ca_file` alone does not work today: the device certificate is a per-device ECDSA P-256 cert with `CN=OpenWrt` and no SAN, and Prometheus (Go) refuses CN-only certificates for hostname verification. Pinning needs a regenerated certificate with a SAN (the modem's IP and hostname), which touches uhttpd, so it belongs with the custom web ports work ([`web-port.md`](web-port.md)). That change should offer the certificate as a download, emit `ca_file` plus `server_name` in the snippet, and keep `insecure_skip_verify` only as a fallback.
+- **Cell-identity opt-in** (`include_cell_identity`, see Data classification): designed, not built.
+- **CSRF hardening for all settings CGIs** (repo-wide, not specific to this feature): a same-site, different-port origin could send a blind `text/plain` POST to any settings CGI, because `cgi_base` checks neither `Origin` nor `Sec-Fetch-Site`. It cannot read responses (no `Allow-Credentials`; cookie is `SameSite=Strict; HttpOnly`). A `Sec-Fetch-Site`/`Origin` check on POST in `cgi_base` would close it everywhere.
+- **`/etc/uhttpd.crt` is mode 0666 on the test device** (the key is 0600): any local user could replace the certificate. Outside this feature; worth fixing in the installer or the web-port work.
 
 ## Gotchas
 
