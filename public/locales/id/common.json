@@ -558,8 +558,6 @@
       }
     },
     "danger": {
-      "title": "Hapus Tailscale",
-      "description": "Menghapus paket Tailscale dan aturan firewall dari modem ini.",
       "uninstall": "Hapus instalasi",
       "removing": "Menghapus…",
       "dialogTitle": "Hapus instalasi Tailscale?",

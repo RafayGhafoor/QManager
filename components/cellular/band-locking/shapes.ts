@@ -23,10 +23,8 @@ import type { BandCategory } from "@/types/band-locking";
 // visible before Apply. The ring is an inset shadow, not a border, so a chip
 // gaining it repaints without reflowing the grid.
 //
-// THE POLICY LAYER. Bands the hardware supports but the network/SIM policy does
-// not use are not tinted yellow any more (a warning tone is a verdict, and
-// "unused here" is not a fault). They render as a second, labelled group under
-// the policy bands: grouping and varying the list instead of colouring it.
+// THE POLICY LAYER is not drawn: every hardware-supported band renders in one
+// flat grid, untinted and ungrouped.
 // =============================================================================
 
 /** The page's status card. `rounded-hero` (20px), one per surface. */
@@ -168,10 +166,6 @@ export function bandChipA11yKey(selected: boolean, live: boolean): string {
   if (selected && live) return `${base}.band_live`;
   return selected ? `${base}.band_selected` : `${base}.band_unselected`;
 }
-
-/** The sub-group label above the non-policy bands. */
-export const BAND_GROUP_LABEL =
-  "flex items-center gap-1.5 text-xs font-medium text-on-surface-variant";
 
 export const BAND_LEGEND = {
   ROOT: "flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-on-surface-variant",

@@ -308,6 +308,7 @@
       "aria": "Recovery ladder",
       "status": {
         "blocked": "Needs a slot",
+        "done": "Tried",
         "running": "Running now"
       },
       "tier1": {
@@ -453,8 +454,9 @@
     },
     "strip": {
       "title": "Probes",
-      "noReply": "{{n}} no reply",
-      "average": "{{ms}} ms average",
+      "noReply": "No reply",
+      "reply": "{{ms}} ms",
+      "tipAgo": "{{time}} ago",
       "ago": "{{minutes}} min ago",
       "now": "Now",
       "empty": "No probe data from the modem",

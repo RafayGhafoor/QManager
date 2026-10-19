@@ -40,6 +40,7 @@ import type {
 import { cn } from "@/lib/utils";
 
 import { ConditionBlock } from "./condition-block";
+import { UninstallButton } from "./danger-card";
 import {
   CARD_BODY,
   CARD_DESC,
@@ -76,6 +77,7 @@ export interface ConnectionCardProps {
   isTogglingBoot: boolean;
   isTogglingExitNode: boolean;
   isTogglingSsh: boolean;
+  isUninstalling: boolean;
   connect: () => Promise<TailscaleActionResult>;
   disconnect: () => Promise<TailscaleActionResult>;
   logout: () => Promise<TailscaleActionResult>;
@@ -84,6 +86,8 @@ export interface ConnectionCardProps {
   setBootEnabled: (enabled: boolean) => Promise<TailscaleActionResult>;
   setExitNodeAdvertised: (enabled: boolean) => Promise<TailscaleActionResult>;
   setSshEnabled: (enabled: boolean) => Promise<TailscaleActionResult>;
+  uninstall: () => Promise<TailscaleActionResult>;
+  onUninstalled: () => void;
 }
 
 /** The lucide check that SegmentedField reserves on every segment. */
@@ -147,6 +151,7 @@ export function ConnectionCard({
   isTogglingBoot,
   isTogglingExitNode,
   isTogglingSsh,
+  isUninstalling,
   connect,
   disconnect,
   logout,
@@ -155,6 +160,8 @@ export function ConnectionCard({
   setBootEnabled,
   setExitNodeAdvertised,
   setSshEnabled,
+  uninstall,
+  onUninstalled,
 }: ConnectionCardProps) {
   const { t } = useTranslation("common");
   const [sshDialogOpen, setSshDialogOpen] = React.useState(false);
@@ -283,6 +290,17 @@ export function ConnectionCard({
     </AlertDialog>
   );
 
+  // Uninstall sits at the rail's trailing edge and is offered only once the
+  // node is logged out, so it is never one click from Disconnect.
+  const uninstallButton = (
+    <UninstallButton
+      className="ml-auto"
+      isUninstalling={isUninstalling}
+      uninstall={uninstall}
+      onUninstalled={onUninstalled}
+    />
+  );
+
   const busyGlyph = (
     <Loader2Icon className="size-4 motion-safe:animate-spin" />
   );
@@ -349,6 +367,7 @@ export function ConnectionCard({
             ? t("tailscale.connection.stopping")
             : t("tailscale.connection.stopService")}
         </Button>
+        {uninstallButton}
       </>
     );
   } else if (view === "running") {
@@ -356,9 +375,8 @@ export function ConnectionCard({
       <>
         <Button
           type="button"
-          variant="ghost"
+          variant="tonal"
           size="action"
-          className={PILL_REST}
           disabled={isDisconnecting}
           onClick={() =>
             run(
@@ -373,7 +391,6 @@ export function ConnectionCard({
             ? t("tailscale.connection.disconnecting")
             : t("tailscale.connection.disconnect")}
         </Button>
-        {logoutDialog}
       </>
     );
   } else {

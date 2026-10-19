@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 
 import { ConditionBlock } from "./condition-block";
 import { ConnectionCard, ConnectionCardSkeleton } from "./connection-card";
-import { DangerRow, RebootDialog } from "./danger-card";
+import { RebootDialog } from "./danger-card";
 import { DeviceCard, DeviceCardSkeleton } from "./device-card";
 import { InstallCard } from "./install-card";
 import { PeersCard } from "./peers-card";
@@ -51,8 +51,8 @@ import {
 // -----------------------------------------------------------------------------
 // Tailscale — the page shell.
 // -----------------------------------------------------------------------------
-// Seven backend states, three page shapes: installed (band + pair + peers +
-// danger), not installed (one install hero), and unreadable (a condition and
+// Seven backend states, three page shapes: installed (band + pair + peers),
+// not installed (one install hero), and unreadable (a condition and
 // the peers card, which is a separate read and carries its own state).
 // -----------------------------------------------------------------------------
 
@@ -245,6 +245,7 @@ const TailscaleComponent = () => {
               isTogglingBoot={hook.isTogglingBoot}
               isTogglingExitNode={hook.isTogglingExitNode}
               isTogglingSsh={hook.isTogglingSsh}
+              isUninstalling={isUninstalling}
               connect={hook.connect}
               disconnect={hook.disconnect}
               logout={hook.logout}
@@ -253,6 +254,8 @@ const TailscaleComponent = () => {
               setBootEnabled={hook.setBootEnabled}
               setExitNodeAdvertised={hook.setExitNodeAdvertised}
               setSshEnabled={hook.setSshEnabled}
+              uninstall={uninstall}
+              onUninstalled={() => setShowReboot(true)}
             />
           ) : (
             <ConnectionCardSkeleton />
@@ -265,16 +268,6 @@ const TailscaleComponent = () => {
         </motion.div>
 
         <motion.div variants={staggerItem}>{peersCard}</motion.div>
-
-        {status ? (
-          <motion.div variants={staggerItem}>
-            <DangerRow
-              isUninstalling={isUninstalling}
-              uninstall={uninstall}
-              onUninstalled={() => setShowReboot(true)}
-            />
-          </motion.div>
-        ) : null}
       </>
     );
   }
@@ -332,7 +325,7 @@ const TailscaleComponent = () => {
       {body}
 
       {/* Owned here: a successful uninstall flips the surface to its
-          not-installed shape, which would unmount the row and the dialog. */}
+          not-installed shape, which would unmount the card and the dialog. */}
       <RebootDialog open={showReboot} onOpenChange={setShowReboot} />
     </motion.div>
   );

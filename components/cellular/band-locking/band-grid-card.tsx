@@ -20,7 +20,6 @@ import {
   CARD_FOOT_ACTIONS,
   CardFoot,
 } from "@/components/ui/card-foot";
-import { HintIcon } from "@/components/ui/hint-icon";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,7 +34,6 @@ import {
   BADGE_GLYPH_SIZE,
   BAND_CARD,
   BAND_CHIP,
-  BAND_GROUP_LABEL,
   BAND_LEGEND,
   CARD_PAD,
   CATEGORY_BADGE,
@@ -56,8 +54,7 @@ import {
 // CGI call; this card owns the local selection and calls back.
 //
 // Target-only differences kept on purpose:
-//   - The universe is the HARDWARE list; bands outside the network policy sit
-//     in a second labelled group rather than wearing a warning tint.
+//   - The universe is the HARDWARE list, shown as one flat grid.
 //   - The SA card slot swaps with NR-DC (`onSwapView`); the coordinator remounts
 //     the card on swap so the selection re-initialises from the new category.
 //   - A failed write is reported in the CardFoot status, scoped to this card,
@@ -75,8 +72,6 @@ export interface BandGridCardProps {
   bandCategory: BandCategory;
   /** The lockable universe (hardware list, policy fallback), sorted. */
   supportedBands: number[];
-  /** The network/SIM policy subset. Grouping only, never what Unlock writes. */
-  policyBands: number[];
   /** Bands configured on the modem now, sorted. */
   currentLockedBands: number[];
   /** False when `current.sh` failed and `currentLockedBands` is `[]`. */
@@ -115,7 +110,6 @@ const chipVariants: Variants = {
 export function BandGridCard({
   bandCategory,
   supportedBands,
-  policyBands,
   currentLockedBands,
   hasCurrentReading,
   onLock,
@@ -154,16 +148,6 @@ export function BandGridCard({
     () => new Set(currentLockedBands),
     [currentLockedBands],
   );
-
-  // Policy grouping. With no policy list, everything is one group.
-  const { primary, other } = useMemo(() => {
-    if (policyBands.length === 0) return { primary: supportedBands, other: [] };
-    const policy = new Set(policyBands);
-    return {
-      primary: supportedBands.filter((b) => policy.has(b)),
-      other: supportedBands.filter((b) => !policy.has(b)),
-    };
-  }, [supportedBands, policyBands]);
 
   const posture = categoryPosture(
     currentLockedBands,
@@ -311,14 +295,14 @@ export function BandGridCard({
         })
       : t(`${K}.card_badges.${statusKey}`);
 
-  const renderChips = (bands: number[], offset: number) => (
+  const chips = (
     <motion.div
       className={BAND_CHIP.GRID}
       initial="hidden"
       animate="visible"
       role="group"
     >
-      {bands.map((band, index) => {
+      {supportedBands.map((band, index) => {
         const selected = checkedBands.has(band);
         const live = liveBands.has(band);
         const label = formatBandName(bandCategory, band);
@@ -326,7 +310,7 @@ export function BandGridCard({
           <motion.button
             key={band}
             type="button"
-            custom={offset + index}
+            custom={index}
             variants={chipVariants}
             aria-pressed={selected}
             aria-label={t(bandChipA11yKey(selected, live), { band: label })}
@@ -385,19 +369,7 @@ export function BandGridCard({
         aria-label={title}
         role="group"
       >
-        {renderChips(primary, 0)}
-
-        {other.length > 0 ? (
-          <div className="flex flex-col gap-2.5">
-            <p className={BAND_GROUP_LABEL}>
-              {t(`${K}.legend.unused_group`)}
-              <HintIcon label={t(`${K}.legend.unused_hint_label`)}>
-                {t(`${K}.legend.unused_hint`)}
-              </HintIcon>
-            </p>
-            {renderChips(other, primary.length)}
-          </div>
-        ) : null}
+        {chips}
 
         {liveBands.size > 0 ? (
           <div className={BAND_LEGEND.ROOT}>

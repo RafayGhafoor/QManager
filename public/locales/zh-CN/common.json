@@ -558,8 +558,6 @@
       }
     },
     "danger": {
-      "title": "移除 Tailscale",
-      "description": "从此调制解调器卸载 Tailscale 安装包及其防火墙规则。",
       "uninstall": "卸载",
       "removing": "正在移除…",
       "dialogTitle": "卸载 Tailscale？",

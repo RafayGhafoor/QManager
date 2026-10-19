@@ -41,7 +41,7 @@ import { categoryCardId, categoryShortKey } from "./shapes";
 //
 // Three band layers (docs/features/band-locking.md):
 //   hwBands      hardware capability, the chip universe ("Unlock all" writes it)
-//   policyBands  the network/SIM policy subset, grouping only
+//   policyBands  the network/SIM policy subset, fallback universe only
 //   locked       what the modem is configured to now (`current.sh`)
 // NR-DC has no hardware list of its own and borrows the SA one.
 //
@@ -170,7 +170,6 @@ const BandLockingComponent = () => {
       key={category}
       bandCategory={category}
       supportedBands={supportedBands[category]}
-      policyBands={policyBands[category]}
       currentLockedBands={lockedBands[category]}
       hasCurrentReading={hasCurrentReading}
       onLock={(bands) => track(category, () => lockBands(category, bands))}

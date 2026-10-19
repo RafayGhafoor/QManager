@@ -375,8 +375,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         CRON_MARKER="qmanager_scheduled_reboot"
         SCHEDULE_SCRIPT="/usr/bin/qmanager_scheduled_reboot"
 
+        # The header comment carries no marker, so strip it too; otherwise every
+        # save leaves the old header behind and the blocks stack up.
         current_cron=$(crontab -l 2>/dev/null || true)
-        cleaned_cron=$(printf '%s\n' "$current_cron" | grep -v "$CRON_MARKER")
+        cleaned_cron=$(printf '%s\n' "$current_cron" | grep -v "$CRON_MARKER" \
+            | grep -v "^# QManager Scheduled Reboot")
 
         if [ "$ENABLED" = "true" ]; then
             sched_hour=$(printf '%s' "$SCHED_TIME" | cut -d: -f1)
@@ -483,8 +486,10 @@ ${sched_min} ${sched_hour} * * ${DAYS_RAW} ${SCHEDULE_SCRIPT}  # ${CRON_MARKER}"
         CRON_MARKER="qmanager_low_power"
         LP_SCRIPT="/usr/bin/qmanager_low_power"
 
+        # Strip the marker-less header too (see save_scheduled_reboot).
         current_cron=$(crontab -l 2>/dev/null || true)
-        cleaned_cron=$(printf '%s\n' "$current_cron" | grep -v "$CRON_MARKER")
+        cleaned_cron=$(printf '%s\n' "$current_cron" | grep -v "$CRON_MARKER" \
+            | grep -v "^# QManager Low Power Mode")
 
         if [ "$ENABLED" = "true" ]; then
             start_hour=$(printf '%s' "$START_TIME" | cut -d: -f1)

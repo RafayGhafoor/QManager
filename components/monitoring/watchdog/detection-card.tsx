@@ -27,7 +27,11 @@ import type { WatchdogQualityThresholds } from "@/hooks/use-watchdog-settings";
 import { cn } from "@/lib/utils";
 
 import {
+  NOTE_GLYPH,
+  NOTE_TONE,
   TIERS,
+  TIER_GLYPH,
+  TIER_TONE,
   deriveTimeline,
   timelineDuration,
   type TimelineNote,
@@ -43,6 +47,7 @@ import {
   NUM_FIELD,
   SKELETON,
   TIMELINE,
+  TIMELINE_TONE,
 } from "./shapes";
 import {
   FIELD_ID,
@@ -315,6 +320,15 @@ function ToggleRow({
   );
 }
 
+function NoteDisc({ note }: { note: TimelineNote }) {
+  const Glyph = NOTE_GLYPH[note];
+  return (
+    <span aria-hidden className={cn(TIMELINE.DISC, TIMELINE_TONE[NOTE_TONE[note]])}>
+      <Glyph className={TIMELINE.GLYPH} />
+    </span>
+  );
+}
+
 /** When each armed step runs into an outage, from both cards' drafts. */
 function Timeline({ draft }: { draft: WatchdogDraft }) {
   const { t } = useTranslation("monitoring");
@@ -343,8 +357,15 @@ function Timeline({ draft }: { draft: WatchdogDraft }) {
         <ul className={TIMELINE.ROWS}>
           {rows.map((row) => {
             const d = timelineDuration(row.seconds);
+            const Glyph = TIER_GLYPH[row.tier];
             return (
               <li key={row.tier} className={TIMELINE.ROW}>
+                <span
+                  aria-hidden
+                  className={cn(TIMELINE.DISC, TIMELINE_TONE[TIER_TONE[row.tier]])}
+                >
+                  <Glyph className={TIMELINE.GLYPH} />
+                </span>
                 <span className={TIMELINE.KEY}>{label(row)}</span>
                 <span className={TIMELINE.VALUE}>
                   {t("watchdog.detection.timeline.about", { time: t(d.key, d.params) })}
@@ -354,7 +375,12 @@ function Timeline({ draft }: { draft: WatchdogDraft }) {
           })}
         </ul>
       ) : null}
-      {note ? <p className={TIMELINE.NOTE}>{t(NOTE_KEY[note])}</p> : null}
+      {note ? (
+        <div className={TIMELINE.ROW}>
+          <NoteDisc note={note} />
+          <p className={TIMELINE.NOTE}>{t(NOTE_KEY[note])}</p>
+        </div>
+      ) : null}
     </div>
   );
 }

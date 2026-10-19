@@ -558,8 +558,6 @@
       }
     },
     "danger": {
-      "title": "Rimuovi Tailscale",
-      "description": "Disinstalla i pacchetti Tailscale e le regole del firewall da questo modem.",
       "uninstall": "Disinstalla",
       "removing": "Rimozione…",
       "dialogTitle": "Disinstallare Tailscale?",

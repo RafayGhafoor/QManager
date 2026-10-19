@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   AlertCircleIcon,
+  CardSimIcon,
   CheckCircle2Icon,
   ClockIcon,
   HelpCircleIcon,
@@ -11,7 +12,9 @@ import {
   LockIcon,
   MinusCircleIcon,
   PauseCircleIcon,
+  PowerIcon,
   PowerOffIcon,
+  RadioTowerIcon,
   RefreshCwIcon,
   TriangleAlertIcon,
   XCircleIcon,
@@ -25,7 +28,12 @@ import type {
   WatchcatStatus,
 } from "@/types/modem-status";
 
-import { STRIP, type DiscTone, type FigureTone } from "./shapes";
+import {
+  STRIP,
+  type DiscTone,
+  type FigureTone,
+  type TimelineTone,
+} from "./shapes";
 
 // Watchdog — the surface's ONE derived model. Every child reads this; no
 // component re-infers a state from a payload.
@@ -309,7 +317,7 @@ export function deriveBand({
 export type StripBar =
   | { kind: "none" }
   | { kind: "miss" }
-  | { kind: "ok"; heightPct: number };
+  | { kind: "ok"; heightPct: number; ms: number };
 
 export type StripView =
   | { kind: "empty" }
@@ -318,7 +326,8 @@ export type StripView =
       bars: StripBar[];
       total: number;
       missed: number;
-      avgMs: number | null;
+      /** Seconds between two probes, for each bar's "N s ago" tooltip. */
+      intervalSec: number;
       minutes: number;
     };
 
@@ -343,9 +352,9 @@ export function deriveStrip(
       : {
           kind: "ok",
           heightPct: Math.round(STRIP.FLOOR_PCT + STRIP.SPAN_PCT * (v / max)),
+          ms: Math.round(v),
         },
   );
-  const avg = connectivity?.avg_latency_ms;
   const interval = connectivity?.history_interval_sec ?? 0;
 
   return {
@@ -353,7 +362,7 @@ export function deriveStrip(
     bars: [...pad, ...bars],
     total: history.length,
     missed: history.length - answered.length,
-    avgMs: typeof avg === "number" && Number.isFinite(avg) ? Math.round(avg) : null,
+    intervalSec: interval,
     minutes: Math.max(1, Math.round((history.length * interval) / 60)),
   };
 }
@@ -387,7 +396,37 @@ export interface TimelineRow {
   declared: boolean;
 }
 
+/** Four distinct glyphs, since the tonal containers sit 1.03:1 apart. */
+export const TIER_GLYPH: Record<TierIndex, LucideIcon> = {
+  1: RadioTowerIcon,
+  2: RefreshCwIcon,
+  3: CardSimIcon,
+  4: PowerIcon,
+};
+
+/** Colour follows what the step costs: a blip, a blip, a dropped link, an outage. */
+export const TIER_TONE: Record<TierIndex, TimelineTone> = {
+  1: "info",
+  2: "info",
+  3: "alert",
+  4: "bad",
+};
+
 export type TimelineNote = "off" | "none" | "invalid" | "stopped";
+
+export const NOTE_GLYPH: Record<TimelineNote, LucideIcon> = {
+  off: PowerOffIcon,
+  none: MinusCircleIcon,
+  invalid: AlertCircleIcon,
+  stopped: TriangleAlertIcon,
+};
+
+export const NOTE_TONE: Record<TimelineNote, TimelineTone> = {
+  off: "neutral",
+  none: "neutral",
+  invalid: "alert",
+  stopped: "alert",
+};
 
 export interface TimelineView {
   rows: TimelineRow[];

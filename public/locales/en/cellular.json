@@ -886,10 +886,7 @@
       },
       "legend": {
         "selected": "Selected",
-        "live": "Currently locked",
-        "unused_group": "Not used by your network",
-        "unused_hint_label": "About bands not used by your network",
-        "unused_hint": "The modem supports these bands, but your network or SIM doesn't use them. Locking only to these can leave you without service."
+        "live": "Currently locked"
       },
       "a11y": {
         "band_live": "{{band}}, selected and locked on the modem",

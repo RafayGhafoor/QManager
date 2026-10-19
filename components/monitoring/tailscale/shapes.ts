@@ -274,18 +274,6 @@ export const COMMAND = {
 } as const;
 
 // -----------------------------------------------------------------------------
-// The danger row
-// -----------------------------------------------------------------------------
-
-/** Low emphasis on purpose: destructive is the button, not the whole surface. */
-export const DANGER = {
-  ROOT: "flex flex-wrap items-center gap-4 rounded-card bg-surface-container px-6 py-5",
-  TEXT: "min-w-0 flex-1",
-  TITLE: "text-sm font-semibold",
-  DESC: "text-on-surface-variant mt-0.5 text-xs leading-[1.5]",
-} as const;
-
-// -----------------------------------------------------------------------------
 // Conditions
 // -----------------------------------------------------------------------------
 

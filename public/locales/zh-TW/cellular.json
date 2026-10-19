@@ -886,10 +886,7 @@
       },
       "legend": {
         "selected": "已選擇",
-        "live": "目前已鎖定",
-        "unused_group": "您的網路未使用",
-        "unused_hint_label": "關於您的網路未使用的頻段",
-        "unused_hint": "數據機支援這些頻段，但您的網路或 SIM 卡不使用它們。僅鎖定這些頻段可能導致無服務。"
+        "live": "目前已鎖定"
       },
       "a11y": {
         "band_live": "{{band}}，已選擇並已在數據機上鎖定",

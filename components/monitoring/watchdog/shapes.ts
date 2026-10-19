@@ -125,11 +125,13 @@ export const STRIP = {
   ROOT: "flex flex-col gap-2",
   HEAD: "text-on-surface-variant flex items-center justify-between gap-3 text-xs",
   TITLE: "text-on-surface text-[0.8125rem] font-semibold",
-  HEAD_END: "inline-flex min-w-0 items-center gap-2 tabular-nums",
   HEIGHT: STRIP_HEIGHT,
   BARS: `flex ${STRIP_HEIGHT} items-end gap-0.5`,
+  /** The full-height hover target around a bar, so a short bar is no harder to read. */
+  CELL: "flex h-full min-w-0 flex-1 items-end",
+  TIP: "text-xs tabular-nums",
   /** A data mark, not a role shape: the 3px radius keeps 60 bars from fusing. */
-  BAR: "min-w-0 flex-1 rounded-[3px]",
+  BAR: "w-full min-w-0 rounded-[3px]",
   BAR_OK: "bg-primary",
   BAR_MISS: "h-full bg-destructive",
   BAR_NONE: "h-full bg-surface-container-high",
@@ -164,6 +166,9 @@ export const RUNG = {
   /** Step 3's companion row: the disc column held empty, so it reads as a child. */
   SUB_DISC: "col-start-1 row-start-1 size-8",
   DISC_RUNNING: "bg-primary text-primary-foreground",
+  /** A rung the ladder has already tried and climbed past. */
+  DISC_DONE: "bg-success text-success-foreground",
+  DONE_GLYPH: "size-4",
   TEXT: "col-start-2 row-start-1 flex min-w-0 flex-col gap-px",
   NAME: "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-pretty",
   NAME_INACTIVE: "text-on-surface-variant",
@@ -207,8 +212,8 @@ export const NUM_FIELD = {
 
 /** Receipt rows: key left, control right, 6px apart. */
 export const DETECT = {
-  BODY: "flex flex-1 flex-col gap-3.5",
-  ROWS: "flex flex-col gap-1.5",
+  BODY: "flex flex-1 flex-col gap-6",
+  ROWS: "flex flex-col gap-4",
   ROW: "flex min-h-[2.625rem] flex-wrap items-center justify-between gap-x-4 gap-y-2",
   KEY: "text-sm font-medium",
   /** A key with a one-line caption under it (the two switch rows). */
@@ -223,14 +228,26 @@ export const DETECT = {
   PROBE_SELECT: "w-auto min-w-[7.5rem] px-4 text-[0.84375rem] font-medium",
 } as const;
 
+/** The tonal container behind a timeline glyph. Only the glyph tells two apart. */
+export const TIMELINE_TONE = {
+  neutral: "bg-surface-container-high text-on-surface-variant",
+  info: "bg-primary-container text-on-primary-container",
+  alert: "bg-warning-container text-on-warning-container",
+  bad: "bg-destructive-container text-on-destructive-container",
+} as const;
+
+export type TimelineTone = keyof typeof TIMELINE_TONE;
+
 /** The derived reading, and Detection's one slack region (content bottom-aligned). */
 export const TIMELINE = {
-  ROOT: "flex min-h-0 flex-1 flex-col justify-end gap-2.5",
-  ROWS: "flex flex-col gap-1.5",
-  ROW: "flex items-baseline justify-between gap-4 text-[0.8125rem]",
-  KEY: "min-w-0 text-pretty",
+  ROOT: "flex min-h-0 flex-1 flex-col justify-end gap-3",
+  ROWS: "flex flex-col gap-2.5",
+  ROW: "flex items-center gap-3 text-[0.8125rem]",
+  DISC: "grid size-7 flex-none place-items-center rounded-pill",
+  GLYPH: "size-3.5",
+  KEY: "min-w-0 flex-1 text-pretty",
   VALUE: "flex-none font-medium tabular-nums",
-  NOTE: "text-on-surface-variant text-[0.78125rem] text-pretty",
+  NOTE: "text-on-surface-variant min-w-0 flex-1 text-[0.78125rem] text-pretty",
 } as const;
 
 // -----------------------------------------------------------------------------
@@ -352,7 +369,7 @@ export const SKELETON = {
   CARD_TITLE: "h-[1.40625rem] rounded-inline",
   CARD_DESC: "h-5 rounded-inline",
   EYEBROW: "h-[1.03125rem] rounded-inline",
-  TIMELINE_ROW: "h-[1.21875rem] rounded-inline",
+  TIMELINE_ROW: "h-7 rounded-inline",
   DETECT_CAPTION: "h-[1.1875rem] rounded-inline",
   FOOT_STATUS: "h-5 rounded-inline",
   RUNG_NAME: "h-5 w-28 rounded-inline",

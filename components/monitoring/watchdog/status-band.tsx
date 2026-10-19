@@ -2,14 +2,13 @@
 
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { XCircleIcon } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-import type { BandFigure, BandView, StripView } from "./derive";
+import { timelineDuration, type BandFigure, type BandView, type StripView } from "./derive";
 import {
   DISC_LIVE,
   DISC_TONE,
@@ -57,17 +56,6 @@ function ProbeStrip({ strip }: { strip: StripView }) {
     <div className={STRIP.ROOT}>
       <div className={STRIP.HEAD}>
         <span className={STRIP.TITLE}>{t("watchdog.strip.title")}</span>
-        <span className={STRIP.HEAD_END}>
-          {strip.missed > 0 ? (
-            <Badge variant="destructive">
-              <XCircleIcon className="size-3" />
-              {t("watchdog.strip.noReply", { n: strip.missed })}
-            </Badge>
-          ) : null}
-          {strip.avgMs !== null ? (
-            <span>{t("watchdog.strip.average", { ms: strip.avgMs })}</span>
-          ) : null}
-        </span>
       </div>
       <div
         role="img"
@@ -77,21 +65,54 @@ function ProbeStrip({ strip }: { strip: StripView }) {
         })}
         className={STRIP.BARS}
       >
-        {strip.bars.map((bar, i) => (
-          <span
-            key={i}
-            aria-hidden
-            className={cn(
-              STRIP.BAR,
-              bar.kind === "ok"
-                ? STRIP.BAR_OK
-                : bar.kind === "miss"
-                  ? STRIP.BAR_MISS
-                  : STRIP.BAR_NONE,
-            )}
-            style={bar.kind === "ok" ? { height: `${bar.heightPct}%` } : undefined}
-          />
-        ))}
+        {strip.bars.map((bar, i) => {
+          const visual = (
+            <span
+              aria-hidden
+              className={cn(
+                STRIP.BAR,
+                bar.kind === "ok"
+                  ? STRIP.BAR_OK
+                  : bar.kind === "miss"
+                    ? STRIP.BAR_MISS
+                    : STRIP.BAR_NONE,
+              )}
+              style={bar.kind === "ok" ? { height: `${bar.heightPct}%` } : undefined}
+            />
+          );
+          // Padding slots carry no reading, so they get no tooltip.
+          if (bar.kind === "none") {
+            return (
+              <span key={i} aria-hidden className={STRIP.CELL}>
+                {visual}
+              </span>
+            );
+          }
+          // Newest bar is last; its age is one interval per slot behind it.
+          const age = timelineDuration((strip.bars.length - 1 - i) * strip.intervalSec);
+          return (
+            <Tooltip key={i}>
+              <TooltipTrigger asChild>
+                <span aria-hidden className={STRIP.CELL}>
+                  {visual}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className={STRIP.TIP}>
+                <span className="font-semibold">
+                  {bar.kind === "miss"
+                    ? t("watchdog.strip.noReply")
+                    : t("watchdog.strip.reply", { ms: bar.ms })}
+                </span>
+                <span className="opacity-70">
+                  {" "}
+                  {strip.bars.length - 1 - i === 0
+                    ? t("watchdog.strip.now")
+                    : t("watchdog.strip.tipAgo", { time: t(age.key, age.params) })}
+                </span>
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
       </div>
       <div className={STRIP.FOOT}>
         <span>{t("watchdog.strip.ago", { minutes: strip.minutes })}</span>
@@ -166,7 +187,6 @@ export function StatusCardSkeleton() {
         <div className={STRIP.ROOT}>
           <div className={STRIP.HEAD}>
             <Skeleton className={cn(SKELETON.LINE, "h-3.5 w-14")} />
-            <Skeleton className={cn(SKELETON.LINE, "h-3 w-24")} />
           </div>
           <Skeleton className={SKELETON.STRIP} />
           <div className={STRIP.FOOT}>

@@ -886,10 +886,7 @@
       },
       "legend": {
         "selected": "Selezionata",
-        "live": "Bloccata ora",
-        "unused_group": "Non usate dalla tua rete",
-        "unused_hint_label": "Informazioni sulle bande non usate dalla tua rete",
-        "unused_hint": "Il modem supporta queste bande, ma la tua rete o SIM non le usa. Bloccare solo queste può lasciarti senza servizio."
+        "live": "Bloccata ora"
       },
       "a11y": {
         "band_live": "{{band}}, selezionata e bloccata sul modem",
