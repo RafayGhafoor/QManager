@@ -367,6 +367,38 @@ snapshot_event_state() {
     prev_ev_service_status="$service_status"
     prev_ev_cfun="$t1_cfun"
     prev_ev_carrier_components="$t2_carrier_components"
+    _ev_scc_sig "$t2_carrier_components"
+    prev_ev_scc_sig="$_EV_SCC_SIG"
+}
+
+# _ev_scc_sig <carrier_components JSON>: "tech band pci;" for every SCC entry,
+# in order, into _EV_SCC_SIG. Builtins only. Relies on the fixed key order that
+# parse_ca_info emits ({"type":..,"technology":..,"band":..,"earfcn":..,
+# "bandwidth_mhz":..,"pci":..,...}).
+prev_ev_scc_sig=""
+_ev_scc_sig() {
+    local _r
+    local _o
+    local _t
+    local _b
+    local _p
+    _EV_SCC_SIG=""
+    _r="$1"
+    while :; do
+        case "$_r" in
+            *'{"type":"SCC",'*) ;;
+            *) break ;;
+        esac
+        _r="${_r#*'{"type":"SCC",'}"
+        _o="${_r%%'}'*}"
+        _t="${_o#*'"technology":'}"
+        _t="${_t%%,*}"
+        _b="${_o#*'"band":'}"
+        _b="${_b%%,*}"
+        _p="${_o#*'"pci":'}"
+        _p="${_p%%,*}"
+        _EV_SCC_SIG="${_EV_SCC_SIG}${_t} ${_b} ${_p};"
+    done
 }
 
 # ---------------------------------------------------------------------------
@@ -767,8 +799,12 @@ detect_events() {
     _ev_ca_check lte_ca LTE "$t2_ca_count"
     _ev_ca_check nr_ca NR "$t2_nr_ca_count"
 
-    # --- SCC PCI changes (detected on Tier 2 refresh) ---
-    if [ "$t2_carrier_components" != "$prev_ev_carrier_components" ]; then
+    # --- SCC PCI changes ---
+    # Keyed on the SCC tech/band/PCI set only. The whole carrier string also
+    # carries RSRP/RSRQ/SINR, so comparing it ran the jq-heavy detector on
+    # almost every active cycle without anything to report.
+    _ev_scc_sig "$t2_carrier_components"
+    if [ "$_EV_SCC_SIG" != "$prev_ev_scc_sig" ]; then
         detect_scc_pci_changes
     fi
 

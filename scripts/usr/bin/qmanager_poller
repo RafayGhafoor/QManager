@@ -78,6 +78,11 @@ _MONO_TOP=""
 # Last valid heartbeat epoch. A momentarily empty/garbage heartbeat read (a CGI
 # mid-write, or the file briefly absent) reuses it instead of dropping to deep.
 _HB_LAST=0
+# Uptime (s) when the heartbeat value last changed. The tier age is measured on
+# this monotonic clock, so a NITZ/ntpd wall-clock step cannot flip the tier.
+_HB_SEEN_MONO=0
+# write_cache failures in a row (logged on the first one only).
+_WC_FAILS=0
 # Runtime dir for the on-demand cache stamp (and the dev tap). Once, at start.
 [ -d /var/run/qmanager ] || mkdir -p /var/run/qmanager 2>/dev/null
 
@@ -1918,8 +1923,22 @@ write_cache() {
                 matching_profile_name: $ss_profile_name
             }
         }' > "$CACHE_TMP"
+    local _wc_rc=$?
 
-    mv "$CACHE_TMP" "$CACHE_FILE"
+    # Replace status.json only with a complete file. A jq failure (a bad
+    # --argjson, a full tmpfs) used to mv an empty file over it; now the
+    # previous snapshot stays and .mono ages, which the watchdog reads as stale.
+    if [ "$_wc_rc" -eq 0 ] && [ -s "$CACHE_TMP" ]; then
+        mv "$CACHE_TMP" "$CACHE_FILE"
+        if [ "$_WC_FAILS" -gt 0 ]; then
+            qlog_info "write_cache recovered after ${_WC_FAILS} failed writes"
+            _WC_FAILS=0
+        fi
+    else
+        rm -f "$CACHE_TMP"
+        _WC_FAILS=$((_WC_FAILS + 1))
+        [ "$_WC_FAILS" -eq 1 ] && qlog_error "write_cache: jq failed (rc=${_wc_rc}), kept the previous status.json"
+    fi
 }
 
 # =============================================================================
@@ -2060,6 +2079,9 @@ poll_cycle() {
         fi
         update_conn_uptime
         write_cache
+        # Count this cycle too, or every cycle-modulo cadence above (ping
+        # history) fires on every cycle, or never, for the whole scan.
+        cycle_count=$((cycle_count + 1))
         return
     fi
 
@@ -2096,12 +2118,23 @@ poll_cycle() {
         _hb="${_hb%"$_CR"}"
         case "$_hb" in
             ''|*[!0-9]*) _hb="$_HB_LAST" ;;
-            *) _HB_LAST="$_hb" ;;
+            *)
+                if [ "$_hb" != "$_HB_LAST" ]; then
+                    _HB_LAST="$_hb"
+                    _HB_SEEN_MONO="$_MONO_TOP"
+                fi
+                ;;
         esac
-        # Strip leading zeros: ash reads "08"/"09" as invalid octal and aborts.
-        _hb="${_hb#"${_hb%%[!0]*}"}"
-        _hb="${_hb:-0}"
-        _age=$((_NOW - _hb))
+        if [ "$_MONO_TOP" -gt 0 ]; then
+            # Age since the poller saw the heartbeat change (one cycle of grain).
+            _age=$((_MONO_TOP - _HB_SEEN_MONO))
+        else
+            # /proc/uptime unreadable: wall-clock age as before.
+            # Strip leading zeros: ash reads "08"/"09" as invalid octal and aborts.
+            _hb="${_hb#"${_hb%%[!0]*}"}"
+            _hb="${_hb:-0}"
+            _age=$((_NOW - _hb))
+        fi
 
         if [ "$_age" -le "$AP_ACTIVE_GRACE" ]; then
             ap_tier="active"
