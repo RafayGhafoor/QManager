@@ -47,11 +47,11 @@ A shallow tier is the honest answer, not a failure. Every field after `installed
 ## Page shapes and the three data states
 
 - **Other VPN installed** (`other_vpn_installed`, gated on `!isLoading`): header and one `Banner` naming the other VPN with a link to its page. No band, no cards.
-- **`notInstalled`**: the install hero alone (`install-card.tsx`), no band, no peers, no danger row. It carries a manual shell command with a copy button as the fallback when the in-page install cannot work.
+- **`notInstalled`**: the install hero alone (`install-card.tsx`), no band, no peers. It carries a manual shell command with a copy button as the fallback when the in-page install cannot work.
 - **Loading**: `StatusBandSkeleton`, `ConnectionCardSkeleton`, `DeviceCardSkeleton`, and the peers card's own skeleton, all built from `shapes.ts` constants.
 - **Empty**: connected with zero peers renders the peers card's empty `ConditionBlock` (`muted`), not a blank table.
 - **Error**: no status at all (`!status && !isLoading`) renders a destructive `ConditionBlock` with Retry. The peers card is a separate surface and mounts with its own condition. A failed poll on top of good data is a non-blocking notice, never a replacement for the content.
-- **Installed**: status band, the Connection and This device pair, the full-width peers table, then the danger row.
+- **Installed**: status band, the Connection and This device pair, the full-width peers table.
 
 ---
 
@@ -61,11 +61,11 @@ A shallow tier is the honest answer, not a failure. Every field after `installed
 | --- | --- |
 | `netbird.tsx` | Page shell, `deriveView`, band tiles, owner of the reboot dialog |
 | `status-band.tsx` | Pinned-height tiles and the verdict chip |
-| `connection-card.tsx` | Connect / Disconnect, Start / Stop service, Start on boot row (`SegmentedField`), setup-key field |
+| `connection-card.tsx` | Connect / Disconnect, Start / Stop service, Uninstall (only while not connected), Start on boot row (`SegmentedField`), setup-key field |
 | `device-card.tsx` | Identity rows (FQDN, NetBird IP, interface); values mono as opaque strings |
 | `peers-card.tsx` | The peer table |
 | `install-card.tsx` | Not-installed hero, install progress, manual command |
-| `danger-card.tsx` | Remove row, `AlertDialog` confirm, and `RebootDialog` |
+| `danger-card.tsx` | `UninstallButton` (`AlertDialog` confirm, trailing end of the Connection rail) and `RebootDialog` |
 | `condition-block.tsx` | Loading-adjacent empty and error blocks (the block is the state) |
 | `shapes.ts` | Class constants, view maps, table geometry |
 
@@ -77,7 +77,7 @@ Every `use-netbird` action returns `NetBirdActionResult` (`{ success, error }`).
 
 ## Reboot hand-off after uninstall
 
-A successful uninstall flips the view to `notInstalled`, which would unmount the danger row and its dialog, so `RebootDialog` is owned by the page shell. "Reboot now" calls `rebootNow("netbird")` from `@/lib/reboot` (fire-and-forget POST, then the `/reboot/` countdown). Declining in any way (Reboot later, Escape, scrim click) calls `requestRebootLater("netbird")`, which sets the persistent deferred-reboot flag so the banner survives navigation. The dialog ignores close attempts once a reboot has started.
+A successful uninstall flips the view to `notInstalled`, which would unmount the Connection card and its dialog, so `RebootDialog` is owned by the page shell. "Reboot now" calls `rebootNow("netbird")` from `@/lib/reboot` (fire-and-forget POST, then the `/reboot/` countdown). Declining in any way (Reboot later, Escape, scrim click) calls `requestRebootLater("netbird")`, which sets the persistent deferred-reboot flag so the banner survives navigation. The dialog ignores close attempts once a reboot has started.
 
 **Why:** the app runs on the modem, so a reboot kills the in-flight request; the reboot is never issued in the CGI response path, and a declined dialog must not lose the pending reboot.
 

@@ -20,6 +20,7 @@ import { Tag } from "@/components/ui/tag";
 import type { NetBirdActionResult, NetBirdStatus } from "@/hooks/use-netbird";
 import { cn } from "@/lib/utils";
 
+import { UninstallButton } from "./danger-card";
 import {
   CARD_BODY,
   CARD_DESC,
@@ -35,7 +36,6 @@ import {
   NOTICE_BODY,
   NOTICE_GLYPH,
   NOTICE_TONE,
-  PILL_REST,
   RAIL,
   SKELETON,
   SWITCH_ROW,
@@ -53,11 +53,14 @@ export interface ConnectionCardProps {
   isDisconnecting: boolean;
   isTogglingService: boolean;
   isTogglingBoot: boolean;
+  isUninstalling: boolean;
   connect: (setupKey?: string) => Promise<NetBirdActionResult>;
   disconnect: () => Promise<NetBirdActionResult>;
   startService: () => Promise<NetBirdActionResult>;
   stopService: () => Promise<NetBirdActionResult>;
   setBootEnabled: (enabled: boolean) => Promise<NetBirdActionResult>;
+  uninstall: () => Promise<NetBirdActionResult>;
+  onUninstalled: () => void;
 }
 
 /** The lucide check that SegmentedField reserves on every segment. */
@@ -116,11 +119,14 @@ export function ConnectionCard({
   isDisconnecting,
   isTogglingService,
   isTogglingBoot,
+  isUninstalling,
   connect,
   disconnect,
   startService,
   stopService,
   setBootEnabled,
+  uninstall,
+  onUninstalled,
 }: ConnectionCardProps) {
   const { t } = useTranslation("monitoring");
   const [setupKey, setSetupKey] = React.useState("");
@@ -165,12 +171,22 @@ export function ConnectionCard({
 
   const busyGlyph = <Loader2Icon className="size-4 motion-safe:animate-spin" />;
 
+  // Uninstall sits at the rail's trailing edge and is offered only while the
+  // link is not live, so it is never one click from Disconnect.
+  const uninstallButton = (
+    <UninstallButton
+      className="ml-auto"
+      isUninstalling={isUninstalling}
+      uninstall={uninstall}
+      onUninstalled={onUninstalled}
+    />
+  );
+
   const stopButton = (
     <Button
       type="button"
-      variant="ghost"
+      variant="tonal"
       size="action"
-      className={PILL_REST}
       disabled={isTogglingService}
       onClick={() =>
         run(stopService, "netbird.toast.serviceStopped", "netbird.toast.serviceStopFailed")
@@ -186,19 +202,22 @@ export function ConnectionCard({
   let rail: React.ReactNode;
   if (view === "serviceStopped") {
     rail = (
-      <Button
-        type="button"
-        size="action"
-        disabled={isTogglingService}
-        onClick={() =>
-          run(startService, "netbird.toast.serviceStarted", "netbird.toast.serviceStartFailed")
-        }
-      >
-        {isTogglingService ? busyGlyph : null}
-        {isTogglingService
-          ? t("netbird.connection.starting")
-          : t("netbird.connection.startService")}
-      </Button>
+      <>
+        <Button
+          type="button"
+          size="action"
+          disabled={isTogglingService}
+          onClick={() =>
+            run(startService, "netbird.toast.serviceStarted", "netbird.toast.serviceStartFailed")
+          }
+        >
+          {isTogglingService ? busyGlyph : null}
+          {isTogglingService
+            ? t("netbird.connection.starting")
+            : t("netbird.connection.startService")}
+        </Button>
+        {uninstallButton}
+      </>
     );
   } else if (view === "connected") {
     rail = (
@@ -234,6 +253,7 @@ export function ConnectionCard({
             : t("netbird.connection.connect")}
         </Button>
         {stopButton}
+        {uninstallButton}
       </>
     );
   }

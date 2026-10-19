@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 
 import { ConditionBlock } from "./condition-block";
 import { ConnectionCard, ConnectionCardSkeleton } from "./connection-card";
-import { DangerRow, RebootDialog } from "./danger-card";
+import { RebootDialog } from "./danger-card";
 import { DeviceCard, DeviceCardSkeleton } from "./device-card";
 import { InstallCard } from "./install-card";
 import { PeersCard } from "./peers-card";
@@ -242,11 +242,14 @@ const NetBirdComponent = () => {
               isDisconnecting={hook.isDisconnecting}
               isTogglingService={hook.isTogglingService}
               isTogglingBoot={hook.isTogglingBoot}
+              isUninstalling={isUninstalling}
               connect={hook.connect}
               disconnect={hook.disconnect}
               startService={hook.startService}
               stopService={hook.stopService}
               setBootEnabled={hook.setBootEnabled}
+              uninstall={uninstall}
+              onUninstalled={() => setShowReboot(true)}
             />
           ) : (
             <ConnectionCardSkeleton />
@@ -259,16 +262,6 @@ const NetBirdComponent = () => {
         </motion.div>
 
         <motion.div variants={staggerItem}>{peersCard}</motion.div>
-
-        {status ? (
-          <motion.div variants={staggerItem}>
-            <DangerRow
-              isUninstalling={isUninstalling}
-              uninstall={uninstall}
-              onUninstalled={() => setShowReboot(true)}
-            />
-          </motion.div>
-        ) : null}
       </>
     );
   }

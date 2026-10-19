@@ -581,8 +581,6 @@
       "manualCommand": "opkg update && opkg install netbird"
     },
     "danger": {
-      "title": "Hapus NetBird",
-      "description": "Mencopot paket NetBird dan aturan firewall dari modem ini.",
       "uninstall": "Copot",
       "removing": "Menghapus…",
       "dialogTitle": "Copot NetBird?",

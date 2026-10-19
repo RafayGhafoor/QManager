@@ -20,20 +20,20 @@ import { Button } from "@/components/ui/button";
 import type { NetBirdActionResult } from "@/hooks/use-netbird";
 import { rebootNow, requestRebootLater } from "@/lib/reboot";
 
-import { DANGER } from "./shapes";
-
 // -----------------------------------------------------------------------------
-// Remove NetBird — a low-emphasis row. Destructive is the button, not the row.
+// Uninstall: the destructive action at the end of the Connection card's rail.
 // -----------------------------------------------------------------------------
 
-export function DangerRow({
+export function UninstallButton({
   isUninstalling,
   uninstall,
   onUninstalled,
+  className,
 }: {
   isUninstalling: boolean;
   uninstall: () => Promise<NetBirdActionResult>;
   onUninstalled: () => void;
+  className?: string;
 }) {
   const { t } = useTranslation("monitoring");
 
@@ -48,18 +48,14 @@ export function DangerRow({
   };
 
   return (
-    <div className={DANGER.ROOT}>
-      <div className={DANGER.TEXT}>
-        <p className={DANGER.TITLE}>{t("netbird.danger.title")}</p>
-        <p className={DANGER.DESC}>{t("netbird.danger.description")}</p>
-      </div>
-      <AlertDialog>
+    <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button
             type="button"
             variant="destructive"
             disabled={isUninstalling}
             size="action"
+            className={className}
           >
             {isUninstalling ? (
               <Loader2Icon className="size-4 motion-safe:animate-spin" />
@@ -86,14 +82,13 @@ export function DangerRow({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
   );
 }
 
 /**
- * The post-uninstall reboot handoff. Owned by the page shell, not by the row:
+ * The post-uninstall reboot handoff. Owned by the page shell, not by the card:
  * a successful uninstall flips the surface to its not-installed shape, which
- * would unmount the row and take the dialog with it.
+ * would unmount the Connection card and take the dialog with it.
  */
 export function RebootDialog({
   open,

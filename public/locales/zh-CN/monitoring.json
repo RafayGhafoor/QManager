@@ -581,8 +581,6 @@
       "manualCommand": "opkg update && opkg install netbird"
     },
     "danger": {
-      "title": "移除 NetBird",
-      "description": "从本调制解调器卸载 NetBird 软件包和防火墙规则。",
       "uninstall": "卸载",
       "removing": "移除中…",
       "dialogTitle": "卸载 NetBird？",

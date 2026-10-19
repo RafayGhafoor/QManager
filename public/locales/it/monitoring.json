@@ -581,8 +581,6 @@
       "manualCommand": "opkg update && opkg install netbird"
     },
     "danger": {
-      "title": "Rimuovi NetBird",
-      "description": "Disinstalla da questo modem il pacchetto NetBird e le regole del firewall.",
       "uninstall": "Disinstalla",
       "removing": "Rimozione…",
       "dialogTitle": "Disinstallare NetBird?",
