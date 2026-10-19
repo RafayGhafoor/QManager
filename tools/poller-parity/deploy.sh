@@ -19,7 +19,9 @@
 # manifests md5.before / md5.after sit next to root/. Restarting the touched
 # service is left to the caller; this script never restarts or reboots.
 
-BAK_BASE="/usrdata/qmanager_bak_b529"
+BAK_BASE="${DEPLOY_BAK_BASE:-/usrdata/qmanager_bak_b529}"
+# Test hook: install under this prefix instead of / (dev self-test only).
+R="${DEPLOY_ROOT:-}"
 CR=$(printf '\r')
 
 die() { echo "deploy: $1" >&2; exit 1; }
@@ -78,36 +80,43 @@ do_deploy() {
 
     mkdir -p "$_bak/root" || die "cannot create $_bak"
     : > "$_bak/md5.after.new"
-    [ -f "$_bak/md5.before" ] || : > "$_bak/md5.before.new"
+    # md5.before is cumulative across runs of the phase: copied, appended, renamed.
+    if [ -f "$_bak/md5.before" ]; then
+        cp "$_bak/md5.before" "$_bak/md5.before.new"
+    else
+        : > "$_bak/md5.before.new"
+    fi
 
-    # 1. Back up originals (first deploy of this phase only).
+    # 1. Back up originals (the first time a path is seen by this phase).
     while IFS= read -r _rel; do
-        if [ -e "/$_rel" ] && [ ! -e "$_bak/root/$_rel" ]; then
-            _durable_copy "/$_rel" "$_bak/root/$_rel" || die "backup failed: /$_rel"
-            [ -f "$_bak/md5.before.new" ] && echo "$(md5sum "/$_rel" | cut -d' ' -f1)  /$_rel" >> "$_bak/md5.before.new"
-        elif [ ! -e "/$_rel" ] && [ -f "$_bak/md5.before.new" ]; then
-            echo "absent  /$_rel" >> "$_bak/md5.before.new"
+        if grep -qxF "absent  $R/$_rel" "$_bak/md5.before.new"; then
+            # Added by this phase on an earlier run: not an original.
+            :
+        elif [ -e "$R/$_rel" ] && [ ! -e "$_bak/root/$_rel" ]; then
+            _durable_copy "$R/$_rel" "$_bak/root/$_rel" || die "backup failed: $R/$_rel"
+            echo "$(md5sum "$R/$_rel" | cut -d' ' -f1)  $R/$_rel" >> "$_bak/md5.before.new"
+        elif [ ! -e "$R/$_rel" ] && [ ! -e "$_bak/root/$_rel" ]; then
+            echo "absent  $R/$_rel" >> "$_bak/md5.before.new"
         fi
     done < /tmp/deploy_list.$$
-    if [ -f "$_bak/md5.before.new" ]; then
-        sync
-        mv -f "$_bak/md5.before.new" "$_bak/md5.before"
-    fi
+    sync
+    mv -f "$_bak/md5.before.new" "$_bak/md5.before"
+    sync
 
     # 2. Install.
     while IFS= read -r _rel; do
-        _durable_copy "$_stage/$_rel" "/$_rel" || { echo "deploy: FAILED /$_rel" >&2; _bad=1; }
+        _durable_copy "$_stage/$_rel" "$R/$_rel" || { echo "deploy: FAILED $R/$_rel" >&2; _bad=1; }
     done < /tmp/deploy_list.$$
 
     # 3. Verify from flash.
     while IFS= read -r _rel; do
         _want=$(md5sum "$_stage/$_rel" | cut -d' ' -f1)
-        _got=$(_flash_md5 "/$_rel")
-        echo "$_want  /$_rel" >> "$_bak/md5.after.new"
+        _got=$(_flash_md5 "$R/$_rel")
+        echo "$_want  $R/$_rel" >> "$_bak/md5.after.new"
         if [ "$_want" = "$_got" ]; then
-            echo "ok   /$_rel $_got"
+            echo "ok   $R/$_rel $_got"
         else
-            echo "BAD  /$_rel want=$_want got=$_got" >&2
+            echo "BAD  $R/$_rel want=$_want got=$_got" >&2
             _bad=1
         fi
     done < /tmp/deploy_list.$$
@@ -127,11 +136,11 @@ do_restore() {
     [ -d "$_bak/root" ] || die "no backup for phase $_phase"
     _list_stage "$_bak/root" > /tmp/deploy_list.$$
     while IFS= read -r _rel; do
-        _durable_copy "$_bak/root/$_rel" "/$_rel" || { echo "restore: FAILED /$_rel" >&2; _bad=1; continue; }
-        if [ "$(md5sum "$_bak/root/$_rel" | cut -d' ' -f1)" = "$(_flash_md5 "/$_rel")" ]; then
-            echo "restored /$_rel"
+        _durable_copy "$_bak/root/$_rel" "$R/$_rel" || { echo "restore: FAILED $R/$_rel" >&2; _bad=1; continue; }
+        if [ "$(md5sum "$_bak/root/$_rel" | cut -d' ' -f1)" = "$(_flash_md5 "$R/$_rel")" ]; then
+            echo "restored $R/$_rel"
         else
-            echo "BAD  /$_rel after restore" >&2
+            echo "BAD  $R/$_rel after restore" >&2
             _bad=1
         fi
     done < /tmp/deploy_list.$$
