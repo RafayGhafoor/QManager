@@ -709,7 +709,7 @@ Deleted by U4.6: `watchdog-status-card.tsx`, `watchdog-settings-card.tsx`, `watc
 
 ### Saved-state honesty
 
-The status card and the ladder's "Running now" marker read saved settings plus poller truth, never the draft. Flipping the master pill is a draft edit until the Ladder card saves. `unknown` (poller unreachable, or stale with a plausible clock) outranks every live state. After a save enables the watchdog, `useGraceGate` holds `starting` for 60 s (measured on `receivedAtMs`, not a render-time `Date.now()`) before calling it `not_running`.
+The status card and the ladder's pulsing step disc reads saved settings plus poller truth, never the draft. Flipping the master pill is a draft edit until the Ladder card saves. `unknown` (poller unreachable, or stale with a plausible clock) outranks every live state. After a save enables the watchdog, `useGraceGate` holds `starting` for 60 s (measured on `receivedAtMs`, not a render-time `Date.now()`) before calling it `not_running`.
 
 ### Per-card save rules
 

@@ -157,8 +157,6 @@ export const RUNG = {
   MIN_HEIGHT: RUNG_MIN_HEIGHT,
   ROOT: `-mx-3 grid ${RUNG_MIN_HEIGHT} grid-cols-[2rem_minmax(0,1fr)] items-start gap-x-3 gap-y-2 rounded-tile px-3 py-2 @[30rem]/card:grid-cols-[2rem_minmax(0,1fr)_auto] @[30rem]/card:items-center`,
   REST: "text-on-surface",
-  /** Highlight-by-Container: the running tier promotes, never washes. */
-  RUNNING: "bg-primary-container text-on-primary-container",
   TRANSITION:
     "transition-[background-color,color] duration-[var(--duration-standard)] ease-[var(--ease-standard)] motion-reduce:transition-none",
   DISC: "col-start-1 row-start-1 mt-0.5 grid size-8 flex-none place-items-center rounded-pill text-[0.8125rem] font-semibold tabular-nums @[30rem]/card:mt-0",
@@ -173,7 +171,6 @@ export const RUNG = {
   NAME: "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-pretty",
   NAME_INACTIVE: "text-on-surface-variant",
   COST: "text-on-surface-variant text-[0.78125rem] text-pretty",
-  COST_RUNNING: "opacity-85",
   CONTROLS:
     "col-start-2 row-start-2 flex items-center gap-2.5 justify-self-end @[30rem]/card:col-start-3 @[30rem]/card:row-start-1",
   /** Tier 4's field plus pill spans the full row on a phone. */
@@ -181,10 +178,6 @@ export const RUNG = {
     "col-span-2 col-start-1 row-start-2 flex items-center gap-2.5 justify-self-end @[30rem]/card:col-span-1 @[30rem]/card:col-start-3 @[30rem]/card:row-start-1",
   ERROR:
     "text-destructive-on-surface col-span-full text-right text-xs leading-[1.5]",
-  /** "Running now" on the promoted rung: the container already reports state. */
-  MARKER:
-    "flex shrink-0 items-center gap-1 text-[0.6875rem] leading-none font-semibold",
-  MARKER_DOT: "size-1.5 flex-none rounded-pill bg-current",
   /** The "Up to" lead before tier 4's cap; dropped on a phone-width card. */
   CAP: "text-on-surface-variant inline-flex items-center gap-2 text-[0.8125rem] whitespace-nowrap",
   CAP_LEAD: "hidden @[30rem]/card:inline",

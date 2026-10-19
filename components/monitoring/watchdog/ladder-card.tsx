@@ -37,6 +37,7 @@ import {
   CARD_PAD,
   CARD_SHELL,
   CARD_TITLE,
+  DISC_LIVE,
   HEAD_ACTION,
   HEAD_DESC_SPAN,
   NUM_FIELD,
@@ -195,18 +196,18 @@ function Rung({
 
   return (
     <li
-      className={cn(
-        RUNG.ROOT,
-        RUNG.TRANSITION,
-        running ? RUNG.RUNNING : RUNG.REST,
-      )}
+      className={cn(RUNG.ROOT, RUNG.REST)}
     >
       <span
         aria-hidden
         className={cn(
           RUNG.DISC,
           RUNG.TRANSITION,
-          running ? RUNG.DISC_RUNNING : done ? RUNG.DISC_DONE : RUNG.DISC_REST,
+          running
+            ? cn(RUNG.DISC_RUNNING, DISC_LIVE)
+            : done
+              ? RUNG.DISC_DONE
+              : RUNG.DISC_REST,
         )}
       >
         {done ? <CheckIcon className={RUNG.DONE_GLYPH} /> : tier}
@@ -216,10 +217,7 @@ function Rung({
         <span className={cn(RUNG.NAME, masterOff && !running && RUNG.NAME_INACTIVE)}>
           <span className="min-w-0">{name}</span>
           {running ? (
-            <span className={RUNG.MARKER}>
-              <span aria-hidden className={RUNG.MARKER_DOT} />
-              {t("watchdog.ladder.status.running")}
-            </span>
+            <span className="sr-only">{t("watchdog.ladder.status.running")}</span>
           ) : done ? (
             <span className="sr-only">{t("watchdog.ladder.status.done")}</span>
           ) : needsSlot ? (
@@ -229,7 +227,7 @@ function Rung({
             </Badge>
           ) : null}
         </span>
-        <span className={cn(RUNG.COST, running && RUNG.COST_RUNNING)}>
+        <span className={RUNG.COST}>
           {t(TIER_CONSEQUENCE_KEY[tier])}
         </span>
       </div>
