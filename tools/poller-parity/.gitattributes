@@ -2,3 +2,4 @@
 fixtures/** -text
 *.sh text eol=lf
 fixtures_rust/** -text
+*.init text eol=lf
