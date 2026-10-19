@@ -129,7 +129,7 @@ export const CHIP_GLYPH = "size-3";
 /**
  * The card shell: a peer (`rounded-card`, not `rounded-hero`), borderless, with
  * the whisper lift. The `!` is load-bearing: `tailwind-merge` cannot tell an
- * arbitrary `shadow-[var()]` from a shadow colour, so `Card`'s own `shadow-sm`
+ * arbitrary-value shadow from a shadow colour, so `Card`'s own `shadow-sm`
  * survives the merge and wins on emission order without it.
  */
 export const CARD_SHELL =

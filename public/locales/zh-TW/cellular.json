@@ -212,7 +212,13 @@
       "scenario_always_on": "{{scenario}}，始終啟用",
       "delete_description": "此操作將從裝置中移除該設定檔。繫結到它的任何計劃都將被清除。此操作無法撤銷。",
       "delete_keep": "保留設定檔",
-      "mismatch_note": "modem 中的 SIM 卡與此設定檔的 ICCID 不匹配。在插入匹配的 SIM 卡之前，裝置將保持當前設定。",
+      "mismatch_note": "已套用到數據機中的 SIM 卡，而不是此設定檔綁定的 SIM 卡。下次重新啟動或更換 SIM 卡時將關閉。",
+      "mismatch_confirm": {
+        "title": "將「{{name}}」套用到此 SIM 卡？",
+        "description": "此設定檔綁定到另一張 SIM 卡。其設定將立即套用到數據機中的 SIM 卡，並在下次重新啟動或更換 SIM 卡時關閉。",
+        "verizon_note": "Verizon 資料路由規則也會設定到此 SIM 卡上。",
+        "confirm": "套用到此 SIM 卡"
+      },
       "toast": {
         "deactivated": "已停用 {{name}}",
         "deleted": "已刪除 {{name}}",
@@ -536,6 +542,7 @@
       "hl": "HL {{value}}",
       "imei_override": "IMEI 覆蓋",
       "mpdn_locked": "MPDN 已鎖定",
+      "other_sim": "其他 SIM 卡",
       "apn_prefix": "APN "
     },
     "active_card": {

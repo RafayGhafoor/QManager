@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 import IPPassthroughCard from "./ip-passthrough-card";
 import StatusStrip from "./status-strip";
-import { HEADER_PILL, PAGE_HEAD, PAGE_ROOT, PILL_GLYPH } from "./shapes";
+import { PAGE_HEAD, PAGE_ROOT, PILL_GLYPH } from "./shapes";
 
 // The shell owns the page's one read. The cascade root declares initial/animate once;
 // children carry only `variants`, or they detach from its clock.
@@ -54,11 +54,10 @@ const IPPassthroughComponent = () => {
             {/* `refresh(silent?)`: a click event must never reach it. */}
             <Button
               type="button"
-              variant="ghost"
+              variant="tonal-neutral"
+              size="action"
               onClick={() => refresh()}
               disabled={isSaving || isLoading}
-              size="action"
-              className={HEADER_PILL}
             >
               <RefreshCcwIcon
                 className={cn(PILL_GLYPH, isLoading && "motion-safe:animate-spin")}

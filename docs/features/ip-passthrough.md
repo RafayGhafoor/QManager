@@ -7,7 +7,7 @@ IP Passthrough bridges one LAN device directly to the modem's WAN IP, bypassing 
 | Item | Value |
 |---|---|
 | Route | `/local-network/ip-passthrough` |
-| Components | `components/local-network/ip-passthrough/`: `ip-passthrough.tsx` (shell, owns the one read), `status-strip.tsx` (Last applied strip), `ip-passthrough-card.tsx` (settings card + `CardFoot` apply), `shapes.ts` (geometry). Strip-over-card layout ported from the RM520N fork `ae2fb928` (ledger U4.4) |
+| Components | `components/local-network/ip-passthrough/`: `ip-passthrough.tsx` (shell, owns the one read), `status-strip.tsx` (Last applied strip), `ip-passthrough-card.tsx` (one draft rendered as two peer cards: Passthrough, which holds the `CardFoot` apply, and Network, whose footer only reports its pending changes), `shapes.ts` (geometry). Strip-over-card layout ported from the RM520N fork `ae2fb928` (ledger U4.4) |
 | Hook | `hooks/use-ip-passthrough.ts` |
 | Types | `types/ip-passthrough.ts` |
 | CGI | `scripts/www/cgi-bin/quecmanager/network/ip_passthrough.sh` |
@@ -201,7 +201,7 @@ This mirrors the pattern already used in `parse_ippt_mpdn_rule` (`grep '"MPDN_ru
 
 ## Frontend Apply Contract
 
-- **Draft model.** The card keeps `Partial<Draft>` edits laid over the saved baseline, so a re-read re-bases the edits instead of erasing them. Each row shows a dirty dot; the `CardFoot` counts unsaved changes and holds Discard and Apply. Apply is blocked (with the reason on the button) until the first read lands, while a Verizon profile owns passthrough, while the MAC is incomplete, or when nothing changed. Apply turns destructive while Mode is dirty.
+- **Draft model.** The card keeps `Partial<Draft>` edits laid over the saved baseline, so a re-read re-bases the edits instead of erasing them. Each row shows a dirty dot; the Passthrough card's `CardFoot` counts every unsaved change (both cards) and holds Discard and Apply, per the Card-Foot rule for a multi-card apply. The Network card's footer carries status only ("N unsaved changes, applied with Passthrough"). Apply is blocked (with the reason on the button) until the first read lands, while a Verizon profile owns passthrough, while the MAC is incomplete, or when nothing changed. Apply turns destructive while Mode is dirty.
 - **Wording.** The strip is labelled "Last applied" and never "currently": the GET reads our own config file, not the modem.
 - **Success is the hand-off.** `saveSettings` resolves `{ success: true }` or `{ success: false, error? }` (the backend code already run through `resolveErrorMessage`). On success the card calls `enterRebootFlow("ip_passthrough")` (mark in flight, clear `qm_logged_in`, `/reboot/` after 2 s) and fires no success toast, per the Toast-Confirms navigation exception; the CGI's own reboot fork lands at the same time. On failure it toasts the returned reason, or a generic line when the request itself failed, and keeps the draft.
 - **LAN gateway figure.** "Served" in router mode, "Not served" with a warning glyph when passthrough is set; derived from the saved mode, not probed.

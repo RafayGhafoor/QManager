@@ -212,7 +212,13 @@
       "scenario_always_on": "{{scenario}}, selalu aktif",
       "delete_description": "Tindakan ini menghapus profil dari perangkat. Setiap jadwal yang terikat padanya akan dihapus. Tindakan ini tidak dapat dibatalkan.",
       "delete_keep": "Pertahankan profil",
-      "mismatch_note": "SIM di modem tidak cocok dengan ICCID profil ini. Perangkat tetap menggunakan pengaturan saat ini hingga SIM yang cocok dipasang.",
+      "mismatch_note": "Diterapkan ke SIM di modem, bukan SIM yang terikat dengan profil ini. Profil nonaktif saat modem dimulai ulang atau SIM diganti berikutnya.",
+      "mismatch_confirm": {
+        "title": "Terapkan “{{name}}” ke SIM ini?",
+        "description": "Profil ini terikat dengan SIM lain. Pengaturannya diterapkan ke SIM di modem sekarang dan nonaktif saat modem dimulai ulang atau SIM diganti berikutnya.",
+        "verizon_note": "Aturan perutean data Verizon juga diatur pada SIM ini.",
+        "confirm": "Terapkan ke SIM ini"
+      },
       "toast": {
         "deactivated": "{{name}} dinonaktifkan",
         "deleted": "{{name}} dihapus",
@@ -524,6 +530,7 @@
       "hl": "HL {{value}}",
       "imei_override": "Penggantian IMEI",
       "mpdn_locked": "MPDN terkunci",
+      "other_sim": "SIM lain",
       "apn_prefix": "APN "
     },
     "empty_state": {

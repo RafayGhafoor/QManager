@@ -140,11 +140,23 @@ Config readout: neutral `Tag`s for `APN <name>` (the name in mono), `CID <n>`, `
 
 ### SIM Mismatch Is Client-Side — Critical Invariant
 
-Status for each row is derived at render time via `deriveStatus(isActive, profileIccid, currentIccid)`. `currentIccid` comes from `useCurrentSettings(true).settings?.iccid` — the coordinator passes it down as a prop. A profile reaches `"mismatch"` only when: it is the active profile AND its `sim_iccid` is non-empty AND `sim_iccid !== currentIccid`. An empty `sim_iccid` means SIM-agnostic; such profiles never mismatch.
+Status for each row is derived at render time via `deriveStatus(isActive, profileIccid, currentIccid)`. `currentIccid` comes from `useCurrentSettings(true).settings?.iccid` — the coordinator passes it down as a prop. A profile reaches `"mismatch"` only when: it is the active profile AND its `sim_iccid` is non-empty AND `iccidMismatch(sim_iccid, currentIccid)` holds. An empty `sim_iccid` means SIM-agnostic; such profiles never mismatch.
+
+`iccidMismatch` compares canonical forms (`canonicalIccid`: drop whitespace, uppercase, strip one trailing BCD pad `F`), mirroring `iccid_canonicalize` in `sim_db.sh`. `current_settings.sh` already returns the canonical form, so a raw compare would flag an F-padded stored ICCID as a false mismatch. An unknown live ICCID (`null` / empty) is never a mismatch, the same "don't know" rule as the backend.
+
+### Mismatch Activation — Confirm, Then Apply (B5.37)
+
+`apply.sh` never checks the ICCID and the manual worker runs without `--auto`, so activating a profile bound to another SIM applies **every step to the SIM in the modem** (APN to the CID, TTL/HL, MPDN rule, IMEI) and writes the marker. It is not held "until a matching SIM is inserted": it lasts until the next `auto_apply_profile` call (boot, verified SIM switch, watchdog Tier 3 / SIM-failover revert) finds no profile for the live SIM and runs the mismatch-deactivate branch (marker cleared, scenario reset, Verizon MPDN revert + pending reboot); at boot `reconcile_active_apn_slot_at_boot` then restores the APN slot. An IMEI override is not reverted by that path.
+
+The registry therefore gates it in the UI only (no backend change):
+- **Inactive rows** bound to another SIM carry a Fact-Is-Info `info` badge `Other SIM` (`sim_card_alert`, `custom_profiles.pills.other_sim`). The active row does not; it already carries the `SIM mismatch` warning chip.
+- **Activate** on such a row opens an `AlertDialog` (`custom_profiles.view.mismatch_confirm.*`: title, description, a Verizon-only `verizon_note` line, `confirm` "Apply to this SIM"). Confirm runs the normal apply (Sequenced Pipeline Dialog, one outcome toast on close). Cancel writes nothing and does not toast.
+- **The active mismatch row's note** (`custom_profiles.view.mismatch_note`) says the profile was applied to the SIM in the modem and turns off at the next restart or SIM change.
+- A refusal (`apply.sh` error code) was considered and rejected: it blocks building a profile before its SIM arrives and a replacement SIM with a new ICCID. Plan: `docs/plans/b5-37-sim-mismatch.md`.
 
 ### Activate / Deactivate
 
-**Activate** calls `handleActivate(id)`, which sets `applyOpen = true` then calls `useProfileApply().applyProfile(id)`. Opening the dialog first means the user sees the progress surface immediately rather than a button spinner hanging until the first poll lands. The `ApplyProgressDialog` (`components/cellular/custom-profiles/apply-progress-dialog.tsx`) — the Sequenced Pipeline Dialog — is the apply surface: a hero disc on the role's strong fill with a determinate step-count bar on top (it counts real steps, matching the Config Restore dialog), per-step ledger beneath. The dialog closes only at a terminal state (`complete`, `partial`, `failed`). The reboot notice says the change takes effect after a reboot from the banner; the dialog never reboots.
+**Activate** calls `handleActivate(profile)`. A profile bound to another SIM opens the mismatch confirm first (see above); otherwise, or on confirm, `startApply(id)` sets `applyOpen = true` then calls `useProfileApply().applyProfile(id)`. Opening the dialog first means the user sees the progress surface immediately rather than a button spinner hanging until the first poll lands. The `ApplyProgressDialog` (`components/cellular/custom-profiles/apply-progress-dialog.tsx`) — the Sequenced Pipeline Dialog — is the apply surface: a hero disc on the role's strong fill with a determinate step-count bar on top (it counts real steps, matching the Config Restore dialog), per-step ledger beneath. The dialog closes only at a terminal state (`complete`, `partial`, `failed`). The reboot notice says the change takes effect after a reboot from the banner; the dialog never reboots.
 
 On dialog close (`handleApplyClose`):
 - Reads `applyState.status` and `applyState.requires_reboot` BEFORE calling `reset()` (reset clears the state).
