@@ -87,6 +87,7 @@ using `grep -oE 'min/avg/max[^=]*= ...'` followed by `cut -d'/' -f2`. If that li
 | Function | Contract |
 |---|---|
 | `conn_state_read` | One `jq` read of the cache into `CQ_*` vars. Returns 0 when fresh, 1 when missing, unreadable, or stale. |
+| `conn_state_read_env` | The same read from the `ping.env` sidecar, builtins only (poller only; see [Poller sidecars](#poller-sidecars-pingenv-and-dnsenv)). Same contract and `CQ_*` results as `conn_state_read`, plus return **2** = nothing read (no usable sidecar), so the caller falls back to `conn_state_read`. |
 | `conn_state_why` | Reason for the last non-zero read (`missing`, `unreadable`, `no timestamp`, `mono ahead of uptime`, `age Ns > Ms`). |
 | `conn_state_is_up` | True only for a fresh read with `reachable=true`. |
 | `conn_state_resolve <profile> [override]` | Pure profile table + override → `CQ_CFG_*` (see [Ping Profiles](#ping-profiles)). |
@@ -403,6 +404,24 @@ Per-site latency (TCP handshake to a list of websites, with history) is a separa
 > ⚠️ WARNING: The DNS reading is independent of the ICMP verdict. During validation ICMP reported unreachable while the carrier resolver kept answering at 40 to 70 ms. A consumer (ledger U4.7, the Connection Quality cards) must not read a DNS number as "online"; use `internet_available` for that.
 
 `uninstall.sh` removes `/tmp/qmanager_dns.json`, `/tmp/qmanager_dns_out.*` and `/tmp/qmanager_dns.json.??????`.
+
+---
+
+## Poller sidecars (`ping.env` and `dns.env`)
+
+Since B5.29 Phase C `qmanager_ping` also writes two shell-assignment files in `/var/run/qmanager` (root 0700, created on demand), so the poller can read ping and DNS data with builtins instead of forking `jq` every 2 s cycle. They are **additive**: `ping.json` and `dns.json` keep their paths and shapes, and every other reader (the CGIs, the watchcat) still reads the JSON.
+
+| File | Written by | Right after | Variables |
+|---|---|---|---|
+| `/var/run/qmanager/ping.env` | `write_ping_env` in `qmanager_ping`, after every `ping.json` write | the successful `mv` of `ping.json` | `_cq_ts`, `_cq_mono`, `_cq_reach`, `_cq_rtt`, `_cq_ss`, `_cq_sf`, `_cq_dr`, `_cq_iv`, `_cq_fs`, `_cq_rs`, `_cq_prof`, `_cq_fam`, `_cq_tgt` (the 13 raw fields `conn_state_read` extracts; null or empty becomes `-`) |
+| `/var/run/qmanager/dns.env` | `write_dns_env`, from the detached DNS job | the successful `mv` of `dns.json` | `dns_s_ok`, `dns_s_ms`, `dns_s_mono`, `dns_s_res` (`ms` is `null` when the lookup failed) |
+
+- **Format.** Every line is `name='value'` with `'` written as `'\''`, and the last line is `qm_sidecar_end='1'`. Files are written to `<name>.new` and renamed.
+- **Who reads them.** Only the poller. `read_ping_data` calls `conn_state_read_env` first and falls back to `conn_state_read` on return 2; `read_dns_data` sources `dns.env` and falls back to its builtin JSON-shape parser, then to `jq`. `conn_state_read` is unchanged and remains the watchcat's reader.
+- **When a sidecar is ignored.** The reader refuses a sidecar that is missing, **older than its JSON** (`-nt`: the upgrade window before `qmanager_ping` restarts, or a failed sidecar write), or incomplete (any line not a single-quoted assignment, or no end marker). A line the checker rejects is never sourced. **Why:** a syntax error in a dot-sourced file aborts the whole script under BusyBox, and the poller must never die from a half-written file.
+- **Best effort.** A sidecar write failure returns non-zero from `write_ping_env` but never fails the probe cycle; the poller simply reads the JSON on that cycle.
+- **Freshness is unchanged.** The staleness rule above is evaluated by `conn_state_read_env` from the sidecar's `_cq_mono` and `_cq_iv`, in lockstep with `conn_state_read`. If you change one, change both.
+- **Lifecycle.** `init.d/qmanager` `stop_service` removes both files and their `.new` temps; the files live on tmpfs.
 
 ---
 

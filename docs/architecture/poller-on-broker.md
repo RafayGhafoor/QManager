@@ -1,7 +1,9 @@
 # Poller on the AT broker: architecture and roadmap
 
-**Status:** proposal, waiting for the user's approval. No production code has
-been written for it. Written 2026-10-19 (Opus 5.5 High planning pass).
+**Status:** phases A, B and C built, deployed and measured (see
+[Status (2026-10-19)](#status-2026-10-19)); phase D wiring not built. Written
+2026-10-19 (Opus 5.5 High planning pass); the sections below are the plan as
+approved, not rewritten.
 **Ledger:** refines and supersedes the phase list of row **B5.29** in
 [`docs/rm520n-port-ledger.md`](../rm520n-port-ledger.md). The B5.29 targets
 stay as the gates.
@@ -16,6 +18,56 @@ Related canon: [`at-broker.md`](../features/at-broker.md),
 [`alerts.md`](../features/alerts.md), [`sms.md`](../features/sms.md),
 [`safe-tmp.md`](../reference/safe-tmp.md), and the B5.29 branch
 `claude/happy-antonelli-6c2e7a` (`tools/poller-parity/`).
+
+## Status (2026-10-19)
+
+**Phases A, B and C are deployed on the RM551E and measured. Phase D wiring
+was not built (decided 2026-10-19).** A+B+C already meet the active gate, and
+D would save about 1-2 % in the active tier only. The Rust parsers and the env
+writer (`native/qmanager_atd/src/parse.rs`, `parse/`, `envout.rs`) stay in the
+tree with host parity tests, compiled but unwired, for a later row. The `POLL`
+verb, the `qcmd --poll` client, the poller fallback and the `poll_legacy`
+marker of Section 14 were not built; Sections 4, 5 and the Phase D text
+describe a design that is not in the product. Proto number 3 stays reserved,
+not planned. The 12 h soak on this build started 2026-10-19 10:08; its result
+is pending.
+
+Measured after A+B+C (poller CPU including children, one core):
+
+| Tier | CPU | System forks/s | `status.json` period | `.mono` age max |
+|---|---|---|---|---|
+| Active | 4.92 % | ~11.5 (about 23 per cycle) | 2.00 s (1.92-2.22) | 2 s |
+| Deep | 2.62 % | 7.3 | 2.00 s | 2 s |
+| Baseline before B5.29 (Section 2.2) | active 39 %, idle 22-25 % | 183 / 74-87 | 3.7 s | 4 s |
+
+Idle was not re-measured after C. Gates met: active at most 10 %, period 2.0 s
+plus or minus 0.2, `.mono` age under 3 s.
+
+Fault injections (Section 8):
+
+| Fault | Result | Gate |
+|---|---|---|
+| Lock held 15 s (`flock` on `/var/lock/qmanager.lock`) | `.mono` age max 5 s, longest period 4.42 s | under 6 s, at most 4.5 s |
+| Natural baseband SSR inside that window | within the same gates; the wall clock stepped back about 80 s and forward again, so log times around an SSR are out of order | |
+| Broker `kill -9` | procd respawned it in 5.2 s, period max 2.21 s, `.mono` age max 2 s; `qcmd` ran in-process while the socket was dead | |
+
+Deviations from the plan:
+
+- **The poller passes the cap by environment variable, not `-t`.** It runs
+  `QCMD_WAIT_MS=2500 qcmd <cmd>` per call. An older `qcmd` ignores an unknown
+  variable, but would send `-t` to the modem as an AT command. As a result the
+  `/var/run/qmanager_atd.proto` gate of Section 5.6 is not needed by the
+  poller; the file exists, and would matter only for a `POLL` verb (proto=3),
+  which is not planned.
+- **A per-cycle busy latch was added** after the lock-hold test. The cap bounds
+  one read, so with the lock held for 15 s each of the four reads waited 2.5 s
+  and a cycle took 12 s. Now the first busy read of a cycle sets a latch and
+  the cycle's remaining reads return rc 3 (not run), which keeps the existing
+  serving-cell and `QCAINFO` busy semantics. After the fix the longest period
+  was 4.42 s.
+- **The safety net composes the same cycle with jq** instead of keeping the
+  previous file when `jq empty` fails; the previous file is kept only when a
+  composer fails to write.
 
 ## Contents
 
@@ -988,3 +1040,30 @@ Read-only unless noted, RM551E-GL `RM551EGL00AAR02A01M8G_01.001.01.001`.
 - External: RG50xQ/RM5xxQ AT manual v1.1.1 (URC commands), Quectel forum
   threads on `urcport "all"` behaviour; the RM520N/RM551E manuals were not
   available, so Section 7.3 is "documented for RM500Q, unverified here".
+
+### Measurements and fault tests after A+B+C (2026-10-19, RM551E)
+
+Measurement is read-only except where a fault injection is named; no reboot.
+
+- **Active tier**, `tools/poller-parity/measure.sh`, 60 s window: poller CPU
+  (with children) 4.92 % of one core, about 11.5 system forks/s (about 23 per
+  cycle), `status.json` period 2.00 s (1.92-2.22), `.mono` age max 2 s.
+  Baseline before B5.29: 39 %, 183 forks/s, period 3.73 s, `.mono` age 4 s.
+- **Deep tier**: 2.62 %, 7.3 forks/s, period 2.00 s, `.mono` age max 2 s.
+  Baseline idle was 22-25 % at 74-87 forks/s. Idle was not re-measured.
+- **Status parity** (Phase C): 200 of 200 live snapshot pairs equal between the
+  jq composer and the printf composer fed the same globals.
+- **Lock hold** (fault injection): `flock` on `/var/lock/qmanager.lock` held
+  15 s. With the read cap alone one cycle took 12 s (each of four reads waited
+  2.5 s). With the per-cycle busy latch (commit `34c94bd4`): `.mono` age max
+  5 s, longest period 4.42 s (gates under 6 s and at most 4.5 s).
+- **Natural baseband SSR** inside the same window (firmware fatal error in
+  `nr_rx_ctl_agc.c`): the poller stayed within the gates. The NITZ clock step
+  moved the wall clock back about 80 s and forward again, so `qmanager.log`
+  timestamps around the SSR are out of order. `.mono` is unaffected.
+- **Broker `kill -9`** (fault injection): procd respawned `qmanager_atd` in
+  5.2 s, period max 2.21 s, `.mono` age max 2 s. While the socket was dead
+  `qcmd` ran the exchange in-process.
+- **12 h soak** on this build started 2026-10-19 10:08. Result: pending.
+- **Phase D parsers**: host parity tests exist in the crate; the code is
+  compiled into the binary but not called by the daemon or the poller.

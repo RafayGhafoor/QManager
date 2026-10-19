@@ -15,6 +15,7 @@ host AT bridge on or off.
 - [Components](#components)
 - [The output contract is frozen](#the-output-contract-is-frozen)
 - [How an exchange works](#how-an-exchange-works)
+- [Client wait cap (`qcmd -t` and `QCMD_WAIT_MS`)](#client-wait-cap-qcmd--t-and-qcmd_wait_ms), [`--version`, the daemon-mode rule and the capability file](#version-the-daemon-mode-rule-and-the-capability-file-proto-2)
 - [Invariants (and why they exist)](#invariants-and-why-they-exist)
 - [Host AT ports (`quecmanager.ports.host_at`)](#host-at-ports-quecmanagerportshost_at)
 - [Lifecycle](#lifecycle)
@@ -28,6 +29,7 @@ host AT bridge on or off.
 | Rust multicall binary | `/usr/bin/qmanager_atd` | Run as `qmanager_atd` (or `--daemon`): it is the broker. Invoked through the `qcmd` name: it is the client. |
 | `qcmd` | `/usr/bin/qcmd` | A **symlink** to `qmanager_atd`, always. `install.sh` creates it and `/etc/init.d/qmanager_atd` re-asserts it at every broker start (`at_qcmd_link`). |
 | Broker socket | `/var/run/qmanager_atd.sock` | `0600` root. One request per connection. |
+| Capability file | `/var/run/qmanager_atd.proto` | `0644`, `proto=2` and `version=0.2.0` lines. Written by the running daemon after it binds; removed by `init.d/qmanager_atd` stop and by `uninstall.sh`. See [below](#version-the-daemon-mode-rule-and-the-capability-file-proto-2). |
 | Link and port library | `/usr/lib/qmanager/at_engine.sh` | `at_qcmd_link` (idempotent atomic repoint of `qcmd`), `at_broker_available`, `at_broker_running`, and the `host_at_*` port-bridge functions. The filename is historical. |
 | Boot service | `/etc/init.d/qmanager_atd` | procd, `START=98` (before the poller at 99), `STOP=11`. |
 | CGI | `system/host_at_ports.sh` | GET and POST. See `docs/API-REFERENCE.md`. |
@@ -62,6 +64,7 @@ crate's unit tests:
   - A closed stdout never crashes the client: write errors are ignored like
     the shell's `echo`, and the exit code still reports the AT result.
   - No argument: the legacy `no_command` JSON on stderr, rc 1.
+  - A bad `-t` value: `{"error":"bad_cap",...}` on stderr, rc 1 (see the wait cap below).
 - **Only AT commands are sent** (2026-10-19). `classify::is_at_command`: an
   `AT` prefix in any case and no control characters (bytes below 0x20, or
   0x7F). Anything else answers `invalid_command` at once and never takes the
@@ -163,6 +166,27 @@ truncated command never reaches the modem. Client and daemon are one binary
 and `install.sh` stops the daemon before replacing it, so the format has no
 cross-version compatibility path; an old client against a new daemon is
 refused, not executed.
+
+## Client wait cap (`qcmd -t` and `QCMD_WAIT_MS`)
+
+Since broker 0.2.0 (B5.29 Phase B) a read-only caller can limit how long `qcmd` waits for a short command, so one stuck exchange ahead in the queue cannot freeze the caller. The poller is the user: it caps its per-cycle reads at 2500 ms (see [`adaptive-polling.md`](adaptive-polling.md), Invariant 8).
+
+- **Two ways to ask.** `qcmd -t MS "AT..."` for one call, or the environment variable `QCMD_WAIT_MS=MS` for that call. `-t` wins when both are given. `-t` must come **before** the command (a later `-t` is an ordinary extra argument, ignored as before). `-j` and `-t` can appear in either order before the command.
+- **Valid range.** 50 to 60000 ms, plain decimal digits only (at most 6 characters). A bad `-t` value prints `{"error":"bad_cap","detail":"Usage: qcmd [-j] [-t MS] \"AT+COMMAND\" (MS 50-60000)"}` on stderr and exits 1, before anything is sent. A bad `QCMD_WAIT_MS` value is **ignored** (no cap), not an error.
+- **What happens on expiry.** The wait is counted from when the client started. When it runs out the client drops the socket and answers `ERROR: modem_busy` (rc 1). The broker skips the request if it is still queued (`peer_gone`), or discards the reply if it is already running. A capped timeout is **not** read as a frozen broker, so it never triggers the restart described above; an uncapped wait that reaches 340 s still does.
+- **Long commands are never capped.** A command classed long (scans, `COPS=0/2`, `QFOTADL`, the custom list) ignores both `-t` and the variable: giving up would only throw away a reply the broker spends minutes producing.
+- **In-process fallback.** If the request never reached the broker, the fallback runs with the cap minus the time already spent.
+- **Cap only reads.** The cap applies to whatever command the caller passes, including a write. A write that is abandoned mid-run still executes in the broker. Callers cap read queries only; boot one-shots and writes keep the full wait.
+
+**Why the poller uses the environment variable and not `-t`:** an older `qcmd` binary (a rollback, or the upgrade window) ignores an unknown variable, but would forward `-t 2500` to the modem as an AT command (before the non-AT refusal existed it also held the lock for 20 s). The environment variable is set per call and never exported.
+
+## `--version`, the daemon-mode rule and the capability file (proto 2)
+
+- **`--version`.** `qmanager_atd --version` and `qcmd --version` (any invoked name) print `qmanager_atd 0.2.0 proto=2` and exit 0. This only exists in 0.2.0 or later: an older `qcmd` would send `--version` to the modem as a command, and an older `qmanager_atd` would start a second daemon (below). Scripts must not probe with it; they read the capability file.
+- **Daemon-mode rule.** Under a name containing `atd` (`qmanager_atd`), the daemon starts only with **no argument** or `-d` / `--daemon`. Any other argument prints a usage line on stderr and exits 2. **Why:** older binaries treated any invocation under an "atd" name as a request to start a daemon. A second daemon unlinked the live broker's socket and left it serving nobody while every client fell back to in-process. This happened for real on 2026-10-19 when `qmanager_atd --version` was run on a v0.1.32 binary. Under the `qcmd` name only an explicit `--daemon` starts the daemon, and `qsms` is always a client.
+- **Refuse to start if a broker is listening.** `run_daemon` connects to the socket first; if something answers, it logs `another broker is listening` and exits 1 without touching the socket. A stale socket file (nothing listening) is still replaced.
+- **Capability file `/var/run/qmanager_atd.proto`.** After the socket is bound, the daemon writes `proto=2` and `version=0.2.0` (mode 0644) to a `.new` temp file (`O_EXCL` plus `O_NOFOLLOW`, a leftover or planted temp is unlinked first) and renames it into place. It describes the **running daemon**, not the binary on disk. `/etc/init.d/qmanager_atd` `stop_service` and `uninstall.sh` remove it (and the `.new` temp), so a rolled-back binary that never writes it is not credited with a protocol it does not speak. Scripts read it with a builtin `read`; they never run the binary to ask.
+- **Protocol numbers.** 1 = `REQ` / `SMS` framing (v0.1.32, no capability file). 2 = the client wait cap and `--version` (client-side only, no wire change). 3 is reserved for a future `POLL` verb and is not planned: Phase D wiring was not built (decided 2026-10-19). Because the poller passes its cap through the environment variable, no current script depends on the capability file.
 
 ## SMS in the broker (`qsms`)
 
@@ -344,9 +368,11 @@ Every path goes through `install.sh`; the OTA updater runs it too.
 4. `stop_services` already stops and kills `qmanager_*`.
 5. Firmware detection and the install smoke test run the client through
    `run_atd_qcmd`, a temporary symlink named `qcmd` pointing at
-   `qmanager_atd`. Mode comes from argv[0] only: running `qmanager_atd`
-   under its own name (with any arguments) starts a **second daemon** that
-   takes over the socket, so never invoke it that way for a command. Detection
+   `qmanager_atd`. Mode comes from argv[0]: never run `qmanager_atd` under
+   its own name for a command. A 0.2.0 binary refuses any argument there
+   (usage, exit 2), but a v0.1.32 binary run with any argument starts a
+   **second daemon** that takes over the socket, and during an upgrade the
+   old binary can still be the one on disk. Detection
    keeps the status-cache fallback (an old broker still running during an
    upgrade refuses the new client's request).
 
@@ -360,7 +386,7 @@ check. It has no procd reload trigger on purpose: many CGIs commit
 - the `qcmd` and `qsms` links (dangling-safe, via `-L`) and any
   `.qcmd.*` / `.qsms.*` temp links;
 - `qmanager_atd`, plus leftover `qcmd.sh` and `atcli_smd11` from old installs;
-- the socket and init script.
+- the socket, the capability file (`/var/run/qmanager_atd.proto` and its `.new` temp) and the init script.
 
 **`build.sh`** requires and packages `dependencies/qmanager_atd`.
 `.gitattributes` marks it `binary` so it never gets CRLF-converted.
