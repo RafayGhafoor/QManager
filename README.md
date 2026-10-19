@@ -124,6 +124,30 @@ To pin a specific release instead of latest pre-release, set `TAG` manually (for
 
 From v0.1.7+, go to **Monitoring → Software Update** and use the built-in update flow — download, verify, and install without SSH.
 
+### Changing the Web Port
+
+QManager is served on ports 80 (HTTP) and 443 (HTTPS) by default. LuCI shares the same web server, so it moves with QManager. You can pick other ports in three places:
+
+- **During install:** a fresh SSH install asks `Use different ports? [y/N]`. Press Enter to keep 80 and 443.
+- **In the web UI:** the optional **Web Port** step in first-time setup, or **System Settings → Web Port** at any time.
+- **Over SSH**, on a device that already runs QManager:
+
+```sh
+qmanager_web_port                  # show the current ports
+qmanager_web_port set 8080 8443    # move to HTTP 8080 and HTTPS 8443
+qmanager_web_port reset            # back to 80 and 443
+```
+
+Or set the ports through UCI, then apply them:
+
+```sh
+uci set quecmanager.web.http_port=8080
+uci set quecmanager.web.https_port=8443
+uci commit quecmanager && qmanager_web_port apply
+```
+
+After a move, open QManager at `http://<modem-ip>:8080/`. A port already used by another service (such as 22 for SSH) is refused, and if the web server can't start on the new ports, the old ones come back on their own. Uninstalling QManager puts the web server back on 80 and 443.
+
 ### Uninstalling
 
 ```sh

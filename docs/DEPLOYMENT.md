@@ -47,6 +47,7 @@ The installer will:
 - Deploy frontend, backend scripts, CGI endpoints, and init.d services
 - Fix any CRLF line endings
 - Enable and start all services
+- On a fresh interactive install, ask whether to serve QManager on ports other than 80 / 443 (Enter keeps the defaults; the OTA updater never asks, and an earlier choice is kept). Change it later with `qmanager_web_port set <http> <https>` or **System Settings → Web Port**; see [`features/web-port.md`](features/web-port.md)
 - Prune any legacy daemons absent from the current release (e.g., `qmanager_wan_guard`, retired in v0.1.24 — the installer stops, disables, and removes the binary, init.d script, and any `/etc/rc.d/` symlinks on upgraded devices)
 
 See `sh install.sh --help` for all options (`--frontend-only`, `--backend-only`, `--skip-packages`, `--uninstall`, etc.)
@@ -254,8 +255,11 @@ ps | grep qmanager
 # Check the poller is producing data
 cat /tmp/qmanager_status.json | jq .timestamp
 
-# Check CGI endpoints are accessible
+# Check CGI endpoints are accessible (add :<port> if you moved the web port)
 curl http://localhost/cgi-bin/quecmanager/at_cmd/fetch_data.sh
+
+# Check which ports the web server is on
+qmanager_web_port
 
 # Check logs
 cat /tmp/qmanager.log | tail -20

@@ -1556,6 +1556,52 @@ Turn the vendor `port-bridged` service on or off. It relays the USB/PCIe host AT
 
 ---
 
+### GET/POST `/system/web_port.sh`
+
+Read or change the HTTP / HTTPS ports of uhttpd's `main` instance (shared with LuCI, so LuCI moves too). The saved choice is UCI `quecmanager.web.http_port` / `https_port`. A POST that changes the ports is **self-severing**: it validates, saves UCI, replies first, then runs `qmanager_web_port apply` detached about 1 s later, which restarts uhttpd and rolls back to the old ports by itself if uhttpd cannot bind the new ones. Never reboots. No firewall change. Auth-gated. SSH twin: `qmanager_web_port`. See [`features/web-port.md`](features/web-port.md).
+
+**GET Response:**
+
+```json
+{
+  "success": true,
+  "http_port": 80,
+  "https_port": 443,
+  "listening": { "http": true, "https": true },
+  "last_result": { "status": "applied", "http_port": 80, "https_port": 443, "at": 1792398830 }
+}
+```
+
+`listening` says whether uhttpd is bound to each port now. `last_result` is the outcome of the last apply (`applied` / `unchanged` / `rolled_back` / `failed`, ports it ended on, epoch seconds), or `null` before the first one.
+
+**POST Request:**
+
+```json
+{ "http_port": 8080, "https_port": 8443 }
+```
+
+Both must be JSON numbers, 1 to 65535, different from each other, and not held by another service.
+
+**POST Response:**
+
+```json
+{ "success": true, "apply_in_progress": true, "http_port": 8080, "https_port": 8443 }
+```
+
+`apply_in_progress` is `false` when the ports were already in effect (nothing restarts). When `true`, the current connection drops about 1 s later; the frontend moves to the new origin on the same protocol (`lib/web-port.ts`).
+
+**Error Codes:**
+
+| Code | Meaning |
+|---|---|
+| `invalid_port` | A port is missing, not a number, or outside 1 to 65535 |
+| `ports_equal` | HTTP and HTTPS were the same port |
+| `port_in_use` | Another service already listens on that port (`detail` names it) |
+| `apply_failed` | UCI commit failed, or the `web_port.sh` library is missing |
+| `method_not_allowed` | Request was not GET or POST |
+
+---
+
 ### GET/POST `/system/settings.sh`
 
 System preferences, scheduled reboot, and low power mode.
