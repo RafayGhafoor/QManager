@@ -372,13 +372,19 @@ install_file() {
     return 0
 }
 
-# Install every file in a flat source directory. Returns the count of files
-# installed. Dies on any individual failure.
+# Install every file in a flat source directory. Sets INSTALL_DIR_FLAT_COUNT
+# to the number of files installed. Dies on any individual failure.
+# Call it directly, never as x=$(install_dir_flat ...): inside a command
+# substitution `die` only exits the subshell, its error line is captured
+# instead of shown, and only `set -e` (off in if/||/&& contexts) would stop
+# the install.
+INSTALL_DIR_FLAT_COUNT=0
 install_dir_flat() {
     local src="$1" dst="$2" mode="${3:-755}" count=0 fname
 
-    [ -d "$src" ] || { _log_raw "install_dir_flat: missing source $src"; return 1; }
-    mkdir -p "$dst"
+    INSTALL_DIR_FLAT_COUNT=0
+    [ -d "$src" ] || die "install_dir_flat: missing source $src"
+    mkdir -p "$dst" || die "Cannot create $dst"
 
     for f in "$src"/*; do
         [ -f "$f" ] || continue
@@ -390,7 +396,7 @@ install_dir_flat() {
         fi
     done
 
-    printf '%d' "$count"
+    INSTALL_DIR_FLAT_COUNT=$count
     return 0
 }
 
@@ -1261,7 +1267,8 @@ install_backend() {
     # --- Libraries (flat directory) ---
     if [ -d "$SRC_SCRIPTS/usr/lib/qmanager" ]; then
         local lib_count
-        lib_count=$(install_dir_flat "$SRC_SCRIPTS/usr/lib/qmanager" "$LIB_DIR" 755)
+        install_dir_flat "$SRC_SCRIPTS/usr/lib/qmanager" "$LIB_DIR" 755
+        lib_count=$INSTALL_DIR_FLAT_COUNT
         # Non-.sh files in the lib dir should be 644
         find "$LIB_DIR" -maxdepth 1 -type f ! -name "*.sh" -exec chmod 644 {} \; 2>/dev/null
         info "Libraries: $lib_count files -> $LIB_DIR"
@@ -1270,7 +1277,8 @@ install_backend() {
     # --- Daemons and utilities (flat) ---
     if [ -d "$SRC_SCRIPTS/usr/bin" ]; then
         local bin_count
-        bin_count=$(install_dir_flat "$SRC_SCRIPTS/usr/bin" "$BIN_DIR" 755)
+        install_dir_flat "$SRC_SCRIPTS/usr/bin" "$BIN_DIR" 755
+        bin_count=$INSTALL_DIR_FLAT_COUNT
         info "Daemons: $bin_count files -> $BIN_DIR"
     fi
 
@@ -1303,7 +1311,8 @@ install_backend() {
     # --- Init.d services (flat) ---
     if [ -d "$SRC_SCRIPTS/etc/init.d" ]; then
         local svc_count
-        svc_count=$(install_dir_flat "$SRC_SCRIPTS/etc/init.d" "$INITD_DIR" 755)
+        install_dir_flat "$SRC_SCRIPTS/etc/init.d" "$INITD_DIR" 755
+        svc_count=$INSTALL_DIR_FLAT_COUNT
         info "Init.d: $svc_count services -> $INITD_DIR"
     fi
 
