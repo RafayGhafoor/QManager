@@ -427,6 +427,8 @@ mode_install() {
     rm -f "$PID_FILE"
     trap - EXIT INT TERM
     sleep 5
+    # install.sh already flushed; this covers our own status/log writes.
+    sync 2>/dev/null || true
     reboot
     exit 0
 }
@@ -536,6 +538,8 @@ mode_install_staged() {
     rm -f "$PID_FILE"
     trap - EXIT INT TERM
     sleep 5
+    # install.sh already flushed; this covers our own status/log writes.
+    sync 2>/dev/null || true
     reboot
     exit 0
 }
@@ -617,6 +621,8 @@ mode_rollback() {
     rm -f "$PID_FILE"
     trap - EXIT INT TERM
     sleep 5
+    # install.sh already flushed; this covers our own status/log writes.
+    sync 2>/dev/null || true
     reboot
     exit 0
 }
