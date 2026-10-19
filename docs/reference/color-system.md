@@ -47,7 +47,7 @@ Downlink Rose exists to break that overload. Both direction roles now hold hues 
 | Surface | Download | Upload |
 | ------- | -------- | ------ |
 | Speedtest dialog `ROLE` map (`components/dashboard/speedtest-dialog.tsx`; the target has the dialog, not the roles) | `downlink-*` | `uplink-*` |
-| Cached speedtest figures (`connection-quality.tsx`) and Device Metrics data-usage glyphs (`device-metrics.tsx`), via `DIRECTION` in `dashboard/shapes.ts` | `text-downlink-on-surface` + `arrow_circle_down` | `text-uplink-on-surface` + `arrow_circle_up` |
+| Speed-test Download / Upload glyphs on Device & Speed (`device-metrics.tsx`, numerals stay neutral), via `DIRECTION` in `dashboard/shapes.ts` | `text-downlink-on-surface` + `arrow_circle_down` | `text-uplink-on-surface` + `arrow_circle_up` |
 | AMBR rate chips (`RATE_CHIP.ON_DOWNLOAD` / `.ON_UPLOAD`, `cellular/settings/shapes.ts`) | `bg-downlink` | `bg-uplink` |
 
 Three consequences that are easy to get wrong:

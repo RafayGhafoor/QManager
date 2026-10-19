@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
@@ -27,16 +27,13 @@ import {
   type MaterialSymbolName,
 } from "@/components/ui/material-symbol";
 import { MetricBar } from "@/components/ui/metric-bar";
-import { Tag } from "@/components/ui/tag";
 import { TickingValue } from "@/components/ui/ticking-value";
 
 import { useLatencyHistory } from "@/hooks/use-latency-history";
-import { useSpeedtest, type SpeedtestPhase } from "@/hooks/use-speedtest";
 import {
   type ConnectivityStatus,
   type PingHistoryEntry,
 } from "@/types/modem-status";
-import { formatSpeed, type SpeedtestProgressLine } from "@/types/speedtest";
 import { staggerRowItem, staggerRows } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -45,22 +42,17 @@ import {
   CARD_DESC,
   CARD_SHELL,
   CARD_TITLE,
-  CLOCK_TICK_MS,
-  LANE,
+  FIGURE,
   QUALITY,
-  ROW,
-  VALUE_CLASS,
 } from "./shapes";
-import { PillRow } from "./pill-row";
-import { SpeedtestDialog } from "./speedtest-dialog";
 
 // =============================================================================
 // Connection Quality — replaces Live Latency on the dashboard (ledger U4.7)
 // =============================================================================
 // Internet / DNS lookup / Probing rows, a 30-minute reachability strip and a
 // jitter strip from fetch_ping_history.sh, Typical / Worst / Loss from the
-// status poll, and the speed test at the foot: its live phase, reading and
-// progress lane while a run is in flight (from any tab), else the last result.
+// status poll. The speed test used to close this card; it now lives on Device
+// & Speed (device-metrics.tsx) beside the modem's own readings.
 //
 // The verdict is the ICMP probe's alone (`connectivity.status`, graded on
 // `connectivity.thresholds`). The DNS lookup time is its own reading: the
@@ -79,9 +71,6 @@ const JITTER_ROUGH_MS = 40;
 
 /** Fixed jitter full-scale, so bar height means the same thing every poll. */
 const JITTER_TRACK_MAX_MS = 80;
-
-/** Past this a speedtest result's age is a broken modem clock, not an old test. */
-const ABSURD_AGE_SEC = 365 * 86400;
 
 // --- Bucketing ---------------------------------------------------------------
 
@@ -225,57 +214,6 @@ function reachState(connectivity: ConnectivityStatus | null): {
   }
 }
 
-// --- Speed Test helpers --------------------------------------------------------
-
-function useNowSec(): number {
-  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
-  useEffect(() => {
-    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), CLOCK_TICK_MS);
-    return () => clearInterval(id);
-  }, []);
-  return now;
-}
-
-function useSpeedtestTimeAgo() {
-  const { t } = useTranslation("dashboard");
-  return useCallback(
-    (iso: string, nowSec: number): string | null => {
-      const ms = Date.parse(iso);
-      if (Number.isNaN(ms)) return null;
-      // A negative or absurd diff is a clock disagreement; "just now" is all it supports.
-      const diff = nowSec - Math.floor(ms / 1000);
-      if (diff < 60 || diff > ABSURD_AGE_SEC) return t("speedtest.time_just_now");
-      if (diff < 3600)
-        return t("speedtest.time_minutes_ago", { count: Math.floor(diff / 60) });
-      if (diff < 86400)
-        return t("speedtest.time_hours_ago", { count: Math.floor(diff / 3600) });
-      return t("speedtest.time_days_ago", { count: Math.floor(diff / 86400) });
-    },
-    [t],
-  );
-}
-
-/** `initializing` has no entry on purpose: it falls back to the generic label. */
-const PHASE_LABEL_KEY: Partial<Record<SpeedtestPhase, string>> = {
-  ping: "speedtest.step_latency",
-  download: "speedtest.step_download",
-  upload: "speedtest.step_upload",
-};
-
-function liveReading(
-  phase: SpeedtestPhase,
-  p: SpeedtestProgressLine | null,
-): { value: string; unitKey: string } | null {
-  if (!p) return null;
-  if (phase === "download" && p.type === "download")
-    return { value: formatSpeed(p.download.bandwidth), unitKey: "speedtest.unit_mbps" };
-  if (phase === "upload" && p.type === "upload")
-    return { value: formatSpeed(p.upload.bandwidth), unitKey: "speedtest.unit_mbps" };
-  if (phase === "ping" && p.type === "ping")
-    return { value: p.ping.latency.toFixed(1), unitKey: "speedtest.unit_ms" };
-  return null;
-}
-
 // --- Latency row -------------------------------------------------------------
 
 /** A null value reaches MetricBar untouched, so "no reading" is an empty track.
@@ -355,16 +293,14 @@ function QualitySkeleton() {
         <Skeleton className="h-2.5 w-8" />
       </div>
 
-      <div className="grid grid-cols-3 gap-2 border-t border-surface-container-high pt-3">
+      <div className="mt-auto grid grid-cols-3 gap-2 border-t border-surface-container-high pt-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="flex flex-col gap-1.5">
+          <div key={i} className="flex flex-col gap-1">
             <Skeleton className="h-2.5 w-12" />
-            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-[22px] w-16" />
           </div>
         ))}
       </div>
-
-      <Skeleton className={cn("mt-auto w-full rounded-pill", ROW.HEIGHT)} />
     </div>
   );
 }
@@ -385,20 +321,6 @@ const ConnectionQualityComponent = ({
 }: ConnectionQualityProps) => {
   const { t } = useTranslation("dashboard");
   const { data: history } = useLatencyHistory();
-  const [speedtestOpen, setSpeedtestOpen] = useState(false);
-  // One watching instance: a run started elsewhere shows up here too. The
-  // dialog polls through its own instance; speedtest_status.sh serializes the
-  // completion harvest, so the two never race into a false failure (B5.23).
-  const {
-    phase,
-    progress,
-    currentProgress,
-    result: cachedResult,
-    isRunning,
-    refreshStatus: refreshSpeedtest,
-  } = useSpeedtest({ watch: true });
-  const nowSec = useNowSec();
-  const timeAgo = useSpeedtestTimeAgo();
 
   const latencyCut = connectivity?.thresholds?.latency_ms;
   const lossCut = connectivity?.thresholds?.loss_pct;
@@ -411,11 +333,6 @@ const ConnectionQualityComponent = ({
     [history, latencyCut, lossCut],
   );
 
-  const handleDialogChange = (open: boolean) => {
-    setSpeedtestOpen(open);
-    if (!open) void refreshSpeedtest();
-  };
-
   const header = (
     <CardHeader className="px-0">
       <CardTitle className={CARD_TITLE}>{t("connection_quality.title")}</CardTitle>
@@ -425,114 +342,11 @@ const ConnectionQualityComponent = ({
     </CardHeader>
   );
 
-  // --- Speed Test row: running, cached result, or never run, at one height.
-  const reading = liveReading(phase, currentProgress);
-  const phaseLabelKey = PHASE_LABEL_KEY[phase];
-  const runLabel = phaseLabelKey
-    ? t(phaseLabelKey)
-    : t("speedtest.tile_running_label");
-  const progressPct = Math.min(100, Math.max(0, progress * 100));
-  const agoLabel = cachedResult ? timeAgo(cachedResult.timestamp, nowSec) : null;
-
-  const speedtestRow = (
-    <div className="mt-auto">
-      <PillRow
-        label={
-          <>
-            <span className="truncate">{t("speedtest.section_label")}</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-5 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
-              aria-label={t("speedtest.start_button_aria")}
-              onClick={() => setSpeedtestOpen(true)}
-            >
-              <MaterialSymbol name="play_arrow" size={14} filled />
-            </Button>
-          </>
-        }
-      >
-        {isRunning ? (
-          <>
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant">
-              <span aria-hidden className="relative inline-flex size-[7px] shrink-0">
-                <span className="absolute inset-0 rounded-pill bg-primary animate-live-ping" />
-                <span className="relative size-[7px] rounded-pill bg-primary" />
-              </span>
-              <span className="hidden @[350px]/card:inline">{runLabel}</span>
-            </span>
-            {/* No TickingValue: the 500ms run cadence would never let the tick finish. */}
-            <span className={cn(VALUE_CLASS, "flex items-baseline gap-1 tabular-nums")}>
-              {reading ? reading.value : ABSENT}
-              {reading ? (
-                <span className="text-xs font-semibold text-on-surface-variant">
-                  {t(reading.unitKey)}
-                </span>
-              ) : null}
-            </span>
-            <span
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(progressPct)}
-              aria-label={runLabel}
-              className={LANE}
-            >
-              <MetricBar
-                value={progressPct}
-                max={100}
-                warnAt={Number.POSITIVE_INFINITY}
-                dangerAt={Number.POSITIVE_INFINITY}
-                track="surface-container-high"
-              />
-            </span>
-          </>
-        ) : cachedResult ? (
-          <>
-            <span className="sr-only">{t("speedtest.result_label")}</span>
-            {agoLabel ? (
-              <Tag variant="neutral" className="hidden h-5 @[350px]/card:inline-flex">
-                {agoLabel}
-              </Tag>
-            ) : null}
-            <span className={cn(VALUE_CLASS, "flex items-center gap-1 tabular-nums")}>
-              <MaterialSymbol
-                name="arrow_circle_down"
-                size={20}
-                filled
-                className="shrink-0 text-downlink-on-surface"
-              />
-              <span className="sr-only">{t("speedtest.result_download")}</span>
-              {formatSpeed(cachedResult.download.bandwidth)}
-              <span className="sr-only"> {t("speedtest.unit_mbps")}</span>
-            </span>
-            <span className={cn(VALUE_CLASS, "flex items-center gap-1 tabular-nums")}>
-              <MaterialSymbol
-                name="arrow_circle_up"
-                size={20}
-                filled
-                className="shrink-0 text-uplink-on-surface"
-              />
-              <span className="sr-only">{t("speedtest.result_upload")}</span>
-              {formatSpeed(cachedResult.upload.bandwidth)}
-              <span className="sr-only"> {t("speedtest.unit_mbps")}</span>
-            </span>
-          </>
-        ) : (
-          <span className={cn(VALUE_CLASS, "text-on-surface-variant")}>{ABSENT}</span>
-        )}
-      </PillRow>
-    </div>
-  );
-
   const shell = (body: React.ReactNode) => (
-    <>
-      <Card className={CARD_SHELL}>
-        {header}
-        <CardContent className="flex flex-1 flex-col px-0">{body}</CardContent>
-      </Card>
-      <SpeedtestDialog open={speedtestOpen} onOpenChange={handleDialogChange} />
-    </>
+    <Card className={CARD_SHELL}>
+      {header}
+      <CardContent className="flex flex-1 flex-col px-0">{body}</CardContent>
+    </Card>
   );
 
   if (isLoading) return shell(<QualitySkeleton />);
@@ -557,27 +371,24 @@ const ConnectionQualityComponent = ({
   // `internet_available === null` means the ping daemon is not reporting — not an outage.
   if (connectivity && connectivity.internet_available === null) {
     return shell(
-      <motion.div className="flex flex-1 flex-col gap-3" variants={staggerRows}>
-        <Empty className="flex-1">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <MaterialSymbol name="radar" size={24} />
-            </EmptyMedia>
-            <EmptyTitle>{t("connection_quality.empty_title")}</EmptyTitle>
-            <EmptyDescription className="max-w-xs text-pretty">
-              {t("connection_quality.empty_description")}
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <Button asChild variant="secondary">
-              <Link href="/monitoring/connection-quality/">
-                {t("connection_quality.empty_action")}
-              </Link>
-            </Button>
-          </EmptyContent>
-        </Empty>
-        {speedtestRow}
-      </motion.div>,
+      <Empty className="flex-1">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <MaterialSymbol name="radar" size={24} />
+          </EmptyMedia>
+          <EmptyTitle>{t("connection_quality.empty_title")}</EmptyTitle>
+          <EmptyDescription className="max-w-xs text-pretty">
+            {t("connection_quality.empty_description")}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button asChild variant="secondary">
+            <Link href="/monitoring/connection-quality/">
+              {t("connection_quality.empty_action")}
+            </Link>
+          </Button>
+        </EmptyContent>
+      </Empty>,
     );
   }
 
@@ -711,17 +522,15 @@ const ConnectionQualityComponent = ({
 
   // A null aggregate means "window too short", never zero.
   const footerFigure = (labelKey: string, value: number | null, unit: string, decimals = 0) => (
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <span className="truncate text-[11px] leading-tight font-semibold tracking-[0.02em] text-on-surface-variant">
-        {t(labelKey)}
-      </span>
-      <span className="flex items-baseline gap-0.5 text-[19px] leading-none font-semibold tabular-nums text-on-surface">
+    <div className={FIGURE.ROOT}>
+      <span className={FIGURE.LABEL}>{t(labelKey)}</span>
+      <span className={FIGURE.VALUE}>
         {value === null ? (
           ABSENT
         ) : (
           <>
             <TickingValue value={value}>{value.toFixed(decimals)}</TickingValue>
-            <span className="text-[11px] font-semibold text-on-surface-variant">{unit}</span>
+            <span className={FIGURE.UNIT}>{unit}</span>
           </>
         )}
       </span>
@@ -737,7 +546,7 @@ const ConnectionQualityComponent = ({
       <motion.div variants={staggerRowItem}>{axis}</motion.div>
       <motion.div
         variants={staggerRowItem}
-        className="grid grid-cols-3 gap-2 border-t border-surface-container-high pt-3"
+        className="mt-auto grid grid-cols-3 gap-2 border-t border-surface-container-high pt-3"
       >
         {footerFigure(
           "connection_quality.footer_typical",
@@ -756,7 +565,6 @@ const ConnectionQualityComponent = ({
           1,
         )}
       </motion.div>
-      {speedtestRow}
     </motion.div>,
   );
 };

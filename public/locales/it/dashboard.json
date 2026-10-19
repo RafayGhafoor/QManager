@@ -75,7 +75,7 @@
     "uptime_unknown": "Non raggiungibile"
   },
   "metrics": {
-    "title": "Metriche del dispositivo",
+    "title": "Dispositivo e velocità",
     "modem_temperature": "Temperatura del modem",
     "high_temp_warning": "Alta temperatura",
     "cpu_usage": "CPU Utilizzo",
@@ -89,7 +89,7 @@
     "connection_uptime": "Tempo di attività della connessione",
     "device_uptime": "Tempo di attività del dispositivo",
     "more_info_aria": "Maggiori informazioni",
-    "description": "Salute del dispositivo e la distanza da ciascuna cella di servizio."
+    "description": "Salute del dispositivo, distanza da ciascuna cella di servizio e ultimo speed test."
   },
   "signal_status": {
     "lte_primary_title": "Stato primario 4G",
@@ -139,10 +139,10 @@
   },
   "speedtest": {
     "section_label": "Prova di velocità",
-    "start_button_aria": "Avvia il test di velocità",
+    "run_short": "Avvia test",
+    "view_running": "Visualizza",
     "idle_description": "Avvia un test di velocità per misurare la velocità attuale della tua rete.",
     "dialog_idle_description": "Misura la velocità di download, la velocità di upload e la latenza attuali.",
-    "result_label": "Risultato dello speedtest:",
     "last_updated": "Ultimo aggiornamento {{time}}",
     "title": "Prova di velocità",
     "running_badge": "Correre",
@@ -175,10 +175,6 @@
     "run_again_button": "Corri di nuovo",
     "unit_mbps": "Mbps",
     "unit_ms": "ms",
-    "time_just_now": "adesso",
-    "time_minutes_ago": "{{count}} min fa",
-    "time_hours_ago": "{{count}} h fa",
-    "time_days_ago": "{{count}} g fa",
     "step_latency": "Latenza",
     "step_download": "Scarica",
     "step_upload": "Carica",
@@ -385,7 +381,7 @@
   },
   "connection_quality": {
     "title": "Qualità della connessione",
-    "description": "Quanto è stato stabile il collegamento nell'ultima mezz'ora, più l'ultimo speed test.",
+    "description": "Quanto è stato stabile il collegamento nell'ultima mezz'ora.",
     "internet": "Internet",
     "dns": "Risoluzione DNS",
     "unit_ms": "ms",

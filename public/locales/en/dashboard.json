@@ -75,7 +75,7 @@
     "uptime_unknown": "Not reachable"
   },
   "metrics": {
-    "title": "Device Metrics",
+    "title": "Device & Speed",
     "modem_temperature": "Modem Temperature",
     "high_temp_warning": "High Temp",
     "cpu_usage": "CPU Usage",
@@ -89,7 +89,7 @@
     "connection_uptime": "Connection Uptime",
     "device_uptime": "Device Uptime",
     "more_info_aria": "More info",
-    "description": "Onboard health and the distance to each serving cell."
+    "description": "Onboard health, distance to each serving cell, and the latest speed test."
   },
   "signal_status": {
     "lte_primary_title": "4G Primary Status",
@@ -139,10 +139,10 @@
   },
   "speedtest": {
     "section_label": "Speed Test",
-    "start_button_aria": "Start speed test",
+    "run_short": "Run test",
+    "view_running": "View",
     "idle_description": "Start a speed test to measure your current network speed.",
     "dialog_idle_description": "Measure your current download speed, upload speed, and latency.",
-    "result_label": "Speedtest result:",
     "last_updated": "Last updated {{time}}",
     "title": "Speed Test",
     "running_badge": "Running",
@@ -175,10 +175,6 @@
     "run_again_button": "Run Again",
     "unit_mbps": "Mbps",
     "unit_ms": "ms",
-    "time_just_now": "just now",
-    "time_minutes_ago": "{{count}} min ago",
-    "time_hours_ago": "{{count}} hr ago",
-    "time_days_ago": "{{count}} d ago",
     "step_latency": "Latency",
     "step_download": "Download",
     "step_upload": "Upload",
@@ -385,7 +381,7 @@
   },
   "connection_quality": {
     "title": "Connection Quality",
-    "description": "How steady the link has been over the last half hour, plus the latest speed test.",
+    "description": "How steady the link has been over the last half hour.",
     "internet": "Internet",
     "dns": "DNS lookup",
     "unit_ms": "ms",

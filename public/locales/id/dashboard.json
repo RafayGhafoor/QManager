@@ -75,7 +75,7 @@
     "uptime_unknown": "Tidak terjangkau"
   },
   "metrics": {
-    "title": "Metrik Perangkat",
+    "title": "Perangkat & Kecepatan",
     "modem_temperature": "Suhu Modem",
     "high_temp_warning": "Suhu Tinggi",
     "cpu_usage": "Penggunaan CPU",
@@ -89,7 +89,7 @@
     "connection_uptime": "Waktu Aktif Koneksi",
     "device_uptime": "Waktu Aktif Perangkat",
     "more_info_aria": "Info lebih lanjut",
-    "description": "Kesehatan perangkat dan jarak ke setiap sel yang melayani."
+    "description": "Kesehatan perangkat, jarak ke setiap sel yang melayani, dan hasil uji kecepatan terbaru."
   },
   "signal_status": {
     "lte_primary_title": "Status Utama 4G",
@@ -139,10 +139,10 @@
   },
   "speedtest": {
     "section_label": "Tes Kecepatan",
-    "start_button_aria": "Mulai tes kecepatan",
+    "run_short": "Mulai tes",
+    "view_running": "Lihat",
     "idle_description": "Mulai tes kecepatan untuk mengukur kecepatan jaringan Anda saat ini.",
     "dialog_idle_description": "Ukur kecepatan unduh, kecepatan unggah, dan latensi Anda saat ini.",
-    "result_label": "Hasil tes kecepatan:",
     "last_updated": "Terakhir diperbarui {{time}}",
     "title": "Tes Kecepatan",
     "running_badge": "Berjalan",
@@ -175,10 +175,6 @@
     "run_again_button": "Jalankan Lagi",
     "unit_mbps": "Mbps",
     "unit_ms": "ms",
-    "time_just_now": "baru saja",
-    "time_minutes_ago": "{{count}} mnt lalu",
-    "time_hours_ago": "{{count}} jam lalu",
-    "time_days_ago": "{{count}} hr lalu",
     "step_latency": "Latensi",
     "step_download": "Unduh",
     "step_upload": "Unggah",
@@ -385,7 +381,7 @@
   },
   "connection_quality": {
     "title": "Kualitas Koneksi",
-    "description": "Seberapa stabil koneksi selama setengah jam terakhir, beserta hasil uji kecepatan terbaru.",
+    "description": "Seberapa stabil koneksi selama setengah jam terakhir.",
     "internet": "Internet",
     "dns": "Pencarian DNS",
     "unit_ms": "ms",

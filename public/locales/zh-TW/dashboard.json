@@ -75,7 +75,7 @@
     "uptime_unknown": "無法連線"
   },
   "metrics": {
-    "title": "裝置指標",
+    "title": "裝置與速度",
     "modem_temperature": "調變解調器溫度",
     "high_temp_warning": "溫度過高",
     "cpu_usage": "CPU 使用率",
@@ -89,7 +89,7 @@
     "connection_uptime": "連線執行時長",
     "device_uptime": "裝置執行時長",
     "more_info_aria": "更多資訊",
-    "description": "裝置自身的運行狀況，以及到各服務基站的距離。"
+    "description": "裝置自身的運行狀況、到各服務基站的距離，以及最近一次測速結果。"
   },
   "signal_status": {
     "lte_primary_title": "4G 主載波狀態",
@@ -139,10 +139,10 @@
   },
   "speedtest": {
     "section_label": "速度測試",
-    "start_button_aria": "開始速度測試",
+    "run_short": "開始測速",
+    "view_running": "查看",
     "idle_description": "開始速度測試以測量當前的網路速度。",
     "dialog_idle_description": "測量當前的下載速度、上傳速度和延遲。",
-    "result_label": "測試結果：",
     "last_updated": "最後更新於 {{time}}",
     "title": "速度測試",
     "running_badge": "進行中",
@@ -175,10 +175,6 @@
     "run_again_button": "再次執行",
     "unit_mbps": "Mbps",
     "unit_ms": "毫秒",
-    "time_just_now": "剛剛",
-    "time_minutes_ago": "{{count}} 分鐘前",
-    "time_hours_ago": "{{count}} 小時前",
-    "time_days_ago": "{{count}} 天前",
     "step_latency": "延遲",
     "step_download": "下載",
     "step_upload": "上傳",
@@ -385,7 +381,7 @@
   },
   "connection_quality": {
     "title": "連線質量",
-    "description": "過去半小時內連線的穩定程度，以及最近一次測速結果。",
+    "description": "過去半小時內連線的穩定程度。",
     "internet": "網際網路",
     "dns": "DNS 查詢",
     "unit_ms": "ms",

@@ -452,6 +452,33 @@ export const QUALITY = {
 } as const;
 
 /**
+ * A labelled figure: an 11px eyebrow over a 22px numeral with its unit. Shared
+ * by Connection Quality's Typical / Worst / Loss footer and the Device & Speed
+ * speed-test tile, so the two cards end on the same figure row.
+ */
+export const FIGURE = {
+  ROOT: "flex min-w-0 flex-col gap-1",
+  LABEL:
+    "flex min-w-0 items-center gap-1 truncate text-[11px] leading-tight font-semibold tracking-[0.02em] text-on-surface-variant",
+  VALUE:
+    "flex items-baseline gap-0.5 whitespace-nowrap text-[22px] leading-none font-semibold tracking-[-0.01em] tabular-nums text-on-surface",
+  UNIT: "text-xs font-semibold tracking-normal text-on-surface-variant",
+} as const;
+
+/**
+ * The speed-test group at the foot of Device & Speed. The tile is PINNED, not
+ * floored: result, running, never-run and skeleton all draw at 68px, so a run
+ * starting or finishing moves nothing (The Skeleton-Mirror Rule).
+ */
+export const SPEEDTEST = {
+  HEAD: "flex min-h-6 items-center justify-between gap-2",
+  TILE: "h-[4.25rem] rounded-tile bg-surface-container p-3.5",
+  /** Mirrors TILE's pinned height, for the skeleton. */
+  TILE_H: "h-[4.25rem]",
+  FIGS: "grid h-full grid-cols-3 content-center gap-2",
+} as const;
+
+/**
  * A tile disc’s two tones.
  *
  * SOLID role colour, not a container. A disc is an accent MARK — the glyph
