@@ -256,13 +256,15 @@ export const CARRIER_TILE = {
    * 22px is a literal rather than a ramp step, and that is correct here rather
    * than sloppy. DESIGN.md's Numeric step is "deliberately not a fixed ramp" —
    * a numeral is read at the distance its container implies, so its size comes
-   * from the slot holding it, and a literal `text-[Npx]` on a mono
-   * `tabular-nums` figure is correct by construction. Shipped siblings run 52,
+   * from the slot holding it, and a literal `text-[Npx]` on a
+   * `tabular-nums` figure is correct by construction. The channel number is a
+   * short numeric device label, so it stays Rethink Sans per the Machine-Voice
+   * Rule (mono is for strings whose character grid carries meaning). Shipped siblings run 52,
    * 44, 26 and 17px on the same rule. Prose never qualifies; this is a figure.
    */
-  VALUE: "font-mono text-[22px]/none font-semibold tabular-nums",
+  VALUE: "text-[22px]/none font-semibold tabular-nums",
   VALUE_LABEL: "text-xs text-on-surface-variant",
-  META: "font-mono text-xs tabular-nums text-on-surface-variant",
+  META: "text-xs tabular-nums text-on-surface-variant",
   /** The add/locked affordance in the tile's top-right. */
   ACTION: "ms-auto flex size-7 items-center justify-center",
   ACTION_FREE: "bg-primary-container text-on-primary-container",
@@ -287,7 +289,7 @@ export const SLOT = {
     "flex min-h-[3.625rem] flex-wrap items-center gap-x-3 gap-y-2 rounded-field border border-dashed border-outline px-4 py-3",
   INDEX: "w-11 flex-none text-xs font-semibold text-on-surface-variant",
   /** The staged channel. Numeric step, sized to the row — see CARRIER_TILE.VALUE. */
-  VALUE: "font-mono text-[15px] font-semibold tabular-nums",
+  VALUE: "text-[15px] font-semibold tabular-nums",
   META: "text-xs text-on-surface-variant",
   HINT: "text-[13px] text-on-surface-variant text-pretty",
   /** Trailing remove button. */
@@ -297,7 +299,7 @@ export const SLOT = {
 
 /** Input inside a slot row; shape and fill come from the primitive. */
 export const SLOT_INPUT =
-  "min-w-0 flex-1 font-mono text-[13px] tabular-nums";
+  "min-w-0 flex-1 text-[13px] tabular-nums";
 
 /**
  * The "Use current" control.

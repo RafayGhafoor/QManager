@@ -451,7 +451,7 @@ export function CarrierAggregationComponent({
                 segmentTone(c),
               )}
             >
-              <span className="hidden font-mono text-sm leading-[1.1] font-semibold @md/ca:block">
+              <span className="hidden text-sm tabular-nums leading-[1.1] font-semibold @md/ca:block">
                 {c.band}
               </span>
               {/* No alpha on the ink: a released segment's pair measures 6.2:1
@@ -485,7 +485,7 @@ export function CarrierAggregationComponent({
                 )}
               >
                 <div className="flex items-center justify-between gap-2.5">
-                  <span className="font-mono text-base font-semibold">
+                  <span className="text-base font-semibold tabular-nums">
                     {c.band}
                   </span>
                   {/* The role is text, never colour alone — it is the affordance
@@ -501,7 +501,7 @@ export function CarrierAggregationComponent({
                   </span>
                 </div>
 
-                <div className="flex gap-3.5 font-mono text-xs font-medium tabular-nums">
+                <div className="flex gap-3.5 text-xs font-medium tabular-nums">
                   <span>PCI {c.pci ?? "—"}</span>
                   <span>
                     {c.technology === "NR" ? "ARFCN" : "EARFCN"} {c.earfcn ?? "—"}

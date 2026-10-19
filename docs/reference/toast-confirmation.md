@@ -61,8 +61,8 @@ The rule is partly met by habit. These gaps are swept as each surface is re-auth
 
 - **Handler-level toasts are common:** 105 `toast.success(` and 122 `toast.error(` sites (`git grep -E 'toast\.(success|error)\(' -- app components hooks lib`).
 - **Stale-closure sites: not audited.** Look for `toast.error(error || t(...))` or `error ?? t(...)` straight after an `await`. The RM520N fork fixed seven by returning `MutationResult` (`types/mutation-result.ts`, `{ ok, error }`) from the mutators; that type does not exist in the target, so a new mutator defines the shape it needs and tests the field (see the `if (await save())` trap).
-- **Raw `navigator.clipboard`:** 2 sites (`imei-tools-card.tsx`, `copyable-command.tsx`). `lib/clipboard.ts` lands with U2.3; migrate each when its surface is touched.
-- **Hard-coded English toasts:** 12 sites match `toast.(error|success)("`. Every toast string goes through `t()`.
+- **Raw `navigator.clipboard`:** none left outside `lib/clipboard.ts` (U4.23, 2026-10-19: `imei-tools-card.tsx` moved to `copyText` with U2.3, and the unused `copyable-command.tsx` was deleted).
+- **Hard-coded English toasts:** none left (U4.23 moved the account menu's onto `t()`). Every toast string goes through `t()`.
 - **Transient Saved chips:** `useSaveFlash` appears in 22 files. Most are `SaveButton`'s own flash, which stays; status text that fades beside a toast is retired.
 - **Effect toasts with an `id`:** not audited. Audit one before touching it.
 

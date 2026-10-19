@@ -24,6 +24,23 @@
     "full": "完整",
     "reduced": "減弱"
   },
+  "account": {
+    "photo_invalid": "請選擇圖片檔案。",
+    "photo_updated": "大頭貼已更新。",
+    "change_photo_aria": "更換大頭貼",
+    "name_placeholder": "你的名稱",
+    "name_saved": "顯示名稱已更新。",
+    "name_save_failed": "更新顯示名稱失敗。",
+    "reconnect_description": "這將使調變解調器中斷數秒，然後自動重新連線。",
+    "disconnecting_description": "正在將調變解調器從網路中斷…",
+    "reconnecting_description": "正在將調變解調器重新連線到網路…",
+    "reconnect_action": "重新連線",
+    "reconnect_complete": "調變解調器已重新連線。",
+    "reconnect_failed": "重新連線調變解調器失敗。",
+    "reboot_description": "裝置將重啟，在其重新上線之前所有網路連線都會中斷。",
+    "reboot_sent": "重啟指令已送出，你即將登出…",
+    "reboot_now": "立即重啟"
+  },
   "state": {
     "loading": "載入中…",
     "saving": "儲存中…",

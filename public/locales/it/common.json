@@ -24,6 +24,23 @@
     "full": "Complete",
     "reduced": "Ridotte"
   },
+  "account": {
+    "photo_invalid": "Seleziona un file immagine.",
+    "photo_updated": "Foto profilo aggiornata.",
+    "change_photo_aria": "Cambia foto profilo",
+    "name_placeholder": "Il tuo nome",
+    "name_saved": "Nome visualizzato aggiornato.",
+    "name_save_failed": "Impossibile aggiornare il nome visualizzato.",
+    "reconnect_description": "Il modem verrà disconnesso per alcuni secondi, poi si riconnetterà automaticamente.",
+    "disconnecting_description": "Disconnessione del modem dalla rete…",
+    "reconnecting_description": "Riconnessione del modem alla rete…",
+    "reconnect_action": "Riconnetti",
+    "reconnect_complete": "Modem riconnesso.",
+    "reconnect_failed": "Impossibile riconnettere il modem.",
+    "reboot_description": "Il dispositivo si riavvierà e tutte le connessioni di rete cadranno finché non torna online.",
+    "reboot_sent": "Comando di riavvio inviato. Verrai disconnesso a breve…",
+    "reboot_now": "Riavvia ora"
+  },
   "state": {
     "loading": "Caricamento…",
     "saving": "Salvataggio…",

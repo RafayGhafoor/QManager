@@ -24,6 +24,23 @@
     "full": "Penuh",
     "reduced": "Dikurangi"
   },
+  "account": {
+    "photo_invalid": "Pilih file gambar.",
+    "photo_updated": "Foto profil diperbarui.",
+    "change_photo_aria": "Ubah foto profil",
+    "name_placeholder": "Nama Anda",
+    "name_saved": "Nama tampilan diperbarui.",
+    "name_save_failed": "Gagal memperbarui nama tampilan.",
+    "reconnect_description": "Modem akan terputus selama beberapa detik, lalu tersambung kembali secara otomatis.",
+    "disconnecting_description": "Memutuskan modem dari jaringan…",
+    "reconnecting_description": "Menyambungkan ulang modem ke jaringan…",
+    "reconnect_action": "Sambungkan Ulang",
+    "reconnect_complete": "Modem tersambung kembali.",
+    "reconnect_failed": "Gagal menyambungkan ulang modem.",
+    "reboot_description": "Perangkat akan dimulai ulang dan semua koneksi jaringan akan terputus hingga perangkat kembali online.",
+    "reboot_sent": "Perintah reboot terkirim. Anda akan segera keluar…",
+    "reboot_now": "Reboot Sekarang"
+  },
   "state": {
     "loading": "Memuat…",
     "saving": "Menyimpan…",

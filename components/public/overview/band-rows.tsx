@@ -220,7 +220,7 @@ export function BandRow({
       <Tag
         variant={isNrBand(band.band) ? "nr" : "lte"}
         className={cn(
-          "flex-none rounded-pill px-0 py-1 font-mono text-[0.6875rem] font-semibold",
+          "flex-none rounded-pill px-0 py-1 tabular-nums text-[0.6875rem] font-semibold",
           CHIP_W,
         )}
       >
@@ -304,7 +304,7 @@ export function AggregateBandRow({
       <Tag
         variant="neutral"
         className={cn(
-          "flex-none px-0 py-1 text-center font-mono text-[0.6875rem] font-semibold",
+          "flex-none px-0 py-1 text-center tabular-nums text-[0.6875rem] font-semibold",
           CHIP_W,
         )}
       >
