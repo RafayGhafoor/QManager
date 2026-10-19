@@ -108,6 +108,7 @@
   "no_bands": "No bands available or provided",
   "no_body": "Request body is empty",
   "no_cells": "No serving cells available",
+  "invalid_command": "Not an AT command. Start the line with AT, for example AT+CSQ",
   "no_command": "Command field is missing",
   "no_days": "No days selected for schedule",
   "no_default": "No default DNS is configured",

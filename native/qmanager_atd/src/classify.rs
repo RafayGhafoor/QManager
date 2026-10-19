@@ -27,6 +27,16 @@ pub fn is_slow(cmd: &str) -> bool {
     SLOW.iter().any(|p| cmd.contains(p))
 }
 
+/// True if the modem will answer `cmd`: an `AT` prefix in any case and no
+/// control characters. The modem stays silent on a line that does not start
+/// with AT, so sending one holds the modem lock for the whole deadline and
+/// every caller queued behind it fails modem_busy. The channel appends CR LF,
+/// so an embedded CR or LF would put a second, unanswered line on the wire.
+pub fn is_at_command(cmd: &str) -> bool {
+    let b = cmd.as_bytes();
+    b.len() >= 2 && b[..2].eq_ignore_ascii_case(b"AT") && !b.iter().any(|&c| c < 0x20 || c == 0x7f)
+}
+
 /// Parses long_commands.list the way qcmd does: skip blank and '#' lines.
 pub fn parse_long_list(text: &str) -> Vec<String> {
     text.lines()
@@ -68,6 +78,27 @@ mod tests {
         let l = parse_long_list("# hi\n\nQSCAN\r\nQXYZ\n");
         assert_eq!(l, vec!["QSCAN".to_string(), "QXYZ".to_string()]);
         assert!(is_long_with("AT+QXYZ=1", &l));
+    }
+
+    #[test]
+    fn at_commands_are_accepted_in_any_case() {
+        for c in ["AT", "at", "At+CSQ", "AT+QENG=\"servingcell\"", "AT+QRSRP;+QRSRQ;+QSINR", "ATI", "at+cops?"] {
+            assert!(is_at_command(c), "{c}");
+        }
+    }
+
+    #[test]
+    fn non_at_input_is_rejected() {
+        for c in ["", "A", "hello", "--bogus", "-x", "A/", " AT+CSQ", "+CSQ", "TA+CSQ"] {
+            assert!(!is_at_command(c), "{c}");
+        }
+    }
+
+    #[test]
+    fn control_characters_are_rejected() {
+        for c in ["AT\rhello", "AT+CSQ\n", "AT\r\nAT", "AT+CSQ\u{1a}", "AT\t+CSQ", "AT\u{7f}"] {
+            assert!(!is_at_command(c), "{c:?}");
+        }
     }
 
     #[test]

@@ -426,6 +426,7 @@
       "cancel": "Batal"
     },
     "rules": {
+      "not_at": "Di sini hanya perintah AT yang bisa dikirim. Awali baris dengan AT, misalnya AT+CSQ.",
       "qscanfreq": "Pemindaian frekuensi ditolak di sini. Pemindaian menahan radio tetap mati selama beberapa menit tanpa menampilkan apa pun — gunakan halaman Pemindai Sel, yang melaporkan kemajuan dan bisa dihentikan.",
       "qscan": "Pemindaian jaringan ditolak di sini. Pemindaian menahan radio tetap mati selama beberapa menit tanpa menampilkan apa pun — gunakan halaman Pemindai Sel, yang melaporkan kemajuan dan bisa dihentikan.",
       "resetfactory": "Reset pabrik ditolak di sini. Reset menghapus seluruh pengaturan modem sekaligus, termasuk yang dibutuhkan QManager untuk menjangkaunya, dan tidak ada di halaman ini yang bisa membatalkannya.",

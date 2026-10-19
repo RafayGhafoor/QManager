@@ -247,6 +247,13 @@ fn run_qcmd(args: &[String]) -> i32 {
         }
     };
 
+    // Not an AT command (a typo, an unknown flag such as `--bogus`): answer at
+    // once. Sent on, the modem would stay silent and the broker would hold the
+    // lock for the whole deadline while every other caller fails modem_busy.
+    if !classify::is_at_command(command) {
+        return emit(json, command, proto::Reply::Err(Code::InvalidCommand));
+    }
+
     // Legacy fast-reject: while a long command runs, a short one answers at
     // once instead of queueing behind it in the broker for minutes.
     if !classify::is_long(command) && exec::long_running() {
@@ -523,6 +530,17 @@ mod tests {
 
     fn soon(ms: u64) -> Instant {
         Instant::now() + Duration::from_millis(ms)
+    }
+
+    #[test]
+    fn qcmd_refuses_non_at_input_at_once() {
+        // Returns before the long-flag gate and the socket, so no broker is needed.
+        for a in [&["qcmd", "--bogus"][..], &["qcmd", "hello"], &["qcmd", "-j", "-x"], &["qcmd", "AT\rhello"]] {
+            let args: Vec<String> = a.iter().map(|s| s.to_string()).collect();
+            let t = Instant::now();
+            assert_eq!(run_qcmd(&args), 1, "{a:?}");
+            assert!(t.elapsed() < Duration::from_millis(200), "{a:?}");
+        }
     }
 
     #[test]

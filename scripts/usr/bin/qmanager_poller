@@ -377,18 +377,32 @@ fi
 # Calls qcmd (the AT broker) and strips the echoed AT command + trailing OK.
 # Returns exit codes:
 #   0 = success
-#   1 = modem unreachable / timeout
+#   1 = no reply (command_timeout, modem_not_ready, command_failed, empty)
 #   2 = command returned ERROR (but modem is reachable)
+#   3 = not run: another caller holds the modem (modem_busy), a scan is in
+#       progress (scan_in_progress), or qcmd refused it (invalid_command).
+#       Says nothing about the modem, so callers keep their last values.
+#
+# stderr is merged into the capture: qcmd writes nothing there on success, and
+# on failure its only output is "ERROR: <code>", which is how busy is told apart
+# from no reply without another fork.
 
 qcmd_exec() {
     local cmd="$1"
     local result
+    local exit_code
 
-    result=$(qcmd "$cmd" 2>/dev/null)
-    local exit_code=$?
+    result=$(qcmd "$cmd" 2>&1)
+    exit_code=$?
 
     if [ $exit_code -ne 0 ] || [ -z "$result" ]; then
-        qlog_warn "qcmd_exec failed: cmd=${cmd} exit=${exit_code}"
+        case "$result" in
+            *"ERROR: modem_busy"*|*"ERROR: scan_in_progress"*|*"ERROR: invalid_command"*)
+                qlog_debug "qcmd_exec not run: cmd=${cmd} (${result})"
+                return 3
+                ;;
+        esac
+        qlog_warn "qcmd_exec failed: cmd=${cmd} exit=${exit_code} ${result}"
         return 1
     fi
 
@@ -714,12 +728,38 @@ collect_boot_data() {
 # TIER 1: HOT DATA (every cycle)
 # =============================================================================
 
+# Serving-cell polls in a row that got no reply, or that found the modem busy.
+# One miss keeps the last values: a real outage (SSR, a dead channel) repeats,
+# a single 20 s command_timeout behind someone else's bad command does not.
+# Busy says nothing about the modem (each busy call already waited 5 s for the
+# lock), so only a lock held for about a minute reads as unreachable.
+sc_fail_streak=0
+sc_busy_streak=0
+SC_FAIL_LIMIT=2
+SC_BUSY_LIMIT=10
+
 poll_serving_cell() {
     local result
     result=$(qcmd_exec 'AT+QENG="servingcell"')
     local rc=$?
 
+    if [ $rc -eq 3 ]; then
+        sc_busy_streak=$((sc_busy_streak + 1))
+        if [ "$sc_busy_streak" -lt "$SC_BUSY_LIMIT" ]; then
+            return
+        fi
+    elif [ $rc -ne 0 ] && [ $rc -ne 2 ]; then
+        sc_busy_streak=0
+        sc_fail_streak=$((sc_fail_streak + 1))
+        if [ "$sc_fail_streak" -lt "$SC_FAIL_LIMIT" ]; then
+            log_warn "No reply to serving cell poll (${sc_fail_streak} of ${SC_FAIL_LIMIT}), keeping last values"
+            return
+        fi
+    fi
+
     if [ $rc -eq 0 ] || [ $rc -eq 2 ]; then
+        sc_fail_streak=0
+        sc_busy_streak=0
         if [ "$modem_reachable" != "true" ]; then
             qlog_state_change "modem_reachable" "false" "true"
         fi
@@ -1718,10 +1758,13 @@ poll_cycle() {
         if [ "$ap_tier" != "deep" ]; then
             # Carrier Aggregation — QCAINFO reporting enabled at boot (Group B).
             local ca_result
+            local ca_rc
             ca_result=$(qcmd_exec 'AT+QCAINFO')
-            if [ $? -eq 0 ] && [ -n "$ca_result" ]; then
+            ca_rc=$?
+            if [ $ca_rc -eq 0 ] && [ -n "$ca_result" ]; then
                 parse_ca_info "$ca_result"
-            else
+            elif [ $ca_rc -ne 3 ]; then
+                # Busy (rc 3) keeps the last CA values, like the deep tier.
                 t2_ca_active=false
                 t2_ca_count=0
                 t2_nr_ca_active=false
