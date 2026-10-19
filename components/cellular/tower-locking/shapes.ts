@@ -69,7 +69,11 @@ export type TowerMatchVerdict =
   | "unlocked"
   | "unknown";
 
-/** Each verdict wears its own glyph: success and warning containers are ~1.03:1 apart. */
+/**
+ * Each verdict wears its own glyph: success and warning containers are ~1.03:1 apart.
+ * The neutral fill is `surface-container`, matching the carriers panel beside it,
+ * so a neutral verdict reads as a second panel; the disc steps one further in.
+ */
 export const VERDICT_TONE: Record<
   TowerMatchVerdict,
   { fill: string; disc: string; glyph: MaterialSymbolName }
@@ -85,18 +89,18 @@ export const VERDICT_TONE: Record<
     glyph: "warning",
   },
   unverified: {
-    fill: "bg-surface-container-high text-on-surface",
-    disc: "bg-surface text-on-surface-variant",
+    fill: "bg-surface-container text-on-surface",
+    disc: "bg-surface-container-high text-on-surface-variant",
     glyph: "help",
   },
   unlocked: {
-    fill: "bg-surface-container-high text-on-surface",
-    disc: "bg-surface text-on-surface-variant",
+    fill: "bg-surface-container text-on-surface",
+    disc: "bg-surface-container-high text-on-surface-variant",
     glyph: "lock_open",
   },
   unknown: {
-    fill: "bg-surface-container-high text-on-surface",
-    disc: "bg-surface text-on-surface-variant",
+    fill: "bg-surface-container text-on-surface",
+    disc: "bg-surface-container-high text-on-surface-variant",
     glyph: "visibility_off",
   },
 };
