@@ -108,6 +108,7 @@
   "no_bands": "没有可用或提供的频段",
   "no_body": "请求体为空",
   "no_cells": "没有可用的服务小区",
+  "invalid_command": "不是 AT 命令。请以 AT 开头，例如 AT+CSQ",
   "no_command": "缺少命令字段",
   "no_days": "未为计划选择任何日期",
   "no_default": "未配置默认 DNS",

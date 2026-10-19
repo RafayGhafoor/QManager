@@ -8,6 +8,8 @@ pub enum Code {
     ScanInProgress,
     CommandTimeout,
     CommandFailed,
+    /// Not an AT command: refused before it reaches the modem.
+    InvalidCommand,
 }
 
 impl Code {
@@ -18,6 +20,7 @@ impl Code {
             Code::ScanInProgress => "scan_in_progress",
             Code::CommandTimeout => "command_timeout",
             Code::CommandFailed => "command_failed",
+            Code::InvalidCommand => "invalid_command",
         }
     }
 
@@ -28,6 +31,7 @@ impl Code {
             "scan_in_progress" => Code::ScanInProgress,
             "command_timeout" => Code::CommandTimeout,
             "command_failed" => Code::CommandFailed,
+            "invalid_command" => Code::InvalidCommand,
             _ => return None,
         })
     }
@@ -112,6 +116,7 @@ mod tests {
             Code::ScanInProgress,
             Code::CommandTimeout,
             Code::CommandFailed,
+            Code::InvalidCommand,
         ] {
             assert_eq!(Code::parse(c.as_str()), Some(c));
         }

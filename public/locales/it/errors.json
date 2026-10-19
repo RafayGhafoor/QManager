@@ -108,6 +108,7 @@
   "no_bands": "Nessuna banda disponibile o fornita",
   "no_body": "Il corpo della richiesta è vuoto",
   "no_cells": "Nessuna cella di servizio disponibile",
+  "invalid_command": "Non è un comando AT. Inizia la riga con AT, per esempio AT+CSQ",
   "no_command": "Manca il campo di comando",
   "no_days": "Nessun giorno selezionato per la pianificazione",
   "no_default": "Non è configurato alcun DNS predefinito",

@@ -49,7 +49,11 @@ crate's unit tests:
   - rc 0 means a reply arrived.
   - **AT `ERROR` is rc 0** with `ERROR` in stdout, not a failure.
   - rc 1 with `ERROR: <code>` on stderr (raw mode) means one of: `modem_busy`,
-    `modem_not_ready`, `scan_in_progress`, `command_timeout`, `command_failed`.
+    `modem_not_ready`, `scan_in_progress`, `command_timeout`, `command_failed`,
+    `invalid_command`. A new code keeps rc 1, because callers such as
+    `at_cmd/reconnect_modem.sh` test `-eq 1`; callers that need the reason read
+    the stderr code (`qmanager_poller` `qcmd_exec`, `qmanager_health_check`,
+    `qmanager_neighbour_scanner`, `cellular/sms.sh`).
   - The broker's mapping: lock budget spent (including time queued in the
     broker) is `modem_busy`; the channel lost or reset under a command (EOF,
     `ECONNRESET`, `ENETRESET`, `EBUSY`, `EPIPE`, … — `channel::is_reset`, what an
@@ -58,6 +62,20 @@ crate's unit tests:
   - A closed stdout never crashes the client: write errors are ignored like
     the shell's `echo`, and the exit code still reports the AT result.
   - No argument: the legacy `no_command` JSON on stderr, rc 1.
+- **Only AT commands are sent** (2026-10-19). `classify::is_at_command`: an
+  `AT` prefix in any case and no control characters (bytes below 0x20, or
+  0x7F). Anything else answers `invalid_command` at once and never takes the
+  modem lock. The client checks before the long-flag gate and the socket, and
+  `Executor::run_after` checks again (the socket is the trust boundary, and the
+  in-process fallback runs the same path). `A/` (repeat last) is not accepted:
+  nothing uses it. qcmd knows only `-j`, so an unknown flag such as `--bogus`
+  used to go to the modem as text. The modem never answers a line that does
+  not start with AT, so each such call held the lock for the full 20 s
+  `SHORT_DEADLINE`, and every other caller failed `modem_busy` (seen live: three
+  `qcmd --bogus` calls made the poller log a false `signal_lost`). An embedded
+  CR or LF is refused for the same reason: the channel appends CR LF, so it
+  would put a second, unanswered line on the wire. `qsms` has its own argument
+  parser and fixed commands, so it is unaffected.
 - **Long-command behaviour:**
   - Commands classed long (QSCAN, QSCANFREQ, QFOTADL, COPS=0, COPS=2, plus
     `/etc/qmanager/long_commands.list`) set `/tmp/qmanager_long_running` and
