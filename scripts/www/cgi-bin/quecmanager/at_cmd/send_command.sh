@@ -38,6 +38,19 @@ fi
 
 qlog_info "Terminal command: ${COMMAND}"
 
+# --- Reject anything that isn't an AT command ---------------------------------
+# The modem never answers a line that doesn't start with AT, so sending one
+# would hold the modem for the full deadline and block every other caller.
+# qcmd refuses it too (invalid_command); this gives the terminal a plain reason.
+case "$COMMAND" in
+    [Aa][Tt]*) ;;
+    *)
+        qlog_warn "Terminal rejected non-AT input"
+        cgi_error "invalid_command" "Only AT commands can be sent here. Start the line with AT, for example AT+CSQ."
+        exit 0
+        ;;
+esac
+
 # --- Safety check: Block long commands from the raw terminal ------------------
 case "$COMMAND" in
     *QSCAN*|*QSCANFREQ*)

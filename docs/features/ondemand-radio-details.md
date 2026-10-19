@@ -11,6 +11,7 @@ Layer-1-adjacent and data-plane AT reads (MIMO layers, timing advance, APN/DNS, 
 | CGI endpoint | `GET /cgi-bin/quecmanager/cellular/radio_details.sh` |
 | Lib | `/usr/lib/qmanager/ondemand_radio.sh` |
 | On-demand cache | `/tmp/qmanager_ondemand.json` (+ `.tmp` for atomic write) |
+| Poller sidecar | `/var/run/qmanager/ondemand.env` (see [Sidecar](#sidecar-ondemandenv)) |
 | Hook | `hooks/use-radio-details.ts` · `useRadioDetails()` |
 | Types | `RadioDetails`, `RadioDetailsResponse`, `RadioDetailsErrorResponse` in `types/modem-status.ts` |
 | Poll interval (frontend) | 7 s while page is mounted; stops on unmount |
@@ -153,13 +154,22 @@ The cache file does not exist until the first successful `ondemand_radio_fetch()
 
 The cache is **not cleared on reboot** (lives in `/tmp/`, which is RAM — cleared on power cycle, not daemon restart). A hotplug restart of `qmanager_poller` will find a still-valid cache if the file exists, and `load_ondemand_cache()` in `boot_cmd` loads it so the first `write_cache()` emits the prior values rather than blanks.
 
+### Sidecar: `ondemand.env`
+
+`_ondemand_write_cache` also calls `_ondemand_write_env` right after the JSON `mv` (B5.29 Phase C), writing `/var/run/qmanager/ondemand.env`: the twelve values `load_ondemand_cache` extracts, as single-quoted shell assignments (`t2_mimo`, `lte_ta`, `nr_ta`, `t2_apn`, `t2_wan_ipv4`, `t2_wan_ipv6`, `t2_primary_dns`, `t2_secondary_dns`, `t2_primary_dns_v4`, `t2_primary_dns_v6`, `t2_secondary_dns_v4`, `t2_secondary_dns_v6`), ending with `qm_sidecar_end='1'`. It is written to `ondemand.env.new` and renamed. The JSON cache keeps its path and schema; the CGI and every non-poller caller still read the JSON.
+
+- **Only the poller reads it** (`load_ondemand_cache_gated` through `_od_env_source`). The file is used only if the JSON is not newer than it and every line passes the single-quoted-assignment check, so a half-written or stale sidecar is never sourced (a syntax error in a dot-sourced file aborts the whole script under BusyBox).
+- **Why it exists:** the old read was one `jq` plus twelve `printf | sed` pipelines whenever the cache changed, and the forced re-read every 15 cycles; the sidecar replaces that with one builtin read.
+- **Best effort.** A failed write leaves the previous sidecar or none; the next poller read then takes the JSON path.
+- **Lifecycle.** `init.d/qmanager` `stop_service` removes `ondemand.env` and `ondemand.env.new`.
+
 ---
 
 ## Poller Integration
 
 `qmanager_poller` no longer issues any of the relocated AT commands. The relevant reads have been removed from both the `boot_cmd` block and `poll_tier2()`.
 
-`write_cache()` calls `load_ondemand_cache()` before building the `status.json` payload. This means `.device.mimo`, `.lte.ta`, `.nr.ta`, `.device.apn`, `.device.wan_ipv4`, `.device.wan_ipv6`, and the DNS fields in `status.json` always reflect the last-known on-demand values — never blank just because the page is closed.
+`write_cache()` calls `load_ondemand_cache_gated()` before building the `status.json` payload. The poller first sources the `ondemand.env` sidecar (below), which costs no forks and is read every cycle. Only when the sidecar is missing, older than the JSON or incomplete does it fall back to parsing the JSON, and then only when the JSON changed (newer than `/var/run/qmanager/ondemand.stamp`), plus a forced re-read every 15 cycles; every other caller still calls `load_ondemand_cache()` and always re-reads. This means `.device.mimo`, `.lte.ta`, `.nr.ta`, `.device.apn`, `.device.wan_ipv4`, `.device.wan_ipv6`, and the DNS fields in `status.json` always reflect the last-known on-demand values — never blank just because the page is closed.
 
 **Consumers must not require these fields to be live** while the UI is idle. The expected contract is: live while the page is mounted (via `useRadioDetails`), last-known while the page is closed (via `status.json`).
 

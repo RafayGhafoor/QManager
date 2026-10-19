@@ -1,0 +1,2 @@
+AT+QCAINFO
++CME ERROR: 3

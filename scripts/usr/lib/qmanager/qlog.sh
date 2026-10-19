@@ -39,6 +39,7 @@ QLOG_TO_STDOUT="${QLOG_TO_STDOUT:-0}"
 # Internal state
 _QLOG_COMPONENT=""
 _QLOG_INITIALIZED=0
+_QLOG_WRITES=0
 
 # --- Level Constants ---------------------------------------------------------
 _QLOG_LVL_DEBUG=0
@@ -118,11 +119,21 @@ _qlog_write() {
     local level="$1"
     local message="$2"
 
-    # Check if this level should be logged
+    # Check if this level should be logged (inline case: no $( ) subshell forks)
     local msg_level_num
-    msg_level_num=$(_qlog_level_num "$level")
     local cfg_level_num
-    cfg_level_num=$(_qlog_level_num "$QLOG_LEVEL")
+    case "$level" in
+        DEBUG) msg_level_num=$_QLOG_LVL_DEBUG ;;
+        WARN)  msg_level_num=$_QLOG_LVL_WARN ;;
+        ERROR) msg_level_num=$_QLOG_LVL_ERROR ;;
+        *)     msg_level_num=$_QLOG_LVL_INFO ;;
+    esac
+    case "$QLOG_LEVEL" in
+        DEBUG) cfg_level_num=$_QLOG_LVL_DEBUG ;;
+        WARN)  cfg_level_num=$_QLOG_LVL_WARN ;;
+        ERROR) cfg_level_num=$_QLOG_LVL_ERROR ;;
+        *)     cfg_level_num=$_QLOG_LVL_INFO ;;
+    esac
 
     if [ "$msg_level_num" -lt "$cfg_level_num" ] 2>/dev/null; then
         return
@@ -146,8 +157,13 @@ _qlog_write() {
     # Format: [TIMESTAMP] LEVEL [COMPONENT:PID] Message
     local line="[${ts}] ${padded_level} [${_QLOG_COMPONENT}:$$] ${message}"
 
-    # Write to file (with rotation check)
-    _qlog_rotate
+    # Write to file. The rotation check (a `wc` fork) runs on a process's first
+    # write and then every 16th; long-lived daemons overshoot the size cap by
+    # at most 15 lines, short-lived callers still check once.
+    _QLOG_WRITES=$((_QLOG_WRITES + 1))
+    if [ "$_QLOG_WRITES" -eq 1 ] || [ $((_QLOG_WRITES % 16)) -eq 0 ]; then
+        _qlog_rotate
+    fi
     echo "$line" >> "$QLOG_FILE" 2>/dev/null
 
     # Optionally write to syslog
@@ -256,10 +272,26 @@ qlog_state_change() {
 # =============================================================================
 mono_now() {
     local _up
-    _up=$(cut -d' ' -f1 /proc/uptime 2>/dev/null | cut -d. -f1)
+    local _idle
+    { read -r _up _idle < /proc/uptime; } 2>/dev/null
+    _up="${_up%%.*}"
     case "$_up" in
         ''|*[!0-9]*) echo 0 ;;
         *)           echo "$_up" ;;
+    esac
+}
+
+# mono_now_set: same value as mono_now, but into the global _MONO instead of
+# stdout, so a caller that is not in a $( ) pays no subshell fork. 0 on any
+# parse failure, exactly like mono_now.
+_MONO=0
+mono_now_set() {
+    local _idle
+    _MONO=""
+    { read -r _MONO _idle < /proc/uptime; } 2>/dev/null
+    _MONO="${_MONO%%.*}"
+    case "$_MONO" in
+        ''|*[!0-9]*) _MONO=0 ;;
     esac
 }
 

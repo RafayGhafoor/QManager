@@ -1,0 +1,8 @@
+AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?
++COPS:0,0,"NoSpace",7
+
++QUIMSLOT: 1
+
++CPIN: READY
+
+OK

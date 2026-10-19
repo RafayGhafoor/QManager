@@ -1,0 +1,4 @@
+AT+CIMI;+QCCID
++QCCID:8963
+
+OK

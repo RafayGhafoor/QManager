@@ -137,6 +137,109 @@ EOF
     return 0
 }
 
+# ---------------------------------------------------------------------------
+# Sidecar reader (B5.29 Phase C). qmanager_ping also writes the 13 raw fields
+# conn_state_read extracts with jq to /var/run/qmanager/ping.env (shell
+# assignments, tmp + mv, written after ping.json). The poller reads that with
+# builtins instead of forking jq every cycle. conn_state_read above is
+# unchanged and stays the watchcat's reader.
+# ---------------------------------------------------------------------------
+CQ_PING_ENV="${CQ_PING_ENV:-/var/run/qmanager/ping.env}"
+
+# cq_env_source <file>: source a sidecar only if it is complete and plain.
+# Every line must be a single-quoted assignment and the last must be the end
+# marker. A BusyBox syntax error in a dot-sourced file aborts the whole script,
+# so anything else returns 1 without sourcing.
+cq_env_source() {
+    _ces_last=""
+    _ces_bad=0
+    [ -f "$1" ] || return 1
+    {
+        while IFS= read -r _ces_l; do
+            case "$_ces_l" in
+                [A-Za-z_]*=\'*\') ;;
+                *) _ces_bad=1 ;;
+            esac
+            _ces_last="$_ces_l"
+        done < "$1"
+    } 2>/dev/null
+    [ "$_ces_bad" = "0" ] || return 1
+    [ "$_ces_last" = "qm_sidecar_end='1'" ] || return 1
+    . "$1"
+}
+
+# conn_state_read_env: conn_state_read from the sidecar. Same contract and same
+# CQ_* results; returns 2 (nothing read, nothing changed) when the sidecar is
+# absent, older than ping.json (upgrade window, daemon not restarted, failed
+# write) or incomplete, so the caller falls back to conn_state_read. The
+# evaluation below must stay in lockstep with conn_state_read.
+conn_state_read_env() {
+    [ -f "$CQ_PING_CACHE" ] || return 2
+    [ -f "$CQ_PING_ENV" ] || return 2
+    [ "$CQ_PING_CACHE" -nt "$CQ_PING_ENV" ] && return 2
+    _cq_ts=""; _cq_mono=""; _cq_reach=""; _cq_rtt=""; _cq_ss=""; _cq_sf=""
+    _cq_dr=""; _cq_iv=""; _cq_fs=""; _cq_rs=""; _cq_prof=""; _cq_fam=""; _cq_tgt=""
+    cq_env_source "$CQ_PING_ENV" || return 2
+    _cq_reset
+
+    case "$_cq_ts" in
+        ''|*[!0-9]*)
+            CQ_STALE_REASON="no timestamp"
+            return 1
+            ;;
+    esac
+
+    case "$_cq_iv" in ''|*[!0-9]*) _cq_iv=5 ;; esac
+    if [ "$_cq_iv" -lt 1 ] || [ "$_cq_iv" -gt 300 ]; then
+        _cq_iv=5
+    fi
+    CQ_INTERVAL_SEC="$_cq_iv"
+    CQ_STALE_THRESHOLD=$((3 * _cq_iv))
+    [ "$CQ_STALE_THRESHOLD" -lt 15 ] && CQ_STALE_THRESHOLD=15
+
+    _cq_age=""
+    case "$_cq_mono" in
+        ''|*[!0-9]*|0) ;;
+        *)
+            _cq_up=""
+            { read -r _cq_up _cq_idle < /proc/uptime; } 2>/dev/null
+            _cq_up="${_cq_up%%.*}"
+            case "$_cq_up" in
+                ''|*[!0-9]*) ;;
+                *)
+                    CQ_MONO="$_cq_mono"
+                    _cq_age=$((_cq_up - _cq_mono))
+                    if [ "$_cq_age" -lt 0 ]; then
+                        CQ_AGE_SEC="$_cq_age"
+                        CQ_STALE_REASON="mono ahead of uptime"
+                        return 1
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
+    [ -z "$_cq_age" ] && _cq_age=$(( $(date +%s) - _cq_ts ))
+    CQ_AGE_SEC="$_cq_age"
+    if [ "$_cq_age" -gt "$CQ_STALE_THRESHOLD" ]; then
+        CQ_STALE_REASON="age ${_cq_age}s > ${CQ_STALE_THRESHOLD}s"
+        return 1
+    fi
+
+    CQ_STALE=0
+    CQ_TIMESTAMP="$_cq_ts"
+    case "$_cq_reach" in true|false) CQ_REACHABLE="$_cq_reach" ;; esac
+    case "$_cq_rtt" in ''|-|*[!0-9.]*) ;; *) CQ_RTT_MS="$_cq_rtt" ;; esac
+    case "$_cq_ss" in ''|*[!0-9]*) ;; *) CQ_STREAK_SUCCESS="$_cq_ss" ;; esac
+    case "$_cq_sf" in ''|*[!0-9]*) ;; *) CQ_STREAK_FAIL="$_cq_sf" ;; esac
+    [ "$_cq_dr" = "true" ] && CQ_DURING_RECOVERY="true"
+    case "$_cq_fs" in ''|*[!0-9]*) ;; *) CQ_FAIL_SECS="$_cq_fs" ;; esac
+    case "$_cq_rs" in ''|*[!0-9]*) ;; *) CQ_RECOVER_SECS="$_cq_rs" ;; esac
+    [ "$_cq_prof" != "-" ] && CQ_PROFILE="$_cq_prof"
+    [ "$_cq_fam" != "-" ] && CQ_LAST_FAMILY="$_cq_fam"
+    [ "$_cq_tgt" != "-" ] && CQ_TARGET="$_cq_tgt"
+    return 0
+}
+
 conn_state_why() {
     printf '%s' "${CQ_STALE_REASON:-unknown}"
 }

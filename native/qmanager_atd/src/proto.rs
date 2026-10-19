@@ -21,8 +21,48 @@
 //! JSON envelope and whether it is a success; or `ERR <code>\n` as above.
 
 use crate::output::Code;
+use std::io::Write;
+use std::os::unix::fs::OpenOptionsExt;
 
 pub const SOCKET_PATH: &str = "/var/run/qmanager_atd.sock";
+
+/// Capability file, written by the daemon after it binds the socket and
+/// removed by `init.d/qmanager_atd` stop. Scripts read it with a builtin
+/// `read` instead of running the binary: an older `qmanager_atd` given any
+/// argument starts a second daemon, and an older `qcmd` sends unknown flags to
+/// the modem as a command.
+pub const PROTO_PATH: &str = "/var/run/qmanager_atd.proto";
+
+/// What the running broker and its `qcmd` understand.
+/// 1: `REQ` / `SMS` (v0.1.32, no capability file).
+/// 2: `qcmd -t <ms>` / `QCMD_WAIT_MS` client wait cap, `--version`.
+pub const PROTO_VERSION: u32 = 2;
+
+pub fn version_line() -> String {
+    format!("qmanager_atd {} proto={}", env!("CARGO_PKG_VERSION"), PROTO_VERSION)
+}
+
+/// Writes the capability file as `<path>.new` (O_EXCL + O_NOFOLLOW, so a
+/// planted link is never followed) and renames it over `path`.
+pub fn write_proto_file(path: &str) -> std::io::Result<()> {
+    let tmp = format!("{path}.new");
+    // A leftover (or planted) tmp is removed, not followed: unlink acts on a
+    // symlink itself.
+    let _ = std::fs::remove_file(&tmp);
+    let body = format!("proto={}\nversion={}\n", PROTO_VERSION, env!("CARGO_PKG_VERSION"));
+    let written = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o644)
+        .custom_flags(crate::safefs::NOFOLLOW)
+        .open(&tmp)
+        .and_then(|mut f| f.write_all(body.as_bytes()));
+    if let Err(e) = written {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    std::fs::rename(&tmp, path)
+}
 
 pub enum Reply {
     Ok(Vec<u8>),
@@ -228,6 +268,35 @@ mod tests {
         }
         assert!(decode_reply(b"RES 2 0\n").is_none());
         assert!(decode_reply(b"RES 0 5\nab").is_none());
+    }
+
+    #[test]
+    fn proto_file_is_replaced_and_never_follows_a_planted_link() {
+        let dir = std::env::temp_dir().join(format!("qm_proto_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("p.proto");
+        let p = path.to_str().unwrap();
+        std::fs::write(&path, "stale\n").unwrap();
+        // A link planted at the tmp name must not redirect the write.
+        let victim = dir.join("victim");
+        std::fs::write(&victim, "keep\n").unwrap();
+        std::os::unix::fs::symlink(&victim, dir.join("p.proto.new")).unwrap();
+        write_proto_file(p).unwrap();
+        let got = std::fs::read_to_string(&path).unwrap();
+        assert!(got.starts_with(&format!("proto={PROTO_VERSION}\nversion=")), "{got:?}");
+        assert_eq!(std::fs::read_to_string(&victim).unwrap(), "keep\n");
+        assert!(!dir.join("p.proto.new").exists());
+        // Rewriting is idempotent.
+        write_proto_file(p).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), got);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn version_line_names_the_protocol() {
+        assert!(version_line().starts_with("qmanager_atd "));
+        assert!(version_line().ends_with(&format!(" proto={PROTO_VERSION}")));
     }
 
     #[test]

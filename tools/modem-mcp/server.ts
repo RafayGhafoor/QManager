@@ -444,8 +444,9 @@ server.registerTool(
   "modem_write",
   {
     description:
-      "Write a file on the modem by streaming content into `cat > path` (no SFTP/base64 needed). CRLF is stripped, mode applied (default 644, or 755 for .sh), " +
-      "and .sh files are checked with `sh -n`. Returns {path, bytes, mode, syntax_ok, syntax_error}.",
+      "Write a file on the modem crash-safely: content is streamed into a temp file beside the target (no SFTP/base64 needed), CRLF stripped, mode applied " +
+      "(default 644, or 755 for .sh), size and (for .sh) `sh -n` checked, then synced and renamed over the target. A failed check leaves the target untouched. " +
+      "Returns {path, bytes, expected_bytes, mode, syntax_ok, syntax_error, replaced}.",
     inputSchema: {
       path: z.string().min(1).regex(/^\//, "absolute path required"),
       content: z.string(),
@@ -460,23 +461,42 @@ server.registerTool(
     const rule = isSh ? denied(body) : null;
     if (rule && !confirm) return refusal(rule);
     const m = mode ?? (isSh ? "755" : "644");
+    const expected = Buffer.byteLength(body);
     const p = sq(path);
     const parent = sq(path.replace(/\/[^/]*$/, "") || "/");
+    // Crash-safe replace: the modem's /usr, /www and /etc sit on UBIFS with a
+    // 30 s dirty_expire, and a plain `cat > target` followed by a daemon
+    // restart and an AP hang has left files 0 bytes. So stream into a temp
+    // file beside the target, check size (+ `sh -n`), sync, rename over the
+    // target, sync. A failed check leaves the target untouched. A symlinked
+    // target is resolved so the link itself survives, as with `cat >`.
     const cmd =
-      `${mkdir ? `mkdir -p ${parent} && ` : ""}cat > ${p} && chmod ${m} ${p} && wc -c < ${p}` +
-      (isSh ? ` && { sh -n ${p} 2>&1 && echo SYNTAX_OK || echo SYNTAX_FAIL; }` : "");
+      `${mkdir ? `mkdir -p ${parent} && ` : ""}` +
+      `if [ -L ${p} ]; then d=$(readlink -f ${p}); else d=${p}; fi; t="$d.tmp.$$"; ` +
+      `{ cat > "$t" && chmod ${m} "$t"; } || { rm -f "$t"; exit 1; }; ` +
+      `n=$(wc -c < "$t" | tr -d ' '); echo "$n"; ` +
+      `if [ "$n" != "${expected}" ]; then rm -f "$t"; echo NOT_REPLACED; exit 0; fi; ` +
+      (isSh
+        ? `if sh -n "$t" 2>&1; then echo SYNTAX_OK; else echo SYNTAX_FAIL; rm -f "$t"; echo NOT_REPLACED; exit 0; fi; `
+        : "") +
+      `{ sync && mv -f "$t" "$d" && sync; } || { rm -f "$t"; exit 1; }; echo REPLACED`;
     try {
       const r = await run(cmd, 60, body, extra.signal);
       if (r.exit_code !== 0) return json(r, true);
       const lines = r.stdout.trimEnd().split("\n");
       const bytes = Number(lines[0]);
-      const res: Record<string, unknown> = { path, bytes, expected_bytes: Buffer.byteLength(body), mode: m };
+      const res: Record<string, unknown> = { path, bytes, expected_bytes: expected, mode: m };
       if (isSh) {
-        const last = lines[lines.length - 1];
-        res.syntax_ok = last === "SYNTAX_OK";
-        if (!res.syntax_ok) res.syntax_error = lines.slice(1, -1).join("\n");
+        const at = lines.findIndex((l) => l === "SYNTAX_OK" || l === "SYNTAX_FAIL");
+        res.syntax_ok = at >= 0 && lines[at] === "SYNTAX_OK";
+        if (!res.syntax_ok)
+          res.syntax_error =
+            at >= 0
+              ? lines.slice(1, at).join("\n").replace(/\.tmp\.\d+/g, "")
+              : "not checked (size mismatch)";
       }
-      return json(res, bytes !== res.expected_bytes || res.syntax_ok === false);
+      res.replaced = lines[lines.length - 1] === "REPLACED";
+      return json(res, !res.replaced);
     } catch (e) { return fail(e); }
   },
 );

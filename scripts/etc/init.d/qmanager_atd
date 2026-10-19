@@ -46,6 +46,10 @@ stop_service() {
     # A stale socket is harmless (clients get ECONNREFUSED and fall back), but
     # remove it so status checks read true.
     rm -f /var/run/qmanager_atd.sock
+    # Capability file (proto=N): written by the daemon after it binds. Removed
+    # here so a rolled-back binary, which never writes it, is not credited
+    # with a protocol it does not speak.
+    rm -f /var/run/qmanager_atd.proto /var/run/qmanager_atd.proto.new
 }
 
 # No reload trigger on purpose: many CGIs commit the quecmanager config, and

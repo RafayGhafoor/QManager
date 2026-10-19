@@ -1,0 +1,5 @@
+AT+QCAINFO
++QCAINFO: "P`id`CC",9485,100,"LTE BAND 3;touch /tmp/pp_pwned;",1,135,-115,-12,-82,2
++QCAINFO: "SCC",1350,75,"LTE BAND 3'$(id)\n",1,135,-123,-16,-97,255,0,-,-
+
+OK

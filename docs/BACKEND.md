@@ -887,7 +887,13 @@ The installer copies QManager onto the device filesystem and starts services. It
 | `install_dir_flat(src, dst, mode)` | All files in a flat directory (e.g. `usr/bin/`) |
 | `install_tree(src, dst)` | Recursive directory tree (CGI endpoints) |
 
-`install_dir_flat` calls `install_file` per file and `die`s on the first failure. `install_tree` copies with `cp -r`, then runs its own integrity sweep (see below) before the CRLF strip.
+`install_dir_flat` stages every file (`stage_file`: copy to `<dst>.qm_install.$$`, size check, CRLF strip, chmod), flushes once, then renames them all into place (`commit_file`), and `die`s on the first failure. `install_file` does the same for one file. `install_tree` builds a fresh copy of the tree under `/usr/lib/.qmanager_stage/new.$$` (same overlay as `/www`, but outside the web root so nothing half-installed is executable over HTTP), runs its own integrity sweep (see below) and the CRLF strip there, flushes, then swaps it in for the live directory.
+
+### Crash-safe writes (`flush_storage`)
+
+`/usr`, `/www` and `/etc` all live on the UBIFS `/usrdata` volume, and its dirty pages reach flash only after `dirty_expire` (30 s). A rename alone is not durable: after an AP hang or power loss the rename can survive while the new file's data did not, leaving a 0-byte file. On 2026-10-19 a dev deploy copied 8 poller files, restarted the poller without `sync`, the AP hung about 30 s later, and the power cycle left all 8 files 0 bytes.
+
+So the installer runs `flush_storage` (a logged `sync`) between staging and renaming every file or tree, once more after `seed_uci_defaults` and before any service is enabled or started, once after `finalize_version` (this also covers frontend-only installs), and in `reboot_system` before rebooting. A crash at any point then leaves the old file or the new one, never an empty one. `qmanager_update` syncs before each of its reboots, and `uninstall.sh` syncs after removing files and before rebooting. The `tools/modem-mcp` `modem_write` dev tool follows the same pattern: temp file beside the target, size and `sh -n` check, `sync`, `mv`, `sync`.
 
 ### Truncation-integrity check
 

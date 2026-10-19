@@ -1,0 +1,3 @@
+AT+QENG="servingcell"
+
+OK

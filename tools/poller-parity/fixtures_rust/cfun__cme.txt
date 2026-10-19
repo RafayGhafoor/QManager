@@ -1,0 +1,2 @@
+AT+CFUN?
++CME ERROR: 13

@@ -12,10 +12,96 @@
 [ -n "$_PARSE_AT_LOADED" ] && return 0
 _PARSE_AT_LOADED=1
 
+# --- Fork-free parsing primitives ---------------------------------------------
+# The poller runs these parsers every cycle; each $(...) / pipe used to cost a
+# fork (2-8 ms on this CPU). Everything below is builtins only. Results come back
+# through globals instead of command substitution:
+#   _R      result of the *_g helpers
+#   _S      working string of the _pat_* string helpers
+#   _F1-17  fields written by _pat_split
+# The old echo-style helper names are kept below as thin wrappers.
+_PA_NL='
+'
+_PA_CR=$(printf '\r')
+
+# Remove every occurrence of the literal "$1" from _S, left to right and
+# non-overlapping (== sed "s/$1//g" for a literal pattern). $1 must be non-empty.
+_pat_del() {
+    local rest="$_S"
+    local out=""
+    while :; do
+        case $rest in
+            *"$1"*)
+                out=$out${rest%%"$1"*}
+                rest=${rest#*"$1"}
+                ;;
+            *) break ;;
+        esac
+    done
+    _S=$out$rest
+}
+
+# Split _S on commas into _F1.._F17 with `cut -d, -fN` semantics: a line with no
+# comma yields the whole line for every N; fields past the end (including a
+# dropped trailing empty field) are empty. Globbing is off and IFS is restored.
+_pat_split() {
+    local oifs=""
+    local ifs_set=0
+    local noglob=0
+    case ${IFS+s} in s) oifs=$IFS ; ifs_set=1 ;; esac
+    case $- in *f*) noglob=1 ;; esac
+    case $_S in
+        *,*) ;;
+        *) _S=$_S,$_S,$_S,$_S,$_S,$_S,$_S,$_S,$_S,$_S,$_S,$_S,$_S,$_S,$_S,$_S,$_S,$_S ;;
+    esac
+    IFS=,
+    set -f
+    set -- $_S
+    if [ "$ifs_set" = 1 ]; then IFS=$oifs; else unset IFS; fi
+    [ "$noglob" = 1 ] || set +f
+    _F1=$1 ; _F2=$2 ; _F3=$3 ; _F4=$4 ; _F5=$5 ; _F6=$6 ; _F7=$7 ; _F8=$8 ; _F9=$9
+    _F10=${10} ; _F11=${11} ; _F12=${12} ; _F13=${13} ; _F14=${14} ; _F15=${15}
+    _F16=${16} ; _F17=${17}
+}
+
+# Sets _pat_line to the first line of $1 containing the literal $2 (else "").
+_pat_first_line() {
+    local rest="$1"
+    local line
+    local more=1
+    _pat_line=""
+    while [ "$more" = 1 ]; do
+        case $rest in
+            *"$_PA_NL"*)
+                line=${rest%%"$_PA_NL"*}
+                rest=${rest#*"$_PA_NL"}
+                ;;
+            *)
+                line=$rest
+                rest=""
+                more=0
+                ;;
+        esac
+        case $line in
+            *"$2"*) _pat_line=$line ; return 0 ;;
+        esac
+    done
+    return 0
+}
+
 # --- Sentinel Value Mapping ---------------------------------------------------
 # Maps Quectel sentinel values to JSON null for inactive/unavailable antennas.
-# NOTE: _sig_val and _antenna_to_json_array use printf for performance — these
-# run 3+ times per poll cycle and only handle integers/null (no string escaping).
+# Global-setting variant (hot path): sets _R. Values made only of digits and '-'
+# are passed through directly; anything else goes through the original echo
+# helper so exotic text is reproduced byte for byte.
+_sig_val_g() {
+    case "$1" in
+        -32768|"") _R="null" ;;
+        *[!0-9-]*) _R=$(_sig_val "$1") ;;
+        *) _R="$1" ;;
+    esac
+}
+
 _sig_val() {
     case "$1" in
         -32768|"") echo "null" ;;
@@ -24,31 +110,79 @@ _sig_val() {
 }
 
 # Convert 4 antenna values to a JSON array string with sentinel mapping.
+# Usage: _antenna_to_json_array_g val0 val1 val2 val3   -> _R="[-95,-97,null,null]"
+_antenna_to_json_array_g() {
+    local a
+    local b
+    local c
+    _sig_val_g "$1" ; a=$_R
+    _sig_val_g "$2" ; b=$_R
+    _sig_val_g "$3" ; c=$_R
+    _sig_val_g "$4"
+    _R="[$a,$b,$c,$_R]"
+}
+
 # Usage: _antenna_to_json_array val0 val1 val2 val3
 # Output: "[-95,-97,null,null]"
 _antenna_to_json_array() {
-    printf '[%s,%s,%s,%s]' "$(_sig_val "$1")" "$(_sig_val "$2")" "$(_sig_val "$3")" "$(_sig_val "$4")"
+    _antenna_to_json_array_g "$1" "$2" "$3" "$4"
+    printf '%s' "$_R"
 }
 
 # Parse a single response line from AT+QRSRP/QRSRQ/QSINR into a JSON array.
 # Args: $1=response line (may be empty), $2=prefix (e.g. "QRSRP")
+# Global-setting variant: sets _R. The first "+<prefix>:" is removed (sed
+# non-global), then every space and CR, then the comma fields are read.
+_antenna_line_to_json_g() {
+    if [ -z "$1" ]; then
+        _R="[null,null,null,null]"
+        return 0
+    fi
+    local key="+$2:"
+    _S=$1
+    case $_S in
+        *"$key"*) _S=${_S%%"$key"*}${_S#*"$key"} ;;
+    esac
+    _pat_del ' '
+    _pat_del "$_PA_CR"
+    _pat_split
+    _antenna_to_json_array_g "$_F1" "$_F2" "$_F3" "$_F4"
+}
+
 # Output: JSON array string like "[-95,-97,null,null]" on stdout
 _antenna_line_to_json() {
-    local line="$1" prefix="$2"
-    if [ -z "$line" ]; then
+    if [ -z "$1" ]; then
         echo "[null,null,null,null]"
         return
     fi
-    local csv
-    csv=$(printf '%s' "$line" | sed "s/+${prefix}: *//" | tr -d ' \r')
-    _antenna_to_json_array \
-        "$(printf '%s' "$csv" | cut -d',' -f1)" \
-        "$(printf '%s' "$csv" | cut -d',' -f2)" \
-        "$(printf '%s' "$csv" | cut -d',' -f3)" \
-        "$(printf '%s' "$csv" | cut -d',' -f4)"
+    _antenna_line_to_json_g "$1" "$2"
+    printf '%s' "$_R"
 }
 
 # --- Hex-to-Decimal Cell ID Decomposition ------------------------------------
+# Global-setting hex -> decimal. Sets _R and mirrors the old `printf '%d' 0x...`
+# exactly: empty input -> _R="" rc 0; valid -> decimal rc 0; anything printf
+# rejected (non-hex chars, or a value above 0x7FFFFFFFFFFFFFFF) -> _R="0" rc 1.
+# The guard also keeps an invalid $((0x...)) from aborting the whole shell.
+_hex_to_dec_g() {
+    local h="$1"
+    local z
+    _R=""
+    [ -z "$h" ] && return 0
+    case $h in
+        *[!0-9A-Fa-f]*) _R=0 ; return 1 ;;
+    esac
+    z=${h%%[!0]*}
+    h=${h#"$z"}
+    case $h in
+        '') _R=0 ; return 0 ;;
+        ?????????????????*) _R=0 ; return 1 ;;
+        [89A-Fa-f]???????????????) _R=0 ; return 1 ;;
+    esac
+    _R=$((0x$h))
+    return 0
+}
+
 # Converts a hex cell ID to decimal and computes eNodeB/gNodeB ID + Sector ID.
 # LTE (28-bit ECI): eNodeB ID = cell_id >> 8,  Sector ID = cell_id & 0xFF
 # NR  (36-bit NCI): gNodeB ID = cell_id >> 14, Sector ID = cell_id & 0x3FFF
@@ -57,7 +191,8 @@ _antenna_line_to_json() {
 _compute_cell_parts() {
     _cid_dec="" ; _cid_enb="" ; _cid_sec=""
     [ -z "$1" ] && return
-    _cid_dec=$(printf '%d' "0x$1" 2>/dev/null) || { _cid_dec=""; return; }
+    _hex_to_dec_g "$1" || { _cid_dec=""; return 0; }
+    _cid_dec=$_R
     if [ "$2" = "nr" ]; then
         _cid_enb=$((_cid_dec / 16384))
         _cid_sec=$((_cid_dec % 16384))
@@ -67,22 +202,42 @@ _compute_cell_parts() {
     fi
 }
 
-# Converts a hex string (e.g. TAC) to decimal. Empty input → empty output.
+# Converts a hex string (e.g. TAC) to decimal. Empty input -> empty output.
 _hex_to_dec() {
+    local rc
     [ -z "$1" ] && return
-    printf '%d' "0x$1" 2>/dev/null
+    _hex_to_dec_g "$1"
+    rc=$?
+    printf '%s' "$_R"
+    return $rc
 }
 
 # --- SCS Enum to kHz Mapping --------------------------------------------------
-map_scs_to_khz() {
+map_scs_to_khz_g() {
     case "$1" in
-        0) echo 15 ;;
-        1) echo 30 ;;
-        2) echo 60 ;;
-        3) echo 120 ;;
-        4) echo 240 ;;
-        *) echo "" ;;
+        0) _R=15 ;;
+        1) _R=30 ;;
+        2) _R=60 ;;
+        3) _R=120 ;;
+        4) _R=240 ;;
+        *) _R="" ;;
     esac
+}
+
+map_scs_to_khz() {
+    map_scs_to_khz_g "$1"
+    echo "$_R"
+}
+
+# Builds the QENG csv in _S: every "+QENG: " removed (sed 's/+QENG: //g'), then
+# every '"' and ' '. $2=1 also removes CRs (tr -d '\r').
+_pat_qeng_csv() {
+    _S=$1
+    _pat_del '+QENG: '
+    _pat_del '"'
+    _pat_del ' '
+    if [ "$2" = 1 ]; then _pat_del "$_PA_CR"; fi
+    return 0
 }
 
 # -----------------------------------------------------------------------------
@@ -93,9 +248,25 @@ map_scs_to_khz() {
 #            nr_state, nr_band, nr_arfcn, nr_pci, nr_rsrp, nr_rsrq, nr_sinr,
 #            nr_scs, nr_cell_id, nr_enodeb_id, nr_sector_id, nr_tac,
 #            network_type, service_status
+#
+# One pass over the reply lines, no forks. Lines are only considered when they
+# start with "+QENG:". The first "servingcell" line, the first "NR5G-NSA" line
+# and the first "LTE" line without "servingcell" are remembered; a trailing CR
+# stays on a field unless the original pipeline stripped it (hex fields, and the
+# whole NSA NR line).
 # -----------------------------------------------------------------------------
 parse_serving_cell() {
-    local raw="$1"
+    local rest="$1"
+    local line
+    local more=1
+    local have_qeng=0
+    local sc_line=""
+    local lte_line=""
+    local nr_line=""
+    local has_nsa=0
+    local has_sa=0
+    local has_lte=0
+    local raw_hex
 
     # Reset all fields
     lte_state="unknown"
@@ -107,19 +278,55 @@ parse_serving_cell() {
     nr_rsrp="" ; nr_rsrq="" ; nr_sinr="" ; nr_scs=""
     nr_cell_id="" ; nr_enodeb_id="" ; nr_sector_id="" ; nr_tac=""
 
-    # Only keep +QENG: response lines (strip any residual echo/OK lines)
-    raw=$(printf '%s\n' "$raw" | grep '^+QENG:')
+    while [ "$more" = 1 ]; do
+        case $rest in
+            *"$_PA_NL"*)
+                line=${rest%%"$_PA_NL"*}
+                rest=${rest#*"$_PA_NL"}
+                ;;
+            *)
+                line=$rest
+                rest=""
+                more=0
+                ;;
+        esac
+        case $line in
+            '+QENG:'*)
+                have_qeng=1
+                case $line in
+                    *'"servingcell"'*)
+                        [ -z "$sc_line" ] && sc_line=$line
+                        ;;
+                esac
+                case $line in
+                    *'"NR5G-NSA"'*)
+                        has_nsa=1
+                        [ -z "$nr_line" ] && nr_line=$line
+                        ;;
+                esac
+                case $line in
+                    *'"NR5G-SA"'*) has_sa=1 ;;
+                esac
+                case $line in
+                    *'"LTE"'*)
+                        has_lte=1
+                        case $line in
+                            *'"servingcell"'*) ;;
+                            *) [ -z "$lte_line" ] && lte_line=$line ;;
+                        esac
+                        ;;
+                esac
+                ;;
+        esac
+    done
 
-    if [ -z "$raw" ]; then
+    if [ "$have_qeng" = 0 ]; then
         qlog_warn "parse_serving_cell: no +QENG: lines in response"
         service_status="unknown"
         return
     fi
 
     # --- Detect connection state ---
-    local sc_line
-    sc_line=$(printf '%s\n' "$raw" | grep '"servingcell"' | head -1)
-
     case "$sc_line" in
         *'"NOCONN"'*)  service_status="idle" ;;
         *'"LIMSRV"'*)  service_status="limited" ;;
@@ -127,137 +334,108 @@ parse_serving_cell() {
         *'"SEARCH"'*)  service_status="searching" ;;
     esac
 
-    # --- Determine mode ---
-    local has_nsa
-    local has_sa
-    local has_lte
-    has_nsa=$(printf '%s\n' "$raw" | grep -c '"NR5G-NSA"')
-    has_sa=$(printf '%s\n' "$raw" | grep -c '"NR5G-SA"')
-    has_lte=$(printf '%s\n' "$raw" | grep -c '"LTE"')
-
     # ===== EN-DC / NSA MODE =====
-    if [ "$has_nsa" -gt 0 ]; then
+    if [ "$has_nsa" = 1 ]; then
         network_type="5G-NSA"
 
         # LTE line (separate from "servingcell" line in EN-DC)
-        local lte_line
-        lte_line=$(printf '%s\n' "$raw" | grep '"LTE"' | grep -v '"servingcell"' | head -1)
-
         if [ -n "$lte_line" ]; then
             lte_state="connected"
-            local csv
-            csv=$(printf '%s' "$lte_line" | sed 's/+QENG: //g' | tr -d '"' | tr -d ' ')
+            _pat_qeng_csv "$lte_line" 0
+            _pat_split
 
             # LTE,is_tdd,MCC,MNC,cellID,PCID,earfcn,freq_band_ind,UL_bw,DL_bw,TAC,RSRP,RSRQ,RSSI,SINR
             # 1   2      3   4   5      6    7      8              9     10    11  12   13   14   15
-            local raw_hex
-            raw_hex=$(printf '%s' "$csv" | cut -d',' -f5 | tr -d '\r')
+            _S=$_F5 ; _pat_del "$_PA_CR" ; raw_hex=$_S
             _compute_cell_parts "$raw_hex"
             lte_cell_id="$_cid_dec" ; lte_enodeb_id="$_cid_enb" ; lte_sector_id="$_cid_sec"
-            lte_pci=$(printf '%s' "$csv" | cut -d',' -f6)
-            lte_earfcn=$(printf '%s' "$csv" | cut -d',' -f7)
-            local band_num
-            band_num=$(printf '%s' "$csv" | cut -d',' -f8)
-            lte_band="B${band_num}"
-            lte_bandwidth=$(printf '%s' "$csv" | cut -d',' -f10)
-            lte_tac=$(_hex_to_dec "$(printf '%s' "$csv" | cut -d',' -f11 | tr -d '\r')")
-            lte_rsrp=$(printf '%s' "$csv" | cut -d',' -f12)
-            lte_rsrq=$(printf '%s' "$csv" | cut -d',' -f13)
-            lte_rssi=$(printf '%s' "$csv" | cut -d',' -f14)
-            lte_sinr=$(printf '%s' "$csv" | cut -d',' -f15)
+            lte_pci=$_F6
+            lte_earfcn=$_F7
+            lte_band="B${_F8}"
+            lte_bandwidth=$_F10
+            _S=$_F11 ; _pat_del "$_PA_CR"
+            _hex_to_dec_g "$_S" ; lte_tac=$_R
+            lte_rsrp=$_F12
+            lte_rsrq=$_F13
+            lte_rssi=$_F14
+            lte_sinr=$_F15
         fi
 
         # NR5G-NSA line
-        local nr_line
-        nr_line=$(printf '%s\n' "$raw" | grep '"NR5G-NSA"' | head -1)
-
         if [ -n "$nr_line" ]; then
             nr_state="connected"
-            local csv
-            csv=$(printf '%s' "$nr_line" | sed 's/+QENG: //g' | tr -d '"' | tr -d ' ' | tr -d '\r')
+            _pat_qeng_csv "$nr_line" 1
+            _pat_split
 
             # NR5G-NSA,MCC,MNC,PCID,RSRP,SINR,RSRQ,ARFCN,band,NR_DL_bw,scs
             # 1        2   3   4    5    6    7    8     9    10        11
-            nr_pci=$(printf '%s' "$csv" | cut -d',' -f4)
-            nr_rsrp=$(printf '%s' "$csv" | cut -d',' -f5)
-            nr_sinr=$(printf '%s' "$csv" | cut -d',' -f6)
-            nr_rsrq=$(printf '%s' "$csv" | cut -d',' -f7)
-            nr_arfcn=$(printf '%s' "$csv" | cut -d',' -f8)
-            local nr_band_num
-            nr_band_num=$(printf '%s' "$csv" | cut -d',' -f9)
-            nr_band="N${nr_band_num}"
-            local nr_scs_raw
-            nr_scs_raw=$(printf '%s' "$csv" | cut -d',' -f11)
-            nr_scs=$(map_scs_to_khz "$nr_scs_raw")
+            nr_pci=$_F4
+            nr_rsrp=$_F5
+            nr_sinr=$_F6
+            nr_rsrq=$_F7
+            nr_arfcn=$_F8
+            nr_band="N${_F9}"
+            map_scs_to_khz_g "$_F11" ; nr_scs=$_R
         fi
 
     # ===== SA MODE =====
-    elif [ "$has_sa" -gt 0 ]; then
+    elif [ "$has_sa" = 1 ]; then
         network_type="5G-SA"
         lte_state="inactive"
         nr_state="connected"
 
-        local csv
-        csv=$(printf '%s' "$sc_line" | sed 's/+QENG: //g' | tr -d '"' | tr -d ' ')
+        _pat_qeng_csv "$sc_line" 0
+        _pat_split
 
         # servingcell,state,NR5G-SA,duplex,MCC,MNC,cellID,PCID,TAC,ARFCN,band,NR_DL_bw,RSRP,RSRQ,SINR,scs,srxlev
         # 1           2     3       4      5   6   7      8    9   10     11   12       13   14   15   16  17
-        local raw_hex
-        raw_hex=$(printf '%s' "$csv" | cut -d',' -f7 | tr -d '\r')
+        _S=$_F7 ; _pat_del "$_PA_CR" ; raw_hex=$_S
         _compute_cell_parts "$raw_hex" "nr"
         nr_cell_id="$_cid_dec" ; nr_enodeb_id="$_cid_enb" ; nr_sector_id="$_cid_sec"
-        nr_pci=$(printf '%s' "$csv" | cut -d',' -f8)
-        nr_tac=$(_hex_to_dec "$(printf '%s' "$csv" | cut -d',' -f9 | tr -d '\r')")
-        nr_arfcn=$(printf '%s' "$csv" | cut -d',' -f10)
-        local nr_band_num
-        nr_band_num=$(printf '%s' "$csv" | cut -d',' -f11)
-        nr_band="N${nr_band_num}"
-        nr_rsrp=$(printf '%s' "$csv" | cut -d',' -f13)
-        nr_rsrq=$(printf '%s' "$csv" | cut -d',' -f14)
-        nr_sinr=$(printf '%s' "$csv" | cut -d',' -f15)
-        local nr_scs_raw
-        nr_scs_raw=$(printf '%s' "$csv" | cut -d',' -f16)
-        nr_scs=$(map_scs_to_khz "$nr_scs_raw")
+        nr_pci=$_F8
+        _S=$_F9 ; _pat_del "$_PA_CR"
+        _hex_to_dec_g "$_S" ; nr_tac=$_R
+        nr_arfcn=$_F10
+        nr_band="N${_F11}"
+        nr_rsrp=$_F13
+        nr_rsrq=$_F14
+        nr_sinr=$_F15
+        map_scs_to_khz_g "$_F16" ; nr_scs=$_R
 
     # ===== LTE-ONLY MODE =====
-    elif [ "$has_lte" -gt 0 ]; then
+    elif [ "$has_lte" = 1 ]; then
         network_type="LTE"
         nr_state="inactive"
 
         # LTE-only: "LTE" on the SAME line as "servingcell"
-        local csv
-        csv=$(printf '%s' "$sc_line" | sed 's/+QENG: //g' | tr -d '"' | tr -d ' ')
+        _pat_qeng_csv "$sc_line" 0
 
-        case "$csv" in
+        case "$_S" in
             *SEARCH*)
                 lte_state="searching"
                 return
-                ;;
-            *NOCONN*)
-                lte_state="connected"
                 ;;
             *)
                 lte_state="connected"
                 ;;
         esac
+        _pat_split
 
         # servingcell,state,LTE,is_tdd,MCC,MNC,cellID,PCID,earfcn,freq_band_ind,UL_bw,DL_bw,TAC,RSRP,RSRQ,RSSI,SINR,...
         # 1           2     3   4      5   6   7      8    9      10             11    12    13  14   15   16   17
-        local raw_hex
-        raw_hex=$(printf '%s' "$csv" | cut -d',' -f7 | tr -d '\r')
+        _S=$_F7 ; _pat_del "$_PA_CR" ; raw_hex=$_S
         _compute_cell_parts "$raw_hex"
         lte_cell_id="$_cid_dec" ; lte_enodeb_id="$_cid_enb" ; lte_sector_id="$_cid_sec"
-        lte_pci=$(printf '%s' "$csv" | cut -d',' -f8)
-        lte_earfcn=$(printf '%s' "$csv" | cut -d',' -f9)
-        local band_num
-        band_num=$(printf '%s' "$csv" | cut -d',' -f10)
-        lte_band="B${band_num}"
-        lte_bandwidth=$(printf '%s' "$csv" | cut -d',' -f12)
-        lte_tac=$(_hex_to_dec "$(printf '%s' "$csv" | cut -d',' -f13 | tr -d '\r')")
-        lte_rsrp=$(printf '%s' "$csv" | cut -d',' -f14)
-        lte_rsrq=$(printf '%s' "$csv" | cut -d',' -f15)
-        lte_rssi=$(printf '%s' "$csv" | cut -d',' -f16)
-        lte_sinr=$(printf '%s' "$csv" | cut -d',' -f17)
+        lte_pci=$_F8
+        lte_earfcn=$_F9
+        lte_band="B${_F10}"
+        lte_bandwidth=$_F12
+        _S=$_F13 ; _pat_del "$_PA_CR"
+        _hex_to_dec_g "$_S" ; lte_tac=$_R
+        lte_rsrp=$_F14
+        lte_rsrq=$_F15
+        lte_rssi=$_F16
+        lte_sinr=$_F17
 
     else
         lte_state="unknown"
@@ -266,28 +444,14 @@ parse_serving_cell() {
     fi
 }
 
-# -----------------------------------------------------------------------------
-# SoC thermal — Average temperature from /sys/class/thermal (no AT channel)
-# Populates: t1_temperature
-#
-# Reads sysfs instead of AT+QTEMP: AT+QTEMP can crash this firmware's AT
-# channel (/dev/smd11). Thermal sysfs is independent of AT and stable.
-#
-# Selection is by thermal-zone TYPE NAME, not zone index: indices renumber
-# across firmware builds but type names are stable.
-# -----------------------------------------------------------------------------
-parse_temperature() {
+# Original fork-heavy pipeline. Only used when a zone's temp file holds
+# something other than a plain integer (never seen on real sysfs), so the awk
+# semantics for odd input stay exactly the historical ones.
+_parse_temperature_legacy() {
     local zone
     local ztype
     local result
 
-    # --- TUNING KNOB: thermal-zone type-name allowlist (case glob) -----------
-    # Modem-relevant SoC sensors plus the AP CPU cores (cpuss-*), averaged into
-    # the single overall temperature. Edit this glob to tune the zone set
-    # for temperature parity. sysfs temp is in millidegrees C; non-positive
-    # values (e.g. -273000, -40960, empty) are unavailable sentinels and are
-    # excluded by the >0 filter below.
-    # -------------------------------------------------------------------------
     result=$(for zone in /sys/class/thermal/thermal_zone*; do
         [ -r "$zone/type" ] || continue
         [ -r "$zone/temp" ] || continue
@@ -308,32 +472,116 @@ parse_temperature() {
 }
 
 # -----------------------------------------------------------------------------
+# SoC thermal — Average temperature from /sys/class/thermal (no AT channel)
+# Populates: t1_temperature
+#
+# Reads sysfs instead of AT+QTEMP: AT+QTEMP can crash this firmware's AT
+# channel (/dev/smd11). Thermal sysfs is independent of AT and stable.
+#
+# Selection is by thermal-zone TYPE NAME, not zone index: indices renumber
+# across firmware builds but type names are stable.
+#
+# Builtins only (read, no cat/awk). The mean is rounded half-to-even exactly
+# like awk's printf "%.0f", sum/1000/count: with integer millidegrees the
+# quotient is only ever an exact .5 when sum == 500*count*(2k+1), so integer
+# round-half-even on sum/(1000*count) gives the same digits.
+# -----------------------------------------------------------------------------
+parse_temperature() {
+    local zone
+    local ztype
+    local t
+    local extra
+    local den
+    local q
+    local r2
+    local sum=0
+    local count=0
+
+    # --- TUNING KNOB: thermal-zone type-name allowlist (case glob) -----------
+    # Modem-relevant SoC sensors plus the AP CPU cores (cpuss-*), averaged into
+    # the single overall temperature. Edit this glob to tune the zone set
+    # for temperature parity. sysfs temp is in millidegrees C; non-positive
+    # values (e.g. -273000, -40960, empty) are unavailable sentinels and are
+    # excluded below.
+    # -------------------------------------------------------------------------
+    for zone in /sys/class/thermal/thermal_zone*; do
+        [ -r "$zone/type" ] || continue
+        [ -r "$zone/temp" ] || continue
+        ztype=""
+        read -r ztype < "$zone/type" 2>/dev/null
+        case "$ztype" in
+            mdmss-*|mdmq6-*|sdr[0-9]*|xo-therm*|sys-therm-*|cpuss-*)
+                t=""
+                extra=""
+                { read -r t ; read -r extra ; } < "$zone/temp" 2>/dev/null
+                [ -z "$extra" ] || { _parse_temperature_legacy ; return ; }
+                case $t in
+                    '') continue ;;
+                    -*)
+                        case ${t#-} in
+                            ''|*[!0-9]*) _parse_temperature_legacy ; return ;;
+                        esac
+                        continue
+                        ;;
+                    *[!0-9]*) _parse_temperature_legacy ; return ;;
+                    ???????????????*) _parse_temperature_legacy ; return ;;
+                esac
+                # plain non-negative integer: drop leading zeros (no octal), skip 0
+                t=${t#"${t%%[!0]*}"}
+                [ -n "$t" ] || continue
+                sum=$((sum + t))
+                count=$((count + 1))
+                ;;
+        esac
+    done
+
+    if [ "$count" -eq 0 ]; then
+        t1_temperature=""
+        return
+    fi
+
+    den=$((count * 1000))
+    q=$((sum / den))
+    r2=$((sum % den * 2))
+    if [ "$r2" -gt "$den" ]; then
+        q=$((q + 1))
+    elif [ "$r2" -eq "$den" ] && [ $((q % 2)) -eq 1 ]; then
+        q=$((q + 1))
+    fi
+    t1_temperature="$q"
+}
+
+# -----------------------------------------------------------------------------
 # Parse AT+COPS?
 # Populates: t2_carrier
 # -----------------------------------------------------------------------------
 parse_carrier() {
-    local raw="$1"
-    local cops_line
-    cops_line=$(printf '%s\n' "$raw" | grep '+COPS:' | head -1)
+    _pat_first_line "$1" '+COPS:'
 
-    if [ -z "$cops_line" ]; then
+    if [ -z "$_pat_line" ]; then
         t2_carrier=""
         return
     fi
 
     # Strip prefix and CR: "0,0,"Smart",7" or just "2" when deregistered
-    local fields
-    fields=$(printf '%s' "$cops_line" | sed 's/+COPS: //g' | tr -d '\r')
+    _S=$_pat_line
+    _pat_del '+COPS: '
+    _pat_del "$_PA_CR"
 
     # Need at least 3 comma-separated fields for operator name
-    local comma_count
-    comma_count=$(printf '%s' "$fields" | tr -cd ',' | wc -c)
-    if [ "$comma_count" -lt 2 ]; then
-        t2_carrier=""
-        return
-    fi
+    case $_S in
+        *,*,*) ;;
+        *)
+            t2_carrier=""
+            return
+            ;;
+    esac
 
-    t2_carrier=$(printf '%s' "$fields" | cut -d',' -f3 | tr -d '"')
+    _S=${_S#*,}
+    _S=${_S#*,}
+    _S=${_S%%,*}
+    _pat_del '"'
+    t2_carrier=$_S
 }
 
 # -----------------------------------------------------------------------------
@@ -358,12 +606,14 @@ parse_sim_status() {
 # Populates: t2_sim_slot
 # -----------------------------------------------------------------------------
 parse_sim_slot() {
-    local raw="$1"
-    local slot_line
-    slot_line=$(printf '%s\n' "$raw" | grep '+QUIMSLOT:' | head -1)
+    _pat_first_line "$1" '+QUIMSLOT:'
 
-    if [ -n "$slot_line" ]; then
-        t2_sim_slot=$(printf '%s' "$slot_line" | sed 's/+QUIMSLOT: //g' | tr -d ' \r')
+    if [ -n "$_pat_line" ]; then
+        _S=$_pat_line
+        _pat_del '+QUIMSLOT: '
+        _pat_del ' '
+        _pat_del "$_PA_CR"
+        t2_sim_slot=$_S
     fi
 }
 
@@ -449,41 +699,51 @@ parse_mimo() {
 # --- LTE Resource Blocks → MHz Mapping ----------------------------------------
 # QCAINFO uses resource block counts for LTE bandwidth, not the enum used by
 # AT+QENG. Mapping per 3GPP 36.101 Table 5.6-1.
-_lte_rb_to_mhz() {
+_lte_rb_to_mhz_g() {
     case "$1" in
-        6)   echo 1 ;;    # 1.4 MHz — round to 1 for integer math
-        15)  echo 3 ;;
-        25)  echo 5 ;;
-        50)  echo 10 ;;
-        75)  echo 15 ;;
-        100) echo 20 ;;
-        *)   echo 0 ;;
+        6)   _R=1 ;;    # 1.4 MHz — round to 1 for integer math
+        15)  _R=3 ;;
+        25)  _R=5 ;;
+        50)  _R=10 ;;
+        75)  _R=15 ;;
+        100) _R=20 ;;
+        *)   _R=0 ;;
     esac
+}
+
+_lte_rb_to_mhz() {
+    _lte_rb_to_mhz_g "$1"
+    echo "$_R"
 }
 
 # --- NR Bandwidth Enum → MHz Mapping ------------------------------------------
 # Same enum as AT+QENG NR_DL_bandwidth. Mapping per 3GPP 38.101.
-_nr_bw_to_mhz() {
+_nr_bw_to_mhz_g() {
     case "$1" in
-        0)  echo 5 ;;
-        1)  echo 10 ;;
-        2)  echo 15 ;;
-        3)  echo 20 ;;
-        4)  echo 25 ;;
-        5)  echo 30 ;;
-        6)  echo 40 ;;
-        7)  echo 50 ;;
-        8)  echo 60 ;;
-        9)  echo 70 ;;
-        10) echo 80 ;;
-        11) echo 90 ;;
-        12) echo 100 ;;
-        13) echo 200 ;;
-        14) echo 400 ;;
-        15) echo 35 ;;
-        16) echo 45 ;;
-        *)  echo 0 ;;
+        0)  _R=5 ;;
+        1)  _R=10 ;;
+        2)  _R=15 ;;
+        3)  _R=20 ;;
+        4)  _R=25 ;;
+        5)  _R=30 ;;
+        6)  _R=40 ;;
+        7)  _R=50 ;;
+        8)  _R=60 ;;
+        9)  _R=70 ;;
+        10) _R=80 ;;
+        11) _R=90 ;;
+        12) _R=100 ;;
+        13) _R=200 ;;
+        14) _R=400 ;;
+        15) _R=35 ;;
+        16) _R=45 ;;
+        *)  _R=0 ;;
     esac
+}
+
+_nr_bw_to_mhz() {
+    _nr_bw_to_mhz_g "$1"
+    echo "$_R"
 }
 
 # -----------------------------------------------------------------------------
@@ -514,206 +774,275 @@ _nr_bw_to_mhz() {
 # NR_SNR conversion: actual_dB = raw_value / 100 (3GPP)
 # -----------------------------------------------------------------------------
 parse_ca_info() {
-    local raw="$1"
+    # One awk pass over the reply (no tmp files, no jq, no eval). The awk
+    # prints exactly six lines, one value each, in this fixed order:
+    #   1  lte_scc_count  lines containing +QCAINFO: "SCC" and LTE BAND (raw text)
+    #   2  nr_scc_count   lines containing +QCAINFO: "SCC" and NR (raw text)
+    #   3  state          E = no ^+QCAINFO: line (early return), else nr_pcc_seen 0/1
+    #   4  total_mhz      (lines 4-6 are omitted when state is E)
+    #   5  details        "B3: 15 MHz + N78: 100 MHz"
+    #   6  components     compact JSON array, or empty when the old jq
+    #                     tonumber would have failed (old output was "")
+    # Every value is single-line: CR is stripped, LF cannot occur inside a
+    # record, and JSON strings are escaped (\\, \", control chars as \u00XX).
+    local _pca_out
+    local _pca_lte
+    local _pca_nr
+    local _pca_state
+    local _pca_total
+    local _pca_details
+    local _pca_cc
+
+    _pca_out=$(awk '
+function js(s,    o, i, n, c) {
+    o = ""
+    n = length(s)
+    for (i = 1; i <= n; i++) {
+        c = substr(s, i, 1)
+        if (c in ESC) o = o ESC[c]; else o = o c
+    }
+    return "\"" o "\""
+}
+# jq tonumber on a string, rendered like jq -c. Sets bad=1 where jq errors.
+function num(s,    c, sg, b, lc, n, i, nd, m, v, p, t, ep, d, e, ae, dp, out) {
+    if (s == "") { bad = 1; return "" }
+    c = substr(s, 1, 1)
+    if (c == "t" || c == "f" || c == "n") { bad = 1; return "" }
+    sg = ""
+    b = s
+    if (c == "+" || c == "-") { if (c == "-") sg = "-"; b = substr(s, 2) }
+    lc = tolower(b)
+    if (lc == "inf" || lc == "infinity") return sg DMAXS
+    if (lc == "nan") return "null"
+    n = length(b)
+    i = 1
+    nd = 0
+    while (i <= n && index(DIG, substr(b, i, 1))) { i++; nd++ }
+    if (i <= n && substr(b, i, 1) == ".") {
+        i++
+        while (i <= n && index(DIG, substr(b, i, 1))) { i++; nd++ }
+    }
+    if (nd == 0) { bad = 1; return "" }
+    if (i <= n && (substr(b, i, 1) == "e" || substr(b, i, 1) == "E")) {
+        i++
+        if (i <= n && (substr(b, i, 1) == "+" || substr(b, i, 1) == "-")) i++
+        m = 0
+        while (i <= n && index(DIG, substr(b, i, 1))) { i++; m++ }
+        if (m == 0) { bad = 1; return "" }
+    }
+    if (i <= n) { bad = 1; return "" }
+    # Strip leading zeros so busybox awk never takes its octal/hex path.
+    sub(/^0+/, "", b)
+    c = substr(b, 1, 1)
+    if (c == "" || c == "." || c == "e" || c == "E") b = "0" b
+    v = (sg b) + 0
+    if (v == 0) return (sg == "-") ? "-0" : "0"
+    if (v > DMAXN || v < -DMAXN) return sg DMAXS
+    # Shortest round-trip digits, then jq dtoa layout.
+    for (p = 0; p < 17; p++) {
+        t = sprintf("%." p "e", v)
+        if (t + 0 == v) break
+    }
+    if (substr(t, 1, 1) == "-") t = substr(t, 2)
+    ep = index(t, "e")
+    d = substr(t, 1, ep - 1)
+    e = substr(t, ep + 1) + 0
+    sub(/\./, "", d)
+    sub(/0+$/, "", d)
+    nd = length(d)
+    dp = e + 1
+    if (dp <= -4 || dp > nd + 15) {
+        out = substr(d, 1, 1)
+        if (nd > 1) out = out "." substr(d, 2)
+        ae = (e < 0) ? -e : e
+        out = out "e" ((e < 0) ? "-" : "+") ((ae < 10) ? "0" ae : ae)
+    } else if (dp <= 0) {
+        out = "0."
+        for (i = 0; i < -dp; i++) out = out "0"
+        out = out d
+    } else if (dp >= nd) {
+        out = d
+        for (i = nd; i < dp; i++) out = out "0"
+    } else {
+        out = substr(d, 1, dp) "." substr(d, dp + 1)
+    }
+    return ((v < 0) ? "-" : "") out
+}
+function nn(s) { return (s == "null") ? "null" : num(s) }
+function sane(s,    i, n) {
+    if (s == "" || s == "-") return "null"
+    n = length(s)
+    for (i = 1; i <= n; i++) if (!index(DIGD, substr(s, i, 1))) return "null"
+    return s
+}
+# Old: case -32768 -> null; else printf %s | awk {if($1+0==$1) ...}
+function nrsnr(r,    o) {
+    if (r == "-32768") return "null"
+    if (r == "") return ""
+    $0 = r
+    # Blank-only field (tabs): the old fresh awk saw an unset $1, which
+    # compares equal to 0. A reused $1 keeps stale flags, so pin it.
+    if (NF == 0) return "0.0"
+    if ($1+0==$1) o = sprintf("%.1f", $1/100); else o = "null"
+    return o
+}
+BEGIN {
+    DIG = "0123456789"
+    DIGD = "0123456789-"
+    DMAXS = "1.7976931348623157e+308"
+    DMAXN = 1.7976931348623157e308
+    L["6"] = 1; L["15"] = 3; L["25"] = 5; L["50"] = 10; L["75"] = 15; L["100"] = 20
+    N["0"] = 5; N["1"] = 10; N["2"] = 15; N["3"] = 20; N["4"] = 25; N["5"] = 30
+    N["6"] = 40; N["7"] = 50; N["8"] = 60; N["9"] = 70; N["10"] = 80; N["11"] = 90
+    N["12"] = 100; N["13"] = 200; N["14"] = 400; N["15"] = 35; N["16"] = 45
+    for (i = 1; i < 32; i++) ESC[sprintf("%c", i)] = sprintf("\\u%04x", i)
+    ESC[sprintf("%c", 127)] = "\\u007f"
+    ESC["\\"] = "\\\\"
+    ESC["\""] = "\\\""
+    lsc = 0; nsc = 0; seen = 0; pcc = 0; tot = 0; det = ""; arr = ""; bad = 0
+}
+{
+    ln = $0 ""
+    if (index(ln, "+QCAINFO: \"SCC\"")) {
+        if (index(ln, "LTE BAND")) lsc++
+        if (index(ln, "NR")) nsc++
+    }
+    if (substr(ln, 1, 9) != "+QCAINFO:") next
+    seen = 1
+    csv = ln
+    gsub(/\+QCAINFO: /, "", csv)
+    gsub(/"/, "", csv)
+    gsub(/ /, "", csv)
+    gsub("\r", "", csv)
+    # cut -d, -fN returns the whole line when it has no comma.
+    if (index(csv, ",")) {
+        nf = split(csv, f, ",")
+        for (i = 1; i <= 12; i++) f[i] = (i <= nf) ? f[i] "" : ""
+    } else {
+        nf = 1
+        for (i = 1; i <= 12; i++) f[i] = csv
+    }
+    typ = f[1]; frq = f[2]; bw = f[3]; bs = f[4]
+    pci = "null"; rsrp = "null"; rsrq = "null"; rssi = "null"; snr = "null"
+    if (substr(bs, 1, 7) == "LTEBAND") {
+        tech = "LTE"
+        mhz = (bw in L) ? L[bw] : 0
+        num_ = bs; sub(/LTEBAND/, "", num_); band = "B" num_
+        pci = f[6]; rsrp = f[7]; rsrq = f[8]; rssi = f[9]; snr = f[10]
+    } else if (substr(bs, 1, 8) == "NR5GBAND" || substr(bs, 1, 8) == "NRDCBAND") {
+        tech = "NR"
+        mhz = (bw in N) ? N[bw] : 0
+        num_ = bs; sub(/NR5GBAND/, "", num_); sub(/NRDCBAND/, "", num_); band = "N" num_
+        if (nf >= 9) {
+            pci = f[6]
+            if (nf >= 10) rsrp = f[10]
+            if (nf >= 11) rsrq = f[11]
+            if (nf >= 12) snr = nrsnr(f[12])
+        } else {
+            pci = f[5]
+            if (nf >= 6) rsrp = f[6]
+            if (nf >= 7) rsrq = f[7]
+            if (nf >= 8) snr = nrsnr(f[8])
+        }
+    } else {
+        next
+    }
+    if (mhz > 0) {
+        tot += mhz
+        det = (det == "") ? band ": " mhz " MHz" : det " + " band ": " mhz " MHz"
+    }
+    pci = sane(pci); rsrp = sane(rsrp); rsrq = sane(rsrq); rssi = sane(rssi)
+    if (snr == "" || snr == "-") snr = "null"
+    if (typ == "PCC" && tech == "NR") pcc = 1
+    # Same tab-joined record the old code fed to jq -Rs split("\t"), so a
+    # tab inside a modem field shifts columns exactly as before.
+    rec = typ "\t" tech "\t" band "\t" ((frq == "") ? "null" : frq) "\t" mhz "\t" pci "\t" rsrp "\t" rsrq "\t" rssi "\t" snr
+    split(rec, cc, "\t")
+    o = "{\"type\":" js(cc[1]) ",\"technology\":" js(cc[2]) ",\"band\":" js(cc[3])
+    o = o ",\"earfcn\":" nn(cc[4]) ",\"bandwidth_mhz\":" num(cc[5])
+    o = o ",\"pci\":" nn(cc[6]) ",\"rsrp\":" nn(cc[7]) ",\"rsrq\":" nn(cc[8])
+    o = o ",\"rssi\":" nn(cc[9]) ",\"sinr\":" nn(cc[10]) "}"
+    arr = (arr == "") ? o : arr "," o
+}
+END {
+    print lsc
+    print nsc
+    if (!seen) {
+        print "E"
+    } else {
+        print pcc
+        print tot
+        print det
+        if (bad) print ""; else print "[" arr "]"
+    }
+}' <<_PCA_EOF
+$1
+_PCA_EOF
+)
+
+    {
+        IFS= read -r _pca_lte
+        IFS= read -r _pca_nr
+        IFS= read -r _pca_state
+        IFS= read -r _pca_total
+        IFS= read -r _pca_details
+        IFS= read -r _pca_cc
+    } <<_PCA_EOF
+$_pca_out
+_PCA_EOF
+
+    case "$_pca_lte" in ''|*[!0-9]*) _pca_lte=0 ;; esac
+    case "$_pca_nr" in ''|*[!0-9]*) _pca_nr=0 ;; esac
 
     # --- CA counts ---
-    local lte_scc_count
-    lte_scc_count=$(printf '%s\n' "$raw" | grep '+QCAINFO: "SCC"' | grep -c 'LTE BAND')
-
-    if [ "$lte_scc_count" -gt 0 ]; then
+    if [ "$_pca_lte" -gt 0 ]; then
         t2_ca_active=true
-        t2_ca_count=$lte_scc_count
+        t2_ca_count=$_pca_lte
     else
         t2_ca_active=false
         t2_ca_count=0
     fi
 
-    local nr_scc_count
-    nr_scc_count=$(printf '%s\n' "$raw" | grep '+QCAINFO: "SCC"' | grep -c 'NR')
-
-    if [ "$nr_scc_count" -gt 0 ]; then
+    if [ "$_pca_nr" -gt 0 ]; then
         # In NSA mode, the first NR SCC is the NR leg itself (LTE is PCC).
         # True NR CA only when there are 2+ NR SCCs.
         if [ "$network_type" = "5G-NSA" ]; then
-            if [ "$nr_scc_count" -gt 1 ]; then
+            if [ "$_pca_nr" -gt 1 ]; then
                 t2_nr_ca_active=true
-                t2_nr_ca_count=$((nr_scc_count - 1))
+                t2_nr_ca_count=$((_pca_nr - 1))
             else
                 t2_nr_ca_active=false
                 t2_nr_ca_count=0
             fi
         else
             t2_nr_ca_active=true
-            t2_nr_ca_count=$nr_scc_count
+            t2_nr_ca_count=$_pca_nr
         fi
     else
         t2_nr_ca_active=false
         t2_nr_ca_count=0
     fi
 
-    # --- Bandwidth + per-carrier component parsing ---
-    local total_mhz=0
-    local details=""
-    local cc_tmpfile="/tmp/qmanager_cc_data.tmp"
-    : > "$cc_tmpfile"
-    local qca_lines
-    qca_lines=$(printf '%s\n' "$raw" | grep '^+QCAINFO:')
+    # No +QCAINFO: line at all (or awk failed).
+    case "$_pca_state" in
+        0|1) ;;
+        *)
+            t2_total_bandwidth_mhz=0
+            t2_bandwidth_details=""
+            t2_carrier_components="[]"
+            return
+            ;;
+    esac
 
-    if [ -z "$qca_lines" ]; then
-        t2_total_bandwidth_mhz=0
-        t2_bandwidth_details=""
-        t2_carrier_components="[]"
-        return
-    fi
-
-    # Process via file redirect to avoid BusyBox subshell trap.
-    local tmpfile="/tmp/qmanager_ca_parse.tmp"
-    printf '%s\n' "$qca_lines" > "$tmpfile"
-
-    local nr_pcc_seen=0
-    while IFS= read -r line; do
-        # Strip prefix, quotes, spaces, carriage returns
-        local csv
-        csv=$(printf '%s' "$line" | sed 's/+QCAINFO: //g' | tr -d '"' | tr -d ' ' | tr -d '\r')
-
-        local cc_type
-        cc_type=$(printf '%s' "$csv" | cut -d',' -f1)
-
-        local freq
-        freq=$(printf '%s' "$csv" | cut -d',' -f2)
-
-        local bw_raw
-        bw_raw=$(printf '%s' "$csv" | cut -d',' -f3)
-
-        local band_str
-        band_str=$(printf '%s' "$csv" | cut -d',' -f4)
-
-        # Count total comma-separated fields
-        local nfields
-        nfields=$(printf '%s' "$csv" | awk -F',' '{print NF}')
-
-        local tech="" band_short="" mhz=0
-        local cc_pci="null" cc_rsrp="null" cc_rsrq="null" cc_rssi="null" cc_sinr="null"
-
-        case "$band_str" in
-            LTEBAND*)
-                # ---- LTE line ----
-                tech="LTE"
-                mhz=$(_lte_rb_to_mhz "$bw_raw")
-                local band_num
-                band_num=$(printf '%s' "$band_str" | sed 's/LTEBAND//')
-                band_short="B${band_num}"
-
-                # LTE fields: type(1),freq(2),bw(3),band(4),state(5),PCI(6),RSRP(7),RSRQ(8),RSSI(9),RSSNR(10)
-                cc_pci=$(printf '%s' "$csv" | cut -d',' -f6)
-                cc_rsrp=$(printf '%s' "$csv" | cut -d',' -f7)
-                cc_rsrq=$(printf '%s' "$csv" | cut -d',' -f8)
-                cc_rssi=$(printf '%s' "$csv" | cut -d',' -f9)
-                cc_sinr=$(printf '%s' "$csv" | cut -d',' -f10)
-                ;;
-            NR5GBAND*|NRDCBAND*)
-                # ---- NR line ----
-                tech="NR"
-                mhz=$(_nr_bw_to_mhz "$bw_raw")
-                local band_num
-                band_num=$(printf '%s' "$band_str" | sed 's/NR5GBAND//;s/NRDCBAND//')
-                band_short="N${band_num}"
-
-                if [ "$nfields" -ge 9 ]; then
-                    # Long form (SCC with UL info):
-                    # type(1),freq(2),bw(3),band(4),state(5),PCI(6),UL_cfg(7),UL_bw(8),UL_ARFCN(9)[,RSRP(10),RSRQ(11)[,SNR(12)]]
-                    cc_pci=$(printf '%s' "$csv" | cut -d',' -f6)
-                    [ "$nfields" -ge 10 ] && cc_rsrp=$(printf '%s' "$csv" | cut -d',' -f10)
-                    [ "$nfields" -ge 11 ] && cc_rsrq=$(printf '%s' "$csv" | cut -d',' -f11)
-                    if [ "$nfields" -ge 12 ]; then
-                        local raw_snr
-                        raw_snr=$(printf '%s' "$csv" | cut -d',' -f12)
-                        case "$raw_snr" in
-                            -32768) cc_sinr="null" ;;
-                            *) cc_sinr=$(printf '%s' "$raw_snr" | awk '{if($1+0==$1) printf "%.1f", $1/100; else print "null"}') ;;
-                        esac
-                    fi
-                else
-                    # Short form (PCC or old SCC):
-                    # type(1),freq(2),bw(3),band(4),PCI(5)[,RSRP(6),RSRQ(7)[,SNR(8)]]
-                    cc_pci=$(printf '%s' "$csv" | cut -d',' -f5)
-                    [ "$nfields" -ge 6 ] && cc_rsrp=$(printf '%s' "$csv" | cut -d',' -f6)
-                    [ "$nfields" -ge 7 ] && cc_rsrq=$(printf '%s' "$csv" | cut -d',' -f7)
-                    if [ "$nfields" -ge 8 ]; then
-                        local raw_snr
-                        raw_snr=$(printf '%s' "$csv" | cut -d',' -f8)
-                        case "$raw_snr" in
-                            -32768) cc_sinr="null" ;;
-                            *) cc_sinr=$(printf '%s' "$raw_snr" | awk '{if($1+0==$1) printf "%.1f", $1/100; else print "null"}') ;;
-                        esac
-                    fi
-                fi
-                ;;
-            *)
-                # Unrecognized band string — skip
-                continue
-                ;;
-        esac
-
-        # --- Accumulate bandwidth totals ---
-        if [ "$mhz" -gt 0 ] 2>/dev/null; then
-            total_mhz=$((total_mhz + mhz))
-            if [ -n "$details" ]; then
-                details="${details} + ${band_short}: ${mhz} MHz"
-            else
-                details="${band_short}: ${mhz} MHz"
-            fi
-        fi
-
-        # --- Sanitize numeric fields (empty / dash / non-numeric → null) ---
-        case "$cc_pci"  in ''|'-'|*[!0-9-]*) cc_pci="null"  ;; esac
-        case "$cc_rsrp" in ''|'-'|*[!0-9-]*) cc_rsrp="null" ;; esac
-        case "$cc_rsrq" in ''|'-'|*[!0-9-]*) cc_rsrq="null" ;; esac
-        case "$cc_rssi" in ''|'-'|*[!0-9-]*) cc_rssi="null" ;; esac
-        # cc_sinr may be a float (NR /100 conversion) — validated by awk above
-        case "$cc_sinr" in ''|'-') cc_sinr="null" ;; esac
-
-        # --- Track NR PCC for reconciliation ---
-        if [ "$cc_type" = "PCC" ] && [ "$tech" = "NR" ]; then
-            nr_pcc_seen=1
-        fi
-
-        # --- Write carrier data for jq processing ---
-        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-            "$cc_type" "$tech" "$band_short" "${freq:-null}" "$mhz" \
-            "$cc_pci" "$cc_rsrp" "$cc_rsrq" "$cc_rssi" "$cc_sinr" >> "$cc_tmpfile"
-
-    done < "$tmpfile"
-    rm -f "$tmpfile"
-
-    t2_total_bandwidth_mhz=$total_mhz
-    t2_bandwidth_details="$details"
-
-    if [ -s "$cc_tmpfile" ]; then
-        t2_carrier_components=$(jq -Rs '
-            split("\n") | map(select(length > 0) | split("\t")) | map({
-                type: .[0],
-                technology: .[1],
-                band: .[2],
-                earfcn: (.[3] | if . == "null" then null else tonumber end),
-                bandwidth_mhz: (.[4] | tonumber),
-                pci: (.[5] | if . == "null" then null else tonumber end),
-                rsrp: (.[6] | if . == "null" then null else tonumber end),
-                rsrq: (.[7] | if . == "null" then null else tonumber end),
-                rssi: (.[8] | if . == "null" then null else tonumber end),
-                sinr: (.[9] | if . == "null" then null else tonumber end)
-            })
-        ' "$cc_tmpfile")
-    else
-        t2_carrier_components="[]"
-    fi
-    rm -f "$cc_tmpfile"
+    t2_total_bandwidth_mhz=$_pca_total
+    t2_bandwidth_details="$_pca_details"
+    t2_carrier_components="$_pca_cc"
 
     # --- Reconcile network_type from QCAINFO NR PCC ---
     # QENG may transiently report LTE after a CFUN reset while QCAINFO already
     # shows NR5G as the PCC. If we saw an NR PCC and network_type is not already
     # NR, upgrade the state so the frontend renders the correct NR card.
-    if [ "$nr_pcc_seen" = "1" ]; then
+    if [ "$_pca_state" = "1" ]; then
         case "$network_type" in
             "5G-SA"|"5G-NSA")
                 # Already NR — nothing to do
@@ -779,17 +1108,53 @@ parse_time_advance() {
 # In EN-DC mode, two lines are returned (one LTE, one NR5G).
 # Sentinel value -32768 indicates inactive/unavailable antenna port.
 
+# One pass over a compound reply: sets _pat_l to the first line holding
+# "+<tag>:" followed later by "LTE" (grep '+TAG:.*LTE') and _pat_n to the first
+# one followed later by "NR5G" (grep '+TAG:.*NR5G'). $1=raw, $2=tag.
+_pat_antenna_lines() {
+    local rest="$1"
+    local key="+$2:"
+    local line
+    local tail
+    local more=1
+    _pat_l=""
+    _pat_n=""
+    while [ "$more" = 1 ]; do
+        case $rest in
+            *"$_PA_NL"*)
+                line=${rest%%"$_PA_NL"*}
+                rest=${rest#*"$_PA_NL"}
+                ;;
+            *)
+                line=$rest
+                rest=""
+                more=0
+                ;;
+        esac
+        case $line in
+            *"$key"*)
+                tail=${line#*"$key"}
+                case $tail in
+                    *LTE*) [ -z "$_pat_l" ] && _pat_l=$line ;;
+                esac
+                case $tail in
+                    *NR5G*) [ -z "$_pat_n" ] && _pat_n=$line ;;
+                esac
+                if [ -n "$_pat_l" ] && [ -n "$_pat_n" ]; then return 0; fi
+                ;;
+        esac
+    done
+    return 0
+}
+
 # -----------------------------------------------------------------------------
 # Parse AT+QRSRP — Per-antenna RSRP
 # Populates: sig_lte_rsrp, sig_nr_rsrp (JSON array strings)
 # -----------------------------------------------------------------------------
 parse_qrsrp() {
-    local raw="$1"
-    local lte_line nr_line
-    lte_line=$(printf '%s\n' "$raw" | grep '+QRSRP:.*LTE' | head -1)
-    nr_line=$(printf '%s\n' "$raw" | grep '+QRSRP:.*NR5G' | head -1)
-    sig_lte_rsrp=$(_antenna_line_to_json "$lte_line" "QRSRP")
-    sig_nr_rsrp=$(_antenna_line_to_json "$nr_line" "QRSRP")
+    _pat_antenna_lines "$1" QRSRP
+    _antenna_line_to_json_g "$_pat_l" "QRSRP" ; sig_lte_rsrp=$_R
+    _antenna_line_to_json_g "$_pat_n" "QRSRP" ; sig_nr_rsrp=$_R
 }
 
 # -----------------------------------------------------------------------------
@@ -797,12 +1162,9 @@ parse_qrsrp() {
 # Populates: sig_lte_rsrq, sig_nr_rsrq (JSON array strings)
 # -----------------------------------------------------------------------------
 parse_qrsrq() {
-    local raw="$1"
-    local lte_line nr_line
-    lte_line=$(printf '%s\n' "$raw" | grep '+QRSRQ:.*LTE' | head -1)
-    nr_line=$(printf '%s\n' "$raw" | grep '+QRSRQ:.*NR5G' | head -1)
-    sig_lte_rsrq=$(_antenna_line_to_json "$lte_line" "QRSRQ")
-    sig_nr_rsrq=$(_antenna_line_to_json "$nr_line" "QRSRQ")
+    _pat_antenna_lines "$1" QRSRQ
+    _antenna_line_to_json_g "$_pat_l" "QRSRQ" ; sig_lte_rsrq=$_R
+    _antenna_line_to_json_g "$_pat_n" "QRSRQ" ; sig_nr_rsrq=$_R
 }
 
 # -----------------------------------------------------------------------------
@@ -810,12 +1172,9 @@ parse_qrsrq() {
 # Populates: sig_lte_sinr, sig_nr_sinr (JSON array strings)
 # -----------------------------------------------------------------------------
 parse_qsinr() {
-    local raw="$1"
-    local lte_line nr_line
-    lte_line=$(printf '%s\n' "$raw" | grep '+QSINR:.*LTE' | head -1)
-    nr_line=$(printf '%s\n' "$raw" | grep '+QSINR:.*NR5G' | head -1)
-    sig_lte_sinr=$(_antenna_line_to_json "$lte_line" "QSINR")
-    sig_nr_sinr=$(_antenna_line_to_json "$nr_line" "QSINR")
+    _pat_antenna_lines "$1" QSINR
+    _antenna_line_to_json_g "$_pat_l" "QSINR" ; sig_lte_sinr=$_R
+    _antenna_line_to_json_g "$_pat_n" "QSINR" ; sig_nr_sinr=$_R
 }
 
 # =============================================================================

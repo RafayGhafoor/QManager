@@ -1,0 +1,8 @@
+AT+QRSRP;+QRSRQ;+QSINR
++QRSRP: -n,-e,-E,-neE,LTE
+
++QRSRQ: -x,-,--5,1-2,LTE
+
++QSINR: -nn,-en,-n-,e,NR5G
+
+OK

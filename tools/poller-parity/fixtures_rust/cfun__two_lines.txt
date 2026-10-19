@@ -1,0 +1,5 @@
+AT+CFUN?
++CFUN: 4
++CFUN: 1
+
+OK

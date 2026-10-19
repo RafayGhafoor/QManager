@@ -1,0 +1,8 @@
+AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?
++COPS: 0,0,"Globe",7,extra,more
+
++QUIMSLOT: 1
+
++CPIN: READY
+
+OK

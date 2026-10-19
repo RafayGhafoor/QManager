@@ -16,7 +16,7 @@ pub const PID_FILE: &str = "/var/lock/qmanager.pid";
 pub const SHORT_DEADLINE: Duration = Duration::from_secs(20);
 pub const LONG_DEADLINE: Duration = Duration::from_secs(300);
 pub const SLOW_DEADLINE: Duration = Duration::from_secs(60);
-const LOCK_WAIT_SHORT: Duration = Duration::from_secs(5);
+pub const LOCK_WAIT_SHORT: Duration = Duration::from_secs(5);
 const LOCK_WAIT_LONG: Duration = Duration::from_secs(10);
 
 pub enum Outcome {
@@ -188,6 +188,12 @@ impl<D: Device> Executor<'_, D> {
     /// in the broker's accept queue). It counts against the lock budget, so a
     /// request waits no longer in total than legacy qcmd waited for the lock.
     pub fn run_after(&mut self, cmd: &str, waited: Duration) -> Outcome {
+        // Checked here too, not only in the client: the socket is the trust
+        // boundary. Refused before the lock, so it never delays anyone.
+        if !classify::is_at_command(cmd) {
+            self.log.warn(&format!("Rejected non-AT command: {}", one_line(cmd)));
+            return Outcome::Err(Code::InvalidCommand);
+        }
         let long = classify::is_long(cmd);
 
         // A long command is in progress: short commands fast-reject, exactly
@@ -258,6 +264,24 @@ mod tests {
         let mut ex = Executor { ch: &mut ch, lock: &lock, log: &log };
         let out = ex.run_after("AT+CSQ", LOCK_WAIT_SHORT + Duration::from_millis(1));
         assert!(matches!(out, Outcome::Err(Code::ModemBusy)));
+        let _ = std::fs::remove_file(p);
+    }
+
+    #[test]
+    fn non_at_input_is_refused_without_the_lock_or_the_modem() {
+        let p = std::env::temp_dir().join(format!("qatd-exec-invalid-{}", std::process::id()));
+        let lock = LockFile::open(p.to_str().unwrap()).unwrap();
+        // Hold the lock: a refusal must not wait for it.
+        let _held = lock.acquire(Duration::ZERO).unwrap();
+        let other = LockFile::open(p.to_str().unwrap()).unwrap();
+        let log = Logger::new("test");
+        let mut ch: Channel<UnixStream> = Channel::new(Box::new(|| panic!("command was sent")));
+        let mut ex = Executor { ch: &mut ch, lock: &other, log: &log };
+        for cmd in ["--bogus", "hello", "AT\rhello"] {
+            let t = Instant::now();
+            assert!(matches!(ex.run(cmd), Outcome::Err(Code::InvalidCommand)), "{cmd:?}");
+            assert!(t.elapsed() < Duration::from_millis(500), "{cmd:?} waited {:?}", t.elapsed());
+        }
         let _ = std::fs::remove_file(p);
     }
 }

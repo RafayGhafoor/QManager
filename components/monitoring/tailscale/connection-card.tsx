@@ -375,9 +375,8 @@ export function ConnectionCard({
       <>
         <Button
           type="button"
-          variant="ghost"
+          variant="tonal"
           size="action"
-          className={PILL_REST}
           disabled={isDisconnecting}
           onClick={() =>
             run(

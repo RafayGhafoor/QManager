@@ -298,7 +298,8 @@ remove_backend() {
             bin_count=$(( bin_count + 1 ))
         fi
     done
-    rm -f /var/run/qmanager_atd.sock "$BIN_DIR"/.qcmd.* "$BIN_DIR"/.qsms.* 2>/dev/null || true
+    rm -f /var/run/qmanager_atd.sock /var/run/qmanager_atd.proto /var/run/qmanager_atd.proto.new \
+        "$BIN_DIR"/.qcmd.* "$BIN_DIR"/.qsms.* 2>/dev/null || true
 
     for f in "$BIN_DIR"/qmanager_*; do
         [ -f "$f" ] || continue
@@ -642,6 +643,7 @@ reboot_system() {
     # path on uninstall, so the guard is load-bearing.
     [ -f /usr/lib/qmanager/qlog.sh ] && . /usr/lib/qmanager/qlog.sh
     [ -n "$(command -v record_planned_reboot)" ] && record_planned_reboot "user" 2>/dev/null
+    sync 2>/dev/null || true
     if command -v reboot >/dev/null 2>&1; then
         reboot
         return $?
@@ -769,6 +771,13 @@ main() {
 
     # Make sure VERSION markers are gone if the config dir was removed
     rm -f "$VERSION_FILE" "$VERSION_PENDING" 2>/dev/null || true
+
+    # Leftover install_tree staging dir from an interrupted install.
+    rm -rf /usr/lib/.qmanager_stage 2>/dev/null || true
+
+    # /usr, /www and /etc are UBIFS (30 s dirty_expire): commit the removals
+    # to flash so a crash or power cut cannot resurrect a half-removed install.
+    sync 2>/dev/null || true
 
     print_summary
 

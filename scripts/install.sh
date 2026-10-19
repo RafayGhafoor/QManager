@@ -54,6 +54,8 @@ LOG_FILE="/tmp/qmanager_install.log"
 WWW_ROOT="/www"
 CGI_DIR="/www/cgi-bin/quecmanager"
 LIB_DIR="/usr/lib/qmanager"
+# install_tree staging area (same overlay as /www, outside the web root)
+TREE_STAGE_ROOT="/usr/lib/.qmanager_stage"
 BIN_DIR="/usr/bin"
 INITD_DIR="/etc/init.d"
 CONF_DIR="/etc/qmanager"
@@ -299,13 +301,33 @@ count_files() {
     find "$1" -type f 2>/dev/null | wc -l | tr -d ' '
 }
 
-# --- Atomic File Install -----------------------------------------------------
-# Copy src to dst with CRLF strip + chmod + atomic rename. This replaces
-# separate passes for line endings and permissions in the current installer.
-#
-# Returns 0 on success, 1 on failure (caller decides whether to die).
+# --- Durable Flush -----------------------------------------------------------
+# /usr, /www and /etc all live on the UBIFS /usrdata volume (overlay upper +
+# /etc bind), whose dirty pages only reach flash after dirty_expire (30 s).
+# An AP hang or power loss inside that window can leave freshly written files
+# 0 bytes — and a rename alone is not durable: the rename can commit before
+# the new file's data, so the file survives the crash but empty. 2026-10-19: a
+# dev deploy cp'd 8 poller files, restarted the poller without sync, the AP
+# hung ~30 s later and the power cycle left all 8 files 0 bytes. So: stage,
+# flush, rename, and flush again before anything that can hang the device
+# (daemon restarts, the reboot).
 
-install_file() {
+flush_storage() {
+    _log_raw "sync: $1"
+    sync 2>/dev/null || true
+}
+
+# --- Atomic File Install -----------------------------------------------------
+# stage_file copies src to "$dst.qm_install.$$" with a size check, CRLF strip
+# and chmod; commit_file renames that temp over dst. Callers flush_storage
+# between the two so the staged bytes are on flash before the old file is
+# replaced — a crash then leaves either the old or the new file, never a 0-byte
+# one. install_file does all three for a single file; install_dir_flat stages a
+# whole directory, flushes once, then commits.
+#
+# Each returns 0 on success, 1 on failure (caller decides whether to die).
+
+stage_file() {
     local src="$1" dst="$2" mode="${3:-755}"
 
     if [ ! -f "$src" ]; then
@@ -361,6 +383,13 @@ install_file() {
 
     chmod "$mode" "$tmp" 2>/dev/null || true
 
+    return 0
+}
+
+commit_file() {
+    local dst="$1"
+    local tmp="$dst.qm_install.$$"
+
     # Atomic replacement. Requires caller to have stopped any running process
     # that has $dst open, otherwise this will fail with ETXTBSY.
     if ! mv "$tmp" "$dst" 2>>"$LOG_FILE"; then
@@ -372,38 +401,71 @@ install_file() {
     return 0
 }
 
-# Install every file in a flat source directory. Returns the count of files
-# installed. Dies on any individual failure.
+install_file() {
+    stage_file "$1" "$2" "$3" || return 1
+    flush_storage "staged $(basename "$2")"
+    commit_file "$2"
+}
+
+# Install every file in a flat source directory. Sets INSTALL_DIR_FLAT_COUNT
+# to the number of files installed. Dies on any individual failure. Stages
+# every file first, flushes once, then renames them all into place.
+# Call it directly, never as x=$(install_dir_flat ...): inside a command
+# substitution `die` only exits the subshell, its error line is captured
+# instead of shown, and only `set -e` (off in if/||/&& contexts) would stop
+# the install.
+INSTALL_DIR_FLAT_COUNT=0
 install_dir_flat() {
     local src="$1" dst="$2" mode="${3:-755}" count=0 fname
 
-    [ -d "$src" ] || { _log_raw "install_dir_flat: missing source $src"; return 1; }
-    mkdir -p "$dst"
+    INSTALL_DIR_FLAT_COUNT=0
+    [ -d "$src" ] || die "install_dir_flat: missing source $src"
+    mkdir -p "$dst" || die "Cannot create $dst"
 
     for f in "$src"/*; do
         [ -f "$f" ] || continue
         fname="$(basename "$f")"
-        if install_file "$f" "$dst/$fname" "$mode"; then
-            count=$(( count + 1 ))
-        else
+        if ! stage_file "$f" "$dst/$fname" "$mode"; then
+            rm -f "$dst"/*.qm_install.$$ 2>/dev/null
             die "Failed to install $fname to $dst"
         fi
     done
 
-    printf '%d' "$count"
+    flush_storage "staged $dst"
+
+    for f in "$src"/*; do
+        [ -f "$f" ] || continue
+        fname="$(basename "$f")"
+        if commit_file "$dst/$fname"; then
+            count=$(( count + 1 ))
+        else
+            rm -f "$dst"/*.qm_install.$$ 2>/dev/null
+            die "Failed to install $fname to $dst"
+        fi
+    done
+
+    INSTALL_DIR_FLAT_COUNT=$count
     return 0
 }
 
 # Recursively install a directory tree (used for CGI which has subdirs).
-# Wipes the destination first for a clean replacement. Applies 755 to all
-# .sh files and 644 to everything else.
+# Builds a complete fresh copy in a staging dir, flushes it to flash, then
+# swaps it in for a clean replacement. Applies 755 to all .sh files and 644 to
+# everything else. The staging dir lives under /usr/lib (same overlay as /www,
+# so the swap is a rename) because anything under /www/cgi-bin would be
+# executable over HTTP while it exists.
 install_tree() {
     local src="$1" dst="$2"
     local mismatch
+    local live="$dst"
+    local old="$TREE_STAGE_ROOT/old.$$"
 
     [ -d "$src" ] || { _log_raw "install_tree: missing source $src"; return 1; }
 
-    rm -rf "$dst"
+    # Leftovers from an interrupted earlier install are never needed.
+    rm -rf "$TREE_STAGE_ROOT"
+    mkdir -p "$TREE_STAGE_ROOT" "$(dirname "$live")"
+    dst="$TREE_STAGE_ROOT/new.$$"
     mkdir -p "$dst"
     cp -r "$src"/. "$dst"/ || die "Failed to copy $src to $dst"
 
@@ -441,6 +503,17 @@ install_tree() {
 
     find "$dst" -type f -name "*.sh" -exec chmod 755 {} \;
     find "$dst" -type f ! -name "*.sh" -exec chmod 644 {} \;
+
+    flush_storage "staged $live"
+
+    if [ -d "$live" ]; then
+        mv "$live" "$old" || die "install_tree: cannot move aside $live"
+    fi
+    if ! mv "$dst" "$live"; then
+        [ -d "$old" ] && mv "$old" "$live"
+        die "install_tree: cannot move $dst into $live"
+    fi
+    rm -rf "$TREE_STAGE_ROOT"
 
     return 0
 }
@@ -1261,7 +1334,8 @@ install_backend() {
     # --- Libraries (flat directory) ---
     if [ -d "$SRC_SCRIPTS/usr/lib/qmanager" ]; then
         local lib_count
-        lib_count=$(install_dir_flat "$SRC_SCRIPTS/usr/lib/qmanager" "$LIB_DIR" 755)
+        install_dir_flat "$SRC_SCRIPTS/usr/lib/qmanager" "$LIB_DIR" 755
+        lib_count=$INSTALL_DIR_FLAT_COUNT
         # Non-.sh files in the lib dir should be 644
         find "$LIB_DIR" -maxdepth 1 -type f ! -name "*.sh" -exec chmod 644 {} \; 2>/dev/null
         info "Libraries: $lib_count files -> $LIB_DIR"
@@ -1270,7 +1344,8 @@ install_backend() {
     # --- Daemons and utilities (flat) ---
     if [ -d "$SRC_SCRIPTS/usr/bin" ]; then
         local bin_count
-        bin_count=$(install_dir_flat "$SRC_SCRIPTS/usr/bin" "$BIN_DIR" 755)
+        install_dir_flat "$SRC_SCRIPTS/usr/bin" "$BIN_DIR" 755
+        bin_count=$INSTALL_DIR_FLAT_COUNT
         info "Daemons: $bin_count files -> $BIN_DIR"
     fi
 
@@ -1303,7 +1378,8 @@ install_backend() {
     # --- Init.d services (flat) ---
     if [ -d "$SRC_SCRIPTS/etc/init.d" ]; then
         local svc_count
-        svc_count=$(install_dir_flat "$SRC_SCRIPTS/etc/init.d" "$INITD_DIR" 755)
+        install_dir_flat "$SRC_SCRIPTS/etc/init.d" "$INITD_DIR" 755
+        svc_count=$INSTALL_DIR_FLAT_COUNT
         info "Init.d: $svc_count services -> $INITD_DIR"
     fi
 
@@ -1940,6 +2016,7 @@ reboot_system() {
     # builtin), which would kill install.sh before it ever reaches the reboot.
     [ -f /usr/lib/qmanager/qlog.sh ] && . /usr/lib/qmanager/qlog.sh
     [ -n "$(command -v record_planned_reboot)" ] && record_planned_reboot "user" 2>/dev/null
+    flush_storage "pre-reboot"
     if command -v reboot >/dev/null 2>&1; then
         reboot
         return $?
@@ -2080,6 +2157,10 @@ main() {
         migrate_tailscale_initd_boot_fix || warn "Tailscale initd boot-fix returned non-zero; continuing install"
         seed_uci_defaults
 
+        # Everything is on disk; get it onto flash before restarting daemons,
+        # which is where a hang (and a 0-byte-file power cycle) can follow.
+        flush_storage "pre-start"
+
         [ "$DO_ENABLE" = "1" ] && enable_services
 
         if [ "$DO_START" = "1" ]; then
@@ -2094,6 +2175,9 @@ main() {
     fi
 
     finalize_version
+    # Final flush: VERSION promotion, frontend-only installs, and anything the
+    # start/health phases wrote. The OTA updater reboots right after we exit.
+    flush_storage "install complete"
     print_summary
 
     if [ "$DO_REBOOT" = "1" ]; then

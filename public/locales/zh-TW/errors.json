@@ -108,6 +108,7 @@
   "no_bands": "沒有可用或提供的頻段",
   "no_body": "請求體為空",
   "no_cells": "沒有可用的服務小區",
+  "invalid_command": "不是 AT 指令。請以 AT 開頭，例如 AT+CSQ",
   "no_command": "缺少命令欄位",
   "no_days": "未為排程選擇任何日期",
   "no_default": "未設定預設 DNS",

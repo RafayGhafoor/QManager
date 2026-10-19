@@ -1,0 +1,5 @@
+AT+QCAINFO
+something else
++QMAP: "x"
+
+OK

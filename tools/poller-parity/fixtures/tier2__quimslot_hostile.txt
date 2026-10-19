@@ -1,0 +1,8 @@
+AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?
++COPS: 0,0,"G",7
+
++QUIMSLOT: $(id);`x`
+
++CPIN: READY
+
+OK

@@ -1,0 +1,8 @@
+AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?
++COPS: 0
+
++CNUM: ,"999",129
+
++CME ERROR: 10
+
+OK

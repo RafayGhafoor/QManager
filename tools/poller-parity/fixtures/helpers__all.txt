@@ -1,0 +1,164 @@
+# _sig_val
+_sig_val -32768
+_sig_val -95
+_sig_val 0
+_sig_val -32767
+_sig_val abc
+_sig_val -0
+_sig_val <empty>
+_sig_val 1.5
+_sig_val -032768
+_sig_val 32768
+_sig_val -32768<CR>
+# _antenna_to_json_array
+_antenna_to_json_array -95 -97 -32768 -32768
+_antenna_to_json_array -95 -97 -100 -102
+_antenna_to_json_array <empty> <empty> <empty> <empty>
+_antenna_to_json_array -95 -97
+_antenna_to_json_array
+_antenna_to_json_array a b c d e f
+_antenna_to_json_array 1.5 -0 +3 -32768.0
+# _antenna_line_to_json (tab separated: line, prefix)
+_antenna_line_to_json	+QRSRP: -95,-97,-32768,-32768,LTE	QRSRP
+_antenna_line_to_json	+QRSRP: -95,-97,-32768,-32768,LTE<CR>	QRSRP
+_antenna_line_to_json	<empty>	QRSRP
+_antenna_line_to_json	+QRSRQ: -9,-10,-11,-12,LTE	QRSRQ
+_antenna_line_to_json	+QRSRQ: -9,-10,-11,-12,LTE	QRSRP
+_antenna_line_to_json	+QSINR: 10,12,8,6,NR5G	QSINR
+_antenna_line_to_json	+QRSRP: -95,-97,LTE	QRSRP
+_antenna_line_to_json	+QRSRP: LTE	QRSRP
+_antenna_line_to_json	+QRSRP:-95,-97,-100,-102,LTE	QRSRP
+_antenna_line_to_json	+QRSRP:   -95 , -97 , -100 , -102 ,LTE	QRSRP
+_antenna_line_to_json	-95,-97,-100,-102,LTE	QRSRP
+_antenna_line_to_json	+QRSRP: -95,-97,,,LTE	QRSRP
+_antenna_line_to_json	+QRSRP: -95,-97,-100,-102,-1,-2,LTE	QRSRP
+_antenna_line_to_json	garbage with +QRSRP: inside	QRSRP
+_antenna_line_to_json	+QRSRP: -95,-97,-100,-102,LTE	<empty>
+_antenna_line_to_json	+QRSRP: -95,-97,-100,-102,LTE
+_antenna_line_to_json	+X.Y: -95,-97,-100,-102,LTE	X.Y
+_antenna_line_to_json	+QRSRP: "-95",$(id),-100,-102,LTE	QRSRP
+# _hex_to_dec
+_hex_to_dec 2D1AB04
+_hex_to_dec 2d1ab04
+_hex_to_dec 0
+_hex_to_dec 00
+_hex_to_dec FF
+_hex_to_dec ff
+_hex_to_dec <empty>
+_hex_to_dec XYZ
+_hex_to_dec -1
+_hex_to_dec 0x10
+_hex_to_dec FFFFFFFFF
+_hex_to_dec FFFFFFFFFFFFFFFF
+_hex_to_dec 7FFFFFFFFFFFFFFF
+_hex_to_dec 8000000000000000
+_hex_to_dec FFFFFFFFFFFFFFFFF
+_hex_to_dec 1G
+_hex_to_dec G
+_hex_to_dec 12345
+_hex_to_dec +5
+_hex_to_dec FF<CR>
+_hex_to_dec 0X1F
+_hex_to_dec 010
+# _compute_cell_parts (hex [nr])
+_compute_cell_parts 2D1AB04
+_compute_cell_parts 2D1AB04 nr
+_compute_cell_parts 2d1ab04
+_compute_cell_parts 2d1ab04 nr
+_compute_cell_parts 0
+_compute_cell_parts 0 nr
+_compute_cell_parts FF
+_compute_cell_parts FF nr
+_compute_cell_parts 100
+_compute_cell_parts 100 nr
+_compute_cell_parts FFFFFFF
+_compute_cell_parts FFFFFFF nr
+_compute_cell_parts 233B703
+_compute_cell_parts 233B703 nr
+_compute_cell_parts XYZ
+_compute_cell_parts XYZ nr
+_compute_cell_parts <empty>
+_compute_cell_parts <empty> nr
+_compute_cell_parts -1
+_compute_cell_parts -1 nr
+_compute_cell_parts FFFFFFFFF
+_compute_cell_parts FFFFFFFFF nr
+_compute_cell_parts 3FFF
+_compute_cell_parts 3FFF nr
+_compute_cell_parts 4000
+_compute_cell_parts 4000 nr
+_compute_cell_parts FFFFFFFFFFFFFFFFF
+_compute_cell_parts FFFFFFFFFFFFFFFFF nr
+_compute_cell_parts 7FFFFFFFFFFFFFFF
+_compute_cell_parts 7FFFFFFFFFFFFFFF nr
+_compute_cell_parts 8000000000000000
+_compute_cell_parts 8000000000000000 nr
+_compute_cell_parts FF<CR>
+_compute_cell_parts FF<CR> nr
+_compute_cell_parts 2D1AB04 NR
+_compute_cell_parts 2D1AB04 xyz
+_compute_cell_parts 2D1AB04 <empty>
+_compute_cell_parts
+# map_scs_to_khz
+map_scs_to_khz 0
+map_scs_to_khz 1
+map_scs_to_khz 2
+map_scs_to_khz 3
+map_scs_to_khz 4
+map_scs_to_khz 5
+map_scs_to_khz 9
+map_scs_to_khz -1
+map_scs_to_khz <empty>
+map_scs_to_khz abc
+map_scs_to_khz 01
+map_scs_to_khz 00
+map_scs_to_khz 0<CR>
+map_scs_to_khz
+# _lte_rb_to_mhz
+_lte_rb_to_mhz 6
+_lte_rb_to_mhz 15
+_lte_rb_to_mhz 25
+_lte_rb_to_mhz 50
+_lte_rb_to_mhz 75
+_lte_rb_to_mhz 100
+_lte_rb_to_mhz 0
+_lte_rb_to_mhz 1
+_lte_rb_to_mhz 3
+_lte_rb_to_mhz 5
+_lte_rb_to_mhz 10
+_lte_rb_to_mhz 20
+_lte_rb_to_mhz 200
+_lte_rb_to_mhz <empty>
+_lte_rb_to_mhz abc
+_lte_rb_to_mhz 100.0
+_lte_rb_to_mhz 0100
+_lte_rb_to_mhz 100<CR>
+_lte_rb_to_mhz -1
+_lte_rb_to_mhz
+# _nr_bw_to_mhz
+_nr_bw_to_mhz 0
+_nr_bw_to_mhz 1
+_nr_bw_to_mhz 2
+_nr_bw_to_mhz 3
+_nr_bw_to_mhz 4
+_nr_bw_to_mhz 5
+_nr_bw_to_mhz 6
+_nr_bw_to_mhz 7
+_nr_bw_to_mhz 8
+_nr_bw_to_mhz 9
+_nr_bw_to_mhz 10
+_nr_bw_to_mhz 11
+_nr_bw_to_mhz 12
+_nr_bw_to_mhz 13
+_nr_bw_to_mhz 14
+_nr_bw_to_mhz 15
+_nr_bw_to_mhz 16
+_nr_bw_to_mhz 17
+_nr_bw_to_mhz 99
+_nr_bw_to_mhz -1
+_nr_bw_to_mhz <empty>
+_nr_bw_to_mhz abc
+_nr_bw_to_mhz 01
+_nr_bw_to_mhz 12<CR>
+_nr_bw_to_mhz 1.0
+_nr_bw_to_mhz

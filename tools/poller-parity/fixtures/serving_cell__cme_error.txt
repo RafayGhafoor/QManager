@@ -1,0 +1,2 @@
+AT+QENG="servingcell"
++CME ERROR: 10

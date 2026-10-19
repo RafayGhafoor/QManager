@@ -1,0 +1,4 @@
+AT+QENG="servingcell"
++QENG: "servingcell","NOCONN","LTE","FDD",515,03,2D1AB04,2$(id),13;00,`id`,5,5,A1B2,-9'2,-9",-6\3,9,0,240,-
+
+OK

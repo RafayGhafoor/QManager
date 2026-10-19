@@ -1,0 +1,4 @@
+AT+QENG="servingcell"
++QENG: "servingcell","NOCONN","WCDMA",515,03,2D1A,1234,10700,-90,-8,-70
+
+OK

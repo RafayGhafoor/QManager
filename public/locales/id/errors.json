@@ -108,6 +108,7 @@
   "no_bands": "Tidak ada band tersedia atau diberikan",
   "no_body": "Body permintaan kosong",
   "no_cells": "Tidak ada sel yang melayani tersedia",
+  "invalid_command": "Bukan perintah AT. Awali baris dengan AT, misalnya AT+CSQ",
   "no_command": "Kolom perintah tidak ada",
   "no_days": "Tidak ada hari yang dipilih untuk jadwal",
   "no_default": "DNS default tidak dikonfigurasi",

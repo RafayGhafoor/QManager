@@ -1,0 +1,8 @@
+AT+QRSRP;+QRSRQ;+QSINR
++QRSRP: -95,-97,,,LTE
+
++QRSRQ: -9,-10,-11,
+
++QSINR: ,,,,LTE
+
+OK
