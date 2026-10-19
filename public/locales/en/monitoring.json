@@ -308,6 +308,7 @@
       "aria": "Recovery ladder",
       "status": {
         "blocked": "Needs a slot",
+        "done": "Tried",
         "running": "Running now"
       },
       "tier1": {

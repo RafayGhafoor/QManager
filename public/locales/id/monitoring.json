@@ -308,6 +308,7 @@
       "aria": "Urutan pemulihan",
       "status": {
         "blocked": "Perlu slot",
+        "done": "Sudah dicoba",
         "running": "Sedang berjalan"
       },
       "tier1": {

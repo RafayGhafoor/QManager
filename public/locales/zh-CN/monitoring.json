@@ -308,6 +308,7 @@
       "aria": "恢复阶梯",
       "status": {
         "blocked": "需要插槽",
+        "done": "已尝试",
         "running": "正在运行"
       },
       "tier1": {

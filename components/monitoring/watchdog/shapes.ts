@@ -166,6 +166,9 @@ export const RUNG = {
   /** Step 3's companion row: the disc column held empty, so it reads as a child. */
   SUB_DISC: "col-start-1 row-start-1 size-8",
   DISC_RUNNING: "bg-primary text-primary-foreground",
+  /** A rung the ladder has already tried and climbed past. */
+  DISC_DONE: "bg-success text-success-foreground",
+  DONE_GLYPH: "size-4",
   TEXT: "col-start-2 row-start-1 flex min-w-0 flex-col gap-px",
   NAME: "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-pretty",
   NAME_INACTIVE: "text-on-surface-variant",

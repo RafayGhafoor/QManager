@@ -308,6 +308,7 @@
       "aria": "Sequenza di ripristino",
       "status": {
         "blocked": "Serve uno slot",
+        "done": "Provato",
         "running": "In esecuzione"
       },
       "tier1": {
