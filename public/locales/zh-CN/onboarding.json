@@ -16,7 +16,8 @@
     "aria_live_step_indicator": "第 {{step}} 步，共 {{total}} 步：{{label}}",
     "aria_progressbar_label": "第 {{step}} 步，共 {{total}} 步",
     "footer_branding": "QManager — Quectel 调制解调器管理",
-    "label_required": "必填"
+    "label_required": "必填",
+    "error_unreachable": "无法连接到调制解调器。"
   },
   "welcome": {
     "main_title": "您的调制解调器，\n智能管理。",
@@ -24,7 +25,8 @@
     "step_preview_password": "密码",
     "step_preview_network_mode": "网络模式",
     "step_preview_apn_sim": "APN 或 SIM 配置",
-    "step_preview_band_preferences": "频段偏好"
+    "step_preview_band_preferences": "频段偏好",
+    "step_preview_web_port": "网页端口"
   },
   "password": {
     "heading": "保护您的设置",
@@ -67,7 +69,9 @@
     "arch_label_nsa": "仅 NSA",
     "arch_desc_nsa": "通过 LTE 锚点接入 5G — 覆盖更广",
     "arch_label_sa": "仅 SA",
-    "arch_desc_sa": "独立组网 5G — 最低延迟"
+    "arch_desc_sa": "独立组网 5G — 最低延迟",
+    "aria_network_type": "网络类型",
+    "toast_failed": "无法应用网络模式。"
   },
   "band_locking": {
     "heading": "频段偏好",
@@ -80,7 +84,17 @@
     "preset_label_mid": "仅中频段",
     "preset_label_custom": "自定义…",
     "loading_bands": "正在从调制解调器加载支持的频段…",
-    "error_no_bands": "调制解调器未返回任何支持的频段。"
+    "error_no_bands": "调制解调器未返回任何支持的频段。",
+    "category_lte": "LTE 频段",
+    "category_nsa": "5G NSA 频段",
+    "category_sa": "5G SA 频段",
+    "toast_failed": "无法应用频段锁定。",
+    "toast_partial": "部分频段锁定未生效。",
+    "notice_title_failed": "频段锁定未应用",
+    "notice_title_partial": "频段锁定部分应用",
+    "notice_applied": "已应用：{{list}}",
+    "notice_retry": "点击继续将重试失败的部分；点击跳过则不应用并完成设置。",
+    "error_unconfirmed": "调制解调器未确认此更改。"
   },
   "connection": {
     "heading": "配置您的连接",
@@ -101,7 +115,10 @@
     "option_pdp_ipv4": "仅 IPv4",
     "option_pdp_ipv6": "仅 IPv6",
     "error_apn_required": "APN 名称为必填项。",
-    "error_profile_name_required": "配置名称为必填项。"
+    "error_profile_name_required": "配置名称为必填项。",
+    "aria_connection_type": "连接类型",
+    "toast_apn_failed": "无法保存 APN。",
+    "toast_profile_failed": "无法保存配置文件。"
   },
   "done": {
     "heading": "全部设置完成！",

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { useWebPort } from "@/hooks/use-web-port";
 import { originForPorts } from "@/lib/web-port";
+import { STEP_DESCRIPTION, STEP_HEADING } from "../shapes";
 
 // =============================================================================
 // StepWebPort — Onboarding step 6: the ports QManager is served on (optional)
@@ -86,8 +87,8 @@ export function StepWebPort({ onSubmitRef, onLoadingChange, onSuccess, onMove }:
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1.5">
-        <h2 className="text-2xl font-semibold tracking-tight">{t("web_port.heading")}</h2>
-        <p className="text-sm text-muted-foreground">{t("web_port.description")}</p>
+        <h2 className={STEP_HEADING}>{t("web_port.heading")}</h2>
+        <p className={STEP_DESCRIPTION}>{t("web_port.description")}</p>
       </div>
 
       <FieldGroup>

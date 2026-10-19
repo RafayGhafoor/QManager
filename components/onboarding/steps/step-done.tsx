@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CircleCheckIcon } from "lucide-react";
+import { CheckIcon } from "lucide-react";
 import { useTranslation, Trans } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { INNER_TILE, STEP_DESCRIPTION, STEP_HEADING } from "../shapes";
 import { useMotionReduced } from "@/components/motion-preference";
 import { waitForOrigin } from "@/lib/web-port";
 
@@ -16,8 +18,40 @@ import { waitForOrigin } from "@/lib/web-port";
 // back), it stays on this origin and says so.
 // =============================================================================
 
-// Brand-derived confetti colors (primary blue-indigo palette)
-const CONFETTI_COLORS = ["#4f46e5", "#6366f1", "#818cf8", "#a5b4fc", "#c7d2fe", "#e0e7ff"];
+// Confetti wears the mark's blue ramp, read from the live theme tokens at fire
+// time so it follows light/dark and any retune of globals.css (the old indigo
+// hex list was the retired Signal Indigo). canvas-confetti only parses hex, so
+// each oklch() token is resolved through a 1x1 canvas.
+const CONFETTI_TOKENS = [
+  "--primary",
+  "--primary-on-surface",
+  "--primary-container",
+  "--on-primary-container",
+];
+// The mark ring, oklch(0.623 0.214 259.815), if the tokens cannot be read.
+const CONFETTI_FALLBACK = ["#3b82f6"];
+
+function confettiColors(): string[] {
+  try {
+    const style = getComputedStyle(document.documentElement);
+    const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+    if (!ctx) return CONFETTI_FALLBACK;
+    const colors: string[] = [];
+    for (const token of CONFETTI_TOKENS) {
+      const value = style.getPropertyValue(token).trim();
+      if (!value) continue;
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = "#000";
+      ctx.fillStyle = value;
+      ctx.fillRect(0, 0, 1, 1);
+      const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+      colors.push(`#${[r, g, b].map((n) => n.toString(16).padStart(2, "0")).join("")}`);
+    }
+    return colors.length > 0 ? colors : CONFETTI_FALLBACK;
+  } catch {
+    return CONFETTI_FALLBACK;
+  }
+}
 
 export function StepDone({ movedOrigin = null }: { movedOrigin?: string | null }) {
   const { t } = useTranslation("onboarding");
@@ -42,13 +76,14 @@ export function StepDone({ movedOrigin = null }: { movedOrigin?: string | null }
     const fire = async () => {
       const confetti = (await import("canvas-confetti")).default;
       if (cancelled) return;
+      const colors = confettiColors();
 
       // Center burst
       confetti({
         particleCount: 70,
         spread: 55,
         origin: { x: 0.5, y: 0.45 },
-        colors: CONFETTI_COLORS,
+        colors,
         scalar: 0.85,
         gravity: 1.1,
       });
@@ -61,7 +96,7 @@ export function StepDone({ movedOrigin = null }: { movedOrigin?: string | null }
           spread: 50,
           angle: 65,
           origin: { x: 0.15, y: 0.5 },
-          colors: CONFETTI_COLORS,
+          colors,
           scalar: 0.8,
         });
         confetti({
@@ -69,7 +104,7 @@ export function StepDone({ movedOrigin = null }: { movedOrigin?: string | null }
           spread: 50,
           angle: 115,
           origin: { x: 0.85, y: 0.5 },
-          colors: CONFETTI_COLORS,
+          colors,
           scalar: 0.8,
         });
       }, 180);
@@ -101,34 +136,34 @@ export function StepDone({ movedOrigin = null }: { movedOrigin?: string | null }
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 text-center py-2">
-      {/* Animated checkmark */}
-      <CircleCheckIcon
-        className="size-16 text-primary transition-[opacity,transform] duration-500"
+    <div className="flex flex-col items-center gap-6 py-2 text-center">
+      {/* Completion glyph: a filled success disc (Glyph-Disc Rule), arriving
+          on the emphasized clock; centred because it stands alone. */}
+      <span
+        aria-hidden="true"
+        className="grid size-16 place-items-center rounded-full bg-success text-success-foreground transition-[opacity,transform] duration-[var(--duration-emphasized)] ease-emphasized"
         style={{
           opacity: show ? 1 : 0,
           transform: show ? "scale(1)" : "scale(0.6)",
         }}
-      />
+      >
+        <CheckIcon className="size-8" strokeWidth={2.5} />
+      </span>
 
       <div className="flex flex-col gap-2">
-        <h2 className="text-2xl font-semibold tracking-tight">
-          {t("done.heading")}
-        </h2>
-        <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-          {t("done.description")}
-        </p>
+        <h2 className={STEP_HEADING}>{t("done.heading")}</h2>
+        <p className={`${STEP_DESCRIPTION} max-w-xs leading-relaxed`}>{t("done.description")}</p>
       </div>
 
-      {/* Tip callout */}
-      <div className="w-full rounded-xl bg-muted/60 border border-border px-4 py-3 text-left">
-        <p className="text-xs text-muted-foreground leading-relaxed">
+      {/* Tip callout: the one inner tile, no stroke on the fill */}
+      <div className={`${INNER_TILE} w-full px-4 text-left`}>
+        <p className="text-xs leading-relaxed text-on-surface-variant">
           <Trans
             i18nKey="done.callout_body"
             ns="onboarding"
             components={{
-              bold: <span className="font-medium text-foreground" />,
-              menu: <span className="font-medium" />,
+              bold: <span className="font-medium text-on-surface" />,
+              menu: <span className="font-medium text-on-surface" />,
             }}
           />
         </p>
@@ -138,9 +173,10 @@ export function StepDone({ movedOrigin = null }: { movedOrigin?: string | null }
         ref={dashboardBtnRef}
         onClick={() => void handleGoToDashboard()}
         disabled={opening}
-        className="w-full"
-        size="lg"
+        className="w-full gap-2"
+        size="action"
       >
+        {opening && <Spinner className="size-4" />}
         {opening ? t("web_port.opening") : t("done.button_dashboard")}
       </Button>
     </div>

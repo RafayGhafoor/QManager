@@ -1,19 +1,36 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { DUR, EASE_EMPHASIZED, EASE_STANDARD } from "@/lib/motion";
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
+import { SHELL_CARD } from "./shapes";
 
 // =============================================================================
 // OnboardingShell — Full-screen centered card wrapper for onboarding wizard
 // =============================================================================
+// One card on the canvas (onboarding runs its own single-card shell, not a
+// feature page, so the max-w column is not a page cap). Steps arrive with a
+// directional slide and have no exit (Enter-Only Rule: an outgoing step is
+// already gone, animating it out only delays the next one). The step dots are
+// one of the two sanctioned `width` animations: a scaleX would squash the caps.
+// =============================================================================
 
 const TOTAL_STEPS = 7;
 
+const STEP_LABEL_KEYS = [
+  "step_label_welcome",
+  "step_label_password",
+  "step_label_network_mode",
+  "step_label_connection",
+  "step_label_band_preferences",
+  "step_label_web_port",
+  "step_label_complete",
+] as const;
 
 interface OnboardingShellProps {
   /** 1-based step index */
@@ -39,19 +56,8 @@ export function OnboardingShell({
 }: OnboardingShellProps) {
   const [prevStep, setPrevStep] = useState(currentStep);
   const [direction, setDirection] = useState(1);
-  const liveRef = useRef<HTMLParagraphElement>(null);
 
   const { t } = useTranslation("onboarding");
-
-  const stepLabelKeys = [
-    "step_label_welcome",
-    "step_label_password",
-    "step_label_network_mode",
-    "step_label_connection",
-    "step_label_band_preferences",
-    "step_label_web_port",
-    "step_label_complete",
-  ];
 
   // Derived state: update direction when step prop changes.
   // Calling setState during render (not in an effect) is the React-recommended
@@ -72,23 +78,12 @@ export function OnboardingShell({
       ? t("shell.button_continue_last")
       : t("shell.button_continue");
 
-  const currentStepLabel = t(`shell.${stepLabelKeys[currentStep - 1] ?? ""}`, "");
-
-  const slideVariants = {
-    enter: (dir: number) => ({ opacity: 0, x: dir * 24 }),
-    center: { opacity: 1, x: 0 },
-    exit: (dir: number) => ({ opacity: 0, x: dir * -24 }),
-  };
+  const currentStepLabel = t(`shell.${STEP_LABEL_KEYS[currentStep - 1] ?? ""}`, "");
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-background p-6">
+    <div className="flex min-h-svh items-center justify-center bg-background px-4 py-6 sm:p-6">
       {/* Screen-reader live region */}
-      <p
-        ref={liveRef}
-        aria-live="polite"
-        aria-atomic="true"
-        className="sr-only"
-      >
+      <p aria-live="polite" aria-atomic="true" className="sr-only">
         {currentStepLabel
           ? t("shell.aria_live_step_indicator", {
               step: currentStep,
@@ -99,8 +94,7 @@ export function OnboardingShell({
       </p>
 
       <div className="w-full max-w-md">
-        <div className="rounded-xl border border-border bg-card shadow-2xl ring-1 ring-border/50 px-10 py-10 flex flex-col gap-8">
-
+        <div className={SHELL_CARD}>
           {/* Progress dots — active dot morphs to pill */}
           <div
             role="progressbar"
@@ -115,42 +109,34 @@ export function OnboardingShell({
           >
             {Array.from({ length: TOTAL_STEPS }, (_, i) => {
               const step = i + 1;
-              const isPast = step < currentStep;
+              const reached = step <= currentStep;
               const isCurrent = step === currentStep;
               return (
                 <motion.span
                   key={step}
                   aria-current={isCurrent ? "step" : undefined}
                   className={cn(
-                    "block h-2 rounded-full",
-                    isPast || isCurrent
-                      ? "bg-primary"
-                      : "bg-muted-foreground/25",
-                    isCurrent &&
-                      "ring-2 ring-primary/30 ring-offset-1 ring-offset-background"
+                    "block h-2 rounded-pill transition-colors duration-[var(--duration-standard)] ease-standard",
+                    reached ? "bg-primary" : "bg-surface-container-high",
                   )}
+                  initial={false}
                   animate={{ width: isCurrent ? "1.5rem" : "0.5rem" }}
-                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                  transition={{ duration: DUR.emphasized, ease: EASE_EMPHASIZED }}
                 />
               );
             })}
           </div>
 
-          {/* Step content — directional slide transition */}
+          {/* Step content — directional slide in, no exit */}
           <div className="overflow-hidden">
-            <AnimatePresence mode="wait" custom={direction}>
-              <motion.div
-                key={currentStep}
-                custom={direction}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
-              >
-                {children}
-              </motion.div>
-            </AnimatePresence>
+            <motion.div
+              key={currentStep}
+              initial={{ opacity: 0, x: direction * 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: DUR.standard, ease: EASE_STANDARD }}
+            >
+              {children}
+            </motion.div>
           </div>
 
           {/* Footer buttons */}
@@ -159,12 +145,11 @@ export function OnboardingShell({
               {showBack ? (
                 <Button
                   variant="ghost"
-                  size="sm"
                   onClick={onBack}
                   disabled={isLoading}
-                  className="gap-1.5 text-muted-foreground"
+                  className="gap-1.5 text-on-surface-variant"
                 >
-                  <ArrowLeftIcon className="size-3.5" />
+                  <ArrowLeftIcon className="size-4" />
                   {t("shell.button_back")}
                 </Button>
               ) : (
@@ -175,10 +160,9 @@ export function OnboardingShell({
                 {showSkip && (
                   <Button
                     variant="ghost"
-                    size="sm"
                     onClick={onSkip}
                     disabled={isLoading}
-                    className="text-muted-foreground"
+                    className="text-on-surface-variant"
                   >
                     {t("shell.button_skip")}
                   </Button>
@@ -186,19 +170,18 @@ export function OnboardingShell({
                 <Button
                   onClick={onNext}
                   disabled={isLoading || continueDisabled}
-                  size="sm"
-                  className="group gap-1.5 min-w-[100px]"
+                  className="group min-w-[6.5rem] gap-1.5"
                 >
                   {isLoading ? (
                     <>
-                      <Spinner className="size-3.5" />
+                      <Spinner className="size-4" />
                       <span>{t("shell.button_saving")}</span>
                     </>
                   ) : (
                     <>
                       {continueLabel ?? defaultContinueLabel}
                       {!isFirstStep && (
-                        <ArrowRightIcon className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+                        <ArrowRightIcon className="size-4 transition-transform duration-[var(--duration-quick)] ease-out group-hover:translate-x-0.5 motion-reduce:transition-none" />
                       )}
                     </>
                   )}
@@ -209,7 +192,7 @@ export function OnboardingShell({
         </div>
 
         {/* Branding footer */}
-        <p className="mt-4 text-center text-xs text-muted-foreground/50">
+        <p className="mt-4 text-center text-xs text-on-surface-variant">
           {t("shell.footer_branding")}
         </p>
       </div>

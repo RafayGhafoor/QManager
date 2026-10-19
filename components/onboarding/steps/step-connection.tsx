@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
+import { toast } from "sonner";
 import { FolderOpenIcon, WrenchIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { authFetch } from "@/lib/auth-fetch";
+import { DUR, EASE_STANDARD } from "@/lib/motion";
+import { OptionRow } from "../option-row";
+import { postStep, stepFailureMessage } from "../post-step";
+import { STEP_DESCRIPTION, STEP_HEADING } from "../shapes";
 import { Input } from "@/components/ui/input";
 import {
   Field,
@@ -32,6 +35,14 @@ import {
 
 const APN_ENDPOINT = "/cgi-bin/quecmanager/cellular/apn.sh";
 const PROFILES_ENDPOINT = "/cgi-bin/quecmanager/profiles/save.sh";
+
+// The select's values are the AT spellings profiles/save.sh validates
+// (IP / IPV6 / IPV4V6); apn.sh validates the lowercase family names.
+const APN_PDP: Record<string, string> = {
+  IPV4V6: "ipv4v6",
+  IP: "ipv4",
+  IPV6: "ipv6",
+};
 
 type ConnectionType = "profile" | "apn" | null;
 
@@ -92,38 +103,47 @@ export function StepConnection({
     }
 
     onLoadingChange(true);
-    try {
-      if (selectedType === "apn") {
-        await authFetch(APN_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cid: 1, pdp_type: pdpType, apn: apnName }),
-        });
-      } else {
-        // Profile creation
-        const preset = getMnoPreset(mno);
-        await authFetch(PROFILES_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: profileName,
-            mno: mno || MNO_CUSTOM_ID,
-            sim_iccid: "",
-            cid: 1,
-            apn_name: apnName,
-            pdp_type: pdpType,
-            imei: "",
-            ttl: preset?.ttl ?? 0,
-            hl: preset?.hl ?? 0,
-          }),
-        });
-      }
-    } catch {
-      // Non-fatal: connection setup is optional
-    } finally {
-      onLoadingChange(false);
-      onSuccess();
+    let result;
+    if (selectedType === "apn") {
+      // apn.sh takes an action and the lowercase PDP family; the select holds
+      // the profile store's uppercase AT spelling, so it is mapped here.
+      result = await postStep(APN_ENDPOINT, {
+        action: "save",
+        cid: 1,
+        pdp_type: APN_PDP[pdpType] ?? "ipv4v6",
+        apn: apnName.trim(),
+      });
+    } else {
+      // Profile creation
+      const preset = getMnoPreset(mno);
+      result = await postStep(PROFILES_ENDPOINT, {
+        name: profileName.trim(),
+        mno: mno || MNO_CUSTOM_ID,
+        sim_iccid: "",
+        cid: 1,
+        apn_name: apnName.trim(),
+        pdp_type: pdpType,
+        imei: "",
+        ttl: preset?.ttl ?? 0,
+        hl: preset?.hl ?? 0,
+      });
     }
+    onLoadingChange(false);
+
+    if (!result.ok) {
+      // Stay on the step so the user can correct and retry, or Skip.
+      toast.error(
+        stepFailureMessage(
+          t,
+          result,
+          selectedType === "apn"
+            ? t("connection.toast_apn_failed")
+            : t("connection.toast_profile_failed"),
+        ),
+      );
+      return;
+    }
+    onSuccess();
   }, [selectedType, apnName, pdpType, profileName, mno, onLoadingChange, onSuccess, t]);
 
   useEffect(() => {
@@ -133,41 +153,39 @@ export function StepConnection({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1.5">
-        <h2 className="text-2xl font-semibold tracking-tight">
-          {t("connection.heading")}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {t("connection.description")}
-        </p>
+        <h2 className={STEP_HEADING}>{t("connection.heading")}</h2>
+        <p className={STEP_DESCRIPTION}>{t("connection.description")}</p>
       </div>
 
-      {/* Choice cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <ChoiceCard
-          selected={selectedType === "profile"}
-          onClick={() => handleTypeSelect("profile")}
-          icon={<FolderOpenIcon className="size-5" />}
-          title={t("connection.choice_profile_title")}
-          description={t("connection.choice_profile_desc")}
-        />
-        <ChoiceCard
-          selected={selectedType === "apn"}
-          onClick={() => handleTypeSelect("apn")}
-          icon={<WrenchIcon className="size-5" />}
-          title={t("connection.choice_apn_title")}
-          description={t("connection.choice_apn_desc")}
-        />
-      </div>
-
-      {/* Inline form — animates in when a type is selected */}
+      {/* What to set up: one choice, two rows */}
       <div
-        className={cn(
-          "grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
-          selectedType !== null ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-        )}
+        role="radiogroup"
+        aria-label={t("connection.aria_connection_type")}
+        className="flex flex-col gap-1.5"
       >
-        <div className="overflow-hidden">
-        <div className="flex flex-col gap-4 border-t border-border pt-4">
+        <OptionRow
+          selected={selectedType === "profile"}
+          onSelect={() => handleTypeSelect("profile")}
+          icon={<FolderOpenIcon className="size-4" />}
+          label={t("connection.choice_profile_title")}
+          detail={t("connection.choice_profile_desc")}
+        />
+        <OptionRow
+          selected={selectedType === "apn"}
+          onSelect={() => handleTypeSelect("apn")}
+          icon={<WrenchIcon className="size-4" />}
+          label={t("connection.choice_apn_title")}
+          detail={t("connection.choice_apn_desc")}
+        />
+      </div>
+
+      {/* The form arrives once a type is chosen (opacity and rise only) */}
+      {selectedType !== null && (
+        <motion.div
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: DUR.standard, ease: EASE_STANDARD }}
+        >
           <FieldGroup>
             {selectedType === "profile" && (
               <Field>
@@ -184,7 +202,7 @@ export function StepConnection({
             <Field>
               <FieldLabel htmlFor="conn-carrier">{t("connection.label_carrier")}</FieldLabel>
               <Select value={mno} onValueChange={handleMnoChange}>
-                <SelectTrigger id="conn-carrier">
+                <SelectTrigger id="conn-carrier" className="w-full">
                   <SelectValue placeholder={t("connection.placeholder_carrier")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -202,6 +220,10 @@ export function StepConnection({
               <FieldLabel htmlFor="conn-apn">{t("connection.label_apn")}</FieldLabel>
               <Input
                 id="conn-apn"
+                className="font-mono"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 placeholder={t("connection.placeholder_apn")}
                 value={apnName}
                 onChange={(e) => setApnName(e.target.value)}
@@ -211,7 +233,7 @@ export function StepConnection({
             <Field>
               <FieldLabel htmlFor="conn-pdp">{t("connection.label_pdp_type")}</FieldLabel>
               <Select value={pdpType} onValueChange={setPdpType}>
-                <SelectTrigger id="conn-pdp">
+                <SelectTrigger id="conn-pdp" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -224,63 +246,8 @@ export function StepConnection({
 
             {formError && <FieldError>{formError}</FieldError>}
           </FieldGroup>
-        </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// ChoiceCard — selectable card for profile vs APN choice
-// ---------------------------------------------------------------------------
-
-interface ChoiceCardProps {
-  selected: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}
-
-function ChoiceCard({
-  selected,
-  onClick,
-  icon,
-  title,
-  description,
-}: ChoiceCardProps) {
-  return (
-    <motion.button
-      type="button"
-      aria-pressed={selected}
-      onClick={onClick}
-      whileTap={{ scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 600, damping: 30 }}
-      className={cn(
-        "flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-colors duration-150",
-        "hover:border-primary/50 hover:bg-primary/5",
-        selected
-          ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-          : "border-border bg-card"
+        </motion.div>
       )}
-    >
-      <span
-        className={cn(
-          "rounded-lg p-2 transition-colors duration-150",
-          selected
-            ? "bg-primary/15 text-primary"
-            : "bg-muted text-muted-foreground"
-        )}
-      >
-        {icon}
-      </span>
-      <div className="flex flex-col gap-0.5">
-        <span className="text-sm font-medium leading-snug">{title}</span>
-        <span className="text-xs text-muted-foreground leading-snug">
-          {description}
-        </span>
-      </div>
-    </motion.button>
+    </div>
   );
 }
