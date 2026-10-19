@@ -102,11 +102,35 @@ quecmanager.$1.$2=\'}"
     esac
 }
 
-# _qm_api_sanitize <scope> — 1 when any line of QM_API_CFG is not one of the
-# scope's own `quecmanager.<scope>…` lines (a value carrying a newline could
-# otherwise shadow another option for _qm_api_get's first match). On 0 it also
-# drops the token line, so the stored token does not outlive the compare in a
-# shell variable. Builtins only (heredoc + read).
+# _qm_api_line_closed <line> — 0 when every quoted value on a `uci show` line
+# closes on that line. uci prints a value as '...' with an embedded ' as '\'';
+# with those escapes removed a complete line holds an even number of quotes,
+# and a value that carries a newline leaves its first line odd.
+_qm_api_line_closed() {
+    local s
+    local q
+    s="$1"
+    while :; do
+        case "$s" in
+            *"'\\''"*) s="${s%%"'\\''"*}${s#*"'\\''"}" ;;
+            *) break ;;
+        esac
+    done
+    q=0
+    while :; do
+        case "$s" in
+            *"'"*) s="${s#*\'}"; q=$((q + 1)) ;;
+            *) break ;;
+        esac
+    done
+    [ $((q % 2)) -eq 0 ]
+}
+
+# _qm_api_sanitize <scope> — 1 when the read is not a clean set of the scope's
+# own one-line options: a foreign line, or a value spanning lines (which could
+# otherwise inject a line that shadows enabled/token for _qm_api_get's first
+# match). On 0 it also drops the token line, so the stored token does not
+# outlive the compare in a shell variable. Builtins only (heredoc + read).
 _qm_api_sanitize() {
     local line
     local out
@@ -114,9 +138,12 @@ _qm_api_sanitize() {
     while IFS= read -r line; do
         case "$line" in
             '') continue ;;
-            "quecmanager.$1."token=*) continue ;;
-            "quecmanager.$1="*|"quecmanager.$1."*) ;;
+            "quecmanager.$1="*|"quecmanager.$1."*)
+                _qm_api_line_closed "$line" || { QM_API_CFG=""; return 1; } ;;
             *) QM_API_CFG=""; return 1 ;;
+        esac
+        case "$line" in
+            "quecmanager.$1."token=*) continue ;;
         esac
         out="$out
 $line"
