@@ -1309,119 +1309,154 @@
         },
         "toast_no_targets": "Tidak ada target penguncian yang dikonfigurasi"
       }
+    }
+  },
+  "frequency_locking": {
+    "a11y": {
+      "add_carrier": "Tambahkan carrier ini ke daftar",
+      "refresh": "Muat ulang status kunci",
+      "remove_entry": "Hapus kanal ini"
     },
-    "frequency_locking": {
-      "page": {
-        "title": "Penguncian Frekuensi",
-        "description": "Kunci ke EARFCN/NR-ARFCN tertentu. Eksperimental — gunakan dengan hati-hati."
-      },
+    "actions": {
+      "add": "Tambah",
+      "apply_lte": "Terapkan kunci LTE",
+      "apply_nr": "Terapkan kunci NR",
+      "clear_all": "Hapus semua",
+      "clear_fields": "Kosongkan isian",
+      "clear_lte": "Hapus kunci LTE",
+      "clear_nr": "Hapus kunci NR",
+      "use_current": "Pakai saat ini",
+      "use_current_hint": "Isi dari kanal yang sedang dipakai modem",
+      "use_current_none": "Tidak ada carrier aktif"
+    },
+    "apply": {
+      "applying_title": "Menunggu modem kembali",
+      "blocked_readback": "Kunci tower aktif, kunci frekuensi tidak tersedia",
+      "blocked_title": "Terapkan tidak tersedia selama kunci tower aktif",
+      "blocked_unknown_readback": "Status kunci tower tidak diketahui, jadi penulisan diblokir",
+      "blocked_unknown_title": "Terapkan tidak tersedia sampai status kunci tower dapat dibaca",
+      "disclaimer": "Menerapkan kunci akan memutus koneksi sejenak saat radio mendaftar ulang. Kanal tanpa jangkauan membuat modem kehilangan layanan sampai kunci dihapus.",
+      "live_title": "Kunci aktif di modem",
+      "no_recovery": "Penguncian frekuensi tidak punya pemantau failover. Berbeda dengan penguncian band dan tower, tidak ada apa pun yang memulihkan layanan dengan sendirinya jika kanal ini kehilangan jangkauan.",
+      "readback_lte": "LTE {{channels}}",
+      "readback_none": "Tidak ada kunci frekuensi di modem",
+      "readback_nr": "NR {{channels}}",
+      "readback_serving": "digunakan {{channel}}"
+    },
+    "bands": {
+      "none": "Tidak ada band yang cocok untuk {{label}}",
+      "possible": "Kemungkinan band:",
+      "this_frequency": "kanal ini",
+      "unsupported_suffix": "tidak didukung"
+    },
+    "blocked": {
+      "tower_lock_active": "Kunci tower sedang menahan radio ini. Lepaskan dulu sebelum mengunci frekuensi.",
+      "tower_lock_unknown": "Status kunci tower tidak bisa dibaca, jadi penguncian ini ditolak sampai modem menjawab. Muat ulang untuk mencoba lagi."
+    },
+    "card": {
+      "blocked_body": "Lepas kunci tower untuk mengedit daftar ini.",
+      "count": "{{used}} dari {{max}}",
+      "empty_body_nr": "Tambahkan carrier NR di atas, atau masukkan ARFCN dan pilih jaraknya.",
+      "empty_title": "Belum ada kanal di daftar",
+      "scs_warning": "Jarak yang salah tampak seperti entri yang valid, tetapi modem tidak akan pernah memakainya. Nilainya disalin dari carrier saat Anda menambahkannya dari atas.",
+      "status_applying": "Menerapkan",
+      "status_blocked": "Diblokir",
+      "status_locked": "Terkunci",
+      "status_unknown": "Belum dilaporkan",
+      "status_unlocked": "Tidak terkunci"
+    },
+    "dialog": {
+      "cancel": "Batal",
+      "confirm_lock": "Kunci kanal",
+      "confirm_unlock": "Hapus kunci",
+      "lock_lte_body": "Modem hanya akan memakai {{channels}} dan mungkin terputus sejenak saat mendaftar ulang.",
+      "lock_lte_title": "Kunci kanal LTE?",
+      "lock_nr_body": "Modem hanya akan memakai {{channels}} dan mungkin terputus sejenak saat mendaftar ulang.",
+      "lock_nr_title": "Kunci kanal 5G NR?",
+      "unlock_lte_body": "Modem akan bebas memakai kanal apa pun yang tersedia dari band aktifnya, dan mungkin terputus sejenak.",
+      "unlock_lte_title": "Hapus kunci LTE?",
+      "unlock_nr_body": "Modem akan bebas memakai kanal apa pun yang tersedia dari band aktifnya, dan mungkin terputus sejenak.",
+      "unlock_nr_title": "Hapus kunci 5G NR?",
+      "unsupported_body": "Mengunci ke band yang tidak didukung modem bisa membuatnya restart tak terduga, dan tidak ada apa pun di sini yang akan memulihkannya secara otomatis.",
+      "unsupported_confirm": "Tetap kunci",
+      "unsupported_matched": "Band yang cocok",
+      "unsupported_supported": "Band yang didukung",
+      "unsupported_title": "Kanal ini berada di luar band modem Anda",
+      "unsupported_unknown": "Tidak diketahui"
+    },
+    "error": {
+      "invalid_channel": "Nomor kanal hanya boleh berupa angka.",
+      "load_body": "Modem tidak menjawab. Muat ulang untuk mencoba lagi.",
+      "load_title": "Tidak dapat membaca status kunci"
+    },
+    "legs": {
       "lte": {
-        "title": "Penguncian Frekuensi LTE",
-        "description_loading": "Kunci ke frekuensi channel LTE tertentu.",
-        "description": "Kunci ke frekuensi channel LTE tertentu. Maksimal 2 channel.",
-        "tower_lock_active": "Penguncian Tower LTE sedang aktif. Nonaktifkan terlebih dahulu sebelum menggunakan penguncian frekuensi.",
-        "experimental_warning": "Fitur Eksperimental",
-        "enabled_label": "Penguncian Frekuensi LTE Aktif",
-        "enabled_tooltip": "Mengunci ke frekuensi yang tidak didukung dapat menyebabkan modem restart secara tiba-tiba. Tidak dapat digunakan bersamaan dengan Penguncian Tower.",
-        "enabled_info_aria": "Info penguncian frekuensi LTE",
-        "channel_label": "Channel (EARFCN)",
-        "channel_label_optional": "Channel 2 (Opsional)",
-        "channel_placeholder": "Masukkan EARFCN",
-        "channel_placeholder_2": "Masukkan EARFCN 2",
-        "use_current": "Gunakan Saat Ini",
-        "error_title": "Gagal memuat status penguncian frekuensi",
-        "lock_dialog": {
-          "title": "Kunci Frekuensi LTE?",
-          "description_single": "Ini akan mengunci modem Anda ke EARFCN {{earfcn}}. Modem hanya akan menggunakan frekuensi ini dan mungkin akan terputus sebentar.",
-          "description_multi": "Ini akan mengunci modem Anda ke EARFCN {{earfcns}}. Modem hanya akan menggunakan frekuensi ini dan mungkin akan terputus sebentar.",
-          "confirm": "Kunci Frekuensi"
-        },
-        "unsupported_dialog": {
-          "title": "Peringatan Frekuensi Tidak Didukung",
-          "description_prefix": "Frekuensi yang Anda masukkan cocok dengan band yang tidak didukung oleh modem Anda. Mengunci ke frekuensi yang tidak didukung dapat menyebabkan modem restart secara tiba-tiba.",
-          "matched_bands_label": "Band yang cocok:",
-          "supported_bands_label": "Band yang didukung:",
-          "confirm": "Tetap Kunci",
-          "confirm_prompt": "Apakah Anda yakin ingin melanjutkan?",
-          "unknown": "Tidak Diketahui"
-        },
-        "unlock_dialog": {
-          "title": "Buka Kunci Frekuensi LTE?",
-          "description": "Ini akan menghapus penguncian frekuensi LTE. Modem akan bebas menggunakan frekuensi yang tersedia dan mungkin akan terputus sebentar.",
-          "confirm": "Hapus Penguncian"
-        },
-        "toast": {
-          "no_frequencies_title": "Tidak ada frekuensi yang dimasukkan",
-          "no_frequencies_description": "Masukkan setidaknya satu nomor channel sebelum mengaktifkan.",
-          "lock_success": "Penguncian frekuensi LTE berhasil diterapkan",
-          "lock_error": "Gagal menerapkan penguncian frekuensi LTE",
-          "unlock_success": "Penguncian frekuensi LTE berhasil dilepas",
-          "unlock_error": "Gagal melepas penguncian frekuensi LTE",
-          "filled_current": "Diisi dari tower yang sedang terhubung",
-          "no_active_connection": "Tidak ada koneksi LTE aktif"
-        }
+        "description": "Maksimal 2 EARFCN. Modem hanya boleh memakai kanal ini.",
+        "title": "Kanal LTE"
       },
       "nr": {
-        "title": "Penguncian Frekuensi NR5G",
-        "description_loading": "Kunci ke frekuensi NR tertentu (NR-ARFCN).",
-        "description": "Kunci ke frekuensi NR tertentu. Mendukung hingga 32 entri (4 ditampilkan).",
-        "tower_lock_active": "Penguncian Tower NR sedang aktif. Nonaktifkan terlebih dahulu sebelum menggunakan penguncian frekuensi.",
-        "experimental_warning": "Fitur Eksperimental",
-        "enabled_label": "Penguncian Frekuensi NR5G Aktif",
-        "enabled_tooltip": "Tidak dapat digunakan bersamaan dengan Penguncian Tower NR (AT+QNWLOCK). SCS dideteksi otomatis dari jenis band tetapi dapat diubah manual.",
-        "enabled_info_aria": "Info penguncian frekuensi NR5G",
-        "arfcn_label": "NR-ARFCN",
-        "arfcn_label_n": "NR-ARFCN {{n}}",
-        "arfcn_placeholder": "Masukkan {{label}}",
-        "scs_label": "SCS",
-        "scs_label_n": "SCS {{n}}",
-        "scs_placeholder": "SCS",
-        "scs_slot_aria": "Slot {{label}} {{n}}",
-        "use_current": "Gunakan Saat Ini",
-        "error_title": "Gagal memuat status penguncian frekuensi",
-        "lock_dialog": {
-          "title": "Kunci Frekuensi NR5G?",
-          "description_single": "Ini akan mengunci modem Anda ke NR-ARFCN {{arfcn}} (SCS {{scs}} kHz). Modem hanya akan menggunakan frekuensi ini dan mungkin akan terputus sebentar.",
-          "description_multi": "Ini akan mengunci modem Anda ke {{count}} frekuensi NR. Modem hanya akan menggunakan frekuensi ini dan mungkin akan terputus sebentar.",
-          "confirm": "Kunci Frekuensi"
-        },
-        "unsupported_dialog": {
-          "title": "Peringatan Band Tidak Didukung",
-          "description_prefix": "NR-ARFCN yang Anda masukkan cocok dengan band yang tidak didukung oleh modem Anda. Mengunci ke frekuensi yang tidak didukung dapat menyebabkan perilaku yang tidak terduga.",
-          "matched_bands_label": "Band yang cocok:",
-          "supported_bands_label": "Band yang didukung:",
-          "confirm": "Tetap Kunci",
-          "confirm_prompt": "Apakah Anda yakin ingin melanjutkan?",
-          "unknown": "Tidak Diketahui"
-        },
-        "unlock_dialog": {
-          "title": "Buka Kunci Frekuensi NR5G?",
-          "description": "Ini akan menghapus penguncian frekuensi NR5G. Modem akan bebas menggunakan frekuensi NR yang tersedia dan mungkin akan terputus sebentar.",
-          "confirm": "Buka Kunci"
-        },
-        "toast": {
-          "no_frequencies_title": "Tidak ada frekuensi yang dimasukkan",
-          "no_frequencies_description": "Masukkan setidaknya satu NR-ARFCN dan SCS sebelum mengaktifkan.",
-          "missing_scs_title": "SCS tidak diisi",
-          "missing_scs_description": "Setiap NR-ARFCN memerlukan nilai SCS. Silakan pilih subcarrier spacing.",
-          "lock_success": "Penguncian frekuensi NR5G berhasil diterapkan",
-          "lock_error": "Gagal menerapkan penguncian frekuensi NR5G",
-          "unlock_success": "Penguncian frekuensi NR5G berhasil dilepas",
-          "unlock_error": "Gagal melepas penguncian frekuensi NR5G",
-          "filled_current": "Diisi dari NR PCell aktif",
-          "no_active_connection": "Tidak ada sel NR aktif"
-        }
-      },
-      "band_match": {
-        "no_match": "Tidak ditemukan band yang cocok untuk {{label}}",
-        "possible_prefix": "Band yang mungkin: ",
-        "unsupported_suffix": " — tidak didukung",
-        "no_match_label": {
-          "this_channel": "channel ini",
-          "this_nr_arfcn": "NR-ARFCN ini",
-          "this_frequency": "frekuensi ini"
-        }
+        "description": "Maksimal 32 ARFCN, masing-masing dengan jarak subcarrier-nya.",
+        "title": "Kanal 5G NR"
       }
+    },
+    "live": {
+      "add_blocked": "Penambahan dinonaktifkan sampai kunci tower dilepas.",
+      "add_blocked_unknown": "Penambahan dinonaktifkan sampai status kunci tower dapat dibaca.",
+      "add_hint": "Tambah menyalin kanal tersebut ke daftar di bawah. Kunci frekuensi tidak memakai PCI, jadi modem tetap memilih selnya sendiri.",
+      "camped_empty_body": "Modem tidak melaporkan sel layanan. Kanal tetap bisa dimasukkan secara manual.",
+      "camped_empty_title": "Tidak ada carrier dilaporkan",
+      "camped_meta": "{{count}} carrier ({{bandwidth}} MHz)",
+      "camped_title": "Terhubung saat ini",
+      "compare_hint": "Kunci tower mengikat kanal sekaligus sel. Kunci frekuensi lebih longgar: kanal yang sama, sel mana pun.",
+      "compare_hint_unknown": "Status kunci tower tidak dapat dibaca. Kunci frekuensi ditolak selama kunci tower aktif, jadi tidak ada yang bisa diterapkan di sini sampai pembacaan itu berhasil.",
+      "title": "Saat ini"
+    },
+    "page": {
+      "description": "Batasi radio ke kanal tertentu. Hanya kanal, tanpa PCI, jadi modem tetap memilih selnya sendiri.",
+      "experimental": "Eksperimental",
+      "title": "Penguncian Frekuensi"
+    },
+    "progress": {
+      "wait_note": "Ini butuh beberapa detik. Jangan reboot."
+    },
+    "slots": {
+      "arfcn_placeholder": "NR-ARFCN",
+      "earfcn_placeholder": "EARFCN",
+      "in_list": "Di daftar",
+      "optional": "Opsional. Kanal kedua memperluas daftar yang diizinkan.",
+      "scs_label": "Jarak",
+      "scs_unit": "{{value}} kHz",
+      "slot": "Slot {{index}}",
+      "staged_count": "{{count}} dari {{max}} entri disiapkan. Belum ada yang ditulis ke modem."
+    },
+    "toast": {
+      "all_cleared": "Semua kunci frekuensi dihapus",
+      "lte_clear_failed": "Tidak dapat menghapus kunci frekuensi LTE",
+      "lte_cleared": "Kunci frekuensi LTE dihapus",
+      "lte_lock_failed": "Tidak dapat menerapkan kunci frekuensi LTE",
+      "lte_locked": "Kunci frekuensi LTE diterapkan",
+      "no_channels_body": "Masukkan setidaknya satu kanal sebelum menerapkan.",
+      "no_channels_title": "Belum ada kanal yang dimasukkan",
+      "nr_clear_failed": "Tidak dapat menghapus kunci frekuensi 5G NR",
+      "nr_cleared": "Kunci frekuensi 5G NR dihapus",
+      "nr_lock_failed": "Tidak dapat menerapkan kunci frekuensi 5G NR",
+      "nr_locked": "Kunci frekuensi 5G NR diterapkan"
+    },
+    "verdict": {
+      "blocked_body": "QManager tidak akan menulis kunci frekuensi selama kunci tower aktif. Lepas kunci tower untuk memakai halaman ini.",
+      "blocked_title": "Kunci tower sedang menahan radio",
+      "blocked_unknown_body": "QManager tidak dapat membaca apakah kunci tower aktif. Perubahan kunci frekuensi tetap diblokir sampai pembacaan itu berhasil, karena menerapkannya saat kunci tower aktif bisa membuat modem crash. Muat ulang untuk mencoba lagi.",
+      "blocked_unknown_title": "Status kunci tower belum dipastikan",
+      "locked_body": "Modem hanya boleh memakai kanal di bawah ini. Selnya tetap dipilih sendiri, jadi PCI bisa berubah.",
+      "locked_title": "Terkunci ke daftar kanal Anda",
+      "no_recovery": "Tidak ada pemulihan otomatis",
+      "serving_in_list": "Kanal yang digunakan ada di daftar",
+      "serving_out_of_list": "Kanal yang digunakan ada di luar daftar",
+      "tower_lock_off": "Kunci tower nonaktif, jadi fitur ini tersedia",
+      "unknown_body": "Modem tidak menjawab pembacaan status terakhir. Muat ulang untuk mencoba lagi.",
+      "unknown_title": "Status kunci belum dilaporkan",
+      "unlocked_body": "Modem boleh memakai kanal apa pun yang tersedia dari band aktifnya, dan berpindah sel dengan bebas. Izinkan sebuah kanal untuk mempersempitnya.",
+      "unlocked_title": "Semua kanal diizinkan"
     }
   },
   "cell_scanner": {

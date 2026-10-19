@@ -1309,119 +1309,154 @@
         },
         "toast_no_targets": "No lock targets configured"
       }
+    }
+  },
+  "frequency_locking": {
+    "a11y": {
+      "add_carrier": "Add this carrier to the list",
+      "refresh": "Refresh the lock state",
+      "remove_entry": "Remove this channel"
     },
-    "frequency_locking": {
-      "page": {
-        "title": "Frequency Locking",
-        "description": "Lock to specific EARFCNs/NR-ARFCNs. Experimental — use with caution."
-      },
+    "actions": {
+      "add": "Add",
+      "apply_lte": "Apply LTE lock",
+      "apply_nr": "Apply NR lock",
+      "clear_all": "Clear all",
+      "clear_fields": "Clear fields",
+      "clear_lte": "Clear LTE lock",
+      "clear_nr": "Clear NR lock",
+      "use_current": "Use current",
+      "use_current_hint": "Fill from the channels the modem is using now",
+      "use_current_none": "No carrier on air"
+    },
+    "apply": {
+      "applying_title": "Waiting for the modem to come back",
+      "blocked_readback": "Tower lock active, frequency lock unavailable",
+      "blocked_title": "Apply is unavailable while a tower lock is active",
+      "blocked_unknown_readback": "Tower lock state unknown, so writing is blocked",
+      "blocked_unknown_title": "Apply is unavailable until the tower lock state can be read",
+      "disclaimer": "Applying drops the connection briefly while the radio re-registers. A channel with no coverage leaves the modem without service until you clear the lock.",
+      "live_title": "Lock live on the modem",
+      "no_recovery": "Frequency locking has no failover watcher. Unlike band and tower locking, nothing restores service on its own if these channels lose coverage.",
+      "readback_lte": "LTE {{channels}}",
+      "readback_none": "No frequency lock on the modem",
+      "readback_nr": "NR {{channels}}",
+      "readback_serving": "serving {{channel}}"
+    },
+    "bands": {
+      "none": "No matching bands for {{label}}",
+      "possible": "Possible bands:",
+      "this_frequency": "this channel",
+      "unsupported_suffix": "not supported"
+    },
+    "blocked": {
+      "tower_lock_active": "A tower lock is holding this radio. Release it before locking a frequency.",
+      "tower_lock_unknown": "The tower lock state could not be read, so this lock is refused until the modem answers. Refresh to try again."
+    },
+    "card": {
+      "blocked_body": "Release the tower lock to edit this list.",
+      "count": "{{used}} of {{max}}",
+      "empty_body_nr": "Add the NR carrier above, or enter an ARFCN and pick its spacing.",
+      "empty_title": "No channels in the list",
+      "scs_warning": "A wrong spacing looks like a valid entry, but the modem never uses it. The value is copied from the carrier when you add it from above.",
+      "status_applying": "Applying",
+      "status_blocked": "Blocked",
+      "status_locked": "Locked",
+      "status_unknown": "Not reported",
+      "status_unlocked": "Unlocked"
+    },
+    "dialog": {
+      "cancel": "Cancel",
+      "confirm_lock": "Lock channels",
+      "confirm_unlock": "Clear lock",
+      "lock_lte_body": "The modem will use only {{channels}} and may briefly disconnect while it re-registers.",
+      "lock_lte_title": "Lock LTE channels?",
+      "lock_nr_body": "The modem will use only {{channels}} and may briefly disconnect while it re-registers.",
+      "lock_nr_title": "Lock 5G NR channels?",
+      "unlock_lte_body": "The modem will be free to use any channel its enabled bands offer, and may briefly disconnect.",
+      "unlock_lte_title": "Clear the LTE lock?",
+      "unlock_nr_body": "The modem will be free to use any channel its enabled bands offer, and may briefly disconnect.",
+      "unlock_nr_title": "Clear the 5G NR lock?",
+      "unsupported_body": "Locking to a band the modem does not support can make it restart unexpectedly, and nothing here will recover it automatically.",
+      "unsupported_confirm": "Lock anyway",
+      "unsupported_matched": "Matched bands",
+      "unsupported_supported": "Supported bands",
+      "unsupported_title": "These channels are outside your modem's bands",
+      "unsupported_unknown": "Unknown"
+    },
+    "error": {
+      "invalid_channel": "Channel numbers must be digits only.",
+      "load_body": "The modem did not answer. Refresh to try again.",
+      "load_title": "Could not read the lock state"
+    },
+    "legs": {
       "lte": {
-        "title": "LTE Frequency Locking",
-        "description_loading": "Lock to specific LTE channel frequencies.",
-        "description": "Lock to specific LTE channel frequencies. Maximum 2 channels.",
-        "tower_lock_active": "LTE Tower Lock is active. Disable it before using frequency locking.",
-        "experimental_warning": "Experimental Feature",
-        "enabled_label": "LTE Frequency Lock Enabled",
-        "enabled_tooltip": "Locking to an unsupported frequency may cause the modem to restart unexpectedly. Cannot be used while Tower Lock is active.",
-        "enabled_info_aria": "LTE frequency lock info",
-        "channel_label": "Channel (EARFCN)",
-        "channel_label_optional": "Channel 2 (Optional)",
-        "channel_placeholder": "Enter EARFCN",
-        "channel_placeholder_2": "Enter EARFCN 2",
-        "use_current": "Use Current",
-        "error_title": "Failed to load frequency lock status",
-        "lock_dialog": {
-          "title": "Lock LTE Frequency?",
-          "description_single": "This will lock your modem to EARFCN {{earfcn}}. The modem will only use this frequency and may briefly disconnect.",
-          "description_multi": "This will lock your modem to EARFCNs {{earfcns}}. The modem will only use these frequencies and may briefly disconnect.",
-          "confirm": "Lock Frequency"
-        },
-        "unsupported_dialog": {
-          "title": "Unsupported Frequency Warning",
-          "description_prefix": "The frequencies you entered match bands not supported by your modem. Locking to an unsupported frequency may cause the modem to restart unexpectedly.",
-          "matched_bands_label": "Matched bands:",
-          "supported_bands_label": "Supported bands:",
-          "confirm": "Lock Anyway",
-          "confirm_prompt": "Are you sure you want to proceed?",
-          "unknown": "Unknown"
-        },
-        "unlock_dialog": {
-          "title": "Unlock LTE Frequency?",
-          "description": "This will remove the LTE frequency lock. The modem will be free to use any available frequency and may briefly disconnect.",
-          "confirm": "Remove Lock"
-        },
-        "toast": {
-          "no_frequencies_title": "No frequencies entered",
-          "no_frequencies_description": "Enter at least one channel number before enabling.",
-          "lock_success": "LTE frequency lock applied",
-          "lock_error": "Failed to apply LTE frequency lock",
-          "unlock_success": "LTE frequency lock cleared",
-          "unlock_error": "Failed to clear LTE frequency lock",
-          "filled_current": "Filled from current connected tower",
-          "no_active_connection": "No active LTE connection"
-        }
+        "description": "Up to 2 EARFCNs. The modem may use only these.",
+        "title": "LTE channels"
       },
       "nr": {
-        "title": "NR5G Frequency Locking",
-        "description_loading": "Lock to specific NR frequencies (NR-ARFCNs).",
-        "description": "Lock to specific NR frequencies. Supports up to 32 entries (4 shown).",
-        "tower_lock_active": "NR Tower Lock is active. Disable it before using frequency locking.",
-        "experimental_warning": "Experimental Feature",
-        "enabled_label": "NR5G Frequency Lock Enabled",
-        "enabled_tooltip": "Cannot be used together with NR Tower Lock (AT+QNWLOCK). SCS is auto-detected from band type but can be overridden.",
-        "enabled_info_aria": "NR5G frequency lock info",
-        "arfcn_label": "NR-ARFCN",
-        "arfcn_label_n": "NR-ARFCN {{n}}",
-        "arfcn_placeholder": "Enter {{label}}",
-        "scs_label": "SCS",
-        "scs_label_n": "SCS {{n}}",
-        "scs_placeholder": "SCS",
-        "scs_slot_aria": "{{label}} slot {{n}}",
-        "use_current": "Use Current",
-        "error_title": "Failed to load frequency lock status",
-        "lock_dialog": {
-          "title": "Lock NR5G Frequency?",
-          "description_single": "This will lock your modem to NR-ARFCN {{arfcn}} (SCS {{scs}} kHz). The modem will only use this frequency and may briefly disconnect.",
-          "description_multi": "This will lock your modem to {{count}} NR frequencies. The modem will only use these frequencies and may briefly disconnect.",
-          "confirm": "Lock Frequency"
-        },
-        "unsupported_dialog": {
-          "title": "Unsupported Band Warning",
-          "description_prefix": "The NR-ARFCN(s) you entered map to bands not supported by your modem. Locking to an unsupported frequency may cause unexpected behavior.",
-          "matched_bands_label": "Matched bands:",
-          "supported_bands_label": "Supported bands:",
-          "confirm": "Lock Anyway",
-          "confirm_prompt": "Are you sure you want to proceed?",
-          "unknown": "Unknown"
-        },
-        "unlock_dialog": {
-          "title": "Unlock NR5G Frequency?",
-          "description": "This will remove the NR5G frequency lock. The modem will be free to use any available NR frequency and may briefly disconnect.",
-          "confirm": "Unlock"
-        },
-        "toast": {
-          "no_frequencies_title": "No frequencies entered",
-          "no_frequencies_description": "Enter at least one NR-ARFCN and SCS before enabling.",
-          "missing_scs_title": "Missing SCS",
-          "missing_scs_description": "Each NR-ARFCN requires an SCS value. Please select the sub-carrier spacing.",
-          "lock_success": "NR5G frequency lock applied",
-          "lock_error": "Failed to apply NR5G frequency lock",
-          "unlock_success": "NR5G frequency lock cleared",
-          "unlock_error": "Failed to clear NR5G frequency lock",
-          "filled_current": "Populated from active NR PCell",
-          "no_active_connection": "No active NR cell"
-        }
-      },
-      "band_match": {
-        "no_match": "No matching bands found for {{label}}",
-        "possible_prefix": "Possible bands: ",
-        "unsupported_suffix": " — unsupported",
-        "no_match_label": {
-          "this_channel": "this channel",
-          "this_nr_arfcn": "this NR-ARFCN",
-          "this_frequency": "this frequency"
-        }
+        "description": "Up to 32 ARFCNs, each with its subcarrier spacing.",
+        "title": "5G NR channels"
       }
+    },
+    "live": {
+      "add_blocked": "Adding is disabled until the tower lock is released.",
+      "add_blocked_unknown": "Adding is disabled until the tower lock state can be read.",
+      "add_hint": "Add copies the channel into the list below. A frequency lock takes no PCI, so the modem still chooses the cell.",
+      "camped_empty_body": "The modem is not reporting a serving cell. Channels can still be entered by hand.",
+      "camped_empty_title": "No carriers reported",
+      "camped_meta": "{{count}} carriers ({{bandwidth}} MHz)",
+      "camped_title": "Camped on now",
+      "compare_hint": "A tower lock already pins a channel and a cell. A frequency lock is the looser option: same channel, any cell.",
+      "compare_hint_unknown": "The tower lock state could not be read. A frequency lock is refused while a tower lock is active, so nothing here can be applied until that read succeeds.",
+      "title": "Right now"
+    },
+    "page": {
+      "description": "Restrict the radio to specific channels. Channels only, no PCI, so the modem still picks the cell.",
+      "experimental": "Experimental",
+      "title": "Frequency Locking"
+    },
+    "progress": {
+      "wait_note": "This takes a few seconds. Do not reboot."
+    },
+    "slots": {
+      "arfcn_placeholder": "NR-ARFCN",
+      "earfcn_placeholder": "EARFCN",
+      "in_list": "In list",
+      "optional": "Optional. A second channel widens the allow list.",
+      "scs_label": "Spacing",
+      "scs_unit": "{{value}} kHz",
+      "slot": "Slot {{index}}",
+      "staged_count": "{{count}} of {{max}} entries staged. Nothing is on the modem yet."
+    },
+    "toast": {
+      "all_cleared": "All frequency locks cleared",
+      "lte_clear_failed": "Could not clear the LTE frequency lock",
+      "lte_cleared": "LTE frequency lock cleared",
+      "lte_lock_failed": "Could not apply the LTE frequency lock",
+      "lte_locked": "LTE frequency lock applied",
+      "no_channels_body": "Enter at least one channel before applying.",
+      "no_channels_title": "No channels entered",
+      "nr_clear_failed": "Could not clear the 5G NR frequency lock",
+      "nr_cleared": "5G NR frequency lock cleared",
+      "nr_lock_failed": "Could not apply the 5G NR frequency lock",
+      "nr_locked": "5G NR frequency lock applied"
+    },
+    "verdict": {
+      "blocked_body": "QManager will not write a frequency lock while a tower lock is active. Release the tower lock to use this page.",
+      "blocked_title": "Tower lock is holding the radio",
+      "blocked_unknown_body": "QManager could not read whether a tower lock is active. Frequency lock changes stay blocked until that read succeeds, because applying one over a live tower lock can crash the modem. Refresh to try again.",
+      "blocked_unknown_title": "Tower lock state not confirmed",
+      "locked_body": "The modem may use only the channels below. It still chooses the cell, so the PCI can change.",
+      "locked_title": "Locked to your channel list",
+      "no_recovery": "No automatic recovery",
+      "serving_in_list": "Serving channel is in the list",
+      "serving_out_of_list": "Serving channel is outside the list",
+      "tower_lock_off": "Tower lock off, so this is available",
+      "unknown_body": "The modem did not answer the last status read. Refresh to try again.",
+      "unknown_title": "Lock state not reported",
+      "unlocked_body": "The modem may use any channel its enabled bands offer, and reselects freely. Allow a channel to narrow that down.",
+      "unlocked_title": "All channels allowed"
     }
   },
   "cell_scanner": {

@@ -32,6 +32,28 @@ else
     exit 0
 fi
 
+# --- Tower lock gate read (fail closed) --------------------------------------
+# Prints the tower lock state for one leg, or the literal "error" when it could
+# not be confirmed. Stacking a frequency lock on a live tower lock can
+# crash-dump the modem, so an unread state must never pass the gate as
+# "unlocked". The readers print "error" and return 1 on a failed AT read; the
+# empty / rc arms also cover a reader that never ran at all. One retry absorbs
+# a transient hiccup before the caller refuses.
+# Usage: state=$(freq_read_tower_state tower_read_lte_lock)
+freq_read_tower_state() {
+    _fts_state=$("$1" 2>/dev/null)
+    _fts_rc=$?
+    if [ "$_fts_rc" -ne 0 ] || [ -z "$_fts_state" ] || [ "$_fts_state" = "error" ]; then
+        sleep 0.1
+        _fts_state=$("$1" 2>/dev/null)
+        _fts_rc=$?
+    fi
+    if [ "$_fts_rc" -ne 0 ] || [ -z "$_fts_state" ]; then
+        _fts_state="error"
+    fi
+    printf '%s' "$_fts_state"
+}
+
 # --- Validate method ---------------------------------------------------------
 if [ "$REQUEST_METHOD" != "POST" ]; then
     cgi_error "method_not_allowed" "Use POST"
@@ -62,10 +84,14 @@ if [ "$LOCK_TYPE" = "lte" ]; then
 
     if [ "$ACTION" = "lock" ]; then
         # --- Check tower lock mutual exclusion ---
-        lte_tower_state=$(tower_read_lte_lock 2>/dev/null)
+        lte_tower_state=$(freq_read_tower_state tower_read_lte_lock)
         case "$lte_tower_state" in
             locked*)
                 cgi_error "tower_lock_active" "Cannot use frequency lock while LTE tower lock is active. Disable tower lock first."
+                exit 0
+                ;;
+            error)
+                cgi_error "tower_lock_unknown" "Could not verify LTE tower lock state, refusing frequency lock. Try again."
                 exit 0
                 ;;
         esac
@@ -156,10 +182,14 @@ elif [ "$LOCK_TYPE" = "nr" ]; then
 
     if [ "$ACTION" = "lock" ]; then
         # --- Check tower lock mutual exclusion ---
-        nr_tower_state=$(tower_read_nr_lock 2>/dev/null)
+        nr_tower_state=$(freq_read_tower_state tower_read_nr_lock)
         case "$nr_tower_state" in
             locked*)
                 cgi_error "tower_lock_active" "Cannot use frequency lock while NR tower lock is active. This command cannot be used together with AT+QNWLOCK common/5g."
+                exit 0
+                ;;
+            error)
+                cgi_error "tower_lock_unknown" "Could not verify NR tower lock state, refusing frequency lock. Try again."
                 exit 0
                 ;;
         esac

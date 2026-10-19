@@ -1309,119 +1309,154 @@
         },
         "toast_no_targets": "未配置锁定目标"
       }
+    }
+  },
+  "frequency_locking": {
+    "a11y": {
+      "add_carrier": "将此载波添加到列表",
+      "refresh": "刷新锁定状态",
+      "remove_entry": "移除此频点"
     },
-    "frequency_locking": {
-      "page": {
-        "title": "频率锁定",
-        "description": "锁定到特定 EARFCN/NR-ARFCN。实验性功能——请谨慎使用。"
-      },
+    "actions": {
+      "add": "添加",
+      "apply_lte": "应用 LTE 锁定",
+      "apply_nr": "应用 NR 锁定",
+      "clear_all": "全部清除",
+      "clear_fields": "清空字段",
+      "clear_lte": "清除 LTE 锁定",
+      "clear_nr": "清除 NR 锁定",
+      "use_current": "使用当前",
+      "use_current_hint": "用调制解调器当前使用的频点填充",
+      "use_current_none": "当前无在网载波"
+    },
+    "apply": {
+      "applying_title": "正在等待调制解调器恢复",
+      "blocked_readback": "基站锁定生效中，频点锁定不可用",
+      "blocked_title": "基站锁定生效期间无法应用",
+      "blocked_unknown_readback": "基站锁定状态未知，因此写入已被阻止",
+      "blocked_unknown_title": "在能够读取基站锁定状态之前无法应用",
+      "disclaimer": "应用时无线电会重新注册，连接将短暂中断。若所选频点没有覆盖，在清除锁定前调制解调器将没有服务。",
+      "live_title": "锁定已在调制解调器上生效",
+      "no_recovery": "频点锁定没有故障转移守护。与频段锁定和基站锁定不同，若这些频点失去覆盖，没有任何机制会自动恢复服务。",
+      "readback_lte": "LTE {{channels}}",
+      "readback_none": "调制解调器上没有频点锁定",
+      "readback_nr": "NR {{channels}}",
+      "readback_serving": "驻留 {{channel}}"
+    },
+    "bands": {
+      "none": "没有与 {{label}} 匹配的频段",
+      "possible": "可能的频段：",
+      "this_frequency": "此频点",
+      "unsupported_suffix": "不受支持"
+    },
+    "blocked": {
+      "tower_lock_active": "基站锁定正占用此射频。请先解除后再锁定频点。",
+      "tower_lock_unknown": "无法读取基站锁定状态，在调制解调器响应前将拒绝此次锁定。请刷新后重试。"
+    },
+    "card": {
+      "blocked_body": "解除基站锁定后才能编辑此列表。",
+      "count": "{{used}} / {{max}}",
+      "empty_body_nr": "添加上方的 NR 载波，或输入 ARFCN 并选择其间隔。",
+      "empty_title": "列表中没有频点",
+      "scs_warning": "间隔填错看起来仍是有效条目，但调制解调器永远不会使用它。从上方添加载波时，此值会一并复制过来。",
+      "status_applying": "应用中",
+      "status_blocked": "已阻止",
+      "status_locked": "已锁定",
+      "status_unknown": "尚未上报",
+      "status_unlocked": "未锁定"
+    },
+    "dialog": {
+      "cancel": "取消",
+      "confirm_lock": "锁定频点",
+      "confirm_unlock": "清除锁定",
+      "lock_lte_body": "调制解调器将只使用 {{channels}}，重新注册期间可能会短暂断开连接。",
+      "lock_lte_title": "锁定 LTE 频点？",
+      "lock_nr_body": "调制解调器将只使用 {{channels}}，重新注册期间可能会短暂断开连接。",
+      "lock_nr_title": "锁定 5G NR 频点？",
+      "unlock_lte_body": "调制解调器将可自由使用其已启用频段提供的任意频点，并可能短暂断开连接。",
+      "unlock_lte_title": "清除 LTE 锁定？",
+      "unlock_nr_body": "调制解调器将可自由使用其已启用频段提供的任意频点，并可能短暂断开连接。",
+      "unlock_nr_title": "清除 5G NR 锁定？",
+      "unsupported_body": "锁定到调制解调器不支持的频段可能导致其意外重启，而且这里没有任何机制会自动恢复。",
+      "unsupported_confirm": "仍然锁定",
+      "unsupported_matched": "匹配的频段",
+      "unsupported_supported": "支持的频段",
+      "unsupported_title": "这些频点不在你的调制解调器支持的频段内",
+      "unsupported_unknown": "未知"
+    },
+    "error": {
+      "invalid_channel": "频点编号只能是数字。",
+      "load_body": "调制解调器未响应。请刷新后重试。",
+      "load_title": "无法读取锁定状态"
+    },
+    "legs": {
       "lte": {
-        "title": "LTE 频率锁定",
-        "description_loading": "锁定到特定的 LTE 信道频率。",
-        "description": "锁定到特定的 LTE 信道频率。最多 2 个信道。",
-        "tower_lock_active": "LTE 基站锁定已激活。请先禁用它再使用频率锁定。",
-        "experimental_warning": "实验性功能",
-        "enabled_label": "已启用 LTE 频率锁定",
-        "enabled_tooltip": "锁定到不支持的频率可能导致调制解调器意外重启。基站锁定激活时无法使用。",
-        "enabled_info_aria": "LTE 频率锁定说明",
-        "channel_label": "信道 (EARFCN)",
-        "channel_label_optional": "信道 2（可选）",
-        "channel_placeholder": "输入 EARFCN",
-        "channel_placeholder_2": "输入 EARFCN 2",
-        "use_current": "使用当前",
-        "error_title": "加载频率锁定状态失败",
-        "lock_dialog": {
-          "title": "锁定 LTE 频率？",
-          "description_single": "这将把您的调制解调器锁定到 EARFCN {{earfcn}}。调制解调器将只使用此频率，可能短暂断线。",
-          "description_multi": "这将把您的调制解调器锁定到 EARFCN {{earfcns}}。调制解调器将只使用这些频率，可能短暂断线。",
-          "confirm": "锁定频率"
-        },
-        "unsupported_dialog": {
-          "title": "不支持的频率警告",
-          "description_prefix": "您输入的频率与调制解调器不支持的频段匹配。锁定到不支持的频率可能导致调制解调器意外重启。",
-          "matched_bands_label": "匹配频段：",
-          "supported_bands_label": "支持的频段：",
-          "confirm": "仍然锁定",
-          "confirm_prompt": "确定要继续吗？",
-          "unknown": "未知"
-        },
-        "unlock_dialog": {
-          "title": "解锁 LTE 频率？",
-          "description": "这将移除 LTE 频率锁定。调制解调器将可以自由使用任何可用频率，可能短暂断线。",
-          "confirm": "移除锁定"
-        },
-        "toast": {
-          "no_frequencies_title": "未输入频率",
-          "no_frequencies_description": "启用前请至少输入一个信道号。",
-          "lock_success": "LTE 频率锁定已应用",
-          "lock_error": "应用 LTE 频率锁定失败",
-          "unlock_success": "LTE 频率锁定已清除",
-          "unlock_error": "清除 LTE 频率锁定失败",
-          "filled_current": "已从当前连接的基站填充",
-          "no_active_connection": "无活动 LTE 连接"
-        }
+        "description": "最多 2 个 EARFCN。调制解调器只能使用这些频点。",
+        "title": "LTE 频点"
       },
       "nr": {
-        "title": "NR5G 频率锁定",
-        "description_loading": "锁定到特定的 NR 频率（NR-ARFCN）。",
-        "description": "锁定到特定的 NR 频率。最多支持 32 条记录（显示 4 条）。",
-        "tower_lock_active": "NR 基站锁定已激活。请先禁用它再使用频率锁定。",
-        "experimental_warning": "实验性功能",
-        "enabled_label": "已启用 NR5G 频率锁定",
-        "enabled_tooltip": "不能与 NR 基站锁定 (AT+QNWLOCK) 同时使用。SCS 从频段类型自动检测，但可以覆盖。",
-        "enabled_info_aria": "NR5G 频率锁定说明",
-        "arfcn_label": "NR-ARFCN",
-        "arfcn_label_n": "NR-ARFCN {{n}}",
-        "arfcn_placeholder": "输入 {{label}}",
-        "scs_label": "SCS",
-        "scs_label_n": "SCS {{n}}",
-        "scs_placeholder": "SCS",
-        "scs_slot_aria": "{{label}} 槽位 {{n}}",
-        "use_current": "使用当前",
-        "error_title": "加载频率锁定状态失败",
-        "lock_dialog": {
-          "title": "锁定 NR5G 频率？",
-          "description_single": "这将把您的调制解调器锁定到 NR-ARFCN {{arfcn}}（SCS {{scs}} kHz）。调制解调器将只使用此频率，可能短暂断线。",
-          "description_multi": "这将把您的调制解调器锁定到 {{count}} 个 NR 频率。调制解调器将只使用这些频率，可能短暂断线。",
-          "confirm": "锁定频率"
-        },
-        "unsupported_dialog": {
-          "title": "不支持的频段警告",
-          "description_prefix": "您输入的 NR-ARFCN 映射到调制解调器不支持的频段。锁定到不支持的频率可能导致意外行为。",
-          "matched_bands_label": "匹配频段：",
-          "supported_bands_label": "支持的频段：",
-          "confirm": "仍然锁定",
-          "confirm_prompt": "确定要继续吗？",
-          "unknown": "未知"
-        },
-        "unlock_dialog": {
-          "title": "解锁 NR5G 频率？",
-          "description": "这将移除 NR5G 频率锁定。调制解调器将可以自由使用任何可用 NR 频率，可能短暂断线。",
-          "confirm": "解锁"
-        },
-        "toast": {
-          "no_frequencies_title": "未输入频率",
-          "no_frequencies_description": "启用前请至少输入一个 NR-ARFCN 和 SCS。",
-          "missing_scs_title": "缺少 SCS",
-          "missing_scs_description": "每个 NR-ARFCN 都需要 SCS 值。请选择子载波间隔。",
-          "lock_success": "NR5G 频率锁定已应用",
-          "lock_error": "应用 NR5G 频率锁定失败",
-          "unlock_success": "NR5G 频率锁定已清除",
-          "unlock_error": "清除 NR5G 频率锁定失败",
-          "filled_current": "已从活动 NR PCell 填充",
-          "no_active_connection": "无活动 NR 小区"
-        }
-      },
-      "band_match": {
-        "no_match": "未找到与 {{label}} 匹配的频段",
-        "possible_prefix": "可能的频段：",
-        "unsupported_suffix": " — 不支持",
-        "no_match_label": {
-          "this_channel": "此信道",
-          "this_nr_arfcn": "此 NR-ARFCN",
-          "this_frequency": "此频率"
-        }
+        "description": "最多 32 个 ARFCN，每个都带有其子载波间隔。",
+        "title": "5G NR 频点"
       }
+    },
+    "live": {
+      "add_blocked": "在解除基站锁定之前无法添加。",
+      "add_blocked_unknown": "在能够读取基站锁定状态之前无法添加。",
+      "add_hint": "“添加”会将该频点加入下方列表。频点锁定不涉及 PCI，因此小区仍由调制解调器选择。",
+      "camped_empty_body": "调制解调器未上报服务小区。仍可手动输入频点。",
+      "camped_empty_title": "未上报载波",
+      "camped_meta": "{{count}} 个载波（{{bandwidth}} MHz）",
+      "camped_title": "当前驻留",
+      "compare_hint": "基站锁定会同时固定频点和小区。频点锁定更宽松：同一频点，任意小区。",
+      "compare_hint_unknown": "无法读取基站锁定状态。基站锁定生效期间频点锁定会被拒绝，因此在该读取成功之前，这里的任何设置都无法应用。",
+      "title": "当前状态"
+    },
+    "page": {
+      "description": "将无线电限制在特定频点上。仅限频点，不含 PCI，因此小区仍由调制解调器选择。",
+      "experimental": "实验性功能",
+      "title": "频点锁定"
+    },
+    "progress": {
+      "wait_note": "这需要几秒钟。请勿重启。"
+    },
+    "slots": {
+      "arfcn_placeholder": "NR-ARFCN",
+      "earfcn_placeholder": "EARFCN",
+      "in_list": "在列表中",
+      "optional": "可选。第二个频点会扩大允许范围。",
+      "scs_label": "间隔",
+      "scs_unit": "{{value}} kHz",
+      "slot": "槽位 {{index}}",
+      "staged_count": "已暂存 {{count}} / {{max}} 个条目。尚未写入调制解调器。"
+    },
+    "toast": {
+      "all_cleared": "已清除所有频点锁定",
+      "lte_clear_failed": "无法清除 LTE 频点锁定",
+      "lte_cleared": "已清除 LTE 频点锁定",
+      "lte_lock_failed": "无法应用 LTE 频点锁定",
+      "lte_locked": "已应用 LTE 频点锁定",
+      "no_channels_body": "请至少输入一个频点后再应用。",
+      "no_channels_title": "未输入频点",
+      "nr_clear_failed": "无法清除 5G NR 频点锁定",
+      "nr_cleared": "已清除 5G NR 频点锁定",
+      "nr_lock_failed": "无法应用 5G NR 频点锁定",
+      "nr_locked": "已应用 5G NR 频点锁定"
+    },
+    "verdict": {
+      "blocked_body": "当基站锁定生效时，QManager 不会写入频点锁定。请先解除基站锁定，再使用本页面。",
+      "blocked_title": "基站锁定正在占用无线电",
+      "blocked_unknown_body": "QManager 无法读取基站锁定是否生效。在该读取成功之前，频点锁定的更改将保持阻止状态，因为在基站锁定生效时应用频点锁定可能导致调制解调器崩溃。请刷新后重试。",
+      "blocked_unknown_title": "基站锁定状态未确认",
+      "locked_body": "调制解调器只能使用下方列出的频点。小区仍由它自行选择，因此 PCI 可能会变化。",
+      "locked_title": "已锁定到你的频点列表",
+      "no_recovery": "无自动恢复",
+      "serving_in_list": "驻留频点在列表内",
+      "serving_out_of_list": "驻留频点在列表之外",
+      "tower_lock_off": "基站锁定已关闭，因此此功能可用",
+      "unknown_body": "调制解调器未响应上次的状态读取。请刷新后重试。",
+      "unknown_title": "尚未上报锁定状态",
+      "unlocked_body": "调制解调器可使用其已启用频段提供的任意频点，并可自由重选。允许某个频点即可缩小范围。",
+      "unlocked_title": "允许所有频点"
     }
   },
   "cell_scanner": {
