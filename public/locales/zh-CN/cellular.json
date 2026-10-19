@@ -886,10 +886,7 @@
       },
       "legend": {
         "selected": "已选择",
-        "live": "当前已锁定",
-        "unused_group": "您的网络未使用",
-        "unused_hint_label": "关于您的网络未使用的频段",
-        "unused_hint": "调制解调器支持这些频段，但您的网络或 SIM 卡不使用它们。仅锁定这些频段可能导致无服务。"
+        "live": "当前已锁定"
       },
       "a11y": {
         "band_live": "{{band}}，已选择并已在调制解调器上锁定",

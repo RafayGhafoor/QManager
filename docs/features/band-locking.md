@@ -100,10 +100,10 @@ The Band Locking page works with three distinct band sets. Confusing any two of 
 | Layer | Source | AT command / file | When queried | `status.json` fields | UI role |
 |---|---|---|---|---|---|
 | **HW universe** | `/etc/qmanager/supported_bands_hw.env` (spec sheet) | — (no AT command; static file) | Sourced at poller boot | `device.hw_lte_bands`, `device.hw_nsa_nr5g_bands`, `device.hw_sa_nr5g_bands` | Chip universe — all bands the modem hardware can use |
-| **Policy marker** | `AT+QNWPREFCFG="policy_band"` | On boot + SIM swap | `/tmp/qmanager_supported_bands.env` cache → `device.supported_*_bands` | `device.supported_{lte,nsa_nr5g,sa_nr5g,nrdc_nr5g}_bands` | Subset of the HW universe the current SIM/network actually uses — grouping only |
+| **Policy marker** | `AT+QNWPREFCFG="policy_band"` | On boot + SIM swap | `/tmp/qmanager_supported_bands.env` cache → `device.supported_*_bands` | `device.supported_{lte,nsa_nr5g,sa_nr5g,nrdc_nr5g}_bands` | Subset of the HW universe the current SIM/network actually uses — fallback universe only (not drawn) |
 | **Currently locked** | per-category registers via `current.sh` | On demand (`current.sh`) | Not cached — always live | (not emitted in status.json) | What the modem is restricted to right now |
 
-**Why three layers exist:** `policy_band` was the original universe source but it can narrow when a SIM or firmware limits the advertised set. The static HW spec file ensures the UI always shows the full physical capability — bands the modem can use even if the current SIM doesn't announce them. The policy set then serves as a visual marker only.
+**Why three layers exist:** `policy_band` was the original universe source but it can narrow when a SIM or firmware limits the advertised set. The static HW spec file ensures the UI always shows the full physical capability — bands the modem can use even if the current SIM doesn't announce them. The policy set is only the fallback universe when the HW list is missing; the UI no longer groups bands by it.
 
 **Why `hw_*` does NOT feed failover.** `qmanager_band_failover` resets to the `supported_*` (policy_band) set — the set the modem has confirmed it can register on with the current SIM. Resetting to the full HW universe could include bands the SIM never activates, leaving the modem unable to re-register. `hw_*` is additive/display-only; it never enters the write path.
 

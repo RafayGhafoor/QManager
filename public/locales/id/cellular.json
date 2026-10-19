@@ -886,10 +886,7 @@
       },
       "legend": {
         "selected": "Dipilih",
-        "live": "Sedang dikunci",
-        "unused_group": "Tidak digunakan jaringan Anda",
-        "unused_hint_label": "Tentang band yang tidak digunakan jaringan Anda",
-        "unused_hint": "Modem mendukung band ini, tetapi jaringan atau SIM Anda tidak menggunakannya. Mengunci hanya ke band ini dapat membuat Anda tanpa layanan."
+        "live": "Sedang dikunci"
       },
       "a11y": {
         "band_live": "{{band}}, dipilih dan dikunci di modem",
