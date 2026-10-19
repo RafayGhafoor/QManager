@@ -326,12 +326,14 @@
       "gateway_not_served": "不提供服务"
     },
     "card": {
-      "title": "直通配置",
       "description": "应用会写入所有设置并重启调制解调器。",
+      "network_description": "与直通设置一起应用，只需一次重启。",
       "apply": "应用并重启",
       "discard": "放弃更改",
       "unsaved_one": "{{count}} 项未保存的更改",
       "unsaved_other": "{{count}} 项未保存的更改",
+      "network_pending_one": "{{count}} 项未保存的更改，随直通一起应用",
+      "network_pending_other": "{{count}} 项未保存的更改，随直通一起应用",
       "mac_label": "目标 MAC 地址",
       "mac_placeholder": "XX:XX:XX:XX:XX:XX"
     },

@@ -326,12 +326,14 @@
       "gateway_not_served": "不提供服務"
     },
     "card": {
-      "title": "直通設定",
       "description": "套用會寫入所有設定並重啟數據機。",
+      "network_description": "與直通設定一起套用，只需一次重啟。",
       "apply": "套用並重啟",
       "discard": "捨棄變更",
       "unsaved_one": "{{count}} 項未儲存的變更",
       "unsaved_other": "{{count}} 項未儲存的變更",
+      "network_pending_one": "{{count}} 項未儲存的變更，隨直通一起套用",
+      "network_pending_other": "{{count}} 項未儲存的變更，隨直通一起套用",
       "mac_label": "目標 MAC 位址",
       "mac_placeholder": "XX:XX:XX:XX:XX:XX"
     },
