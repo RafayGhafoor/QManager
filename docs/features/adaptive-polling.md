@@ -55,7 +55,7 @@ The poller reads `heartbeat_age = now − contents_of(/tmp/qmanager_ui_active)` 
 | Idle | CPU | 22 to 25% (74 to 87 forks/s) | 4.6% (8 to 10 forks/s, period 2.00 s) | not re-measured |
 | Deep | CPU | not measured | not measured | **2.62%** (7.3 forks/s, period 2.00 s, `.mono` age max 2 s) |
 
-The Phase 1 windows ran while the modem's internet was down, so treat that column as indicative. The last column meets the gates of the row (active at most 10%, period 2.0 s plus or minus 0.2, `.mono` age under 3 s). The 12-hour soak on this build started 2026-10-19 10:08; its result is pending.
+The Phase 1 windows ran while the modem's internet was down, so treat that column as indicative. The last column meets the gates of the row (active at most 10%, period 2.0 s plus or minus 0.2, `.mono` age under 3 s). The 12-hour soak on this build started 2026-10-19 10:23; its result is pending.
 
 **Fault injections (2026-10-19, same build):**
 

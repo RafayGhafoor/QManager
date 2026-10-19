@@ -29,7 +29,7 @@ tree with host parity tests, compiled but unwired, for a later row. The `POLL`
 verb, the `qcmd --poll` client, the poller fallback and the `poll_legacy`
 marker of Section 14 were not built; Sections 4, 5 and the Phase D text
 describe a design that is not in the product. Proto number 3 stays reserved,
-not planned. The 12 h soak on this build started 2026-10-19 10:08; its result
+not planned. The 12 h soak on this build started 2026-10-19 10:23; its result
 is pending.
 
 Measured after A+B+C (poller CPU including children, one core):
@@ -1064,6 +1064,6 @@ Measurement is read-only except where a fault injection is named; no reboot.
 - **Broker `kill -9`** (fault injection): procd respawned `qmanager_atd` in
   5.2 s, period max 2.21 s, `.mono` age max 2 s. While the socket was dead
   `qcmd` ran the exchange in-process.
-- **12 h soak** on this build started 2026-10-19 10:08. Result: pending.
+- **12 h soak** on this build started 2026-10-19 10:23 under the reboot-proof `soakd.sh` (procd service `b529_soak`; log, state and summary on `/usrdata/b529_mon`). A first start at 10:08 was void: a full v0.1.32-draft reinstall at 10:16 put the pre-B5.29 poller and broker back, and the build was redeployed with `deploy.sh`. Result: pending.
 - **Phase D parsers**: host parity tests exist in the crate; the code is
   compiled into the binary but not called by the daemon or the poller.

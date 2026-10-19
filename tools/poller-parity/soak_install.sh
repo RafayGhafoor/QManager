@@ -28,14 +28,10 @@ _put() {
 
 mkdir -p "$BIN" || exit 1
 
-# Stop the older monitor (pid file, then any survivor by name).
-if [ -f "$DIR/pid" ]; then
-    p=$(cat "$DIR/pid")
-    case "$p" in ''|*[!0-9]*) ;; *) kill "$p" 2>/dev/null ;; esac
-    rm -f "$DIR/pid"
-fi
-for p in $(pidof overnight_monitor.sh 2>/dev/null); do kill "$p" 2>/dev/null; done
-ps | grep '[o]vernight_monitor' | while read -r p _r; do kill "$p" 2>/dev/null; done
+# Stop the older monitor. It runs as "sh overnight_monitor.sh" (pidof cannot
+# see it) and defers TERM while it sleeps, so match by command line and KILL.
+rm -f "$DIR/pid"
+ps | grep '[o]vernight_monitor' | while read -r p _r; do kill -9 "$p" 2>/dev/null; done
 
 if grep -q 'b529_mon' /etc/rc.local 2>/dev/null; then
     grep -v 'b529_mon' /etc/rc.local > /etc/rc.local.new && chmod 755 /etc/rc.local.new && sync &&
