@@ -233,9 +233,13 @@ $(uci -q show "quecmanager.$scope" 2>/dev/null)"
     [ "$enabled" = "1" ] || ok=0
     # Opt-in for scopes that act (e.g. a future send API): the bearer must not
     # cross the LAN in cleartext.
-    if [ "$2" = "https" ] && [ "$HTTPS" != "on" ]; then
-        ok=0
-    fi
+    # Any other non-empty mode (a typo like "HTTPS") fails closed rather than
+    # silently dropping the TLS requirement.
+    case "$2" in
+        '') ;;
+        https) [ "$HTTPS" = "on" ] || ok=0 ;;
+        *) ok=0 ;;
+    esac
     if command -v is_setup_required >/dev/null 2>&1; then
         is_setup_required && ok=0
     else

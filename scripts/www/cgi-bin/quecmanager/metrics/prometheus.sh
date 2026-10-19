@@ -133,7 +133,8 @@ def render:
 | (($d.connectivity // {}) | if type == "object" then . else {} end) as $con
 | (($d.watchcat // {}) | if type == "object" then . else {} end) as $wc
 | (($d.signal_per_antenna // {}) | if type == "object" then . else {} end) as $ant
-| ([$net.carrier_components | if type == "array" then .[] else empty end | select(type == "object")]) as $ccs
+| ([$net.carrier_components | if type == "array" then .[] else empty end | select(type == "object")
+    | select((.technology | lc) == "lte" or (.technology | lc) == "nr")]) as $ccs
 | def age_of($x): ($x | num) as $m | if $up > 0 and $m > 0 and $m <= $up then $up - $m else empty end;
 [
   fam("qmanager_snapshot_up"; "1 if the status snapshot exists, parses and is under 30 s old.";
@@ -184,8 +185,9 @@ def render:
      ["qmanager_carrier_bandwidth_hertz", "Channel bandwidth per carrier.", "bandwidth_mhz", 1000000]][]
     | . as $spec
     | fam($spec[0]; $spec[1];
-        $ccs[] | smp([["rat", (.technology | lc)], ["role", (.type | lc)], ["band", .band],
-                      ["pci", .pci], ["earfcn", .earfcn]]; (.[$spec[2]] | num) * $spec[3]))
+        $ccs[] | smp([["rat", (.technology | lc)], ["role", (.type | lc | enum(["pcc", "scc"]))],
+                      ["band", .band], ["pci", ([.pci | num][0])], ["earfcn", ([.earfcn | num][0])]];
+                     (.[$spec[2]] | num) * $spec[3]))
   ),
   fam("qmanager_serving_rsrp_dbm"; "Serving cell reference signal received power.";
       smp([["rat", "lte"]]; $lte.rsrp), smp([["rat", "nr"]]; $nr.rsrp)),
