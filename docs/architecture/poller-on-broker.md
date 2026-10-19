@@ -29,8 +29,8 @@ tree with host parity tests, compiled but unwired, for a later row. The `POLL`
 verb, the `qcmd --poll` client, the poller fallback and the `poll_legacy`
 marker of Section 14 were not built; Sections 4, 5 and the Phase D text
 describe a design that is not in the product. Proto number 3 stays reserved,
-not planned. The 12 h soak on this build started 2026-10-19 10:23; its result
-is pending.
+not planned. The 12 h soak on this build passed (2026-10-19 10:22 to 2026-10-20
+01:30 PHT; see the Soak entry in Section 14 notes and the ledger row B5.29).
 
 Measured after A+B+C (poller CPU including children, one core):
 
@@ -1064,6 +1064,6 @@ Measurement is read-only except where a fault injection is named; no reboot.
 - **Broker `kill -9`** (fault injection): procd respawned `qmanager_atd` in
   5.2 s, period max 2.21 s, `.mono` age max 2 s. While the socket was dead
   `qcmd` ran the exchange in-process.
-- **12 h soak** on this build started 2026-10-19 10:23 under the reboot-proof `soakd.sh` (procd service `b529_soak`; log, state and summary on `/usrdata/b529_mon`). A first start at 10:08 was void: a full v0.1.32-draft reinstall at 10:16 put the pre-B5.29 poller and broker back, and the build was redeployed with `deploy.sh`. Result: pending.
+- **12 h soak** on this build started 2026-10-19 10:23 under the reboot-proof `soakd.sh` (procd service `b529_soak`; log, state and summary on `/usrdata/b529_mon`). A first start at 10:08 was void: a full v0.1.32-draft reinstall at 10:16 put the pre-B5.29 poller and broker back, and the build was redeployed with `deploy.sh`. Result: passed. 144 windows over 15.1 h across 8 reboots; active 4.87 % CPU (max 6.73), idle 3.31 %, deep 2.41 %; period 2.00 to 2.02 s, no window outside 1.8 to 2.2 s or above 4.5 s (max 4.40); `.mono` age 3 s in 13 steady windows (sampling grain) and 4 to 7 s in 5 windows (SSR cluster, redeploy); 27 baseband SSRs, 25 in one 65-minute cluster, poller and broker pids unchanged through it. Raw log `tools/poller-parity/results/b529-soak-2026-10-19.log`.
 - **Phase D parsers**: host parity tests exist in the crate; the code is
   compiled into the binary but not called by the daemon or the poller.
