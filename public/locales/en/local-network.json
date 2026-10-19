@@ -326,12 +326,14 @@
       "gateway_not_served": "Not served"
     },
     "card": {
-      "title": "Passthrough configuration",
       "description": "Applying writes every setting and reboots the modem.",
+      "network_description": "Applied together with Passthrough, in one reboot.",
       "apply": "Apply and reboot",
       "discard": "Discard changes",
       "unsaved_one": "{{count}} unsaved change",
       "unsaved_other": "{{count}} unsaved changes",
+      "network_pending_one": "{{count}} unsaved change, applied with Passthrough",
+      "network_pending_other": "{{count}} unsaved changes, applied with Passthrough",
       "mac_label": "Target MAC address",
       "mac_placeholder": "XX:XX:XX:XX:XX:XX"
     },
