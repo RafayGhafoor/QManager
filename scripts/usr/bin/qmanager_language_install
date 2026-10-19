@@ -12,9 +12,11 @@
 #   5. Verify sha256 against the manifest entry.
 #   6. Extract to staging /var/run/qmanager/lp_staging/<code>/.
 #   7. Validate staging contains every required namespace file (parseable JSON).
-#   8. Atomically rm -rf /www/locales/<code> (if present) + mv staging.
-#   9. Write .version file.
-#   10. Exit 0.
+#   8. Copy staging (tmpfs) to /www/locales/.<code>.new.<pid> (same fs as the
+#      target), write .version into it, sync, then swap it in with two renames
+#      and sync again. A crash leaves the old pack or the new one, never a
+#      half-copied tree.
+#   9. Exit 0.
 #
 # Progress JSON is written to /tmp/qmanager_language_install.json after every
 # step. Honors /tmp/qmanager_language_install.cancel sentinel between steps.
@@ -49,10 +51,14 @@ echo "$$" > "$PID_FILE"
 LP_TARBALL=""
 LP_STAGING=""
 LP_CODE=""
+LP_NEW=""
+LP_OLD=""
 
 cleanup() {
     [ -n "$LP_TARBALL" ] && [ -f "$LP_TARBALL" ] && rm -f "$LP_TARBALL"
     [ -n "$LP_STAGING" ] && [ -d "$LP_STAGING" ] && rm -rf "$LP_STAGING"
+    [ -n "$LP_NEW" ] && [ -d "$LP_NEW" ] && rm -rf "$LP_NEW"
+    [ -n "$LP_OLD" ] && [ -d "$LP_OLD" ] && rm -rf "$LP_OLD"
     rm -f "$PID_FILE" "$CANCEL_FILE" "$INPUT_FILE"
     # lp_download_dir left for inspection; clean its contents
     [ -d "$LP_DOWNLOAD_DIR" ] && rm -rf "$LP_DOWNLOAD_DIR"
@@ -153,17 +159,33 @@ lp_validate_pack_tree "$LP_STAGING" || die_fail "Pack is missing required namesp
 
 lp_write_progress "running" "$LP_CODE" 95 "install" "Installing..."
 
-# --- Step 8: atomic swap -----------------------------------------------------
+# --- Step 8: swap -------------------------------------------------------------
+# Staging is on tmpfs, so an mv into /www would be a copy over the live pack.
+# Instead copy it beside the target (same fs), flush, then rename it in. The
+# pack is absent only between the two renames, never for the copy.
 bail_if_cancelled
 TARGET="$LP_LOCALES_DIR/$LP_CODE"
-[ -d "$TARGET" ] && rm -rf "$TARGET"
 mkdir -p "$LP_LOCALES_DIR"
-mv "$LP_STAGING" "$TARGET" || die_fail "Failed to install pack into /www/locales"
-# Clear LP_STAGING so cleanup doesn't try to delete what we just moved.
-LP_STAGING=""
-
-# --- Step 9: write .version --------------------------------------------------
-printf '%s' "$PACK_VER" > "$TARGET/.version" 2>/dev/null || true
+LP_NEW="$LP_LOCALES_DIR/.${LP_CODE}.new.$$"
+LP_OLD="$LP_LOCALES_DIR/.${LP_CODE}.old.$$"
+rm -rf "$LP_NEW" "$LP_OLD"
+cp -r "$LP_STAGING" "$LP_NEW" || die_fail "Failed to install pack"
+printf '%s' "$PACK_VER" > "$LP_NEW/.version" 2>/dev/null || true
+chmod 755 "$LP_NEW" 2>/dev/null
+sync
+if [ -d "$TARGET" ]; then
+    mv "$TARGET" "$LP_OLD" || die_fail "Failed to install pack"
+fi
+if ! mv "$LP_NEW" "$TARGET"; then
+    # Put the old pack back; if even that fails, keep it at LP_OLD (cleanup
+    # must not delete the only copy).
+    [ -d "$LP_OLD" ] && mv "$LP_OLD" "$TARGET" || LP_OLD=""
+    die_fail "Failed to install pack"
+fi
+LP_NEW=""
+sync
+rm -rf "$LP_OLD"
+LP_OLD=""
 
 # --- Done --------------------------------------------------------------------
 lp_write_progress "success" "$LP_CODE" 100 "done" "Installed"

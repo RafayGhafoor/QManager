@@ -167,15 +167,19 @@ fi
 qlog_info "Extracted nfqws binary ($(wc -c < "$extracted") bytes)"
 write_result "running" "Installing nfqws..." ""
 
-# Step 5: Install binary
-cp "$extracted" "$NFQWS_BIN"
-chmod 755 "$NFQWS_BIN"
-
-# Step 6: Verify it runs
-nfqws_version=$("$NFQWS_BIN" --version 2>&1 | head -1)
+# Step 5: Verify the extracted binary runs BEFORE it replaces anything, so a
+# bad download never costs the user a working nfqws.
+chmod 755 "$extracted"
+nfqws_version=$("$extracted" --version 2>&1 | head -1)
 if [ -z "$nfqws_version" ]; then
-    rm -f "$NFQWS_BIN"
     write_result "error" "Binary verification failed" "nfqws does not run on this device"
+    exit 1
+fi
+
+# Step 6: Install via temp + sync + rename (crash-safe, and works while a
+# running nfqws holds the old inode, where cp fails with ETXTBSY)
+if ! qm_durable_write "$NFQWS_BIN" 0755 < "$extracted"; then
+    write_result "error" "Install failed" "Could not save the binary"
     exit 1
 fi
 

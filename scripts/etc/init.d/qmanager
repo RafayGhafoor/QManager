@@ -40,9 +40,11 @@ start_service() {
     # Ensure auth config has restrictive permissions if it exists
     [ -f /etc/qmanager/auth.json ] && chmod 600 /etc/qmanager/auth.json
 
-    # Create default long commands list if it doesn't exist
-    if [ ! -f /etc/qmanager/long_commands.list ]; then
-        cat > /etc/qmanager/long_commands.list << 'EOF'
+    # Create the default long commands list if it is missing or empty (a
+    # crash during an earlier write can leave it 0 bytes). Temp + sync + mv so
+    # this write cannot leave it empty either.
+    if [ ! -s /etc/qmanager/long_commands.list ]; then
+        cat > /etc/qmanager/long_commands.list.tmp << 'EOF'
 # QManager Long Commands List
 # Commands listed here will use extended timeouts and signal the poller to yield.
 # One command keyword per line. Lines starting with # are comments.
@@ -50,6 +52,9 @@ QSCAN
 QSCANFREQ
 QFOTADL
 EOF
+        sync
+        mv -f /etc/qmanager/long_commands.list.tmp /etc/qmanager/long_commands.list
+        sync
     fi
 
     # Read log level from config (default: INFO)

@@ -151,7 +151,7 @@ seed_ts_uci_settings() {
         # settings`, and to match the tiny package's parity. All readers address
         # it by section NAME (tailscale.settings.*), never by type.
         printf 'config settings '\''settings'\''\n\toption service_enabled '\''0'\''\n' \
-            > /etc/config/tailscale
+            | qm_durable_write /etc/config/tailscale
     elif ! uci -q get tailscale.settings >/dev/null 2>&1; then
         uci -q set tailscale.settings=settings 2>/dev/null
     fi
@@ -247,13 +247,15 @@ install_official() {
         ts_status '{"success":false,"status":"error","message":"Not enough space on overlay","detail":"Free space and retry"}'
         exit 1
     fi
-    if ! cp "$src_dir/tailscale" /usr/bin/tailscale || ! cp "$src_dir/tailscaled" /usr/bin/tailscaled; then
-        rm -f /usr/bin/tailscale /usr/bin/tailscaled
+    # Temp + sync + rename per binary: works while tailscaled runs (a cp over
+    # it fails with ETXTBSY), and a failure or crash keeps the old binaries
+    # instead of deleting or truncating them.
+    if ! qm_durable_write /usr/bin/tailscale 0755 < "$src_dir/tailscale" \
+            || ! qm_durable_write /usr/bin/tailscaled 0755 < "$src_dir/tailscaled"; then
         rm -rf "$TS_TGZ" "$TS_EXTRACT"
         ts_status '{"success":false,"status":"error","message":"Failed to install binaries to /usr/bin"}'
         exit 1
     fi
-    chmod 755 /usr/bin/tailscale /usr/bin/tailscaled
 
     # Phase: write service + marker + UCI parity.
     ts_status '{"success":true,"status":"running","message":"Writing service..."}'
@@ -262,7 +264,7 @@ install_official() {
         ts_status '{"success":false,"status":"error","message":"Failed to write Tailscale service","detail":"tailscale_initd.sh lib missing"}'
         exit 1
     fi
-    printf 'official\n' > "$TS_INSTALL_MARKER"
+    printf 'official\n' | qm_durable_write "$TS_INSTALL_MARKER"
     seed_ts_uci_settings
 
     # Clean up /tmp artifacts.
@@ -300,7 +302,7 @@ install_tiny() {
         # Defensive UCI parity + marker (package may already ship the section).
         seed_ts_uci_settings
         mkdir -p /etc/tailscale
-        printf 'tiny\n' > "$TS_INSTALL_MARKER"
+        printf 'tiny\n' | qm_durable_write "$TS_INSTALL_MARKER"
         if [ "$_TS_WORKAROUNDS" = "1" ]; then
             vpn_fw_ensure_zone "tailscale" "tailscale0"
         fi

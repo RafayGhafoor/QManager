@@ -905,7 +905,7 @@ execute_tier4() {
     rm -f "$RECOVERY_FLAG"
 
     # Reboot after flushing state
-    ( sleep 1 && reboot ) &
+    ( sleep 1; sync; reboot ) &
     exit 0
 }
 

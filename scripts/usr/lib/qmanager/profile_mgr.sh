@@ -43,6 +43,9 @@ else
     sim_db_add() { :; }
 fi
 
+# qm_durable_write for the active marker (crash-safe on UBIFS).
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+
 # --- Configuration -----------------------------------------------------------
 PROFILE_DIR="/etc/qmanager/profiles"
 ACTIVE_PROFILE_FILE="/etc/qmanager/active_profile"
@@ -382,13 +385,16 @@ profile_save() {
         return 1
     }
 
-    # Atomic replace
+    # Atomic replace. sync before mv so the rename never lands on flash ahead
+    # of the data (a power cut would leave a 0-byte profile), and after it.
+    sync
     if ! mv "$tmp_file" "$final_file"; then
         qlog_error "Failed to write profile: $id" 2>/dev/null
         rm -f "$tmp_file"
         printf '{"success":false,"error":"write_failed","detail":"Failed to save profile to disk"}\n'
         return 1
     fi
+    sync
 
     jq -n --arg id "$id" '{success: true, id: $id}'
     return 0
@@ -465,7 +471,13 @@ set_active_profile() {
         qlog_warn "Cannot set active profile — not found: $id" 2>/dev/null
         return 1
     fi
-    printf '%s' "$id" > "$ACTIVE_PROFILE_FILE"
+    # Durable replace: qmanager_profile_apply calls this right before
+    # AT+CFUN=1,1, which can reset the host before writeback.
+    if ! command -v qm_durable_write >/dev/null 2>&1 \
+            || ! printf '%s' "$id" | qm_durable_write "$ACTIVE_PROFILE_FILE"; then
+        qlog_error "Failed to write active profile marker: $id" 2>/dev/null
+        return 1
+    fi
     qlog_info "Active profile set: $id" 2>/dev/null
     # Explicit success — do not let the function's exit status leak from
     # qlog_info (which can be non-zero under log-level filtering); callers use

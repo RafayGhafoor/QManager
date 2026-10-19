@@ -222,6 +222,10 @@ for key in $present; do
     state_write "running" "$sections_arr" 'null'
 done
 
+# Flush every restored file to flash before reporting done: the UI offers a
+# reboot right after, and UBIFS holds writes for up to 30 s.
+sync
+
 # --- Final state ---
 COMPLETED_AT=$(date +%s)
 summary=$(jq -n --argjson s "$success_count" --argjson f "$failed_count" --argjson k "$skipped_count" \

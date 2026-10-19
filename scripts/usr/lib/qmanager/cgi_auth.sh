@@ -90,10 +90,16 @@ qm_verify_password() {
 qm_save_password() {
     _new_salt=$(qm_generate_salt)
     _new_hash=$(qm_hash_password "$1" "$_new_salt")
+    # An empty salt or hash (openssl failed) would lock everyone out: the file
+    # is non-empty, so setup is not offered, and no password ever verifies.
+    [ -n "$_new_salt" ] && [ -n "$_new_hash" ] || return 1
+    command -v qm_durable_write >/dev/null 2>&1 || return 1
 
-    jq -n --arg hash "$_new_hash" --arg salt "$_new_salt" \
-        '{"hash":$hash,"salt":$salt,"version":1}' > "$AUTH_CONFIG"
-    chmod 600 "$AUTH_CONFIG"
+    _auth_json=$(jq -n --arg hash "$_new_hash" --arg salt "$_new_salt" \
+        '{"hash":$hash,"salt":$salt,"version":1}') || return 1
+    [ -n "$_auth_json" ] || return 1
+    # Replace, never truncate: a crash mid-write keeps the old password.
+    printf '%s\n' "$_auth_json" | qm_durable_write "$AUTH_CONFIG" 0600
 }
 
 # ---------------------------------------------------------------------------

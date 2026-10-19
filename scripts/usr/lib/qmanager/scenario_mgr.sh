@@ -31,6 +31,8 @@
 [ -n "$_SCENARIO_MGR_LOADED" ] && return 0
 _SCENARIO_MGR_LOADED=1
 
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+
 # --- Configuration -----------------------------------------------------------
 SCENARIOS_DIR="/etc/qmanager/scenarios"
 ACTIVE_SCENARIO_FILE="/etc/qmanager/active_scenario"
@@ -169,7 +171,11 @@ scenario_apply() {
     fi
 
     mkdir -p "$(dirname "$ACTIVE_SCENARIO_FILE")" 2>/dev/null
-    printf '%s' "$id" > "$ACTIVE_SCENARIO_FILE"
+    if command -v qm_durable_write >/dev/null 2>&1; then
+        printf '%s' "$id" | qm_durable_write "$ACTIVE_SCENARIO_FILE" || failed=1
+    else
+        printf '%s' "$id" > "$ACTIVE_SCENARIO_FILE"
+    fi
 
     [ "$failed" -eq 1 ] && return 2
     return 0

@@ -50,11 +50,17 @@ fi
 mkdir -p "$(dirname "$FAILOVER_ENABLED_FILE")" 2>/dev/null
 
 if [ "$ENABLED_VAL" = "true" ]; then
-    printf '1' > "$FAILOVER_ENABLED_FILE"
+    if ! printf '1' | qm_durable_write "$FAILOVER_ENABLED_FILE"; then
+        cgi_error "write_failed" "Could not save the setting"
+        exit 0
+    fi
     qlog_info "Band failover ENABLED"
     jq -n '{"success":true,"enabled":true}'
 else
-    printf '0' > "$FAILOVER_ENABLED_FILE"
+    if ! printf '0' | qm_durable_write "$FAILOVER_ENABLED_FILE"; then
+        cgi_error "write_failed" "Could not save the setting"
+        exit 0
+    fi
     qlog_info "Band failover DISABLED"
 
     # Kill any running watcher to prevent unexpected failovers

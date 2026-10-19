@@ -394,7 +394,7 @@ mode_install() {
     mkdir -p "$UPDATES_DIR"
     local current_ver
     current_ver=$(get_current_version)
-    echo "$current_ver" > "$UPDATES_DIR/previous_version"
+    echo "$current_ver" | qm_durable_write "$UPDATES_DIR/previous_version"
     log_info "Saved previous version for rollback: $current_ver"
 
     # --- Step 4: Extract and run install.sh ---
@@ -502,7 +502,7 @@ mode_install_staged() {
     mkdir -p "$UPDATES_DIR"
     local current_ver
     current_ver=$(get_current_version)
-    echo "$current_ver" > "$UPDATES_DIR/previous_version"
+    echo "$current_ver" | qm_durable_write "$UPDATES_DIR/previous_version"
     log_info "Saved previous version for rollback: $current_ver"
 
     # --- Step 2: Extract ---
@@ -585,7 +585,7 @@ mode_rollback() {
     mkdir -p "$UPDATES_DIR"
     local current_ver
     current_ver=$(get_current_version)
-    echo "$current_ver" > "$UPDATES_DIR/previous_version"
+    echo "$current_ver" | qm_durable_write "$UPDATES_DIR/previous_version"
     log_info "Saved current version before rollback: $current_ver"
 
     # --- Step 4: Extract and install ---

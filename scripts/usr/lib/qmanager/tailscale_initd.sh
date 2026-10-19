@@ -10,8 +10,15 @@
 # install.sh force-copies every file under scripts/etc/init.d/ on each install,
 # which would clobber the opkg-owned tiny init. Keeping the body here, written
 # only on the official path, confines it correctly.
+#
+# Written with qm_durable_write (temp + sync + rename): a crash mid-write keeps
+# the old script instead of leaving a 0-byte init.d entry. Returns 1 if the
+# helper is missing or the write fails (callers already check).
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+
 qm_write_ts_initd() {
-    cat > /etc/init.d/tailscale <<'INITD_EOF'
+    command -v qm_durable_write >/dev/null 2>&1 || return 1
+    qm_durable_write /etc/init.d/tailscale 0755 <<'INITD_EOF'
 #!/bin/sh /etc/rc.common
 
 START=99
@@ -42,5 +49,4 @@ stop_service() {
     return 0
 }
 INITD_EOF
-    chmod 755 /etc/init.d/tailscale
 }

@@ -300,7 +300,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         record_planned_reboot "user"
 
         # Reboot with short delay to ensure response is sent
-        ( ( sleep 2 && reboot ) </dev/null >/dev/null 2>&1 & )
+        ( ( sleep 2; sync; reboot ) </dev/null >/dev/null 2>&1 & )
         exit 0
     fi
 

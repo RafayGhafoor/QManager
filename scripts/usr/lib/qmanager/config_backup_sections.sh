@@ -209,7 +209,7 @@ apply_sms_storage() {
     esac
     mkdir -p /etc/qmanager
     if [ "$s" = "SM" ]; then
-        printf 'SM\n' > /etc/qmanager/sms_storage || return 1
+        printf 'SM\n' | qm_durable_write /etc/qmanager/sms_storage || return 1
     else
         rm -f /etc/qmanager/sms_storage
     fi
@@ -599,7 +599,7 @@ apply_bands() {
     # Restore failover flag + respawn watcher if enabled
     mkdir -p /etc/qmanager
     if [ "$failover" = "true" ]; then
-        echo "1" > /etc/qmanager/band_failover_enabled
+        echo "1" | qm_durable_write /etc/qmanager/band_failover_enabled || return 1
         ( /usr/bin/qmanager_band_failover </dev/null >/dev/null 2>&1 & )
     else
         rm -f /etc/qmanager/band_failover_enabled
@@ -737,7 +737,9 @@ apply_ttl_hl() {
         ip6tables -t mangle -A POSTROUTING -o rmnet+ -j HL --hl-set "$hl" || { rm -f "$tmp"; return 1; }
         echo "ip6tables -t mangle -A POSTROUTING -o rmnet+ -j HL --hl-set $hl" >> "$tmp"
     fi
+    sync
     mv "$tmp" "$file" || return 1
+    sync
 
     if [ "$autostart" = "true" ]; then
         /etc/init.d/qmanager_ttl enable >/dev/null 2>&1
@@ -801,9 +803,12 @@ apply_imei() {
     bk_enabled=$(echo "$input" | jq -r '.backup.enabled // false')
     bk_imei=$(echo "$input"    | jq -r '.backup.imei // ""')
     if [ -n "$bk_imei" ] || [ "$bk_enabled" = "true" ]; then
+        local bk_json
         mkdir -p /etc/qmanager
-        jq -n --argjson e "$bk_enabled" --arg i "$bk_imei" \
-            '{enabled: $e, imei: $i}' > /etc/qmanager/imei_backup.json
+        bk_json=$(jq -n --argjson e "$bk_enabled" --arg i "$bk_imei" \
+            '{enabled: $e, imei: $i}') || return 1
+        [ -n "$bk_json" ] || return 1
+        printf '%s\n' "$bk_json" | qm_durable_write /etc/qmanager/imei_backup.json || return 1
     fi
     return 0
 }
@@ -859,7 +864,8 @@ apply_profiles() {
             */*|*..*|*\\*) qlog_warn "apply_profiles: id has path chars, skipping"; i=$((i+1)); continue ;;
         esac
         payload=$(echo "$input" | jq -c ".profiles[$i]")
-        echo "$payload" > "${dir}/${id}.json" || return 1
+        [ -n "$payload" ] || return 1
+        printf '%s\n' "$payload" | qm_durable_write "${dir}/${id}.json" || return 1
         i=$((i+1))
     done
 
@@ -897,7 +903,7 @@ apply_profiles() {
     # up the active marker and run the full APN -> TTL/HL -> IMEI pipeline
     # naturally. The worker collects the reboot-required hint here so the
     # frontend can prompt the user.
-    echo "$wanted_id" > /etc/qmanager/active_profile
+    echo "$wanted_id" | qm_durable_write /etc/qmanager/active_profile || return 1
     touch /tmp/qmanager_config_restore.reboot_required
     qlog_info "apply_profiles: active marker written for $wanted_id (reboot required to apply)"
     return 0

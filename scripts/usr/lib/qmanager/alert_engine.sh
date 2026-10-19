@@ -36,6 +36,19 @@
 [ -n "$_ALERT_ENGINE_LOADED" ] && return 0
 _ALERT_ENGINE_LOADED=1
 
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+
+# _ae_store_boot_id ID — persist the last seen boot_id. Durable replace, so a
+# crash right after a reboot is detected cannot leave the file empty (which
+# would read as "first boot ever" and swallow the next reboot alert).
+_ae_store_boot_id() {
+    if command -v qm_durable_write >/dev/null 2>&1; then
+        printf '%s\n' "$1" | qm_durable_write "$_AE_BOOT_ID_FILE" 2>/dev/null
+    else
+        printf '%s\n' "$1" > "$_AE_BOOT_ID_FILE" 2>/dev/null
+    fi
+}
+
 # --- Reload flags + suppression sentinels (literal paths — the engine does not
 # --- depend on the channel libs having been sourced to evaluate these) -------
 _AE_SMS_RELOAD="/tmp/qmanager_sms_reload"
@@ -437,7 +450,7 @@ alert_engine_reboot_detect() {
 
     # First run ever (fresh install / first boot): record the id, do NOT alert.
     if [ -z "$_stored_id" ]; then
-        printf '%s\n' "$_live_id" > "$_AE_BOOT_ID_FILE" 2>/dev/null
+        _ae_store_boot_id "$_live_id"
         qlog_info "Alert engine: first boot_id recorded ($_live_id), no reboot alert"
         return 0
     fi
@@ -476,7 +489,7 @@ alert_engine_reboot_detect() {
     fi
 
     _ae_stage_reboot_pending "$_live_id" "$_cause"
-    printf '%s\n' "$_live_id" > "$_AE_BOOT_ID_FILE" 2>/dev/null
+    _ae_store_boot_id "$_live_id"
     qlog_info "Alert engine: reboot detected (cause=$_cause boot_id=$_live_id)"
 }
 

@@ -146,7 +146,11 @@ EOF
         echo "ip6tables -t mangle -A POSTROUTING -o rmnet+ -j HL --hl-set $new_hl" >> "$TTL_TMP"
         ip6tables -t mangle -A POSTROUTING -o rmnet+ -j HL --hl-set "$new_hl"
     fi
+    # sync around the rename: on UBIFS a rename can reach flash before the
+    # data and leave an empty rules file after a power cut.
+    sync
     mv "$TTL_TMP" "$TTL_FILE"
+    sync
 
     # Determine new enabled state
     is_enabled="false"

@@ -311,4 +311,8 @@ record_planned_reboot() {
             fi
         fi
     ) 8>"$_QLOG_CRASH_LOCK"
+    # Every planned reboot path calls this synchronously right before reboot,
+    # so this flush makes the breadcrumb (and anything the caller just saved)
+    # durable on UBIFS, which otherwise holds writes for up to 30 s.
+    sync
 }

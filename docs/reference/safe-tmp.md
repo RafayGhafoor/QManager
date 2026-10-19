@@ -39,8 +39,33 @@ from QCMAP), so no vendor daemon depends on writing into another user's file.
 | `qm_root_dir DIR [MODE]` | Makes DIR a real root-owned dir (default 0700), removing anything else at that name first. Returns 1 if it cannot; never use DIR then. |
 | `qm_run_dir` | Ensures and prints `/var/run/qmanager` (root 0700). Prints nothing on failure, so guard `"$(qm_run_dir)/x"` against `/x`. |
 | `qm_atomic_write DEST [MODE]` | stdin to DEST via a `mktemp` sibling and `mv -f` (default 0644). Replaces a planted file, FIFO or symlink instead of writing through it. |
+| `qm_durable_write DEST [MODE]` | `qm_atomic_write` for files on flash (`/etc`, `/usr`, `/www`): `sync` before and after the rename. Use it for every persistent file. |
 | `qm_self_pid` | Sets `QM_SELF_PID` to the calling shell's real pid. Use it inside a `( ... )` subshell, where ash's `$$` is still the parent's pid. Call it directly, never as `$(qm_self_pid)` (the command substitution forks). |
 | `qm_read_pid PIDFILE [CMDLINE_SUBSTR]` | The pid when the file is root-owned, the pid numeric, > 1, alive and (optionally) its cmdline contains the substring. Use it before any `kill` of a pid read from `/tmp`. |
+
+## Persistent files (UBIFS)
+
+`/etc` is UBIFS and `/` is an overlay whose upper layer (`/usrdata`) is UBIFS
+too; dirty data waits up to 30 s (`dirty_expire_centisecs=3000`). An in-place
+`>` (or a `cp` over a file) cut by a power loss or an AP hang leaves the file
+0 bytes (the 2026-10-19 deploy incident). Temp + `mv` alone is not enough
+either: UBIFS can commit the rename before the temp's data. So:
+
+- Rewrite a persistent file with `qm_durable_write` (temp, `sync`, `mv`,
+  `sync`). BusyBox 1.36 `sync` takes no file argument, so it is a global flush:
+  use it on user-initiated or rare writes, never in a poll loop.
+- Build the content into a variable first when its producer can fail (`jq`):
+  a pipeline's status is the writer's, so a failed `jq | qm_durable_write`
+  durably writes an empty file. Check the variable is non-empty.
+- Replace binaries the same way (`qm_durable_write /usr/bin/x 0755 < src`). A
+  rename works while the old binary runs, where `cp` fails with `ETXTBSY`.
+  Verify a new binary before it replaces the old one.
+- Every planned reboot path calls `record_planned_reboot`, which ends with a
+  `sync`; the deferred `( sleep N; sync; reboot )` subshells and watchcat tier 4
+  sync again. Keep that when adding a reboot path.
+- Append-only logs (`crash.log`, sites `.jsonl`) stay `>>`: a crash loses at
+  most the last line, never the file. `known_iccids` appends lock-free by
+  design and is not converted either.
 
 ## Rules
 

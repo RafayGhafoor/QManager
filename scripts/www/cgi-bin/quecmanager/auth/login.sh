@@ -76,7 +76,12 @@ if is_setup_required; then
         exit 0
     fi
 
-    qm_save_password "$_password"
+    if ! qm_save_password "$_password"; then
+        qlog_error "First-time password could not be saved"
+        cgi_headers
+        cgi_error "write_failed" "Could not save the password"
+        exit 0
+    fi
     qlog_info "First-time password configured"
 
     _token=$(qm_create_session)

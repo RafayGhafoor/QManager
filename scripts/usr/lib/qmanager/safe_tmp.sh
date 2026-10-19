@@ -61,11 +61,13 @@ qm_run_dir() {
     printf '%s' "$QM_RUN_DIR"
 }
 
-# qm_atomic_write DEST [MODE] — write stdin to DEST via a mktemp sibling and a
-# rename (default mode 0644). Returns 1 (DEST untouched) on any failure.
-qm_atomic_write() {
+# _qm_replace DEST MODE FLUSH — shared body of qm_atomic_write and
+# qm_durable_write. FLUSH=1 syncs before the rename (so the data is on flash
+# before the name points at it) and after it (so the rename itself is).
+_qm_replace() {
     _qaw_dest="$1"
-    _qaw_mode="${2:-0644}"
+    _qaw_mode="$2"
+    _qaw_flush="$3"
     # mv onto a directory would move the temp INTO it; clear a planted dir.
     if [ -d "$_qaw_dest" ] && [ ! -L "$_qaw_dest" ]; then
         rm -rf "$_qaw_dest" 2>/dev/null
@@ -74,12 +76,32 @@ qm_atomic_write() {
         cat > /dev/null
         return 1
     }
-    if cat > "$_qaw_tmp" && chmod "$_qaw_mode" "$_qaw_tmp" \
-            && mv -f "$_qaw_tmp" "$_qaw_dest"; then
-        return 0
+    if cat > "$_qaw_tmp" && chmod "$_qaw_mode" "$_qaw_tmp"; then
+        [ "$_qaw_flush" = "1" ] && sync
+        if mv -f "$_qaw_tmp" "$_qaw_dest"; then
+            [ "$_qaw_flush" = "1" ] && sync
+            return 0
+        fi
     fi
     rm -f "$_qaw_tmp" 2>/dev/null
     return 1
+}
+
+# qm_atomic_write DEST [MODE] — write stdin to DEST via a mktemp sibling and a
+# rename (default mode 0644). Returns 1 (DEST untouched) on any failure.
+# For RAM paths (/tmp, /var/run). Persistent files use qm_durable_write.
+qm_atomic_write() {
+    _qm_replace "$1" "${2:-0644}" 0
+}
+
+# qm_durable_write DEST [MODE] — qm_atomic_write for files on flash (/etc,
+# /usr, /www: UBIFS, 30 s writeback). Without the syncs a power cut or AP hang
+# can commit the rename before the data and leave DEST 0 bytes. BusyBox sync
+# is a global flush, so keep this off poll loops. stdin must be the full
+# content: build it into a variable first when a failed producer (jq) could
+# pipe nothing, or an empty DEST is written durably.
+qm_durable_write() {
+    _qm_replace "$1" "${2:-0644}" 1
 }
 
 # qm_self_pid — set QM_SELF_PID to the pid of the calling shell process. Unlike

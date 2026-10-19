@@ -99,7 +99,10 @@ _write_json_atomic() {
         rm -f "$_wja_tmp"
         return 1
     fi
-    mv "$_wja_tmp" "$_wja_target"
+    # sync around the rename (UBIFS can commit it ahead of the data)
+    sync
+    mv "$_wja_tmp" "$_wja_target" || return 1
+    sync
 }
 
 # =============================================================================
@@ -388,8 +391,11 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         fi
 
         # --- Regenerate msmtprc when email creds are present ---
+        # qm_durable_write: replace, never truncate, and the temp is 0600 from
+        # mktemp, so the password is never world-readable (the old cat > then
+        # chmod left a window).
         if [ -n "$email_sender" ] && [ -n "$email_pw" ]; then
-            cat > "$MSMTP_CONFIG" <<MSMTPEOF
+            if ! qm_durable_write "$MSMTP_CONFIG" 0600 <<MSMTPEOF
 defaults
 auth           on
 tls            on
@@ -404,7 +410,10 @@ from           ${email_sender}
 user           ${email_sender}
 password       ${email_pw}
 MSMTPEOF
-            chmod 600 "$MSMTP_CONFIG"
+            then
+                cgi_error "write_failed" "Failed to write email account config"
+                exit 0
+            fi
             qlog_info "msmtp config regenerated at $MSMTP_CONFIG"
         fi
 

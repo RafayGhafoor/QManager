@@ -451,15 +451,24 @@ apply_ttl_hl() {
         ip6tables -t mangle -D POSTROUTING -o rmnet+ -j HL --hl-set "$current_hl" 2>/dev/null
     fi
 
-    # Write new rules file
-    > "$TTL_FILE"
+    # Apply the live rules, then replace the rules file in one durable write
+    # (an in-place truncate + append could leave it empty after a crash; the
+    # IMEI step after this can reset the host). Empty content is valid: both
+    # values 0 means no rules.
+    local rules=""
     if [ "$new_ttl" -gt 0 ] 2>/dev/null; then
-        echo "iptables -t mangle -A POSTROUTING -o rmnet+ -j TTL --ttl-set $new_ttl" >> "$TTL_FILE"
+        rules="iptables -t mangle -A POSTROUTING -o rmnet+ -j TTL --ttl-set $new_ttl
+"
         iptables -t mangle -A POSTROUTING -o rmnet+ -j TTL --ttl-set "$new_ttl"
     fi
     if [ "$new_hl" -gt 0 ] 2>/dev/null; then
-        echo "ip6tables -t mangle -A POSTROUTING -o rmnet+ -j HL --hl-set $new_hl" >> "$TTL_FILE"
+        rules="${rules}ip6tables -t mangle -A POSTROUTING -o rmnet+ -j HL --hl-set $new_hl
+"
         ip6tables -t mangle -A POSTROUTING -o rmnet+ -j HL --hl-set "$new_hl"
+    fi
+    if ! printf '%s' "$rules" | qm_durable_write "$TTL_FILE"; then
+        mark_step_failed "ttl_hl" "Applied TTL=$new_ttl, HL=$new_hl but could not save them"
+        return
     fi
 
     mark_step_done "ttl_hl" "Applied TTL=$new_ttl, HL=$new_hl"
