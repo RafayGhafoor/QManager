@@ -759,6 +759,10 @@
         "realtime": "Modem dibaca setiap 2 detik selama Prometheus melakukan scrape, seperti dasbor yang sedang dibuka."
       }
     },
+    "status": {
+      "label": "Status scrape",
+      "endpoint_off": "Endpoint nonaktif"
+    },
     "facts": {
       "no_scrapes": "Belum ada scrape",
       "last_scrape_seconds_one": "Scrape terakhir {{count}} dtk lalu",
@@ -776,7 +780,7 @@
       "show": "Tampilkan token",
       "hide": "Sembunyikan token",
       "copy": "Salin",
-      "regenerate": "Buat ulang…"
+      "regenerate": "Buat ulang"
     },
     "regenerate_dialog": {
       "title": "Buat token baru?",
@@ -789,7 +793,11 @@
       "consequence": "Tambahkan job ini ke konfigurasi Prometheus Anda.",
       "hint_label": "Tentang konfigurasi scrape",
       "hint": "Sertifikat modem ditandatangani sendiri, sehingga verifikasi dilewati. Melalui Tailscale, http biasa juga berfungsi.",
-      "copy": "Salin konfigurasi"
+      "copy": "Salin konfigurasi",
+      "copied": "Tersalin",
+      "wrap": "Bungkus baris",
+      "empty_title": "Belum ada konfigurasi scrape",
+      "empty_description": "Aktifkan endpoint lalu simpan untuk mendapatkannya."
     },
     "foot": {
       "save": "Simpan",

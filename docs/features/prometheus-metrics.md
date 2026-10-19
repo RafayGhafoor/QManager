@@ -25,14 +25,16 @@ Plan and decision log: [`../plans/prometheus-metrics.md`](../plans/prometheus-me
 
 ## UI
 
-One card on `/monitoring/prometheus` (Card-Foot Apply Rule: Discard and Save in `CardFoot`):
+Three elements on `/monitoring/prometheus`, under the page header:
 
-- **Metrics endpoint**: Off / On `SegmentedField`. Shows a "Last scrape N s ago" or "No scrapes yet" fact while enabled.
-- **Scrape freshness**: Adaptive / Balanced / Real-time, with a consequence line per mode. A `Holding faster polling` info chip appears while a scrape is holding the poller; `Adaptive polling is off, so readings are always live` replaces it when `quecmanager.poller.enabled=0`.
-- **Bearer token** (only while saved-enabled with a token): masked field with show/hide, Copy, and Regenerate behind an `AlertDialog` (the old token stops working at once).
-- **Scrape config**: a copyable `scrape_configs` block built from the page's own host, defaulting to `scheme: https` with `tls_config.insecure_skip_verify: true` (the modem's certificate is self-signed; plain `http` over Tailscale is fine), `metrics_path` from `endpoint_path`, and the token as `authorization.credentials` (masked until revealed). It sits beside the rows on a wide card (`@5xl/card:`).
+- **Scrape status band** (`scrape-status.tsx`, full width, always mounted): "Last scrape N s ago" (info), "No scrapes yet" (muted) or "Endpoint off" (muted), plus a `Holding faster polling` info chip while a scrape is holding the poller. It reads the saved state, never the draft.
+- **Settings card** (`prometheus-card.tsx`; Card-Foot Apply Rule: Discard and Save in `CardFoot`):
+  - **Metrics endpoint**: Off / On `SegmentedField`.
+  - **Scrape freshness**: Adaptive / Balanced / Real-time, with a consequence line per mode. `Adaptive polling is off, so readings are always live` shows when `quecmanager.poller.enabled=0`.
+  - **Bearer token** (only while saved-enabled with a token): masked field with show/hide, Copy, and Regenerate (no ellipsis; it opens an `AlertDialog` because the old token stops working at once).
+- **Scrape config card** (`scrape-config.tsx`), paired with the settings card on a wide page (`PAGE_PAIR`, `@5xl/main:grid-cols-2`, equal heights; the code block absorbs the slack). Uses the shadcn-derived `components/ui/code-block.tsx` with `hooks/use-highlighted-code.tsx` and `lib/highlighter.ts` (shiki, YAML only, one `css-variables` theme mapped onto design tokens by the `CodeBlock` root). The block is a `prometheus.yml` view of a `scrape_configs` job built from the page's own host, defaulting to `scheme: https` with `tls_config.insecure_skip_verify: true` (the modem's certificate is self-signed; plain `http` over Tailscale is fine), `metrics_path` from `endpoint_path`, and the token as `authorization.credentials`. Header actions: reveal (shared with the token field through one page-level `revealed` state), wrap lines, copy (via `lib/clipboard.ts`, the clipboard always gets the real token). While the endpoint is off the card shows an empty tile and the highlighter chunk never loads.
 
-The token, snippet and facts describe what is live, not the draft. The card shows the endpoint path and scrape config on purpose: it is a sanctioned exception to No Debug-Build Copy (the surface exists to integrate a tool, like the AT Terminal). That text appears only in the snippet block; prose never names UCI, files, daemons or scripts. The hook re-reads the settings every 15 s while the tab is visible (silent: a failed re-read keeps the last good view). Mutators return `{ success, message? }` with the reason already run through `resolveErrorMessage`; the card toasts from that result.
+The token, config and status describe what is live, not the draft. The card shows the endpoint path and scrape config on purpose: it is a sanctioned exception to No Debug-Build Copy (the surface exists to integrate a tool, like the AT Terminal). That text appears only in the snippet block; prose never names UCI, files, daemons or scripts. The hook re-reads the settings every 15 s while the tab is visible (silent: a failed re-read keeps the last good view). Mutators return `{ success, message? }` with the reason already run through `resolveErrorMessage`; the card toasts from that result.
 
 ## CGI Contracts
 

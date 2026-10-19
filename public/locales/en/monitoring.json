@@ -759,6 +759,10 @@
         "realtime": "The modem is read every 2 seconds while Prometheus scrapes, like an open dashboard."
       }
     },
+    "status": {
+      "label": "Scrape status",
+      "endpoint_off": "Endpoint off"
+    },
     "facts": {
       "no_scrapes": "No scrapes yet",
       "last_scrape_seconds_one": "Last scrape {{count}} s ago",
@@ -776,7 +780,7 @@
       "show": "Show token",
       "hide": "Hide token",
       "copy": "Copy",
-      "regenerate": "Regenerate…"
+      "regenerate": "Regenerate"
     },
     "regenerate_dialog": {
       "title": "Generate a new token?",
@@ -789,7 +793,11 @@
       "consequence": "Add this job to your Prometheus configuration.",
       "hint_label": "About the scrape config",
       "hint": "The modem's certificate is self-signed, so verification is skipped. Over Tailscale, plain http works too.",
-      "copy": "Copy config"
+      "copy": "Copy config",
+      "copied": "Copied",
+      "wrap": "Wrap lines",
+      "empty_title": "No scrape config yet",
+      "empty_description": "Turn on the endpoint and save to get one."
     },
     "foot": {
       "save": "Save",

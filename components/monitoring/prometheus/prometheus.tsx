@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { RefreshCcwIcon, TriangleAlertIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -15,19 +16,24 @@ import { usePrometheusMetrics } from "@/hooks/use-prometheus-metrics";
 import { cn } from "@/lib/utils";
 
 import { PrometheusCard } from "./prometheus-card";
+import { ScrapeConfigCard } from "./scrape-config";
+import { ScrapeStatus } from "./scrape-status";
 import {
   CARD_BODY,
   CARD_PAD,
   CARD_SHELL,
   CONDITION,
   GROUP,
+  PAGE_PAIR,
   PAGE_ROOT,
   ROW,
   SKELETON,
+  STATUS_BAND,
 } from "./shapes";
 
 // -----------------------------------------------------------------------------
-// Prometheus — the page shell: header, then one card in its three states.
+// Prometheus — the page shell: header, the scrape status band, then the
+// settings card paired with the scrape config card, each in its three states.
 // -----------------------------------------------------------------------------
 
 const K = "prometheus";
@@ -36,6 +42,12 @@ export default function PrometheusComponent() {
   const { t } = useTranslation("monitoring");
   const hook = usePrometheusMetrics();
   const { data, isLoading, error, refresh } = hook;
+  // One reveal for the token field and the config block: showing it in one
+  // place and not the other would read as two different secrets.
+  const [revealed, setRevealed] = useState(false);
+
+  const settings = data?.settings;
+  const live = !!settings?.enabled && settings.token.length > 0;
 
   return (
     <div className={PAGE_ROOT}>
@@ -44,10 +56,31 @@ export default function PrometheusComponent() {
         description={t(`${K}.page.description`)}
       />
 
-      {data?.settings ? (
-        <PrometheusCard data={data} hook={hook} />
+      {data && settings ? (
+        <>
+          <ScrapeStatus data={data} />
+          <div className={PAGE_PAIR}>
+            <PrometheusCard
+              data={data}
+              hook={hook}
+              revealed={revealed}
+              onRevealedChange={setRevealed}
+            />
+            <ScrapeConfigCard
+              endpointPath={
+                data.endpoint_path ??
+                "/cgi-bin/quecmanager/metrics/prometheus.sh"
+              }
+              httpsPort={data.https_port ?? 443}
+              token={settings.token}
+              live={live}
+              revealed={revealed}
+              onRevealedChange={setRevealed}
+            />
+          </div>
+        </>
       ) : isLoading ? (
-        <PrometheusCardSkeleton />
+        <PrometheusSkeleton />
       ) : (
         <div role="alert" className={CONDITION.ROOT}>
           <span className={CONDITION.DISC}>
@@ -86,22 +119,40 @@ function SkeletonRow() {
   );
 }
 
-function PrometheusCardSkeleton() {
+function PrometheusSkeleton() {
   return (
-    <Card className={CARD_SHELL} aria-busy="true">
-      <CardHeader className={cn(CARD_PAD, "gap-2")}>
-        <Skeleton className={SKELETON.CARD_TITLE} />
-        <Skeleton className={SKELETON.CARD_DESC} />
-      </CardHeader>
-      <CardContent className={cn(CARD_PAD, CARD_BODY)}>
-        <div className={GROUP.ROOT}>
-          <div className={GROUP.COLUMN}>
-            <SkeletonRow />
-            <SkeletonRow />
-          </div>
+    <>
+      <Card className={STATUS_BAND.SHELL} aria-busy="true">
+        <div className={STATUS_BAND.ROW}>
+          <Skeleton className={SKELETON.STATUS} />
         </div>
-        <div className={SKELETON.FOOT} />
-      </CardContent>
-    </Card>
+      </Card>
+      <div className={PAGE_PAIR}>
+        <Card className={CARD_SHELL} aria-busy="true">
+          <CardHeader className={cn(CARD_PAD, "gap-2")}>
+            <Skeleton className={SKELETON.CARD_TITLE} />
+            <Skeleton className={SKELETON.CARD_DESC} />
+          </CardHeader>
+          <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+            <div className={GROUP.ROOT}>
+              <div className={GROUP.COLUMN}>
+                <SkeletonRow />
+                <SkeletonRow />
+              </div>
+            </div>
+            <div className={SKELETON.FOOT} />
+          </CardContent>
+        </Card>
+        <Card className={CARD_SHELL} aria-busy="true">
+          <CardHeader className={cn(CARD_PAD, "gap-2")}>
+            <Skeleton className={SKELETON.CARD_TITLE} />
+            <Skeleton className={SKELETON.CARD_DESC} />
+          </CardHeader>
+          <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+            <Skeleton className={SKELETON.BLOCK} />
+          </CardContent>
+        </Card>
+      </div>
+    </>
   );
 }

@@ -759,6 +759,10 @@
         "realtime": "Prometheus 抓取期間，每 2 秒讀取一次數據機，與開啟儀表板時相同。"
       }
     },
+    "status": {
+      "label": "抓取狀態",
+      "endpoint_off": "端點已關閉"
+    },
     "facts": {
       "no_scrapes": "尚無抓取記錄",
       "last_scrape_seconds_one": "上次抓取在 {{count}} 秒前",
@@ -776,7 +780,7 @@
       "show": "顯示權杖",
       "hide": "隱藏權杖",
       "copy": "複製",
-      "regenerate": "重新產生…"
+      "regenerate": "重新產生"
     },
     "regenerate_dialog": {
       "title": "產生新權杖？",
@@ -789,7 +793,11 @@
       "consequence": "將此 job 新增到您的 Prometheus 配置中。",
       "hint_label": "關於抓取配置",
       "hint": "數據機的憑證為自行簽署，因此跳過驗證。透過 Tailscale 時，也可以使用普通 http。",
-      "copy": "複製配置"
+      "copy": "複製配置",
+      "copied": "已複製",
+      "wrap": "自動換行",
+      "empty_title": "尚無抓取配置",
+      "empty_description": "開啟端點並儲存後即可取得。"
     },
     "foot": {
       "save": "儲存",

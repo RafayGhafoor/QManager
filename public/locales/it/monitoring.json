@@ -759,6 +759,10 @@
         "realtime": "Il modem viene letto ogni 2 secondi mentre Prometheus fa scrape, come con una dashboard aperta."
       }
     },
+    "status": {
+      "label": "Stato dello scrape",
+      "endpoint_off": "Endpoint disattivato"
+    },
     "facts": {
       "no_scrapes": "Nessuno scrape finora",
       "last_scrape_seconds_one": "Ultimo scrape {{count}} s fa",
@@ -776,7 +780,7 @@
       "show": "Mostra token",
       "hide": "Nascondi token",
       "copy": "Copia",
-      "regenerate": "Rigenera…"
+      "regenerate": "Rigenera"
     },
     "regenerate_dialog": {
       "title": "Generare un nuovo token?",
@@ -789,7 +793,11 @@
       "consequence": "Aggiungi questo job alla configurazione di Prometheus.",
       "hint_label": "Informazioni sulla configurazione dello scrape",
       "hint": "Il certificato del modem è autofirmato, quindi la verifica viene saltata. Con Tailscale funziona anche http semplice.",
-      "copy": "Copia configurazione"
+      "copy": "Copia configurazione",
+      "copied": "Copiato",
+      "wrap": "A capo automatico",
+      "empty_title": "Nessuna configurazione dello scrape",
+      "empty_description": "Attiva l'endpoint e salva per ottenerla."
     },
     "foot": {
       "save": "Salva",

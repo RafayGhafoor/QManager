@@ -759,6 +759,10 @@
         "realtime": "Prometheus 抓取期间，每 2 秒读取一次调制解调器，与打开仪表盘时相同。"
       }
     },
+    "status": {
+      "label": "抓取状态",
+      "endpoint_off": "端点已关闭"
+    },
     "facts": {
       "no_scrapes": "尚无抓取记录",
       "last_scrape_seconds_one": "上次抓取在 {{count}} 秒前",
@@ -776,7 +780,7 @@
       "show": "显示令牌",
       "hide": "隐藏令牌",
       "copy": "复制",
-      "regenerate": "重新生成…"
+      "regenerate": "重新生成"
     },
     "regenerate_dialog": {
       "title": "生成新令牌？",
@@ -789,7 +793,11 @@
       "consequence": "将此 job 添加到您的 Prometheus 配置中。",
       "hint_label": "关于抓取配置",
       "hint": "调制解调器的证书为自签名，因此跳过验证。通过 Tailscale 时，也可以使用普通 http。",
-      "copy": "复制配置"
+      "copy": "复制配置",
+      "copied": "已复制",
+      "wrap": "自动换行",
+      "empty_title": "暂无抓取配置",
+      "empty_description": "开启端点并保存后即可获得。"
     },
     "foot": {
       "save": "保存",

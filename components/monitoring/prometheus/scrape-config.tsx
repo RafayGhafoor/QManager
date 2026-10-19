@@ -1,16 +1,37 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
-import { CopyIcon } from "lucide-react";
+import {
+  EyeIcon,
+  EyeOffIcon,
+  FileCodeIcon,
+  WrapTextIcon,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  CodeBlock,
+  CodeBlockAction,
+  CodeBlockActions,
+  CodeBlockContent,
+  CodeBlockCopyButton,
+  CodeBlockHeader,
+  CodeBlockLine,
+  CodeBlockTitle,
+} from "@/components/ui/code-block";
 import { HintIcon } from "@/components/ui/hint-icon";
-import { copyText } from "@/lib/clipboard";
+import { useHighlightedCode } from "@/hooks/use-highlighted-code";
 import { cn } from "@/lib/utils";
 
-import { ROW, SNIPPET, TOKEN } from "./shapes";
+import { CARD_BODY, CARD_DESC, CARD_PAD, CARD_SHELL, CARD_TITLE, CONFIG } from "./shapes";
 
 const K = "prometheus";
 
@@ -51,22 +72,77 @@ function buildConfig(
   ].join("\n");
 }
 
-interface ScrapeConfigProps {
+interface ScrapeConfigCardProps {
   endpointPath: string;
   /** The device's HTTPS port (custom web ports), 443 by default. */
   httpsPort: number;
   token: string;
+  /** True while the SAVED state is enabled with a token (State-Honesty). */
+  live: boolean;
   revealed: boolean;
+  onRevealedChange: (next: boolean) => void;
 }
 
-export function ScrapeConfig({
+export function ScrapeConfigCard({
+  endpointPath,
+  httpsPort,
+  token,
+  live,
+  revealed,
+  onRevealedChange,
+}: ScrapeConfigCardProps) {
+  const { t } = useTranslation("monitoring");
+
+  return (
+    <Card className={CARD_SHELL}>
+      <CardHeader className={CARD_PAD}>
+        <CardTitle className={cn(CARD_TITLE, "flex items-center gap-1.5")}>
+          {t(`${K}.config.label`)}
+          <HintIcon label={t(`${K}.config.hint_label`)}>
+            {t(`${K}.config.hint`)}
+          </HintIcon>
+        </CardTitle>
+        <CardDescription className={CARD_DESC}>
+          {t(`${K}.config.consequence`)}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+        {live ? (
+          <ConfigBlock
+            endpointPath={endpointPath}
+            httpsPort={httpsPort}
+            token={token}
+            revealed={revealed}
+            onRevealedChange={onRevealedChange}
+          />
+        ) : (
+          <div className={CONFIG.EMPTY}>
+            <FileCodeIcon className={CONFIG.EMPTY_GLYPH} aria-hidden="true" />
+            <span className={CONFIG.EMPTY_TITLE}>
+              {t(`${K}.config.empty_title`)}
+            </span>
+            <span className={CONFIG.EMPTY_DESC}>
+              {t(`${K}.config.empty_description`)}
+            </span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Mounted only while live, so the highlighter chunk loads only when needed. */
+function ConfigBlock({
   endpointPath,
   httpsPort,
   token,
   revealed,
-}: ScrapeConfigProps) {
+  onRevealedChange,
+}: Omit<ScrapeConfigCardProps, "live">) {
   const { t } = useTranslation("monitoring");
   const host = useSyncExternalStore(noopSubscribe, readHost, serverHost);
+  const [wrap, setWrap] = useState(false);
 
   const shown = buildConfig(
     endpointPath,
@@ -74,44 +150,52 @@ export function ScrapeConfig({
     httpsPort,
     revealed ? token : maskToken(token),
   );
-
-  const handleCopy = async () => {
-    const ok = await copyText(
-      buildConfig(endpointPath, host, httpsPort, token),
-    );
-    if (ok) toast.success(t(`${K}.toast.config_copied`));
-    else toast.error(t(`${K}.toast.copy_failed`));
-  };
+  // The clipboard always gets the real token, whatever the block shows.
+  const copyValue = buildConfig(endpointPath, host, httpsPort, token);
+  const lines = useHighlightedCode(shown, "yaml");
 
   return (
-    <div className={cn(SNIPPET.ROOT, "@container/card")}>
-      <div className={SNIPPET.HEAD}>
-        <div className={ROW.TEXT}>
-          <span className={ROW.LABEL_LINE}>
-            <span className={ROW.LABEL}>{t(`${K}.config.label`)}</span>
-            <HintIcon label={t(`${K}.config.hint_label`)}>
-              {t(`${K}.config.hint`)}
-            </HintIcon>
-          </span>
-          <span className={ROW.CONSEQUENCE}>{t(`${K}.config.consequence`)}</span>
-        </div>
-        <Button
-          type="button"
-          variant="tonal-neutral"
-          size="sm"
-          onClick={handleCopy}
-        >
-          <CopyIcon className={TOKEN.GLYPH} aria-hidden="true" />
-          {t(`${K}.config.copy`)}
-        </Button>
-      </div>
-      <pre
-        className={SNIPPET.BLOCK}
-        aria-label={t(`${K}.config.label`)}
-        tabIndex={0}
-      >
-        {shown}
-      </pre>
-    </div>
+    <CodeBlock className={CONFIG.BLOCK}>
+      <CodeBlockHeader>
+        <CodeBlockTitle>
+          <FileCodeIcon aria-hidden="true" />
+          {CONFIG.FILENAME}
+        </CodeBlockTitle>
+        <CodeBlockActions>
+          <CodeBlockAction
+            aria-pressed={revealed}
+            aria-label={t(revealed ? `${K}.token.hide` : `${K}.token.show`)}
+            onClick={() => onRevealedChange(!revealed)}
+          >
+            {revealed ? (
+              <EyeOffIcon className="size-4" aria-hidden="true" />
+            ) : (
+              <EyeIcon className="size-4" aria-hidden="true" />
+            )}
+          </CodeBlockAction>
+          <CodeBlockAction
+            aria-pressed={wrap}
+            aria-label={t(`${K}.config.wrap`)}
+            onClick={() => setWrap((v) => !v)}
+          >
+            <WrapTextIcon className="size-4" aria-hidden="true" />
+          </CodeBlockAction>
+          <CodeBlockCopyButton
+            value={copyValue}
+            label={t(`${K}.config.copy`)}
+            copiedLabel={t(`${K}.config.copied`)}
+            onResult={(ok) => {
+              if (ok) toast.success(t(`${K}.toast.config_copied`));
+              else toast.error(t(`${K}.toast.copy_failed`));
+            }}
+          />
+        </CodeBlockActions>
+      </CodeBlockHeader>
+      <CodeBlockContent wrap={wrap} aria-label={t(`${K}.config.label`)}>
+        {lines.map((line, index) => (
+          <CodeBlockLine key={index}>{line}</CodeBlockLine>
+        ))}
+      </CodeBlockContent>
+    </CodeBlock>
   );
 }

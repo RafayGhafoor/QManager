@@ -12,6 +12,13 @@ import type { BadgeVariant } from "@/components/ui/badge";
 
 /** The route wrapper. Container queries key off `@container/main`. */
 export const PAGE_ROOT = "@container/main flex flex-col gap-5 px-4 pb-6 lg:px-6";
+/**
+ * Settings and scrape config sit as a pair on a wide page. `items-stretch`
+ * locks both to one height (Symmetric-Pair Rule); each nominates one region to
+ * absorb the slack: the settings group, and the config block.
+ */
+export const PAGE_PAIR =
+  "grid grid-cols-1 items-stretch gap-5 @5xl/main:grid-cols-2 *:h-full";
 
 // -----------------------------------------------------------------------------
 // The card
@@ -26,19 +33,12 @@ export const CARD_TITLE = "min-w-0 text-lg leading-tight";
 export const CARD_DESC = "text-on-surface-variant text-sm";
 
 /**
- * The card's one inner container. On a wide card the scrape config moves
- * beside the settings rows instead of under them (`@5xl/card:`), but it stays
- * inside this group, so the card never grows a second container.
+ * The settings card's one inner container. It is the region that absorbs the
+ * slack when the config card beside it is taller.
  */
 export const GROUP = {
-  ROOT: "grid grid-cols-1 gap-0.5 rounded-tile bg-surface-container p-1.5",
-  SPLIT: "@5xl/card:grid-cols-2",
-  /**
-   * Each column re-declares `@container/card`, so a row's side-by-side flip
-   * keys off the column it sits in, not the whole card: on a split card a
-   * half-width column would otherwise squeeze its consequence into a sliver.
-   */
-  COLUMN: "@container/card flex min-w-0 flex-col gap-0.5",
+  ROOT: "grid flex-1 grid-cols-1 content-start gap-0.5 rounded-tile bg-surface-container p-1.5",
+  COLUMN: "flex min-w-0 flex-col gap-0.5",
 } as const;
 
 /** One setting row; label and consequence left, control right once there is room. */
@@ -81,15 +81,30 @@ export const COARSE_TARGET =
   "before:absolute before:-inset-x-3 before:-inset-y-3.5 before:content-['']";
 
 /**
- * The scrape config. Its host is the group (`surface-container`), so the block
- * takes one step up (The Field-Step Rule). Raw config text is the one place on
- * this card mono belongs as a block.
+ * The scrape config card. The block is the card's one inner container, one
+ * tonal step off its host (`bg-card`), and it absorbs the pair's slack. Raw
+ * config text is the one place on this page mono belongs as a block.
  */
-export const SNIPPET = {
-  ROOT: "flex min-h-[5rem] min-w-0 flex-col gap-3 rounded-field px-4 py-4",
-  HEAD: "flex items-start gap-3",
-  BLOCK:
-    "bg-surface-container-high text-on-surface overflow-x-auto rounded-field px-4 py-3.5 font-mono text-[0.75rem] leading-[1.6] whitespace-pre selection:bg-primary/25",
+export const CONFIG = {
+  FILENAME: "prometheus.yml",
+  BLOCK: "min-h-[14rem] flex-1",
+  /** Before the endpoint is on: the block's footprint, held. */
+  EMPTY:
+    "bg-surface-container text-on-surface-variant flex min-h-[14rem] flex-1 flex-col items-center justify-center gap-1.5 rounded-tile px-6 py-8 text-center",
+  EMPTY_GLYPH: "mb-1 size-6",
+  EMPTY_TITLE: "text-on-surface text-[0.9375rem] font-semibold",
+  EMPTY_DESC: "max-w-xs text-[0.78125rem] leading-relaxed text-pretty",
+} as const;
+
+/**
+ * The scrape status band: one slim card, label on the left edge, what is true
+ * right now on the right (receipt row). Same shell as the cards, tighter air.
+ */
+export const STATUS_BAND = {
+  SHELL: "@container/card rounded-card border-0 bg-card py-4 shadow-[var(--shadow-whisper)]!",
+  ROW: "flex min-h-8 flex-wrap items-center gap-x-4 gap-y-2 px-6",
+  LABEL: "text-[0.9375rem] font-semibold",
+  CHIPS: "flex flex-wrap items-center gap-1.5 sm:ml-auto",
 } as const;
 
 // -----------------------------------------------------------------------------
@@ -123,4 +138,7 @@ export const SKELETON = {
   /** A SegmentedField track or a `size="action"` button. */
   PILL: `${FIELD_HEIGHT} w-40 rounded-pill`,
   FOOT: "min-h-16",
+  /** The status band: the row's 32px minimum. */
+  STATUS: "h-8 w-full rounded-pill",
+  BLOCK: "min-h-[14rem] flex-1 rounded-tile",
 } as const;

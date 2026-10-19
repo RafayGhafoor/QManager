@@ -3,13 +3,10 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import {
-  ActivityIcon,
   CheckIcon,
-  CircleDashedIcon,
   CopyIcon,
   EyeIcon,
   EyeOffIcon,
-  GaugeIcon,
   RefreshCwIcon,
   ZapIcon,
 } from "lucide-react";
@@ -48,7 +45,7 @@ import type {
   PrometheusStatusResponse,
 } from "@/types/prometheus-metrics";
 
-import { ScrapeConfig, maskToken } from "./scrape-config";
+import { maskToken } from "./scrape-config";
 import {
   CARD_BODY,
   CARD_DESC,
@@ -73,17 +70,24 @@ type Draft = { enabled?: boolean; freshness?: MetricsFreshness };
 
 interface PrometheusCardProps {
   data: PrometheusStatusResponse;
+  /** Shared with the scrape config card: one reveal for the token everywhere. */
+  revealed: boolean;
+  onRevealedChange: (next: boolean) => void;
   hook: Pick<
     UsePrometheusMetricsReturn,
     "save" | "regenerateToken" | "isSaving" | "isRegenerating"
   >;
 }
 
-export function PrometheusCard({ data, hook }: PrometheusCardProps) {
+export function PrometheusCard({
+  data,
+  revealed,
+  onRevealedChange,
+  hook,
+}: PrometheusCardProps) {
   const { t } = useTranslation("monitoring");
   const { saved, markSaved } = useSaveFlash();
   const [draft, setDraft] = useState<Draft>({});
-  const [revealed, setRevealed] = useState(false);
 
   const settings = data.settings ?? {
     enabled: false,
@@ -95,7 +99,7 @@ export function PrometheusCard({ data, hook }: PrometheusCardProps) {
   const dirty =
     enabled !== settings.enabled || freshness !== settings.freshness;
 
-  // The token and config describe what is LIVE, not the draft (State-Honesty).
+  // The token describes what is LIVE, not the draft (State-Honesty).
   const live = settings.enabled && settings.token.length > 0;
   const adaptiveOff = data.poller?.adaptive_enabled === false;
   const busy = hook.isSaving || hook.isRegenerating;
@@ -133,7 +137,7 @@ export function PrometheusCard({ data, hook }: PrometheusCardProps) {
       </CardHeader>
 
       <CardContent className={cn(CARD_PAD, CARD_BODY)}>
-        <div className={cn(GROUP.ROOT, live && GROUP.SPLIT)}>
+        <div className={GROUP.ROOT}>
           <div className={GROUP.COLUMN}>
             {/* Endpoint */}
             <div className={ROW.ROOT}>
@@ -146,7 +150,6 @@ export function PrometheusCard({ data, hook }: PrometheusCardProps) {
                       : `${K}.endpoint.consequence_off`,
                   )}
                 </span>
-                {settings.enabled ? <ScrapeFacts data={data} /> : null}
               </div>
               <div className={ROW.CONTROL}>
                 <SegmentedField
@@ -180,19 +183,12 @@ export function PrometheusCard({ data, hook }: PrometheusCardProps) {
                 <span className={ROW.CONSEQUENCE}>
                   {t(`${K}.freshness.consequence.${freshness}`)}
                 </span>
-                {adaptiveOff || (settings.enabled && data.holding) ? (
+                {adaptiveOff ? (
                   <span className={ROW.FACTS}>
-                    {adaptiveOff ? (
-                      <Badge variant="info">
-                        <ZapIcon className={CHIP_GLYPH} aria-hidden="true" />
-                        {t(`${K}.facts.adaptive_off`)}
-                      </Badge>
-                    ) : (
-                      <Badge variant="info">
-                        <GaugeIcon className={CHIP_GLYPH} aria-hidden="true" />
-                        {t(`${K}.facts.holding`)}
-                      </Badge>
-                    )}
+                    <Badge variant="info">
+                      <ZapIcon className={CHIP_GLYPH} aria-hidden="true" />
+                      {t(`${K}.facts.adaptive_off`)}
+                    </Badge>
                   </span>
                 ) : null}
               </div>
@@ -249,7 +245,7 @@ export function PrometheusCard({ data, hook }: PrometheusCardProps) {
                       variant="ghost"
                       size="icon-sm"
                       className={cn(TOKEN.TOGGLE, COARSE_TARGET)}
-                      onClick={() => setRevealed((v) => !v)}
+                      onClick={() => onRevealedChange(!revealed)}
                       aria-pressed={revealed}
                       aria-label={t(
                         revealed ? `${K}.token.hide` : `${K}.token.show`,
@@ -309,18 +305,6 @@ export function PrometheusCard({ data, hook }: PrometheusCardProps) {
               </div>
             ) : null}
           </div>
-
-          {live ? (
-            <ScrapeConfig
-              endpointPath={
-                data.endpoint_path ??
-                "/cgi-bin/quecmanager/metrics/prometheus.sh"
-              }
-              httpsPort={data.https_port ?? 443}
-              token={settings.token}
-              revealed={revealed}
-            />
-          ) : null}
         </div>
 
         <CardFoot
@@ -358,39 +342,5 @@ export function PrometheusCard({ data, hook }: PrometheusCardProps) {
         />
       </CardContent>
     </Card>
-  );
-}
-
-/** The facts about scraping that apply right now (Fact-Is-Info). */
-function ScrapeFacts({ data }: { data: PrometheusStatusResponse }) {
-  const { t } = useTranslation("monitoring");
-  const last = data.last_scrape;
-
-  if (!last) {
-    return (
-      <span className={ROW.FACTS}>
-        <Badge variant="muted">
-          <CircleDashedIcon className={CHIP_GLYPH} aria-hidden="true" />
-          {t(`${K}.facts.no_scrapes`)}
-        </Badge>
-      </span>
-    );
-  }
-
-  const age = Math.max(0, Math.round(last.age_seconds));
-  const label =
-    age < 60
-      ? t(`${K}.facts.last_scrape_seconds`, { count: age })
-      : age < 3600
-        ? t(`${K}.facts.last_scrape_minutes`, { count: Math.floor(age / 60) })
-        : t(`${K}.facts.last_scrape_hours`, { count: Math.floor(age / 3600) });
-
-  return (
-    <span className={ROW.FACTS}>
-      <Badge variant="info">
-        <ActivityIcon className={CHIP_GLYPH} aria-hidden="true" />
-        {label}
-      </Badge>
-    </span>
   );
 }
