@@ -624,6 +624,11 @@ remove_config() {
         rm -f /usrdata/qmanager/sms_sent.json
         info "Removed SMS sent log"
     fi
+    # Data Used counter (written by the poller's data_used.sh lib).
+    if [ -f /usrdata/qmanager/data_used.json ]; then
+        rm -f /usrdata/qmanager/data_used.json /usrdata/qmanager/data_used.json.*
+        info "Removed Data Used counter"
+    fi
 }
 
 # --- Summary -----------------------------------------------------------------
