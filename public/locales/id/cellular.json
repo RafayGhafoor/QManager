@@ -1725,105 +1725,178 @@
       }
     }
   },
-  "antennas": {
-    "statistics": {
-      "page": {
-        "title": "Statistik Antena",
-        "description": "Metrik sinyal per antena untuk setiap rantai penerima. Bandingkan kualitas sinyal pada port antena Main, Diversity, dan MIMO."
+  "antenna_statistics": {
+    "page": {
+      "title": "Statistik Antena",
+      "description": "Sinyal per antena untuk setiap rantai penerima. Bandingkan port Main, Diversity, dan MIMO untuk menemukan antena yang lemah atau tidak aktif."
+    },
+    "context": {
+      "mimo": {
+        "label": "MIMO aktif",
+        "caption": "Layer yang dilaporkan modem",
+        "unavailable": "Tidak dilaporkan"
       },
-      "lte_card": {
+      "mode": {
+        "label": "Mode layanan",
+        "caption": "Radio yang sedang melapor",
+        "lte": "4G LTE",
+        "nr": "5G NR",
+        "endc": "5G NSA (EN-DC)",
+        "none": "Tidak ada layanan"
+      },
+      "chains": {
+        "label": "Rantai yang melapor",
+        "caption": "Port antena dengan bacaan",
+        "value": "{{live}} dari {{total}}"
+      }
+    },
+    "card": {
+      "lte": {
         "title": "Sinyal LTE",
         "description": "Metrik per antena untuk 4G LTE",
-        "empty_title": "Tidak Ada Sinyal LTE",
-        "empty_description": "Metrik antena akan muncul saat 4G LTE aktif."
+        "identity": "LTE"
       },
-      "nr_card": {
+      "nr": {
         "title": "Sinyal NR5G",
         "description": "Metrik per antena untuk 5G NR",
-        "empty_title": "Tidak Ada Sinyal NR5G",
-        "empty_description": "Metrik antena akan muncul saat 5G NR aktif."
-      },
-      "signal_strength_aria": "Kekuatan sinyal {{metric}}"
+        "identity": "5G NR"
+      }
     },
-    "ports": {
-      "main_name": "Main",
-      "main_description": "Antena utama kirim/terima (ANT0)",
-      "diversity_name": "Diversity",
-      "diversity_description": "Antena diversity / penerima (ANT1)",
-      "mimo3_name": "MIMO 3",
-      "mimo3_description": "MIMO spatial stream 1 (ANT2)",
-      "mimo4_name": "MIMO 4",
-      "mimo4_description": "MIMO spatial stream 2 (ANT3)"
+    "empty": {
+      "lte": {
+        "title": "Tidak ada sinyal LTE",
+        "description": "Metrik per antena muncul setelah 4G LTE aktif."
+      },
+      "nr": {
+        "title": "Tidak ada sinyal 5G NR",
+        "description": "Metrik per antena muncul setelah 5G NR aktif."
+      }
+    },
+    "port": {
+      "not_reporting": "Tidak aktif",
+      "not_reported": "Tidak dilaporkan"
     },
     "quality": {
       "excellent": "Sangat Baik",
       "good": "Baik",
       "fair": "Cukup",
       "poor": "Buruk",
-      "none": "Tidak Ada"
+      "bad": "Sangat lemah",
+      "none": "Tidak ada bacaan"
     },
-    "alignment": {
-      "page": {
-        "title": "Penyelarasan Antena",
-        "description": "Kekuatan sinyal per antena untuk setiap rantai penerima. Rekam dan bandingkan posisi untuk menemukan arah atau penempatan terbaik."
+    "states": {
+      "loading_sr": "Memuat statistik antena",
+      "retry": "Coba lagi",
+      "error_banner": "Tidak dapat menjangkau modem. Bacaan ini mungkin sudah usang.",
+      "stale_banner": "Data sinyal sudah usang. Modem mungkin tidak merespons.",
+      "unreachable": {
+        "title": "Tidak dapat menjangkau modem",
+        "description": "Bacaan antena tidak dapat dimuat. Pastikan layanan poller berjalan, lalu coba lagi."
+      }
+    }
+  },
+  "antenna_alignment": {
+    "page": {
+      "title": "Penyelarasan Antena",
+      "description": "Arahkan atau pindahkan antena sambil memantau skor langsung, lalu rekam hingga tiga posisi untuk membandingkannya."
+    },
+    "mode": {
+      "lte": "4G LTE",
+      "nr": "5G NR",
+      "lte_short": "LTE",
+      "nr_short": "NR"
+    },
+    "aim": {
+      "title": "Pengarahan Langsung",
+      "description": "Rantai penerima utama, dinilai dengan skala yang sama seperti posisi yang Anda rekam.",
+      "score_label": "Skor pengarahan",
+      "score_sr": "Skor pengarahan {{score}} dari 100",
+      "no_reading": "Tidak ada skor pengarahan — rantai utama tidak melapor",
+      "peak": "Puncak",
+      "updated": "Diperbarui",
+      "delta_up": "meningkat sejak bacaan terakhir",
+      "delta_down": "menurun sejak bacaan terakhir",
+      "partial": "Hanya {{leg}}",
+      "not_reported": "Tidak dilaporkan",
+      "primary_chain": "Main / PRX adalah rantai yang menjadi dasar skor"
+    },
+    "quality": {
+      "excellent": "Sangat Baik",
+      "good": "Baik",
+      "fair": "Cukup",
+      "poor": "Buruk",
+      "bad": "Sangat lemah",
+      "none": "Tidak ada bacaan"
+    },
+    "recorder": {
+      "title": "Posisi",
+      "description_directional": "Rekam hingga tiga sudut lalu bandingkan. Setiap rekaman merata-ratakan {{samples}} bacaan dari modem, yang memerlukan beberapa detik.",
+      "description_omni": "Rekam hingga tiga penempatan lalu bandingkan. Setiap rekaman merata-ratakan {{samples}} bacaan dari modem, yang memerlukan beberapa detik.",
+      "type_directional": "Direksional",
+      "type_omni": "Omni",
+      "reset": "Setel ulang",
+      "position": "Posisi {{letter}}",
+      "placeholder_angle": "Sudut",
+      "placeholder_position": "Lokasi",
+      "record_angle": "Rekam sudut",
+      "record_position": "Rekam posisi",
+      "not_recorded": "Belum direkam",
+      "recorded_at": "Direkam {{time}}",
+      "sample_progress": "Bacaan {{current}} dari {{total}}",
+      "waiting": "Menunggu modem",
+      "cancel": "Batal",
+      "clear": "Hapus {{label}}",
+      "label_sr": "Label untuk slot {{index}}",
+      "slot_sr": "Slot {{index}}: {{label}} — {{status}}",
+      "status": {
+        "recording": "sedang merekam",
+        "recorded": "sudah direkam",
+        "recorded_best": "sudah direkam, hasil terbaik",
+        "empty": "kosong"
       },
-      "stale_warning": "Data sinyal sudah basi — modem mungkin tidak merespons.",
-      "error_warning": "Tidak dapat menjangkau modem. Data yang ditampilkan mungkin sudah usang.",
-      "empty_title": "Tidak Ada Data Antena",
-      "empty_description": "Metrik antena akan muncul saat poller modem berjalan dan melaporkan data sinyal per antena.",
-      "card": {
-        "active": "Aktif",
-        "inactive": "Nonaktif",
-        "lte_heading": "4G / LTE",
-        "lte_heading_anchor": "4G / LTE (Anchor)",
-        "nr_heading": "5G / NR",
-        "nr_heading_secondary": "5G / NR (Sekunder)"
+      "best": "Terbaik",
+      "best_margin": "Terbaik dengan selisih {{margin}}",
+      "not_comparable": "Tidak ada bacaan yang dapat diperingkat, jadi posisi ini tidak bisa dibandingkan.",
+      "partial": "Dinilai hanya dari satu metrik.",
+      "confirm_cancel": "Pertahankan",
+      "reset_confirm_title": "Hapus semua posisi yang direkam?",
+      "reset_confirm_body": "Semua posisi yang Anda rekam akan dihapus. Tindakan ini tidak dapat dibatalkan.",
+      "reset_confirm_action": "Hapus semua",
+      "clear_confirm_title": "Hapus rekaman ini?",
+      "clear_confirm_body": "Bacaan yang direkam untuk {{label}} akan dihapus. Tindakan ini tidak dapat dibatalkan.",
+      "clear_confirm_action": "Hapus",
+      "all_recorded_hint": "Ketiga posisi sudah direkam. Hapus salah satu untuk merekam lagi.",
+      "recording_hint": "Selesaikan atau batalkan dulu perekaman yang sedang berjalan.",
+      "record_slot": "Rekam {{label}}",
+      "cancel_slot": "Batalkan perekaman {{label}}"
+    },
+    "recommendation": {
+      "title": "Terbaik sejauh ini: {{label}}",
+      "body_directional": "Sudut ini menghasilkan sinyal komposit terkuat di antara posisi yang Anda rekam.",
+      "body_omni": "Penempatan ini menghasilkan sinyal komposit terkuat di antara posisi yang Anda rekam.",
+      "mixed_radios": "Rekaman Anda mencakup kedua radio, jadi perbandingannya lebih kasar dari biasanya.",
+      "remaining": "Rekam slot yang tersisa untuk perbandingan yang lebih lengkap."
+    },
+    "ports": {
+      "title": "Rantai Penerima",
+      "description": "Antena mana yang berkontribusi pada skor.",
+      "reporting": "{{live}} dari {{total}} melapor",
+      "not_reporting": "Tidak aktif",
+      "twin_hint": "Untuk detail per metrik pada setiap rantai, lihat",
+      "twin_link": "Statistik Antena"
+    },
+    "states": {
+      "loading_sr": "Memuat penyelarasan antena",
+      "retry": "Coba lagi",
+      "error_banner": "Tidak dapat menjangkau modem. Bacaan ini mungkin sudah usang.",
+      "stale_banner": "Data sinyal sudah usang. Modem mungkin tidak merespons.",
+      "unreachable": {
+        "title": "Tidak dapat menjangkau modem",
+        "description": "Bacaan antena tidak dapat dimuat. Pastikan layanan poller berjalan, lalu coba lagi."
       },
-      "meter": {
-        "title": "Meter Penyelarasan",
-        "description_directional": "Rekam 3 sudut untuk menemukan arah terbaik. Setiap rekaman merata-ratakan {{samples}} sampel.",
-        "description_omni": "Rekam 3 posisi untuk menemukan penempatan terbaik. Setiap rekaman merata-ratakan {{samples}} sampel.",
-        "toggle_directional": "Directional",
-        "toggle_omni": "Omni",
-        "reset": "Atur Ulang",
-        "live_signal_heading": "Sinyal Langsung (Antena Utama)",
-        "lte_rsrp": "LTE RSRP",
-        "lte_sinr": "LTE SINR",
-        "nr_rsrp": "NR RSRP",
-        "nr_sinr": "NR SINR",
-        "slot_aria": "Slot {{n}}: {{label}} — {{status}}",
-        "slot_status_recording": "merekam",
-        "slot_status_recorded": "terekam",
-        "slot_status_recorded_best": "terekam, hasil terbaik",
-        "slot_status_empty": "kosong",
-        "angle_placeholder": "Sudut…",
-        "location_placeholder": "Lokasi…",
-        "best_badge": "Terbaik",
-        "sample_progress": "Sampel {{current}} dari {{total}}",
-        "cancel": "Batal",
-        "recorded_at": "Direkam {{time}}",
-        "not_recorded": "Belum direkam",
-        "record_angle": "Rekam Sudut",
-        "record_position": "Rekam Posisi",
-        "recommended_prefix": "Rekomendasi: ",
-        "recommendation_directional": "Sudut ini menghasilkan sinyal komposit terkuat dari semua posisi yang direkam.",
-        "recommendation_omni": "Lokasi ini menghasilkan sinyal komposit terkuat dari semua posisi yang direkam.",
-        "recommendation_remaining_one": " Rekam {{count}} slot tersisa untuk perbandingan yang lebih lengkap.",
-        "recommendation_remaining_other": " Rekam {{count}} slot tersisa untuk perbandingan yang lebih lengkap.",
-        "lte_label": "LTE",
-        "nr_label": "NR",
-        "rsrp_label": "RSRP",
-        "sinr_label": "SINR",
-        "default_positions": {
-          "a": "Posisi A",
-          "b": "Posisi B",
-          "c": "Posisi C"
-        },
-        "radio_mode": {
-          "lte": "4G LTE",
-          "nr": "5G SA",
-          "endc": "5G NSA (EN-DC)"
-        }
+      "no_readings": {
+        "title": "Tidak ada bacaan antena",
+        "description": "Modem menjawab, tetapi tidak ada rantai penerima yang melaporkan pengukuran. Mungkin sedang mencari jaringan, atau ada antena yang terlepas — bacaan akan kembali sendiri begitu ada rantai yang melapor."
       }
     }
   },

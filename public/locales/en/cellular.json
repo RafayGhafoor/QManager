@@ -1725,105 +1725,178 @@
       }
     }
   },
-  "antennas": {
-    "statistics": {
-      "page": {
-        "title": "Antenna Statistics",
-        "description": "Per-antenna signal metrics for each receiver chain. Compare signal quality across Main, Diversity, and MIMO antenna ports."
+  "antenna_statistics": {
+    "page": {
+      "title": "Antenna Statistics",
+      "description": "Per-antenna signal for every receive chain. Compare the Main, Diversity and MIMO ports to spot a weak or idle antenna."
+    },
+    "context": {
+      "mimo": {
+        "label": "Active MIMO",
+        "caption": "Layers the modem reports",
+        "unavailable": "Not reported"
       },
-      "lte_card": {
+      "mode": {
+        "label": "Serving mode",
+        "caption": "Radios currently reporting",
+        "lte": "4G LTE",
+        "nr": "5G NR",
+        "endc": "5G NSA (EN-DC)",
+        "none": "No service"
+      },
+      "chains": {
+        "label": "Chains reporting",
+        "caption": "Antenna ports with a reading",
+        "value": "{{live}} of {{total}}"
+      }
+    },
+    "card": {
+      "lte": {
         "title": "LTE Signal",
         "description": "Per-antenna metrics for 4G LTE",
-        "empty_title": "No LTE Signal",
-        "empty_description": "Antenna metrics will appear when 4G LTE is active."
+        "identity": "LTE"
       },
-      "nr_card": {
+      "nr": {
         "title": "NR5G Signal",
         "description": "Per-antenna metrics for 5G NR",
-        "empty_title": "No NR5G Signal",
-        "empty_description": "Antenna metrics will appear when 5G NR is active."
-      },
-      "signal_strength_aria": "{{metric}} signal strength"
+        "identity": "5G NR"
+      }
     },
-    "ports": {
-      "main_name": "Main",
-      "main_description": "Main transmit/receive antenna (ANT0)",
-      "diversity_name": "Diversity",
-      "diversity_description": "Diversity / receive antenna (ANT1)",
-      "mimo3_name": "MIMO 3",
-      "mimo3_description": "MIMO spatial stream 1 (ANT2)",
-      "mimo4_name": "MIMO 4",
-      "mimo4_description": "MIMO spatial stream 2 (ANT3)"
+    "empty": {
+      "lte": {
+        "title": "No LTE signal",
+        "description": "Per-antenna metrics appear once 4G LTE is active."
+      },
+      "nr": {
+        "title": "No 5G NR signal",
+        "description": "Per-antenna metrics appear once 5G NR is active."
+      }
+    },
+    "port": {
+      "not_reporting": "Not reporting",
+      "not_reported": "Not reported"
     },
     "quality": {
       "excellent": "Excellent",
       "good": "Good",
       "fair": "Fair",
       "poor": "Poor",
-      "none": "None"
+      "bad": "Very weak",
+      "none": "No reading"
     },
-    "alignment": {
-      "page": {
-        "title": "Antenna Alignment",
-        "description": "Per-antenna signal strength for each receiver chain. Record and compare positions to find the best aim or placement."
+    "states": {
+      "loading_sr": "Loading antenna statistics",
+      "retry": "Retry",
+      "error_banner": "Can't reach the modem. These readings may be out of date.",
+      "stale_banner": "Signal data is stale. The modem may be unresponsive.",
+      "unreachable": {
+        "title": "Can't reach the modem",
+        "description": "The antenna readings couldn't be loaded. Check that the poller service is running, then try again."
+      }
+    }
+  },
+  "antenna_alignment": {
+    "page": {
+      "title": "Antenna Alignment",
+      "description": "Aim or reposition the antenna while watching the live score, then record up to three positions to compare them."
+    },
+    "mode": {
+      "lte": "4G LTE",
+      "nr": "5G NR",
+      "lte_short": "LTE",
+      "nr_short": "NR"
+    },
+    "aim": {
+      "title": "Live Aim",
+      "description": "The primary receive chain, scored on the same scale as your recorded positions.",
+      "score_label": "Aim score",
+      "score_sr": "Aim score {{score}} out of 100",
+      "no_reading": "No aim score — the primary chain isn't reporting",
+      "peak": "Peak",
+      "updated": "Updated",
+      "delta_up": "improved since the last reading",
+      "delta_down": "dropped since the last reading",
+      "partial": "{{leg}} only",
+      "not_reported": "Not reported",
+      "primary_chain": "Main / PRX is the chain the score is built from"
+    },
+    "quality": {
+      "excellent": "Excellent",
+      "good": "Good",
+      "fair": "Fair",
+      "poor": "Poor",
+      "bad": "Very weak",
+      "none": "No reading"
+    },
+    "recorder": {
+      "title": "Positions",
+      "description_directional": "Record up to three angles and compare them. Each recording averages {{samples}} readings from the modem, which takes a few seconds.",
+      "description_omni": "Record up to three placements and compare them. Each recording averages {{samples}} readings from the modem, which takes a few seconds.",
+      "type_directional": "Directional",
+      "type_omni": "Omni",
+      "reset": "Reset",
+      "position": "Position {{letter}}",
+      "placeholder_angle": "Angle",
+      "placeholder_position": "Location",
+      "record_angle": "Record angle",
+      "record_position": "Record position",
+      "not_recorded": "Not recorded",
+      "recorded_at": "Recorded {{time}}",
+      "sample_progress": "Reading {{current}} of {{total}}",
+      "waiting": "Waiting for the modem",
+      "cancel": "Cancel",
+      "clear": "Clear {{label}}",
+      "label_sr": "Label for slot {{index}}",
+      "slot_sr": "Slot {{index}}: {{label}} — {{status}}",
+      "status": {
+        "recording": "recording",
+        "recorded": "recorded",
+        "recorded_best": "recorded, best result",
+        "empty": "empty"
       },
-      "stale_warning": "Signal data is stale — modem may be unresponsive.",
-      "error_warning": "Unable to reach the modem. Data shown may be outdated.",
-      "empty_title": "No Antenna Data",
-      "empty_description": "Antenna metrics will appear when the modem poller is running and reporting per-antenna signal data.",
-      "card": {
-        "active": "Active",
-        "inactive": "Inactive",
-        "lte_heading": "4G / LTE",
-        "lte_heading_anchor": "4G / LTE (Anchor)",
-        "nr_heading": "5G / NR",
-        "nr_heading_secondary": "5G / NR (Secondary)"
+      "best": "Best",
+      "best_margin": "Best by {{margin}}",
+      "not_comparable": "No rankable reading, so this position can't be compared.",
+      "partial": "Scored on one metric only.",
+      "confirm_cancel": "Keep",
+      "reset_confirm_title": "Clear all recorded positions?",
+      "reset_confirm_body": "Every position you've recorded will be deleted. This can't be undone.",
+      "reset_confirm_action": "Clear all",
+      "clear_confirm_title": "Clear this recording?",
+      "clear_confirm_body": "The reading recorded for {{label}} will be deleted. This can't be undone.",
+      "clear_confirm_action": "Clear",
+      "all_recorded_hint": "All three positions are recorded. Clear one to record again.",
+      "recording_hint": "Finish or cancel the recording in progress first.",
+      "record_slot": "Record {{label}}",
+      "cancel_slot": "Cancel recording {{label}}"
+    },
+    "recommendation": {
+      "title": "Best so far: {{label}}",
+      "body_directional": "This angle produced the strongest composite signal of the positions you've recorded.",
+      "body_omni": "This placement produced the strongest composite signal of the positions you've recorded.",
+      "mixed_radios": "Your recordings span both radios, so the comparison is rougher than usual.",
+      "remaining": "Record the remaining slots for a fuller comparison."
+    },
+    "ports": {
+      "title": "Receive Chains",
+      "description": "Which antennas are contributing to the score.",
+      "reporting": "{{live}} of {{total}} reporting",
+      "not_reporting": "Not reporting",
+      "twin_hint": "For per-metric detail on every chain, see",
+      "twin_link": "Antenna Statistics"
+    },
+    "states": {
+      "loading_sr": "Loading antenna alignment",
+      "retry": "Retry",
+      "error_banner": "Can't reach the modem. These readings may be out of date.",
+      "stale_banner": "Signal data is stale. The modem may be unresponsive.",
+      "unreachable": {
+        "title": "Can't reach the modem",
+        "description": "The antenna readings couldn't be loaded. Check that the poller service is running, then try again."
       },
-      "meter": {
-        "title": "Alignment Meter",
-        "description_directional": "Record 3 angles to find the best aim. Each recording averages {{samples}} samples.",
-        "description_omni": "Record 3 positions to find the best placement. Each recording averages {{samples}} samples.",
-        "toggle_directional": "Directional",
-        "toggle_omni": "Omni",
-        "reset": "Reset",
-        "live_signal_heading": "Live Signal (Primary Antenna)",
-        "lte_rsrp": "LTE RSRP",
-        "lte_sinr": "LTE SINR",
-        "nr_rsrp": "NR RSRP",
-        "nr_sinr": "NR SINR",
-        "slot_aria": "Slot {{n}}: {{label}} — {{status}}",
-        "slot_status_recording": "recording",
-        "slot_status_recorded": "recorded",
-        "slot_status_recorded_best": "recorded, best result",
-        "slot_status_empty": "empty",
-        "angle_placeholder": "Angle…",
-        "location_placeholder": "Location…",
-        "best_badge": "Best",
-        "sample_progress": "Sample {{current}} of {{total}}",
-        "cancel": "Cancel",
-        "recorded_at": "Recorded {{time}}",
-        "not_recorded": "Not recorded",
-        "record_angle": "Record Angle",
-        "record_position": "Record Position",
-        "recommended_prefix": "Recommended: ",
-        "recommendation_directional": "This angle produced the strongest composite signal across your recorded positions.",
-        "recommendation_omni": "This location produced the strongest composite signal across your recorded positions.",
-        "recommendation_remaining_one": " Record the remaining {{count}} slot for a more complete comparison.",
-        "recommendation_remaining_other": " Record the remaining {{count}} slots for a more complete comparison.",
-        "lte_label": "LTE",
-        "nr_label": "NR",
-        "rsrp_label": "RSRP",
-        "sinr_label": "SINR",
-        "default_positions": {
-          "a": "Position A",
-          "b": "Position B",
-          "c": "Position C"
-        },
-        "radio_mode": {
-          "lte": "4G LTE",
-          "nr": "5G SA",
-          "endc": "5G NSA (EN-DC)"
-        }
+      "no_readings": {
+        "title": "No antenna readings",
+        "description": "The modem answered, but no receive chain reported a measurement. It may be searching for a network, or an antenna may be disconnected — readings return on their own once a chain reports."
       }
     }
   },

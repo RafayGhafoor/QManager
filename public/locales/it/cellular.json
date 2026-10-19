@@ -1725,105 +1725,178 @@
       }
     }
   },
-  "antennas": {
-    "statistics": {
-      "page": {
-        "title": "Statistiche dell'antenna",
-        "description": "Metriche del segnale per antenna per ciascuna catena di ricevitori. Confronta la qualità del segnale tra le porte dell'antenna Principale, Diversity e MIMO."
-      },
-      "lte_card": {
-        "title": "LTE Segnale",
-        "description": "Metriche per antenna per 4G LTE",
-        "empty_title": "Nessun segnale LTE",
-        "empty_description": "Le metriche dell'antenna verranno visualizzate quando 4G LTE è attivo."
-      },
-      "nr_card": {
-        "title": "Segnale NR5G",
-        "description": "Metriche per antenna per 5G NR",
-        "empty_title": "Nessun segnale NR5G",
-        "empty_description": "Le metriche dell'antenna verranno visualizzate quando 5G NR è attivo."
-      },
-      "signal_strength_aria": "Potenza del segnale {{metric}}"
+  "antenna_statistics": {
+    "page": {
+      "title": "Statistiche dell'antenna",
+      "description": "Segnale per antenna di ogni catena di ricezione. Confronta le porte Main, Diversity e MIMO per individuare un'antenna debole o inattiva."
     },
-    "ports": {
-      "main_name": "Principale",
-      "main_description": "Antenna di trasmissione/ricezione principale (ANT0)",
-      "diversity_name": "Diversità",
-      "diversity_description": "Antenna Diversity/ricezione (ANT1)",
-      "mimo3_name": "MIMO 3",
-      "mimo3_description": "MIMO flusso spaziale 1 (ANT2)",
-      "mimo4_name": "MIMO 4",
-      "mimo4_description": "MIMO flusso spaziale 2 (ANT3)"
+    "context": {
+      "mimo": {
+        "label": "MIMO attivo",
+        "caption": "Layer riportati dal modem",
+        "unavailable": "Non riportato"
+      },
+      "mode": {
+        "label": "Modalità di servizio",
+        "caption": "Radio che riportano ora",
+        "lte": "4G LTE",
+        "nr": "5G NR",
+        "endc": "5G NSA (EN-DC)",
+        "none": "Nessun servizio"
+      },
+      "chains": {
+        "label": "Catene che riportano",
+        "caption": "Porte d'antenna con una lettura",
+        "value": "{{live}} di {{total}}"
+      }
+    },
+    "card": {
+      "lte": {
+        "title": "Segnale LTE",
+        "description": "Metriche per antenna per il 4G LTE",
+        "identity": "LTE"
+      },
+      "nr": {
+        "title": "Segnale NR5G",
+        "description": "Metriche per antenna per il 5G NR",
+        "identity": "5G NR"
+      }
+    },
+    "empty": {
+      "lte": {
+        "title": "Nessun segnale LTE",
+        "description": "Le metriche per antenna compaiono quando il 4G LTE è attivo."
+      },
+      "nr": {
+        "title": "Nessun segnale 5G NR",
+        "description": "Le metriche per antenna compaiono quando il 5G NR è attivo."
+      }
+    },
+    "port": {
+      "not_reporting": "Inattiva",
+      "not_reported": "Non riportato"
     },
     "quality": {
       "excellent": "Eccellente",
-      "good": "Bene",
-      "fair": "Giusto",
-      "poor": "Povero",
-      "none": "Nessuno"
+      "good": "Buono",
+      "fair": "Discreto",
+      "poor": "Scarso",
+      "bad": "Molto debole",
+      "none": "Nessuna lettura"
     },
-    "alignment": {
-      "page": {
-        "title": "Allineamento dell'antenna",
-        "description": "Intensità del segnale per antenna per ciascuna catena di ricevitori. Registra e confronta le posizioni per trovare l'obiettivo o il posizionamento migliore."
+    "states": {
+      "loading_sr": "Caricamento delle statistiche dell'antenna",
+      "retry": "Riprova",
+      "error_banner": "Impossibile raggiungere il modem. Queste letture potrebbero non essere aggiornate.",
+      "stale_banner": "I dati di segnale non sono aggiornati. Il modem potrebbe non rispondere.",
+      "unreachable": {
+        "title": "Impossibile raggiungere il modem",
+        "description": "Non è stato possibile caricare le letture dell'antenna. Verifica che il servizio poller sia in esecuzione, poi riprova."
+      }
+    }
+  },
+  "antenna_alignment": {
+    "page": {
+      "title": "Allineamento dell'antenna",
+      "description": "Orienta o riposiziona l'antenna osservando il punteggio in tempo reale, poi registra fino a tre posizioni per confrontarle."
+    },
+    "mode": {
+      "lte": "4G LTE",
+      "nr": "5G NR",
+      "lte_short": "LTE",
+      "nr_short": "NR"
+    },
+    "aim": {
+      "title": "Puntamento in tempo reale",
+      "description": "La catena di ricezione principale, valutata con la stessa scala delle posizioni registrate.",
+      "score_label": "Punteggio di puntamento",
+      "score_sr": "Punteggio di puntamento {{score}} su 100",
+      "no_reading": "Nessun punteggio di puntamento — la catena principale non riporta dati",
+      "peak": "Picco",
+      "updated": "Aggiornato",
+      "delta_up": "migliorato dall'ultima lettura",
+      "delta_down": "calato dall'ultima lettura",
+      "partial": "Solo {{leg}}",
+      "not_reported": "Non riportato",
+      "primary_chain": "Main / PRX è la catena su cui si basa il punteggio"
+    },
+    "quality": {
+      "excellent": "Eccellente",
+      "good": "Buono",
+      "fair": "Discreto",
+      "poor": "Scarso",
+      "bad": "Molto debole",
+      "none": "Nessuna lettura"
+    },
+    "recorder": {
+      "title": "Posizioni",
+      "description_directional": "Registra fino a tre angoli e confrontali. Ogni registrazione media {{samples}} letture del modem e richiede qualche secondo.",
+      "description_omni": "Registra fino a tre posizionamenti e confrontali. Ogni registrazione media {{samples}} letture del modem e richiede qualche secondo.",
+      "type_directional": "Direzionale",
+      "type_omni": "Omni",
+      "reset": "Reimposta",
+      "position": "Posizione {{letter}}",
+      "placeholder_angle": "Angolo",
+      "placeholder_position": "Posizione",
+      "record_angle": "Registra l'angolo",
+      "record_position": "Registra la posizione",
+      "not_recorded": "Non registrato",
+      "recorded_at": "Registrato {{time}}",
+      "sample_progress": "Lettura {{current}} di {{total}}",
+      "waiting": "In attesa del modem",
+      "cancel": "Annulla",
+      "clear": "Cancella {{label}}",
+      "label_sr": "Etichetta per lo slot {{index}}",
+      "slot_sr": "Slot {{index}}: {{label}} — {{status}}",
+      "status": {
+        "recording": "registrazione in corso",
+        "recorded": "registrato",
+        "recorded_best": "registrato, miglior risultato",
+        "empty": "vuoto"
       },
-      "stale_warning": "I dati del segnale sono obsoleti: il modem potrebbe non rispondere.",
-      "error_warning": "Impossibile raggiungere il modem. I dati mostrati potrebbero essere obsoleti.",
-      "empty_title": "Nessun dato dell'antenna",
-      "empty_description": "Le metriche dell'antenna verranno visualizzate quando il poller del modem è in esecuzione e riporta i dati del segnale per antenna.",
-      "card": {
-        "active": "Attivo",
-        "inactive": "Inattivo",
-        "lte_heading": "4G / LTE",
-        "lte_heading_anchor": "4G / LTE (Ancora)",
-        "nr_heading": "5G / NR",
-        "nr_heading_secondary": "5G / NR (Secondario)"
+      "best": "Migliore",
+      "best_margin": "Migliore di {{margin}}",
+      "not_comparable": "Nessuna lettura classificabile, quindi questa posizione non può essere confrontata.",
+      "partial": "Valutato su una sola metrica.",
+      "confirm_cancel": "Mantieni",
+      "reset_confirm_title": "Cancellare tutte le posizioni registrate?",
+      "reset_confirm_body": "Tutte le posizioni che hai registrato verranno eliminate. L'operazione non può essere annullata.",
+      "reset_confirm_action": "Cancella tutto",
+      "clear_confirm_title": "Cancellare questa registrazione?",
+      "clear_confirm_body": "La lettura registrata per {{label}} verrà eliminata. L'operazione non può essere annullata.",
+      "clear_confirm_action": "Cancella",
+      "all_recorded_hint": "Tutte e tre le posizioni sono registrate. Cancellane una per registrare di nuovo.",
+      "recording_hint": "Completa o annulla prima la registrazione in corso.",
+      "record_slot": "Registra {{label}}",
+      "cancel_slot": "Annulla la registrazione di {{label}}"
+    },
+    "recommendation": {
+      "title": "Migliore finora: {{label}}",
+      "body_directional": "Questo angolo ha prodotto il segnale composito più forte tra le posizioni che hai registrato.",
+      "body_omni": "Questo posizionamento ha prodotto il segnale composito più forte tra le posizioni che hai registrato.",
+      "mixed_radios": "Le tue registrazioni coprono entrambe le radio, quindi il confronto è più approssimativo del solito.",
+      "remaining": "Registra gli slot rimanenti per un confronto più completo."
+    },
+    "ports": {
+      "title": "Catene di ricezione",
+      "description": "Quali antenne contribuiscono al punteggio.",
+      "reporting": "{{live}} di {{total}} riportano dati",
+      "not_reporting": "Inattiva",
+      "twin_hint": "Per il dettaglio metrica per metrica di ogni catena, vedi",
+      "twin_link": "Statistiche dell'antenna"
+    },
+    "states": {
+      "loading_sr": "Caricamento dell'allineamento dell'antenna",
+      "retry": "Riprova",
+      "error_banner": "Impossibile raggiungere il modem. Queste letture potrebbero non essere aggiornate.",
+      "stale_banner": "I dati di segnale non sono aggiornati. Il modem potrebbe non rispondere.",
+      "unreachable": {
+        "title": "Impossibile raggiungere il modem",
+        "description": "Non è stato possibile caricare le letture dell'antenna. Verifica che il servizio poller sia in esecuzione, poi riprova."
       },
-      "meter": {
-        "title": "Misuratore di allineamento",
-        "description_directional": "Registra 3 angoli per trovare la mira migliore. Ciascuna registrazione ha una media di {{samples}} campioni.",
-        "description_omni": "Registra 3 posizioni per trovare il posizionamento migliore. Ciascuna registrazione ha una media di {{samples}} campioni.",
-        "toggle_directional": "Direzionale",
-        "toggle_omni": "Omni",
-        "reset": "Ripristina",
-        "live_signal_heading": "Segnale in tempo reale (antenna primaria)",
-        "lte_rsrp": "LTE RSRP",
-        "lte_sinr": "LTE SINR",
-        "nr_rsrp": "NR RSRP",
-        "nr_sinr": "NR SINR",
-        "slot_aria": "Spazio {{n}}: {{label}} — {{status}}",
-        "slot_status_recording": "registrazione",
-        "slot_status_recorded": "registrato",
-        "slot_status_recorded_best": "registrato, miglior risultato",
-        "slot_status_empty": "vuoto",
-        "angle_placeholder": "Angolo…",
-        "location_placeholder": "Posizione…",
-        "best_badge": "Migliore",
-        "sample_progress": "Esempio {{current}} di {{total}}",
-        "cancel": "Annulla",
-        "recorded_at": "Registrato {{time}}",
-        "not_recorded": "Non registrato",
-        "record_angle": "Angolo di registrazione",
-        "record_position": "Registra la posizione",
-        "recommended_prefix": "Consigliato: ",
-        "recommendation_directional": "Questo angolo ha prodotto il segnale composito più forte tra le posizioni registrate.",
-        "recommendation_omni": "Questa posizione ha prodotto il segnale composito più forte tra le posizioni registrate.",
-        "recommendation_remaining_one": " Registra lo slot rimanente {{count}} per un confronto più completo.",
-        "recommendation_remaining_other": " Registra gli slot rimanenti {{count}} per un confronto più completo.",
-        "lte_label": "LTE",
-        "nr_label": "NR",
-        "rsrp_label": "RSRP",
-        "sinr_label": "SINR",
-        "default_positions": {
-          "a": "Posizione A",
-          "b": "Posizione B",
-          "c": "Posizione C"
-        },
-        "radio_mode": {
-          "lte": "4G LTE",
-          "nr": "5GSA",
-          "endc": "5G NSA (EN-DC)"
-        }
+      "no_readings": {
+        "title": "Nessuna lettura dell'antenna",
+        "description": "Il modem ha risposto, ma nessuna catena di ricezione ha riportato una misurazione. Potrebbe essere in ricerca di rete, oppure un'antenna potrebbe essere scollegata — le letture tornano da sole appena una catena riporta dati."
       }
     }
   },

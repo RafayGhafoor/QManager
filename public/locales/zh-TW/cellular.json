@@ -1725,105 +1725,178 @@
       }
     }
   },
-  "antennas": {
-    "statistics": {
-      "page": {
-        "title": "天線統計",
-        "description": "每條接收鏈的逐天線訊號指標。比較主天線、分集天線和 MIMO 天線埠的訊號質量。"
-      },
-      "lte_card": {
-        "title": "LTE 訊號",
-        "description": "4G LTE 的逐天線指標",
-        "empty_title": "無 LTE 訊號",
-        "empty_description": "4G LTE 活動時將顯示天線指標。"
-      },
-      "nr_card": {
-        "title": "NR5G 訊號",
-        "description": "5G NR 的逐天線指標",
-        "empty_title": "無 NR5G 訊號",
-        "empty_description": "5G NR 活動時將顯示天線指標。"
-      },
-      "signal_strength_aria": "{{metric}} 訊號強度"
+  "antenna_statistics": {
+    "page": {
+      "title": "天線統計",
+      "description": "各接收鏈路的天線訊號。比較 Main、Diversity 與 MIMO 連接埠，找出訊號弱或未運作的天線。"
     },
-    "ports": {
-      "main_name": "主天線",
-      "main_description": "主發射/接收天線 (ANT0)",
-      "diversity_name": "分集天線",
-      "diversity_description": "分集/接收天線 (ANT1)",
-      "mimo3_name": "MIMO 3",
-      "mimo3_description": "MIMO 空間流 1 (ANT2)",
-      "mimo4_name": "MIMO 4",
-      "mimo4_description": "MIMO 空間流 2 (ANT3)"
+    "context": {
+      "mimo": {
+        "label": "啟用中的 MIMO",
+        "caption": "數據機回報的層數",
+        "unavailable": "未回報"
+      },
+      "mode": {
+        "label": "服務模式",
+        "caption": "目前回報的射頻",
+        "lte": "4G LTE",
+        "nr": "5G NR",
+        "endc": "5G NSA (EN-DC)",
+        "none": "無服務"
+      },
+      "chains": {
+        "label": "回報中的鏈路",
+        "caption": "有讀數的天線連接埠",
+        "value": "{{total}} 個中有 {{live}} 個"
+      }
+    },
+    "card": {
+      "lte": {
+        "title": "LTE 訊號",
+        "description": "4G LTE 的各天線指標",
+        "identity": "LTE"
+      },
+      "nr": {
+        "title": "NR5G 訊號",
+        "description": "5G NR 的各天線指標",
+        "identity": "5G NR"
+      }
+    },
+    "empty": {
+      "lte": {
+        "title": "無 LTE 訊號",
+        "description": "4G LTE 啟用後即會顯示各天線指標。"
+      },
+      "nr": {
+        "title": "無 5G NR 訊號",
+        "description": "5G NR 啟用後即會顯示各天線指標。"
+      }
+    },
+    "port": {
+      "not_reporting": "無資料",
+      "not_reported": "未回報"
     },
     "quality": {
-      "excellent": "優秀",
+      "excellent": "極佳",
       "good": "良好",
       "fair": "一般",
       "poor": "較差",
-      "none": "無"
+      "bad": "極弱",
+      "none": "無讀數"
     },
-    "alignment": {
-      "page": {
-        "title": "天線對準",
-        "description": "每條接收鏈的逐天線訊號強度。記錄並比較位置，找到最佳瞄準方向或擺放位置。"
+    "states": {
+      "loading_sr": "正在載入天線統計",
+      "retry": "重試",
+      "error_banner": "無法連線至數據機。以下讀數可能已過期。",
+      "stale_banner": "訊號資料已過期。數據機可能沒有回應。",
+      "unreachable": {
+        "title": "無法連線至數據機",
+        "description": "無法載入天線讀數。請檢查輪詢服務是否正在執行，然後再試一次。"
+      }
+    }
+  },
+  "antenna_alignment": {
+    "page": {
+      "title": "天線對準",
+      "description": "一邊觀察即時評分一邊調整天線朝向或位置，然後記錄最多三個位置以進行比較。"
+    },
+    "mode": {
+      "lte": "4G LTE",
+      "nr": "5G NR",
+      "lte_short": "LTE",
+      "nr_short": "NR"
+    },
+    "aim": {
+      "title": "即時對準",
+      "description": "主接收鏈路，評分標準與已記錄的位置相同。",
+      "score_label": "對準評分",
+      "score_sr": "對準評分 {{score}}，滿分 100",
+      "no_reading": "無對準評分 — 主鏈路未回報",
+      "peak": "峰值",
+      "updated": "更新於",
+      "delta_up": "較上次讀數提升",
+      "delta_down": "較上次讀數下降",
+      "partial": "僅 {{leg}}",
+      "not_reported": "未回報",
+      "primary_chain": "Main / PRX 是評分所依據的鏈路"
+    },
+    "quality": {
+      "excellent": "極佳",
+      "good": "良好",
+      "fair": "一般",
+      "poor": "較差",
+      "bad": "極弱",
+      "none": "無讀數"
+    },
+    "recorder": {
+      "title": "位置記錄",
+      "description_directional": "記錄最多三個角度並進行比較。每次記錄會將數據機的 {{samples}} 次讀數取平均，需要幾秒鐘。",
+      "description_omni": "記錄最多三個擺放位置並進行比較。每次記錄會將數據機的 {{samples}} 次讀數取平均，需要幾秒鐘。",
+      "type_directional": "定向",
+      "type_omni": "全向",
+      "reset": "重設",
+      "position": "位置 {{letter}}",
+      "placeholder_angle": "角度",
+      "placeholder_position": "位置",
+      "record_angle": "記錄角度",
+      "record_position": "記錄位置",
+      "not_recorded": "未記錄",
+      "recorded_at": "記錄於 {{time}}",
+      "sample_progress": "第 {{current}} 次讀數，共 {{total}} 次",
+      "waiting": "正在等待數據機",
+      "cancel": "取消",
+      "clear": "清除 {{label}}",
+      "label_sr": "第 {{index}} 個插槽的標籤",
+      "slot_sr": "插槽 {{index}}：{{label}} — {{status}}",
+      "status": {
+        "recording": "正在記錄",
+        "recorded": "已記錄",
+        "recorded_best": "已記錄，結果最佳",
+        "empty": "空"
       },
-      "stale_warning": "訊號資料已過期——調變解調器可能無響應。",
-      "error_warning": "無法連線到調變解調器，顯示的資料可能已過時。",
-      "empty_title": "無天線資料",
-      "empty_description": "當調變解調器輪詢器執行並報告逐天線訊號資料時，天線指標將顯示。",
-      "card": {
-        "active": "活動",
-        "inactive": "非活動",
-        "lte_heading": "4G / LTE",
-        "lte_heading_anchor": "4G / LTE（錨點）",
-        "nr_heading": "5G / NR",
-        "nr_heading_secondary": "5G / NR（輔助）"
+      "best": "最佳",
+      "best_margin": "最佳，領先 {{margin}}",
+      "not_comparable": "沒有可排序的讀數，因此無法比較這個位置。",
+      "partial": "僅依單一指標評分。",
+      "confirm_cancel": "保留",
+      "reset_confirm_title": "清除所有已記錄的位置？",
+      "reset_confirm_body": "你記錄的所有位置都會被刪除。此操作無法復原。",
+      "reset_confirm_action": "全部清除",
+      "clear_confirm_title": "清除這筆記錄？",
+      "clear_confirm_body": "為 {{label}} 記錄的讀數會被刪除。此操作無法復原。",
+      "clear_confirm_action": "清除",
+      "all_recorded_hint": "三個位置均已記錄。清除其中一個即可重新記錄。",
+      "recording_hint": "請先完成或取消正在進行的記錄。",
+      "record_slot": "記錄 {{label}}",
+      "cancel_slot": "取消記錄 {{label}}"
+    },
+    "recommendation": {
+      "title": "目前最佳：{{label}}",
+      "body_directional": "在你已記錄的位置中，這個角度的綜合訊號最強。",
+      "body_omni": "在你已記錄的位置中，這個擺放位置的綜合訊號最強。",
+      "mixed_radios": "你的記錄橫跨兩種射頻，因此比較結果不如平時精確。",
+      "remaining": "記錄其餘插槽可獲得更完整的比較。"
+    },
+    "ports": {
+      "title": "接收鏈路",
+      "description": "有哪些天線參與評分。",
+      "reporting": "{{total}} 個中有 {{live}} 個在回報",
+      "not_reporting": "無資料",
+      "twin_hint": "若需每條鏈路的各項指標詳情，請前往",
+      "twin_link": "天線統計"
+    },
+    "states": {
+      "loading_sr": "正在載入天線對準",
+      "retry": "重試",
+      "error_banner": "無法連線至數據機。以下讀數可能已過期。",
+      "stale_banner": "訊號資料已過期。數據機可能沒有回應。",
+      "unreachable": {
+        "title": "無法連線至數據機",
+        "description": "無法載入天線讀數。請檢查輪詢服務是否正在執行，然後再試一次。"
       },
-      "meter": {
-        "title": "對準儀",
-        "description_directional": "記錄 3 個角度以找到最佳瞄準方向。每次記錄平均 {{samples}} 個取樣。",
-        "description_omni": "記錄 3 個位置以找到最佳擺放位置。每次記錄平均 {{samples}} 個取樣。",
-        "toggle_directional": "定向",
-        "toggle_omni": "全向",
-        "reset": "重置",
-        "live_signal_heading": "實時訊號（主天線）",
-        "lte_rsrp": "LTE RSRP",
-        "lte_sinr": "LTE SINR",
-        "nr_rsrp": "NR RSRP",
-        "nr_sinr": "NR SINR",
-        "slot_aria": "槽位 {{n}}：{{label}} — {{status}}",
-        "slot_status_recording": "記錄中",
-        "slot_status_recorded": "已記錄",
-        "slot_status_recorded_best": "已記錄，最佳結果",
-        "slot_status_empty": "空",
-        "angle_placeholder": "角度…",
-        "location_placeholder": "位置…",
-        "best_badge": "最佳",
-        "sample_progress": "取樣 {{current}} / {{total}}",
-        "cancel": "取消",
-        "recorded_at": "記錄於 {{time}}",
-        "not_recorded": "未記錄",
-        "record_angle": "記錄角度",
-        "record_position": "記錄位置",
-        "recommended_prefix": "推薦：",
-        "recommendation_directional": "此角度在您所記錄的位置中產生了最強的綜合訊號。",
-        "recommendation_omni": "此位置在您所記錄的位置中產生了最強的綜合訊號。",
-        "recommendation_remaining_one": " 記錄剩餘的 {{count}} 個槽位以獲得更完整的比較。",
-        "recommendation_remaining_other": " 記錄剩餘的 {{count}} 個槽位以獲得更完整的比較。",
-        "lte_label": "LTE",
-        "nr_label": "NR",
-        "rsrp_label": "RSRP",
-        "sinr_label": "SINR",
-        "default_positions": {
-          "a": "位置 A",
-          "b": "位置 B",
-          "c": "位置 C"
-        },
-        "radio_mode": {
-          "lte": "4G LTE",
-          "nr": "5G SA",
-          "endc": "5G NSA (EN-DC)"
-        }
+      "no_readings": {
+        "title": "無天線讀數",
+        "description": "數據機有回應，但沒有任何接收鏈路回報量測值。可能正在搜尋網路，也可能有天線未連接 — 一旦有鏈路開始回報，讀數就會自動恢復。"
       }
     }
   },
