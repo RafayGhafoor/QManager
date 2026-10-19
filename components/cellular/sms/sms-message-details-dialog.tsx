@@ -73,7 +73,7 @@ export function SmsMessageDetailsDialog({
             <DetailRow
               label={t(outbound ? "sms.center.details.to" : "sms.center.details.from")}
             >
-              <span className="font-mono">{addr}</span>
+              <span className="font-mono break-all">{addr}</span>
               {hasResolvedName ? (
                 <span className="text-on-surface-variant block text-xs">
                   {displayName}

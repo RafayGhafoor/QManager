@@ -262,7 +262,7 @@ export const TILE_DISC_SHAPE =
 
 /**
  * A duration as a reading, not a sentence — deliberately un-keyed, and rendered
- * in the mono face per DESIGN.md's Machine-Voice Rule.
+ * in tabular figures per DESIGN.md's Machine-Voice Rule (a duration is a figure).
  */
 export function formatAge(seconds: number): string {
   if (seconds < 90) return `${seconds}s`;

@@ -376,7 +376,7 @@ export function SummaryTiles({ mode, summary, mimo }: SummaryTilesProps) {
               <span
                 key={part}
                 className={cn(
-                  "truncate font-mono font-semibold tabular-nums",
+                  "truncate font-semibold tabular-nums",
                   // Two legs drop two ramp steps so the stacked pair fits the
                   // 34px value budget inside the 104px tile TILE_SHAPE pins and
                   // the skeleton mirrors. At `text-base` the pair measured 40px

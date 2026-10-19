@@ -144,7 +144,7 @@ export function NavUser() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file.");
+      toast.error(t("account.photo_invalid"));
       return;
     }
     const reader = new FileReader();
@@ -152,7 +152,7 @@ export function NavUser() {
       const base64 = reader.result as string;
       localStorage.setItem("qm_display_avatar", base64);
       setAvatarSrc(base64);
-      toast.success("Profile photo updated.");
+      toast.success(t("account.photo_updated"));
     };
     reader.readAsDataURL(file);
     // Reset so same file can be re-selected
@@ -174,14 +174,21 @@ export function NavUser() {
       });
       const json = await resp.json();
       if (!json.success) {
-        toast.error("Failed to update display name.");
+        toast.error(
+          resolveErrorMessage(
+            t,
+            json.error,
+            json.detail,
+            t("account.name_save_failed"),
+          ),
+        );
         return;
       }
       setDisplayName(name);
       setNameDialogOpen(false);
-      toast.success("Display name updated.");
+      toast.success(t("account.name_saved"));
     } catch {
-      toast.error("Failed to update display name.");
+      toast.error(t("account.name_save_failed"));
     } finally {
       setSavingName(false);
     }
@@ -212,12 +219,19 @@ export function NavUser() {
     });
 
     if (!result.success) {
-      toast.error(resolveErrorMessage(t, result.error, undefined, "Failed to reconnect modem"));
+      toast.error(
+        resolveErrorMessage(
+          t,
+          result.error,
+          undefined,
+          t("account.reconnect_failed"),
+        ),
+      );
       return;
     }
 
     setReconnectDialogOpen(false);
-    toast.success("Modem reconnect complete");
+    toast.success(t("account.reconnect_complete"));
   };
 
   const initials =
@@ -287,7 +301,7 @@ export function NavUser() {
                     type="button"
                     onClick={handleAvatarClick}
                     className="relative group shrink-0 rounded-pill focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover"
-                    aria-label="Change profile photo"
+                    aria-label={t("account.change_photo_aria")}
                   >
                     <Avatar className="size-8 rounded-pill">
                       {avatarSrc ? (
@@ -417,7 +431,7 @@ export function NavUser() {
             <Input
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
-              placeholder="Your name"
+              placeholder={t("account.name_placeholder")}
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleNameSave();
@@ -462,13 +476,13 @@ export function NavUser() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reconnect Modem</AlertDialogTitle>
+            <AlertDialogTitle>{t("actions.reconnect_modem")}</AlertDialogTitle>
             <AlertDialogDescription aria-live="polite">
               {isReconnecting
                 ? reconnectStep === "disconnecting"
-                  ? "Disconnecting modem from network..."
-                  : "Reconnecting modem to network..."
-                : "This will disconnect the modem for a few seconds, then reconnect it automatically."}
+                  ? t("account.disconnecting_description")
+                  : t("account.reconnecting_description")
+                : t("account.reconnect_description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -487,7 +501,7 @@ export function NavUser() {
                     : t("state.reconnecting")}
                 </>
               ) : (
-                "Reconnect"
+                t("account.reconnect_action")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -505,8 +519,8 @@ export function NavUser() {
             <AlertDialogTitle>{t("actions.reboot_device")}</AlertDialogTitle>
             <AlertDialogDescription aria-live="polite">
               {rebooting
-                ? "Reboot command sent. You will be logged out shortly..."
-                : "The device will restart and all network connections will drop until it comes back online."}
+                ? t("account.reboot_sent")
+                : t("account.reboot_description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -524,7 +538,7 @@ export function NavUser() {
                   {t("state.applying")}
                 </>
               ) : (
-                "Reboot Now"
+                t("account.reboot_now")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
