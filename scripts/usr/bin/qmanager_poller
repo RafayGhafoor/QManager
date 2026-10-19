@@ -504,6 +504,37 @@ _first_line_with() {
 # that predates the cap ignores the variable. Read-only callers only.
 QC_WAIT_MS=2500
 
+# Per-cycle busy latch. The cap bounds one read, not a cycle: with the lock
+# held for 15 s, each of the cycle's reads waited its own 2.5 s and the cycle
+# took 12 s. Inside poll_cycle's AT block (_AT_LATCH=1) the first read that
+# comes back busy sets _AT_BUSY, and the cycle's remaining reads return rc 3
+# (not run) without asking the broker. Boot one-shots never latch.
+_AT_LATCH=0
+_AT_BUSY=0
+
+# _qc_read <cmd>: one capped read query. qcmd prints its reply on stdout with
+# rc 0, or only "ERROR: <code>" on stderr with rc 1, so _QRAW gets exactly what
+# $(qcmd <cmd> 2>/dev/null) gave and _QERR the error line. Returns qcmd's exit
+# code, or 3 with both empty when latched busy.
+_QRAW=""
+_QERR=""
+_qc_read() {
+    _QRAW=""
+    _QERR=""
+    if [ "$_AT_LATCH" = "1" ] && [ "$_AT_BUSY" = "1" ]; then
+        return 3
+    fi
+    _QRAW=$(QCMD_WAIT_MS="$QC_WAIT_MS" qcmd "$1" 2>&1)
+    _qr_rc=$?
+    [ "$_qr_rc" -eq 0 ] && return 0
+    case "$_QRAW" in
+        *"ERROR: modem_busy"*|*"ERROR: scan_in_progress"*) _AT_BUSY=1 ;;
+    esac
+    _QERR="$_QRAW"
+    _QRAW=""
+    return "$_qr_rc"
+}
+
 _QR=""
 qcmd_exec_g() {
     local cmd
@@ -514,8 +545,14 @@ qcmd_exec_g() {
     cmd="$1"
     _QR=""
 
-    result=$(QCMD_WAIT_MS="$QC_WAIT_MS" qcmd "$cmd" 2>&1)
+    _qc_read "$cmd"
     exit_code=$?
+    if [ $exit_code -eq 3 ]; then
+        qlog_debug "qcmd_exec not run: cmd=${cmd} (busy earlier this cycle)"
+        _tap_at "$cmd" 3 ""
+        return 3
+    fi
+    result="${_QRAW}${_QERR}"
     _tap_at "$cmd" "$exit_code" "$result"
 
     if [ $exit_code -ne 0 ] || [ -z "$result" ]; then
@@ -952,8 +989,9 @@ poll_serving_cell() {
 poll_per_antenna_signal() {
     # Compound AT: fetch all per-antenna signal data in one call
     local result
-    result=$(QCMD_WAIT_MS="$QC_WAIT_MS" qcmd 'AT+QRSRP;+QRSRQ;+QSINR' 2>/dev/null)
-    _tap_at 'AT+QRSRP;+QRSRQ;+QSINR' "$?" "$result"
+    _qc_read 'AT+QRSRP;+QRSRQ;+QSINR'
+    _tap_at 'AT+QRSRP;+QRSRQ;+QSINR' "$?" "$_QRAW"
+    result="$_QRAW"
 
     if [ -n "$result" ]; then
         parse_qrsrp "$result"
@@ -1192,8 +1230,9 @@ poll_tier2() {
     # CPIN? is last — it can ERROR when SIM is absent; placing it last
     # ensures earlier responses (COPS, QUIMSLOT, CNUM) are preserved
     # even if the modem aborts on CPIN ERROR.
-    result=$(QCMD_WAIT_MS="$QC_WAIT_MS" qcmd 'AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?' 2>/dev/null)
-    _tap_at 'AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?' "$?" "$result"
+    _qc_read 'AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?'
+    _tap_at 'AT+COPS?;+QUIMSLOT?;+CNUM;+CPIN?' "$?" "$_QRAW"
+    result="$_QRAW"
 
     if [ -n "$result" ]; then
         parse_carrier "$result"
@@ -2448,7 +2487,8 @@ refresh_sim_identity() {
     local _rsi_oifs
     local _rsi_l
     local _rsi_acc
-    _rsi_result=$(QCMD_WAIT_MS="$QC_WAIT_MS" qcmd 'AT+CIMI;+QCCID' 2>/dev/null)
+    _qc_read 'AT+CIMI;+QCCID'
+    _rsi_result="$_QRAW"
     if [ -n "$_rsi_result" ]; then
         # IMSI: first line that is exactly 15 digits once CRs are removed.
         _rsi_imsi=""
@@ -2655,6 +2695,8 @@ poll_cycle() {
     if [ "$_at_due" = "1" ]; then
         errors=""
         system_state="normal"
+        _AT_LATCH=1
+        _AT_BUSY=0
 
         # Refresh policy_band-derived supported bands when a SIM swap (or other
         # apply) dropped the flag — the new SIM may expose a different carrier
@@ -2702,8 +2744,9 @@ poll_cycle() {
             # CFUN — standalone query (compound commands timeout in CFUN=0).
             # Active/idle only; deep tier skips this read.
             local cfun_result
-            cfun_result=$(QCMD_WAIT_MS="$QC_WAIT_MS" qcmd 'AT+CFUN?' 2>/dev/null)
-            _tap_at 'AT+CFUN?' "$?" "$cfun_result"
+            _qc_read 'AT+CFUN?'
+            _tap_at 'AT+CFUN?' "$?" "$_QRAW"
+            cfun_result="$_QRAW"
             if [ -n "$cfun_result" ]; then
                 # Value after the first ": " on the first +CFUN: line, CRs and
                 # spaces removed (awk -F': ' '{print $2}' | tr -d ' ').
@@ -2740,6 +2783,7 @@ poll_cycle() {
             [ "$_force_t2" = "1" ] && refresh_sim_identity
         fi
 
+        _AT_LATCH=0
         determine_service_status
         detect_events
         _tap_end
