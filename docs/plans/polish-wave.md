@@ -1,6 +1,6 @@
 # Polish wave (U4.22, U4.23, B5.37)
 
-Opened 2026-10-19. Ledger rows: `docs/rm520n-port-ledger.md` > U4 (U4.22, U4.23) and B5 (B5.21, B5.22, B5.37).
+Opened and closed 2026-10-19 (B5.37 `af8533bc`, U4.23 `537848ab`, U4.22 `d75e6569`, all merged into `development-home`). Ledger rows: `docs/rm520n-port-ledger.md` > U4 (U4.22, U4.23) and B5 (B5.21, B5.22, B5.37).
 
 ## Why this wave
 
