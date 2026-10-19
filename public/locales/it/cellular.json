@@ -212,7 +212,13 @@
       "scenario_always_on": "{{scenario}}, sempre attivo",
       "delete_description": "Questa azione rimuove il profilo dal dispositivo. Qualsiasi pianificazione associata viene cancellata. L'operazione non può essere annullata.",
       "delete_keep": "Mantieni il profilo",
-      "mismatch_note": "La SIM nel modem non corrisponde all'ICCID di questo profilo. Il dispositivo mantiene le impostazioni attuali finché non viene inserita una SIM corrispondente.",
+      "mismatch_note": "Applicato alla SIM nel modem, non a quella a cui è associato questo profilo. Si disattiva al prossimo riavvio o cambio di SIM.",
+      "mismatch_confirm": {
+        "title": "Applicare “{{name}}” a questa SIM?",
+        "description": "Questo profilo è associato a un'altra SIM. Le sue impostazioni vengono applicate ora alla SIM nel modem e si disattivano al prossimo riavvio o cambio di SIM.",
+        "verizon_note": "Anche la regola di instradamento dati Verizon viene impostata su questa SIM.",
+        "confirm": "Applica a questa SIM"
+      },
       "toast": {
         "deactivated": "{{name}} disattivato",
         "deleted": "{{name}} eliminato",
@@ -524,6 +530,7 @@
       "hl": "HL {{value}}",
       "imei_override": "Override IMEI",
       "mpdn_locked": "MPDN bloccato",
+      "other_sim": "Altra SIM",
       "apn_prefix": "APN "
     },
     "empty_state": {
