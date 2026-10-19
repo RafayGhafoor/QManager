@@ -16,7 +16,8 @@
     "aria_live_step_indicator": "Step {{step}} of {{total}}: {{label}}",
     "aria_progressbar_label": "Step {{step}} of {{total}}",
     "footer_branding": "QManager — Quectel Modem Management",
-    "label_required": "Required"
+    "label_required": "Required",
+    "error_unreachable": "Couldn't reach the modem."
   },
   "welcome": {
     "main_title": "Your modem,\nintelligently managed.",
@@ -24,7 +25,8 @@
     "step_preview_password": "Password",
     "step_preview_network_mode": "Network mode",
     "step_preview_apn_sim": "APN or SIM profile",
-    "step_preview_band_preferences": "Band preferences"
+    "step_preview_band_preferences": "Band preferences",
+    "step_preview_web_port": "Web port"
   },
   "password": {
     "heading": "Secure your setup",
@@ -67,7 +69,9 @@
     "arch_label_nsa": "NSA Only",
     "arch_desc_nsa": "5G via LTE anchor — broader coverage",
     "arch_label_sa": "SA Only",
-    "arch_desc_sa": "Standalone 5G — lowest latency"
+    "arch_desc_sa": "Standalone 5G — lowest latency",
+    "aria_network_type": "Network type",
+    "toast_failed": "Couldn't apply the network mode."
   },
   "band_locking": {
     "heading": "Band preferences",
@@ -80,7 +84,17 @@
     "preset_label_mid": "Mid-band only",
     "preset_label_custom": "Custom…",
     "loading_bands": "Loading supported bands from the modem…",
-    "error_no_bands": "No supported bands were returned by the modem."
+    "error_no_bands": "No supported bands were returned by the modem.",
+    "category_lte": "LTE bands",
+    "category_nsa": "5G NSA bands",
+    "category_sa": "5G SA bands",
+    "toast_failed": "Couldn't apply the band lock.",
+    "toast_partial": "Some band locks didn't apply.",
+    "notice_title_failed": "Band lock not applied",
+    "notice_title_partial": "Band lock partly applied",
+    "notice_applied": "Applied: {{list}}",
+    "notice_retry": "Continue retries what failed. Skip finishes setup without it.",
+    "error_unconfirmed": "The modem didn't confirm the change."
   },
   "connection": {
     "heading": "Configure your connection",
@@ -101,7 +115,10 @@
     "option_pdp_ipv4": "IPv4 Only",
     "option_pdp_ipv6": "IPv6 Only",
     "error_apn_required": "APN name is required.",
-    "error_profile_name_required": "Profile name is required."
+    "error_profile_name_required": "Profile name is required.",
+    "aria_connection_type": "Connection type",
+    "toast_apn_failed": "Couldn't save the APN.",
+    "toast_profile_failed": "Couldn't save the profile."
   },
   "done": {
     "heading": "You're all set!",

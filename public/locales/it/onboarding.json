@@ -16,7 +16,8 @@
     "aria_live_step_indicator": "Passaggio {{step}} di {{total}}: {{label}}",
     "aria_progressbar_label": "Passaggio {{step}} di {{total}}",
     "footer_branding": "QManager — Quectel Gestione modem",
-    "label_required": "Obbligatorio"
+    "label_required": "Obbligatorio",
+    "error_unreachable": "Impossibile raggiungere il modem."
   },
   "welcome": {
     "main_title": "Il tuo modem,\ngestiti in modo intelligente.",
@@ -24,7 +25,8 @@
     "step_preview_password": "Parola d'ordine",
     "step_preview_network_mode": "Modalità di rete",
     "step_preview_apn_sim": "Profilo APN o SIM",
-    "step_preview_band_preferences": "Preferenze della fascia"
+    "step_preview_band_preferences": "Preferenze della fascia",
+    "step_preview_web_port": "Porta web"
   },
   "password": {
     "heading": "Proteggi la tua configurazione",
@@ -67,7 +69,9 @@
     "arch_label_nsa": "Solo NSA",
     "arch_desc_nsa": "5G tramite LTE ancora: copertura più ampia",
     "arch_label_sa": "Solo SA",
-    "arch_desc_sa": "Autonomo 5G: latenza più bassa"
+    "arch_desc_sa": "Autonomo 5G: latenza più bassa",
+    "aria_network_type": "Tipo di rete",
+    "toast_failed": "Impossibile applicare la modalità di rete."
   },
   "band_locking": {
     "heading": "Preferenze della fascia",
@@ -80,7 +84,17 @@
     "preset_label_mid": "Solo fascia media",
     "preset_label_custom": "Personalizzato…",
     "loading_bands": "Caricamento delle bande supportate dal modem…",
-    "error_no_bands": "Il modem non ha restituito alcuna banda supportata."
+    "error_no_bands": "Il modem non ha restituito alcuna banda supportata.",
+    "category_lte": "Bande LTE",
+    "category_nsa": "Bande 5G NSA",
+    "category_sa": "Bande 5G SA",
+    "toast_failed": "Impossibile applicare il blocco delle bande.",
+    "toast_partial": "Alcuni blocchi delle bande non sono stati applicati.",
+    "notice_title_failed": "Blocco bande non applicato",
+    "notice_title_partial": "Blocco bande applicato in parte",
+    "notice_applied": "Applicato: {{list}}",
+    "notice_retry": "Continua riprova ciò che non è riuscito. Salta completa la configurazione senza.",
+    "error_unconfirmed": "Il modem non ha confermato la modifica."
   },
   "connection": {
     "heading": "Configura la tua connessione",
@@ -101,7 +115,10 @@
     "option_pdp_ipv4": "IPv4 Solo",
     "option_pdp_ipv6": "IPv6 Solo",
     "error_apn_required": "Il nome APN è obbligatorio.",
-    "error_profile_name_required": "Il nome del profilo è obbligatorio."
+    "error_profile_name_required": "Il nome del profilo è obbligatorio.",
+    "aria_connection_type": "Tipo di connessione",
+    "toast_apn_failed": "Impossibile salvare l'APN.",
+    "toast_profile_failed": "Impossibile salvare il profilo."
   },
   "done": {
     "heading": "È tutto pronto!",

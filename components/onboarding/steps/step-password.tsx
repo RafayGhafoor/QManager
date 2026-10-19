@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
@@ -13,6 +13,9 @@ import { Field, FieldDescription, FieldGroup, FieldLabel, FieldError } from "@/c
 import { PasswordRequirements, isPasswordValid } from "@/components/auth/password-requirements";
 import { StrongPasswordToggle } from "@/components/auth/strong-password-toggle";
 import { cn } from "@/lib/utils";
+import { DUR, EASE_QUICK, EASE_STANDARD, STAGGER_STEP_ROWS } from "@/lib/motion";
+import { toast } from "sonner";
+import { STEP_DESCRIPTION, STEP_HEADING } from "../shapes";
 
 // =============================================================================
 // StepPassword — Onboarding step 2: create password (required)
@@ -39,9 +42,9 @@ function strengthColorClass(strength: number) {
 }
 
 function strengthTextClass(strength: number) {
-  if (strength === 1) return "text-destructive";
-  if (strength === 2) return "text-warning";
-  return "text-success";
+  if (strength === 1) return "text-destructive-on-surface";
+  if (strength === 2) return "text-warning-on-surface";
+  return "text-success-on-surface";
 }
 
 // ---------------------------------------------------------------------------
@@ -118,7 +121,9 @@ export function StepPassword({ onSuccess, onLoadingChange, onSubmitRef, onValidi
         }
         onSuccess();
       } else {
-        setError(resolveErrorMessage(t, result.error, undefined, t("password.error_setup_failed")));
+        // A failed write toasts (a step advance is the success signal); field
+        // validation above stays inline with its field.
+        toast.error(resolveErrorMessage(t, undefined, result.error, t("password.error_setup_failed")));
       }
     } finally {
       setIsSubmitting(false);
@@ -133,8 +138,8 @@ export function StepPassword({ onSuccess, onLoadingChange, onSubmitRef, onValidi
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1.5">
-        <h2 className="text-2xl font-semibold tracking-tight">{t("password.heading")}</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className={STEP_HEADING}>{t("password.heading")}</h2>
+        <p className={STEP_DESCRIPTION}>
           {t("password.description")}
         </p>
       </div>
@@ -142,7 +147,7 @@ export function StepPassword({ onSuccess, onLoadingChange, onSubmitRef, onValidi
       <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="onboard-name">{t("password.label_name")} <span className="text-muted-foreground font-normal">{t("password.label_name_optional_suffix")}</span></FieldLabel>
+            <FieldLabel htmlFor="onboard-name">{t("password.label_name")} <span className="text-on-surface-variant font-normal">{t("password.label_name_optional_suffix")}</span></FieldLabel>
             <Input
               id="onboard-name"
               type="text"
@@ -175,7 +180,7 @@ export function StepPassword({ onSuccess, onLoadingChange, onSubmitRef, onValidi
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-1 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface"
                 onClick={() => setShowPassword((v) => !v)}
                 tabIndex={-1}
                 aria-label={showPassword ? t("password.aria_hide_password") : t("password.aria_show_password")}
@@ -184,14 +189,12 @@ export function StepPassword({ onSuccess, onLoadingChange, onSubmitRef, onValidi
               </Button>
             </div>
 
-            {/* Strength bar — appears as soon as typing starts */}
-            <AnimatePresence>
-              {password.length > 0 && (
+            {/* Strength bar — appears as soon as typing starts; no exit (Enter-Only Rule) */}
+            {password.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.2 }}
+                  transition={{ duration: DUR.quick, ease: EASE_QUICK }}
                   className="flex items-center gap-2 pt-1"
                 >
                   {/* Segmented bar */}
@@ -199,11 +202,11 @@ export function StepPassword({ onSuccess, onLoadingChange, onSubmitRef, onValidi
                     {[1, 2, 3, 4].map((seg) => (
                       <div
                         key={seg}
-                        className="h-1 flex-1 overflow-hidden rounded-full bg-muted"
+                        className="h-1 flex-1 overflow-hidden rounded-full bg-surface-container-high"
                       >
                         <motion.div
                           className={cn(
-                            "h-full rounded-full transition-colors duration-500",
+                            "h-full rounded-full transition-colors duration-[var(--duration-standard)] ease-standard",
                             seg <= strength
                               ? strengthColorClass(strength)
                               : "bg-transparent"
@@ -211,7 +214,7 @@ export function StepPassword({ onSuccess, onLoadingChange, onSubmitRef, onValidi
                           animate={{ scaleX: seg <= strength ? 1 : 0 }}
                           initial={{ scaleX: 0 }}
                           style={{ originX: 0 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 30, delay: (seg - 1) * 0.04 }}
+                          transition={{ duration: DUR.standard, ease: EASE_STANDARD, delay: (seg - 1) * STAGGER_STEP_ROWS }}
                         />
                       </div>
                     ))}
@@ -219,15 +222,14 @@ export function StepPassword({ onSuccess, onLoadingChange, onSubmitRef, onValidi
                   {/* Label */}
                   <span
                     className={cn(
-                      "text-xs font-medium shrink-0 text-right transition-colors duration-300",
+                      "text-xs font-medium shrink-0 text-right transition-colors duration-[var(--duration-standard)] ease-standard",
                       strengthTextClass(strength)
                     )}
                   >
                     {strengthLabels[strength]}
                   </span>
                 </motion.div>
-              )}
-            </AnimatePresence>
+            )}
 
             <PasswordRequirements password={password} enforceStrong={useStrongPassword} id="onboard-password-reqs" className="pt-1" />
           </Field>
@@ -251,7 +253,7 @@ export function StepPassword({ onSuccess, onLoadingChange, onSubmitRef, onValidi
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-1 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface"
                 onClick={() => setShowConfirm((v) => !v)}
                 tabIndex={-1}
                 aria-label={showConfirm ? t("password.aria_hide_password") : t("password.aria_show_password")}
@@ -263,8 +265,8 @@ export function StepPassword({ onSuccess, onLoadingChange, onSubmitRef, onValidi
               <p
                 id="onboard-confirm-hint"
                 className={cn(
-                  "text-xs transition-colors duration-200",
-                  password === confirm ? "text-success" : "text-destructive"
+                  "text-xs transition-colors duration-[var(--duration-quick)] ease-out",
+                  password === confirm ? "text-success-on-surface" : "text-destructive-on-surface"
                 )}
               >
                 {password === confirm ? t("password.hint_match_success") : t("password.hint_match_error")}
