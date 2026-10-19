@@ -1,6 +1,6 @@
 # Finishing wave (U4.19 to U4.21)
 
-Opened 2026-10-19. Ledger rows: `docs/rm520n-port-ledger.md` > U4.
+Opened and closed 2026-10-19 (U4.19 `da1cab89`, U4.20 `d8b292af`, U4.21 + U2.3 `832f7d0f`, all merged into `development-home`). Ledger rows: `docs/rm520n-port-ledger.md` > U4.
 
 ## Why this wave
 

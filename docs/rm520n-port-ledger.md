@@ -239,7 +239,7 @@ Entware bootstrap and `S80lighttpd`/opkg handling, SDX55/RG501Q platform detecti
 6. U4.10 dashboard, then the U4.11 target-only surfaces.
 7. Re-survey the source past the sync cursor and append new rows. Done 2026-10-18: no new source commits (tip still `a05c4e92`); cursor corrected, B5.30 added.
 8. **Cellular core wave (opened 2026-10-19).** Re-survey again found no new source commits, but six `/cellular/**` families were never given a U4 row and still render lucide on a Material route: U4.13 to U4.18b. Order and parallel lanes: `docs/plans/cellular-core-wave.md`.
-9. **Finishing wave (opened 2026-10-19).** After the cellular core wave every U4 row was closed and the source tip was unchanged, but three surfaces never had a row: the setup wizard, TTL & MTU, and the reboot and account chrome (U4.19 to U4.21). Lanes: `docs/plans/finishing-wave.md`.
+9. **Finishing wave (opened 2026-10-19).** After the cellular core wave every U4 row was closed and the source tip was unchanged, but three surfaces never had a row: the setup wizard, TTL & MTU, and the reboot and account chrome (U4.19 to U4.21). Lanes: `docs/plans/finishing-wave.md`. Closed 2026-10-19: all three rows DONE and merged into `development-home` (`da1cab89` U4.19, `d8b292af` U4.20, `832f7d0f` U4.21 with U2.3); merged tree passes `tsc`, eslint, `i18n:check`, `icons:check` and `bun run build`. Track U has no open rows; the next survey starts at the sync cursor.
 
 ---
 
