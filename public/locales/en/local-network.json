@@ -208,33 +208,97 @@
     }
   },
   "ttl_mtu": {
-    "page_title": "TTL and MTU Settings",
-    "page_description": "Set custom Time To Live, Hop Limit, and Maximum Transmission Unit values on the cellular data interface."
-  },
-  "ttl": {
-    "card_title": "TTL & Hop Limit Configuration",
-    "card_description": "Set custom TTL (IPv4) and Hop Limit (IPv6) values applied to outbound packets on the cellular interface.",
-    "alert_profile_override": "TTL/HL configuration is managed by the <strong>{{profileName}}</strong> Custom SIM Profile.",
-    "label_enable": "Enable Custom TTL/HL",
-    "label_ttl": "TTL Value",
-    "placeholder_ttl": "e.g. 64",
-    "label_hl": "Hop Limit (HL) Value",
-    "placeholder_hl": "e.g. 64",
-    "error_at_least_one": "Enter at least a TTL or Hop Limit value",
-    "toast_success_enabled": "Applied — TTL: {{ttl}}, Hop Limit: {{hl}}",
-    "toast_success_disabled": "Custom TTL/Hop Limit disabled",
-    "toast_error_apply": "Failed to apply TTL/Hop Limit settings"
-  },
-  "mtu": {
-    "card_title": "Maximum Transmission Unit (MTU) Configuration",
-    "card_description": "Set the maximum packet size on the cellular data interface. Lower values can help with fragmentation issues.",
-    "label_enable": "Enable Custom MTU",
-    "label_mtu": "MTU Value",
-    "placeholder_mtu": "e.g. 1500",
-    "error_range": "MTU must be between 576 and 9000",
-    "toast_success_enabled": "MTU set to {{mtu}}",
-    "toast_success_disabled": "Custom MTU disabled",
-    "toast_error_apply": "Failed to apply MTU settings"
+    "page_title": "TTL & MTU",
+    "page_description": "Rewrite the hop count and packet size the modem puts on the cellular interface.",
+    "refresh": "Refresh",
+    "strip": {
+      "label": "In force now",
+      "chip_custom": "Custom",
+      "chip_default": "Carrier defaults",
+      "retry": "Retry",
+      "unavailable_title": "Couldn't read TTL or MTU",
+      "unavailable_body": "The modem didn't answer. Nothing on it has been changed.",
+      "idle_title": "No overrides in force",
+      "idle_body": "The modem is using the carrier's TTL and MTU exactly as negotiated. Turn one on below to change that."
+    },
+    "tiles": {
+      "shared": {
+        "caption_pending": "Still reading",
+        "caption_unread": "The modem didn't answer"
+      },
+      "ttl": {
+        "label": "TTL (IPv4)",
+        "caption_active": "Rewritten on every packet",
+        "caption_idle": "Not rewritten"
+      },
+      "hl": {
+        "label": "Hop limit (IPv6)",
+        "caption_active": "Rewritten on every packet",
+        "caption_idle": "Not rewritten"
+      },
+      "mtu": {
+        "label": "MTU",
+        "unit": "bytes",
+        "caption_active": "Carrier default is {{carrier}}",
+        "caption_idle": "Carrier-negotiated"
+      }
+    },
+    "banner": {
+      "title": "TTL and hop limit come from the {{profile}} profile",
+      "body": "Activating that profile writes both values, so this card is held to stop the two writers fighting. Change them in the profile, or activate a profile that leaves TTL unset."
+    },
+    "cards": {
+      "ttl": {
+        "title": "TTL & Hop Limit",
+        "description": "Applied to outbound packets on the cellular interface."
+      },
+      "mtu": {
+        "title": "Maximum transmission unit",
+        "description": "The largest packet the cellular interface will send without fragmenting."
+      }
+    },
+    "rows": {
+      "shared": {
+        "consequence_off": "Turn the rewrite on to set a value.",
+        "consequence_unread": "The modem hasn't answered, so there is nothing to change yet."
+      },
+      "rewrite": {
+        "label": "Rewrite the hop count",
+        "consequence": "Off means the modem forwards whatever hop count the client sent. Some carriers count hops to detect tethering."
+      },
+      "ttl_value": {
+        "label": "TTL value",
+        "consequence": "{{min}}–{{max}}. A device one hop behind the modem usually wants 64."
+      },
+      "hl_value": {
+        "label": "Hop limit value",
+        "consequence": "The IPv6 equivalent. Set both unless you know the client is single-stack."
+      },
+      "mtu_toggle": {
+        "label": "Override the MTU",
+        "consequence": "Off restores the carrier-negotiated value on the cellular interface."
+      },
+      "mtu_value": {
+        "label": "MTU value",
+        "consequence": "{{min}}–{{max}}. Below roughly 1400 can break path-MTU discovery on sites that drop ICMP.",
+        "consequence_off": "Turn the override on to set a value."
+      }
+    },
+    "values": {
+      "on": "On",
+      "off": "Off"
+    },
+    "errors": {
+      "value_range": "TTL and hop limit must each be between {{min}} and {{max}}.",
+      "no_value": "Enter a TTL or a hop limit before applying.",
+      "mtu_range": "MTU must be between {{min}} and {{max}}."
+    },
+    "toast_ttl_applied": "Applied (TTL {{ttl}}, hop limit {{hl}}).",
+    "toast_ttl_cleared": "The modem is back on the carrier's own hop count.",
+    "toast_ttl_error": "Couldn't apply the TTL and hop limit.",
+    "toast_mtu_applied": "MTU set to {{mtu}}.",
+    "toast_mtu_cleared": "MTU is back to the carrier-negotiated value.",
+    "toast_mtu_error": "Couldn't apply the MTU."
   },
   "ippt": {
     "page": {

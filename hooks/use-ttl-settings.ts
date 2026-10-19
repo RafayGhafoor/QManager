@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { authFetch } from "@/lib/auth-fetch";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
+import type { MutationResult } from "@/types/mutation-result";
 
 // =============================================================================
 // useTtlSettings — One-Shot TTL/HL Fetch & Save Hook
@@ -37,11 +38,14 @@ export interface UseTtlSettingsReturn {
   isSaving: boolean;
   /** Error message if fetch or save failed */
   error: string | null;
-  /** Apply new TTL/HL values. Returns true on success. */
-  saveTtlHl: (ttl: number, hl: number) => Promise<boolean>;
-  /** Re-fetch TTL/HL data */
-  refresh: () => void;
+  /** Apply new TTL/HL values. The caller toasts from the returned result. */
+  saveTtlHl: (ttl: number, hl: number) => Promise<MutationResult>;
+  /** Re-fetch TTL/HL data. Wrap it in an arrow: a bare `onClick` hands a truthy event in as `silent`. */
+  refresh: (silent?: boolean) => Promise<void>;
 }
+
+const SUCCEEDED: MutationResult = { ok: true, code: null, error: null };
+const UNMOUNTED: MutationResult = { ok: false, code: null, error: null };
 
 export function useTtlSettings(): UseTtlSettingsReturn {
   const { t } = useTranslation("errors");
@@ -107,7 +111,7 @@ export function useTtlSettings(): UseTtlSettingsReturn {
   // Save TTL/HL values
   // ---------------------------------------------------------------------------
   const saveTtlHl = useCallback(
-    async (ttl: number, hl: number): Promise<boolean> => {
+    async (ttl: number, hl: number): Promise<MutationResult> => {
       setError(null);
       setIsSaving(true);
 
@@ -123,20 +127,21 @@ export function useTtlSettings(): UseTtlSettingsReturn {
         }
 
         const json = await resp.json();
-        if (!mountedRef.current) return false;
+        if (!mountedRef.current) return UNMOUNTED;
 
         if (!json.success) {
           setError(resolveErrorMessage(t, json.error, json.detail, "Failed to apply TTL/HL"));
-          return false;
+          return { ok: false, code: json.error ?? null, error: json.detail ?? null };
         }
 
         // Silent re-fetch to update local state
         await fetchTtl(true);
-        return true;
+        return SUCCEEDED;
       } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(err instanceof Error ? err.message : "Failed to apply TTL/HL");
-        return false;
+        if (!mountedRef.current) return UNMOUNTED;
+        const message = err instanceof Error ? err.message : "Failed to apply TTL/HL";
+        setError(message);
+        return { ok: false, code: null, error: message };
       } finally {
         if (mountedRef.current) {
           setIsSaving(false);

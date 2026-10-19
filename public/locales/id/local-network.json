@@ -208,33 +208,97 @@
     }
   },
   "ttl_mtu": {
-    "page_title": "Pengaturan TTL dan MTU",
-    "page_description": "Atur nilai Time To Live, Hop Limit, dan Maximum Transmission Unit kustom pada antarmuka data seluler."
-  },
-  "ttl": {
-    "card_title": "Konfigurasi TTL & Hop Limit",
-    "card_description": "Atur nilai TTL (IPv4) dan Hop Limit (IPv6) kustom yang diterapkan pada paket keluar di antarmuka seluler.",
-    "alert_profile_override": "Konfigurasi TTL/HL dikelola oleh Profil SIM Kustom <strong>{{profileName}}</strong>.",
-    "label_enable": "Aktifkan TTL/HL Kustom",
-    "label_ttl": "Nilai TTL",
-    "placeholder_ttl": "contoh: 64",
-    "label_hl": "Nilai Hop Limit (HL)",
-    "placeholder_hl": "contoh: 64",
-    "error_at_least_one": "Masukkan setidaknya nilai TTL atau Hop Limit",
-    "toast_success_enabled": "Diterapkan — TTL: {{ttl}}, Hop Limit: {{hl}}",
-    "toast_success_disabled": "TTL/Hop Limit kustom dinonaktifkan",
-    "toast_error_apply": "Gagal menerapkan pengaturan TTL/Hop Limit"
-  },
-  "mtu": {
-    "card_title": "Konfigurasi Maximum Transmission Unit (MTU)",
-    "card_description": "Atur ukuran paket maksimum pada antarmuka data seluler. Nilai lebih rendah dapat membantu mengatasi masalah fragmentasi.",
-    "label_enable": "Aktifkan MTU Kustom",
-    "label_mtu": "Nilai MTU",
-    "placeholder_mtu": "contoh: 1500",
-    "error_range": "MTU harus antara 576 dan 9000",
-    "toast_success_enabled": "MTU diatur ke {{mtu}}",
-    "toast_success_disabled": "MTU kustom dinonaktifkan",
-    "toast_error_apply": "Gagal menerapkan pengaturan MTU"
+    "page_title": "TTL & MTU",
+    "page_description": "Tulis ulang jumlah hop dan ukuran paket yang dipasang modem pada antarmuka seluler.",
+    "refresh": "Segarkan",
+    "strip": {
+      "label": "Berlaku sekarang",
+      "chip_custom": "Kustom",
+      "chip_default": "Bawaan operator",
+      "retry": "Coba lagi",
+      "unavailable_title": "Tidak dapat membaca TTL atau MTU",
+      "unavailable_body": "Modem tidak menjawab. Tidak ada yang diubah.",
+      "idle_title": "Tidak ada penggantian yang berlaku",
+      "idle_body": "Modem memakai TTL dan MTU operator persis seperti hasil negosiasi. Aktifkan salah satu di bawah untuk mengubahnya."
+    },
+    "tiles": {
+      "shared": {
+        "caption_pending": "Masih membaca",
+        "caption_unread": "Modem tidak menjawab"
+      },
+      "ttl": {
+        "label": "TTL (IPv4)",
+        "caption_active": "Ditulis ulang pada setiap paket",
+        "caption_idle": "Tidak ditulis ulang"
+      },
+      "hl": {
+        "label": "Batas hop (IPv6)",
+        "caption_active": "Ditulis ulang pada setiap paket",
+        "caption_idle": "Tidak ditulis ulang"
+      },
+      "mtu": {
+        "label": "MTU",
+        "unit": "byte",
+        "caption_active": "Bawaan operator adalah {{carrier}}",
+        "caption_idle": "Dinegosiasikan operator"
+      }
+    },
+    "banner": {
+      "title": "TTL dan batas hop berasal dari profil {{profile}}",
+      "body": "Mengaktifkan profil itu menulis kedua nilai tersebut, jadi kartu ini ditahan agar dua penulis tidak saling menimpa. Ubah nilainya di profil itu, atau aktifkan profil yang membiarkan TTL kosong."
+    },
+    "cards": {
+      "ttl": {
+        "title": "TTL & Batas Hop",
+        "description": "Diterapkan pada paket keluar di antarmuka seluler."
+      },
+      "mtu": {
+        "title": "Unit transmisi maksimum",
+        "description": "Paket terbesar yang dikirim antarmuka seluler tanpa fragmentasi."
+      }
+    },
+    "rows": {
+      "shared": {
+        "consequence_off": "Aktifkan penulisan ulang untuk mengatur nilai.",
+        "consequence_unread": "Modem belum menjawab, jadi belum ada yang dapat diubah."
+      },
+      "rewrite": {
+        "label": "Tulis ulang jumlah hop",
+        "consequence": "Jika nonaktif, modem meneruskan jumlah hop apa adanya dari klien. Sebagian operator menghitung hop untuk mendeteksi tethering."
+      },
+      "ttl_value": {
+        "label": "Nilai TTL",
+        "consequence": "{{min}}–{{max}}. Perangkat yang berjarak satu hop dari modem biasanya memakai 64."
+      },
+      "hl_value": {
+        "label": "Nilai batas hop",
+        "consequence": "Padanan IPv6-nya. Atur keduanya kecuali Anda tahu klien hanya single-stack."
+      },
+      "mtu_toggle": {
+        "label": "Ganti nilai MTU",
+        "consequence": "Jika nonaktif, nilai hasil negosiasi operator dipulihkan di antarmuka seluler."
+      },
+      "mtu_value": {
+        "label": "Nilai MTU",
+        "consequence": "{{min}}–{{max}}. Di bawah sekitar 1400 dapat merusak path MTU discovery pada situs yang membuang ICMP.",
+        "consequence_off": "Aktifkan penggantian untuk mengatur nilai."
+      }
+    },
+    "values": {
+      "on": "Aktif",
+      "off": "Nonaktif"
+    },
+    "errors": {
+      "value_range": "TTL dan batas hop masing-masing harus antara {{min}} dan {{max}}.",
+      "no_value": "Isi TTL atau batas hop sebelum menerapkan.",
+      "mtu_range": "MTU harus antara {{min}} dan {{max}}."
+    },
+    "toast_ttl_applied": "Diterapkan (TTL {{ttl}}, batas hop {{hl}}).",
+    "toast_ttl_cleared": "Modem kembali memakai jumlah hop dari operator.",
+    "toast_ttl_error": "Tidak dapat menerapkan TTL dan batas hop.",
+    "toast_mtu_applied": "MTU disetel ke {{mtu}}.",
+    "toast_mtu_cleared": "MTU kembali ke nilai hasil negosiasi operator.",
+    "toast_mtu_error": "Tidak dapat menerapkan MTU."
   },
   "ippt": {
     "page": {
