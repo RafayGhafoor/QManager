@@ -75,7 +75,12 @@
   },
   "actions": {
     "toggle_section": "展开/收起 {{section}} 分区",
-    "toggle_sidebar": "展开/收起侧边栏"
+    "toggle_sidebar": "展开/收起侧边栏",
+    "skip_to_content": "跳到主要内容"
+  },
+  "mobile": {
+    "title": "侧边栏",
+    "description": "QManager 的主导航。"
   },
   "status": {
     "watchdog_acting": "处理中",

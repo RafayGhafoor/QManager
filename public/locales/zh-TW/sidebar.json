@@ -75,7 +75,12 @@
   },
   "actions": {
     "toggle_section": "展開/收合 {{section}} 分區",
-    "toggle_sidebar": "展開/收合側邊欄"
+    "toggle_sidebar": "展開/收合側邊欄",
+    "skip_to_content": "跳到主要內容"
+  },
+  "mobile": {
+    "title": "側邊欄",
+    "description": "QManager 的主導覽。"
   },
   "status": {
     "watchdog_acting": "處理中",

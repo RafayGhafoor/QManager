@@ -75,7 +75,12 @@
   },
   "actions": {
     "toggle_section": "Apri o chiudi la sezione {{section}}",
-    "toggle_sidebar": "Mostra o nascondi la barra laterale"
+    "toggle_sidebar": "Mostra o nascondi la barra laterale",
+    "skip_to_content": "Vai al contenuto principale"
+  },
+  "mobile": {
+    "title": "Barra laterale",
+    "description": "Navigazione principale di QManager."
   },
   "status": {
     "watchdog_acting": "in azione",

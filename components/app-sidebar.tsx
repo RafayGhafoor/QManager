@@ -237,7 +237,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   );
 
   return (
-    <Sidebar variant="inset" collapsible="icon" {...props}>
+    <Sidebar
+      variant="inset"
+      collapsible="icon"
+      mobileTitle={t("mobile.title")}
+      mobileDescription={t("mobile.description")}
+      {...props}
+    >
       <SidebarHeader>
         <AppSwitcher />
       </SidebarHeader>

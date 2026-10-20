@@ -75,7 +75,12 @@
   },
   "actions": {
     "toggle_section": "Toggle {{section}} section",
-    "toggle_sidebar": "Toggle sidebar"
+    "toggle_sidebar": "Toggle sidebar",
+    "skip_to_content": "Skip to main content"
+  },
+  "mobile": {
+    "title": "Sidebar",
+    "description": "Main navigation for QManager."
   },
   "status": {
     "watchdog_acting": "acting",

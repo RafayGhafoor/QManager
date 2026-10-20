@@ -75,7 +75,12 @@
   },
   "actions": {
     "toggle_section": "Buka atau tutup bagian {{section}}",
-    "toggle_sidebar": "Buka atau tutup bilah sisi"
+    "toggle_sidebar": "Buka atau tutup bilah sisi",
+    "skip_to_content": "Lompat ke konten utama"
+  },
+  "mobile": {
+    "title": "Bilah sisi",
+    "description": "Navigasi utama QManager."
   },
   "status": {
     "watchdog_acting": "bertindak",
