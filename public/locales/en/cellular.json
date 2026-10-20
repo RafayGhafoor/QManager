@@ -1138,7 +1138,9 @@
         "rail_unrestricted": "All bands",
         "rail_unknown": "Not reported",
         "rail_unavailable": "Unknown",
-        "rail_aria": "{{category}}: {{ratio}} ({{status}})"
+        "rail_aria": "{{category}}: {{ratio}} ({{status}})",
+        "rail_show_more": "Show {{categories}}",
+        "rail_show_less": "Show less"
       }
     },
     "tower_locking": {
