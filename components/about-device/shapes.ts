@@ -46,9 +46,6 @@ export const PAGE_HEAD = {
 /** The lucide glyph inside an action pill. */
 export const PILL_GLYPH = "size-4";
 
-/** The one spin class, so a refreshing pill has a single spelling to reach. */
-export const SPIN = "motion-safe:animate-spin";
-
 /**
  * The peer-card grid. `items-stretch` plus the two height locks are what let
  * one card absorb its row-mate's slack — and they are why `CARD_BODY` and
@@ -110,6 +107,7 @@ export const DISC_TONE = {
   neutral: "bg-surface-container-high text-on-surface-variant",
   success: "bg-success text-success-foreground",
   warning: "bg-warning text-warning-foreground",
+  destructive: "bg-destructive text-destructive-foreground",
 } as const;
 
 export type DiscTone = keyof typeof DISC_TONE;

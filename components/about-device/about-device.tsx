@@ -6,10 +6,9 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 import DonateDialog from "@/components/donate-dialog";
-import { Button } from "@/components/ui/button";
+import { RevealLabelButton } from "@/components/ui/reveal-label-button";
 import { useAboutDevice } from "@/hooks/use-about-device";
 import { staggerContainer, staggerItem } from "@/lib/motion";
-import { cn } from "@/lib/utils";
 
 import AddressesCard from "./addresses-card";
 import CreditsDialog from "./credits-dialog";
@@ -17,13 +16,7 @@ import IdentityBand from "./identity-band";
 import ModemCard from "./modem-card";
 import QManagerBand from "./qmanager-band";
 import { aboutView } from "./derive";
-import {
-  CARD_GRID,
-  PAGE_HEAD,
-  PAGE_ROOT,
-  PILL_GLYPH,
-  SPIN,
-} from "./shapes";
+import { CARD_GRID, PAGE_HEAD, PAGE_ROOT } from "./shapes";
 
 const K = "aboutDevice";
 
@@ -53,19 +46,13 @@ const AboutDeviceComponent = () => {
           <p className={PAGE_HEAD.DESC}>{t(`${K}.page.description`)}</p>
         </div>
         <div className={PAGE_HEAD.ACTIONS}>
-          <Button
-            type="button"
-            variant="outline"
-            size="action"
+          <RevealLabelButton
+            icon={RefreshCwIcon}
+            label={busy ? t(`${K}.actions.refreshing`) : t(`${K}.actions.refresh`)}
             onClick={refresh}
             disabled={busy}
-          >
-            <RefreshCwIcon
-              className={cn(PILL_GLYPH, busy && SPIN)}
-              aria-hidden="true"
-            />
-            {busy ? t(`${K}.actions.refreshing`) : t(`${K}.actions.refresh`)}
-          </Button>
+            spinning={busy}
+          />
         </div>
       </motion.header>
 
