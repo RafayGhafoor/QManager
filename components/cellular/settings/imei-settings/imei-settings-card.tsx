@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -30,13 +29,18 @@ import { FieldError } from "@/components/ui/field";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { copyText } from "@/lib/clipboard";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { validateImei } from "@/lib/imei-utils";
 import { staggerRowItem } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 import { ApplyFootSkeleton } from "../apply-foot";
 import SettingRow from "../setting-row";
+import ResetButton from "./reset-button";
 import {
   BADGE_GLYPH_SIZE,
   CARD_PAD,
@@ -46,9 +50,6 @@ import {
   FIELD_COUNTER,
   FIELD_SHELL,
   INLINE_ERROR,
-  READOUT_ICON_ACTION,
-  READOUT_ICON_GLYPH,
-  READOUT_ROW,
   ROW_GROUP,
   SETTING_ROW,
 } from "../shapes";
@@ -56,11 +57,10 @@ import {
 // =============================================================================
 // Device IMEI — the write surface
 // =============================================================================
-// Two rows: what the modem reports now, and what it will report after the next
-// boot. The split is the whole point — an IMEI write lands in NVM immediately
-// and in the network's view of the device only after a restart, and the previous
-// single-field form collapsed those two facts into one input that was sometimes
-// a readout and sometimes a draft.
+// One row: the draft, seeded from what the modem reports now. An IMEI write
+// lands in NVM immediately and in the network's view of the device only after a
+// restart, so a leading check badge marks the draft as already matching the
+// modem, and the footer says what a write will do.
 //
 // -----------------------------------------------------------------------------
 // THE LUHN GATE
@@ -130,6 +130,7 @@ const IMEISettingsCard = ({
   const isComplete = /^\d{15}$/.test(imei);
   const isLuhnValid = validateImei(imei);
   const hasChanged = imei !== reported;
+  const matchesModem = hasReading && !hasChanged;
 
   // Shape first, then checksum: naming "not 15 digits" while the number is still
   // being typed would be noise, so the length message waits for a full field.
@@ -147,15 +148,6 @@ const IMEISettingsCard = ({
 
   const handleReset = () => {
     setImei(reported);
-  };
-
-  const handleCopy = async () => {
-    if (!hasReading) return;
-    if (await copyText(reported)) {
-      toast.success(t(`${K}.toasts.copied`));
-    } else {
-      toast.error(t(`${K}.toasts.copy_failed`));
-    }
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -201,8 +193,6 @@ const IMEISettingsCard = ({
   const skeleton = (
     <div className={ROW_GROUP.ROOT}>
       <Skeleton className={cn(SETTING_ROW.HEIGHT, "rounded-field")} />
-      <div className={ROW_GROUP.DIVIDER} />
-      <Skeleton className={cn(SETTING_ROW.HEIGHT, "rounded-field")} />
     </div>
   );
 
@@ -210,53 +200,30 @@ const IMEISettingsCard = ({
     <form id={formId} className="flex flex-col gap-4" onSubmit={handleSubmit}>
       <div className={ROW_GROUP.ROOT}>
         <SettingRow
-          label={t(`${K}.rows.current.label`)}
-          consequence={t(`${K}.rows.current.consequence`)}
-          control={
-            hasReading ? (
-              <span
-                className={cn(
-                  READOUT_ROW.ROOT,
-                  // One tone step up: this pill sits INSIDE the group's own
-                  // `surface-container` fill, so it needs the next step to
-                  // read as a distinct object rather than as flat text.
-                  "gap-2 bg-surface-container-high",
-                )}
-              >
-                <span className={READOUT_ROW.VALUE_MONO}>{reported}</span>
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  aria-label={t(`${K}.actions.copy`)}
-                  className={READOUT_ICON_ACTION}
-                >
-                  <MaterialSymbol
-                    name="content_copy"
-                    size={READOUT_ICON_GLYPH}
-                  />
-                </button>
-              </span>
-            ) : (
-              // Honest empty state. `muted`, not `destructive`: the poller
-              // simply has not published an IMEI yet, which is a wait, not a
-              // fault.
-              <Badge variant="muted">
-                <MaterialSymbol name="help" size={BADGE_GLYPH_SIZE} />
-                {t(`${K}.rows.current.unavailable`)}
-              </Badge>
-            )
-          }
-        />
-
-        <div className={ROW_GROUP.DIVIDER} />
-
-        <SettingRow
           label={t(`${K}.rows.write.label`)}
           consequence={t(`${K}.rows.write.consequence`)}
           dirty={writeDirty}
           labelId="imei-write-label"
           control={
             <div className={FIELD_CLUSTER}>
+              {/* Only while the draft IS the modem's IMEI. The tooltip
+                  carries the sentence the footer used to. */}
+              {matchesModem ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant="success"
+                      role="img"
+                      tabIndex={0}
+                      aria-label={t(`${K}.status.unchanged`)}
+                      className="size-7 flex-none p-0"
+                    >
+                      <MaterialSymbol name="check" size={BADGE_GLYPH_SIZE} />
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>{t(`${K}.status.unchanged`)}</TooltipContent>
+                </Tooltip>
+              ) : null}
               <Input
                 host="container"
                 id="imei-write-input"
@@ -336,38 +303,34 @@ const IMEISettingsCard = ({
           // The status span is its own live region; one announcement per change.
           liveStatus={false}
           status={
-            // Hidden while a field error owns the message, so two sentences never contradict.
-            !shapeError && !luhnError ? (
-              <span id="imei-write-status" aria-live="polite">
-                {isEmpty
-                  ? t(`${K}.status.empty`)
-                  : !hasChanged
-                    ? t(`${K}.status.unchanged`)
-                    : t(`${K}.status.ready`)}
-              </span>
-            ) : null
-          }
-          actions={
             <>
-              <Button
-                type="button"
-                variant="ghost"
+              <ResetButton
+                label={t(`${K}.actions.reset`)}
                 onClick={handleReset}
                 disabled={isSaving || !hasChanged}
-                size="action" className="gap-0"
-              >
-                {t(`${K}.actions.reset`)}
-              </Button>
-              <SaveButton
-                type="submit"
-                form={formId}
-                isSaving={isSaving}
-                saved={saved}
-                label={t(`${K}.actions.write`)}
-                disabled={!canWrite}
-                size="action"
               />
+              {/* Hidden while a field error owns the message, so two sentences never contradict. */}
+              {!shapeError && !luhnError ? (
+                <span id="imei-write-status" aria-live="polite">
+                  {isEmpty
+                    ? t(`${K}.status.empty`)
+                    : hasChanged
+                      ? t(`${K}.status.ready`)
+                      : null}
+                </span>
+              ) : null}
             </>
+          }
+          actions={
+            <SaveButton
+              type="submit"
+              form={formId}
+              isSaving={isSaving}
+              saved={saved}
+              label={t(`${K}.actions.write`)}
+              disabled={!canWrite}
+              size="action"
+            />
           }
         />
       )}

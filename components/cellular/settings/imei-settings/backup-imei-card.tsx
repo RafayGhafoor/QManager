@@ -16,7 +16,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -24,7 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CARD_FOOT, CARD_FOOT_ACTIONS } from "@/components/ui/card-foot";
+import { CardFoot } from "@/components/ui/card-foot";
 import { FieldError } from "@/components/ui/field";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
@@ -37,6 +36,7 @@ import type { BackupImeiConfig } from "@/types/imei-settings";
 
 import { ApplyFootSkeleton } from "../apply-foot";
 import SettingRow from "../setting-row";
+import ResetButton from "./reset-button";
 import {
   CARD_PAD,
   CARD_SHELL,
@@ -291,21 +291,21 @@ const BackupIMEICard = ({
         </AnimatePresence>
       </CardContent>
 
-      {/* No status, so the constants directly; `form=` keeps Enter-to-submit. */}
+      {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
       {isLoading ? (
         <ApplyFootSkeleton />
       ) : (
-        <div className={cn(CARD_PAD, CARD_FOOT)}>
-          <div className={CARD_FOOT_ACTIONS}>
-            <Button
-              type="button"
-              variant="ghost"
+        <CardFoot
+          className={CARD_PAD}
+          liveStatus={false}
+          status={
+            <ResetButton
+              label={t(`${K}.actions.reset`)}
               onClick={handleReset}
               disabled={isSaving || !hasChanged}
-              size="action" className="gap-0"
-            >
-              {t(`${K}.actions.reset`)}
-            </Button>
+            />
+          }
+          actions={
             <SaveButton
               type="submit"
               form={formId}
@@ -315,8 +315,8 @@ const BackupIMEICard = ({
               disabled={!canSave}
               size="action"
             />
-          </div>
-        </div>
+          }
+        />
       )}
 
       <AlertDialog open={explainOpen} onOpenChange={setExplainOpen}>

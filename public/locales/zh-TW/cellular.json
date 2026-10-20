@@ -2263,11 +2263,6 @@
         "title": "裝置 IMEI",
         "description": "數據機目前回報的值，以及下次開機後將回報的值。",
         "rows": {
-          "current": {
-            "label": "目前",
-            "consequence": "直接從數據機讀取，而非來自本機儲存。",
-            "unavailable": "尚未回報"
-          },
           "write": {
             "label": "寫入新 IMEI",
             "consequence": "15 位數字。僅在重新啟動後生效。",
@@ -2285,14 +2280,11 @@
         },
         "actions": {
           "write": "寫入 IMEI",
-          "reset": "還原為數據機上的 IMEI",
-          "copy": "複製目前 IMEI"
+          "reset": "重置"
         },
         "toasts": {
           "saved": "IMEI 已寫入，將在下次重新啟動後生效。",
-          "failed": "數據機未接受該 IMEI。",
-          "copied": "IMEI 已複製。",
-          "copy_failed": "無法複製 IMEI。"
+          "failed": "數據機未接受該 IMEI。"
         }
       },
       "backup": {
@@ -2316,7 +2308,7 @@
         },
         "actions": {
           "save": "儲存備用設定",
-          "reset": "還原為已儲存的備用設定"
+          "reset": "重置"
         },
         "toasts": {
           "saved": "備用設定已儲存。",

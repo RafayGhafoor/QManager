@@ -2263,11 +2263,6 @@
         "title": "IMEI Perangkat",
         "description": "Yang dilaporkan modem sekarang, dan yang akan dilaporkan setelah boot berikutnya.",
         "rows": {
-          "current": {
-            "label": "Saat ini",
-            "consequence": "Dibaca dari modem, bukan dari penyimpanan.",
-            "unavailable": "Belum dilaporkan"
-          },
           "write": {
             "label": "Tulis IMEI baru",
             "consequence": "15 digit. Baru berlaku setelah mulai ulang.",
@@ -2285,14 +2280,11 @@
         },
         "actions": {
           "write": "Tulis IMEI",
-          "reset": "Kembalikan ke IMEI pada modem",
-          "copy": "Salin IMEI saat ini"
+          "reset": "Atur Ulang"
         },
         "toasts": {
           "saved": "IMEI ditulis. Berlaku pada mulai ulang berikutnya.",
-          "failed": "Modem tidak menerima IMEI tersebut.",
-          "copied": "IMEI disalin.",
-          "copy_failed": "Tidak dapat menyalin IMEI."
+          "failed": "Modem tidak menerima IMEI tersebut."
         }
       },
       "backup": {
@@ -2316,7 +2308,7 @@
         },
         "actions": {
           "save": "Simpan cadangan",
-          "reset": "Kembalikan ke cadangan tersimpan"
+          "reset": "Atur Ulang"
         },
         "toasts": {
           "saved": "Pengaturan cadangan disimpan.",

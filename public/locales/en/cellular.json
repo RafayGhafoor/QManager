@@ -2263,11 +2263,6 @@
         "title": "Device IMEI",
         "description": "What the modem reports now, and what it will report after the next boot.",
         "rows": {
-          "current": {
-            "label": "Current",
-            "consequence": "Read from the modem, not from storage.",
-            "unavailable": "Not reported yet"
-          },
           "write": {
             "label": "Write new IMEI",
             "consequence": "15 digits. Takes effect only after a reboot.",
@@ -2285,14 +2280,11 @@
         },
         "actions": {
           "write": "Write IMEI",
-          "reset": "Reset to the IMEI on the modem",
-          "copy": "Copy the current IMEI"
+          "reset": "Reset"
         },
         "toasts": {
           "saved": "IMEI written. It applies at the next reboot.",
-          "failed": "The modem did not accept that IMEI.",
-          "copied": "IMEI copied.",
-          "copy_failed": "Could not copy the IMEI."
+          "failed": "The modem did not accept that IMEI."
         }
       },
       "backup": {
@@ -2316,7 +2308,7 @@
         },
         "actions": {
           "save": "Save backup",
-          "reset": "Reset to the saved backup"
+          "reset": "Reset"
         },
         "toasts": {
           "saved": "Backup settings saved.",

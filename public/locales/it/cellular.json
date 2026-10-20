@@ -2263,11 +2263,6 @@
         "title": "IMEI del dispositivo",
         "description": "Ciò che il modem riporta ora e ciò che riporterà dopo il prossimo avvio.",
         "rows": {
-          "current": {
-            "label": "Attuale",
-            "consequence": "Letto dal modem, non dall'archivio locale.",
-            "unavailable": "Non ancora riportato"
-          },
           "write": {
             "label": "Scrivi nuovo IMEI",
             "consequence": "15 cifre. Ha effetto solo dopo un riavvio.",
@@ -2285,14 +2280,11 @@
         },
         "actions": {
           "write": "Scrivi IMEI",
-          "reset": "Ripristina l'IMEI presente sul modem",
-          "copy": "Copia l'IMEI attuale"
+          "reset": "Ripristina"
         },
         "toasts": {
           "saved": "IMEI scritto. Si applica al prossimo riavvio.",
-          "failed": "Il modem non ha accettato quell'IMEI.",
-          "copied": "IMEI copiato.",
-          "copy_failed": "Impossibile copiare l'IMEI."
+          "failed": "Il modem non ha accettato quell'IMEI."
         }
       },
       "backup": {
@@ -2316,7 +2308,7 @@
         },
         "actions": {
           "save": "Salva riserva",
-          "reset": "Ripristina la riserva salvata"
+          "reset": "Ripristina"
         },
         "toasts": {
           "saved": "Impostazioni di riserva salvate.",

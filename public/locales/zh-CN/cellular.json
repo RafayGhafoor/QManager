@@ -2263,11 +2263,6 @@
         "title": "设备 IMEI",
         "description": "调制解调器当前上报的值，以及下次启动后将上报的值。",
         "rows": {
-          "current": {
-            "label": "当前",
-            "consequence": "直接从调制解调器读取，而非来自本地存储。",
-            "unavailable": "尚未上报"
-          },
           "write": {
             "label": "写入新 IMEI",
             "consequence": "15 位数字。仅在重启后生效。",
@@ -2285,14 +2280,11 @@
         },
         "actions": {
           "write": "写入 IMEI",
-          "reset": "恢复为调制解调器上的 IMEI",
-          "copy": "复制当前 IMEI"
+          "reset": "重置"
         },
         "toasts": {
           "saved": "IMEI 已写入，将在下次重启后生效。",
-          "failed": "调制解调器未接受该 IMEI。",
-          "copied": "IMEI 已复制。",
-          "copy_failed": "无法复制 IMEI。"
+          "failed": "调制解调器未接受该 IMEI。"
         }
       },
       "backup": {
@@ -2316,7 +2308,7 @@
         },
         "actions": {
           "save": "保存备用设置",
-          "reset": "恢复为已保存的备用设置"
+          "reset": "重置"
         },
         "toasts": {
           "saved": "备用设置已保存。",
