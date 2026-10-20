@@ -18,7 +18,7 @@
 #
 # Separately, the GET response still surfaces the modem's raw context table
 # (CIDs 1-6) under `cids`, with IMS/SOS contexts TAGGED (not dropped) via
-# apn_type_of(), so the UI can show what each hardware context currently holds.
+# qm_apn_class(), so the UI can show what each hardware context currently holds.
 #
 # "Active CID" (the live data-bearing context) comes from data_cid.sh: the
 # CGPADDR addresses of one compound query confirmed against the kernel's
