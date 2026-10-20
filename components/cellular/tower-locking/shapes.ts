@@ -64,7 +64,13 @@ export const CARRIER_TILE = {
   RSRP: "flex-none text-[13px]/5 font-semibold tabular-nums",
   /** 32px disc, 44px hit area via the overlay. */
   ACTION:
-    "relative ml-auto grid size-8 flex-none place-items-center rounded-pill bg-surface-container-high text-on-surface-variant transition-colors duration-[var(--duration-quick)] ease-out before:absolute before:-inset-1.5 before:content-[''] hover:bg-primary-container hover:text-on-primary-container focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-[3px] focus-visible:outline-none aria-disabled:cursor-not-allowed aria-disabled:hover:bg-surface-container-high aria-disabled:hover:text-on-surface-variant",
+    "relative ml-auto grid size-8 flex-none place-items-center rounded-pill transition-colors duration-[var(--duration-quick)] ease-out before:absolute before:-inset-1.5 before:content-[''] focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-[3px] focus-visible:outline-none aria-disabled:cursor-not-allowed",
+  /** An action that is available: neutral until hovered. */
+  ACTION_IDLE:
+    "bg-surface-container-high text-on-surface-variant hover:bg-primary-container hover:text-on-primary-container aria-disabled:hover:bg-surface-container-high aria-disabled:hover:text-on-surface-variant",
+  /** The tile's own lock: click removes it. */
+  ACTION_ON:
+    "bg-primary-container text-on-primary-container hover:bg-primary-container/80",
   /** The tile that is a current lock target. */
   MATCH: "shadow-[inset_0_0_0_2px_var(--primary)]",
 } as const;

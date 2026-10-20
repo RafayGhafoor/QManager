@@ -206,8 +206,6 @@ export interface NrSaTowerCardProps {
   servingNr: { arfcn: number | null; pci: number | null; scs: number | null };
   isLoading: boolean;
   isLocking: boolean;
-  /** A cell picked from a carrier tile; the nonce lets the same cell re-apply. */
-  prefill: { cell: NrSaLockCell; nonce: number } | null;
   isSavingSettings: boolean;
   /** Keep this radio's lock after a reboot (modem-wide write, one radio). */
   onSetPersist: (on: boolean) => Promise<void>;
@@ -224,7 +222,6 @@ export default function NrSaTowerCard({
   isLoading,
   isLocking,
   isSavingSettings,
-  prefill,
   onLock,
   onUnlock,
   onSetPersist,
@@ -260,18 +257,6 @@ export default function NrSaTowerCard({
       if (nrSa.band !== null) setBand(String(nrSa.band));
       if (nrSa.scs !== null) setScs(String(nrSa.scs));
     }
-  }
-
-  // A tile pick overwrites every field and records where the SCS came from.
-  const [prevNonce, setPrevNonce] = useState<number | null>(null);
-  if (prefill && prefill.nonce !== prevNonce) {
-    setPrevNonce(prefill.nonce);
-    setArfcn(String(prefill.cell.arfcn));
-    setPci(String(prefill.cell.pci));
-    setBand(String(prefill.cell.band));
-    const resolved = resolveScs(prefill.cell, servingNr);
-    setScs(resolved.scs);
-    setScsSource(resolved.source);
   }
 
   // --- Pick mode --------------------------------------------------------------

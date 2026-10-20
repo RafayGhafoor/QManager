@@ -29,7 +29,6 @@ import {
   CAMPED_ABSENT,
   CARRIER_GRID,
   CARRIER_TILE,
-  LEG_KEYS,
   SKELETON_SHAPE,
   STRIP_PANEL,
   type TowerLeg,
@@ -38,9 +37,9 @@ import {
 // =============================================================================
 // TowerLiveStrip — every carrier the radio is camped on
 // =============================================================================
-// The carriers on air as tiles, each with a "use this cell" action that fills
-// the leg card below. A tile that is a current lock target wears an inset ring
-// and a lock; that ring is the only "on target" signal.
+// The carriers on air as tiles. Each tile's button acts at once: lock this cell,
+// add it to the LTE lock, or (on a tile that is a lock target) remove it. A
+// tile that is a current lock target wears an inset ring and a filled lock.
 // =============================================================================
 
 const K = "cell_locking.tower_locking";
@@ -51,12 +50,47 @@ export interface CanTarget {
   reason: string | null;
 }
 
+/**
+ * What a tile's button does. `lock`: nothing locked on that radio yet. `add`:
+ * LTE already holds a lock, this joins it. `replace`: NR holds one cell, this
+ * one takes its place. `unlock`: this tile is the lock; click removes it.
+ */
+export type TileAction = "lock" | "add" | "replace" | "unlock";
+
 export interface TowerLiveStripProps {
   modemState: TowerModemState | null;
   carrierComponents: CarrierComponent[];
   canTarget: Record<TowerLeg, CanTarget>;
+  /** A lock write is in flight on that radio. */
+  busy: Record<TowerLeg, boolean>;
   isLoading: boolean;
-  onPickCarrier: (carrier: CarrierComponent) => void;
+  onActCarrier: (carrier: CarrierComponent, action: TileAction) => void;
+}
+
+const ACTION_GLYPH = {
+  lock: "lock_open",
+  add: "add",
+  replace: "lock_open",
+  unlock: "lock",
+} as const;
+
+const ACTION_LABEL: Record<TileAction, string> = {
+  lock: `${K}.live.tile_lock`,
+  add: `${K}.live.tile_add`,
+  replace: `${K}.live.tile_replace`,
+  unlock: `${K}.live.tile_unlock`,
+};
+
+function actionFor(
+  c: CarrierComponent,
+  modemState: TowerModemState | null,
+  isTarget: boolean,
+): TileAction {
+  if (isTarget) return "unlock";
+  if (c.technology === "LTE") {
+    return modemState?.lte_locked ? "add" : "lock";
+  }
+  return modemState?.nr_locked ? "replace" : "lock";
 }
 
 /** The word that backs the ramp ink and the bar for assistive tech. */
@@ -102,8 +136,9 @@ export function TowerLiveStrip({
   modemState,
   carrierComponents,
   canTarget,
+  busy,
   isLoading,
-  onPickCarrier,
+  onActCarrier,
 }: TowerLiveStripProps) {
   const { t } = useTranslation("cellular");
 
@@ -151,10 +186,13 @@ export function TowerLiveStrip({
                 tone === null
                   ? null
                   : signalToProgress(c.rsrp, RSRP_THRESHOLDS);
-              const useLabel = t(`${K}.live.tile_use_a11y`, {
+              const action = actionFor(c, modemState, locked);
+              // An unlock is always allowed; a blocked leg only stops a lock.
+              const usable = !busy[leg] && (locked || gate.ok);
+              const blockedReason = busy[leg] ? null : gate.reason;
+              const actionLabel = t(ACTION_LABEL[action], {
                 band: c.band,
                 pci: c.pci,
-                leg: t(LEG_KEYS[leg].short),
               });
 
               return (
@@ -176,51 +214,49 @@ export function TowerLiveStrip({
                     </Tag>
                     <span className={CARRIER_TILE.BAND}>{c.band}</span>
 
-                    {locked ? (
-                      <>
-                        <span
-                          aria-hidden="true"
-                          className="bg-primary-container text-on-primary-container ml-auto grid size-8 flex-none place-items-center rounded-pill"
-                        >
-                          <MaterialSymbol name="lock" size={16} filled />
-                        </span>
-                        <span className="sr-only">
-                          {t(`${K}.live.tile_locked_a11y`, {
-                            band: c.band,
-                            pci: c.pci,
-                          })}
-                        </span>
-                      </>
-                    ) : addressable ? (
+                    {addressable ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
                             type="button"
-                            aria-disabled={!gate.ok || undefined}
+                            aria-disabled={!usable || undefined}
                             onClick={
-                              gate.ok ? () => onPickCarrier(c) : undefined
+                              usable ? () => onActCarrier(c, action) : undefined
                             }
-                            className={CARRIER_TILE.ACTION}
+                            className={`${CARRIER_TILE.ACTION} ${
+                              action === "unlock"
+                                ? CARRIER_TILE.ACTION_ON
+                                : CARRIER_TILE.ACTION_IDLE
+                            }`}
                             aria-label={
-                              gate.ok || !gate.reason
-                                ? useLabel
-                                : `${useLabel} (${gate.reason})`
+                              usable || !blockedReason
+                                ? actionLabel
+                                : `${actionLabel} (${blockedReason})`
                             }
                           >
                             {/* The glyph, not a dimmed button, separates
-                                "pick this" from "you cannot". */}
-                            <MaterialSymbol
-                              name={gate.ok ? "add" : "do_not_disturb_on"}
-                              size={18}
-                            />
+                                "you can" from "you cannot". */}
+                            {busy[leg] ? (
+                              <MaterialSymbol
+                                name="progress_activity"
+                                size={18}
+                                className="motion-safe:animate-spin"
+                              />
+                            ) : (
+                              <MaterialSymbol
+                                name={
+                                  gate.ok || locked
+                                    ? ACTION_GLYPH[action]
+                                    : "do_not_disturb_on"
+                                }
+                                size={18}
+                                filled={action === "unlock"}
+                              />
+                            )}
                           </button>
                         </TooltipTrigger>
                         <TooltipContent className="max-w-64 text-pretty">
-                          <p>
-                            {gate.ok
-                              ? t(`${K}.live.tile_use`)
-                              : gate.reason}
-                          </p>
+                          <p>{usable || !blockedReason ? actionLabel : blockedReason}</p>
                         </TooltipContent>
                       </Tooltip>
                     ) : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -150,13 +150,9 @@ export interface LteTowerCardProps {
   carriers: CarrierComponent[];
   isLoading: boolean;
   isLocking: boolean;
-  /** A cell picked from a carrier tile; the nonce lets the same cell re-apply. */
-  prefill: { cell: LteLockCell; nonce: number } | null;
   isSavingSettings: boolean;
   /** Keep this radio's lock after a reboot (modem-wide write, one radio). */
   onSetPersist: (on: boolean) => Promise<void>;
-  /** Free slots, reported up so the tiles can say when the card is full. */
-  onFreeSlotsChange?: (free: number) => void;
   onLock: (cells: LteLockCell[]) => Promise<TowerActionResult>;
   onUnlock: () => Promise<TowerActionResult>;
 }
@@ -168,11 +164,9 @@ export default function LteTowerCard({
   isLoading,
   isLocking,
   isSavingSettings,
-  prefill,
   onLock,
   onUnlock,
   onSetPersist,
-  onFreeSlotsChange,
 }: LteTowerCardProps): React.JSX.Element {
   const { t } = useTranslation("cellular");
   const { saved, markSaved } = useSaveFlash();
@@ -187,42 +181,16 @@ export default function LteTowerCard({
   const [pendingCells, setPendingCells] = useState<LteLockCell[]>([]);
   const [writeError, setWriteError] = useState<string | null>(null);
 
-  // --- Seed from config and apply prefills, during render -----------------
-  // Re-seed when the saved cells change (a re-read after a write); apply a
-  // tile pick into the first blank slot. Both fold into one commit.
+  // --- Seed from config, during render ------------------------------------
+  // Re-seed when the saved cells change (a re-read after a write).
   const [prevCells, setPrevCells] = useState(config?.lte?.cells);
-  const [prevNonce, setPrevNonce] = useState<number | null>(null);
-
   const configCells = config?.lte?.cells;
-  let base = slots;
-  let nextSlots: SlotValue[] | null = null;
-
+  let activeSlots = slots;
   if (configCells !== prevCells) {
     setPrevCells(configCells);
-    base = slotsFromCells(configCells);
-    nextSlots = base;
+    activeSlots = slotsFromCells(configCells);
+    setSlots(activeSlots);
   }
-
-  if (prefill && prefill.nonce !== prevNonce) {
-    setPrevNonce(prefill.nonce);
-    const target = base.findIndex(isSlotBlank);
-    if (target !== -1) {
-      const applied = [...base];
-      applied[target] = {
-        earfcn: String(prefill.cell.earfcn),
-        pci: String(prefill.cell.pci),
-      };
-      nextSlots = applied;
-    }
-  }
-
-  if (nextSlots) setSlots(nextSlots);
-  const activeSlots = nextSlots ?? slots;
-
-  const freeSlots = activeSlots.filter(isSlotBlank).length;
-  useEffect(() => {
-    onFreeSlotsChange?.(freeSlots);
-  }, [freeSlots, onFreeSlotsChange]);
 
   // --- Derived ----------------------------------------------------------------
   const carrierOptions = useMemo<SlotCarrier[]>(() => {

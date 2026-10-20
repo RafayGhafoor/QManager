@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -14,16 +14,15 @@ import { useModemStatus } from "@/hooks/use-modem-status";
 import { useTowerLocking } from "@/hooks/use-tower-locking";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import type { CarrierComponent } from "@/types/modem-status";
-import type { LteLockCell, NrSaLockCell } from "@/types/tower-locking";
+import type { LteLockCell, TowerActionResult } from "@/types/tower-locking";
 
 import TowerAutomationTiles from "./automation-tiles";
-import TowerLiveStrip, { type CanTarget } from "./live-strip";
+import TowerLiveStrip, { type CanTarget, type TileAction } from "./live-strip";
 import LteTowerCard from "./lte-tower-card";
 import NrSaTowerCard from "./nr-sa-tower-card";
 import { writeTowerSettings } from "./settings-write";
 import { defaultScsForBand } from "./simple-mode-utils";
 import {
-  LEG_CARD_ID,
   LEG_KEYS,
   SECTION_HEAD,
   TOWER_HERO,
@@ -50,9 +49,10 @@ import {
 //   each leg card owns its toggle in the footer.
 // Do not re-merge 1 and 2: each section's header describes only its own body.
 //
-// The prefill bus: "use this cell" on a carrier tile reaches a form owned by a
-// sibling card through this component. The payload carries a NONCE so picking
-// the SAME cell twice still registers.
+// Tile actions: a carrier tile locks, adds to, or removes from the lock in one
+// click. LTE re-applies the whole cell set (the modem takes the list in one
+// command, so no unlock first); NR holds a single cell. The cell set comes from
+// the LIVE modem state, never from a leg card's unsaved draft.
 // =============================================================================
 
 const K = "cell_locking.tower_locking";
@@ -61,19 +61,6 @@ const TowerLockingComponent = () => {
   const { t } = useTranslation("cellular");
   const { data: modemData } = useModemStatus();
   const tower = useTowerLocking();
-
-  // --- Prefill bus ------------------------------------------------------------
-  const [ltePrefill, setLtePrefill] = useState<{
-    cell: LteLockCell;
-    nonce: number;
-  } | null>(null);
-  const [nrPrefill, setNrPrefill] = useState<{
-    cell: NrSaLockCell;
-    nonce: number;
-  } | null>(null);
-  const [nonce, setNonce] = useState(0);
-  /** Free LTE slots, reported up by the card because it owns the unsaved edits. */
-  const [lteFreeSlots, setLteFreeSlots] = useState(3);
 
   const networkType = modemData?.network?.type ?? "";
   const carriers = useMemo(
@@ -89,8 +76,12 @@ const TowerLockingComponent = () => {
     [carriers],
   );
 
-  // Which legs can take a target from a tile, and why not. The reason is shown
-  // on the control rather than the control being hidden.
+  // Which legs can take a lock from a tile, and why not. The reason is shown
+  // on the control rather than the control being hidden. Removing a lock is
+  // never gated (the strip lets an unlock through).
+  const lteHeld = tower.modemState?.lte_locked
+    ? (tower.modemState.lte_cells ?? [])
+    : [];
   const canTarget: Record<TowerLeg, CanTarget> = useMemo(() => {
     const nrReason =
       networkType === "5G-NSA"
@@ -100,56 +91,93 @@ const TowerLockingComponent = () => {
           : null;
     return {
       lte:
-        lteFreeSlots > 0
+        lteHeld.length < 3
           ? { ok: true, reason: null }
           : { ok: false, reason: t(`${K}.live.tile_blocked_slots_full`) },
       nr_sa: nrReason ? { ok: false, reason: nrReason } : { ok: true, reason: null },
     };
-  }, [networkType, lteFreeSlots, t]);
+  }, [networkType, lteHeld.length, t]);
 
-  // Route a picked carrier to the leg that can lock it. `carrier_components`
-  // has no SCS, so an NR pick sources it from the serving cell when the picked
-  // cell IS the serving cell, and from the band default otherwise (the card
-  // flags that as a guess).
-  const handlePickCarrier = useCallback(
-    (c: CarrierComponent) => {
-      if (c.earfcn === null || c.pci === null) return;
-      const next = nonce + 1;
-      setNonce(next);
+  const report = (
+    result: TowerActionResult,
+    success: string,
+    fallback: string,
+  ) => {
+    if (result.ok) toast.success(success);
+    else toast.error(result.error ?? fallback);
+  };
 
-      if (c.technology === "LTE") {
-        setLtePrefill({ cell: { earfcn: c.earfcn, pci: c.pci }, nonce: next });
-      } else {
-        const bandNumber = Number.parseInt(
-          String(c.band).replace(/[^0-9]/g, ""),
-          10,
+  // One click on a tile's button. The result is the toast.
+  const handleActCarrier = async (c: CarrierComponent, action: TileAction) => {
+    if (c.earfcn === null || c.pci === null) return;
+    const leg: TowerLeg = c.technology === "LTE" ? "lte" : "nr_sa";
+    const legName = t(LEG_KEYS[leg].short);
+
+    if (leg === "lte") {
+      const here: LteLockCell = { earfcn: c.earfcn, pci: c.pci };
+      const others = lteHeld.filter(
+        (cell) => !(cell.earfcn === here.earfcn && cell.pci === here.pci),
+      );
+      if (action === "unlock") {
+        // The last cell going means no lock at all, not a lock on nothing.
+        const result =
+          others.length === 0
+            ? await tower.unlockLte()
+            : await tower.lockLte(others);
+        report(
+          result,
+          others.length === 0
+            ? t(`${K}.toast.unlocked`, { leg: legName })
+            : t(`${K}.toast.cell_removed`, { leg: legName }),
+          t(`${K}.errors.unlock_failed`),
         );
-        const servingScs = modemData?.nr?.scs ?? null;
-        const isServing =
-          modemData?.nr?.arfcn === c.earfcn && modemData?.nr?.pci === c.pci;
-        const scs =
-          isServing && servingScs !== null
-            ? servingScs
-            : (defaultScsForBand(bandNumber) ?? 30);
-        setNrPrefill({
-          cell: {
-            pci: c.pci,
-            arfcn: c.earfcn,
-            scs,
-            band: Number.isNaN(bandNumber) ? 0 : bandNumber,
-          },
-          nonce: next,
-        });
+        return;
       }
+      const result = await tower.lockLte(
+        action === "add" ? [...others, here] : [here],
+      );
+      report(
+        result,
+        action === "add"
+          ? t(`${K}.toast.cell_added`, { leg: legName })
+          : t(`${K}.toast.locked`, { leg: legName }),
+        t(`${K}.errors.lock_failed`),
+      );
+      return;
+    }
 
-      // A pick is a draft edit (no toast); bring the form it filled into view.
-      const leg: TowerLeg = c.technology === "LTE" ? "lte" : "nr_sa";
-      document
-        .getElementById(LEG_CARD_ID[leg])
-        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    },
-    [nonce, modemData?.nr?.arfcn, modemData?.nr?.pci, modemData?.nr?.scs],
-  );
+    if (action === "unlock") {
+      report(
+        await tower.unlockNrSa(),
+        t(`${K}.toast.unlocked`, { leg: legName }),
+        t(`${K}.errors.unlock_failed`),
+      );
+      return;
+    }
+    // `carrier_components` has no SCS, so a pick on the serving cell takes the
+    // serving SCS and any other cell takes the band default.
+    const bandNumber = Number.parseInt(
+      String(c.band).replace(/[^0-9]/g, ""),
+      10,
+    );
+    const servingScs = modemData?.nr?.scs ?? null;
+    const isServing =
+      modemData?.nr?.arfcn === c.earfcn && modemData?.nr?.pci === c.pci;
+    const scs =
+      isServing && servingScs !== null
+        ? servingScs
+        : (defaultScsForBand(bandNumber) ?? 30);
+    report(
+      await tower.lockNrSa({
+        pci: c.pci,
+        arfcn: c.earfcn,
+        scs,
+        band: Number.isNaN(bandNumber) ? 0 : bandNumber,
+      }),
+      t(`${K}.toast.locked`, { leg: legName }),
+      t(`${K}.errors.lock_failed`),
+    );
+  };
 
   // Keep one radio's lock across a reboot. One CGI call, one radio: the other
   // radio's setting is left exactly as the modem holds it.
@@ -258,7 +286,8 @@ const TowerLockingComponent = () => {
               carrierComponents={carriers}
               canTarget={canTarget}
               isLoading={tower.isLoading}
-              onPickCarrier={handlePickCarrier}
+              busy={{ lte: tower.isLteLocking, nr_sa: tower.isNrLocking }}
+              onActCarrier={handleActCarrier}
             />
           </section>
         </motion.div>
@@ -307,8 +336,6 @@ const TowerLockingComponent = () => {
               isLocking={tower.isLteLocking}
               isSavingSettings={tower.isSavingSettings}
               onSetPersist={(on) => handleSetPersist("lte", on)}
-              prefill={ltePrefill}
-              onFreeSlotsChange={setLteFreeSlots}
               onLock={tower.lockLte}
               onUnlock={tower.unlockLte}
             />
@@ -332,7 +359,6 @@ const TowerLockingComponent = () => {
               isLocking={tower.isNrLocking}
               isSavingSettings={tower.isSavingSettings}
               onSetPersist={(on) => handleSetPersist("nr_sa", on)}
-              prefill={nrPrefill}
               onLock={tower.lockNrSa}
               onUnlock={tower.unlockNrSa}
             />
