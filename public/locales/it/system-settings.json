@@ -1,12 +1,24 @@
 {
   "page": {
     "title": "Impostazioni di sistema",
-    "description": "Come questo dispositivo tiene l'ora, chi può raggiungerlo e quali SIM ricorda.",
+    "description": "Come questo dispositivo tiene l'ora, quando si riavvia e quali SIM ricorda.",
     "refresh": "Aggiorna"
   },
+  "device_access": {
+    "page": {
+      "title": "Accesso al dispositivo",
+      "description": "La password e le porte usate per raggiungere questo modem."
+    }
+  },
+  "hardware": {
+    "page": {
+      "title": "Hardware",
+      "description": "Come il traffico Ethernet e un host collegato raggiungono l'hardware del modem."
+    }
+  },
   "diagnostics": {
-    "card_title": "Diagnostica",
-    "card_description": "Acquisisci un report di debug da condividere durante la risoluzione dei problemi.",
+    "card_title": "Report di debug",
+    "card_description": "Un'istantanea di questo modem da condividere durante la risoluzione dei problemi.",
     "body": "Genera un'istantanea in testo semplice dello stato attuale del modem (stato radio, configurazione di rete e log recenti) e la scarica sul tuo dispositivo. Nessun dato lascia il modem finché non scegli di condividere il file.",
     "button_capture": "Scarica report di debug",
     "button_capturing": "Acquisizione…",
@@ -16,14 +28,20 @@
   "ipa_offload": {
     "card_title": "Offload hardware",
     "card_description": "Instrada l'elaborazione dei pacchetti attraverso il percorso hardware IPA del modem.",
-    "enable_label": "Abilita offload hardware",
-    "cpu_warning": "L'offload hardware è attivo per impostazione predefinita ed elabora il traffico Ethernet in hardware dedicato. Se noti disconnessioni Ethernet casuali, disattivalo per instradare il traffico attraverso la CPU (una soluzione nota su alcuni firmware e operatori); la CPU gestisce le alte velocità senza problemi.",
-    "unavailable_hint": "Il firmware di questo modem non espone il percorso di offload hardware IPA, quindi questa impostazione non può essere modificata.",
+    "enable_label": "Offload hardware",
+    "cpu_warning": "Se noti disconnessioni Ethernet casuali, disattivalo per instradare il traffico attraverso la CPU.",
+    "unavailable_hint": "Il firmware di questo modem non ha un percorso di offload hardware da modificare.",
     "status_label": "Stato",
-    "pending_reboot_badge": "Attivo dopo il riavvio",
+    "pending_reboot_badge": "Riavvio in sospeso",
     "toast_enabled": "Offload hardware abilitato. Riavvia per applicare.",
     "toast_disabled": "Offload hardware disabilitato. Riavvia per applicare.",
-    "toast_failed": "Impossibile aggiornare l'offload hardware"
+    "toast_failed": "Impossibile aggiornare l'offload hardware.",
+    "status_on": "Attivo",
+    "status_off": "Disattivato",
+    "reboot_note": "Ha effetto dopo il riavvio.",
+    "unavailable_title": "Non disponibile su questo modem",
+    "error_title": "Impossibile leggere l'offload hardware",
+    "error_description": "L'impostazione non si è caricata. Riprova tra un attimo."
   },
   "host_at": {
     "card_title": "Porte AT host",
@@ -38,7 +56,10 @@
     "discard": "Annulla",
     "toast_on": "Porte AT host attivate.",
     "toast_off": "Porte AT host disattivate.",
-    "toast_failed": "Impossibile aggiornare le porte AT host."
+    "toast_failed": "Impossibile aggiornare le porte AT host.",
+    "unavailable_title": "Non disponibile su questo modem",
+    "error_title": "Impossibile leggere le porte AT host",
+    "error_description": "L'impostazione non si è caricata. Riprova tra un attimo."
   },
   "config_backup": {
     "page_title": "Backup della configurazione",
@@ -1295,6 +1316,8 @@
     "confirm_action": "Cambia porta",
     "toast_failed": "Impossibile cambiare la porta web.",
     "toast_unchanged": "Porta web salvata.",
-    "toast_unreachable": "La nuova porta non ha risposto, quindi QManager è rimasto su quella precedente."
+    "toast_unreachable": "La nuova porta non ha risposto, quindi QManager è rimasto su quella precedente.",
+    "error_title": "Impossibile leggere la porta web",
+    "error_description": "Le porte non si sono caricate. Riprova tra un attimo."
   }
 }
