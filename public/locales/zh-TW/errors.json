@@ -11,6 +11,7 @@
   "autosel_failed": "自動模式選擇失敗",
   "blocked": "此命令被阻止執行",
   "cannot_remove_bundled": "無法刪除預裝語言包",
+  "carrier_cid_protected": "該上下文由電信業者管理，請先在 CID 選擇器中確認變更。",
   "cgdcont_failed": "PDP 上下文設定失敗",
   "checksum_mismatch": "校驗和不匹配 — 下載可能已損壞",
   "chpasswd_failed": "密碼變更失敗",

@@ -2161,7 +2161,8 @@
           "apn": {
             "label": "APN *",
             "placeholder": "fast.t-mobile.com",
-            "error_required": "APN wajib diisi"
+            "error_required": "APN wajib diisi",
+            "error_invalid": "Gunakan hanya huruf, angka, titik, tanda hubung, dan garis bawah (maksimal 100 karakter)"
           },
           "pdp_type": {
             "label": "Tipe PDP",

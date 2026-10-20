@@ -11,6 +11,7 @@
   "autosel_failed": "La selezione della modalità automatica non è riuscita",
   "blocked": "Questo comando è bloccato dall'esecuzione diretta",
   "cannot_remove_bundled": "I pacchetti lingua in bundle non possono essere rimossi",
+  "carrier_cid_protected": "Questo contesto è gestito dall'operatore. Conferma prima la modifica nel selettore CID.",
   "cgdcont_failed": "Impossibile configurare il contesto PDP",
   "checksum_mismatch": "Il checksum del file non corrisponde: il download potrebbe essere danneggiato",
   "chpasswd_failed": "Impossibile modificare la password",
