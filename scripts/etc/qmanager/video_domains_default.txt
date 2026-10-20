@@ -1,3 +1,5 @@
+# Section names are mirrored in components/local-network/traffic-engine/video-services.ts: edit both together.
+
 # YouTube / Google Video
 googlevideo.com
 youtube.com
