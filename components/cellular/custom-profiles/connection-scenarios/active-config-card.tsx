@@ -29,7 +29,7 @@ import type { Scenario } from "./scenario-item";
 // (custom scenarios only) sit before it. When the active profile's schedule
 // owns scenario selection, Activate is withheld and the foot says why.
 //
-// The configuration body folds like an accordion (header chevron, open by
+// The configuration body folds like an accordion (header chevron, closed by
 // default) on the `0fr -> 1fr` grid-row morph; the foot never folds, so
 // Activate stays one click away. Rows are glance-surface metric pills; a value
 // still at its default (bands on Auto) renders quiet (Quiet-Default Rule).
@@ -80,7 +80,7 @@ export const ActiveConfigCard = ({
 }: ActiveConfigCardProps) => {
   const { t } = useTranslation("cellular");
   const K = "scenarios.active_config_card";
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const bodyId = useId();
 
   if (isLoading || !scenario) {
