@@ -1,16 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 import { HintIcon } from "@/components/ui/hint-icon";
 import { Input } from "@/components/ui/input";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
-import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { SegmentedField } from "@/components/ui/segmented-field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { staggerRowItem, staggerRows } from "@/lib/motion";
 import {
   rsrpToQualityPercent,
@@ -29,9 +33,13 @@ import {
   AUTO_TILE,
   FAILOVER_BADGE,
   FIELD_CONTROL,
+  METER_BARS,
   SKELETON_SHAPE,
   discTone,
   failoverKey,
+  meterBarColor,
+  meterBarHeight,
+  meterBarLit,
   lockPresence,
   type TowerFailoverKey,
 } from "./shapes";
@@ -48,6 +56,9 @@ import {
 // =============================================================================
 
 const K = "cell_locking.tower_locking";
+
+/** Quiet time after the last slider/keystroke before the threshold is saved. */
+const THRESHOLD_AUTOSAVE_MS = 1500;
 
 const FAILOVER_STATE_LABEL: Record<TowerFailoverKey, string> = {
   disabled: `${K}.automation.failover_state_disabled`,
@@ -90,7 +101,6 @@ export function TowerAutomationTiles({
   onScheduleChange,
 }: TowerAutomationTilesProps) {
   const { t } = useTranslation("cellular");
-  const { saved, markSaved } = useSaveFlash();
 
   // `null`, never a default: an unread threshold is an empty field.
   const savedThreshold = config ? config.failover.threshold : null;
@@ -102,13 +112,25 @@ export function TowerAutomationTiles({
     setThresholdInput(savedText);
   }
 
+  const [thresholdSaving, setThresholdSaving] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestRef = useRef({ config, onUpdateSettings, t });
+  useEffect(() => {
+    latestRef.current = { config, onUpdateSettings, t };
+  });
+  useEffect(
+    () => () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    },
+    [],
+  );
+
   const parsedThreshold = Number.parseInt(thresholdInput, 10);
   const thresholdValid =
     /^\d{1,3}$/.test(thresholdInput.trim()) &&
     parsedThreshold >= 0 &&
     parsedThreshold <= 100;
   const thresholdBlank = thresholdInput.trim() === "";
-  const thresholdDirty = thresholdInput !== savedText;
   const thresholdErrored = !thresholdBlank && !thresholdValid;
   const thresholdUnread = savedThreshold === null;
 
@@ -124,15 +146,35 @@ export function TowerAutomationTiles({
     );
   };
 
-  const handleThresholdSave = async () => {
-    if (!config || !thresholdValid) return;
-    const ok = await writeTowerSettings(
-      t,
-      onUpdateSettings,
-      { failover: { ...config.failover, threshold: parsedThreshold } },
-      t(`${K}.toast.threshold_saved`),
+  // Commits the draft once the user stops moving the slider or typing; Enter
+  // commits at once. Invalid or unchanged drafts never write.
+  const commitThreshold = async (text: string) => {
+    const { config: cfg, onUpdateSettings: update, t: tr } = latestRef.current;
+    const value = Number.parseInt(text, 10);
+    if (!cfg || !/^\d{1,3}$/.test(text.trim()) || value < 0 || value > 100) {
+      return;
+    }
+    if (value === cfg.failover.threshold) return;
+    setThresholdSaving(true);
+    try {
+      await writeTowerSettings(
+        tr,
+        update,
+        { failover: { ...cfg.failover, threshold: value } },
+        tr(`${K}.toast.threshold_saved`),
+      );
+    } finally {
+      setThresholdSaving(false);
+    }
+  };
+
+  const editThreshold = (text: string, immediate = false) => {
+    setThresholdInput(text);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(
+      () => void commitThreshold(text),
+      immediate ? 0 : THRESHOLD_AUTOSAVE_MS,
     );
-    if (ok) markSaved();
   };
 
   const presence = lockPresence(modemState);
@@ -145,6 +187,10 @@ export function TowerAutomationTiles({
 
   const qualityPct =
     activeRsrp === null ? null : rsrpToQualityPercent(activeRsrp);
+  const qualityLabel =
+    qualityPct === null
+      ? t(`${K}.automation.quality_unknown`)
+      : t(`${K}.automation.quality_value`, { value: qualityPct });
 
   if (isLoading) {
     return (
@@ -220,9 +266,9 @@ export function TowerAutomationTiles({
                 autoComplete="off"
                 host="container"
                 value={thresholdInput}
-                onChange={(e) => setThresholdInput(e.target.value)}
+                onChange={(e) => editThreshold(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") void handleThresholdSave();
+                  if (e.key === "Enter") editThreshold(thresholdInput, true);
                 }}
                 disabled={controlsDisabled}
                 aria-invalid={thresholdErrored || undefined}
@@ -249,24 +295,16 @@ export function TowerAutomationTiles({
               max={100}
               step={1}
               value={[thresholdValid ? parsedThreshold : 0]}
-              onValueChange={([v]) => setThresholdInput(String(v))}
+              onValueChange={([v]) => editThreshold(String(v))}
               disabled={controlsDisabled}
               className="min-w-32 flex-1"
             />
-            {thresholdDirty || saved ? (
-              <SaveButton
-                onClick={handleThresholdSave}
-                isSaving={isSavingSettings}
-                saved={saved}
-                label={t(`${K}.actions.update`)}
-                blockedReason={
-                  thresholdBlank
-                    ? t(`${K}.blocked.threshold_empty`)
-                    : thresholdValid
-                      ? null
-                      : t(`${K}.automation.threshold_invalid`)
-                }
-                size="action"
+            {thresholdSaving ? (
+              <MaterialSymbol
+                name="progress_activity"
+                size={16}
+                className="text-on-surface-variant motion-safe:animate-spin"
+                aria-hidden="true"
               />
             ) : null}
           </div>
@@ -288,28 +326,42 @@ export function TowerAutomationTiles({
           ) : null}
         </div>
 
-        {/* The threshold and the reading it gates, on one track. */}
-        <div className={`${AUTO_TILE.FOOT} flex flex-col gap-1.5`}>
-          <div className={AUTO_METER.ROOT}>
-            <div className={AUTO_METER.TRACK}>
+        {/* The live reading on the quality ramp; the notch is the threshold. */}
+        <div className={AUTO_TILE.FOOT}>
+          <Tooltip>
+            <TooltipTrigger asChild>
               <div
-                className={AUTO_METER.FILL}
-                style={{ transform: `scaleX(${(qualityPct ?? 0) / 100})` }}
-              />
-            </div>
-            {thresholdValid ? (
-              <span
-                aria-hidden="true"
-                className={AUTO_METER.MARK}
-                style={{ left: `${parsedThreshold}%` }}
-              />
-            ) : null}
-          </div>
-          <span className={AUTO_TILE.BODY}>
-            {qualityPct === null
-              ? t(`${K}.automation.quality_unknown`)
-              : t(`${K}.automation.quality_value`, { value: qualityPct })}
-          </span>
+                role="img"
+                tabIndex={0}
+                aria-label={qualityLabel}
+                className={`${AUTO_METER.ROOT} focus-visible:ring-ring rounded-field outline-none focus-visible:ring-[3px]`}
+              >
+                <div className={AUTO_METER.BARS} aria-hidden="true">
+                  {Array.from({ length: METER_BARS }, (_, i) => (
+                    <span
+                      key={i}
+                      className={AUTO_METER.BAR}
+                      style={{
+                        height: meterBarHeight(i),
+                        backgroundColor: meterBarColor(
+                          i,
+                          meterBarLit(i, qualityPct),
+                        ),
+                      }}
+                    />
+                  ))}
+                </div>
+                {thresholdValid ? (
+                  <span
+                    aria-hidden="true"
+                    className={AUTO_METER.NOTCH}
+                    style={{ left: `${parsedThreshold}%` }}
+                  />
+                ) : null}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>{qualityLabel}</TooltipContent>
+          </Tooltip>
         </div>
       </motion.div>
 

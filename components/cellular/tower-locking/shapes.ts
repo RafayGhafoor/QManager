@@ -179,13 +179,43 @@ export function discTone(variant: BadgeVariant): string {
   return DISC_TONE[variant] ?? AUTO_TILE.DISC_NEUTRAL;
 }
 
-/** Threshold mark over the live-quality track: the threshold and the reading it gates, on one rule. */
+/**
+ * Live-quality strip: rising columns, deliberately not a horizontal track, so
+ * it never reads as a second slider beside the threshold control. Each column
+ * is 5% of quality, shaded in the primary hue from faint to full, so the strip
+ * is also the scale: the lit columns are the reading, the neutral ones are the
+ * headroom, and a notch under the strip marks where failover releases.
+ */
+export const METER_BARS = 20;
 export const AUTO_METER = {
-  ROOT: "relative h-2 w-full",
-  TRACK: "h-full w-full overflow-hidden rounded-pill bg-surface-container-high",
-  FILL: "h-full origin-left rounded-pill bg-primary transition-transform duration-[var(--duration-standard)] ease-standard",
-  MARK: "absolute inset-y-[-0.25rem] w-0.5 -translate-x-1/2 rounded-pill bg-warning",
+  ROOT: "relative pb-2",
+  BARS: "flex h-6 w-full items-end gap-[3px]",
+  BAR: "min-w-0 flex-1 rounded-t-[3px] transition-colors duration-[var(--duration-standard)] ease-standard",
+  NOTCH:
+    "absolute bottom-0 size-2 -translate-x-1/2 bg-on-surface [clip-path:polygon(50%_0,0_100%,100%_100%)]",
 } as const;
+
+/** Height of column `index` (0-based): 25% at the first, 100% at the last. */
+export function meterBarHeight(index: number): string {
+  return `${25 + (75 * index) / (METER_BARS - 1)}%`;
+}
+
+/**
+ * Column colour: one hue (primary), shade by position. A lit column steps from
+ * a light tint at the weak end to full primary at the strong end; an unlit one
+ * is neutral, so the headroom never competes with the reading.
+ */
+export function meterBarColor(index: number, lit: boolean): string {
+  if (!lit) return "var(--surface-container-high)";
+  const strength = 30 + Math.round((70 * index) / (METER_BARS - 1));
+  return `color-mix(in oklab, var(--primary) ${strength}%, transparent)`;
+}
+
+/** A column is lit when the reading reaches at least half of its 5% band. */
+export function meterBarLit(index: number, qualityPct: number | null): boolean {
+  if (qualityPct === null) return false;
+  return qualityPct >= (index * 100) / METER_BARS + 100 / METER_BARS / 2;
+}
 
 export const DAY_CHIP = {
   ROW: "flex flex-wrap gap-2",
