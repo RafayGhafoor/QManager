@@ -1,7 +1,12 @@
 "use client";
 
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
-import { CheckCircle2Icon, MinusCircleIcon, type LucideIcon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  MinusCircleIcon,
+  PackageIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 type ServiceTone = "running" | "stopped";
@@ -28,7 +33,10 @@ export function ServiceStatusBadge({
 }) {
   const { t } = useTranslation("local-network");
   const tone: ServiceTone = status === "running" ? "running" : "stopped";
-  const Glyph = SERVICE_GLYPH[tone];
+  // Not installed is its own state, not a flavour of stopped: it takes its own
+  // glyph so the two muted chips differ by more than their words.
+  const Glyph =
+    tone === "stopped" && !installed ? PackageIcon : SERVICE_GLYPH[tone];
 
   return (
     <Badge variant={SERVICE_BADGE[tone]}>

@@ -389,8 +389,8 @@ export function AimConsole({
 
             {score.partial && score.value !== null && (
               <div className="flex min-w-0 flex-1 flex-col items-start pb-1">
-                <Badge variant="muted">
-                  <MaterialSymbol name="warning" size={GLYPH.CHIP} filled />
+                <Badge variant="info">
+                  <MaterialSymbol name="info" size={GLYPH.CHIP} filled />
                   {t("antenna_alignment.aim.partial", {
                     leg: t(
                       `radio_info.bands.metric.${

@@ -8,7 +8,7 @@ import {
   MinusCircleIcon,
   PackageIcon,
   PowerOffIcon,
-  TriangleAlertIcon,
+  XCircleIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -144,7 +144,7 @@ export function ControlPlaneChip({ raw }: { raw: string }) {
     </Badge>
   ) : (
     <Badge variant="destructive">
-      <TriangleAlertIcon className="size-3" />
+      <XCircleIcon className="size-3" />
       {raw}
     </Badge>
   );

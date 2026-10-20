@@ -7,7 +7,6 @@ import {
   BellOffIcon,
   CheckCircle2Icon,
   CircleAlertIcon,
-  MinusCircleIcon,
   PlugZapIcon,
   RefreshCcwIcon,
   TriangleAlertIcon,
@@ -217,7 +216,7 @@ function CoverageRows({ rows }: { rows: CoverageRow[] }) {
                   </span>
                 ) : (
                   <Badge variant="warning">
-                    <MinusCircleIcon className="size-3" aria-hidden />
+                    <BellOffIcon className="size-3" aria-hidden />
                     {t("alerts.coverage.notSent")}
                   </Badge>
                 )

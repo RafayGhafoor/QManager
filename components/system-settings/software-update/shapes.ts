@@ -5,6 +5,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   CheckCircle2Icon,
+  CircleDashedIcon,
   CloudOffIcon,
   DownloadIcon,
   HelpCircleIcon,
@@ -510,7 +511,7 @@ export const ANCHOR_CHIP: Record<
   UpdateView,
   { variant: BadgeVariant; glyph: LucideIcon; spin?: boolean }
 > = {
-  loading: { variant: "muted", glyph: Loader2Icon, spin: true },
+  loading: { variant: "muted", glyph: CircleDashedIcon, spin: true },
   unreachable: { variant: "destructive", glyph: ServerOffIcon },
   check_failed: { variant: "destructive", glyph: CloudOffIcon },
   up_to_date: { variant: "success", glyph: CheckCircle2Icon },
