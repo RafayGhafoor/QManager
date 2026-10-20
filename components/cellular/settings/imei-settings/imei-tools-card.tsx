@@ -26,6 +26,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   IMEI_CUSTOM_ID,
   IMEI_TAC_PRESETS,
   getImeiTacPreset,
@@ -113,6 +118,9 @@ const IMEIToolsCard = () => {
   const isComplete = /^\d{15}$/.test(candidate);
   const isLuhnValid = isComplete && validateImei(candidate);
   const breakdown = isComplete ? parseImeiBreakdown(candidate) : null;
+  const luhnLabel = isLuhnValid
+    ? t(`${K}.check.valid`)
+    : t(`${K}.check.invalid`);
 
   const handleGenerate = () => {
     if (!isValidPrefix) return;
@@ -186,7 +194,10 @@ const IMEIToolsCard = () => {
                 not tab into a field they cannot see. The divider travels INSIDE
                 the clip, so the collapsed group has no dangling hairline. */}
             <div
-              className={cn(REVEAL.ROOT, isCustom ? REVEAL.OPEN : REVEAL.CLOSED)}
+              className={cn(
+                REVEAL.ROOT,
+                isCustom ? REVEAL.OPEN : REVEAL.CLOSED,
+              )}
             >
               <div
                 className={REVEAL.CLIP}
@@ -252,15 +263,6 @@ const IMEIToolsCard = () => {
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
             <span className={SECTION_LABEL}>{t(`${K}.check.label`)}</span>
-            {isComplete ? (
-              <Badge variant={isLuhnValid ? "success" : "destructive"}>
-                <MaterialSymbol
-                  name={isLuhnValid ? "check_circle" : "cancel"}
-                  size={BADGE_GLYPH_SIZE}
-                />
-                {isLuhnValid ? t(`${K}.check.valid`) : t(`${K}.check.invalid`)}
-              </Badge>
-            ) : null}
           </div>
 
           {/* ONE ROW, ONE BOX. The field and the two things you can do to the
@@ -278,18 +280,62 @@ const IMEIToolsCard = () => {
               rather than as a dead `href`. The accessible name is on the
               control in both states, so it survives the label hiding at narrow
               container widths. */}
-          <div className={CHECK_GROUP.ROOT}>
+          <div className="flex items-center gap-2.5">
+            {/* The verdict rides beside the field, icon-only: the tooltip names
+              it. Same badge as the device card's match mark. */}
             {isComplete ? (
-              <Button
-                asChild
-                variant="ghost"
-                aria-label={t(`${K}.check.lookup`)}
-                className={CHECK_GROUP.LEAD}
-              >
-                <a
-                  href={`https://www.imei.info/?imei=${candidate}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    variant={isLuhnValid ? "success" : "destructive"}
+                    role="img"
+                    tabIndex={0}
+                    aria-label={luhnLabel}
+                    className={cn(
+                      "size-7 flex-none p-0",
+                      isLuhnValid
+                        ? "bg-success text-success-foreground"
+                        : "bg-destructive text-destructive-foreground",
+                    )}
+                  >
+                    <MaterialSymbol
+                      name={isLuhnValid ? "check" : "close"}
+                      size={BADGE_GLYPH_SIZE}
+                    />
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>{luhnLabel}</TooltipContent>
+              </Tooltip>
+            ) : null}
+            <div className={cn(CHECK_GROUP.ROOT, "min-w-0 flex-1")}>
+              {isComplete ? (
+                <Button
+                  asChild
+                  variant="ghost"
+                  aria-label={t(`${K}.check.lookup`)}
+                  className={CHECK_GROUP.LEAD}
+                >
+                  <a
+                    href={`https://www.imei.info/?imei=${candidate}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MaterialSymbol
+                      name="open_in_new"
+                      size={CHECK_GROUP.LEAD_GLYPH}
+                    />
+                    <span className={CHECK_GROUP.LEAD_LABEL}>
+                      {t(`${K}.check.lookup`)}
+                    </span>
+                  </a>
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled
+                  aria-label={t(`${K}.check.lookup`)}
+                  className={CHECK_GROUP.LEAD}
                 >
                   <MaterialSymbol
                     name="open_in_new"
@@ -298,56 +344,42 @@ const IMEIToolsCard = () => {
                   <span className={CHECK_GROUP.LEAD_LABEL}>
                     {t(`${K}.check.lookup`)}
                   </span>
-                </a>
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="ghost"
-                disabled
-                aria-label={t(`${K}.check.lookup`)}
-                className={CHECK_GROUP.LEAD}
-              >
-                <MaterialSymbol
-                  name="open_in_new"
-                  size={CHECK_GROUP.LEAD_GLYPH}
-                />
-                <span className={CHECK_GROUP.LEAD_LABEL}>
-                  {t(`${K}.check.lookup`)}
-                </span>
-              </Button>
-            )}
+                </Button>
+              )}
 
-            <input
-              id="imei-check-input"
-              type="text"
-              inputMode="numeric"
-              autoComplete="off"
-              maxLength={15}
-              value={candidate}
-              onChange={(event) =>
-                setCandidate(event.target.value.replace(/\D/g, "").slice(0, 15))
-              }
-              placeholder={t(`${K}.check.placeholder`)}
-              aria-label={t(`${K}.check.label`)}
-              className={CHECK_GROUP.INPUT}
-            />
+              <input
+                id="imei-check-input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={15}
+                value={candidate}
+                onChange={(event) =>
+                  setCandidate(
+                    event.target.value.replace(/\D/g, "").slice(0, 15),
+                  )
+                }
+                placeholder={t(`${K}.check.placeholder`)}
+                aria-label={t(`${K}.check.label`)}
+                className={CHECK_GROUP.INPUT}
+              />
 
-            {/* The 24px copy target that rides inside a pill — the same control
+              {/* The 24px copy target that rides inside a pill — the same control
                 the device card's readout uses, with its 44px hit area bought by
                 an inset overlay rather than by a bigger button. */}
-            <button
-              type="button"
-              onClick={handleCopy}
-              disabled={!candidate}
-              aria-label={t(`${K}.actions.copy`)}
-              className={cn(
-                READOUT_ICON_ACTION,
-                "disabled:pointer-events-none disabled:opacity-50",
-              )}
-            >
-              <MaterialSymbol name="content_copy" size={READOUT_ICON_GLYPH} />
-            </button>
+              <button
+                type="button"
+                onClick={handleCopy}
+                disabled={!candidate}
+                aria-label={t(`${K}.actions.copy`)}
+                className={cn(
+                  READOUT_ICON_ACTION,
+                  "disabled:pointer-events-none disabled:opacity-50",
+                )}
+              >
+                <MaterialSymbol name="content_copy" size={READOUT_ICON_GLYPH} />
+              </button>
+            </div>
           </div>
 
           {/* The breakdown and the line that stands in for it are ONE slot, so
@@ -383,9 +415,16 @@ const IMEIToolsCard = () => {
                       {breakdown.snr}
                     </span>
                   </div>
-                  {/* The accent cell — see `BREAKDOWN.CELL_ACCENT` for why the
+                  {/* The verdict cell — see `BREAKDOWN.CELL_VALID` for why the
                       check digit is the one that gets promoted. */}
-                  <div className={cn(BREAKDOWN.CELL, BREAKDOWN.CELL_ACCENT)}>
+                  <div
+                    className={cn(
+                      BREAKDOWN.CELL,
+                      isLuhnValid
+                        ? BREAKDOWN.CELL_VALID
+                        : BREAKDOWN.CELL_INVALID,
+                    )}
+                  >
                     <span className={SETTING_ROW_DIRTY.CONSEQUENCE_ON_FILL}>
                       {t(`${K}.breakdown.check`)}
                     </span>

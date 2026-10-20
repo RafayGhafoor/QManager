@@ -954,12 +954,14 @@ export const BREAKDOWN = {
   CELL_NEUTRAL: "bg-surface-container",
   /**
    * The check digit — the only part of an IMEI the machine derives rather than
-   * the manufacturer assigns, and the part the validity chip above is judging.
-   * `primary-container` is emphasis by container step (DESIGN.md >
-   * The Highlight-by-Container Rule), never a health signal: validity is the
-   * chip's job and the chip carries a glyph.
+   * the manufacturer assigns, and the part the Luhn test is judging. The cell
+   * carries the verdict: the solid `success` fill (the same green as the match
+   * badge beside the field) when the number passes, the `destructive` container
+   * when it fails. The badge's glyph and tooltip name it; the fill never
+   * carries it alone.
    */
-  CELL_ACCENT: "bg-primary-container text-on-primary-container",
+  CELL_VALID: "bg-success text-success-foreground",
+  CELL_INVALID: "bg-destructive-container text-on-destructive-container",
 } as const;
 
 // -----------------------------------------------------------------------------
