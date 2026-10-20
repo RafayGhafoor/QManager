@@ -1,7 +1,7 @@
 #!/bin/sh
 # ondemand_radio.sh — On-demand Layer-1-adjacent radio reads.
 #
-# These reads (MIMO layers, timing advance, CGCONTRDP, QMAP="WWAN") used to run
+# These reads (MIMO layers, timing advance, CGCONTRDP, CGPADDR) used to run
 # on the recurring poller timer. They are L1/RF-measurement / data-plane reads:
 # issuing them on a background timer eventually lands one mid-RAT-transition or
 # mid-cell-reselection, which on the RM551E-GL correlates with a Qualcomm MPSS
@@ -14,8 +14,9 @@
 # between fetches (they are display-only and slow-changing).
 #
 # Source AFTER parse_at.sh (uses parse_mimo / parse_time_advance /
-# parse_cgcontrdp / parse_wan_ip / parse_serving_cell) and AFTER a logging
-# library (qlog.sh or cgi_base.sh).
+# parse_cgcontrdp / parse_serving_cell) and AFTER a logging library (qlog.sh or
+# cgi_base.sh). The data CID / WAN IPs come from data_cid.sh (CGPADDR confirmed
+# against the kernel route) -- no QMAP, which several firmwares do not implement.
 
 [ -n "$_ONDEMAND_RADIO_LOADED" ] && return 0
 _ONDEMAND_RADIO_LOADED=1
@@ -24,6 +25,8 @@ _ONDEMAND_RADIO_LOADED=1
 # by ondemand_radio_fetch(). Display-only; survives between on-demand fetches.
 ONDEMAND_CACHE_FILE="/tmp/qmanager_ondemand.json"
 ONDEMAND_CACHE_TMP="/tmp/qmanager_ondemand.json.tmp"
+
+[ -f /usr/lib/qmanager/data_cid.sh ] && . /usr/lib/qmanager/data_cid.sh
 
 # No-op logging fallbacks if sourced before a logging library.
 command -v qlog_debug >/dev/null 2>&1 || qlog_debug() { :; }
@@ -289,15 +292,8 @@ ondemand_radio_fetch() {
 
     # --- Group 1: APN + WAN IPs (always safe, mode-independent) -------------
     local g1
-    g1=$(qcmd 'AT+CGCONTRDP;+QMAP="WWAN"' 2>/dev/null)
-    if [ -n "$g1" ]; then
-        if printf '%s\n' "$g1" | grep -q '+CGCONTRDP:'; then
-            parse_cgcontrdp "$g1"
-        fi
-        if printf '%s\n' "$g1" | grep -q '+QMAP:'; then
-            parse_wan_ip "$g1"
-        fi
-    fi
+    g1=$(qcmd 'AT+CGPADDR;+CGCONTRDP' 2>/dev/null)
+    [ -n "$g1" ] && _ondemand_apply_dataplane "$g1"
 
     # --- Group 2: NR timing + (SA-only) NR MIMO ----------------------------
     local nr_cmd
@@ -336,13 +332,37 @@ ondemand_radio_fetch() {
 }
 
 # ---------------------------------------------------------------------------
+# _ondemand_apply_dataplane <AT+CGPADDR;+CGCONTRDP reply>
+# Resolve the data CID (data_cid.sh: CGPADDR confirmed against the kernel
+# default route), take the WAN IPs from that CID's CGPADDR entry (t2_wan_ipv4 /
+# t2_wan_ipv6 -- cleared when no bearer is up, never left stale), and parse the
+# APN / DNS from the same CID's CGCONTRDP record. Without data_cid.sh it
+# degrades to the legacy parse (CID 1, WAN IPs untouched).
+# ---------------------------------------------------------------------------
+_ondemand_apply_dataplane() {
+    local blob
+    local cid
+    blob=$(printf '%s\n' "$1" | tr -d '\r')
+    cid=""
+    if command -v qm_detect_data_cid >/dev/null 2>&1; then
+        qm_detect_data_cid "$blob"
+        cid="$QM_DATA_CID"
+        t2_wan_ipv4="$QM_DATA_IPV4"
+        t2_wan_ipv6="$QM_DATA_IPV6"
+    fi
+    if printf '%s\n' "$blob" | grep -q '+CGCONTRDP:'; then
+        parse_cgcontrdp "$blob" "$cid"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # ondemand_dataplane_refresh
 # Refresh ONLY the safe, mode-independent data-plane group (APN / DNS / WAN IP)
 # into the on-demand cache. Deliberately issues NO mimo / time_advance / L1
 # read — it is meant to be called by APN / profile apply paths right after a
 # COPS re-register, when the radio is mid-attach and an L1 read would be exactly
-# the dangerous moment this whole change avoids. CGCONTRDP and QMAP="WWAN" are
-# QCMAP/PDP reads, safe in any RAT and not L1 measurements.
+# the dangerous moment this whole change avoids. CGPADDR and CGCONTRDP are
+# PDP reads, safe in any RAT and not L1 measurements.
 #
 # Loads last-known first so the mimo / TA fields the apply does NOT touch are
 # preserved in the rewritten cache file.
@@ -353,18 +373,13 @@ ondemand_dataplane_refresh() {
     load_ondemand_cache
 
     local dp
-    dp=$(qcmd 'AT+CGCONTRDP;+QMAP="WWAN"' 2>/dev/null)
+    dp=$(qcmd 'AT+CGPADDR;+CGCONTRDP' 2>/dev/null)
     if [ -z "$dp" ]; then
         qlog_warn "ondemand_dataplane_refresh: no AT response"
         return 1
     fi
 
-    if printf '%s\n' "$dp" | grep -q '+CGCONTRDP:'; then
-        parse_cgcontrdp "$dp"
-    fi
-    if printf '%s\n' "$dp" | grep -q '+QMAP:'; then
-        parse_wan_ip "$dp"
-    fi
+    _ondemand_apply_dataplane "$dp"
 
     _ondemand_write_cache
     qlog_debug "ondemand_dataplane_refresh: apn=$t2_apn wan4=$t2_wan_ipv4"
