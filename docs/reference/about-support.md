@@ -65,11 +65,13 @@ need a card-scoped banner will hit it.
 version. The source read a Quectel `Project Rev` there and labelled it "Firmware
 revision"; that label would be false here, so the row reads "OpenWrt version".
 
-**The Internet tile is the only runtime tone on the band.** `success` when
-`network.public_ipv4` came back from `about.sh`'s ipify probe, `warning` when it did not. The
-caption names the probe, so the tile never claims more than it knows: a blank answer means the
-3s `curl` found no upstream, which is not the same as the device being unreachable. Every
-other disc is neutral — a colour that never changes encodes nothing.
+**The Internet tile is the only runtime tone on the band.** It reads the ping daemon's verdict
+(`connectivity.internet_available`, which `about.sh` passes through from the poller cache), the
+same source the dashboard and the watchdog use: `success` when true, `destructive` when false,
+neutral "Not measured" when null (the daemon is not reporting). The caption names the answering
+leg and its last round-trip from the same cache. The ipify lookup only fills the Public address
+rows and never decides reachability: carriers that block it would otherwise read as offline.
+Every other disc is neutral — a colour that never changes encodes nothing.
 
 **One failure, one message.** `aboutView()` returns `loading | loaded | unreachable` and every
 child reads it; no component infers state from a payload's shape. On `unreachable` the band
@@ -161,7 +163,8 @@ the custom-radius trap in `lib/utils.ts`.
 - **Version.** The Tag in the QManager band reads `APP_VERSION` from `lib/i18n/app-version.ts`
   (the package.json version), not a direct package.json import.
 - **Hook.** `useAboutDevice` gained `isRefreshing` (a silent re-read keeps the figures on screen
-  and only spins the pill). The target's error path stays: a `success:false` envelope resolves
+  and only spins the pill). The header Refresh is the shared `RevealLabelButton`
+  (`components/ui/reveal-label-button.tsx`): icon-only at rest, label on hover or focus. The target's error path stays: a `success:false` envelope resolves
   through `resolveErrorMessage`, and the fallback sentence is `aboutDevice.errors.fetch_failed`.
 - **Not ported.** The fork's `hw_profile` / firmware fingerprint rows.
 - **i18n.** Strings live in `common.aboutDevice.*`, `common.support.*` and `common.donate.*`;

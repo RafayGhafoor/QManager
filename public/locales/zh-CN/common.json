@@ -338,8 +338,12 @@
         "eyebrow": "互联网",
         "reachable": "可达",
         "not_reachable": "不可达",
-        "caption_reachable": "公网 {{address}}",
-        "caption_unreachable": "{{probe}} 无应答"
+        "not_measured": "未测量",
+        "caption_reachable": "{{family}} 有应答",
+        "caption_reachable_latency": "{{family}} 有应答（{{latency}} 毫秒）",
+        "caption_reachable_plain": "Ping 探测有应答",
+        "caption_unreachable": "Ping 探测无应答",
+        "caption_unknown": "未在探测"
       }
     },
     "modem": {

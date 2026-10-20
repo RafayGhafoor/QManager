@@ -338,8 +338,12 @@
         "eyebrow": "INTERNET",
         "reachable": "Terjangkau",
         "not_reachable": "Tidak terjangkau",
-        "caption_reachable": "Publik {{address}}",
-        "caption_unreachable": "Tidak ada jawaban dari {{probe}}"
+        "not_measured": "Tidak diukur",
+        "caption_reachable": "{{family}} menjawab",
+        "caption_reachable_latency": "{{family}} menjawab ({{latency}} md)",
+        "caption_reachable_plain": "Probe ping menjawab",
+        "caption_unreachable": "Tidak ada jawaban dari probe ping",
+        "caption_unknown": "Tidak ada yang melakukan probe"
       }
     },
     "modem": {

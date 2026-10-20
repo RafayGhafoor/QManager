@@ -12,9 +12,10 @@ import type { AboutView, DiscTone } from "./shapes";
 // =============================================================================
 
 /**
- * The host `about.sh` asks for the public addresses. Named in the UI so the
- * internet tile never claims more than it knows: an unanswered probe is a fact
- * about this lookup, not about the connection.
+ * The host `about.sh` asks for the public addresses, named in the Addresses
+ * card's provenance line. It never decides reachability: that is the ping
+ * daemon's verdict (`connectivity.internet_available`), the one source the
+ * dashboard and watchdog read too.
  */
 export const PUBLIC_IP_PROBE = "api.ipify.org";
 
@@ -45,23 +46,39 @@ export function aboutView(input: AboutViewInput): AboutView {
   return "unreachable";
 }
 
-/** True when the public-address probe returned an address. */
-export function isInternetReachable(data: AboutDeviceData): boolean {
-  return text(data.network?.public_ipv4).length > 0;
+/** The ping daemon's verdict: answering, not answering, or not reporting. */
+export type InternetState = "reachable" | "unreachable" | "unknown";
+
+export function internetState(data: AboutDeviceData): InternetState {
+  const available = data.connectivity?.internet_available;
+  if (available === true) return "reachable";
+  if (available === false) return "unreachable";
+  return "unknown";
 }
 
 /**
- * The ONE disc on this page that changes tone at runtime. A failed probe is
- * `warning`, never `destructive`: it proves this lookup did not answer, not
- * that the device is offline, and the tile's caption says which lookup.
+ * The ONE disc on this page that changes tone at runtime. A daemon that is not
+ * reporting is neutral, not a fault.
  */
 export function internetTone(data: AboutDeviceData): DiscTone {
-  return isInternetReachable(data) ? "success" : "warning";
+  const state = internetState(data);
+  if (state === "reachable") return "success";
+  if (state === "unreachable") return "destructive";
+  return "neutral";
 }
 
-/** The public address itself, or an empty string when the probe went unanswered. */
-export function publicAddress(data: AboutDeviceData): string {
-  return text(data.network?.public_ipv4);
+/** "IPv4" / "IPv6" for the leg that answered, or "" when neither did. */
+export function answeringFamily(data: AboutDeviceData): string {
+  const family = text(data.connectivity?.last_family);
+  if (family === "ipv4") return "IPv4";
+  if (family === "ipv6") return "IPv6";
+  return "";
+}
+
+/** The last round-trip in whole milliseconds, or null when there is none. */
+export function internetLatency(data: AboutDeviceData): number | null {
+  const ms = data.connectivity?.latency_ms;
+  return typeof ms === "number" && Number.isFinite(ms) ? Math.round(ms) : null;
 }
 
 // -----------------------------------------------------------------------------

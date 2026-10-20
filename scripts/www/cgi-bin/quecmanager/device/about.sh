@@ -8,11 +8,13 @@
 # and OpenWRT system info into a single JSON response.
 #
 # Data sources:
-#   /tmp/qmanager_status.json       -> Poller cache (firmware, IMEI, WAN IPs)
+#   /tmp/qmanager_status.json       -> Poller cache (firmware, IMEI, WAN IPs,
+#                                      ping daemon reachability verdict)
 #   AT+QNWCFG="3gpp_rel"           -> 3GPP release versions (LTE, NR5G)
 #   uci get network.lan.ipaddr      -> OpenWRT br-lan IP (device IP)
 #   uci get network.lan.netmask     -> OpenWRT br-lan netmask (for CIDR subnet)
-#   https://api.ipify.org           -> Public IPv4 (3s timeout, non-blocking)
+#   https://api.ipify.org           -> Public IPv4 address only (3s timeout,
+#                                      non-blocking); never the reachability verdict
 #   https://api6.ipify.org          -> Public IPv6 (3s timeout, non-blocking)
 #   /etc/openwrt_release            -> OpenWRT version
 #   uname -r                       -> Linux kernel version
@@ -68,6 +70,11 @@ c_model=""
 c_imei=""
 c_wan_ipv4=""
 c_wan_ipv6=""
+# Reachability is the ping daemon's verdict, the one source every surface reads.
+# "null" = not reporting; a jq `//` would turn a real false into the fallback.
+c_inet="null"
+c_inet_family=""
+c_inet_latency="null"
 
 if [ -f "$CACHE_FILE" ]; then
     eval "$(jq -r '
@@ -77,9 +84,18 @@ if [ -f "$CACHE_FILE" ]; then
         @sh "c_model=\(.device.model // "")",
         @sh "c_imei=\(.device.imei // "")",
         @sh "c_wan_ipv4=\(.network.wan_ipv4 // "")",
-        @sh "c_wan_ipv6=\(.network.wan_ipv6 // "")"
+        @sh "c_wan_ipv6=\(.network.wan_ipv6 // "")",
+        @sh "c_inet=\(if (.connectivity.internet_available | type) == "boolean" then (.connectivity.internet_available | tostring) else "null" end)",
+        @sh "c_inet_family=\(.connectivity.last_family // "")",
+        @sh "c_inet_latency=\(if (.connectivity.latency_ms | type) == "number" then (.connectivity.latency_ms | tostring) else "null" end)"
     ' "$CACHE_FILE" 2>/dev/null)"
 fi
+
+# --argjson needs valid JSON; a missing or garbled cache falls back to null.
+case "$c_inet" in true|false) ;; *) c_inet="null" ;; esac
+case "$c_inet_latency" in
+    ''|*[!0-9.]*|*.*.*|.*|*.) c_inet_latency="null" ;;
+esac
 
 # =============================================================================
 # 3. AT commands for data not in the poller cache
@@ -182,6 +198,9 @@ jq -n \
     --arg hostname "$sys_hostname" \
     --arg kernel "$sys_kernel" \
     --arg owrt "$sys_openwrt" \
+    --argjson inet "$c_inet" \
+    --arg inet_family "$c_inet_family" \
+    --argjson inet_latency "$c_inet_latency" \
     '{
         success: true,
         device: {
@@ -207,5 +226,10 @@ jq -n \
             hostname: $hostname,
             kernel_version: $kernel,
             openwrt_version: $owrt
+        },
+        connectivity: {
+            internet_available: $inet,
+            last_family: $inet_family,
+            latency_ms: $inet_latency
         }
     }'

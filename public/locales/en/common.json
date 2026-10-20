@@ -338,8 +338,12 @@
         "eyebrow": "Internet",
         "reachable": "Reachable",
         "not_reachable": "Not reachable",
-        "caption_reachable": "Public {{address}}",
-        "caption_unreachable": "No answer from {{probe}}"
+        "not_measured": "Not measured",
+        "caption_reachable": "{{family}} answering",
+        "caption_reachable_latency": "{{family}} answering ({{latency}} ms)",
+        "caption_reachable_plain": "Ping probe answering",
+        "caption_unreachable": "No answer from the ping probe",
+        "caption_unknown": "Nothing is probing"
       }
     },
     "modem": {

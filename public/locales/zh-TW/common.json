@@ -338,8 +338,12 @@
         "eyebrow": "網際網路",
         "reachable": "可連線",
         "not_reachable": "無法連線",
-        "caption_reachable": "公用 {{address}}",
-        "caption_unreachable": "{{probe}} 無回應"
+        "not_measured": "未測量",
+        "caption_reachable": "{{family}} 有回應",
+        "caption_reachable_latency": "{{family}} 有回應（{{latency}} 毫秒）",
+        "caption_reachable_plain": "Ping 探測有回應",
+        "caption_unreachable": "Ping 探測無回應",
+        "caption_unknown": "未在探測"
       }
     },
     "modem": {

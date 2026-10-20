@@ -11,6 +11,7 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import { motion } from "motion/react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import { SLOT, withSlot } from "@/components/auth/interpolation-slot";
@@ -23,11 +24,11 @@ import type { AboutDeviceData } from "@/types/about-device";
 
 import {
   ABOUT_ENDPOINT_LABEL,
-  PUBLIC_IP_PROBE,
+  answeringFamily,
   identityFigures,
+  internetLatency,
+  internetState,
   internetTone,
-  isInternetReachable,
-  publicAddress,
 } from "./derive";
 import {
   BAND,
@@ -45,8 +46,29 @@ import {
   type AboutView,
   type DiscTone,
 } from "./shapes";
+import type { InternetState } from "./derive";
 
 const K = "aboutDevice";
+
+/** The internet tile's figure for each ping-daemon verdict. */
+const INTERNET_VALUE: Record<InternetState, string> = {
+  reachable: "reachable",
+  unreachable: "not_reachable",
+  unknown: "not_measured",
+};
+
+/** The leg that answered and its last round-trip, from the same ping daemon. */
+function internetCaption(t: TFunction, data: AboutDeviceData): string {
+  const state = internetState(data);
+  if (state === "unknown") return t(`${K}.tiles.internet.caption_unknown`);
+  if (state === "unreachable") return t(`${K}.tiles.internet.caption_unreachable`);
+  const family = answeringFamily(data);
+  const latency = internetLatency(data);
+  if (!family) return t(`${K}.tiles.internet.caption_reachable_plain`);
+  return latency === null
+    ? t(`${K}.tiles.internet.caption_reachable`, { family })
+    : t(`${K}.tiles.internet.caption_reachable_latency`, { family, latency });
+}
 
 interface TileProps {
   glyph: LucideIcon;
@@ -179,20 +201,8 @@ export function IdentityBand({
                 glyph={GlobeIcon}
                 tone={internetTone(data)}
                 eyebrow={t(`${K}.tiles.internet.eyebrow`)}
-                value={
-                  isInternetReachable(data)
-                    ? t(`${K}.tiles.internet.reachable`)
-                    : t(`${K}.tiles.internet.not_reachable`)
-                }
-                caption={
-                  isInternetReachable(data)
-                    ? t(`${K}.tiles.internet.caption_reachable`, {
-                        address: publicAddress(data),
-                      })
-                    : t(`${K}.tiles.internet.caption_unreachable`, {
-                        probe: PUBLIC_IP_PROBE,
-                      })
-                }
+                value={t(`${K}.tiles.internet.${INTERNET_VALUE[internetState(data)]}`)}
+                caption={internetCaption(t, data)}
               />
             </>
           ) : (

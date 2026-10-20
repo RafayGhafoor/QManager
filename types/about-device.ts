@@ -30,6 +30,16 @@ export interface AboutDeviceResponse {
     kernel_version: string;
     openwrt_version: string;
   };
+  /**
+   * The ping daemon's reachability verdict, passed through from the poller
+   * cache. `internet_available` null = the daemon is not reporting.
+   */
+  connectivity?: {
+    internet_available: boolean | null;
+    /** "ipv4" | "ipv6" | "none" | "" (older poller). */
+    last_family: string;
+    latency_ms: number | null;
+  };
   error?: string;
 }
 
@@ -38,4 +48,5 @@ export interface AboutDeviceData {
   threeGppRelease: AboutDeviceResponse["3gpp_release"];
   network: AboutDeviceResponse["network"];
   system: AboutDeviceResponse["system"];
+  connectivity: AboutDeviceResponse["connectivity"];
 }

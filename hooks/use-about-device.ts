@@ -78,6 +78,7 @@ export function useAboutDevice(): UseAboutDeviceReturn {
         threeGppRelease: json["3gpp_release"],
         network: json.network,
         system: json.system,
+        connectivity: json.connectivity,
       });
     } catch (err) {
       if (!mountedRef.current) return;
