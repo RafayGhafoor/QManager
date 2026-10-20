@@ -7,6 +7,7 @@ import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type {
   IpaOffloadState,
   IpaOffloadGetResponse,
+  IpaOffloadMutationResult,
   IpaOffloadPostResponse,
 } from "@/types/ipa-offload";
 
@@ -19,9 +20,10 @@ import type {
 //
 // PESSIMISTIC: the toggle never optimistically flips local state. On a
 // successful POST we silently re-fetch the authoritative {available,enabled}
-// so the Switch reflects what the device actually wrote. The toggle takes
+// so the card reflects what the device actually wrote. The change takes
 // effect only after a reboot, so the component is responsible for the
-// deferred-reboot affordance.
+// deferred-reboot affordance. A failed save resolves to `{ ok: false, error }`
+// for the caller's toast and leaves `error` (the load error) alone.
 // =============================================================================
 
 const CGI_ENDPOINT = "/cgi-bin/quecmanager/system/ipa_offload.sh";
@@ -30,8 +32,9 @@ export interface UseIpaOffloadReturn {
   state: IpaOffloadState | null;
   isLoading: boolean;
   isSaving: boolean;
+  /** Load error only; a failed save is reported through the mutator's result. */
   error: string | null;
-  setEnabled: (enabled: boolean) => Promise<boolean>;
+  setEnabled: (enabled: boolean) => Promise<IpaOffloadMutationResult>;
   refresh: () => void;
 }
 
@@ -99,8 +102,7 @@ export function useIpaOffload(): UseIpaOffloadReturn {
 
   // ─── Toggle (pessimistic) ───────────────────────────────────────────────
   const setEnabled = useCallback(
-    async (enabled: boolean): Promise<boolean> => {
-      setError(null);
+    async (enabled: boolean): Promise<IpaOffloadMutationResult> => {
       setIsSaving(true);
 
       try {
@@ -115,29 +117,28 @@ export function useIpaOffload(): UseIpaOffloadReturn {
         }
 
         const json: IpaOffloadPostResponse = await resp.json();
-        if (!mountedRef.current) return false;
+        if (!mountedRef.current) return { ok: false };
 
         if (!json.success) {
-          setError(
-            resolveErrorMessage(
+          return {
+            ok: false,
+            error: resolveErrorMessage(
               t,
               json.error,
               json.detail,
               "Failed to update offload",
             ),
-          );
-          return false;
+          };
         }
 
         // Pessimistic: re-read authoritative state instead of flipping locally.
         await fetchState(true);
-        return true;
+        return { ok: true };
       } catch (err) {
-        if (!mountedRef.current) return false;
-        setError(
-          err instanceof Error ? err.message : "Failed to update offload",
-        );
-        return false;
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : "Failed to update offload",
+        };
       } finally {
         if (mountedRef.current) {
           setIsSaving(false);

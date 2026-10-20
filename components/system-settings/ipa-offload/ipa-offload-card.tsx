@@ -1,9 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "motion/react";
-import { staggerRows, staggerRowItem } from "@/lib/motion";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import {
+  CheckIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  CircleOffIcon,
+  CpuIcon,
+  RotateCcwIcon,
+} from "lucide-react";
 
 import {
   Card,
@@ -12,139 +20,250 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { CardFoot } from "@/components/ui/card-foot";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { AlertTriangleIcon, RotateCcwIcon } from "lucide-react";
+import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { SEGMENTED, SegmentedField } from "@/components/ui/segmented-field";
+import { Skeleton } from "@/components/ui/skeleton";
+import { staggerRowItem, staggerRows } from "@/lib/motion";
+import { requestRebootLater, usePendingReboot } from "@/lib/reboot";
+import { cn } from "@/lib/utils";
 
 import { useIpaOffload } from "@/hooks/use-ipa-offload";
-import { requestRebootLater } from "@/lib/reboot";
+
+import { ConditionBlock } from "../condition-block";
+import {
+  CARD_BODY,
+  CARD_DESC,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_TITLE,
+  CHIP_GLYPH,
+  CONDITION_PANEL,
+  GROUP_FILL,
+  ROW,
+  ROW_GROUP,
+  SKELETON_HARDWARE,
+  STATUS_ROW,
+} from "../shapes";
+
+// =============================================================================
+// Hardware Offload — the r8125 NIC's IPA offload path, armed for next boot
+// =============================================================================
+// The backend only flips the boot-enable state; the module stays loaded until
+// the next reboot. So Apply never reboots: on success it arms the persistent
+// deferred-reboot banner (`requestRebootLater("ipa_offload")`) and toasts.
+//
+// The status row is honest about that split. `enabled` is the BOOT state, so
+// while this card's own reboot is still pending the row says so rather than
+// claiming the new state is already running.
+// =============================================================================
+
+const K = "ipa_offload";
+
+type Choice = "on" | "off";
+
+const renderCheckGlyph = (className: string) => (
+  <CheckIcon size={SEGMENTED.GLYPH} className={className} aria-hidden="true" />
+);
+
+function OffloadHeader() {
+  const { t } = useTranslation("system-settings");
+  return (
+    <CardHeader className={CARD_PAD}>
+      <CardTitle className={CARD_TITLE}>{t(`${K}.card_title`)}</CardTitle>
+      <CardDescription className={CARD_DESC}>
+        {t(`${K}.card_description`)}
+      </CardDescription>
+    </CardHeader>
+  );
+}
+
+function OffloadSkeleton() {
+  return (
+    <Card className={CARD_SHELL} aria-hidden="true">
+      <OffloadHeader />
+      <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+        <div className={cn(ROW_GROUP, GROUP_FILL)}>
+          <div className={ROW.ROOT}>
+            <div className={ROW.TEXT}>
+              <Skeleton className={cn(SKELETON_HARDWARE.LABEL, "w-36")} />
+              <Skeleton className={cn(SKELETON_HARDWARE.CONSEQUENCE, "w-full")} />
+            </div>
+            <div className={ROW.CONTROL}>
+              <Skeleton className={SKELETON_HARDWARE.PILL} />
+            </div>
+          </div>
+          <div className={STATUS_ROW}>
+            <Skeleton className={cn(SKELETON_HARDWARE.LABEL, "w-16")} />
+            <Skeleton className={SKELETON_HARDWARE.CHIP} />
+          </div>
+        </div>
+        <CardFoot
+          liveStatus={false}
+          actions={<Skeleton className={SKELETON_HARDWARE.ACTION} />}
+        />
+      </CardContent>
+    </Card>
+  );
+}
 
 const IpaOffloadCard = () => {
   const { t } = useTranslation("system-settings");
-  const { state, isLoading, isSaving, error, setEnabled, refresh } =
-    useIpaOffload();
+  const { state, isLoading, isSaving, setEnabled, refresh } = useIpaOffload();
+  const { saved, markSaved } = useSaveFlash();
+  const pendingReboot = usePendingReboot();
 
-  const handleToggle = async (checked: boolean) => {
-    const ok = await setEnabled(checked);
-    if (ok) {
+  const savedChoice: Choice | null = state
+    ? state.enabled
+      ? "on"
+      : "off"
+    : null;
+  const [draft, setDraft] = useState<Choice | null>(null);
+  const [seen, setSeen] = useState<Choice | null>(null);
+  if (savedChoice !== seen) {
+    setSeen(savedChoice);
+    setDraft(savedChoice);
+  }
+
+  const dirty = draft !== null && savedChoice !== null && draft !== savedChoice;
+
+  const handleApply = async () => {
+    if (!draft || !dirty) return;
+    const result = await setEnabled(draft === "on");
+    if (result.ok) {
       // The change only takes effect after a reboot, so queue the deferred banner.
       requestRebootLater("ipa_offload");
+      markSaved();
       toast.success(
-        checked
-          ? t("ipa_offload.toast_enabled")
-          : t("ipa_offload.toast_disabled"),
+        draft === "on" ? t(`${K}.toast_enabled`) : t(`${K}.toast_disabled`),
       );
     } else {
-      toast.error(t("ipa_offload.toast_failed"));
+      toast.error(result.error ?? t(`${K}.toast_failed`));
     }
   };
 
-  const unavailable = state !== null && !state.available;
-  // "Pending reboot" surfaces whenever a save has changed the on-disk setting.
-  // The honest signal here is: the user toggled, the device acknowledged, and a
-  // reboot is required for it to take effect.
+  if (isLoading && state === null) return <OffloadSkeleton />;
+
+  if (state === null) {
+    return (
+      <Card className={CARD_SHELL}>
+        <OffloadHeader />
+        <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+          <ConditionBlock
+            tone="destructive"
+            glyph={CircleAlertIcon}
+            ariaRole="alert"
+            title={t(`${K}.error_title`)}
+            description={t(`${K}.error_description`)}
+            onRetry={refresh}
+            retryLabel={t("actions.retry", { ns: "common" })}
+            className={CONDITION_PANEL.SCREEN}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!state.available) {
+    return (
+      <Card className={CARD_SHELL}>
+        <OffloadHeader />
+        <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+          <ConditionBlock
+            tone="neutral"
+            glyph={CpuIcon}
+            ariaRole="status"
+            title={t(`${K}.unavailable_title`)}
+            description={t(`${K}.unavailable_hint`)}
+            className={CONDITION_PANEL.SCREEN}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const rebootPending = pendingReboot?.source === "ipa_offload";
 
   return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardTitle>{t("ipa_offload.card_title")}</CardTitle>
-        <CardDescription>{t("ipa_offload.card_description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="grid gap-2">
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-6 w-24" />
+    <Card className={CARD_SHELL}>
+      <OffloadHeader />
+      <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+        {/* Declared here and not inherited: the card swaps in after its
+            skeleton, once the page cascade has already run. */}
+        <motion.div
+          className={cn(ROW_GROUP, GROUP_FILL)}
+          variants={staggerRows}
+          initial="hidden"
+          animate="visible"
+        >
+          <motion.div variants={staggerRowItem} className={ROW.ROOT}>
+            <div className={ROW.TEXT}>
+              <span className={ROW.LABEL}>{t(`${K}.enable_label`)}</span>
+              <span className={ROW.CONSEQUENCE}>{t(`${K}.cpu_warning`)}</span>
             </div>
-            <Separator />
-            <Skeleton className="h-12 w-full" />
-          </div>
-        ) : error && state === null ? (
-          <div className="grid gap-3">
-            <Alert variant="destructive">
-              <AlertTriangleIcon className="size-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-            <Button variant="outline" onClick={refresh} className="w-fit">
-              <RotateCcwIcon className="size-4" />
-              {t("retry", { ns: "common" })}
-            </Button>
-          </div>
-        ) : (
-          <motion.div
-            className="grid gap-2"
-            variants={staggerRows}
-            initial="hidden"
-            animate="visible"
-          >
-            {/* CPU-routing warning, always present so the tradeoff is explicit */}
-            <motion.div variants={staggerRowItem}>
-              <Alert>
-                <AlertTriangleIcon className="size-4" />
-                <AlertDescription>
-                  {t("ipa_offload.cpu_warning")}
-                </AlertDescription>
-              </Alert>
-            </motion.div>
-
-            {/* Enable toggle */}
-            <motion.div
-              variants={staggerRowItem}
-              className="flex items-center justify-between mt-2"
-            >
-              <Label
-                htmlFor="ipa-offload"
-                className="font-semibold text-muted-foreground text-sm"
-              >
-                {t("ipa_offload.enable_label")}
-              </Label>
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="ipa-offload"
-                  checked={state?.enabled ?? false}
-                  disabled={isSaving || unavailable}
-                  onCheckedChange={handleToggle}
-                  aria-label={t("ipa_offload.enable_label")}
-                />
-                <Label htmlFor="ipa-offload">
-                  {state?.enabled
-                    ? t("state.enabled", { ns: "common" })
-                    : t("state.disabled", { ns: "common" })}
-                </Label>
-              </div>
-            </motion.div>
-
-            {/* Unavailable explanation: card stays visible, switch disabled */}
-            {unavailable && (
-              <motion.p
-                variants={staggerRowItem}
-                className="text-sm text-muted-foreground"
-              >
-                {t("ipa_offload.unavailable_hint")}
-              </motion.p>
-            )}
-
-            {/* Pending-reboot honesty badge */}
-            <motion.div
-              variants={staggerRowItem}
-              className="flex items-center justify-between mt-2"
-            >
-              <p className="font-semibold text-muted-foreground text-sm">
-                {t("ipa_offload.status_label")}
-              </p>
-              <Badge variant="warning">
-                <RotateCcwIcon className="size-3" aria-hidden="true" />
-                {t("ipa_offload.pending_reboot_badge")}
-              </Badge>
-            </motion.div>
+            <div className={ROW.CONTROL}>
+              <SegmentedField<Choice>
+                value={draft ?? "off"}
+                onValueChange={setDraft}
+                options={[
+                  { value: "off", label: t("state.off", { ns: "common" }) },
+                  { value: "on", label: t("state.on", { ns: "common" }) },
+                ]}
+                ariaLabel={t(`${K}.enable_label`)}
+                disabled={isSaving}
+                breakpoint="never"
+                glyph={renderCheckGlyph}
+              />
+            </div>
           </motion.div>
-        )}
+
+          <motion.div variants={staggerRowItem} className={STATUS_ROW}>
+            <span className={ROW.LABEL}>{t(`${K}.status_label`)}</span>
+            {rebootPending ? (
+              <Badge variant="warning">
+                <RotateCcwIcon className={CHIP_GLYPH} aria-hidden="true" />
+                {t(`${K}.pending_reboot_badge`)}
+              </Badge>
+            ) : state.enabled ? (
+              <Badge variant="success">
+                <CircleCheckIcon className={CHIP_GLYPH} aria-hidden="true" />
+                {t(`${K}.status_on`)}
+              </Badge>
+            ) : (
+              <Badge variant="muted">
+                <CircleOffIcon className={CHIP_GLYPH} aria-hidden="true" />
+                {t(`${K}.status_off`)}
+              </Badge>
+            )}
+          </motion.div>
+        </motion.div>
+
+        <CardFoot
+          status={<span>{t(`${K}.reboot_note`)}</span>}
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="action"
+                onClick={() => setDraft(savedChoice)}
+                disabled={!dirty || isSaving}
+              >
+                {t("actions.discard", { ns: "common" })}
+              </Button>
+              <SaveButton
+                onClick={handleApply}
+                isSaving={isSaving}
+                saved={saved}
+                label={t("actions.apply", { ns: "common" })}
+                disabled={!dirty}
+                size="action"
+              />
+            </>
+          }
+        />
       </CardContent>
     </Card>
   );

@@ -29,5 +29,11 @@ export interface IpaOffloadError {
   detail?: string;
 }
 
+/** What `setEnabled` resolves to, so the caller toasts the call's own reason. */
+export interface IpaOffloadMutationResult {
+  ok: boolean;
+  error?: string;
+}
+
 export type IpaOffloadGetResponse = IpaOffloadGetSuccess | IpaOffloadError;
 export type IpaOffloadPostResponse = IpaOffloadPostSuccess | IpaOffloadError;
