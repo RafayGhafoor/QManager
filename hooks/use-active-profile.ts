@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { authFetch } from "@/lib/auth-fetch";
 import type { ProfileSummary, ProfileListResponse } from "@/types/sim-profile";
+import { useSharedSimProfiles } from "@/hooks/use-sim-profiles";
 import {
   resolveScheduledScenario,
   nextChangeAt as computeNextChangeAt,
@@ -31,8 +32,12 @@ export interface UseActiveProfileReturn {
 }
 
 export function useActiveProfile(): UseActiveProfileReturn {
-  const [activeProfile, setActiveProfile] = useState<ProfileSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Under a SimProfilesProvider the shared list is the source and this hook
+  // neither fetches nor polls (it keeps only its own clock tick).
+  const shared = useSharedSimProfiles();
+  const enabled = shared === null;
+  const [ownProfile, setActiveProfile] = useState<ProfileSummary | null>(null);
+  const [ownLoading, setIsLoading] = useState(true);
 
   const mountedRef = useRef(true);
 
@@ -65,10 +70,19 @@ export function useActiveProfile(): UseActiveProfileReturn {
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     fetchActive();
     const id = setInterval(fetchActive, POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [fetchActive]);
+  }, [enabled, fetchActive]);
+
+  const sharedProfiles = shared?.profiles;
+  const sharedActiveId = shared?.activeProfileId ?? null;
+  const activeProfile = useMemo<ProfileSummary | null>(() => {
+    if (!sharedProfiles) return ownProfile;
+    if (!sharedActiveId) return null;
+    return sharedProfiles.find((p) => p.id === sharedActiveId) ?? null;
+  }, [sharedProfiles, sharedActiveId, ownProfile]);
 
   // Minute tick to advance the scheduled-scenario resolution at block edges.
   const [now, setNow] = useState<Date>(() => new Date());
@@ -93,8 +107,8 @@ export function useActiveProfile(): UseActiveProfileReturn {
   return {
     activeProfile,
     isVerizonActive: activeProfile?.mno === "Verizon",
-    isLoading,
-    refresh: fetchActive,
+    isLoading: shared ? shared.isLoading : ownLoading,
+    refresh: shared ? shared.refresh : fetchActive,
     scheduleLocked,
     scheduledScenarioId,
     nextChangeAt,

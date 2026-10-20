@@ -1,6 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useContext,
+  createContext,
+  createElement,
+  type ReactNode,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { authFetch } from "@/lib/auth-fetch";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
@@ -70,7 +79,11 @@ export type ScenarioSaveResult =
 
 const K = "scenarios.errors";
 
-export function useConnectionScenarios(): UseConnectionScenariosReturn {
+function useConnectionScenariosInternal({
+  enabled,
+}: {
+  enabled: boolean;
+}): UseConnectionScenariosReturn {
   const { t } = useTranslation("cellular");
   const [activeScenarioId, setActiveScenarioId] = useState("balanced");
   const [customScenarios, setCustomScenarios] = useState<StoredScenario[]>([]);
@@ -115,8 +128,9 @@ export function useConnectionScenarios(): UseConnectionScenariosReturn {
 
   // Initial fetch
   useEffect(() => {
+    if (!enabled) return;
     fetchScenarios();
-  }, [fetchScenarios]);
+  }, [enabled, fetchScenarios]);
 
   // ---------------------------------------------------------------------------
   // Activate a scenario
@@ -260,4 +274,31 @@ export function useConnectionScenarios(): UseConnectionScenariosReturn {
     deleteCustomScenario,
     refresh,
   };
+}
+
+// =============================================================================
+// Optional shared instance (see SimProfilesProvider in use-sim-profiles.ts)
+// =============================================================================
+
+const ConnectionScenariosContext =
+  createContext<UseConnectionScenariosReturn | null>(null);
+
+export function ConnectionScenariosProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const value = useConnectionScenariosInternal({ enabled: true });
+  return createElement(ConnectionScenariosContext.Provider, { value }, children);
+}
+
+/** The shared instance, or `null` when no provider is mounted above. */
+export function useSharedConnectionScenarios(): UseConnectionScenariosReturn | null {
+  return useContext(ConnectionScenariosContext);
+}
+
+export function useConnectionScenarios(): UseConnectionScenariosReturn {
+  const shared = useContext(ConnectionScenariosContext);
+  const own = useConnectionScenariosInternal({ enabled: shared === null });
+  return shared ?? own;
 }

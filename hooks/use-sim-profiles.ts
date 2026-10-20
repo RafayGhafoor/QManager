@@ -1,6 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useContext,
+  createContext,
+  createElement,
+  type ReactNode,
+} from "react";
 import i18next from "i18next";
 import { authFetch } from "@/lib/auth-fetch";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
@@ -30,10 +39,19 @@ import type {
 
 const CGI_BASE = "/cgi-bin/quecmanager/profiles";
 
+/** save.sh / deactivate.sh success envelope (extras are per-endpoint). */
+type SaveResponse = ProfileApiResponse & {
+  requires_reboot?: boolean;
+  /** Present when the saved profile is the active one. */
+  schedule_rearmed?: boolean;
+};
+
 /** Mutation outcomes; `error` is already translated and safe to toast. */
-export type ProfileActionResult = { ok: true } | { ok: false; error: string };
+export type ProfileActionResult =
+  | { ok: true; scheduleRearmed?: boolean }
+  | { ok: false; error: string };
 export type ProfileCreateResult =
-  | { ok: true; id: string | null }
+  | { ok: true; id: string | null; scheduleRearmed?: boolean }
   | { ok: false; error: string };
 export type ProfileDeactivateResult =
   | { ok: true; requiresReboot: boolean }
@@ -88,7 +106,11 @@ export interface ProfileFormData {
   scenario: ProfileScenarioBinding;
 }
 
-export function useSimProfiles(): UseSimProfilesReturn {
+function useSimProfilesInternal({
+  enabled,
+}: {
+  enabled: boolean;
+}): UseSimProfilesReturn {
   const [profiles, setProfiles] = useState<ProfileSummary[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -130,9 +152,12 @@ export function useSimProfiles(): UseSimProfilesReturn {
   }, []);
 
   // Initial load
+  // `enabled` gates the fetch only: under a provider the shared instance owns
+  // the request, so a second instance must stay quiet.
   useEffect(() => {
+    if (!enabled) return;
     fetchProfiles();
-  }, [fetchProfiles]);
+  }, [enabled, fetchProfiles]);
 
   // ---------------------------------------------------------------------------
   // Shared POST: resolves to the parsed body, or a translated failure.
@@ -143,7 +168,7 @@ export function useSimProfiles(): UseSimProfilesReturn {
       body: unknown,
       fallbackKey: string,
     ): Promise<
-      | { ok: true; result: ProfileApiResponse & { requires_reboot?: boolean } }
+      | { ok: true; result: SaveResponse }
       | { ok: false; error: string }
     > => {
       const fallback = tr(fallbackKey);
@@ -154,8 +179,7 @@ export function useSimProfiles(): UseSimProfilesReturn {
           body: body === undefined ? undefined : JSON.stringify(body),
         });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const result: ProfileApiResponse & { requires_reboot?: boolean } =
-          await resp.json();
+        const result: SaveResponse = await resp.json();
         if (!result.success) {
           return {
             ok: false,
@@ -183,7 +207,13 @@ export function useSimProfiles(): UseSimProfilesReturn {
       const r = await post("save.sh", data, "custom_profiles.errors.save_failed");
       if (!r.ok) return r;
       await fetchProfiles();
-      return { ok: true, id: r.result.id || null };
+      return {
+        ok: true,
+        id: r.result.id || null,
+        ...(typeof r.result.schedule_rearmed === "boolean"
+          ? { scheduleRearmed: r.result.schedule_rearmed }
+          : {}),
+      };
     },
     [fetchProfiles, post],
   );
@@ -200,7 +230,12 @@ export function useSimProfiles(): UseSimProfilesReturn {
       );
       if (!r.ok) return r;
       await fetchProfiles();
-      return { ok: true };
+      return {
+        ok: true,
+        ...(typeof r.result.schedule_rearmed === "boolean"
+          ? { scheduleRearmed: r.result.schedule_rearmed }
+          : {}),
+      };
     },
     [fetchProfiles, post],
   );
@@ -281,4 +316,30 @@ export function useSimProfiles(): UseSimProfilesReturn {
     getProfile,
     refresh,
   };
+}
+
+// =============================================================================
+// Optional shared instance
+// =============================================================================
+// Wrapping a subtree in <SimProfilesProvider> mounts ONE instance of the hook;
+// every useSimProfiles() / useActiveProfile() below it reads that instance and
+// issues no request of its own, so a save in one consumer updates all of them.
+// Outside a provider the hook behaves exactly as it always did.
+
+const SimProfilesContext = createContext<UseSimProfilesReturn | null>(null);
+
+export function SimProfilesProvider({ children }: { children: ReactNode }) {
+  const value = useSimProfilesInternal({ enabled: true });
+  return createElement(SimProfilesContext.Provider, { value }, children);
+}
+
+/** The shared instance, or `null` when no provider is mounted above. */
+export function useSharedSimProfiles(): UseSimProfilesReturn | null {
+  return useContext(SimProfilesContext);
+}
+
+export function useSimProfiles(): UseSimProfilesReturn {
+  const shared = useContext(SimProfilesContext);
+  const own = useSimProfilesInternal({ enabled: shared === null });
+  return shared ?? own;
 }
