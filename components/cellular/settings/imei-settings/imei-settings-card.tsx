@@ -221,7 +221,9 @@ const IMEISettingsCard = ({
                       <MaterialSymbol name="check" size={BADGE_GLYPH_SIZE} />
                     </Badge>
                   </TooltipTrigger>
-                  <TooltipContent>{t(`${K}.status.unchanged`)}</TooltipContent>
+                  <TooltipContent variant="info">
+                    {t(`${K}.status.unchanged`)}
+                  </TooltipContent>
                 </Tooltip>
               ) : null}
               <Input

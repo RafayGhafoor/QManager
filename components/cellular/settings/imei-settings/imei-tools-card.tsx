@@ -405,7 +405,7 @@ const IMEIToolsCard = () => {
                         </span>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent>{luhnLabel}</TooltipContent>
+                    <TooltipContent variant="info">{luhnLabel}</TooltipContent>
                   </Tooltip>
                 </div>
               ) : (
