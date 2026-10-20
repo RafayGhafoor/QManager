@@ -49,8 +49,12 @@ import type {
   ApnSetting,
   CidContext,
   ApnSaveRequest,
+  DataCidSource,
 } from "@/types/apn-settings";
 import { PDP_TYPE_OPTIONS } from "@/types/apn-settings";
+
+// Mirrors the backend allow-list (the value is spliced into an AT command).
+const APN_PATTERN = /^[A-Za-z0-9._-]{1,100}$/;
 
 // =============================================================================
 // Props
@@ -61,8 +65,10 @@ export interface ApnSettingsCardProps {
   cids: CidContext[] | null;
   /** 1 = custom APN live, 0 = carrier default, null before first fetch. */
   active: number | null;
-  /** The live WAN-bearing CID, or null before first fetch. */
+  /** The live data-bearing CID, or null before first fetch. */
   activeCid: number | null;
+  /** How the data CID was identified; "none" = no bearer is up. */
+  dataCidSource: DataCidSource | null;
   isLoading: boolean;
   isSaving: boolean;
   /** The first read failed and there is nothing to show (translated). */
@@ -229,6 +235,7 @@ export default function ApnSettingsCard({
   cids,
   active,
   activeCid,
+  dataCidSource,
   isLoading,
   isSaving,
   loadError,
@@ -253,11 +260,17 @@ export default function ApnSettingsCard({
     setSeeded(true);
     setApnValue(apn.apn);
     setPdpType(apn.pdp_type || "ipv4v6");
-    setCid(String(apn.cid));
+    // A slot that was never set has no meaningful CID of its own: start the
+    // picker on the context that actually carries the data connection.
+    const detected =
+      !apn.apn && activeCid !== null && dataCidSource !== null && dataCidSource !== "none";
+    setCid(String(detected ? activeCid : apn.cid));
   }
 
   // --- UI state ---
   const [apnError, setApnError] = useState("");
+  // The user accepted the IMS/SOS warning for the CID currently in the picker.
+  const [carrierConfirmed, setCarrierConfirmed] = useState(false);
   const [pendingCid, setPendingCid] = useState<CidContext | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
 
@@ -295,11 +308,15 @@ export default function ApnSettingsCard({
       setPendingCid(ctx);
       return;
     }
+    setCarrierConfirmed(false);
     setCid(value);
   };
 
   const confirmCidChange = () => {
-    if (pendingCid) setCid(String(pendingCid.cid));
+    if (pendingCid) {
+      setCid(String(pendingCid.cid));
+      setCarrierConfirmed(true);
+    }
     setPendingCid(null);
   };
 
@@ -307,6 +324,10 @@ export default function ApnSettingsCard({
   const validateForm = (): boolean => {
     if (!apnValue.trim()) {
       setApnError(t("core_settings.apn.edit.fields.apn.error_required"));
+      return false;
+    }
+    if (!APN_PATTERN.test(apnValue.trim())) {
+      setApnError(t("core_settings.apn.edit.fields.apn.error_invalid"));
       return false;
     }
     setApnError("");
@@ -322,6 +343,14 @@ export default function ApnSettingsCard({
       pdp_type: pdpType,
       cid: parseInt(cid, 10),
     };
+    // Authorise a carrier (IMS/SOS) context only after the confirm dialog, or
+    // when the stored setting already targets it (the user confirmed earlier).
+    const target = contexts.find((c) => String(c.cid) === cid);
+    const isCarrierTarget =
+      target?.apn_type === "ims" || target?.apn_type === "emergency";
+    if (isCarrierTarget && (carrierConfirmed || cid === String(apn?.cid))) {
+      request.allow_carrier_cid = true;
+    }
 
     const result = await onSave(request);
     if (result.ok) {
@@ -355,6 +384,7 @@ export default function ApnSettingsCard({
     setApnValue(apn.apn);
     setPdpType(apn.pdp_type || "ipv4v6");
     setCid(String(apn.cid));
+    setCarrierConfirmed(false);
     setApnError("");
   };
 
@@ -370,7 +400,7 @@ export default function ApnSettingsCard({
           <LiveStatusBadge
             active={active}
             activeCid={activeCid}
-            storedApn={apnValue}
+            storedApn={apn?.apn ?? ""}
             cids={cids}
             isSaving={isSaving}
           />
@@ -395,6 +425,7 @@ export default function ApnSettingsCard({
                     if (apnError) setApnError("");
                   }}
                   disabled={isSaving}
+                  maxLength={100}
                   required
                   aria-required="true"
                   aria-invalid={!!apnError}
