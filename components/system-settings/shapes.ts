@@ -551,8 +551,8 @@ export const SKELETON = {
     CONSEQUENCE: LINE.CONSEQUENCE,
     /** Row 1's consequence wraps to two lines at real card widths. */
     CONSEQUENCE_2: LINE.CONSEQUENCE,
-    /** The `Switch` in row 1's control box — 24px tall, not a field. */
-    SWITCH: "h-6 w-10 rounded-pill",
+    /** The On/Off pill in row 1's control box, at its natural width. */
+    PILL: `${FIELD_HEIGHT} w-36 rounded-pill`,
     /** The autosave receipt strip: a 16px line, shorter than a consequence. */
     RECEIPT: "h-4 w-32 rounded-inline",
     FIELD: `${FIELD_HEIGHT} w-full rounded-field ${FIELD_WIDTH}`,
@@ -687,5 +687,56 @@ export const SKELETON_POLLING = {
   PILL: `${FIELD_HEIGHT} w-full rounded-pill @2xl/card:w-36`,
   FIELD: `${FIELD_HEIGHT} w-full rounded-field @2xl/card:w-36`,
   CHIP: "h-[1.375rem] w-32 rounded-pill",
+  ACTION: `${FIELD_HEIGHT} w-28 rounded-pill`,
+} as const;
+
+// -----------------------------------------------------------------------------
+// Device Access and Hardware (the 2026-10-20 regroup)
+// -----------------------------------------------------------------------------
+
+/**
+ * A single-column page of full-width cards. Device Access's two cards answer
+ * one question but share no shape, so pairing them would be a split by
+ * symmetry; each recomposes inside its own `@container/card` instead.
+ */
+export const CARD_STACK = "grid grid-cols-1 items-stretch gap-5";
+
+/** A full-width band inside `CARD_GRID` (a card with no row-mate). */
+export const CARD_SPAN = "@3xl/main:col-span-2";
+
+/**
+ * SSH Access's three password fields: stacked on a phone, one row on a wide
+ * card. Each cell bottom-aligns its field (`STACK_ROW` plus `mt-auto` on the
+ * field), so a consequence that wraps in one column cannot stagger the inputs.
+ */
+export const PASSWORD_GRID = "grid grid-cols-1 gap-0.5 @4xl/card:grid-cols-3";
+
+/** Web Port's HTTP and HTTPS rows, side by side on a wide card. */
+export const PORT_GRID = "grid grid-cols-1 gap-0.5 @3xl/card:grid-cols-2";
+
+/** The port field: a narrow numeric box, a figure rather than an identifier. */
+export const PORT_FIELD = "w-full text-[0.84375rem] font-medium tabular-nums @2xl/card:w-28";
+
+/**
+ * A status row: key on the left edge, chip on the right, at every width. It
+ * never stacks the way `ROW.ROOT` does, because a chip has no consequence line
+ * to make room for.
+ */
+export const STATUS_ROW =
+  "flex min-h-14 items-center justify-between gap-4 rounded-field px-4 py-3 @2xl/card:pl-[1.125rem]";
+
+/** The chip glyph inside a status row. */
+export const CHIP_GLYPH = "size-3";
+
+/** The Hardware pair and Web Port: rows wearing `ROW.ROOT` and `STATUS_ROW`. */
+export const SKELETON_HARDWARE = {
+  LABEL: LINE.LABEL,
+  CONSEQUENCE: LINE.CONSEQUENCE,
+  /** The On/Off pill, at its natural two-segment width. */
+  PILL: `${FIELD_HEIGHT} w-36 rounded-pill`,
+  /** A port field, mirroring `PORT_FIELD`. */
+  FIELD: `${FIELD_HEIGHT} w-full rounded-field @2xl/card:w-28`,
+  CHIP: "h-[1.375rem] w-20 rounded-pill",
+  /** The footer's Apply pill. */
   ACTION: `${FIELD_HEIGHT} w-28 rounded-pill`,
 } as const;

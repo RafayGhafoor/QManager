@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { toast } from "sonner";
 import {
   CheckCircle2Icon,
+  CheckIcon,
   CircleAlertIcon,
   ClockIcon,
   Loader2Icon,
@@ -24,7 +25,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
+import { SEGMENTED, SegmentedField } from "@/components/ui/segmented-field";
 import { staggerRowItem, staggerRows } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +44,6 @@ import {
   CARD_PAD,
   CARD_SHELL,
   CARD_TITLE,
-  COARSE_TARGET,
   CONDITION_PANEL,
   DAY_PILL,
   FIELD,
@@ -59,6 +59,11 @@ import {
 } from "./shapes";
 
 const K = "reboot";
+
+/** The lucide check that `SegmentedField` reserves on every segment. */
+const renderCheckGlyph = (className: string) => (
+  <CheckIcon size={SEGMENTED.GLYPH} className={className} aria-hidden="true" />
+);
 const LP = "low_power";
 
 /** Index 0-6 = Sun-Sat, matching `ScheduleConfig.days`. The status band reads
@@ -395,22 +400,27 @@ function EnableRow({
     <motion.div variants={staggerRowItem} className={ROW.ROOT}>
       <div className={ROW.TEXT}>
         <div className={LABEL_LINE}>
-          <label htmlFor={id} className={ROW.LABEL}>
-            {t(`${ns}.rows.enabled.label`)}
-          </label>
+          <span className={ROW.LABEL}>{t(`${ns}.rows.enabled.label`)}</span>
           <StateChip enabled={checked} hasDays={hasDays} ns={ns} />
         </div>
         <span className={ROW.CONSEQUENCE}>
           {t(`${ns}.rows.enabled.consequence`)}
         </span>
       </div>
-      <div className={ROW.CONTROL}>
-        <Switch
-          id={id}
-          aria-describedby={AUTOSAVE_HINT_ID}
-          checked={checked}
-          onCheckedChange={onChange}
-          className={COARSE_TARGET}
+      {/* A pill rather than a bare Switch (DESIGN.md > Segmented pills). It
+          still autosaves: a pick commits at once, exactly as the switch did,
+          and the receipt strip below says so. */}
+      <div id={id} className={ROW.CONTROL} aria-describedby={AUTOSAVE_HINT_ID}>
+        <SegmentedField
+          value={checked ? "on" : "off"}
+          onValueChange={(next) => onChange(next === "on")}
+          options={[
+            { value: "off", label: t("state.off", { ns: "common" }) },
+            { value: "on", label: t("state.on", { ns: "common" }) },
+          ]}
+          ariaLabel={t(`${ns}.rows.enabled.label`)}
+          breakpoint="never"
+          glyph={renderCheckGlyph}
         />
       </div>
     </motion.div>
@@ -502,7 +512,7 @@ const ScheduledOperationsCard = ({
                 />
               </div>
               <div className={ROW.CONTROL}>
-                <Skeleton className={SKELETON.REBOOT.SWITCH} />
+                <Skeleton className={SKELETON.REBOOT.PILL} />
               </div>
             </div>
             <div className={ROW.ROOT}>
@@ -538,7 +548,7 @@ const ScheduledOperationsCard = ({
                 />
               </div>
               <div className={ROW.CONTROL}>
-                <Skeleton className={SKELETON.REBOOT.SWITCH} />
+                <Skeleton className={SKELETON.REBOOT.PILL} />
               </div>
             </div>
             {[0, 1].map((i) => (

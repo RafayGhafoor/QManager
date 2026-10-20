@@ -1,23 +1,30 @@
 # System Settings (`/system-settings`)
 
-> **Applies to:** the QManager target, ported from the RM520N fork's re-authored index (ledger U4.2).
+> **Applies to:** the QManager target, ported from the RM520N fork's re-authored index (ledger U4.2),
+> then regrouped (`docs/plans/2026-10-20-system-settings-regroup.html`): frontend only, no backend,
+> CGI or UCI change, and no existing URL moved.
 > Family: `components/system-settings/**` · namespace `public/locales/*/system-settings.json`
 
-The route's **index only**. The sub-routes route to their own docs:
-[logs.md](logs.md), [languages.md](languages.md), [software-update.md](software-update.md),
-[at-terminal.md](at-terminal.md).
+The index, plus two pages split out of it: **Device Access** and **Hardware** (both below).
+The other sub-routes have their own docs: [logs.md](logs.md), [languages.md](languages.md),
+[software-update.md](software-update.md), [at-terminal.md](at-terminal.md), and
+[system-health-check.md](../features/system-health-check.md) (which also hosts the Debug
+Report card).
 
 The index is a header (title, hostname `Tag`, Refresh), a status band of three tiles,
-and a grid of seven cards. The first four are the page's own; the last three are
-device-level cards that keep their own internals.
+and three cards. Page description: "How this device keeps time, when it restarts, and which
+SIMs it remembers." **Time & Units** and **Scheduled Operations** sit side by side as a
+symmetric 2-up; **Tracked SIMs** is a full-width card (`@3xl/main:col-span-2`) below them.
 
 | Cell | Component | Data |
 | --- | --- | --- |
 | Time & Units | `system-settings-card.tsx` | `useSystemSettings()` -> `settings` |
 | Scheduled Operations | `scheduled-operations-card.tsx` | `scheduledReboot`, `lowPower` |
-| SSH Access | `ssh-password-card.tsx` | `useSshPassword()` |
 | Tracked SIMs | `tracked-sims-card.tsx` | `useKnownSims()` |
-| IPA offload / Host AT ports / Diagnostics | `ipa-offload/`, `at-engine/`, `diagnostics/` | their own hooks |
+
+SSH Access and Web Port live on [Device Access](#device-access-system-settingsdevice-access);
+Hardware Offload and Host AT Ports on [Hardware](#hardware-system-settingshardware); the
+debug report on System Health Check. None of them render on the index.
 
 `modem-subsystem-card.tsx` from the source is **not** ported; the target has no
 subsystem endpoint for it.
@@ -70,7 +77,8 @@ Every save in `useSystemSettings()` resolves to `SaveResult { success, message? 
 `message` is the device's reason already translated through `resolveErrorMessage`
 (`errors` namespace); it is absent for a transport failure or an empty reason, and the
 caller then toasts its own generic line. `useSshPassword().changePassword` and
-`useKnownSims().clear` follow the same shape. Toasts are fired from the returned value,
+`useKnownSims().clear` follow the same shape (`useIpaOffload().setEnabled` returns the
+related `{ ok, error? }` `IpaOffloadMutationResult`; see [Hardware](#hardware-system-settingshardware)). Toasts are fired from the returned value,
 never from hook state read after an `await`.
 
 `error` on `useSystemSettings()` is set by a failed **read** only. A rejected write does
@@ -136,9 +144,27 @@ The backend rejects "enabled with no days" (`no_days`), so the `Never fires` chi
 the band's `no_day` face are reachable only transiently, between a day being cleared and
 its save being refused.
 
+### Tracked SIMs (`tracked-sims-card.tsx`)
+
+See [known-sims.md](../features/known-sims.md#frontend-tracked-sims-cardtsx).
+
+---
+
+## Device Access (`/system-settings/device-access`)
+
+"The password and ports used to reach this modem." Route
+`app/system-settings/device-access/page.tsx` ->
+`components/system-settings/device-access/device-access.tsx`. A single-column stack of two
+cards; each owns its hook and internals, the page only composes them.
+
+| Card | Component | Data |
+| --- | --- | --- |
+| SSH Access | `ssh-password-card.tsx` | `useSshPassword()` |
+| Web Port | `web-port/web-port-card.tsx` | `useWebPort()` ([web-port.md](../features/web-port.md)) |
+
 ### SSH Access (`ssh-password-card.tsx`)
 
-Three password fields plus an **Enforce strong password** `SegmentedField` (default On,
+Three password fields (in one row on a wide card) plus an **Enforce strong password** `SegmentedField` (default On,
 mirroring the CGI's default). The form mirrors the device policy (five characters
 minimum; with the strong policy, upper case, lower case and a digit) so it can refuse
 before the round trip. A client-side refusal shows an inline notice; a device failure
@@ -146,9 +172,49 @@ toasts the returned reason. The web session is not affected by a change. The fie
 reveal toggles are a ghost `Button` over an `Input` (the target's `InputGroup` does not
 take the canon `host` prop yet).
 
-### Tracked SIMs (`tracked-sims-card.tsx`)
+### Web Port (`web-port/web-port-card.tsx`)
 
-See [known-sims.md](../features/known-sims.md#frontend-tracked-sims-cardtsx).
+HTTP and HTTPS fields sit side by side on a wide card. The card keeps its confirm dialog
+and its post-save redirect, which now lands on `/system-settings/device-access/` on the new
+origin (it used to land on `/system-settings/`).
+
+---
+
+## Hardware (`/system-settings/hardware`)
+
+"How Ethernet traffic and a connected host reach the modem's hardware." Route
+`app/system-settings/hardware/page.tsx` ->
+`components/system-settings/hardware/hardware.tsx`. A symmetric 2-up of two cards, each with
+its own hook.
+
+| Card | Component | Data |
+| --- | --- | --- |
+| Hardware Offload | `ipa-offload/ipa-offload-card.tsx` | `useIpaOffload()` ([diagnostics.md](../features/diagnostics.md)) |
+| Host AT Ports | `at-engine/host-at-ports-card.tsx` | `useHostAtPorts()` ([at-broker.md](../features/at-broker.md)) |
+
+### Hardware Offload (`ipa-offload-card.tsx`)
+
+A draft-and-apply card. An On/Off `SegmentedField` edits a local draft, committed from
+`CardFoot` (status left, "Takes effect after a reboot."; Discard, then an Apply
+`SaveButton`). It replaces the old bare `Switch`, which saved the moment it was toggled.
+
+- Apply POSTs as before. On success it calls `requestRebootLater("ipa_offload")` (the
+  deferred-reboot banner) and toasts; on failure it toasts the returned reason.
+- The status row reads "Pending reboot" (warning chip) while the pending-reboot flag's
+  source is `ipa_offload`, otherwise On/Off from the boot-enable state. The old card showed
+  "Takes effect after reboot" unconditionally.
+- Firmware without the vendor init script (`available: false`) shows a neutral "Not on this
+  modem" state instead of a disabled switch.
+
+> ℹ️ NOTE: `useIpaOffload().setEnabled` returns `{ ok, error? }` (`IpaOffloadMutationResult`, `types/ipa-offload.ts`)
+> instead of a boolean, so the card toasts the call's own failure reason. A failed save no
+> longer sets the hook's load `error`, so it cannot flip the card to its unreachable state.
+
+### Host AT Ports (`host-at-ports-card.tsx`)
+
+On/Off for the vendor host AT bridge ([at-broker.md](../features/at-broker.md)). It gained
+dedicated unreachable-state copy (`host_at.{unavailable_title,error_title,error_description}`)
+with the move.
 
 ---
 
@@ -174,8 +240,14 @@ GET and can land later, and without it the tile would show a confident `0`.
 
 ## i18n
 
-Subtrees: `page`, `band`, `preferences`, `reboot`, `low_power`, `ssh`, `known_sims`, in
-all five packs. The pre-port `system`, `scheduled_operations` and `ssh_password`
+Subtrees: `page`, `band`, `preferences`, `reboot`, `low_power`, `ssh`, `known_sims`,
+`device_access`, `hardware`, `web_port`, `ipa_offload`, `host_at`, in all five packs (en,
+zh-CN, zh-TW, it, id). The regroup added `device_access.page.{title,description}`,
+`hardware.page.{title,description}`,
+`ipa_offload.{status_on,status_off,reboot_note,discard,unavailable_title,error_title,error_description}`,
+`host_at.{unavailable_title,error_title,error_description}` and
+`web_port.{error_title,error_description}`; `sidebar.json` gained `items.device_access` and
+`items.hardware`. The pre-port `system`, `scheduled_operations` and `ssh_password`
 subtrees are deleted.
 
 - **Casing lives in the class, never the leaf.** `EYEBROW` carries `uppercase`.

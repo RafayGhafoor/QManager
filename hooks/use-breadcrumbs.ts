@@ -45,6 +45,8 @@ const routeNameMap: Record<string, string> = {
   'traffic-engine': 'Traffic Engine',
   tailscale: 'Tailscale',
   'system-settings': 'System Settings',
+  'device-access': 'Device Access',
+  hardware: 'Hardware',
   'about-device': 'About Device',
   support: 'Support',
 };

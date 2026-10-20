@@ -8,7 +8,7 @@ QManager can be served on ports other than 80 / 443. The default stays 80 / 443.
 |---|---|
 | SSH installer | Fresh interactive install (`quecmanager.web` unset, stdin is a tty) asks `Use different ports? [y/N]`, then HTTP / HTTPS with the current ports as defaults (3 tries, then keeps them). The OTA updater runs without a tty and never prompts. |
 | Onboarding (`/setup`) | Step 6 of 7, **Web Port**, optional and skippable. Saves on Continue; the Done step opens the dashboard on the new origin. |
-| System Settings | **Web Port** card (`components/system-settings/web-port/web-port-card.tsx`), CardFoot apply plus confirm dialog. |
+| System Settings | **Web Port** card (`components/system-settings/web-port/web-port-card.tsx`) on **Device Access** (`/system-settings/device-access`), CardFoot apply plus confirm dialog. After a save the card redirects to `<new origin>/system-settings/device-access/`. |
 | SSH, after install | `qmanager_web_port` (see below). |
 
 ## SSH commands

@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 import ConditionBlock from "./condition-block";
+import DiagnosticsCard from "@/components/system-settings/diagnostics/diagnostics-card";
 import { Tag } from "@/components/ui/tag";
 import { useSystemHealthCheck } from "@/hooks/use-system-health-check";
 import { staggerContainer, staggerItem } from "@/lib/motion";
@@ -133,6 +134,14 @@ export function SystemHealthCheck(): React.JSX.Element {
           />
         </>
       )}
+
+      {/* The debug report needs no check run, so it renders in every state,
+          including when the checks cannot load. As a fixed sibling after the
+          conditional it keeps its tree position, so a state change never
+          remounts it or replays its entrance. */}
+      <motion.div variants={staggerItem}>
+        <DiagnosticsCard />
+      </motion.div>
     </motion.div>
   );
 }

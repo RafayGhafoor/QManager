@@ -1,9 +1,8 @@
 "use client";
 
-import { motion } from "motion/react";
-import { staggerRows, staggerRowItem } from "@/lib/motion";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { CircleAlertIcon, DownloadIcon, Loader2Icon } from "lucide-react";
 
 import {
   Card,
@@ -13,10 +12,31 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2Icon, DownloadIcon, AlertTriangleIcon } from "lucide-react";
+import { CARD_FOOT, CARD_FOOT_ACTIONS } from "@/components/ui/card-foot";
+import { cn } from "@/lib/utils";
 
 import { useDiagnostics } from "@/hooks/use-diagnostics";
+
+import {
+  CARD_BODY,
+  CARD_DESC,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_TITLE,
+  NOTICE,
+  PILL_GLYPH,
+} from "../shapes";
+
+// =============================================================================
+// Debug Report — a one-click plain-text snapshot, downloaded to this device
+// =============================================================================
+// Mounted at the foot of System Health Check in every page state: it needs no
+// check run, so it is reachable even when the checks cannot load. The capture
+// is an operational action, not a draft commit, so the footer carries only the
+// action (CARD_FOOT constants, no empty status slot).
+// =============================================================================
+
+const K = "diagnostics";
 
 const DiagnosticsCard = () => {
   const { t } = useTranslation("system-settings");
@@ -27,61 +47,54 @@ const DiagnosticsCard = () => {
   const handleCapture = async () => {
     const ok = await capture();
     if (ok) {
-      toast.success(t("diagnostics.toast_success"));
+      toast.success(t(`${K}.toast_success`));
     } else {
-      toast.error(t("diagnostics.toast_failed"));
+      toast.error(t(`${K}.toast_failed`));
     }
   };
 
   return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardTitle>{t("diagnostics.card_title")}</CardTitle>
-        <CardDescription>{t("diagnostics.card_description")}</CardDescription>
+    <Card className={CARD_SHELL}>
+      <CardHeader className={CARD_PAD}>
+        <CardTitle className={CARD_TITLE}>{t(`${K}.card_title`)}</CardTitle>
+        <CardDescription className={CARD_DESC}>
+          {t(`${K}.card_description`)}
+        </CardDescription>
       </CardHeader>
-      <CardContent>
-        <motion.div
-          className="grid gap-4"
-          variants={staggerRows}
-          initial="hidden"
-          animate="visible"
-        >
-          <motion.p
-            variants={staggerRowItem}
-            className="text-sm text-muted-foreground"
-          >
-            {t("diagnostics.body")}
-          </motion.p>
+      <CardContent className={cn(CARD_PAD, CARD_BODY, "gap-4")}>
+        <p className="text-on-surface-variant max-w-[72ch] text-sm leading-relaxed text-pretty">
+          {t(`${K}.body`)}
+        </p>
 
-          {stage === "error" && error && (
-            <motion.div variants={staggerRowItem}>
-              <Alert variant="destructive">
-                <AlertTriangleIcon className="size-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            </motion.div>
-          )}
+        {stage === "error" && error ? (
+          <div role="alert" className={cn(NOTICE.BOX, NOTICE.FAILED)}>
+            <CircleAlertIcon className={NOTICE.GLYPH} aria-hidden="true" />
+            <span className={NOTICE.TEXT}>{error}</span>
+          </div>
+        ) : null}
 
-          <motion.div variants={staggerRowItem}>
+        <div className={cn(CARD_FOOT, "pt-0")}>
+          <div className={CARD_FOOT_ACTIONS}>
             <Button
+              type="button"
+              size="action"
               onClick={handleCapture}
               disabled={isCapturing}
-              className="w-full @sm/card:w-auto"
             >
               {isCapturing ? (
-                <>
-                  <Loader2Icon className="size-4 animate-spin" />
-                  {t("diagnostics.button_capturing")}
-                </>
+                <Loader2Icon
+                  className={cn(PILL_GLYPH, "motion-safe:animate-spin")}
+                  aria-hidden="true"
+                />
               ) : (
-                <>
-                  <DownloadIcon className="size-4" />
-                  {t("diagnostics.button_capture")}
-                </>
+                <DownloadIcon className={PILL_GLYPH} aria-hidden="true" />
               )}
+              {isCapturing
+                ? t(`${K}.button_capturing`)
+                : t(`${K}.button_capture`)}
             </Button>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

@@ -12,19 +12,15 @@ import { useSystemSettings } from "@/hooks/use-system-settings";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
-import HostAtPortsCard from "@/components/system-settings/at-engine/host-at-ports-card";
-import DiagnosticsCard from "@/components/system-settings/diagnostics/diagnostics-card";
-import IpaOffloadCard from "@/components/system-settings/ipa-offload/ipa-offload-card";
 import ScheduledOperationsCard from "@/components/system-settings/scheduled-operations-card";
-import SSHPasswordCard from "@/components/system-settings/ssh-password-card";
 import { StatusBand } from "@/components/system-settings/status-band";
 import SystemSettingsCard from "@/components/system-settings/system-settings-card";
 import TrackedSimsCard from "@/components/system-settings/tracked-sims-card";
-import WebPortCard from "@/components/system-settings/web-port/web-port-card";
 
 import {
   CARD_CELL,
   CARD_GRID,
+  CARD_SPAN,
   PAGE_HEAD,
   PAGE_ROOT,
   PILL_GLYPH,
@@ -110,10 +106,9 @@ const SystemSettings = () => {
         <motion.div variants={staggerItem} className={CARD_CELL}>
           <ScheduledOperationsCard {...settingsState} />
         </motion.div>
-        <motion.div variants={staggerItem} className={CARD_CELL}>
-          <SSHPasswordCard />
-        </motion.div>
-        <motion.div variants={staggerItem} className={CARD_CELL}>
+        {/* One short row cannot fill half a symmetric pair, so Tracked SIMs
+            is a full-width band of its own (The Symmetric-Pair Rule). */}
+        <motion.div variants={staggerItem} className={cn(CARD_CELL, CARD_SPAN)}>
           <TrackedSimsCard
             count={knownSims.count}
             isLoading={knownSims.isLoading}
@@ -121,20 +116,6 @@ const SystemSettings = () => {
             refresh={knownSims.refresh}
             clear={knownSims.clear}
           />
-        </motion.div>
-        {/* Device-level cards, after the page's own four. Their internals are
-            their own. */}
-        <motion.div variants={staggerItem} className={CARD_CELL}>
-          <IpaOffloadCard />
-        </motion.div>
-        <motion.div variants={staggerItem} className={CARD_CELL}>
-          <HostAtPortsCard />
-        </motion.div>
-        <motion.div variants={staggerItem} className={CARD_CELL}>
-          <WebPortCard />
-        </motion.div>
-        <motion.div variants={staggerItem} className={CARD_CELL}>
-          <DiagnosticsCard />
         </motion.div>
       </motion.div>
     </motion.div>
