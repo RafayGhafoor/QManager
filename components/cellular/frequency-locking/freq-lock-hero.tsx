@@ -4,7 +4,7 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tag } from "@/components/ui/tag";
@@ -282,7 +282,7 @@ export function FreqLockHero({
     <Card className={HERO.ROOT}>
       <div className={HERO.BODY}>
         <div className={HERO.HEAD}>
-          <span className={HERO.TITLE}>{t("frequency_locking.live.title")}</span>
+          <CardTitle className={HERO.TITLE}>{t("frequency_locking.live.title")}</CardTitle>
         </div>
 
         {/* The status read failed over a stale reading. The forms below stay

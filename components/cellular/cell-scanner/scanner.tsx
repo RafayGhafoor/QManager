@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -353,12 +353,12 @@ export function FullScanner() {
           <Card className={SCAN_RESULTS_CARD}>
             <div className={SECTION_HEAD.ROOT}>
               <div className={SECTION_HEAD.TITLES}>
-                <h2 className={SECTION_HEAD.TITLE}>
+                <CardTitle as="h2" className={SECTION_HEAD.TITLE}>
                   {t("cell_scanner.results.title")}
-                </h2>
-                <p className={SECTION_HEAD.DESC}>
+                </CardTitle>
+                <CardDescription className={SECTION_HEAD.DESC}>
                   {t("cell_scanner.results.description")}
-                </p>
+                </CardDescription>
               </div>
             </div>
 

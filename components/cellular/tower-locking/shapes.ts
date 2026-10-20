@@ -35,7 +35,7 @@ export const CARD_PAD = "px-6";
 /** The coordinator owns both section shells and headers; children render bodies. */
 export const SECTION_HEAD = {
   ROOT: "flex flex-col gap-1",
-  TITLE: "text-base font-semibold",
+  TITLE: "text-base leading-normal font-semibold",
   DESCRIPTION: "text-sm leading-relaxed text-pretty text-on-surface-variant",
 } as const;
 

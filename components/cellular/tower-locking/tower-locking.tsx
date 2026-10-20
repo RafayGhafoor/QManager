@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ConditionScreen } from "@/components/cellular/condition-screen";
 import { CellularPageHeader } from "@/components/cellular/page-header";
 import { Button } from "@/components/ui/button";
+import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { useModemStatus } from "@/hooks/use-modem-status";
 import { useTowerLocking } from "@/hooks/use-tower-locking";
@@ -286,11 +287,11 @@ const TowerLockingComponent = () => {
         variants={staggerContainer}
       >
         <motion.div variants={staggerItem}>
-          <section className={TOWER_HERO} aria-labelledby="tower-now-title">
+          <Card className={TOWER_HERO} aria-labelledby="tower-now-title">
             <div className={SECTION_HEAD.ROOT}>
-              <h2 id="tower-now-title" className={SECTION_HEAD.TITLE}>
+              <CardTitle as="h2" id="tower-now-title" className={SECTION_HEAD.TITLE}>
                 {t(`${K}.live.title`)}
-              </h2>
+              </CardTitle>
             </div>
             <TowerLiveStrip
               modemState={tower.modemState}
@@ -300,21 +301,21 @@ const TowerLockingComponent = () => {
               busy={{ lte: tower.isLteLocking, nr_sa: tower.isNrLocking }}
               onActCarrier={handleActCarrier}
             />
-          </section>
+          </Card>
         </motion.div>
 
         <motion.div variants={staggerItem}>
-          <section
+          <Card
             className={TOWER_SECTION}
             aria-labelledby="tower-automation-title"
           >
             <div className={SECTION_HEAD.ROOT}>
-              <h2 id="tower-automation-title" className={SECTION_HEAD.TITLE}>
+              <CardTitle as="h2" id="tower-automation-title" className={SECTION_HEAD.TITLE}>
                 {t(`${K}.automation.title`)}
-              </h2>
-              <p className={SECTION_HEAD.DESCRIPTION}>
+              </CardTitle>
+              <CardDescription className={SECTION_HEAD.DESCRIPTION}>
                 {t(`${K}.automation.description`)}
-              </p>
+              </CardDescription>
             </div>
             <TowerAutomationTiles
               config={tower.config}
@@ -326,7 +327,7 @@ const TowerLockingComponent = () => {
               onUpdateSettings={tower.updateSettings}
               onScheduleChange={tower.updateSchedule}
             />
-          </section>
+          </Card>
         </motion.div>
 
         {/* Nested cascade: inherits `visible` from the parent. `h-full` on each

@@ -146,7 +146,7 @@ export const HERO = {
    */
   BODY: "flex flex-col gap-3.5 px-5 py-4 @lg/card:px-6 @lg/card:py-5",
   HEAD: "flex flex-wrap items-center gap-2.5",
-  TITLE: "text-base font-semibold",
+  TITLE: "text-base leading-normal font-semibold",
 } as const;
 
 // -----------------------------------------------------------------------------

@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { ExpandButton } from "@/components/ui/expand-button";
 import { CopyDiagnosticsButton } from "@/components/cellular/radio/copy-diagnostics-button";
-import { Card } from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -536,9 +536,9 @@ export function ActiveBandsCard({
         <div className="flex min-w-0 flex-col gap-1">
           {/* `text-xl` (20px) — the Headline step, which DESIGN.md defines as
               "large card titles". The comp's 22px is not a step on the ramp. */}
-          <h3 className="text-xl leading-tight font-semibold">
+          <CardTitle className="text-xl leading-tight">
             {t("radio_info.bands.title")}
-          </h3>
+          </CardTitle>
           {/* The description slot doubles as the freshness line. `SwapLabel`
               because the two states replace each other in place — the same
               treatment the row chips use — and `warning` ink because a paused
