@@ -3,7 +3,6 @@
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
-import { Badge } from "@/components/ui/badge";
 import {
   MaterialSymbol,
   type MaterialSymbolName,
@@ -19,10 +18,12 @@ import type { ScenarioConfig } from "@/types/connection-scenario";
 // No gradients: identity is a glyph disc plus neutral Tags (the network mode,
 // and a band-lock marker when the scenario pins bands). Selecting a tile only
 // shows its configuration in the Selected-scenario card; activation is the
-// explicit commit there. The selected tile is promoted one container step to
-// `primary-container` (Highlight-by-Container); every disc sits on the strong
-// `primary` fill (Glyph-Disc Rule). The running scenario carries a filled
-// `success` chip.
+// explicit commit there. The selected tile is a quiet neutral step up
+// (`surface-container-high` plus an `outline` ring), so "what I'm looking at"
+// never competes with "what is running". The running scenario is the one
+// place colour moves: its disc turns `success` with the ambient pulse rings
+// (animate-pulse-ring, removed under reduced motion), and an sr-only label
+// carries the state for assistive tech. Every other disc stays on `primary`.
 // =============================================================================
 
 export interface Scenario {
@@ -74,33 +75,44 @@ export const ScenarioItem = ({
         className={cn(
           SCENARIO_TILE_SHAPE,
           isSelected
-            ? "bg-primary-container text-on-primary-container"
+            ? "bg-surface-container-high ring-1 ring-outline ring-inset"
             : "bg-surface-container hover:bg-surface-container-high",
         )}
       >
-        <div className="flex items-start justify-between gap-2">
+        <span aria-hidden="true" className="relative grid size-10 flex-none place-items-center">
+          {isActive ? (
+            <>
+              {/* Translucent `success`, not the tone steps: dark-mode tone-1
+                  sits within a step of the tile ground and vanishes. */}
+              <span className="absolute -inset-2 animate-pulse-ring rounded-pill bg-success/20" />
+              <span
+                className="absolute -inset-1 animate-pulse-ring rounded-pill bg-success/35"
+                style={{ animationDelay: "0.3s" }}
+              />
+            </>
+          ) : null}
           <span
-            aria-hidden="true"
-            className="grid size-10 flex-none place-items-center rounded-pill bg-primary text-primary-foreground"
+            className={cn(
+              "relative grid size-10 place-items-center rounded-pill transition-colors duration-[var(--duration-standard)] ease-out",
+              isActive
+                ? "bg-success text-success-foreground"
+                : "bg-primary text-primary-foreground",
+            )}
           >
             <MaterialSymbol name={scenario.glyph} size={20} filled />
           </span>
-          {isActive ? (
-            <Badge variant="success">
-              <MaterialSymbol name="check_circle" size={12} />
-              {t("scenarios.scenario_item.active_badge")}
-            </Badge>
-          ) : null}
-        </div>
+        </span>
 
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="truncate text-sm font-semibold">{scenario.name}</span>
-          <span
-            className={cn(
-              "line-clamp-2 text-xs",
-              isSelected ? "opacity-80" : "text-on-surface-variant",
-            )}
-          >
+          <span className="truncate text-sm font-semibold">
+            {scenario.name}
+            {isActive ? (
+              <span className="sr-only">
+                {" "}({t("scenarios.scenario_item.active_badge")})
+              </span>
+            ) : null}
+          </span>
+          <span className="line-clamp-2 text-xs text-on-surface-variant">
             {scenario.description}
           </span>
         </div>
