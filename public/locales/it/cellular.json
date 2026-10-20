@@ -1938,7 +1938,6 @@
     "ports": {
       "title": "Catene di ricezione",
       "description": "Quali antenne contribuiscono al punteggio.",
-      "reporting": "{{live}} di {{total}} riportano dati",
       "not_reporting": "Inattiva",
       "twin_hint": "Per il dettaglio metrica per metrica di ogni catena, vedi",
       "twin_link": "Statistiche dell'antenna"
