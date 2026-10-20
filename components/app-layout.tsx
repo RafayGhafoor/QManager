@@ -3,6 +3,7 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { DUR, EASE_STANDARD } from "@/lib/motion";
 
 import {
@@ -14,15 +15,14 @@ import {
 import {
   Breadcrumb,
   BreadcrumbItem,
-  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 
 import { Separator } from "@/components/ui/separator";
-import { AppSidebar } from "@/components/app-sidebar";
-import { useBreadcrumbs } from "@/hooks/use-breadcrumbs";
+import { AppSidebar, NAV_GROUPS } from "@/components/app-sidebar";
+import { resolveNavCrumbs } from "@/lib/nav-tree";
 import { SimSwapBanner } from "@/components/monitoring/watchdog/sim-swap-banner";
 import { isLoggedIn } from "@/hooks/use-auth";
 import { useAutoLogout } from "@/hooks/use-auto-logout";
@@ -31,8 +31,13 @@ import { ReconnectingBanner } from "@/components/reboot/reconnecting-banner";
 import { PendingRebootBanner } from "@/components/reboot/pending-reboot-banner";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const breadcrumbs = useBreadcrumbs();
+  const { t } = useTranslation("sidebar");
   const pathname = usePathname();
+  // Named the way the sidebar names it: group, then parent, then page.
+  const crumbs = React.useMemo(
+    () => resolveNavCrumbs(pathname, NAV_GROUPS),
+    [pathname],
+  );
   useAutoLogout();
   useBootPendingReboot();
 
@@ -58,33 +63,38 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2">
           <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
+            <SidebarTrigger
+              className="-ml-1"
+              label={t("actions.toggle_sidebar")}
+            />
             <Separator
               orientation="vertical"
               className="mr-2 data-[orientation=vertical]:h-4"
             />
-            <Breadcrumb>
+            <Breadcrumb aria-label={t("breadcrumb")}>
               <BreadcrumbList>
-                {breadcrumbs.map((breadcrumb, index) => (
-                  <React.Fragment key={breadcrumb.href}>
-                    {index > 0 && (
-                      <BreadcrumbSeparator className="hidden desktop:block" />
-                    )}
-                    <BreadcrumbItem
-                      className={
-                        breadcrumb.isCurrentPage ? "" : "hidden desktop:block"
-                      }
-                    >
-                      {breadcrumb.isCurrentPage ? (
-                        <BreadcrumbPage>{breadcrumb.label}</BreadcrumbPage>
-                      ) : (
-                        <BreadcrumbLink href={breadcrumb.href}>
-                          {breadcrumb.label}
-                        </BreadcrumbLink>
+                {crumbs.map((crumb, index) => {
+                  const isCurrent = index === crumbs.length - 1;
+                  return (
+                    <React.Fragment key={crumb.key}>
+                      {index > 0 && (
+                        <BreadcrumbSeparator className="hidden desktop:block" />
                       )}
-                    </BreadcrumbItem>
-                  </React.Fragment>
-                ))}
+                      {/* Below desktop only the page itself shows. Group and
+                          parent crumbs have no page of their own, so they are
+                          text, not links. */}
+                      <BreadcrumbItem
+                        className={isCurrent ? "" : "hidden desktop:inline-flex"}
+                      >
+                        {isCurrent ? (
+                          <BreadcrumbPage>{t(crumb.key)}</BreadcrumbPage>
+                        ) : (
+                          <span>{t(crumb.key)}</span>
+                        )}
+                      </BreadcrumbItem>
+                    </React.Fragment>
+                  );
+                })}
               </BreadcrumbList>
             </Breadcrumb>
           </div>
