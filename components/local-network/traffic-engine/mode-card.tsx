@@ -67,8 +67,6 @@ interface FootProps extends EngineState {
   modeLabel: string;
   dirty: boolean;
   invalid: boolean;
-  /** The bold lead of the pending change ("Strength 1 → 3."). */
-  lead: string;
   isSaving: boolean;
   onDiscard: () => void;
   onApply: () => Promise<boolean>;
@@ -79,7 +77,6 @@ function ModeFoot({
   modeLabel,
   dirty,
   invalid,
-  lead,
   owner,
   otherOwns,
   busy,
@@ -91,21 +88,17 @@ function ModeFoot({
   const { t } = useTranslation("local-network");
   const { saved, markSaved } = useSaveFlash();
 
-  // D: a clean draft leaves the status slot empty.
+  // D: a clean draft leaves the status slot empty, and a dirty one names only
+  // the consequence of applying, never the pending change (Card-Foot Apply Rule).
   let status: ReactNode = null;
   if (dirty && invalid) {
     status = t("traffic_engine.foot_invalid");
   } else if (dirty) {
-    const consequence = owner
+    status = owner
       ? t("traffic_engine.foot_restart")
       : otherOwns
         ? t("traffic_engine.foot_switch_to_apply", { mode: modeLabel })
         : t("traffic_engine.foot_on_enable", { mode: modeLabel });
-    status = (
-      <span>
-        <span className="text-on-surface font-semibold">{lead}</span> {consequence}
-      </span>
-    );
   }
 
   return (
@@ -349,7 +342,6 @@ export function VideoOptimizerCard({
             modeLabel={modeLabel}
             dirty={dirty}
             invalid={false}
-            lead={t("traffic_engine.foot_strength", { from: savedStrength, to: draftStrength })}
             isSaving={vo.isSaving}
             onDiscard={() => onDraftChange(savedStrength)}
             onApply={onApply}
@@ -496,8 +488,8 @@ export function MasqueradeCard({
             busy={check.busy}
             onRun={() => void masq.runTest()}
             result={
-                check.outcome ? <CheckResult outcome={check.outcome} message={check.message} /> : undefined
-              }
+              check.outcome ? <CheckResult outcome={check.outcome} message={check.message} /> : undefined
+            }
           />
         </div>
         <ModeFoot
@@ -505,7 +497,6 @@ export function MasqueradeCard({
           modeLabel={modeLabel}
           dirty={dirty}
           invalid={!!draftError}
-          lead={t("traffic_engine.foot_disguise")}
           isSaving={masq.isSaving}
           onDiscard={() => onDraftChange(savedDomain)}
           onApply={onApply}

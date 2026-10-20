@@ -261,22 +261,6 @@ export function HostnamesView({ hostlist, draft }: HostnamesViewProps) {
     setInputError(null);
   };
 
-  const status = draft.dirty ? (
-    <span>
-      <span className="text-on-surface font-semibold">
-        {t("traffic_engine.hosts_unsaved", { count: draft.added + draft.removed })}
-      </span>{" "}
-      (
-      {[
-        draft.added ? t("traffic_engine.hosts_added", { count: draft.added }) : null,
-        draft.removed ? t("traffic_engine.hosts_removed", { count: draft.removed }) : null,
-      ]
-        .filter(Boolean)
-        .join(", ")}
-      )
-    </span>
-  ) : null;
-
   return (
     <>
       <form className={HOSTS.TOOLBAR} onSubmit={submit}>
@@ -352,7 +336,6 @@ export function HostnamesView({ hostlist, draft }: HostnamesViewProps) {
       )}
 
       <CardFoot
-        status={status}
         actions={
           <>
             <AlertDialog>
