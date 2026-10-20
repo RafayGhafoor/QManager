@@ -1385,34 +1385,19 @@
   "frequency_locking": {
     "a11y": {
       "add_carrier": "Aggiungi questa portante all'elenco",
-      "refresh": "Aggiorna lo stato del blocco",
       "remove_entry": "Rimuovi questo canale"
     },
     "actions": {
       "add": "Aggiungi",
       "apply_lte": "Applica blocco LTE",
       "apply_nr": "Applica blocco NR",
-      "clear_all": "Cancella tutto",
       "clear_fields": "Cancella campi",
       "clear_lte": "Rimuovi blocco LTE",
       "clear_nr": "Rimuovi blocco NR",
+      "refresh": "Aggiorna",
       "use_current": "Usa attuali",
       "use_current_hint": "Compila con i canali che il modem sta usando adesso",
       "use_current_none": "Nessuna portante attiva"
-    },
-    "apply": {
-      "applying_title": "In attesa che il modem torni",
-      "blocked_readback": "Blocco BTS attivo, blocco delle frequenze non disponibile",
-      "blocked_title": "Applica non è disponibile mentre è attivo un blocco BTS",
-      "blocked_unknown_readback": "Stato del blocco BTS sconosciuto, quindi la scrittura è bloccata",
-      "blocked_unknown_title": "Applica non è disponibile finché non si riesce a leggere lo stato del blocco BTS",
-      "disclaimer": "L'applicazione interrompe brevemente la connessione mentre la radio si registra di nuovo. Un canale senza copertura lascia il modem senza servizio finché non rimuovi il blocco.",
-      "live_title": "Blocco attivo sul modem",
-      "no_recovery": "Il blocco delle frequenze non ha alcun controllo di failover. A differenza del blocco delle bande e del blocco BTS, nulla ripristina il servizio da solo se questi canali perdono copertura.",
-      "readback_lte": "LTE {{channels}}",
-      "readback_none": "Nessun blocco delle frequenze sul modem",
-      "readback_nr": "NR {{channels}}",
-      "readback_serving": "in uso {{channel}}"
     },
     "bands": {
       "none": "Nessuna banda corrispondente per {{label}}",
@@ -1431,10 +1416,7 @@
       "empty_title": "Nessun canale nell'elenco",
       "scs_warning": "Una spaziatura sbagliata sembra una voce valida, ma il modem non la usa mai. Il valore viene copiato dalla portante quando la aggiungi da sopra.",
       "status_applying": "In applicazione",
-      "status_blocked": "Non consentito",
-      "status_locked": "Bloccato",
-      "status_unknown": "Non segnalato",
-      "status_unlocked": "Sbloccato"
+      "unused": "I canali evidenziati sono bloccati, ma la radio non li sta usando."
     },
     "dialog": {
       "cancel": "Annulla",
@@ -1444,6 +1426,7 @@
       "lock_lte_title": "Bloccare i canali LTE?",
       "lock_nr_body": "Il modem userà solo {{channels}} e potrebbe disconnettersi brevemente mentre si registra di nuovo.",
       "lock_nr_title": "Bloccare i canali 5G NR?",
+      "no_recovery": "Il blocco delle frequenze non ha alcun controllo di failover. A differenza del blocco delle bande e del blocco BTS, nulla ripristina il servizio da solo se questi canali perdono copertura.",
       "unlock_lte_body": "Il modem sarà libero di usare qualsiasi canale offerto dalle sue bande attive e potrebbe disconnettersi brevemente.",
       "unlock_lte_title": "Rimuovere il blocco LTE?",
       "unlock_nr_body": "Il modem sarà libero di usare qualsiasi canale offerto dalle sue bande attive e potrebbe disconnettersi brevemente.",
@@ -1471,15 +1454,9 @@
       }
     },
     "live": {
-      "add_blocked": "L'aggiunta è disattivata finché il blocco BTS non viene rimosso.",
-      "add_blocked_unknown": "L'aggiunta è disattivata finché non si riesce a leggere lo stato del blocco BTS.",
-      "add_hint": "Aggiungi copia il canale nell'elenco qui sotto. Un blocco delle frequenze non usa il PCI, quindi la cella la sceglie ancora il modem.",
       "camped_empty_body": "Il modem non segnala alcuna cella di servizio. I canali si possono comunque inserire a mano.",
       "camped_empty_title": "Nessuna portante segnalata",
-      "camped_meta": "{{count}} portanti ({{bandwidth}} MHz)",
-      "camped_title": "Agganciato adesso",
-      "compare_hint": "Un blocco BTS fissa sia il canale sia la cella. Il blocco delle frequenze è l'opzione più permissiva: stesso canale, qualsiasi cella.",
-      "compare_hint_unknown": "Non è stato possibile leggere lo stato del blocco BTS. Un blocco delle frequenze viene rifiutato mentre è attivo un blocco BTS, quindi qui non si può applicare nulla finché quella lettura non riesce.",
+      "outside_list": "Le portanti evidenziate sono attive ma fuori dal tuo elenco di canali.",
       "title": "Adesso"
     },
     "page": {
@@ -1494,6 +1471,7 @@
       "arfcn_placeholder": "NR-ARFCN",
       "earfcn_placeholder": "EARFCN",
       "in_list": "Nell'elenco",
+      "on_air": "In uso",
       "optional": "Facoltativo. Un secondo canale amplia l'elenco dei consentiti.",
       "scs_label": "Spaziatura",
       "scs_unit": "{{value}} kHz",
@@ -1501,7 +1479,6 @@
       "staged_count": "{{count}} di {{max}} voci pronte. Non c'è ancora nulla sul modem."
     },
     "toast": {
-      "all_cleared": "Tutti i blocchi delle frequenze rimossi",
       "lte_clear_failed": "Impossibile rimuovere il blocco delle frequenze LTE",
       "lte_cleared": "Blocco delle frequenze LTE rimosso",
       "lte_lock_failed": "Impossibile applicare il blocco delle frequenze LTE",
@@ -1518,16 +1495,8 @@
       "blocked_title": "Il blocco BTS sta tenendo la radio",
       "blocked_unknown_body": "QManager non è riuscito a leggere se un blocco BTS è attivo. Le modifiche al blocco delle frequenze restano bloccate finché quella lettura non riesce, perché applicarne uno mentre è attivo un blocco BTS può mandare in crash il modem. Aggiorna per riprovare.",
       "blocked_unknown_title": "Stato del blocco BTS non confermato",
-      "locked_body": "Il modem può usare solo i canali qui sotto. La cella la sceglie comunque lui, quindi il PCI può cambiare.",
-      "locked_title": "Bloccato sul tuo elenco di canali",
-      "no_recovery": "Nessun ripristino automatico",
-      "serving_in_list": "Il canale in uso è nell'elenco",
-      "serving_out_of_list": "Il canale in uso è fuori dall'elenco",
-      "tower_lock_off": "Blocco BTS disattivo, quindi è disponibile",
       "unknown_body": "Il modem non ha risposto all'ultima lettura di stato. Aggiorna per riprovare.",
-      "unknown_title": "Stato del blocco non segnalato",
-      "unlocked_body": "Il modem può usare qualsiasi canale offerto dalle sue bande attive e riseleziona liberamente. Consenti un canale per restringere il campo.",
-      "unlocked_title": "Tutti i canali consentiti"
+      "unknown_title": "Stato del blocco non segnalato"
     }
   },
   "cell_scanner": {

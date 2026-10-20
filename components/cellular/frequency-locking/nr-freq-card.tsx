@@ -15,7 +15,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,9 +24,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { CARD_FOOT, CARD_FOOT_ACTIONS } from "@/components/ui/card-foot";
+import {
+  CARD_FOOT,
+  CARD_FOOT_ACTIONS,
+  CardFoot,
+} from "@/components/ui/card-foot";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import type { FreqLockResult } from "@/hooks/use-frequency-locking";
+import { RevealButton } from "@/components/ui/reveal-button";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import {
   Select,
@@ -57,11 +61,9 @@ import { SCS_OPTIONS } from "@/types/tower-locking";
 import { BandMatchDisplay } from "./band-match-display";
 import { lockFailureMessage } from "./lock-result";
 import {
-  BADGE_GLYPH_SIZE,
   CARD_PAD,
   CARD_SHELL,
   EMPTY,
-  LOCK_BADGE,
   NOTICE,
   NOTICE_TONE,
   PILL_QUIET,
@@ -226,15 +228,26 @@ export function NrFreqCard({
     modemState ? { locked: modemState.nr_locked } : null,
     towerLockActive,
   );
-  const tone = LOCK_BADGE[posture];
-  const statusLabel =
-    posture === "locked"
-      ? t("frequency_locking.card.status_locked")
-      : posture === "unlocked"
-        ? t("frequency_locking.card.status_unlocked")
-        : posture === "blocked"
-          ? t("frequency_locking.card.status_blocked")
-          : t("frequency_locking.card.status_unknown");
+
+  /** NR channels the radio is on right now, for the row dots and outlines. */
+  const onAirChannels = useMemo<number[]>(() => {
+    const carriers = modemData?.network?.carrier_components ?? [];
+    const out = carriers
+      .filter((c) => c.technology === "NR" && c.earfcn != null)
+      .map((c) => c.earfcn as number);
+    const serving = modemData?.nr?.arfcn;
+    if (out.length === 0 && serving != null) out.push(serving);
+    return out;
+  }, [modemData]);
+
+  /** A pair the modem holds locked while the radio is camped elsewhere. */
+  const hasUnusedLock = draft.some(
+    (entry) =>
+      !onAirChannels.includes(entry.arfcn) &&
+      lockedEntries.some(
+        (held) => held.arfcn === entry.arfcn && held.scs === entry.scs,
+      ),
+  );
 
   const hasChanges = useMemo(
     () => entryKey(draft) !== entryKey(lockedEntries),
@@ -426,17 +439,22 @@ export function NrFreqCard({
     )
     .join(", ");
 
+  // One write at a time, whichever the state calls for: Clear while the lock the
+  // modem holds is what is staged, Apply when there is none or the fields now
+  // differ from it. An unreadable lock state shows both: Clear is harmless when
+  // nothing is locked, and the way out when something is.
+  const lockedAsSaved = posture === "locked" && !hasChanges;
+  const showUnlock = posture === "unknown" || lockedAsSaved;
+  const showApply = !lockedAsSaved;
+
   // --- Loading ---------------------------------------------------------------
   if (isLoading) {
     return (
       <Card className={CARD_SHELL}>
         <CardHeader className={CARD_PAD}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-2">
-              <Skeleton className={SKELETON_SHAPE.TITLE} />
-              <Skeleton className={SKELETON_SHAPE.DESC} />
-            </div>
-            <Skeleton className={SKELETON_SHAPE.CHIP} />
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className={SKELETON_SHAPE.TITLE} />
+            <Skeleton className={SKELETON_SHAPE.DESC} />
           </div>
         </CardHeader>
         <CardContent className={`${CARD_PAD} flex flex-col gap-4`}>
@@ -463,23 +481,13 @@ export function NrFreqCard({
     <>
       <Card className={CARD_SHELL}>
         <CardHeader className={CARD_PAD}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-1">
-              <CardTitle className="truncate text-lg">
-                {t("frequency_locking.legs.nr.title")}
-              </CardTitle>
-              <CardDescription className="text-pretty">
-                {t("frequency_locking.legs.nr.description")}
-              </CardDescription>
-            </div>
-            <Badge variant={tone.variant} className="flex-none">
-              <MaterialSymbol
-                name={tone.glyph}
-                size={BADGE_GLYPH_SIZE}
-                filled={tone.filled}
-              />
-              {statusLabel}
-            </Badge>
+          <div className="flex min-w-0 flex-col gap-1">
+            <CardTitle className="truncate text-lg">
+              {t("frequency_locking.legs.nr.title")}
+            </CardTitle>
+            <CardDescription className="text-pretty">
+              {t("frequency_locking.legs.nr.description")}
+            </CardDescription>
           </div>
         </CardHeader>
 
@@ -559,14 +567,37 @@ export function NrFreqCard({
             >
               {draft.map((entry, index) => {
                 const frequency = channelFrequencyLabel(entry.arfcn, "NR");
+                const onAir = onAirChannels.includes(entry.arfcn);
+                const unused =
+                  !onAir &&
+                  lockedEntries.some(
+                    (held) =>
+                      held.arfcn === entry.arfcn && held.scs === entry.scs,
+                  );
                 return (
                   <motion.div
                     key={`${entry.arfcn}-${entry.scs}-${index}`}
                     variants={staggerRowItem}
-                    className={SLOT.ROW}
+                    className={`${SLOT.ROW} ${unused ? SLOT.UNUSED : ""}`}
                   >
-                    <span className={SLOT.INDEX}>
-                      {t("frequency_locking.slots.slot", { index: index + 1 })}
+                    <span className={SLOT.INDEX_ROW}>
+                      <span className={SLOT.DOT_SLOT} aria-hidden="true">
+                        {onAir ? (
+                          <>
+                            <span className={SLOT.DOT_PING} />
+                            <span className={`relative ${SLOT.DOT}`} />
+                          </>
+                        ) : null}
+                      </span>
+                      <span className={SLOT.INDEX}>
+                        {t("frequency_locking.slots.slot", { index: index + 1 })}
+                        {onAir ? (
+                          <span className="sr-only">
+                            {" "}
+                            ({t("frequency_locking.slots.on_air")})
+                          </span>
+                        ) : null}
+                      </span>
                     </span>
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
                       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -743,45 +774,60 @@ export function NrFreqCard({
           {isLocking ? t("frequency_locking.card.status_applying") : ""}
         </div>
 
-        <div className={`${CARD_PAD} ${CARD_FOOT}`}>
-          <div className={CARD_FOOT_ACTIONS}>
-            <Button
-              type="button"
-              variant="tonal-neutral"
-              className={PILL_QUIET}
-              onClick={clearFields}
-              disabled={
-                isLocking ||
-                towerLockActive ||
-                (draft.length === 0 && newArfcn.trim() === "")
-              }
-            >
-              {t("frequency_locking.actions.clear_fields")}
-            </Button>
-            <Button
-              type="button"
-              variant="tonal-neutral"
-              size="action"
-              onClick={() => setShowUnlockDialog(true)}
-              disabled={isLocking || posture !== "locked"}
-            >
-              {t("frequency_locking.actions.clear_nr")}
-            </Button>
-            <SaveButton
-              onClick={requestLock}
-              isSaving={isLocking}
-              saved={saved}
-              label={t("frequency_locking.actions.apply_nr")}
-              blockedReason={lockBlockedReason}
-              disabled={
-                isLocking ||
-                draft.length === 0 ||
-                (posture === "locked" && !hasChanges)
-              }
-              size="action"
-            />
-          </div>
-        </div>
+        {/* `CARD_FOOT`'s `mt-auto` collects the LTE/NR height asymmetry behind the
+            actions. */}
+        <CardFoot
+          className={CARD_PAD}
+          status={
+            <>
+              <RevealButton
+                glyph="close"
+                label={t("frequency_locking.actions.clear_fields")}
+                onClick={clearFields}
+                disabled={isLocking ||
+                  towerLockActive ||
+                  (draft.length === 0 && newArfcn.trim() === "")}
+              />
+              {hasUnusedLock ? (
+                <span className="text-warning-on-surface inline-flex items-center gap-1.5">
+                  <MaterialSymbol
+                    name="warning"
+                    size={16}
+                    className="flex-none"
+                  />
+                  <span className="min-w-0">
+                    {t("frequency_locking.card.unused")}
+                  </span>
+                </span>
+              ) : null}
+            </>
+          }
+          actions={
+            <>
+              {showUnlock ? (
+                <Button
+                  type="button"
+                  size="action"
+                  onClick={() => setShowUnlockDialog(true)}
+                  disabled={isLocking}
+                >
+                  {t("frequency_locking.actions.clear_nr")}
+                </Button>
+              ) : null}
+              {showApply ? (
+                <SaveButton
+                  onClick={requestLock}
+                  isSaving={isLocking}
+                  saved={saved}
+                  label={t("frequency_locking.actions.apply_nr")}
+                  blockedReason={lockBlockedReason}
+                  disabled={isLocking || draft.length === 0}
+                  size="action"
+                />
+              ) : null}
+            </>
+          }
+        />
       </Card>
 
       {/* --- Lock confirmation ---------------------------------------------- */}
@@ -797,6 +843,20 @@ export function NrFreqCard({
               })}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {/* The standing risk, said where the lock is confirmed: this
+              feature has no failover watcher, so nothing restores service on
+              its own if the channels lose coverage. */}
+          <div className={`${NOTICE.ROOT} ${NOTICE_TONE.warning.root}`}>
+            <MaterialSymbol
+              name={NOTICE_TONE.warning.glyph}
+              size={16}
+              filled={NOTICE_TONE.warning.filled}
+              className="flex-none"
+            />
+            <span className={NOTICE.TEXT}>
+              {t("frequency_locking.dialog.no_recovery")}
+            </span>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel
               variant="tonal-neutral"

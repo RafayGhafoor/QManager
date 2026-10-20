@@ -1385,34 +1385,19 @@
   "frequency_locking": {
     "a11y": {
       "add_carrier": "将此载波添加到列表",
-      "refresh": "刷新锁定状态",
       "remove_entry": "移除此频点"
     },
     "actions": {
       "add": "添加",
       "apply_lte": "应用 LTE 锁定",
       "apply_nr": "应用 NR 锁定",
-      "clear_all": "全部清除",
       "clear_fields": "清空字段",
       "clear_lte": "清除 LTE 锁定",
       "clear_nr": "清除 NR 锁定",
+      "refresh": "刷新",
       "use_current": "使用当前",
       "use_current_hint": "用调制解调器当前使用的频点填充",
       "use_current_none": "当前无在网载波"
-    },
-    "apply": {
-      "applying_title": "正在等待调制解调器恢复",
-      "blocked_readback": "基站锁定生效中，频点锁定不可用",
-      "blocked_title": "基站锁定生效期间无法应用",
-      "blocked_unknown_readback": "基站锁定状态未知，因此写入已被阻止",
-      "blocked_unknown_title": "在能够读取基站锁定状态之前无法应用",
-      "disclaimer": "应用时无线电会重新注册，连接将短暂中断。若所选频点没有覆盖，在清除锁定前调制解调器将没有服务。",
-      "live_title": "锁定已在调制解调器上生效",
-      "no_recovery": "频点锁定没有故障转移守护。与频段锁定和基站锁定不同，若这些频点失去覆盖，没有任何机制会自动恢复服务。",
-      "readback_lte": "LTE {{channels}}",
-      "readback_none": "调制解调器上没有频点锁定",
-      "readback_nr": "NR {{channels}}",
-      "readback_serving": "驻留 {{channel}}"
     },
     "bands": {
       "none": "没有与 {{label}} 匹配的频段",
@@ -1431,10 +1416,7 @@
       "empty_title": "列表中没有频点",
       "scs_warning": "间隔填错看起来仍是有效条目，但调制解调器永远不会使用它。从上方添加载波时，此值会一并复制过来。",
       "status_applying": "应用中",
-      "status_blocked": "已阻止",
-      "status_locked": "已锁定",
-      "status_unknown": "尚未上报",
-      "status_unlocked": "未锁定"
+      "unused": "带边框的频点已锁定，但无线电未使用它们。"
     },
     "dialog": {
       "cancel": "取消",
@@ -1444,6 +1426,7 @@
       "lock_lte_title": "锁定 LTE 频点？",
       "lock_nr_body": "调制解调器将只使用 {{channels}}，重新注册期间可能会短暂断开连接。",
       "lock_nr_title": "锁定 5G NR 频点？",
+      "no_recovery": "频点锁定没有故障转移守护。与频段锁定和基站锁定不同，若这些频点失去覆盖，没有任何机制会自动恢复服务。",
       "unlock_lte_body": "调制解调器将可自由使用其已启用频段提供的任意频点，并可能短暂断开连接。",
       "unlock_lte_title": "清除 LTE 锁定？",
       "unlock_nr_body": "调制解调器将可自由使用其已启用频段提供的任意频点，并可能短暂断开连接。",
@@ -1471,15 +1454,9 @@
       }
     },
     "live": {
-      "add_blocked": "在解除基站锁定之前无法添加。",
-      "add_blocked_unknown": "在能够读取基站锁定状态之前无法添加。",
-      "add_hint": "“添加”会将该频点加入下方列表。频点锁定不涉及 PCI，因此小区仍由调制解调器选择。",
       "camped_empty_body": "调制解调器未上报服务小区。仍可手动输入频点。",
       "camped_empty_title": "未上报载波",
-      "camped_meta": "{{count}} 个载波（{{bandwidth}} MHz）",
-      "camped_title": "当前驻留",
-      "compare_hint": "基站锁定会同时固定频点和小区。频点锁定更宽松：同一频点，任意小区。",
-      "compare_hint_unknown": "无法读取基站锁定状态。基站锁定生效期间频点锁定会被拒绝，因此在该读取成功之前，这里的任何设置都无法应用。",
+      "outside_list": "带边框的载波正在使用，但不在你的频点列表中。",
       "title": "当前状态"
     },
     "page": {
@@ -1494,6 +1471,7 @@
       "arfcn_placeholder": "NR-ARFCN",
       "earfcn_placeholder": "EARFCN",
       "in_list": "在列表中",
+      "on_air": "使用中",
       "optional": "可选。第二个频点会扩大允许范围。",
       "scs_label": "间隔",
       "scs_unit": "{{value}} kHz",
@@ -1501,7 +1479,6 @@
       "staged_count": "已暂存 {{count}} / {{max}} 个条目。尚未写入调制解调器。"
     },
     "toast": {
-      "all_cleared": "已清除所有频点锁定",
       "lte_clear_failed": "无法清除 LTE 频点锁定",
       "lte_cleared": "已清除 LTE 频点锁定",
       "lte_lock_failed": "无法应用 LTE 频点锁定",
@@ -1518,16 +1495,8 @@
       "blocked_title": "基站锁定正在占用无线电",
       "blocked_unknown_body": "QManager 无法读取基站锁定是否生效。在该读取成功之前，频点锁定的更改将保持阻止状态，因为在基站锁定生效时应用频点锁定可能导致调制解调器崩溃。请刷新后重试。",
       "blocked_unknown_title": "基站锁定状态未确认",
-      "locked_body": "调制解调器只能使用下方列出的频点。小区仍由它自行选择，因此 PCI 可能会变化。",
-      "locked_title": "已锁定到你的频点列表",
-      "no_recovery": "无自动恢复",
-      "serving_in_list": "驻留频点在列表内",
-      "serving_out_of_list": "驻留频点在列表之外",
-      "tower_lock_off": "基站锁定已关闭，因此此功能可用",
       "unknown_body": "调制解调器未响应上次的状态读取。请刷新后重试。",
-      "unknown_title": "尚未上报锁定状态",
-      "unlocked_body": "调制解调器可使用其已启用频段提供的任意频点，并可自由重选。允许某个频点即可缩小范围。",
-      "unlocked_title": "允许所有频点"
+      "unknown_title": "尚未上报锁定状态"
     }
   },
   "cell_scanner": {
