@@ -126,9 +126,8 @@ export const MODE_REASON = "text-on-surface-variant text-[0.8125rem] leading-5";
 export const HOTSPOT_GROUP = "mt-3 flex flex-col gap-2";
 export const ENGINE_ROWS = "mt-3";
 
-/** Hotspot bypass's On/Off control fills the column like the mode control above it. */
-export const HOTSPOT_CTL =
-  "w-full [&>[data-slot=toggle-group]]:w-full [&_[data-slot=toggle-group-item]]:min-w-0 [&_[data-slot=toggle-group-item]]:flex-1";
+/** Hotspot bypass's On/Off control keeps a compact width, two even segments. */
+export const HOTSPOT_CTL = "w-fit [&_[data-slot=toggle-group-item]]:min-w-24";
 
 // -----------------------------------------------------------------------------
 // Live chart

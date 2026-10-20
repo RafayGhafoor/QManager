@@ -273,22 +273,24 @@ export function EngineCard({
                   value={running ? packets.toLocaleString() : dash}
                   quiet={!running}
                 />
-                <DrillRow
-                  label={t("traffic_engine.metric_package")}
-                  ariaLabel={t("traffic_engine.aria_open_package")}
-                  onOpen={() => open("package")}
-                  quiet={kernelOk}
-                  value={
-                    kernelOk ? (
-                      t("traffic_engine.pkg_installed")
-                    ) : (
-                      <Badge variant="destructive">
-                        <XCircleIcon className="size-3" aria-hidden="true" />
-                        {t("traffic_engine.pkg_queue_missing")}
-                      </Badge>
-                    )
-                  }
-                />
+                {!engaged ? (
+                  <DrillRow
+                    label={t("traffic_engine.metric_package")}
+                    ariaLabel={t("traffic_engine.aria_open_package")}
+                    onOpen={() => open("package")}
+                    quiet={kernelOk}
+                    value={
+                      kernelOk ? (
+                        t("traffic_engine.pkg_installed")
+                      ) : (
+                        <Badge variant="destructive">
+                          <XCircleIcon className="size-3" aria-hidden="true" />
+                          {t("traffic_engine.pkg_queue_missing")}
+                        </Badge>
+                      )
+                    }
+                  />
+                ) : null}
               </div>
             </div>
 
