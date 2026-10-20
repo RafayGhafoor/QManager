@@ -132,8 +132,8 @@ function RevealButton({
       {...props}
     >
       <MaterialSymbol name={glyph} size={18} className="flex-none" />
-      <span className="grid grid-cols-[0fr] transition-[grid-template-columns] duration-[var(--duration-standard)] ease-[var(--ease-standard)] group-hover/reveal:grid-cols-[1fr] group-focus-visible/reveal:grid-cols-[1fr] motion-reduce:transition-none">
-        <span className="overflow-hidden whitespace-nowrap pl-2 pr-0.5 text-xs font-semibold opacity-0 transition-opacity duration-[var(--duration-quick)] ease-out group-hover/reveal:opacity-100 group-focus-visible/reveal:opacity-100 motion-reduce:transition-none">
+      <span className="max-w-0 overflow-hidden opacity-0 transition-[max-width,opacity] duration-[var(--duration-standard)] ease-[var(--ease-standard)] group-hover/reveal:max-w-40 group-hover/reveal:opacity-100 group-focus-visible/reveal:max-w-40 group-focus-visible/reveal:opacity-100 motion-reduce:transition-none">
+        <span className="block whitespace-nowrap pl-2 pr-0.5 text-xs font-semibold">
           {label}
         </span>
       </span>
