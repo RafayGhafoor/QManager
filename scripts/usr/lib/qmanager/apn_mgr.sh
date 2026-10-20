@@ -438,7 +438,11 @@ reconcile_active_apn_slot_at_boot() {
     ')
 
     # 6. Skip on match — the common clean-boot case, zero AT commands.
-    if [ "$_rc_live_apn" = "$_rc_apn" ]; then
+    # 3GPP APNs are case-insensitive: compare lowercased so a case-only
+    # difference never triggers a needless COPS cycle (WAN drop).
+    _rc_live_lc=$(printf '%s' "$_rc_live_apn" | tr 'A-Z' 'a-z')
+    _rc_apn_lc=$(printf '%s' "$_rc_apn" | tr 'A-Z' 'a-z')
+    if [ "$_rc_live_lc" = "$_rc_apn_lc" ]; then
         qlog_info "APN already correct for CID $_rc_cid — no boot reconcile needed"
         return 0
     fi
