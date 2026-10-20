@@ -31,8 +31,9 @@ import type { Scenario } from "./scenario-item";
 // owns scenario selection, Activate is withheld and the foot says why.
 //
 // The configuration body folds like an accordion (header chevron, closed by
-// default) on the `0fr -> 1fr` grid-row morph; the foot never folds, so
-// Activate stays one click away. Rows are glance-surface metric pills; a value
+// default) on the `0fr -> 1fr` grid-row morph. Activate shows only while the
+// body is open (Edit / Delete for customs stay; a foot with nothing left is
+// dropped). Rows are glance-surface metric pills; a value
 // still at its default (bands on Auto) renders quiet (Quiet-Default Rule).
 // =============================================================================
 
@@ -111,7 +112,8 @@ export const ActiveConfigCard = ({
 
   const isCustom = !scenario.isDefault;
   const info = CONDITION_TONE.primary;
-
+  // Activate follows the fold: a collapsed card is a glance, not a commit.
+  const showActivate = open && !scheduleLocked;
 
   const { lte_bands, sa_nr_bands, nsa_nr_bands } = scenario.config;
   const rows: { label: string; value: string; quiet?: boolean }[] = [
@@ -215,36 +217,38 @@ export const ActiveConfigCard = ({
         </div>
       </div>
 
-      <CardFoot
-        className="px-6"
-        actions={
-          <>
-            {isCustom ? (
-              <>
-                <Button type="button" variant="ghost" size="action" onClick={onDelete}>
-                  <MaterialSymbol name="delete" size={18} />
-                  {t("scenarios.scenario_item.delete_confirm.confirm")}
-                </Button>
-                <Button type="button" variant="tonal-neutral" size="action" onClick={onEdit}>
-                  <MaterialSymbol name="edit" size={18} />
-                  {t(`${K}.edit`)}
-                </Button>
-              </>
-            ) : null}
-            {!scheduleLocked ? (
-              <SaveButton
-                type="button"
-                onClick={onActivate}
-                isSaving={isActivating}
-                saved={false}
-                disabled={isActive}
-                label={t(`${K}.activate`)}
-                size="action"
-              />
-            ) : null}
-          </>
-        }
-      />
+      {isCustom || showActivate ? (
+        <CardFoot
+          className="px-6"
+          actions={
+            <>
+              {isCustom ? (
+                <>
+                  <Button type="button" variant="ghost" size="action" onClick={onDelete}>
+                    <MaterialSymbol name="delete" size={18} />
+                    {t("scenarios.scenario_item.delete_confirm.confirm")}
+                  </Button>
+                  <Button type="button" variant="tonal-neutral" size="action" onClick={onEdit}>
+                    <MaterialSymbol name="edit" size={18} />
+                    {t(`${K}.edit`)}
+                  </Button>
+                </>
+              ) : null}
+              {showActivate ? (
+                <SaveButton
+                  type="button"
+                  onClick={onActivate}
+                  isSaving={isActivating}
+                  saved={false}
+                  disabled={isActive}
+                  label={t(`${K}.activate`)}
+                  size="action"
+                />
+              ) : null}
+            </>
+          }
+        />
+      ) : null}
     </Card>
   );
 };
