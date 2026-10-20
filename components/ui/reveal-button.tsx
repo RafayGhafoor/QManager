@@ -32,15 +32,12 @@ export interface RevealButtonProps
   extends Omit<ComponentProps<typeof Button>, "children" | "size"> {
   glyph: MaterialSymbolName;
   label: string;
-  /** Label type size. `xs` suits a dense toolbar; `sm` matches a neighbouring `size="action"` button. */
-  labelSize?: "xs" | "sm";
   blockedReason?: string | null;
 }
 
 export function RevealButton({
   glyph,
   label,
-  labelSize = "xs",
   blockedReason = null,
   variant = "tonal-neutral",
   className,
@@ -71,12 +68,7 @@ export function RevealButton({
     >
       <MaterialSymbol name={glyph} size={18} className="flex-none" />
       <span className="max-w-0 overflow-hidden opacity-0 transition-[max-width,opacity] duration-[var(--duration-standard)] ease-[var(--ease-standard)] group-hover/reveal:max-w-40 group-hover/reveal:opacity-100 group-focus-visible/reveal:max-w-40 group-focus-visible/reveal:opacity-100 motion-reduce:transition-none">
-        <span
-          className={cn(
-            "block whitespace-nowrap pl-2 pr-0.5 font-semibold",
-            labelSize === "sm" ? "text-sm" : "text-xs",
-          )}
-        >
+        <span className="block whitespace-nowrap pl-2 pr-0.5 text-sm font-semibold">
           {label}
         </span>
       </span>

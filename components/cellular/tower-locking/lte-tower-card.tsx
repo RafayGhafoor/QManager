@@ -763,7 +763,6 @@ export default function LteTowerCard({
             <>
               <RevealButton
                 glyph="close"
-                labelSize="sm"
                 label={t(`${K}.actions.clear_fields`)}
                 onClick={() => setSlots(slotsFromCells(undefined))}
                 disabled={isLocking || !hasAnyValue}
@@ -775,7 +774,6 @@ export default function LteTowerCard({
             <>
               <RevealButton
                 glyph="lock_clock"
-                labelSize="sm"
                 variant={keepOn ? "tonal" : "tonal-neutral"}
                 label={
                   keepOn
