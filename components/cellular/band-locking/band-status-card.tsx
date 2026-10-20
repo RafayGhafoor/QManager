@@ -318,23 +318,18 @@ export function BandStatusCard({
       <div className={HERO_SPLIT}>
         {/* --- On air now ------------------------------------------------- */}
         <div className={HERO_ONAIR_PANEL}>
-          <div className="flex items-center gap-3">
-            <span className={HERO_RAIL_DISC} aria-hidden="true">
-              <MaterialSymbol name="cell_tower" size={22} filled />
-            </span>
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <span className={HERO_RAIL_TITLE}>{t(`${K}.status.on_air`)}</span>
-              {isLoading ? (
-                <Skeleton className="h-3.5 w-40" />
-              ) : onAir.length > 0 ? (
-                <span className={`${HERO_RAIL_SUBTITLE} tabular-nums`}>
-                  {t(`${K}.status.on_air_summary`, {
-                    count: onAir.length,
-                    mhz: totalMhz,
-                  })}
-                </span>
-              ) : null}
-            </div>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className={HERO_RAIL_TITLE}>{t(`${K}.status.on_air`)}</span>
+            {isLoading ? (
+              <Skeleton className="h-3.5 w-40" />
+            ) : onAir.length > 0 ? (
+              <span className={`${HERO_RAIL_SUBTITLE} tabular-nums`}>
+                {t(`${K}.status.on_air_summary`, {
+                  count: onAir.length,
+                  mhz: totalMhz,
+                })}
+              </span>
+            ) : null}
           </div>
 
           {isLoading ? (
