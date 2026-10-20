@@ -116,7 +116,6 @@ export function TowerAutomationTiles({
     if (thresholdInput === prevText) setThresholdInput(savedText);
   }
 
-  const [thresholdSaving, setThresholdSaving] = useState(false);
   const savingRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestRef = useRef({ config, onUpdateSettings, t });
@@ -166,7 +165,6 @@ export function TowerAutomationTiles({
       return;
     }
     savingRef.current = true;
-    setThresholdSaving(true);
     try {
       const landed = await writeTowerSettings(
         tr,
@@ -182,7 +180,6 @@ export function TowerAutomationTiles({
       }
     } finally {
       savingRef.current = false;
-      setThresholdSaving(false);
     }
   };
 
@@ -320,14 +317,6 @@ export function TowerAutomationTiles({
               disabled={thresholdDisabled}
               className="min-w-32 flex-1"
             />
-            {thresholdSaving ? (
-              <MaterialSymbol
-                name="progress_activity"
-                size={16}
-                className="text-on-surface-variant motion-safe:animate-spin"
-                aria-hidden="true"
-              />
-            ) : null}
           </div>
           {thresholdErrored ? (
             <p
