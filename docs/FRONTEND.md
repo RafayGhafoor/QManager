@@ -110,8 +110,8 @@ constants/                      # Static configuration data
 | `/cellular/cell-scanner` | CellScanner | Active cell scanning |
 | `/cellular/cell-scanner/neighbourcell-scanner` | NeighbourScanner | Neighbor cells |
 | `/cellular/cell-scanner/frequency-calculator` | FrequencyCalculator | EARFCN ↔ freq |
-| `/cellular/custom-profiles` | CustomProfile | SIM profile CRUD + apply |
-| `/cellular/custom-profiles/connection-scenarios` | ConnectionScenario | Preset templates |
+| `/cellular/custom-profiles` | CustomProfile | SIM profiles + Connection Scenarios on one page: in-force hero, Today ribbon, saved profiles, scenarios card, wizard dialog; `?action=create` / `?action=create-scenario` deep links |
+| `/cellular/custom-profiles/connection-scenarios` | (redirect) | Client-side redirect to `/cellular/custom-profiles` (`?action=create` becomes `?action=create-scenario`) |
 | `/cellular/sms` | SMS | SMS inbox/send |
 | `/local-network` | (redirect) | Client-side redirect to `/local-network/ethernet` |
 | `/local-network/ethernet` | EthernetStatus | Ethernet link status and speed |
