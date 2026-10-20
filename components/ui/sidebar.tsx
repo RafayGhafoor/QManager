@@ -460,7 +460,11 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
         // The icon rail scrolls too: shadcn hides its overflow, which would clip
         // the lower groups on a laptop. Only the x axis is clipped, so the width
         // transition never flashes a horizontal scroll.
-        "flex min-h-0 flex-1 flex-col gap-[1.125rem] overflow-x-hidden overflow-y-auto py-1.5 pb-2 [scrollbar-width:none]",
+        // In the icon rail the hidden group label is pulled up by -mt-8, which is
+        // taller than the label, so the first row rides ~9px above this box and
+        // its pill gets clipped flat. The extra top padding gives that overshoot
+        // room and doubles as the air under the logo.
+        "flex min-h-0 flex-1 flex-col gap-[1.125rem] overflow-x-hidden overflow-y-auto py-1.5 pb-2 group-data-[collapsible=icon]:pt-4 [scrollbar-width:none]",
         className
       )}
       {...props}
