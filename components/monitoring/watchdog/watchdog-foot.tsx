@@ -89,14 +89,7 @@ export function WatchdogFoot({
               <AlertCircleIcon className="size-3.5 flex-none" aria-hidden />
               <span className="font-medium text-pretty">{blockedText}</span>
             </span>
-          ) : state.dirty ? (
-            <span className={FOOT.LINE}>
-              <span className={FOOT.DOT} aria-hidden />
-              <span className="text-on-surface font-medium text-pretty">
-                {t("watchdog.save.dirty")}
-              </span>
-            </span>
-          ) : (
+          ) : state.dirty ? null : (
             <span className="text-pretty">{t("watchdog.save.clean")}</span>
           )
         }

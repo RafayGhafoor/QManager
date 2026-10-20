@@ -1145,9 +1145,7 @@
       },
       "card": {
         "empty_title": "此處沒有頻段",
-        "unavailable_note": "目前鎖定狀態未知，已暫停變更。",
-        "pending_one": "{{count}} 項未儲存的變更",
-        "pending_other": "{{count}} 項未儲存的變更"
+        "unavailable_note": "目前鎖定狀態未知，已暫停變更。"
       },
       "legend": {
         "selected": "已選擇",
@@ -2044,8 +2042,6 @@
         }
       },
       "save_bar": {
-        "count_one": "{{count}} 項變更待套用",
-        "count_other": "{{count}} 項變更待套用",
         "note": "套用時連線會短暫中斷。數據機不會重新啟動。",
         "discard": "捨棄",
         "save": "儲存設定",
@@ -2403,8 +2399,6 @@
       "serving_now": "目前使用中",
       "handle_aria": "重新排序 {{name}}，目前第 {{rank}} 項，共 {{total}} 項",
       "save_bar": {
-        "count_one": "有 {{count}} 項變更待儲存",
-        "count_other": "有 {{count}} 項變更待儲存",
         "note": "儲存後數據機會重新註冊網路，預計約 3 秒無資料連線。",
         "discard": "捨棄變更",
         "save": "儲存優先順序"

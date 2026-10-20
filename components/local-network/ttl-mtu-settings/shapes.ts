@@ -194,8 +194,7 @@ export const DELTA = {
   ARROW: "opacity-70",
 } as const;
 
-/** The foot status: unsaved state in neutral ink, a block reason in destructive ink. */
-export const FOOT_STATUS = "text-on-surface-variant text-xs font-medium";
+/** The foot status: a block reason in destructive ink. */
 export const FOOT_BLOCKED = "text-destructive-on-surface text-xs";
 
 /** The foot action height, so the foot skeleton mirrors it by reference. */

@@ -61,9 +61,6 @@ export const ROW_STACK = "flex flex-col gap-[0.3125rem]";
 export const METRIC_HEAD =
   "flex min-h-[2.625rem] flex-wrap items-center gap-x-3 gap-y-[0.5625rem] pl-1";
 
-/** The pending-edit marker in the card foot. */
-export const DELTA = "text-primary text-[0.6875rem] font-semibold tracking-[0.06em] uppercase";
-
 /** A failed save, left in the foot until the next edit or save. */
 export const FAILED = {
   ROOT: "text-destructive-on-surface inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold",

@@ -49,7 +49,6 @@ import {
   CUSTOM_DEBOUNCE,
   CUSTOM_FIELD,
   CUSTOM_RANGE,
-  DELTA,
   EYEBROW,
   FAILED,
   GROUP,
@@ -352,9 +351,7 @@ function ThresholdsForm({ quality, thresholds }: ThresholdsFormProps) {
               <TriangleAlertIcon className={FAILED.GLYPH} aria-hidden="true" />
               {t(`${K}.failed`)}
             </span>
-          ) : dirty ? (
-            <span className={DELTA}>{t(`${K}.unsaved`)}</span>
-          ) : quality.isDefault ? (
+          ) : dirty ? null : quality.isDefault ? (
             <Badge variant="info">
               <InfoIcon className="size-3" aria-hidden="true" />
               {t(`${K}.default_chip`)}

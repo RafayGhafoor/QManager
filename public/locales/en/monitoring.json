@@ -147,7 +147,6 @@
       },
       "save": {
         "clean": "All changes saved",
-        "dirty": "Unsaved changes",
         "blocked": "Fix the highlighted fields",
         "blocked_in": "Fix the errors in {{channels}}",
         "discard": "Discard",
@@ -417,7 +416,6 @@
       "discard": "Discard",
       "action": "Save",
       "clean": "All changes saved",
-      "dirty": "Unsaved changes",
       "blockedIn": "Check {{fields}} before saving",
       "toastOk": "Watchdog settings saved",
       "toastFail": "Could not save the watchdog settings",
@@ -623,7 +621,6 @@
       "title": "Probe Targets",
       "description": "Pinged in order until one answers, to tell whether the internet is up.",
       "restore": "Restore defaults",
-      "unsaved": "Unsaved",
       "save": "Save Probe Targets",
       "leg": {
         "ipv4": "IPv4 target",
@@ -688,7 +685,6 @@
         "very_tolerant": "Very tolerant",
         "custom": "Custom"
       },
-      "unsaved": "Unsaved",
       "save": "Save Thresholds",
       "error": {
         "title": "Can't read the quality thresholds",

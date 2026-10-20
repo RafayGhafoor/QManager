@@ -238,40 +238,54 @@
     }
   },
   "dns": {
-    "page_title": "Impostazioni DNS personalizzate",
+    "page_title": "DNS personalizzato",
     "page_description": "Sostituisci i server DNS assegnati dall'operatore con i tuoi risolutori preferiti per tutti i dispositivi sulla rete locale.",
-    "card_title": "Configurazione DNS personalizzata",
-    "card_description": "Sostituisci i server DNS dell'operatore per tutti i dispositivi sulla tua rete locale.",
-    "label_enable": "Abilita DNS personalizzato",
-    "label_provider": "Provider DNS",
     "provider_custom": "Personalizzato",
-    "label_primary_dns": "Server DNS primario",
     "placeholder_primary_dns": "ad es. 8.8.8.8",
-    "label_secondary_dns": "Server DNS secondario",
     "placeholder_secondary_dns": "ad es. 1.1.1.1",
-    "label_tertiary_dns": "Terziario DNS Server",
-    "label_tertiary_dns_optional_suffix": " (facoltativo)",
     "placeholder_tertiary_dns": "ad es. 8.8.4.4",
-    "label_ipv4_section": "Server DNS IPv4",
-    "label_ipv6_section": "Server DNS IPv6",
-    "label_primary_dns6": "DNS IPv6 primario",
     "placeholder_primary_dns6": "ad es. 2606:4700:4700::1111",
-    "label_secondary_dns6": "DNS IPv6 secondario",
     "placeholder_secondary_dns6": "ad es. 2606:4700:4700::1001",
     "error_at_least_one": "Inserisci almeno un indirizzo server DNS",
     "error_invalid_ipv6": "Inserisci un indirizzo IPv6 valido (ad es. 2606:4700:4700::1111).",
     "toast_success_enabled": "La personalizzazione DNS è stata applicata correttamente",
     "toast_success_disabled": "Ripristinato all'operatore DNS",
     "toast_error_apply": "Impossibile applicare le impostazioni DNS",
-    "enable_description": "Se disattivo, usa i server DNS assegnati dall'operatore.",
-    "receipt_primary": "Primario",
-    "receipt_secondary": "Secondario",
-    "receipt_none": "Nessuno",
     "error_load_title": "Impossibile leggere le impostazioni DNS",
     "error_load_desc": "Il modem non ha risposto. Controlla la connessione e riprova.",
     "errors": {
       "fetch_failed": "Impossibile caricare le impostazioni DNS",
       "apply_failed": "Impossibile applicare le impostazioni DNS"
+    },
+    "error_invalid_ipv4": "Inserisci un indirizzo IPv4 valido (ad es. 9.9.9.9).",
+    "blocked_invalid": "Correggi prima l'indirizzo evidenziato.",
+    "cards": {
+      "resolver": {
+        "title": "Resolver",
+        "description": "Quali server DNS ricevono i dispositivi della tua rete."
+      },
+      "ipv4": {
+        "title": "Server IPv4",
+        "description": "Fino a tre, provati in ordine."
+      },
+      "ipv6": {
+        "title": "Server IPv6",
+        "description": "Fino a due, per i dispositivi che usano IPv6."
+      }
+    },
+    "rows": {
+      "mode": {
+        "label": "DNS personalizzato",
+        "consequence_on": "I dispositivi della rete usano i server qui sotto.",
+        "consequence_off": "I dispositivi usano i server assegnati dall'operatore."
+      },
+      "provider": {
+        "label": "Provider",
+        "consequence": "Compila entrambi gli elenchi. Modificare un indirizzo lo rende Personalizzato."
+      },
+      "primary": "Primario",
+      "secondary": "Secondario",
+      "tertiary": "Terziario"
     }
   },
   "ttl_mtu": {
@@ -369,7 +383,7 @@
   },
   "ippt": {
     "page": {
-      "title": "Passthrough IP",
+      "title": "Passthrough IP e USB",
       "description": "Assegna l'IP pubblico del modem direttamente a un solo dispositivo collegato, invece di far instradare tutta la LAN dal modem."
     },
     "header": {
@@ -393,8 +407,6 @@
       "description": "Applicare scrive tutte le impostazioni e riavvia il modem.",
       "network_description": "Applicate insieme al passthrough, con un solo riavvio.",
       "apply": "Applica e riavvia",
-      "unsaved_one": "{{count}} modifica non salvata",
-      "unsaved_other": "{{count}} modifiche non salvate",
       "mac_label": "Indirizzo MAC di destinazione",
       "mac_placeholder": "XX:XX:XX:XX:XX:XX"
     },
@@ -404,24 +416,25 @@
     },
     "rows": {
       "mode": {
-        "label": "Modalità"
+        "label": "Modalità",
+        "description": "Instrada tutta la LAN o passa l'IP pubblico a un solo dispositivo."
       },
       "target": {
         "label": "Dispositivo di destinazione",
-        "pick_mode": "Scegli prima una modalità."
+        "pick_mode": "Scegli prima una modalità.",
+        "description": "Il dispositivo che riceve l'IP pubblico."
       },
       "nat": {
         "label": "NAT",
-        "hint": "Con NAT va bene per quasi ogni configurazione.",
-        "hint_label": "Informazioni sul NAT"
+        "description": "Con NAT va bene per quasi ogni configurazione."
       },
       "usb": {
-        "label": "Connessione USB"
+        "label": "Connessione USB",
+        "description": "Il protocollo usato quando il modem si collega via USB."
       },
       "dns": {
         "label": "Proxy DNS",
-        "hint": "Attivo, il modem risponde al DNS via DHCP per il dispositivo di destinazione.",
-        "hint_label": "Informazioni sul proxy DNS"
+        "description": "Attivo, il modem risponde al DNS via DHCP per il dispositivo di destinazione."
       }
     },
     "options": {

@@ -19,7 +19,7 @@ import {
 // own step ledger without importing the parent page's hook.
 export type { ApplyPhase };
 
-// The settings family's persistent apply footer: change count, consequence or
+// The settings family's persistent apply footer: consequence, failure or
 // the running step ledger on the left; Discard then Save on the right.
 
 /** The apply sequence, in order. `idle` is not a step. */
@@ -44,9 +44,6 @@ export interface ApplyFootProps {
   leading?: React.ReactNode;
   /** Copy, all pre-translated by the caller. */
   copy: {
-    count: string;
-    /** Which pending fields the count covers, when it spans more than this card. */
-    detail?: string;
     note: string;
     discard: string;
     save: string;
@@ -100,10 +97,6 @@ export function ApplyFoot({
     </div>
   ) : changeCount > 0 ? (
     <>
-      <span className="text-foreground font-semibold tabular-nums">
-        {copy.count}
-      </span>
-      {copy.detail ? <span>{copy.detail}</span> : null}
       <span className="text-pretty">
         {failedLabels.length > 0 && copy.failed ? copy.failed : copy.note}
       </span>

@@ -52,8 +52,7 @@
     "enabled": "Abilita",
     "disabled": "Disabilita",
     "on": "Attivo",
-    "off": "Disattivo",
-    "unsaved": "Modifiche non salvate"
+    "off": "Disattivo"
   },
   "connection": {
     "reconnecting": "Connessione al dispositivo persa. Riconnessione…"

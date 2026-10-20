@@ -136,7 +136,6 @@
         "blocked": "请修正高亮的字段",
         "blocked_in": "修正 {{channels}} 中的错误",
         "clean": "所有更改已保存",
-        "dirty": "未保存的更改",
         "discard": "放弃",
         "failed": "设置未能保存。",
         "succeeded": "提醒设置已保存",
@@ -417,7 +416,6 @@
       "discard": "放弃",
       "action": "保存",
       "clean": "所有更改已保存",
-      "dirty": "有未保存的更改",
       "blockedIn": "保存前请检查 {{fields}}",
       "toastOk": "看门狗设置已保存",
       "toastFail": "无法保存看门狗设置",
@@ -623,7 +621,6 @@
       "title": "探测目标",
       "description": "按顺序 ping，直到有目标响应，用来判断互联网是否连通。",
       "restore": "恢复默认值",
-      "unsaved": "未保存",
       "save": "保存探测目标",
       "leg": {
         "ipv4": "IPv4 目标",
@@ -688,7 +685,6 @@
         "very_tolerant": "非常宽松",
         "custom": "自定义"
       },
-      "unsaved": "未保存",
       "save": "保存阈值",
       "error": {
         "title": "无法读取质量阈值",

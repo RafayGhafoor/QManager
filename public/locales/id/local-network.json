@@ -238,40 +238,54 @@
     }
   },
   "dns": {
-    "page_title": "Pengaturan DNS Kustom",
+    "page_title": "DNS Kustom",
     "page_description": "Timpa server DNS yang ditetapkan operator dengan resolver pilihan Anda untuk semua perangkat di jaringan lokal.",
-    "card_title": "Konfigurasi DNS Kustom",
-    "card_description": "Timpa server DNS operator untuk semua perangkat di jaringan lokal Anda.",
-    "label_enable": "Aktifkan DNS Kustom",
-    "label_provider": "Penyedia DNS",
     "provider_custom": "Kustom",
-    "label_primary_dns": "Server DNS Primer",
     "placeholder_primary_dns": "contoh: 8.8.8.8",
-    "label_secondary_dns": "Server DNS Sekunder",
     "placeholder_secondary_dns": "contoh: 1.1.1.1",
-    "label_tertiary_dns": "Server DNS Tersier",
-    "label_tertiary_dns_optional_suffix": " (opsional)",
     "placeholder_tertiary_dns": "contoh: 8.8.4.4",
-    "label_ipv4_section": "Server DNS IPv4",
-    "label_ipv6_section": "Server DNS IPv6",
-    "label_primary_dns6": "DNS IPv6 Primer",
     "placeholder_primary_dns6": "contoh: 2606:4700:4700::1111",
-    "label_secondary_dns6": "DNS IPv6 Sekunder",
     "placeholder_secondary_dns6": "contoh: 2606:4700:4700::1001",
     "error_at_least_one": "Masukkan setidaknya satu alamat server DNS",
     "error_invalid_ipv6": "Masukkan alamat IPv6 yang valid (contoh: 2606:4700:4700::1111).",
     "toast_success_enabled": "DNS kustom berhasil diterapkan",
     "toast_success_disabled": "Kembali ke DNS operator",
     "toast_error_apply": "Tidak dapat menerapkan pengaturan DNS",
-    "enable_description": "Jika nonaktif, memakai server DNS yang ditetapkan operator.",
-    "receipt_primary": "Primer",
-    "receipt_secondary": "Sekunder",
-    "receipt_none": "Tidak ada",
     "error_load_title": "Tidak dapat membaca pengaturan DNS",
     "error_load_desc": "Modem tidak merespons. Periksa koneksi lalu coba lagi.",
     "errors": {
       "fetch_failed": "Tidak dapat memuat pengaturan DNS",
       "apply_failed": "Tidak dapat menerapkan pengaturan DNS"
+    },
+    "error_invalid_ipv4": "Masukkan alamat IPv4 yang valid (contoh: 9.9.9.9).",
+    "blocked_invalid": "Perbaiki dulu alamat yang ditandai.",
+    "cards": {
+      "resolver": {
+        "title": "Resolver",
+        "description": "Server DNS yang diberikan ke perangkat di jaringan Anda."
+      },
+      "ipv4": {
+        "title": "Server IPv4",
+        "description": "Hingga tiga, dicoba berurutan."
+      },
+      "ipv6": {
+        "title": "Server IPv6",
+        "description": "Hingga dua, untuk perangkat yang memakai IPv6."
+      }
+    },
+    "rows": {
+      "mode": {
+        "label": "DNS Kustom",
+        "consequence_on": "Perangkat di jaringan Anda memakai server di bawah.",
+        "consequence_off": "Perangkat memakai server yang ditetapkan operator."
+      },
+      "provider": {
+        "label": "Penyedia",
+        "consequence": "Mengisi kedua daftar server. Mengubah alamat menjadikannya Kustom."
+      },
+      "primary": "Primer",
+      "secondary": "Sekunder",
+      "tertiary": "Tersier"
     }
   },
   "ttl_mtu": {
@@ -369,7 +383,7 @@
   },
   "ippt": {
     "page": {
-      "title": "Passthrough IP",
+      "title": "Passthrough IP & USB",
       "description": "Serahkan IP publik modem langsung ke satu perangkat yang terhubung, bukan merutekan untuk seluruh LAN."
     },
     "header": {
@@ -393,8 +407,6 @@
       "description": "Menerapkan akan menulis semua pengaturan dan me-reboot modem.",
       "network_description": "Diterapkan bersama passthrough, dengan satu kali reboot.",
       "apply": "Terapkan dan reboot",
-      "unsaved_one": "{{count}} perubahan belum tersimpan",
-      "unsaved_other": "{{count}} perubahan belum tersimpan",
       "mac_label": "Alamat MAC target",
       "mac_placeholder": "XX:XX:XX:XX:XX:XX"
     },
@@ -404,24 +416,25 @@
     },
     "rows": {
       "mode": {
-        "label": "Mode"
+        "label": "Mode",
+        "description": "Rutekan seluruh LAN, atau teruskan IP publik ke satu perangkat."
       },
       "target": {
         "label": "Perangkat target",
-        "pick_mode": "Pilih mode terlebih dahulu."
+        "pick_mode": "Pilih mode terlebih dahulu.",
+        "description": "Perangkat yang menerima IP publik."
       },
       "nat": {
         "label": "NAT",
-        "hint": "Dengan NAT cocok untuk hampir semua pengaturan.",
-        "hint_label": "Tentang NAT"
+        "description": "Dengan NAT cocok untuk hampir semua pengaturan."
       },
       "usb": {
-        "label": "Koneksi USB"
+        "label": "Koneksi USB",
+        "description": "Protokol yang dipakai saat modem terhubung lewat USB."
       },
       "dns": {
         "label": "Proxy DNS",
-        "hint": "Aktif, modem menjawab DNS lewat DHCP untuk perangkat target.",
-        "hint_label": "Tentang proxy DNS"
+        "description": "Aktif, modem menjawab DNS lewat DHCP untuk perangkat target."
       }
     },
     "options": {

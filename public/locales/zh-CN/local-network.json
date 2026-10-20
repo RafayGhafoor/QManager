@@ -238,40 +238,54 @@
     }
   },
   "dns": {
-    "page_title": "自定义 DNS 设置",
+    "page_title": "自定义 DNS",
     "page_description": "使用您偏好的解析器覆盖运营商分配的 DNS 服务器，适用于本地网络内的所有设备。",
-    "card_title": "自定义 DNS 配置",
-    "card_description": "为本地网络中的所有设备覆盖运营商 DNS 服务器。",
-    "label_enable": "启用自定义 DNS",
-    "label_provider": "DNS 服务商",
     "provider_custom": "自定义",
-    "label_primary_dns": "主 DNS 服务器",
     "placeholder_primary_dns": "示例：8.8.8.8",
-    "label_secondary_dns": "备用 DNS 服务器",
     "placeholder_secondary_dns": "示例：1.1.1.1",
-    "label_tertiary_dns": "第三 DNS 服务器",
-    "label_tertiary_dns_optional_suffix": "（可选）",
     "placeholder_tertiary_dns": "示例：8.8.4.4",
-    "label_ipv4_section": "IPv4 DNS 服务器",
-    "label_ipv6_section": "IPv6 DNS 服务器",
-    "label_primary_dns6": "主 IPv6 DNS",
     "placeholder_primary_dns6": "示例：2606:4700:4700::1111",
-    "label_secondary_dns6": "备用 IPv6 DNS",
     "placeholder_secondary_dns6": "示例：2606:4700:4700::1001",
     "error_at_least_one": "至少输入一个 DNS 服务器地址",
     "error_invalid_ipv6": "请输入有效的 IPv6 地址（例如 2606:4700:4700::1111）。",
     "toast_success_enabled": "自定义 DNS 应用成功",
     "toast_success_disabled": "已恢复运营商 DNS",
     "toast_error_apply": "无法应用 DNS 设置",
-    "enable_description": "关闭时使用运营商分配的 DNS 服务器。",
-    "receipt_primary": "主要",
-    "receipt_secondary": "备用",
-    "receipt_none": "无",
     "error_load_title": "无法读取 DNS 设置",
     "error_load_desc": "调制解调器没有响应。请检查连接后重试。",
     "errors": {
       "fetch_failed": "无法加载 DNS 设置",
       "apply_failed": "无法应用 DNS 设置"
+    },
+    "error_invalid_ipv4": "请输入有效的 IPv4 地址（例如 9.9.9.9）。",
+    "blocked_invalid": "请先修正标出的地址。",
+    "cards": {
+      "resolver": {
+        "title": "解析器",
+        "description": "为网络中的设备分配哪些 DNS 服务器。"
+      },
+      "ipv4": {
+        "title": "IPv4 服务器",
+        "description": "最多三个，按顺序尝试。"
+      },
+      "ipv6": {
+        "title": "IPv6 服务器",
+        "description": "最多两个，供使用 IPv6 的设备。"
+      }
+    },
+    "rows": {
+      "mode": {
+        "label": "自定义 DNS",
+        "consequence_on": "网络中的设备使用下方的服务器。",
+        "consequence_off": "设备使用运营商分配的服务器。"
+      },
+      "provider": {
+        "label": "服务商",
+        "consequence": "填充两组服务器列表。编辑任一地址即变为自定义。"
+      },
+      "primary": "主要",
+      "secondary": "备用",
+      "tertiary": "第三"
     }
   },
   "ttl_mtu": {
@@ -369,7 +383,7 @@
   },
   "ippt": {
     "page": {
-      "title": "IP 直通",
+      "title": "IP 直通与 USB",
       "description": "将调制解调器的公网 IP 直接交给一台连接设备，而不是为整个局域网做路由。"
     },
     "header": {
@@ -393,8 +407,6 @@
       "description": "应用会写入所有设置并重启调制解调器。",
       "network_description": "与直通设置一起应用，只需一次重启。",
       "apply": "应用并重启",
-      "unsaved_one": "{{count}} 项未保存的更改",
-      "unsaved_other": "{{count}} 项未保存的更改",
       "mac_label": "目标 MAC 地址",
       "mac_placeholder": "XX:XX:XX:XX:XX:XX"
     },
@@ -404,24 +416,25 @@
     },
     "rows": {
       "mode": {
-        "label": "模式"
+        "label": "模式",
+        "description": "路由整个局域网，或将公网 IP 直通给一台设备。"
       },
       "target": {
         "label": "目标设备",
-        "pick_mode": "请先选择模式。"
+        "pick_mode": "请先选择模式。",
+        "description": "接收公网 IP 的设备。"
       },
       "nat": {
         "label": "NAT 转换",
-        "hint": "几乎所有场景都适合启用 NAT。",
-        "hint_label": "关于 NAT"
+        "description": "几乎所有场景都适合启用 NAT。"
       },
       "usb": {
-        "label": "USB 连接"
+        "label": "USB 连接",
+        "description": "调制解调器通过 USB 连接时使用的协议。"
       },
       "dns": {
         "label": "DNS 代理",
-        "hint": "开启后，由调制解调器为目标设备应答 DHCP DNS。",
-        "hint_label": "关于 DNS 代理"
+        "description": "开启后，由调制解调器为目标设备应答 DHCP DNS。"
       }
     },
     "options": {

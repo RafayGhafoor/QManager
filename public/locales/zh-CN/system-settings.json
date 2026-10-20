@@ -35,7 +35,6 @@
     "status_label": "状态",
     "status_active": "运行中",
     "status_off": "已关闭",
-    "pending": "有未保存的更改",
     "discard": "放弃",
     "toast_on": "已开启主机 AT 端口。",
     "toast_off": "已关闭主机 AT 端口。",

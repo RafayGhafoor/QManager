@@ -101,7 +101,7 @@ export const CARD_GRID = "grid grid-cols-1 gap-5 @4xl/main:grid-cols-2";
 
 export const SETTING = {
   /** One card's rows. */
-  GROUP: "flex min-w-0 flex-col gap-3.5",
+  GROUP: "flex min-w-0 flex-col gap-5",
   /** Key left, control right; on a narrow card the control wraps, still right-aligned. */
   ROW: `flex ${ROW_MIN_H} flex-wrap items-center justify-between gap-x-4 gap-y-2`,
   KEY: "flex min-w-0 flex-col gap-px",
@@ -109,13 +109,9 @@ export const SETTING = {
   KEY_SUB: "text-on-surface-variant text-xs",
   /** A held row dims its text; the disabled control dims itself, so the two never compound. */
   HELD: "opacity-55",
-  CONTROL: "ml-auto flex max-w-full flex-col items-end gap-1.5",
+  CONTROL: "ml-auto flex max-w-full flex-col items-end gap-3",
   /** USB: a Select on its own line below a 32rem card, the pill beside the key above it. */
-  CONTROL_WIDE: "flex min-w-0 basis-full flex-col items-end gap-1.5 @lg/card:ml-auto @lg/card:basis-auto",
-  /** The dirty marker is reserved on every row and fades in on the quick token. */
-  DOT: "size-[7px] flex-none rounded-pill bg-primary transition-[opacity,transform] duration-[var(--duration-quick)] ease-[var(--ease-standard)] motion-reduce:transition-none",
-  DOT_OFF: "scale-[0.6] opacity-0",
-  DOT_ON: "scale-100 opacity-100",
+  CONTROL_WIDE: "flex min-w-0 basis-full flex-col items-end gap-3 @lg/card:ml-auto @lg/card:basis-auto",
   UNREAD: "text-on-surface-variant py-2.5 text-[0.8125rem]",
 } as const;
 
@@ -161,11 +157,6 @@ export const LOCK_NOTE = {
   TITLE: "text-[0.9375rem] font-semibold",
   BODY: "text-[0.8125rem] text-pretty",
   ACTION: "ml-auto font-semibold underline underline-offset-2 text-[0.8125rem]",
-} as const;
-
-export const FOOT = {
-  LINE: "flex min-w-0 items-center gap-2",
-  DOT: "size-[7px] flex-none rounded-pill bg-primary",
 } as const;
 
 // -----------------------------------------------------------------------------

@@ -168,11 +168,6 @@ const HostAtPortsCard = () => {
       {state && !unavailable && (
         <CardFoot
           className="px-6"
-          status={
-            dirty ? (
-              <span className="font-medium">{t("host_at.pending")}</span>
-            ) : null
-          }
           actions={
             <>
               <Button

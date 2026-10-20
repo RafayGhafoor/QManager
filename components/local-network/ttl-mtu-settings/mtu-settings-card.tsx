@@ -37,7 +37,6 @@ import {
   FIELD,
   FIELD_INVALID,
   FOOT_BLOCKED,
-  FOOT_STATUS,
   ROW,
   ROW_GROUP,
   VALUE_NONE,
@@ -331,8 +330,6 @@ export function MtuSettingsCard({
             <span className={FOOT_BLOCKED}>
               {t(blockedKey, { min: MTU_MIN, max: MTU_MAX })}
             </span>
-          ) : isDirty ? (
-            <span className={FOOT_STATUS}>{t("common:state.unsaved")}</span>
           ) : null
         }
         actions={
