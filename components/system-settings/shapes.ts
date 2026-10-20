@@ -694,25 +694,24 @@ export const SKELETON_POLLING = {
 // Device Access and Hardware (the 2026-10-20 regroup)
 // -----------------------------------------------------------------------------
 
-/**
- * A single-column page of full-width cards. Device Access's two cards answer
- * one question but share no shape, so pairing them would be a split by
- * symmetry; each recomposes inside its own `@container/card` instead.
- */
-export const CARD_STACK = "grid grid-cols-1 items-stretch gap-5";
-
 /** A full-width band inside `CARD_GRID` (a card with no row-mate). */
 export const CARD_SPAN = "@3xl/main:col-span-2";
 
 /**
- * SSH Access's three password fields: stacked on a phone, one row on a wide
- * card. Each cell bottom-aligns its field (`STACK_ROW` plus `mt-auto` on the
- * field), so a consequence that wraps in one column cannot stagger the inputs.
+ * SSH Access's three password fields. Device Access is a two-column page, so
+ * the card is half width on a desktop and the fields stack, one per row, each
+ * spanning the card. Only a card that is itself full width (the page collapses
+ * to one column) is wide enough to lay them in a row; each cell bottom-aligns
+ * its field (`STACK_ROW` plus `mt-auto`), so a wrapping consequence cannot
+ * stagger the inputs.
  */
 export const PASSWORD_GRID = "grid grid-cols-1 gap-0.5 @4xl/card:grid-cols-3";
 
-/** Web Port's HTTP and HTTPS rows, side by side on a wide card. */
-export const PORT_GRID = "grid grid-cols-1 gap-0.5 @3xl/card:grid-cols-2";
+/**
+ * Web Port's HTTP and HTTPS rows: one per row, key left and port right, so the
+ * two ports line up with the stacked fields beside them.
+ */
+export const PORT_GRID = "grid grid-cols-1 gap-0.5";
 
 /** The port field: a narrow numeric box, a figure rather than an identifier. */
 export const PORT_FIELD = "w-full text-[0.84375rem] font-medium tabular-nums @2xl/card:w-28";

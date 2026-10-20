@@ -56,9 +56,9 @@ import {
 // waits for the new origin and moves the browser there; that navigation is
 // the success signal, so only a failure toasts. SSH twin: qmanager_web_port.
 //
-// Lives on /system-settings/device-access, a single-column page, so the card
-// is always wide on a desktop: the two rows sit side by side (`PORT_GRID`)
-// rather than stretching one key/value pair across the whole card.
+// Lives on /system-settings/device-access, a two-column page, so on a desktop
+// the card is half width: the two port rows stack (`PORT_GRID`), each key left
+// and value right.
 // =============================================================================
 
 /** Where the browser lands after a move: this card's own page on the new origin. */

@@ -237,8 +237,8 @@ export default function SSHPasswordCard() {
           {/* The row group is this card's slack absorber: the page grid locks
               every cell to `h-full`, and the group is what grows to fill it. */}
           <div key={formKey} className={cn(ROW_GROUP, GROUP_FILL)}>
-            {/* Stacked on a phone, one row on a wide card (Device Access is a
-                single-column page, so this card is always full width). */}
+            {/* Stacked on a phone and in the half-width desktop cell; one row
+                only if the card spans the page. */}
             <div className={PASSWORD_GRID}>
               <PasswordField
                 id="ssh-current-password"

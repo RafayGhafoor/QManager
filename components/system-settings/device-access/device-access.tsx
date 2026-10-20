@@ -7,12 +7,13 @@ import SSHPasswordCard from "@/components/system-settings/ssh-password-card";
 import WebPortCard from "@/components/system-settings/web-port/web-port-card";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 
-import { CARD_CELL, CARD_STACK, PAGE_HEAD, PAGE_ROOT } from "../shapes";
+import { CARD_CELL, CARD_GRID, PAGE_HEAD, PAGE_ROOT } from "../shapes";
 
 const K = "device_access.page";
 
-// A single-column stack: the two cards share a question, not a shape, so each
-// recomposes inside its own card instead of being paired by symmetry.
+// Two columns on desktop, one on a phone: SSH Access left, Web Port right. Each
+// card recomposes inside its own `@container/card`, so the half-width cells
+// stack their rows rather than inheriting the old full-width arrangement.
 const DeviceAccessSettings = () => {
   const { t } = useTranslation("system-settings");
   return (
@@ -33,7 +34,7 @@ const DeviceAccessSettings = () => {
 
       {/* A nested container: it inherits `visible` from the root and must not
           declare initial/animate. */}
-      <motion.div className={CARD_STACK} variants={staggerContainer}>
+      <motion.div className={CARD_GRID} variants={staggerContainer}>
         <motion.div variants={staggerItem} className={CARD_CELL}>
           <SSHPasswordCard />
         </motion.div>

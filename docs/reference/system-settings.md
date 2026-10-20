@@ -154,8 +154,8 @@ See [known-sims.md](../features/known-sims.md#frontend-tracked-sims-cardtsx).
 
 "The password and ports used to reach this modem." Route
 `app/system-settings/device-access/page.tsx` ->
-`components/system-settings/device-access/device-access.tsx`. A single-column stack of two
-cards; each owns its hook and internals, the page only composes them.
+`components/system-settings/device-access/device-access.tsx`. A two-column grid (`CARD_GRID`, one
+column on a phone) of two half-width cards; each owns its hook and internals, the page only composes them.
 
 | Card | Component | Data |
 | --- | --- | --- |
@@ -164,7 +164,7 @@ cards; each owns its hook and internals, the page only composes them.
 
 ### SSH Access (`ssh-password-card.tsx`)
 
-Three password fields (in one row on a wide card) plus an **Enforce strong password** `SegmentedField` (default On,
+Three password fields (stacked one per row in the half-width desktop cell; one row only if the card spans the page) plus an **Enforce strong password** `SegmentedField` (default On,
 mirroring the CGI's default). The form mirrors the device policy (five characters
 minimum; with the strong policy, upper case, lower case and a digit) so it can refuse
 before the round trip. A client-side refusal shows an inline notice; a device failure
