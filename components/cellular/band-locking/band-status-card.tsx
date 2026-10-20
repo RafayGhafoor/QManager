@@ -38,7 +38,6 @@ import {
   CARRIER_DISC_GLYPH,
   CATEGORY_BADGE,
   FAILOVER_DOT,
-  HERO_EYEBROW,
   HERO_ONAIR_GRID,
   HERO_ONAIR_PANEL,
   HERO_ONAIR_TILE,
@@ -319,16 +318,23 @@ export function BandStatusCard({
       <div className={HERO_SPLIT}>
         {/* --- On air now ------------------------------------------------- */}
         <div className={HERO_ONAIR_PANEL}>
-          <div className="flex items-center gap-2.5">
-            <span className={HERO_EYEBROW}>{t(`${K}.status.on_air`)}</span>
-            {onAir.length > 0 ? (
-              <span className="ml-auto text-xs text-on-surface-variant tabular-nums">
-                {t(`${K}.status.on_air_summary`, {
-                  count: onAir.length,
-                  mhz: totalMhz,
-                })}
-              </span>
-            ) : null}
+          <div className="flex items-center gap-3">
+            <span className={HERO_RAIL_DISC} aria-hidden="true">
+              <MaterialSymbol name="cell_tower" size={22} filled />
+            </span>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className={HERO_RAIL_TITLE}>{t(`${K}.status.on_air`)}</span>
+              {isLoading ? (
+                <Skeleton className="h-3.5 w-40" />
+              ) : onAir.length > 0 ? (
+                <span className={`${HERO_RAIL_SUBTITLE} tabular-nums`}>
+                  {t(`${K}.status.on_air_summary`, {
+                    count: onAir.length,
+                    mhz: totalMhz,
+                  })}
+                </span>
+              ) : null}
+            </div>
           </div>
 
           {isLoading ? (

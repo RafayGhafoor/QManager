@@ -42,18 +42,17 @@ export const CARD_PAD = "px-6";
 // The status card
 // -----------------------------------------------------------------------------
 
-/** On-air panel beside the posture rail; stacks below `@2xl/hero`. Each panel
- *  ends where its content ends (`items-start`): a row's height encodes nothing. */
+/** On-air panel beside the posture rail; stacks below `@2xl/hero`. The panels
+ *  stretch to one height and the on-air tiles grow into it, so the pair reads
+ *  as a single aligned band rather than a short panel beside a tall one. */
 export const HERO_SPLIT =
-  "flex flex-col gap-4 @2xl/hero:flex-row @2xl/hero:items-start";
+  "flex flex-col gap-4 @2xl/hero:flex-row @2xl/hero:items-stretch";
 
 export const HERO_ONAIR_PANEL =
   "@container/onair flex min-w-0 flex-1 flex-col gap-4 rounded-card bg-surface-container px-6 py-6";
 
 export const HERO_RAIL_PANEL =
   "flex w-full flex-none flex-col gap-3.5 rounded-card bg-surface-container px-5 py-6 @2xl/hero:w-[25rem]";
-
-export const HERO_EYEBROW = "text-xs font-medium text-on-surface-variant";
 
 export const HERO_RAIL_DISC =
   "grid size-11 flex-none place-items-center rounded-pill bg-primary text-primary-foreground";
@@ -78,7 +77,7 @@ export const HERO_ROW_LABEL = "text-sm font-semibold";
 
 /** The carrier grid: a fixed 3-column ceiling stepping on the panel's own width. */
 export const HERO_ONAIR_GRID =
-  "grid grid-cols-1 gap-3 @sm/onair:grid-cols-2 @lg/onair:grid-cols-3";
+  "grid flex-1 grid-cols-1 gap-3 @sm/onair:grid-cols-2 @lg/onair:grid-cols-3";
 
 /** One on-air tile's floor, shared with its skeleton (Skeleton-Mirror Rule). */
 export const ONAIR_TILE_MIN_H = "min-h-[8.5rem]";
