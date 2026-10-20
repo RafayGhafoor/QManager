@@ -114,7 +114,7 @@ export function ApplyFoot({
 
   return (
     <CardFoot
-      className={cn(CARD_PAD, "@container/foot")}
+      className={CARD_PAD}
       status={
         <>
           {leading}
