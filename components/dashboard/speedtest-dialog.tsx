@@ -17,7 +17,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TonalBanner } from "@/components/ui/tonal-banner";
 import {
@@ -1049,7 +1048,6 @@ export function SpeedtestDialog({ open, onOpenChange }: SpeedtestDialogProps) {
     error,
     failedAt,
     phaseFigures,
-    isRunning,
     servers,
     selectedServer,
     isLoadingServers,
@@ -1138,16 +1136,6 @@ export function SpeedtestDialog({ open, onOpenChange }: SpeedtestDialogProps) {
           <DialogTitle className="text-base font-semibold">
             {t("speedtest.title")}
           </DialogTitle>
-          {isRunning ? (
-            <Badge variant="info" className="gap-1.5">
-              <MaterialSymbol
-                name="progress_activity"
-                size={12}
-                className="motion-safe:animate-spin"
-              />
-              {t("speedtest.running_badge")}
-            </Badge>
-          ) : null}
           <DialogClose asChild>
             <button
               type="button"

@@ -145,7 +145,6 @@
     "dialog_idle_description": "Misura la velocità di download, la velocità di upload e la latenza attuali.",
     "last_updated": "Ultimo aggiornamento {{time}}",
     "title": "Prova di velocità",
-    "running_badge": "Correre",
     "phase_ping": "Ping",
     "phase_download": "Scarica",
     "phase_upload": "Carica",

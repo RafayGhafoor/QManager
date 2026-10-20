@@ -145,7 +145,6 @@
     "dialog_idle_description": "測量當前的下載速度、上傳速度和延遲。",
     "last_updated": "最後更新於 {{time}}",
     "title": "速度測試",
-    "running_badge": "進行中",
     "phase_ping": "Ping",
     "phase_download": "下載",
     "phase_upload": "上傳",

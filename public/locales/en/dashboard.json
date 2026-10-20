@@ -145,7 +145,6 @@
     "dialog_idle_description": "Measure your current download speed, upload speed, and latency.",
     "last_updated": "Last updated {{time}}",
     "title": "Speed Test",
-    "running_badge": "Running",
     "phase_ping": "Ping",
     "phase_download": "Download",
     "phase_upload": "Upload",

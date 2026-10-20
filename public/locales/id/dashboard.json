@@ -145,7 +145,6 @@
     "dialog_idle_description": "Ukur kecepatan unduh, kecepatan unggah, dan latensi Anda saat ini.",
     "last_updated": "Terakhir diperbarui {{time}}",
     "title": "Tes Kecepatan",
-    "running_badge": "Berjalan",
     "phase_ping": "Ping",
     "phase_download": "Unduh",
     "phase_upload": "Unggah",

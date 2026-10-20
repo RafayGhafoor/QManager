@@ -145,7 +145,6 @@
     "dialog_idle_description": "测量当前的下载速度、上传速度和延迟。",
     "last_updated": "最后更新于 {{time}}",
     "title": "速度测试",
-    "running_badge": "进行中",
     "phase_ping": "Ping",
     "phase_download": "下载",
     "phase_upload": "上传",
