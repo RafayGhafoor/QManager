@@ -325,8 +325,6 @@
       "description": "Menerapkan akan menulis semua pengaturan dan me-reboot modem.",
       "network_description": "Diterapkan bersama passthrough, dengan satu kali reboot.",
       "apply": "Terapkan dan reboot",
-      "unsaved_one": "{{count}} perubahan belum tersimpan",
-      "unsaved_other": "{{count}} perubahan belum tersimpan",
       "mac_label": "Alamat MAC target",
       "mac_placeholder": "XX:XX:XX:XX:XX:XX"
     },

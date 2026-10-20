@@ -325,8 +325,6 @@
       "description": "Applicare scrive tutte le impostazioni e riavvia il modem.",
       "network_description": "Applicate insieme al passthrough, con un solo riavvio.",
       "apply": "Applica e riavvia",
-      "unsaved_one": "{{count}} modifica non salvata",
-      "unsaved_other": "{{count}} modifiche non salvate",
       "mac_label": "Indirizzo MAC di destinazione",
       "mac_placeholder": "XX:XX:XX:XX:XX:XX"
     },
