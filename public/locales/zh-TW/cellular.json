@@ -199,7 +199,9 @@
   "custom_profiles": {
     "page": {
       "title": "自訂 SIM 設定檔",
-      "description": "將 APN、IMEI 和 TTL/HL 設定打包為一鍵式設定檔。"
+      "description": "將 APN、IMEI 和 TTL/HL 設定打包為一鍵式設定檔。",
+      "new_profile": "新建設定檔",
+      "new_scenario": "新建場景"
     },
     "view": {
       "title": "已儲存的設定檔",
@@ -478,9 +480,14 @@
     },
     "deactivate_dialog": {
       "title": "停用設定檔",
-      "description": "清除活動設定檔標記？調變解調器當前的設定（APN、IMEI、TTL）不會恢復——僅移除「活動」標記。",
+      "description": "其計劃將停止，預設連線場景將恢復，常規 APN 設定也會還原。",
       "confirm": "停用",
-      "deactivating": "停用中…"
+      "working_title": "正在停用設定檔",
+      "unknown_profile": "無設定檔名稱",
+      "confirm_headline": "停止使用此設定檔？",
+      "working_headline": "正在恢復常規設定",
+      "working_sub": "還原 APN 期間，移動連線可能會短暫中斷。請勿離開此頁面。",
+      "verizon_note": "此 Verizon 設定檔的資料路由規則也會被還原，之後調變解調器需要重啟。準備好後，請透過橫幅重啟。"
     },
     "apply_dialog": {
       "title": "正在套用設定檔",
@@ -579,13 +586,64 @@
       "save_failed": "無法儲存設定。",
       "delete_failed": "無法刪除設定。",
       "deactivate_failed": "無法停用設定。"
+    },
+    "hero": {
+      "eyebrow": "當前生效",
+      "iccid": "ICCID {{value}}",
+      "edit": "編輯",
+      "deactivate": "停用",
+      "reapply": "重新應用設定檔",
+      "pending_network": "下次啟用時應用",
+      "notice": {
+        "unknown_step": "未知",
+        "applying_title": "正在應用 {{name}}",
+        "applying_body": "第 {{step}} 步，共 {{total}} 步。無線電重新附著期間，連線可能會短暫中斷。",
+        "partial_title": "僅部分應用",
+        "partial_body": "{{step}} 步驟未能應用。請重新應用設定檔以再次嘗試所有步驟。",
+        "mismatch_title": "插入了不同的 SIM",
+        "mismatch_body": "此設定檔是為另一張 SIM 儲存的。在下次重啟或更換 SIM 之前，其設定將應用於調變解調器中的 SIM。"
+      },
+      "tiles": {
+        "identity": "身份",
+        "scenario": "生效場景",
+        "scheduled": "已計劃",
+        "not_scheduled": "未計劃",
+        "radio": "無線電配置",
+        "band_locking": "頻段鎖定",
+        "bands_auto": "所有頻段"
+      },
+      "scenario": {
+        "unknown": "未知場景"
+      },
+      "ribbon": {
+        "title": "今日計劃",
+        "edit": "編輯計劃",
+        "unknown_scenario": "未知場景",
+        "aria_label": "今日場景計劃：{{schedule}}",
+        "aria_segment": "{{name}}，持續到 {{end}}",
+        "aria_join": "，然後",
+        "aria_empty": "今日沒有場景計劃"
+      },
+      "badge": {
+        "live": "活動",
+        "applying": "應用中",
+        "partial": "部分應用",
+        "mismatch": "SIM 不匹配"
+      }
+    },
+    "hero_empty": {
+      "title": "沒有活動的設定檔",
+      "description": "調變解調器將使用常規 APN 設定和預設連線場景。儲存設定檔即可將 APN、TTL 和場景計劃繫結到某張 SIM。",
+      "description_saved": "當前沒有生效的配置。請在下方啟用一個已儲存的設定檔，以恢復其設定和計劃。",
+      "activate_action": "啟用設定檔"
+    },
+    "hero_error": {
+      "title": "無法獲取設定檔詳情",
+      "description": "調變解調器上有一個活動的設定檔，但無法載入其詳情。裝置上未發生任何更改。",
+      "retry": "重試"
     }
   },
   "scenarios": {
-    "page": {
-      "title": "連線場景",
-      "description": "在已儲存的網路設定之間切換無線電。"
-    },
     "default_balanced_name": "均衡",
     "default_balanced_description": "自動選擇頻段",
     "default_gaming_name": "遊戲",
@@ -599,8 +657,12 @@
     "mode_option_lte": "僅 LTE",
     "mode_option_nrsa": "僅 5G SA",
     "mode_option_nrsa_nsa": "5G SA / NSA",
+    "redirect": {
+      "label": "正在開啟自定義設定檔…"
+    },
     "scenario_item": {
       "active_badge": "活動",
+      "next_at": "下次於 {{time}}",
       "delete_confirm": {
         "title": "刪除場景",
         "description": "確定要刪除「{{name}}」嗎？此操作不可撤銷。",
@@ -683,6 +745,7 @@
       "badge": "已計劃",
       "hint": "關閉此配置的計劃以手動選擇場景。",
       "next_change": "下次切換於 {{time}}",
+      "owned_hint": "場景由「{{profile}}」的計劃控制。關閉該計劃即可手動選擇。",
       "blocked_toast": "連線場景由活動配置的計劃控制。請關閉計劃以手動更改。"
     },
     "list_card": {
@@ -1075,6 +1138,7 @@
         "refresh_error": "無法重新整理頻段設定"
       },
       "scenario_gate_title": "{{scenario}} 情境正在管理您的頻段",
+      "scenario_gate_action": "開啟場景",
       "scenario_gate_note": "切換到「均衡」情境即可手動鎖定頻段。",
       "read_error_title": "無法讀取頻段設定",
       "refresh_blocked_watcher": "請等待故障轉移檢查完成",
@@ -2454,6 +2518,17 @@
       "errors": {
         "read_failed": "裝置無法讀取 SIM 卡的禁用網路清單。",
         "unreachable": "無法連線到裝置。"
+      }
+    }
+  },
+  "profiles": {
+    "today": {
+      "armed": "計劃已啟用",
+      "not_armed": "無計劃",
+      "summary": {
+        "until": "持續到 {{time}}，然後切換為 {{next}}",
+        "rest_of_day": "持續到今日結束",
+        "all_day": "全天生效"
       }
     }
   }
