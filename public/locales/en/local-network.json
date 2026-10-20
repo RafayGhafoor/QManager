@@ -178,7 +178,7 @@
       }
     },
     "settings": {
-      "title": "Link speed limit",
+      "title": "Link Speed Limit",
       "description": "Force the ethernet port to a fixed speed instead of letting it negotiate one.",
       "row_label": "Speed limit",
       "placeholder": "Select speed",
@@ -254,11 +254,11 @@
         "description": "Which DNS servers the devices on your network are given."
       },
       "ipv4": {
-        "title": "IPv4 servers",
+        "title": "IPv4 Servers",
         "description": "Up to three, tried in order."
       },
       "ipv6": {
-        "title": "IPv6 servers",
+        "title": "IPv6 Servers",
         "description": "Up to two, for devices that use IPv6."
       }
     },
@@ -323,7 +323,7 @@
         "description": "Applied to outbound packets on the cellular interface."
       },
       "mtu": {
-        "title": "Maximum transmission unit",
+        "title": "Maximum Transmission Unit",
         "description": "The largest packet the cellular interface will send without fragmenting."
       }
     },

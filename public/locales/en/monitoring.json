@@ -302,7 +302,7 @@
       "aria": "Enable the connection watchdog"
     },
     "ladder": {
-      "title": "Recovery ladder",
+      "title": "Recovery Ladder",
       "description": "Tried in order, gentlest first.",
       "aria": "Recovery ladder",
       "status": {
@@ -383,7 +383,7 @@
       }
     },
     "activity": {
-      "title": "Recovery activity",
+      "title": "Recovery Activity",
       "description": "What the watchdog has done, newest first.",
       "type": {
         "recovery": "Recovery",
@@ -530,7 +530,7 @@
       "setupKeyHelp": "Paste a setup key from your NetBird dashboard, or leave it empty if this modem is already registered."
     },
     "device": {
-      "title": "This device",
+      "title": "This Device",
       "description": "How the modem identifies itself on the NetBird network.",
       "fqdn": "FQDN",
       "netbirdIp": "NetBird IP",
@@ -541,7 +541,7 @@
       "emptyDescription": "Connect NetBird and this modem's address, name and link health appear here."
     },
     "peers": {
-      "title": "Network peers",
+      "title": "Network Peers",
       "description": "The other devices on your NetBird network, and whether they are reachable.",
       "dash": "—",
       "unnamed": "Unnamed device",
@@ -732,7 +732,7 @@
       "description": "Let a Prometheus server collect this modem's signal and health readings."
     },
     "card": {
-      "title": "Prometheus metrics",
+      "title": "Prometheus Metrics",
       "description": "Scraping needs the token below; device identifiers are never included."
     },
     "endpoint": {
@@ -785,7 +785,7 @@
       "confirm": "Generate token"
     },
     "config": {
-      "label": "Scrape config",
+      "label": "Scrape Config",
       "consequence": "Add this job to your Prometheus configuration.",
       "hint_label": "About the scrape config",
       "hint": "The modem's certificate is self-signed, so verification is skipped. Over Tailscale, plain http works too.",

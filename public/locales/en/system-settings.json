@@ -98,7 +98,7 @@
       "metrics": "Prometheus metrics"
     },
     "create": {
-      "card_title": "Create backup",
+      "card_title": "Create Backup",
       "card_description": "Choose what to include, then encrypt the file with a passphrase.",
       "group_connection": "Connection",
       "group_monitoring": "Monitoring and alerts",
@@ -123,7 +123,7 @@
       "toast_failed": "Couldn't create the backup."
     },
     "restore": {
-      "card_title": "Restore from file",
+      "card_title": "Restore from File",
       "card_description": "Replace the settings a backup contains with the values saved in it.",
       "idle_title": "No backup open",
       "idle_description": "Choose a .qmbackup file made by QManager.",
@@ -239,51 +239,51 @@
     },
     "card": {
       "loading": {
-        "title": "Checking for updates",
+        "title": "Checking for Updates",
         "description": "Reading the release list from GitHub."
       },
       "unreachable": {
-        "title": "Update service unavailable",
+        "title": "Update Service Unavailable",
         "description": "QManager can't reach the update endpoint on this modem, so it can't say what is installed or what is available."
       },
       "check_failed": {
-        "title": "The update check failed",
+        "title": "The Update Check Failed",
         "description": "The build on this modem is untouched. QManager just couldn't read the release list this time."
       },
       "download_failed": {
-        "title": "The download didn't finish",
+        "title": "The Download Didn't Finish",
         "description": "Nothing has been replaced. The build already on this modem is untouched, so it is safe to try the download again."
       },
       "install_failed": {
-        "title": "The install didn't finish",
+        "title": "The Install Didn't Finish",
         "description": "The modem may be running a mixed set of files. Installing again puts it back on a known build."
       },
       "up_to_date": {
-        "title": "You're on the latest build",
+        "title": "You're on the Latest Build",
         "description": "Nothing to install. The four steps below are what an update does when one arrives."
       },
       "available": {
-        "title": "Update available",
+        "title": "Update Available",
         "description": "Downloading and installing takes a few minutes and ends in a restart. This is exactly what happens."
       },
       "downloading": {
-        "title": "Downloading the update",
+        "title": "Downloading the Update",
         "description": "The package is being fetched from GitHub. Nothing has been replaced yet and the modem keeps working."
       },
       "verifying": {
-        "title": "Verifying the download",
+        "title": "Verifying the Download",
         "description": "QManager is checking the package against its SHA-256 before anything is replaced."
       },
       "staged": {
-        "title": "Ready to install",
+        "title": "Ready to Install",
         "description": "The package is downloaded and verified. Installing replaces QManager and restarts the modem."
       },
       "installing": {
-        "title": "Installing the update",
+        "title": "Installing the Update",
         "description": "The app and its services are being replaced. Do not power off the modem."
       },
       "rebooting": {
-        "title": "Restarting the modem",
+        "title": "Restarting the Modem",
         "description": "The install finished. The modem is restarting and this session drops until it comes back."
       },
       "chip": {
@@ -341,7 +341,7 @@
       "stalled": "The installer has gone quiet for two minutes. If it does not recover, restart the modem to finish or undo the install."
     },
     "notes": {
-      "title": "What changed",
+      "title": "What Changed",
       "description": "The release notes published with {{version}}.",
       "empty_title": "No release notes",
       "empty_description": "GitHub returned no changelog for this release, so there's nothing to show here.",
@@ -590,7 +590,7 @@
       }
     },
     "display": {
-      "title": "Display language",
+      "title": "Display Language",
       "description": "Pick the language QManager's interface is written in. The change takes effect straight away, and only on this device.",
       "group_aria": "Display language",
       "built_in": "Built in",
@@ -605,7 +605,7 @@
       "removing": "Removing…"
     },
     "community": {
-      "title": "Community packs",
+      "title": "Community Packs",
       "description": "Translation packs published for QManager by the community. Installing one adds it to the list above.",
       "list_aria": "Community language packs",
       "completeness": "{{pct}}% translated",
@@ -800,11 +800,11 @@
       "pending": "Pending"
     },
     "attention": {
-      "title": "Needs attention",
+      "title": "Needs Attention",
       "description": "Every check that failed or raised a warning on the last run. Start here."
     },
     "all_checks": {
-      "title": "All checks",
+      "title": "All Checks",
       "description": "Every probe the diagnostic ran, grouped by the subsystem it belongs to."
     },
     "tally": {
@@ -972,7 +972,7 @@
   "adaptive_polling": {
     "page_title": "Adaptive Polling",
     "page_description": "Query the modem less often while no one has QManager open.",
-    "card_title": "Adaptive polling",
+    "card_title": "Adaptive Polling",
     "card_description": "Status refreshes at full rate while a page is open, then slows down.",
     "tier": {
       "active": "Full rate",
