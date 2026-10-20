@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import { useRef, useState, type ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,9 @@ import { cn } from "@/lib/utils";
 //
 // The network's own APNs come first; brands that ride the network (MVNOs)
 // follow under their own heading so the host's entries stay easy to find.
+//
+// The menu takes the field's width (measured when it opens) so both edges
+// line up under the field at every card width.
 // =============================================================================
 
 const K = "core_settings.apn.edit.fields.apn.presets";
@@ -44,6 +47,8 @@ export interface ApnPresetFieldProps {
 
 export function ApnPresetField({ presets, onPick, inputProps }: ApnPresetFieldProps) {
   const { t } = useTranslation("cellular");
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const [menuWidth, setMenuWidth] = useState<number | undefined>(undefined);
   const hasPresets = !!presets && presets.length > 0;
   const current = String(inputProps.value ?? "").trim().toLowerCase();
 
@@ -74,9 +79,14 @@ export function ApnPresetField({ presets, onPick, inputProps }: ApnPresetFieldPr
   };
 
   return (
-    <div className="relative w-full">
+    <div ref={fieldRef} className="relative w-full">
       <Input {...inputProps} className={cn(inputProps.className, "pr-11")} />
-      <DropdownMenu modal={false}>
+      <DropdownMenu
+        modal={false}
+        onOpenChange={(open) => {
+          if (open) setMenuWidth(fieldRef.current?.offsetWidth);
+        }}
+      >
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
@@ -89,7 +99,13 @@ export function ApnPresetField({ presets, onPick, inputProps }: ApnPresetFieldPr
             <MaterialSymbol name="expand_more" size={20} />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" sideOffset={6} className="w-72 max-w-[calc(100vw-2rem)] rounded-field">
+        <DropdownMenuContent
+          align="end"
+          alignOffset={-4}
+          sideOffset={10}
+          style={{ width: menuWidth }}
+          className="min-w-56 rounded-field"
+        >
           {own.length > 0 ? (
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-xs font-medium text-on-surface-variant">
