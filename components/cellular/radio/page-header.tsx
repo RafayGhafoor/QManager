@@ -4,7 +4,7 @@ import * as React from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
-import { Button } from "@/components/ui/button";
+import { ExpandButton } from "@/components/ui/expand-button";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { copyText } from "@/lib/clipboard";
 
@@ -66,17 +66,15 @@ export function RadioPageHeader({ buildDiagnostics }: RadioPageHeaderProps) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5 @3xl/main:ml-auto">
-        <Button
-          type="button"
-          variant="outline"
+        <ExpandButton
           onClick={handleCopy}
-          size="action"
-        >
-          <MaterialSymbol name={copied ? "check" : "content_copy"} size={18} />
-          {copied
-            ? t("radio_info.header.copied")
-            : t("radio_info.header.copy")}
-        </Button>
+          icon={
+            <MaterialSymbol name={copied ? "check" : "content_copy"} size={18} />
+          }
+          label={
+            copied ? t("radio_info.header.copied") : t("radio_info.header.copy")
+          }
+        />
       </div>
     </div>
   );

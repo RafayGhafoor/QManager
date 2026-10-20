@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ExpandButton } from "@/components/ui/expand-button";
 import { Card } from "@/components/ui/card";
 import {
   Empty,
@@ -562,21 +562,22 @@ export function ActiveBandsCard({
         </div>
 
         {carriers.length > 0 ? (
-          <Button
-            type="button"
-            variant="outline"
+          <ExpandButton
             onClick={() => setShowReference((open) => !open)}
             aria-expanded={showReference}
-            className="ml-auto h-[2.375rem] shrink-0 gap-2 px-4 text-[13px] font-semibold"
-          >
-            <MaterialSymbol
-              name={showReference ? "visibility_off" : "visibility"}
-              size={18}
-            />
-            {showReference
-              ? t("radio_info.bands.reference.hide")
-              : t("radio_info.bands.reference.show")}
-          </Button>
+            className="ml-auto h-[2.375rem] text-[13px]"
+            icon={
+              <MaterialSymbol
+                name={showReference ? "visibility_off" : "visibility"}
+                size={18}
+              />
+            }
+            label={
+              showReference
+                ? t("radio_info.bands.reference.hide")
+                : t("radio_info.bands.reference.show")
+            }
+          />
         ) : null}
       </div>
 
