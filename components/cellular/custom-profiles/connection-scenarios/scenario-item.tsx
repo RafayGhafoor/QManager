@@ -84,9 +84,9 @@ export const ScenarioItem = ({
             <>
               {/* Translucent `success`, not the tone steps: dark-mode tone-1
                   sits within a step of the tile ground and vanishes. */}
-              <span className="absolute -inset-2 animate-pulse-ring rounded-pill bg-success/20" />
+              <span className="absolute -inset-3 animate-pulse-ring rounded-pill bg-success/25" />
               <span
-                className="absolute -inset-1 animate-pulse-ring rounded-pill bg-success/35"
+                className="absolute -inset-1.5 animate-pulse-ring rounded-pill bg-success/40"
                 style={{ animationDelay: "0.3s" }}
               />
             </>
