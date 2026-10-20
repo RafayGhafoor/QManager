@@ -263,6 +263,9 @@ export const TZ_NOTICE =
 export const ROW_GROUP =
   "flex flex-col gap-0.5 rounded-tile bg-surface-container p-1.5";
 
+/** The heading over one of a card's row groups. The card's own title stays the card's. */
+export const GROUP_LABEL = "text-on-surface-variant px-1 text-xs font-semibold";
+
 /** A card's slack absorber: the page grid locks the cell, the group grows. */
 export const GROUP_FILL = "min-h-0 flex-1";
 
@@ -559,12 +562,12 @@ export const SKELETON = {
     /** Wears a `DAY_PILL.RAIL` cell, so it tracks the grid, not a flex basis. */
     DAY: `${DAY_PILL_HEIGHT} min-w-0 rounded-pill`,
   },
-  /** Tracked SIMs: a list wearing `SIM_ROW.ROOT`. */
+  /** Tracked SIMs: the count row in the Device & Units card. */
   SIMS: {
     LABEL: LINE.LABEL,
     ID: LINE.CONSEQUENCE,
     CHIP: "h-[1.375rem] w-20 rounded-pill",
-    /** The footer's Clear action. */
+    /** The inline Clear action. */
     ACTION: `${FIELD_HEIGHT} w-28 rounded-pill`,
   },
 } as const;
