@@ -100,7 +100,7 @@
         "phone_error": "Enter a number with its country code, like +14155551234.",
         "phone_missing": "A recipient phone number is required.",
         "test": "Send a test SMS",
-        "title": "SMS alerts",
+        "title": "SMS Alerts",
         "sub": "Arrives even during an outage."
       },
       "email": {
@@ -124,7 +124,7 @@
         "mailer_installing": "Installing",
         "mailer_recheck": "Check again",
         "test": "Send a test email",
-        "title": "Email alerts",
+        "title": "Email Alerts",
         "sub": "Sent through Gmail once the link is back."
       },
       "threshold_label": "Wait before alerting",
@@ -677,7 +677,7 @@
         "title": "Latency"
       },
       "loss": {
-        "title": "Packet loss"
+        "title": "Packet Loss"
       },
       "preset": {
         "standard": "Standard",

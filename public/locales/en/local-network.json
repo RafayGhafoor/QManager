@@ -381,9 +381,9 @@
     "status": {
       "label": "Last applied",
       "mode_title": {
-        "disabled": "Router mode",
-        "eth": "Ethernet passthrough",
-        "usb": "USB passthrough"
+        "disabled": "Router Mode",
+        "eth": "Ethernet Passthrough",
+        "usb": "USB Passthrough"
       },
       "blurb": {
         "disabled": "Modem routes for the LAN",

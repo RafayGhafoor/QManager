@@ -133,7 +133,7 @@
       "show_full_address": "Show the full, uncompressed {{label}}"
     },
     "bands": {
-      "title": "Spectrum in use",
+      "title": "Spectrum in Use",
       "description_one": "{{count}} active carrier, with its live signal metrics below.",
       "description_other": "{{count}} active carriers, with live signal metrics for each one.",
       "cadence": "Updates every few seconds",
@@ -1217,7 +1217,7 @@
         "update": "Update"
       },
       "live": {
-        "title": "Right now",
+        "title": "Right Now",
         "camped_empty_title": "No carrier on air",
         "camped_empty_body": "The modem is not camped on any cell. A lock still applies once it attaches.",
         "absent_nr_title": "No 5G carrier",
@@ -1241,7 +1241,7 @@
         "target_serving": "Serving"
       },
       "automation": {
-        "title": "Lock automation",
+        "title": "Lock Automation",
         "description": "Release the lock in bad signal, or apply it on a timer.",
         "failover_label": "Signal failover",
         "failover_help_label": "About signal failover",
@@ -1451,7 +1451,7 @@
       "camped_empty_body": "The modem is not reporting a serving cell. Channels can still be entered by hand.",
       "camped_empty_title": "No carriers reported",
       "outside_list": "Outlined carriers are on air outside your channel list.",
-      "title": "Right now"
+      "title": "Right Now"
     },
     "page": {
       "description": "Restrict the radio to specific channels. Channels only, no PCI, so the modem still picks the cell.",
@@ -1499,7 +1499,7 @@
       "description": "Sweep every supported band for the towers in range. Best results with the SIM removed."
     },
     "run": {
-      "title": "Full network sweep",
+      "title": "Full Network Sweep",
       "link_neighbour_short": "Neighbors",
       "progress_label": "Estimated sweep progress",
       "ledger": {
@@ -1539,7 +1539,7 @@
       "failed_body": "The modem may be busy or unreachable. Check the connection and run the sweep again."
     },
     "results": {
-      "title": "Cells found",
+      "title": "Cells Found",
       "description": "Sort by signal, filter by carrier, lock onto any row.",
       "filter_placeholder": "Filter by provider",
       "columns": "Columns",
@@ -1633,7 +1633,7 @@
         "description": "Read the towers the serving cell already tracks, without sweeping any bands."
       },
       "run": {
-        "title": "Neighbourcell scan",
+        "title": "Neighbourcell Scan",
         "ledger": {
           "figure_unit_one": "neighbour",
           "figure_unit_other": "neighbours"
@@ -1654,7 +1654,7 @@
         "failed_body": "The modem may be busy or unreachable. Check the connection and read again."
       },
       "results": {
-        "title": "Neighbourcell reports",
+        "title": "Neighbourcell Reports",
         "description": "Sort by signal, filter by channel, lock onto any LTE row.",
         "filter_placeholder": "Filter by channel",
         "empty_title": "No neighbours yet",
@@ -1734,7 +1734,7 @@
         "earfcn": "EARFCN",
         "nrarfcn": "NR-ARFCN",
         "frequency": "Frequency",
-        "bands_title": "Possible operating bands",
+        "bands_title": "Possible Operating Bands",
         "band_lte": "Band {{band}}",
         "band_nr": "n{{band}}",
         "downlink": "Downlink",

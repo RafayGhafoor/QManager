@@ -101,7 +101,7 @@
       "card_title": "Create Backup",
       "card_description": "Choose what to include, then encrypt the file with a passphrase.",
       "group_connection": "Connection",
-      "group_monitoring": "Monitoring and alerts",
+      "group_monitoring": "Monitoring and Alerts",
       "group_encryption": "Encryption",
       "profile_overlap_hint": "Included with Custom SIM profiles",
       "profile_uncheck_hint": "Clear network mode, TTL and IMEI to include profiles",

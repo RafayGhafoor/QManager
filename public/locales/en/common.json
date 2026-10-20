@@ -444,7 +444,7 @@
       "opens_new_tab": "opens in a new tab"
     },
     "band": {
-      "title": "Support the project",
+      "title": "Support the Project",
       "body": "QManager is a side project, maintained for free. If it has been useful on your setup, a tip keeps it going — and there is no paywall coming either way."
     }
   },
@@ -522,7 +522,7 @@
       "updating": "Updating…",
       "updateDialogTitle": "Update Tailscale to {{version}}?",
       "updateDialogDescription": "The tunnel reconnects for a few seconds while the new version starts.",
-      "updateLogTitle": "Update log",
+      "updateLogTitle": "Update Log",
       "communityBuild": "Community build",
       "netFixesTitle": "Network fixes",
       "netFixesDescription": "Lets your tailnet devices reach this modem and its LAN."
@@ -579,7 +579,7 @@
       "checkAgain": "Check again",
       "done": "Tailscale installed.",
       "failed": "The install did not finish.",
-      "logTitle": "Install log",
+      "logTitle": "Install Log",
       "logWaiting": "Waiting for output…"
     },
     "danger": {
