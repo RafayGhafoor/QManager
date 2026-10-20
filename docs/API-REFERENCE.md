@@ -757,7 +757,14 @@ Current tower lock state.
 
 ### GET/POST `/tower/settings.sh`
 
-Tower locking general settings.
+Tower locking general settings. Every POST field is optional and an absent one is left alone, so a failover save never touches persistence.
+
+**POST Request** (any subset):
+```json
+{ "persist_lte": true, "persist_nr": false, "failover_enabled": true, "failover_threshold": 20 }
+```
+
+`persist_lte` / `persist_nr` set `AT+QNWLOCK="save_ctrl",<lte>,<nr>` per radio (the other radio's live value is read first and re-sent); `persist` sets both (older clients). The response carries `persist_lte` / `persist_nr` (each radio's value after the call, `null` when persistence was not requested or the modem could not be read) and `persist_command_failed: true` when the write did not land.
 
 ### GET `/tower/failover_status.sh`
 
