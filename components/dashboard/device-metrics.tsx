@@ -10,11 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { MetricBar } from "@/components/ui/metric-bar";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
+import { HintIcon } from "@/components/ui/hint-icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { TickingValue } from "@/components/ui/ticking-value";
@@ -41,7 +37,6 @@ import {
   CARD_TITLE,
   DIRECTION,
   FIGURE,
-  FOCUS_RING,
   METER_H,
   SPEEDTEST,
   VALUE_CLASS,
@@ -461,24 +456,11 @@ const DeviceMetricsComponent = ({
           label={
             <>
               <span className="truncate">{t("metrics.lte_cell_distance")}</span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn("inline-flex shrink-0", FOCUS_RING)}
-                    aria-label={t("metrics.more_info_aria")}
-                  >
-                    <MaterialSymbol name="info" size={16} filled />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {!unreachable && lteTa ? (
-                    <p>{t("metrics.lte_distance_tooltip", { ta: lteTa })}</p>
-                  ) : (
-                    <p>{t("metrics.ta_unavailable")}</p>
-                  )}
-                </TooltipContent>
-              </Tooltip>
+              <HintIcon label={t("metrics.lte_cell_distance")}>
+                {!unreachable && lteTa
+                  ? t("metrics.lte_distance_tooltip", { ta: lteTa })
+                  : t("metrics.ta_unavailable")}
+              </HintIcon>
             </>
           }
         >
@@ -492,24 +474,11 @@ const DeviceMetricsComponent = ({
           label={
             <>
               <span className="truncate">{t("metrics.nr_cell_distance")}</span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn("inline-flex shrink-0", FOCUS_RING)}
-                    aria-label={t("metrics.more_info_aria")}
-                  >
-                    <MaterialSymbol name="info" size={16} filled />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {!unreachable && nrTa ? (
-                    <p>{t("metrics.nr_distance_tooltip", { ta: nrTa })}</p>
-                  ) : (
-                    <p>{t("metrics.ta_unavailable")}</p>
-                  )}
-                </TooltipContent>
-              </Tooltip>
+              <HintIcon label={t("metrics.nr_cell_distance")}>
+                {!unreachable && nrTa
+                  ? t("metrics.nr_distance_tooltip", { ta: nrTa })
+                  : t("metrics.ta_unavailable")}
+              </HintIcon>
             </>
           }
         >
