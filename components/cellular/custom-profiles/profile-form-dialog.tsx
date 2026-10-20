@@ -90,18 +90,18 @@ export function ProfileFormDialog({
             fill, hairline, sheen (background-image) and shadow so the dialog
             is the one panel the user reads; its layout and children stay. */}
         <div className="max-h-[85dvh] overflow-y-auto overscroll-contain [scrollbar-width:thin] [&>[data-slot=card]]:border-0 [&>[data-slot=card]]:bg-transparent [&>[data-slot=card]]:bg-none [&>[data-slot=card]]:shadow-none">
-          {open ? (
-            <ProfileInputComponent
-              key={editingId ?? "new"}
-              sim={sim}
-              currentSettings={currentSettings}
-              editingId={editingId}
-              onDone={handleDone}
-              onCancel={() => onOpenChange(false)}
-              initialTab={initialTab}
-              onCreateScenario={onCreateScenario}
-            />
-          ) : null}
+          {/* Radix unmounts the content when closed, so every open starts a
+              fresh draft; the key also resets it when the target changes. */}
+          <ProfileInputComponent
+            key={editingId ?? "new"}
+            sim={sim}
+            currentSettings={currentSettings}
+            editingId={editingId}
+            onDone={handleDone}
+            onCancel={() => onOpenChange(false)}
+            initialTab={initialTab}
+            onCreateScenario={onCreateScenario}
+          />
         </div>
       </DialogContent>
     </Dialog>
