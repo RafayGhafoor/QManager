@@ -61,15 +61,41 @@ import { DEFAULT_SCENARIO_ICON_ID, resolveScenarioIcon } from "./scenario-icons"
 // Invariants: activation is explicit and a same-id activate is a no-op;
 // built-ins are mode-only; the active profile's schedule lock withholds
 // Activate (the backend also refuses with `scenario_locked_by_schedule`);
-// `?create=1` opens the Add dialog once and strips itself. A custom
+// the page opens Add via `openAddSignal` / `autoOpenAddDialog`. A custom
 // scenario persists its identity glyph as an `icon` id (B5.25) and its
 // optimization as a stable token or the user's own words (B5.26); neither the
 // retired `gradient` nor the display-language `config.mode` is sent any more.
 // Never reboots.
 // =============================================================================
 
-const ConnectionScenariosCard = () => {
-  const { t } = useTranslation("cellular");
+/** Deep-link action (`?action=create-scenario`) the page maps to Add. */
+export const SCENARIO_CREATE_ACTION = "create-scenario";
+
+export interface ConnectionScenariosCardProps {
+  /** Each increment opens the Add dialog. */
+  openAddSignal?: number;
+  /** Open the Add dialog once on mount (deep link). */
+  autoOpenAddDialog?: boolean;
+  /** Epoch ms of the next scheduled start per scenario id. */
+  nextFireByScenarioId?: Record<string, number>;
+  /** The active profile's schedule owns scenario selection. */
+  radioOwnedByProfile?: boolean;
+  ownerProfileName?: string | null;
+  /** The page holds every card in skeleton until all are ready. */
+  holdSkeleton?: boolean;
+  onLocalReadyChange?: (ready: boolean) => void;
+}
+
+const ConnectionScenariosCard = ({
+  openAddSignal,
+  autoOpenAddDialog = false,
+  nextFireByScenarioId,
+  radioOwnedByProfile,
+  ownerProfileName,
+  holdSkeleton = false,
+  onLocalReadyChange,
+}: ConnectionScenariosCardProps = {}) => {
+  const { t, i18n } = useTranslation("cellular");
 
   const modeOptions = useMemo(
     () => [
@@ -139,7 +165,7 @@ const ConnectionScenariosCard = () => {
   const {
     activeScenarioId,
     customScenarios: stored,
-    isLoading,
+    isLoading: hookLoading,
     isActivating,
     error,
     activateScenario,
@@ -147,7 +173,23 @@ const ConnectionScenariosCard = () => {
     deleteCustomScenario,
     refresh,
   } = useConnectionScenarios();
-  const { scheduleLocked, nextChangeAt } = useActiveProfile();
+  const profile = useActiveProfile();
+  // Props from the page win; without them fall back to the active-profile hook.
+  const scheduleLocked = radioOwnedByProfile ?? profile.scheduleLocked;
+  const nextChangeAt = profile.nextChangeAt;
+  const lockProfileName =
+    ownerProfileName !== undefined ? ownerProfileName : profile.lockProfileName;
+  const isLoading = hookLoading || holdSkeleton;
+
+  useEffect(() => {
+    onLocalReadyChange?.(!hookLoading);
+  }, [hookLoading, onLocalReadyChange]);
+
+  const formatFire = (ms: number) =>
+    new Date(ms).toLocaleTimeString(i18n.language, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
   const scenarios = useMemo<Scenario[]>(
     () => [
@@ -178,7 +220,7 @@ const ConnectionScenariosCard = () => {
   // --- Dialogs ---------------------------------------------------------------
   const [dialog, setDialog] = useState<
     { mode: "add" } | { mode: "edit"; id: string } | null
-  >(null);
+  >(autoOpenAddDialog ? { mode: "add" } : null);
   const [dialogSeq, setDialogSeq] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Scenario | null>(null);
@@ -188,16 +230,13 @@ const ConnectionScenariosCard = () => {
     setDialog({ mode: "add" });
   };
 
-  // `?create=1` (from the profile editor's scenario picker) opens Add once,
-  // then strips the param so a refresh or back-nav does not reopen it. Read
-  // post-mount to stay clear of the static-export CSR bailout.
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("create") === "1") {
-      window.history.replaceState({}, "", window.location.pathname);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot deep link read from the URL after mount
-      openAdd();
-    }
-  }, []);
+  // Each increment of `openAddSignal` opens Add, adjusted during render.
+  const [seenSignal, setSeenSignal] = useState(openAddSignal ?? 0);
+  if ((openAddSignal ?? 0) !== seenSignal) {
+    setSeenSignal(openAddSignal ?? 0);
+    setDialogSeq((n) => n + 1);
+    setDialog({ mode: "add" });
+  }
 
   const dialogInitial: ScenarioDraft =
     dialog?.mode === "edit" && selected && !selected.isDefault
@@ -337,6 +376,11 @@ const ConnectionScenariosCard = () => {
                   isSelected={selected?.id === scenario.id}
                   modeLabel={modeLabel(scenario.config.atModeValue)}
                   onSelect={setSelectedId}
+                  nextAt={
+                    nextFireByScenarioId?.[scenario.id] !== undefined
+                      ? formatFire(nextFireByScenarioId[scenario.id])
+                      : undefined
+                  }
                 />
               ))}
             </motion.div>
@@ -362,6 +406,7 @@ const ConnectionScenariosCard = () => {
           onActivate={handleActivate}
           scheduleLocked={scheduleLocked}
           nextChangeAt={nextChangeAt}
+          ownerProfileName={lockProfileName}
         />
       )}
 
