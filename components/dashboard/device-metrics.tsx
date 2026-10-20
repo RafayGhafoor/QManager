@@ -526,7 +526,7 @@ const DeviceMetricsComponent = ({
             sits on the arrow glyphs only. */}
         <motion.div variants={staggerRowItem} className="mt-auto">
           <div className={SPEEDTEST.TILE}>
-            <div className="flex h-full items-center gap-5 @max-sm/card:gap-3">
+            <div className="flex h-full items-center gap-8 @max-sm/card:gap-3">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button

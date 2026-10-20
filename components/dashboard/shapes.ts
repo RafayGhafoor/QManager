@@ -475,11 +475,10 @@ export const SPEEDTEST = {
   /** Mirrors TILE's pinned height, for the skeleton. */
   TILE_H: "h-[4.25rem]",
   /**
-   * Three equal columns while the card is roomy. On a narrow card (a phone)
-   * they size to their content and spread, because a three-digit Mbps figure
-   * plus its unit does not fit a third of the tile.
+   * Three content-sized columns spread edge to edge (flex, justify-between), so the
+   * gap to the run control is the room left over, not a fixed share.
    */
-  FIGS: "grid h-full grid-cols-3 content-center gap-2 @max-sm/card:grid-cols-[auto_auto_auto] @max-sm/card:justify-between",
+  FIGS: "flex h-full items-center justify-between gap-2",
 } as const;
 
 /**
