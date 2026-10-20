@@ -2,6 +2,7 @@
 . /usr/lib/qmanager/cgi_base.sh
 . /usr/lib/qmanager/cgi_at.sh
 . /usr/lib/qmanager/sim_db.sh
+[ -f /usr/lib/qmanager/data_cid.sh ] && . /usr/lib/qmanager/data_cid.sh
 # =============================================================================
 # current_settings.sh — CGI Endpoint: Current Modem Settings
 # =============================================================================
@@ -35,7 +36,7 @@ qlog_info "Querying current modem settings for profile form"
 # --- Compound AT: fetch all settings in one call ---
 # Transport failure (rc 1) is an error, not an empty form; a modem ERROR (rc 2)
 # keeps the partial-parse behaviour.
-at_exec 'AT+CGDCONT?;+CGSN;+QCCID;+CGPADDR;+QMAP="WWAN"'
+at_exec 'AT+CGDCONT?;+CGACT?;+CGSN;+QCCID;+CGPADDR'
 if [ $? -eq 1 ]; then
     cgi_error "modem_error" "Failed to read current modem settings"
     exit 0
@@ -56,43 +57,13 @@ current_imei=$(printf '%s\n' "$raw" | tr -d '\r' | grep -x '[0-9]\{15\}' | head 
 # extractor silently dropped the pad, diverging from every apply-time reader.
 current_iccid=$(iccid_canonicalize "$(printf '%s\n' "$raw" | grep '+QCCID:' | head -1 | sed 's/+QCCID: //g')")
 
-# --- 4. Active CID (cross-reference +CGPADDR + +QMAP lines from blob) ---
+# --- 4. Active CID (CGPADDR confirmed against the kernel route; data_cid.sh) ---
 active_cid=""
-
-# CGPADDR: collect CIDs with valid IPv4
-cgpaddr_cids=$(printf '%s\n' "$raw" | awk -F'[,"]' '
-    /\+CGPADDR:/ {
-        cid = $1; gsub(/[^0-9]/, "", cid)
-        ip = $3
-        if (ip != "" && ip != "0.0.0.0" && ip !~ /^0+(\.0+)*$/) {
-            split(ip, octets, ".")
-            if (length(octets) == 4 && octets[1]+0 > 0) {
-                print cid
-            }
-        }
-    }
-')
-
-# QMAP: authoritative WAN CID
-qmap_cid=$(printf '%s\n' "$raw" | awk -F',' '
-    /\+QMAP:/ {
-        gsub(/"/, "", $5)
-        ip = $5
-        cid = $3
-        gsub(/[^0-9]/, "", cid)
-        if (ip != "" && ip != "0.0.0.0" && ip != "0:0:0:0:0:0:0:0") {
-            print cid
-            exit
-        }
-    }
-')
-
-if [ -n "$qmap_cid" ]; then
-    active_cid="$qmap_cid"
-elif [ -n "$cgpaddr_cids" ]; then
-    active_cid=$(printf '%s\n' "$cgpaddr_cids" | head -1)
+if command -v qm_detect_data_cid >/dev/null 2>&1; then
+    qm_detect_data_cid "$(printf '%s\n' "$raw" | tr -d '\r')"
+    active_cid="$QM_DATA_CID"
 fi
-[ -z "$active_cid" ] && active_cid="1"
+case "$active_cid" in ''|*[!0-9]*) active_cid="1" ;; esac
 
 # =============================================================================
 # Build and output response JSON
