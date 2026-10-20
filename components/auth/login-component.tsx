@@ -282,16 +282,6 @@ export default function LoginComponent() {
       {/* Notices are direct children WITHOUT a stagger variant: they own
           `.animate-banner-in` (recipe 04), and a second transform on a wrapper
           would compound into a rise the guide does not describe. */}
-      {wasOffline && !isLocked ? (
-        <TonalBanner
-          tone="warning"
-          icon="wifi_off"
-          title={t("login.session_expired_title")}
-        >
-          {t("login.session_expired")}
-        </TonalBanner>
-      ) : null}
-
       {isLocked ? (
         <TonalBanner
           tone="warning"
@@ -506,6 +496,18 @@ export default function LoginComponent() {
           </Button>
         </motion.div>
       </form>
+
+      {/* The session-ended notice sits under the submit button, so the form
+          stays the first thing the eye lands on. */}
+      {wasOffline && !isLocked ? (
+        <TonalBanner
+          tone="warning"
+          icon="wifi_off"
+          title={t("login.session_expired_title")}
+        >
+          {t("login.session_expired")}
+        </TonalBanner>
+      ) : null}
 
       {/* ZONE 4 -- the fourth stagger child: the answer to the one question
           this screen can strand someone with. */}
