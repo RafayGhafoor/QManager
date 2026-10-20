@@ -767,8 +767,13 @@ export default function LteTowerCard({
                 onClick={() => setSlots(slotsFromCells(undefined))}
                 disabled={isLocking || !hasAnyValue}
               />
+              {footStatus}
+            </>
+          }
+          actions={
+            <>
               <RevealButton
-                glyph="restart_alt"
+                glyph="lock_clock"
                 variant={keepOn ? "tonal" : "tonal-neutral"}
                 label={
                   keepOn
@@ -784,11 +789,6 @@ export default function LteTowerCard({
                     : null
                 }
               />
-              {footStatus}
-            </>
-          }
-          actions={
-            <>
               {/* One write at a time, whichever the state calls for: Remove
                   lock while the saved lock is what is on the modem, Lock when
                   there is none or the fields now differ from it. An unreadable
@@ -797,7 +797,6 @@ export default function LteTowerCard({
               {showUnlock ? (
                 <Button
                   type="button"
-                  variant="tonal-neutral"
                   size="action"
                   onClick={() => setShowUnlockDialog(true)}
                   disabled={isLocking}
