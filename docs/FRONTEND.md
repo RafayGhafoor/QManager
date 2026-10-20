@@ -143,7 +143,7 @@ RootLayout (app/layout.tsx)
     ├── / → Home / public Overview splash (no sidebar; pre-login surface)
     └── /* → AppLayout
          ├── AppSidebar (navigation)
-         ├── Breadcrumbs (auto-generated from route)
+         ├── Breadcrumbs (resolved from the nav tree, `lib/nav-tree.ts`)
          └── Page Content
 ```
 
@@ -256,7 +256,6 @@ For long-running operations that run in the background:
 |------|---------|
 | `useLogin` | Login page (setup detection + login/setup actions). Returns `lockout` (`active`, `retryAfter`, `attemptsRemaining`) seeded from `auth/check.sh` with `cache: "no-store"`; `error` is the backend code (translated by the page), `detail` is the English fallback. See [`reference/auth-rate-limiting.md`](reference/auth-rate-limiting.md) |
 | `useAuth` | Sidebar auth (change password, logout) |
-| `useBreadcrumbs` | Auto-generates breadcrumb trail from current route |
 | `useUnitPreferences` | Cached unit preferences (temp/distance) for dashboard display |
 | `useMobile` | Responsive breakpoint detection |
 | `useRecentActivities` | Fetches network events for the dashboard |
@@ -475,7 +474,7 @@ The sidebar (`app-sidebar.tsx`) defines the full navigation structure:
 | **Footer** (unlabelled) | About Device, Support, Donate |
 | **User menu** | Change Password, Theme, Animations, Reboot Device, Logout |
 
-`NavSection` renders every group and `NavMenu` draws one sliding `.nav-indicator` pill per group. A sub-row is active on its own route prefix. Network Events and Ethernet Status sit on `/monitoring/events` and `/local-network/ethernet` so no sub-row prefix-matches its siblings. The old `/system-settings/connection-quality`, `/monitoring` and `/local-network` routes are client-side redirect stubs (static export cannot do server redirects). The sidebar glyphs are Material Symbols; the user-menu action items are lucide.
+The layout is shadcn's sidebar-07 (see DESIGN.md > Components > Navigation). `NavSection` renders every group and `NavMenu` draws one sliding `.nav-indicator` pill per group. A parent with sub-items is a pure expander: its old page is its first sub-row, at the same URL, labelled through `FIRST_SUB_T_KEY` in `lib/nav-tree.ts` and active only on an exact match. Any other sub-row is active on its own route prefix. Collapsed (`collapsible="icon"`, state in the `sidebar_state` cookie), parents open their rows as a flyout. `NAV_GROUPS` (exported from `app-sidebar.tsx`) is the one tree that both the sidebar and the header breadcrumb (`resolveNavCrumbs`) read. Network Events and Ethernet Status sit on `/monitoring/events` and `/local-network/ethernet` so no sub-row prefix-matches its siblings. The old `/system-settings/connection-quality`, `/monitoring` and `/local-network` routes are client-side redirect stubs (static export cannot do server redirects). The sidebar glyphs are Material Symbols; the user-menu action items are lucide.
 
 ---
 
