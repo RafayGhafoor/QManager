@@ -20,6 +20,7 @@ import TowerAutomationTiles from "./automation-tiles";
 import TowerLiveStrip, { type CanTarget } from "./live-strip";
 import LteTowerCard from "./lte-tower-card";
 import NrSaTowerCard from "./nr-sa-tower-card";
+import TowerPersistToggle from "./persist-toggle";
 import { defaultScsForBand } from "./simple-mode-utils";
 import {
   LEG_CARD_ID,
@@ -38,12 +39,13 @@ import {
 //   useTowerLocking()  -> config, modem lock state, failover state, writes
 //
 // Anatomy: header (scanner link, Refresh), the read-failure condition, then
-//   1. "Right now"                 the verdict and the carriers on air (the
-//                                  only part that changes on its own);
-//   2. "While nobody is watching"  persist, failover and schedule (standing
-//                                  orders; failover protects both radios, so
-//                                  it is not a leg-card setting);
-//   3. the leg cards, 2-up on a wide column (where the target changes).
+//   1. "Right now"         the carriers on air (the only part that changes on
+//                          its own);
+//   2. "Lock automation"   failover and schedule (standing orders; failover
+//                          protects both radios, so it is not a leg-card
+//                          setting);
+//   3. the leg cards, 2-up on a wide column (where the target changes);
+//   4. keep-lock-after-reboot, modem-wide, so under the cards and not in one.
 // Do not re-merge 1 and 2: each section's header describes only its own body.
 //
 // The prefill bus: "use this cell" on a carrier tile reaches a form owned by a
@@ -315,6 +317,16 @@ const TowerLockingComponent = () => {
               onUnlock={tower.unlockNrSa}
             />
           </motion.div>
+        </motion.div>
+
+        <motion.div variants={staggerItem}>
+          <TowerPersistToggle
+            config={tower.config}
+            modemState={tower.modemState}
+            isLoading={tower.isLoading}
+            isSavingSettings={tower.isSavingSettings}
+            onUpdateSettings={tower.updateSettings}
+          />
         </motion.div>
       </motion.div>
     </div>

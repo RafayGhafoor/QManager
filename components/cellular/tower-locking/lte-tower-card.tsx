@@ -16,7 +16,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -32,7 +31,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
-import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { RevealButton } from "@/components/ui/reveal-button";
+import { useSaveFlash } from "@/components/ui/save-button";
 import {
   Select,
   SelectContent,
@@ -63,7 +63,6 @@ import {
   LEG_KEYS,
   NOTICE,
   NOTICE_TONE,
-  PILL_QUIET,
   READBACK,
   SKELETON_SHAPE,
   SLOT_ROW,
@@ -747,36 +746,38 @@ export default function LteTowerCard({
 
         <CardFoot
           className={CARD_PAD}
-          status={footStatus}
-          actions={
+          status={
             <>
-              <Button
-                type="button"
-                variant="tonal-neutral"
-                className={PILL_QUIET}
+              <RevealButton
+                glyph="close"
+                label={t(`${K}.actions.clear_fields`)}
                 onClick={() => setSlots(slotsFromCells(undefined))}
                 disabled={isLocking || !hasAnyValue}
-              >
-                {t(`${K}.actions.clear_fields`)}
-              </Button>
-              <Button
-                type="button"
-                variant="tonal-neutral"
-                size="action"
-                onClick={() => setShowUnlockDialog(true)}
-                // An unreadable lock state keeps Remove lock live: unlocking is
-                // harmless when nothing is locked, and the way out when it is.
-                disabled={isLocking || posture === "unlocked"}
-              >
-                {t(`${K}.actions.unlock`)}
-              </Button>
-              <SaveButton
-                onClick={requestLock}
-                isSaving={isLocking}
-                saved={saved}
+              />
+              {footStatus}
+            </>
+          }
+          actions={
+            <>
+              {/* Only while a lock exists. An unreadable lock state keeps it
+                  live: unlocking is harmless when nothing is locked, and the
+                  way out when something is. */}
+              {posture !== "unlocked" ? (
+                <RevealButton
+                  glyph="lock_open"
+                  variant="default"
+                  label={t(`${K}.actions.unlock`)}
+                  onClick={() => setShowUnlockDialog(true)}
+                  disabled={isLocking}
+                />
+              ) : null}
+              <RevealButton
+                glyph="lock"
+                variant="default"
                 label={t(`${K}.actions.lock`)}
+                onClick={requestLock}
+                status={isLocking ? "saving" : saved ? "saved" : "idle"}
                 blockedReason={lockBlockedReason}
-                size="action"
               />
             </>
           }

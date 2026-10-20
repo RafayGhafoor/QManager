@@ -16,7 +16,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -35,7 +34,8 @@ import {
   MaterialSymbol,
   type MaterialSymbolName,
 } from "@/components/ui/material-symbol";
-import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { RevealButton } from "@/components/ui/reveal-button";
+import { useSaveFlash } from "@/components/ui/save-button";
 import {
   Select,
   SelectContent,
@@ -74,7 +74,6 @@ import {
   LEG_KEYS,
   NOTICE,
   NOTICE_TONE,
-  PILL_QUIET,
   READBACK,
   SKELETON_SHAPE,
   TOWER_CARD,
@@ -784,38 +783,39 @@ export default function NrSaTowerCard({
 
         <CardFoot
           className={CARD_PAD}
-          status={footStatus}
-          actions={
+          status={
             <>
-              <Button
-                type="button"
-                variant="tonal-neutral"
+              <RevealButton
+                glyph="close"
+                label={t(`${K}.actions.clear_fields`)}
                 onClick={handleClear}
                 disabled={formDisabled || !hasAnyInput}
-                className={PILL_QUIET}
-              >
-                {t(`${K}.actions.clear_fields`)}
-              </Button>
+              />
+              {footStatus}
+            </>
+          }
+          actions={
+            <>
               {/* Gated on the modem's lock state only, never on the network
-                  gate: a lock on an unreachable cell must always be removable. */}
-              <Button
-                type="button"
-                variant="tonal-neutral"
-                size="action"
-                onClick={() => setShowUnlockDialog(true)}
-                // An unreadable lock state keeps Remove lock live: unlocking is
-                // harmless when nothing is locked, and the way out when it is.
-                disabled={isLocking || posture === "unlocked"}
-              >
-                {t(`${K}.actions.unlock`)}
-              </Button>
-              <SaveButton
-                onClick={requestLock}
-                isSaving={isLocking}
-                saved={saved}
+                  gate: a lock on an unreachable cell must always be removable.
+                  Shown only while a lock exists; an unreadable lock state
+                  keeps it live as the way out. */}
+              {posture !== "unlocked" ? (
+                <RevealButton
+                  glyph="lock_open"
+                  variant="default"
+                  label={t(`${K}.actions.unlock`)}
+                  onClick={() => setShowUnlockDialog(true)}
+                  disabled={isLocking}
+                />
+              ) : null}
+              <RevealButton
+                glyph="lock"
+                variant="default"
                 label={t(`${K}.actions.lock`)}
+                onClick={requestLock}
+                status={isLocking ? "saving" : saved ? "saved" : "idle"}
                 blockedReason={lockBlockedReason}
-                size="action"
               />
             </>
           }

@@ -10,10 +10,10 @@ import type { MaterialSymbolName } from "@/components/ui/material-symbol";
 // decisions are kept, the commentary is not.
 //
 // Page anatomy: header -> "Right now" (the only part that changes by itself:
-// verdict + carriers on air) -> "While nobody is watching" (standing orders:
-// persist, failover, schedule) -> a 2-up of the leg cards (where the target
-// changes). Failover lives in the second section because one watcher protects
-// the whole modem, not a leg.
+// the carriers on air) -> "Lock automation" (failover, schedule) -> a 2-up of
+// the leg cards (where the target changes) -> the keep-after-reboot toggle.
+// Failover lives in the second section because one watcher protects the whole
+// modem, not a leg.
 // =============================================================================
 
 // --- Surfaces ----------------------------------------------------------------
@@ -22,7 +22,7 @@ import type { MaterialSymbolName } from "@/components/ui/material-symbol";
 export const TOWER_HERO =
   "@container/section flex flex-col gap-5 rounded-hero border-0 bg-surface p-7 shadow-[var(--shadow-whisper)]";
 
-/** "While nobody is watching": a peer of the leg cards, so `rounded-card`. */
+/** "Lock automation": a peer of the leg cards, so `rounded-card`. */
 export const TOWER_SECTION =
   "@container/section flex flex-col gap-5 rounded-card border-0 bg-surface p-7 shadow-[var(--shadow-whisper)]";
 
@@ -34,120 +34,17 @@ export const CARD_PAD = "px-6";
 
 /** The coordinator owns both section shells and headers; children render bodies. */
 export const SECTION_HEAD = {
-  ROOT: "flex flex-wrap items-center gap-x-3 gap-y-1.5",
+  ROOT: "flex flex-col gap-1",
   TITLE: "text-base font-semibold",
   DESCRIPTION: "text-sm leading-relaxed text-pretty text-on-surface-variant",
 } as const;
 
-export const HERO_EYEBROW = "text-xs font-medium text-on-surface-variant";
-
-/** Small pill actions in a CardFoot are quieter than the two real writes. */
-export const PILL_QUIET = "h-9 px-3.5 text-xs font-semibold";
-
 export const BADGE_GLYPH_SIZE = 12;
 
-// --- Live strip: verdict + carriers ------------------------------------------
-
-export const STRIP_GRID =
-  "grid grid-cols-1 gap-3 @3xl/section:grid-cols-[18.5rem_minmax(0,1fr)]";
+// --- Live strip: carriers ------------------------------------------
 
 export const STRIP_PANEL =
   "@container/panel flex min-w-0 flex-col gap-2.5 rounded-tile bg-surface-container px-4 py-3.5";
-
-export const VERDICT_BLOCK = {
-  ROOT: "flex min-w-0 flex-col items-center justify-center gap-3 rounded-tile px-5 py-6 text-center",
-  DISC: "grid size-12 flex-none place-items-center rounded-pill",
-  /** The state word is announced, never drawn: the disc and the body carry it. */
-  TITLE: "sr-only",
-  BODY: "text-[13px]/5 text-balance",
-} as const;
-
-export type TowerMatchVerdict =
-  | "on_target"
-  | "off_target"
-  | "unverified"
-  | "unlocked"
-  | "unknown";
-
-/**
- * Each verdict wears its own glyph: success and warning containers are ~1.03:1 apart.
- * The neutral fill is `surface-container`, matching the carriers panel beside it,
- * so a neutral verdict reads as a second panel; the disc steps one further in.
- */
-export const VERDICT_TONE: Record<
-  TowerMatchVerdict,
-  { fill: string; disc: string; glyph: MaterialSymbolName }
-> = {
-  on_target: {
-    fill: "bg-success-container text-on-success-container",
-    disc: "bg-success text-success-foreground",
-    glyph: "check_circle",
-  },
-  off_target: {
-    fill: "bg-warning-container text-on-warning-container",
-    disc: "bg-warning text-warning-foreground",
-    glyph: "warning",
-  },
-  unverified: {
-    fill: "bg-surface-container text-on-surface",
-    disc: "bg-surface-container-high text-on-surface-variant",
-    glyph: "help",
-  },
-  unlocked: {
-    fill: "bg-surface-container text-on-surface",
-    disc: "bg-surface-container-high text-on-surface-variant",
-    glyph: "lock_open",
-  },
-  unknown: {
-    fill: "bg-surface-container text-on-surface",
-    disc: "bg-surface-container-high text-on-surface-variant",
-    glyph: "visibility_off",
-  },
-};
-
-/**
- * Is the radio camped on a cell it was told to hold? The one fact neither
- * source carries alone (carrier list ~4 s old, lock read-back once per load).
- * A `*_read_ok === false` reading is unknown, never "unlocked".
- */
-export function matchVerdict(
-  modemState: {
-    lte_locked: boolean;
-    lte_cells: { earfcn: number; pci: number }[];
-    nr_locked: boolean;
-    nr_cell: { arfcn: number; pci: number } | null;
-    lte_read_ok?: boolean;
-    nr_read_ok?: boolean;
-  } | null,
-  onAir: {
-    technology: "LTE" | "NR";
-    earfcn: number | null;
-    pci: number | null;
-  }[],
-): TowerMatchVerdict {
-  if (!modemState) return "unknown";
-  if (modemState.lte_read_ok === false || modemState.nr_read_ok === false) {
-    return "unknown";
-  }
-
-  const lteTargets = modemState.lte_locked ? (modemState.lte_cells ?? []) : [];
-  const nrTarget = modemState.nr_locked ? modemState.nr_cell : null;
-  if (lteTargets.length === 0 && nrTarget === null) return "unlocked";
-  if (onAir.length === 0) return "unverified";
-
-  const camped = (technology: "LTE" | "NR", channel: number, pci: number) =>
-    onAir.some(
-      (c) =>
-        c.technology === technology && c.earfcn === channel && c.pci === pci,
-    );
-
-  // An LTE lock holds up to three cells: camped on any one satisfies it.
-  const lteOk =
-    lteTargets.length === 0 ||
-    lteTargets.some((cell) => camped("LTE", cell.earfcn, cell.pci));
-  const nrOk = nrTarget === null || camped("NR", nrTarget.arfcn, nrTarget.pci);
-  return lteOk && nrOk ? "on_target" : "off_target";
-}
 
 export const CARRIER_GRID =
   "grid grid-cols-1 gap-3 @md/panel:grid-cols-2 @2xl/panel:grid-cols-3";
@@ -253,7 +150,7 @@ export const NOTICE_TONE: Record<
 // --- Automation tiles --------------------------------------------------------
 
 export const AUTO_GRID =
-  "grid grid-cols-1 gap-3 @xl/section:grid-cols-2 @4xl/section:grid-cols-[1fr_1fr_1.5fr] @xl/section:items-stretch";
+  "grid grid-cols-1 gap-3 @xl/section:grid-cols-2 @xl/section:items-stretch";
 
 export const AUTO_TILE = {
   ROOT: "flex min-w-0 flex-col gap-3 rounded-tile bg-surface-container px-5 py-4",
@@ -402,7 +299,6 @@ export const SKELETON_SHAPE = {
   ACTION_QUIET: "h-9 w-24 rounded-pill",
   CONTROL_ROW: "h-[3.25rem] w-full rounded-field",
   READBACK: "h-[4.25rem] w-full rounded-field",
-  VERDICT: "min-h-[9.25rem] w-full rounded-tile",
   CARRIER_TILE: "h-[5.4375rem] w-full rounded-tile",
   AUTO_TILE: "h-[9.5rem] w-full rounded-tile",
   DAY_CHIP: "size-11 rounded-pill",

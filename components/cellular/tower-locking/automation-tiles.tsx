@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { HintIcon } from "@/components/ui/hint-icon";
@@ -23,6 +22,7 @@ import {
 } from "@/types/tower-locking";
 
 import ScheduleTile from "./schedule-tile";
+import { writeTowerSettings, type UpdateTowerSettings } from "./settings-write";
 import {
   AUTO_GRID,
   AUTO_METER,
@@ -30,24 +30,21 @@ import {
   BADGE_GLYPH_SIZE,
   FAILOVER_BADGE,
   FIELD_CONTROL,
-  PERSIST_BADGE,
   SKELETON_SHAPE,
   failoverKey,
   lockPresence,
-  persistPosture,
-  type PersistPosture,
   type TowerFailoverKey,
 } from "./shapes";
 
 // =============================================================================
 // TowerAutomationTiles — what the lock does while nobody is watching
 // =============================================================================
-// Three tiles: keep the lock across a reboot, release it when signal collapses
-// (failover), and apply it on a daily window (schedule). Each reports the
-// SAVED state (config) and, where the modem has an opinion, the LIVE state
-// separately: the persist chip is the modem's own read-back, the failover chip
-// is the watcher's. The threshold renders empty until it has actually been
-// read, never a plausible default.
+// Two tiles: release the lock when signal collapses (failover) and apply it on
+// a daily window (schedule). Each reports the SAVED state (config) and, where
+// the modem has an opinion, the LIVE state separately: the failover chip is the
+// watcher's. The threshold renders empty until it has actually been read, never
+// a plausible default. Keep-after-reboot lives under the leg cards
+// (`persist-toggle.tsx`); it shares this tile's settings write.
 // =============================================================================
 
 const K = "cell_locking.tower_locking";
@@ -59,13 +56,6 @@ const FAILOVER_STATE_LABEL: Record<TowerFailoverKey, string> = {
   released: `${K}.automation.failover_state_released`,
   stalled: `${K}.automation.failover_state_stalled`,
   unknown: `${K}.automation.failover_state_unknown`,
-};
-
-const PERSIST_STATE_LABEL: Record<PersistPosture, string> = {
-  on: `${K}.automation.persist_state_on`,
-  off: `${K}.automation.persist_state_off`,
-  split: `${K}.automation.persist_state_split`,
-  unknown: `${K}.automation.persist_state_unknown`,
 };
 
 const renderCheckGlyph = (className: string) => (
@@ -85,10 +75,7 @@ export interface TowerAutomationTilesProps {
   activeRsrp: number | null;
   isLoading: boolean;
   isSavingSettings: boolean;
-  onUpdateSettings: (
-    persist: boolean,
-    failover: { enabled: boolean; threshold: number },
-  ) => Promise<TowerActionResult>;
+  onUpdateSettings: UpdateTowerSettings;
   onScheduleChange: (schedule: TowerScheduleConfig) => Promise<TowerActionResult>;
 }
 
@@ -125,39 +112,11 @@ export function TowerAutomationTiles({
   const thresholdErrored = !thresholdBlank && !thresholdValid;
   const thresholdUnread = savedThreshold === null;
 
-  /** One settings write, one toast, whichever tile asked for it. */
-  const write = async (
-    persist: boolean,
-    failoverNext: { enabled: boolean; threshold: number },
-    successMessage: string,
-  ): Promise<boolean> => {
-    const result = await onUpdateSettings(persist, failoverNext);
-    if (!result.ok) {
-      toast.error(result.error ?? t(`${K}.errors.settings_failed`));
-      return false;
-    }
-    if (result.warning === "persist_command_failed") {
-      toast.warning(t(`${K}.toast.persist_command_failed`));
-      return true;
-    }
-    toast.success(successMessage);
-    return true;
-  };
-
-  const handlePersist = async (next: boolean) => {
-    if (!config || next === config.persist) return;
-    await write(
-      next,
-      config.failover,
-      next
-        ? t(`${K}.toast.persist_enabled`)
-        : t(`${K}.toast.persist_disabled`),
-    );
-  };
-
   const handleFailover = async (next: boolean) => {
     if (!config || next === config.failover.enabled) return;
-    await write(
+    await writeTowerSettings(
+      t,
+      onUpdateSettings,
       config.persist,
       { ...config.failover, enabled: next },
       next
@@ -168,7 +127,9 @@ export function TowerAutomationTiles({
 
   const handleThresholdSave = async () => {
     if (!config || !thresholdValid) return;
-    const ok = await write(
+    const ok = await writeTowerSettings(
+      t,
+      onUpdateSettings,
       config.persist,
       { ...config.failover, threshold: parsedThreshold },
       t(`${K}.toast.threshold_saved`),
@@ -183,16 +144,13 @@ export function TowerAutomationTiles({
   );
   const failBadge = FAILOVER_BADGE[failState];
 
-  const persistState = persistPosture(modemState);
-  const persistBadge = PERSIST_BADGE[persistState];
-
   const qualityPct =
     activeRsrp === null ? null : rsrpToQualityPercent(activeRsrp);
 
   if (isLoading) {
     return (
       <div className={AUTO_GRID}>
-        {[0, 1, 2].map((i) => (
+        {[0, 1].map((i) => (
           <Skeleton key={i} className={SKELETON_SHAPE.AUTO_TILE} />
         ))}
       </div>
@@ -208,46 +166,6 @@ export function TowerAutomationTiles({
       animate="visible"
       variants={staggerRows}
     >
-      {/* --- Keep lock after reboot -------------------------------------- */}
-      <motion.div variants={staggerRowItem} className={AUTO_TILE.ROOT}>
-        <div className={AUTO_TILE.HEAD}>
-          <span className={AUTO_TILE.DISC} aria-hidden="true">
-            <MaterialSymbol name="restart_alt" size={20} />
-          </span>
-          <span className={AUTO_TILE.TITLE}>
-            {t(`${K}.automation.persist_label`)}
-          </span>
-          <div className="ml-auto" role="group">
-            <SegmentedField
-              value={config?.persist ? "on" : "off"}
-              onValueChange={(v) => void handlePersist(v === "on")}
-              options={[
-                { value: "off", label: t("state.off", { ns: "common" }) },
-                { value: "on", label: t("state.on", { ns: "common" }) },
-              ]}
-              ariaLabel={t(`${K}.automation.persist_label`)}
-              disabled={controlsDisabled}
-              breakpoint="never"
-              glyph={renderCheckGlyph}
-            />
-          </div>
-        </div>
-
-        {/* The modem's own read-back, which can disagree with the saved
-            setting. `split` (one radio keeps it, the other does not) is a real
-            fault worth saying out loud. */}
-        <Badge variant={persistBadge.variant} className="self-start">
-          <MaterialSymbol name={persistBadge.glyph} size={BADGE_GLYPH_SIZE} />
-          {t(PERSIST_STATE_LABEL[persistState])}
-        </Badge>
-
-        <p className={`${AUTO_TILE.FOOT} ${AUTO_TILE.BODY}`}>
-          {persistState === "split"
-            ? t(`${K}.automation.persist_split_help`)
-            : t(`${K}.automation.persist_help`)}
-        </p>
-      </motion.div>
-
       {/* --- Signal failover (whole modem, both radios) ------------------- */}
       <motion.div variants={staggerRowItem} className={AUTO_TILE.ROOT}>
         <div className={AUTO_TILE.HEAD}>
