@@ -2140,7 +2140,6 @@
         "carrier_default": "Carrier default",
         "network_using_label": "Network is using"
       },
-      "save_connection_notice": "Saving briefly drops the cellular connection while the modem reconnects.",
       "carrier_default": {
         "button": "Use carrier default",
         "dialog": {

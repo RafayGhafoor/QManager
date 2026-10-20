@@ -348,7 +348,7 @@ function ApnSettingsCardSkeleton() {
         className={CARD_PAD}
         liveStatus={false}
         aria-hidden="true"
-        status={<Skeleton className="h-4 w-48" />}
+        status={<Skeleton className="h-[2.625rem] w-44 rounded-pill" />}
         actions={<Skeleton className="h-[2.625rem] w-40 rounded-pill" />}
       />
     </Card>
@@ -654,18 +654,12 @@ export default function ApnSettingsCard({
       </CardContent>
 
       {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps
-          Enter-to-submit. The consequence of saving holds the status edge until
-          there is something unsaved to report instead. */}
+          Enter-to-submit. "Use carrier default" holds the left edge: it is not
+          part of the draft commit, so it sits apart from Discard and Save. The
+          unsaved-changes line rides beside it. */}
       <CardFoot
         className={CARD_PAD}
         status={
-          isDirty ? (
-            <span className="font-medium text-on-surface">{t("common:state.unsaved")}</span>
-          ) : (
-            <span className="text-pretty">{t(`${K}.save_connection_notice`)}</span>
-          )
-        }
-        actions={
           <>
             {active !== 0 && (
               <Button
@@ -678,6 +672,13 @@ export default function ApnSettingsCard({
                 {t(`${K}.carrier_default.button`)}
               </Button>
             )}
+            {isDirty ? (
+              <span className="font-medium text-on-surface">{t("common:state.unsaved")}</span>
+            ) : null}
+          </>
+        }
+        actions={
+          <>
             <Button
               type="button"
               variant="ghost"

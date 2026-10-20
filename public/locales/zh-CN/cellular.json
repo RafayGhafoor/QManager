@@ -2140,7 +2140,6 @@
         "carrier_default": "运营商默认",
         "network_using_label": "网络正在使用"
       },
-      "save_connection_notice": "保存时调制解调器重连期间蜂窝连接会短暂中断。",
       "carrier_default": {
         "button": "使用运营商默认",
         "dialog": {

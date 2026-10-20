@@ -2140,7 +2140,6 @@
         "carrier_default": "電信商預設",
         "network_using_label": "網路正在使用"
       },
-      "save_connection_notice": "儲存時數據機重新連線期間蜂窩連線會短暫中斷。",
       "carrier_default": {
         "button": "使用電信商預設",
         "dialog": {

@@ -2140,7 +2140,6 @@
         "carrier_default": "Predefinito operatore",
         "network_using_label": "La rete sta usando"
       },
-      "save_connection_notice": "Il salvataggio interrompe brevemente la connessione cellulare durante la riconnessione del modem.",
       "carrier_default": {
         "button": "Usa predefinito operatore",
         "dialog": {
