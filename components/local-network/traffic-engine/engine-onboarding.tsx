@@ -15,6 +15,9 @@ import {
   NOTICE_DETAIL,
 } from "./shapes";
 
+/** The installer's step lines end in "..."; this surface shows no trailing ellipsis. */
+const stepText = (message: string) => message.replace(/\s*(\.\.\.|…)$/, "");
+
 interface EngineOnboardingProps {
   installResult: InstallResult;
   onInstall: () => void;
@@ -23,7 +26,8 @@ interface EngineOnboardingProps {
 
 /**
  * The not-installed shape of the page: one hero card that IS the state. One
- * install unlocks both modes, so it replaces the status, tabs and hostlist.
+ * install unlocks both modes, so it replaces the Engine and both mode cards.
+ * Success toasts from the composer and the page swaps to the installed layout.
  */
 export function EngineOnboarding({
   installResult,
@@ -68,7 +72,7 @@ export function EngineOnboarding({
                 <Download aria-hidden="true" />
               )}
               {installing
-                ? installResult.message || t("traffic_engine.onboarding_installing")
+                ? t("traffic_engine.onboarding_installing")
                 : t("traffic_engine.onboarding_install")}
             </Button>
             <Button
@@ -83,11 +87,13 @@ export function EngineOnboarding({
             </Button>
           </div>
 
-          {installResult.status === "complete" || installResult.status === "error" ? (
+          {installing && installResult.message ? (
+            <p className={CONDITION.STEP}>{stepText(installResult.message)}</p>
+          ) : null}
+
+          {installResult.status === "error" ? (
             <div className={CONDITION.NOTES}>
-              <ResultAlert
-                tone={installResult.status === "complete" ? "success" : "destructive"}
-              >
+              <ResultAlert tone="destructive">
                 {installResult.message}
                 {installResult.detail ? (
                   <span className={NOTICE_DETAIL}>{installResult.detail}</span>
