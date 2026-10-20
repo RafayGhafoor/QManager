@@ -15,8 +15,6 @@
     "mode_video": "Video Optimizer",
     "mode_masquerade": "Masquerade",
     "aria_mode_selector": "Engine mode",
-    "state_protecting": "Protecting video",
-    "state_masquerading": "Masquerading as {{domain}}",
     "state_starting": "Starting",
     "state_stopping": "Stopping",
     "state_switching": "Switching",

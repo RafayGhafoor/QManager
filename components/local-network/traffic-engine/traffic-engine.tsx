@@ -435,7 +435,6 @@ export default function TrafficEngine() {
           uptime={(voRunning ? vo.settings?.uptime : masq.settings?.uptime) ?? "0s"}
           packets={runningSettings?.packets_processed ?? 0}
           history={history}
-          sniDomain={savedDomain}
           ttl={ttl}
           isUninstalling={vo.isUninstalling}
           onUninstall={vo.runUninstall}

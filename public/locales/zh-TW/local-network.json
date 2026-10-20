@@ -15,8 +15,6 @@
     "mode_video": "影片最佳化器",
     "mode_masquerade": "流量偽裝",
     "aria_mode_selector": "引擎模式",
-    "state_protecting": "正在保護影片",
-    "state_masquerading": "正在偽裝為 {{domain}}",
     "state_starting": "正在啟動",
     "state_stopping": "正在停止",
     "state_switching": "正在切換",

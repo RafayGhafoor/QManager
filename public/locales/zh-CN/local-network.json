@@ -15,8 +15,6 @@
     "mode_video": "视频优化器",
     "mode_masquerade": "流量伪装",
     "aria_mode_selector": "引擎模式",
-    "state_protecting": "正在保护视频",
-    "state_masquerading": "正在伪装为 {{domain}}",
     "state_starting": "正在启动",
     "state_stopping": "正在停止",
     "state_switching": "正在切换",

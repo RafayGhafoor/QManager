@@ -84,7 +84,6 @@ interface EngineCardProps {
   uptime: string;
   packets: number;
   history: readonly (number | null)[];
-  sniDomain: string;
   ttl: UseTtlSettingsReturn;
   isUninstalling: boolean;
   onUninstall: () => Promise<MutationResult>;
@@ -106,7 +105,6 @@ export function EngineCard({
   uptime,
   packets,
   history,
-  sniDomain,
   ttl,
   isUninstalling,
   onUninstall,
@@ -125,18 +123,11 @@ export function EngineCard({
     setView(next);
   };
 
-  // B: no chip while idle. A change in flight outranks the steady state.
+  // The mode control already shows the steady state; the chip only narrates a change in flight.
   const chip = transition ? (
     <Badge variant="info">
       <Loader2 className="size-3 motion-safe:animate-spin" aria-hidden="true" />
       {t(TRANSITION_KEY[transition])}
-    </Badge>
-  ) : activeMode ? (
-    <Badge variant="success">
-      <CheckCircle2Icon className="size-3" aria-hidden="true" />
-      {activeMode === "video"
-        ? t("traffic_engine.state_protecting")
-        : t("traffic_engine.state_masquerading", { domain: sniDomain })}
     </Badge>
   ) : null;
 
