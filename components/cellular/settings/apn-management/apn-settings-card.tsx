@@ -43,6 +43,7 @@ import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { CardFoot } from "@/components/ui/card-foot";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { ConditionScreen } from "@/components/cellular/condition-screen";
+import { BADGE_GLYPH_SIZE } from "../shapes";
 
 import type {
   ApnActionResult,
@@ -139,7 +140,7 @@ function LiveStatusBadge({
     return (
       <div className="flex items-center gap-2">
         <Badge variant="muted">
-          <MaterialSymbol name="do_not_disturb_on" size={12} />
+          <MaterialSymbol name="do_not_disturb_on" size={BADGE_GLYPH_SIZE} />
           {t("core_settings.apn.status.carrier_default")}
         </Badge>
       </div>
@@ -165,7 +166,7 @@ function LiveStatusBadge({
     return (
       <div className="flex flex-col gap-1">
         <Badge variant="warning" className="w-fit">
-          <MaterialSymbol name="warning" size={12} />
+          <MaterialSymbol name="warning" size={BADGE_GLYPH_SIZE} />
           {t("core_settings.apn.status.not_live")}
         </Badge>
         <p className="text-xs text-muted-foreground">
@@ -178,7 +179,7 @@ function LiveStatusBadge({
 
   return (
     <Badge variant="success">
-      <MaterialSymbol name="check_circle" size={12} />
+      <MaterialSymbol name="check_circle" size={BADGE_GLYPH_SIZE} />
       {t("core_settings.apn.status.active")}
     </Badge>
   );

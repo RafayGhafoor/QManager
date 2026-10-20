@@ -19,6 +19,7 @@ import { SaveButton } from "@/components/ui/save-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { bandsToDisplay } from "@/types/connection-scenario";
+import { BADGE_GLYPH_SIZE } from "../shapes";
 import type { Scenario } from "./scenario-item";
 
 // =============================================================================
@@ -138,7 +139,7 @@ export const ActiveConfigCard = ({
                 which explains the missing Activate, is stated here. */}
             {scheduleLocked ? (
               <Badge variant="info">
-                <MaterialSymbol name="lock_clock" size={12} />
+                <MaterialSymbol name="lock_clock" size={BADGE_GLYPH_SIZE} />
                 {t("scenarios.schedule_lock.badge")}
               </Badge>
             ) : null}

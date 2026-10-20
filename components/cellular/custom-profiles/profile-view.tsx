@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import EmptyProfileComponent from "./empty-profile";
 import { iccidMismatch } from "./profile-iccid";
 import { ScheduleMiniBar } from "./schedule-ribbon";
+import { BADGE_GLYPH_SIZE } from "./shapes";
 import type { UseSimProfilesReturn } from "@/hooks/use-sim-profiles";
 import { useScenarioList } from "@/hooks/use-scenario-list";
 import {
@@ -401,7 +402,7 @@ const ProfileRow = ({
         {/* Status, the one action, the overflow menu */}
         <div className="flex flex-none flex-wrap items-center gap-2 @3xl/card:justify-end">
           <Badge variant={chip.variant}>
-            <MaterialSymbol name={chip.glyph} size={12} />
+            <MaterialSymbol name={chip.glyph} size={BADGE_GLYPH_SIZE} />
             {t(chip.key)}
           </Badge>
           {isActive ? (
@@ -525,19 +526,19 @@ const ConfigPills = ({
       ) : null}
       {imei.trim() !== "" ? (
         <Badge variant="info">
-          <MaterialSymbol name="fingerprint" size={12} />
+          <MaterialSymbol name="fingerprint" size={BADGE_GLYPH_SIZE} />
           {t("custom_profiles.pills.imei_override")}
         </Badge>
       ) : null}
       {verizonMpdn ? (
         <Badge variant="info">
-          <MaterialSymbol name="alt_route" size={12} />
+          <MaterialSymbol name="alt_route" size={BADGE_GLYPH_SIZE} />
           {t("custom_profiles.pills.mpdn_locked")}
         </Badge>
       ) : null}
       {otherSim ? (
         <Badge variant="info">
-          <MaterialSymbol name="sim_card_alert" size={12} />
+          <MaterialSymbol name="sim_card_alert" size={BADGE_GLYPH_SIZE} />
           {t("custom_profiles.pills.other_sim")}
         </Badge>
       ) : null}
