@@ -7,6 +7,7 @@ import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type {
   SystemSettings,
   ScheduleConfig,
+  DeviceClockReading,
   SystemSettingsResponse,
 } from "@/types/system-settings";
 
@@ -59,6 +60,8 @@ export interface SaveResult {
 export interface UseSystemSettingsReturn {
   settings: SystemSettings | null;
   scheduledReboot: ScheduleConfig | null;
+  /** The modem's clock as of the last read; null before one or on an old backend. */
+  deviceClock: DeviceClockReading | null;
   isLoading: boolean;
   isSaving: boolean;
   /** Set only by a failed READ. Cleared by the next read. */
@@ -77,6 +80,9 @@ export function useSystemSettings(): UseSystemSettingsReturn {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [scheduledReboot, setScheduledReboot] =
     useState<ScheduleConfig | null>(null);
+  const [deviceClock, setDeviceClock] = useState<DeviceClockReading | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +128,11 @@ export function useSystemSettings(): UseSystemSettingsReturn {
 
       setSettings(json.settings);
       setScheduledReboot(json.scheduled_reboot);
+      setDeviceClock(
+        json.device_clock && json.device_clock.epoch > 0
+          ? { ...json.device_clock, receivedAt: Date.now() }
+          : null,
+      );
     } catch (err) {
       if (!mountedRef.current) return;
       if (seq <= appliedSeqRef.current) return;
@@ -202,6 +213,7 @@ export function useSystemSettings(): UseSystemSettingsReturn {
   return {
     settings,
     scheduledReboot,
+    deviceClock,
     isLoading,
     isSaving,
     error,

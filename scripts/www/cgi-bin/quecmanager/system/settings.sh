@@ -4,7 +4,7 @@
 # settings.sh — CGI Endpoint: System Settings (GET + POST)
 # =============================================================================
 # GET:  Returns current system settings (units, timezone, WAN guard,
-#        scheduled reboot).
+#        scheduled reboot, the device clock).
 # POST: Saves settings or scheduled reboot config.
 #
 # Config: UCI quecmanager.settings.* + system.@system[0].timezone/zonename
@@ -75,6 +75,17 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     sched_days_json=$(printf '%s' "$sched_days_raw" | jq -Rc 'split(",") | map(tonumber)' 2>/dev/null)
     [ -z "$sched_days_json" ] && sched_days_json="[0,1,2,3,4,5,6]"
 
+    # --- Device clock ---
+    # One `date` call so the epoch and the wall time come from the same second.
+    # The wall time is the modem's own (its TZ), shown as-is: on a box whose
+    # clock has not been set yet it reads 1970, and the UI says so.
+    clock_now=$(date '+%s %Y-%m-%dT%H:%M:%S' 2>/dev/null)
+    clock_epoch=${clock_now%% *}
+    clock_local=${clock_now#* }
+    case "$clock_epoch" in
+        ''|*[!0-9]*) clock_epoch=0; clock_local="" ;;
+    esac
+
     jq -n \
         --arg hostname "$hostname" \
         --arg temp_unit "$temp_unit" \
@@ -84,6 +95,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         --argjson sched_enabled "$sched_enabled" \
         --arg sched_time "$sched_time" \
         --argjson sched_days "$sched_days_json" \
+        --argjson clock_epoch "$clock_epoch" \
+        --arg clock_local "$clock_local" \
         '{
             success: true,
             settings: {
@@ -97,6 +110,10 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
                 enabled: ($sched_enabled == 1),
                 time: $sched_time,
                 days: $sched_days
+            },
+            device_clock: {
+                epoch: $clock_epoch,
+                local: $clock_local
             }
         }'
     exit 0

@@ -559,6 +559,8 @@ export const SKELETON = {
     /** The autosave receipt strip: a 16px line, shorter than a consequence. */
     RECEIPT: "h-4 w-32 rounded-inline",
     FIELD: `${FIELD_HEIGHT} w-full rounded-field ${FIELD_WIDTH}`,
+    /** The modem-clock reading in the last row. */
+    CLOCK: "h-5 w-52 rounded-inline",
     /** Wears a `DAY_PILL.RAIL` cell, so it tracks the grid, not a flex basis. */
     DAY: `${DAY_PILL_HEIGHT} min-w-0 rounded-pill`,
   },

@@ -1216,6 +1216,12 @@
         "label": "Ripeti il",
         "consequence": "Senza nessun giorno selezionato la pianificazione non parte mai.",
         "rail": "Giorni della settimana del riavvio"
+      },
+      "clock": {
+        "label": "Ora del modem",
+        "consequence": "La data e l'ora su cui si basa la pianificazione, nel fuso orario impostato in Dispositivo e unità.",
+        "unsynced": "Non ancora impostata",
+        "unsynced_consequence": "Il modem non ha ancora preso l'ora dalla rete, quindi il riavvio pianificato non può partire finché non lo fa."
       }
     },
     "days": {

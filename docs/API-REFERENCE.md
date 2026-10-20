@@ -1679,9 +1679,15 @@ System preferences and scheduled reboot.
     "enabled": false,
     "time": "04:00",
     "days": [0, 1, 2, 3, 4, 5, 6]
+  },
+  "device_clock": {
+    "epoch": 1792493731,
+    "local": "2026-10-20T18:55:31"
   }
 }
 ```
+
+- `device_clock`: the modem's own clock from one `date '+%s %Y-%m-%dT%H:%M:%S'` call, so `epoch` (Unix seconds) and `local` (wall time in the device's TZ) are the same second; their difference is the device's UTC offset. `epoch` is `0` and `local` empty if the clock could not be read. A clock still in 1970 is reported as-is (the UI flags it).
 
 **POST (save_settings):**
 ```json
