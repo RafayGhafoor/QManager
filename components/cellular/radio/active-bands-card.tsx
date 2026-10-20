@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
 import { ExpandButton } from "@/components/ui/expand-button";
+import { CopyDiagnosticsButton } from "@/components/cellular/radio/copy-diagnostics-button";
 import { Card } from "@/components/ui/card";
 import {
   Empty,
@@ -258,6 +259,8 @@ export interface ActiveBandsCardProps {
    * translated in all five locales with zero consumers.
    */
   isStale?: boolean;
+  /** Backs the Copy diagnostics button beside the band-reference toggle. */
+  buildDiagnostics: () => string;
 }
 
 // -----------------------------------------------------------------------------
@@ -502,6 +505,7 @@ export function ActiveBandsCard({
   summary,
   isLoading,
   isStale = false,
+  buildDiagnostics,
 }: ActiveBandsCardProps) {
   const { t } = useTranslation("cellular");
 
@@ -561,24 +565,33 @@ export function ActiveBandsCard({
           </p>
         </div>
 
-        {carriers.length > 0 ? (
-          <ExpandButton
-            onClick={() => setShowReference((open) => !open)}
-            aria-expanded={showReference}
-            className="ml-auto h-[2.375rem] text-[13px]"
-            icon={
-              <MaterialSymbol
-                name={showReference ? "visibility_off" : "visibility"}
-                size={18}
-              />
-            }
-            label={
-              showReference
-                ? t("radio_info.bands.reference.hide")
-                : t("radio_info.bands.reference.show")
-            }
+        {/* Two icon pills that grow to their label on hover/focus. Copy
+            diagnostics stays even with no carriers (it is how a no-signal state
+            gets reported); the reference toggle needs a carrier to explain. */}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <CopyDiagnosticsButton
+            buildDiagnostics={buildDiagnostics}
+            className="h-[2.375rem] text-[13px]"
           />
-        ) : null}
+          {carriers.length > 0 ? (
+            <ExpandButton
+              onClick={() => setShowReference((open) => !open)}
+              aria-expanded={showReference}
+              className="h-[2.375rem] text-[13px]"
+              icon={
+                <MaterialSymbol
+                  name={showReference ? "visibility_off" : "visibility"}
+                  size={18}
+                />
+              }
+              label={
+                showReference
+                  ? t("radio_info.bands.reference.hide")
+                  : t("radio_info.bands.reference.show")
+              }
+            />
+          ) : null}
+        </div>
       </div>
 
       {carriers.length === 0 ? (
