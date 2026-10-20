@@ -113,9 +113,9 @@ export function carrierDiscTone(technology: "LTE" | "NR"): string {
     : "bg-lte text-lte-foreground";
 }
 
-/** Two distinct marks so the disc's identity survives without colour. */
+/** One signal-bars mark for both: the disc fill (NR brand, LTE identity) carries the difference. */
 export const CARRIER_DISC_GLYPH: Record<"LTE" | "NR", MaterialSymbolName> = {
-  NR: "cell_tower",
+  NR: "signal_cellular_alt",
   LTE: "signal_cellular_alt",
 };
 
