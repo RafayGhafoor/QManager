@@ -167,6 +167,9 @@ const WebPortCard = () => {
               <div key={i} className={ROW.ROOT}>
                 <div className={ROW.TEXT}>
                   <Skeleton className={cn(SKELETON_HARDWARE.LABEL, "w-24")} />
+                  <Skeleton
+                    className={cn(SKELETON_HARDWARE.CONSEQUENCE, "w-48")}
+                  />
                 </div>
                 <div className={ROW.CONTROL}>
                   <Skeleton className={SKELETON_HARDWARE.FIELD} />
@@ -215,6 +218,9 @@ const WebPortCard = () => {
               <label htmlFor={httpId} className={ROW.LABEL}>
                 {t("web_port.http_label")}
               </label>
+              <span className={ROW.CONSEQUENCE}>
+                {t("web_port.http_consequence")}
+              </span>
             </div>
             <div className={ROW.CONTROL}>
               <Input
@@ -238,6 +244,9 @@ const WebPortCard = () => {
               <label htmlFor={httpsId} className={ROW.LABEL}>
                 {t("web_port.https_label")}
               </label>
+              <span className={ROW.CONSEQUENCE}>
+                {t("web_port.https_consequence")}
+              </span>
             </div>
             <div className={ROW.CONTROL}>
               <Input

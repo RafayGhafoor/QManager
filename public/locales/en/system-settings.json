@@ -1232,41 +1232,48 @@
     },
     "section": "Scheduled Reboot"
   },
-  "ssh": {
+  "passwords": {
     "card": {
-      "title": "SSH Access",
-      "description": "The root password for SSH sessions into this modem. It is separate from the password you sign in to QManager with.",
-      "save": "Update SSH Password"
+      "title": "Passwords",
+      "description": "Change the password you sign in to QManager with, or the root password for SSH. Each asks for its current password first."
     },
-    "fields": {
-      "current": {
-        "label": "Your QManager password",
-        "consequence": "Proves it is you. This is the web password you signed in with, not the SSH one."
-      },
-      "new": {
-        "label": "New SSH password",
-        "consequence_strong": "At least five characters, with upper case, lower case and a number. Takes effect immediately; existing SSH sessions stay open.",
-        "consequence_weak": "At least five characters. Takes effect immediately; existing SSH sessions stay open."
-      },
-      "confirm": {
-        "label": "Confirm new password"
-      },
-      "strong": {
-        "label": "Enforce strong password",
-        "consequence": "Off allows any password of five or more characters."
-      }
+    "tabs": {
+      "aria": "Password to change",
+      "web": "Web Password",
+      "ssh": "SSH Password"
     },
+    "web": {
+      "label": "Current web password",
+      "consequence": "The password you sign in to QManager with.",
+      "dialog_title": "Change web password",
+      "dialog_description": "You will be signed out after changing it."
+    },
+    "ssh": {
+      "label": "Current SSH password",
+      "consequence": "The root password for SSH sessions into this modem.",
+      "dialog_title": "Change SSH password",
+      "dialog_description": "Takes effect immediately; existing SSH sessions stay open.",
+      "toast_saved": "SSH password updated successfully."
+    },
+    "continue": "Continue",
     "toggle": {
       "show": "Show password",
       "hide": "Hide password"
     },
-    "errors": {
-      "too_short": "SSH password must be at least 5 characters.",
-      "mismatch": "Passwords do not match.",
-      "failed": "SSH password change failed.",
-      "weak": "New password must be at least 5 characters and include uppercase, lowercase, and a number."
+    "dialog": {
+      "new_label": "New password",
+      "confirm_label": "Confirm new password",
+      "match": "Passwords match",
+      "mismatch": "Passwords don't match",
+      "cancel": "Cancel",
+      "save": "Save password"
     },
-    "toast_saved": "SSH password updated successfully."
+    "errors": {
+      "too_short": "Password must be at least 5 characters.",
+      "weak": "Password must be at least 5 characters and include uppercase, lowercase, and a number.",
+      "verify_failed": "Couldn't check the password. Try again.",
+      "change_failed": "Couldn't change the password. Try again."
+    }
   },
   "low_power": {
     "section": "Low Power Mode",
@@ -1305,7 +1312,9 @@
     "card_title": "Web Port",
     "card_description": "The ports this interface listens on. LuCI moves with it.",
     "http_label": "HTTP port",
+    "http_consequence": "The plain-text port for this interface and LuCI.",
     "https_label": "HTTPS port",
+    "https_consequence": "The encrypted port for this interface and LuCI.",
     "pending": "Opens at {{origin}} after you apply.",
     "moving": "Moving to {{origin}}…",
     "invalid": "Use a whole number from 1 to 65535.",

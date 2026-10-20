@@ -22,7 +22,7 @@ symmetric 2-up; **Tracked SIMs** is a full-width card (`@3xl/main:col-span-2`) b
 | Scheduled Operations | `scheduled-operations-card.tsx` | `scheduledReboot`, `lowPower` |
 | Tracked SIMs | `tracked-sims-card.tsx` | `useKnownSims()` |
 
-SSH Access and Web Port live on [Device Access](#device-access-system-settingsdevice-access);
+Passwords and Web Port live on [Device Access](#device-access-system-settingsdevice-access);
 Hardware Offload and Host AT Ports on [Hardware](#hardware-system-settingshardware); the
 debug report on System Health Check. None of them render on the index.
 
@@ -76,7 +76,7 @@ SIM tile reads the same count.
 Every save in `useSystemSettings()` resolves to `SaveResult { success, message? }`.
 `message` is the device's reason already translated through `resolveErrorMessage`
 (`errors` namespace); it is absent for a transport failure or an empty reason, and the
-caller then toasts its own generic line. `useSshPassword().changePassword` and
+caller then toasts its own generic line. `useSshPassword()` and `useWebPassword()` (`changePassword`, `verifyPassword`) and
 `useKnownSims().clear` follow the same shape (`useIpaOffload().setEnabled` returns the
 related `{ ok, error? }` `IpaOffloadMutationResult`; see [Hardware](#hardware-system-settingshardware)). Toasts are fired from the returned value,
 never from hook state read after an `await`.
@@ -159,22 +159,45 @@ column on a phone) of two half-width cards; each owns its hook and internals, th
 
 | Card | Component | Data |
 | --- | --- | --- |
-| SSH Access | `ssh-password-card.tsx` | `useSshPassword()` |
+| Passwords | `password-card.tsx` | `useWebPassword()`, `useSshPassword()` |
 | Web Port | `web-port/web-port-card.tsx` | `useWebPort()` ([web-port.md](../features/web-port.md)) |
 
-### SSH Access (`ssh-password-card.tsx`)
+### Passwords (`password-card.tsx`)
 
-Three password fields (stacked one per row in the half-width desktop cell; one row only if the card spans the page) plus an **Enforce strong password** `SegmentedField` (default On,
-mirroring the CGI's default). The form mirrors the device policy (five characters
-minimum; with the strong policy, upper case, lower case and a digit) so it can refuse
-before the round trip. A client-side refusal shows an inline notice; a device failure
-toasts the returned reason. The web session is not affected by a change. The field
-reveal toggles are a ghost `Button` over an `Input` (the target's `InputGroup` does not
-take the canon `host` prop yet).
+Two tabs, **Web Password** (the QManager sign-in password, `auth/password.sh`) and **SSH Password**
+(the root password, `system/ssh_password.sh`), each a `PasswordPanel` driven by its hook
+(`useWebPassword` / `useSshPassword`, both `PasswordActions` from `types/password-change.ts`).
+Each tab asks for ITS OWN current password first:
+
+1. The panel shows one field and **Continue**. Continue calls the endpoint with `verify_only` and
+   a wrong password stays on the card as an inline notice (the device's reason, e.g. `rate_limited`).
+2. Only a correct one opens `PasswordChangeDialog`: new password, confirm (with a live match hint
+   instead of a second error), the shared `StrongPasswordToggle` (default On) and
+   `PasswordRequirements`. It mirrors the device policy (five characters minimum; with the strong
+   policy, upper case, lower case and a digit) so it refuses before the round trip.
+3. Save sends the current password again; the device re-checks it. A device failure toasts the
+   returned reason. Cancelling or closing clears the typed current password too.
+
+An SSH change toasts and resets the panel. A web change destroys the session on the device and
+`use-auth`'s `changePassword` sends the browser to `/login/`, which is the confirmation (no toast);
+the dialog stays locked (`leaving`) until the page goes. Switching tabs unmounts the other panel,
+so no typed password lingers behind a tab.
+
+**The dialog is a sibling of the panel's `<form>`, never a child.** It portals to `<body>`, but React
+still bubbles its `submit` event up the component tree, so nested inside the form every Save also fired
+Continue (a second verify, and the dialog reopened after a successful save). Keep the `form-` and
+`dialog-` key prefixes distinct for the same reason.
+
+The wrong web password counts toward the sign-in lockout (shared counter,
+[auth-rate-limiting.md](auth-rate-limiting.md)); the SSH check does not.
+`PasswordInput` (`password-input.tsx`) is the field with its show/hide toggle, a ghost `Button` over an
+`Input` (the target's `InputGroup` does not take the canon `host` prop yet).
 
 ### Web Port (`web-port/web-port-card.tsx`)
 
-HTTP and HTTPS fields sit side by side on a wide card. The card keeps its confirm dialog
+HTTP and HTTPS fields sit side by side on a wide card, each row carrying a one-line description like every
+other row group. `PORT_GRID` is `content-start`: the grid sits in a `GROUP_FILL` group that grows to the
+cell's height, and a default `align-content: stretch` would spread the two rows across all of it. The card keeps its confirm dialog
 and its post-save redirect, which now lands on `/system-settings/device-access/` on the new
 origin (it used to land on `/system-settings/`).
 

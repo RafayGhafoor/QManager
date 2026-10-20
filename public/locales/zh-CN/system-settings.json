@@ -1232,41 +1232,48 @@
     },
     "section": "计划重启"
   },
-  "ssh": {
+  "passwords": {
     "card": {
-      "title": "SSH 访问",
-      "description": "通过 SSH 登录本调制解调器的 root 密码。它与您登录 QManager 所用的密码是分开的。",
-      "save": "更新 SSH 密码"
+      "title": "密码",
+      "description": "修改您登录 QManager 所用的密码，或 SSH 的 root 密码。每一项都需要先输入其当前密码。"
     },
-    "fields": {
-      "current": {
-        "label": "您的 QManager 密码",
-        "consequence": "用于验证是您本人。这是您登录网页时使用的密码，不是 SSH 密码。"
-      },
-      "new": {
-        "label": "新的 SSH 密码",
-        "consequence_strong": "至少五个字符，且包含大写字母、小写字母和数字。立即生效，已建立的 SSH 会话不会中断。",
-        "consequence_weak": "至少五个字符。立即生效，已建立的 SSH 会话不会中断。"
-      },
-      "confirm": {
-        "label": "确认新密码"
-      },
-      "strong": {
-        "label": "强制使用强密码",
-        "consequence": "关闭后，任何至少五个字符的密码都可使用。"
-      }
+    "tabs": {
+      "aria": "要修改的密码",
+      "web": "网页密码",
+      "ssh": "SSH 密码"
     },
+    "web": {
+      "label": "当前网页密码",
+      "consequence": "您登录 QManager 所用的密码。",
+      "dialog_title": "修改网页密码",
+      "dialog_description": "修改后您将退出登录。"
+    },
+    "ssh": {
+      "label": "当前 SSH 密码",
+      "consequence": "通过 SSH 登录本调制解调器的 root 密码。",
+      "dialog_title": "修改 SSH 密码",
+      "dialog_description": "立即生效，已建立的 SSH 会话不会中断。",
+      "toast_saved": "SSH 密码已更新。"
+    },
+    "continue": "继续",
     "toggle": {
       "show": "显示密码",
       "hide": "隐藏密码"
     },
-    "errors": {
-      "too_short": "SSH 密码至少需要 5 个字符。",
-      "mismatch": "两次输入的密码不一致。",
-      "failed": "SSH 密码修改失败。",
-      "weak": "新密码至少需要 5 个字符，且包含大写字母、小写字母和数字。"
+    "dialog": {
+      "new_label": "新密码",
+      "confirm_label": "确认新密码",
+      "match": "两次密码一致",
+      "mismatch": "两次密码不一致",
+      "cancel": "取消",
+      "save": "保存密码"
     },
-    "toast_saved": "SSH 密码已更新。"
+    "errors": {
+      "too_short": "密码至少需要 5 个字符。",
+      "weak": "密码至少需要 5 个字符，且包含大写字母、小写字母和数字。",
+      "verify_failed": "无法验证密码，请重试。",
+      "change_failed": "无法修改密码，请重试。"
+    }
   },
   "low_power": {
     "section": "低功耗模式",
@@ -1305,7 +1312,9 @@
     "card_title": "网页端口",
     "card_description": "本界面监听的端口，LuCI 随之一起变更。",
     "http_label": "HTTP 端口",
+    "http_consequence": "本界面和 LuCI 使用的明文端口。",
     "https_label": "HTTPS 端口",
+    "https_consequence": "本界面和 LuCI 使用的加密端口。",
     "pending": "应用后将在 {{origin}} 打开。",
     "moving": "正在切换到 {{origin}}…",
     "invalid": "请输入 1 到 65535 之间的整数。",

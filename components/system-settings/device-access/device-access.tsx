@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
-import SSHPasswordCard from "@/components/system-settings/ssh-password-card";
+import PasswordCard from "@/components/system-settings/password-card";
 import WebPortCard from "@/components/system-settings/web-port/web-port-card";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 
@@ -11,7 +11,7 @@ import { CARD_CELL, CARD_GRID, PAGE_HEAD, PAGE_ROOT } from "../shapes";
 
 const K = "device_access.page";
 
-// Two columns on desktop, one on a phone: SSH Access left, Web Port right. Each
+// Two columns on desktop, one on a phone: Passwords left, Web Port right. Each
 // card recomposes inside its own `@container/card`, so the half-width cells
 // stack their rows rather than inheriting the old full-width arrangement.
 const DeviceAccessSettings = () => {
@@ -36,7 +36,7 @@ const DeviceAccessSettings = () => {
           declare initial/animate. */}
       <motion.div className={CARD_GRID} variants={staggerContainer}>
         <motion.div variants={staggerItem} className={CARD_CELL}>
-          <SSHPasswordCard />
+          <PasswordCard />
         </motion.div>
         <motion.div variants={staggerItem} className={CARD_CELL}>
           <WebPortCard />

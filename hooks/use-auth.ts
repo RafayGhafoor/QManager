@@ -261,6 +261,28 @@ export async function logout(): Promise<void> {
   }
 }
 
+/**
+ * Check the current web password without changing it (`verify_only`). The
+ * session and the password are untouched. A wrong password counts toward the
+ * same lockout as sign-in, so a locked-out caller gets `rate_limited` back.
+ */
+export async function verifyPassword(
+  current: string
+): Promise<{ success: boolean; error?: string; detail?: string }> {
+  try {
+    const resp = await fetch(PASSWORD_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ current_password: current, verify_only: true }),
+    });
+    const data = await resp.json();
+    if (data.success) return { success: true };
+    return { success: false, error: data.error, detail: data.detail };
+  } catch {
+    return { success: false };
+  }
+}
+
 export async function changePassword(
   current: string,
   newPassword: string,

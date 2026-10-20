@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
+import type { FormEvent } from "react";
 import { toast } from "sonner";
-import { CheckIcon, CircleAlertIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { CircleAlertIcon, Loader2Icon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { useSshPassword } from "@/hooks/use-ssh-password";
+import { useWebPassword } from "@/hooks/use-web-password";
 import {
   Card,
   CardContent,
@@ -15,310 +16,239 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { CardFoot } from "@/components/ui/card-foot";
-import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
-import { SEGMENTED, SegmentedField } from "@/components/ui/segmented-field";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import type { PasswordActions } from "@/types/password-change";
 
+import { PasswordChangeDialog } from "./password-change-dialog";
+import { PasswordInput } from "./password-input";
 import {
   CARD_BODY,
   CARD_DESC,
   CARD_PAD,
   CARD_SHELL,
   CARD_TITLE,
-  COARSE_TARGET,
   FIELD,
   GROUP_FILL,
   NOTICE,
-  PASSWORD_GRID,
   ROW,
   ROW_GROUP,
 } from "./shapes";
 
-const K = "ssh";
+// =============================================================================
+// Passwords — the web (QManager) password and the SSH root password
+// =============================================================================
+// Two tabs, one flow. Each asks for ITS OWN current password first and checks it
+// on the device (`verify_only`), so a wrong one is refused before any new
+// password is typed. Only a correct one opens the dialog that takes the new
+// password; Save sends the current password again and the device re-checks it.
+//
+// Switching tabs unmounts the other panel, so a typed password never lingers
+// behind a tab. A web change destroys the session on the device and the hook
+// sends the browser to /login/: that navigation is the confirmation, so it does
+// not also toast (Toast-Confirms Rule). An SSH change toasts.
+// =============================================================================
 
-/** The lucide check that `SegmentedField` reserves on every segment. */
-const renderCheckGlyph = (className: string) => (
-  <CheckIcon size={SEGMENTED.GLYPH} className={className} aria-hidden="true" />
-);
+type Kind = "web" | "ssh";
 
-/**
- * The device's policy, mirrored so the form can say no before the round trip:
- * at least five characters, and with the strong policy on, an upper-case
- * letter, a lower-case letter and a digit.
- */
-const MIN_LENGTH = 5;
+const KINDS: readonly Kind[] = ["web", "ssh"];
 
-function policyError(
-  password: string,
-  strong: boolean,
-): "too_short" | "weak" | null {
-  if (password.length < MIN_LENGTH) return "too_short";
-  if (!strong) return null;
-  return /[A-Z]/.test(password) &&
-    /[a-z]/.test(password) &&
-    /[0-9]/.test(password)
-    ? null
-    : "weak";
-}
-
-// The row, restated WITHOUT `ROW.ROOT`'s side-by-side flip: these controls are
-// full-width password fields, so label and field stack at every width.
+// The row, restated WITHOUT `ROW.ROOT`'s side-by-side flip: the control is a
+// full-width password field, so label and field stack at every width.
 const STACK_ROW = "flex flex-col gap-2.5 rounded-field px-4 py-4";
 
-// `@2xl/card:w-full` cancels `FIELD`'s side-by-side auto-width: these rows
-// never flip, so the field always fills the row.
+// `@2xl/card:w-full` cancels `FIELD`'s side-by-side auto-width: this row never
+// flips, so the field always fills it.
 const FIELD_GROUP = cn(FIELD, "@2xl/card:w-full");
 
-// The toggle rides INSIDE the field via `InputGroupAddon`, so it paints 32px
-// and cannot grow. `COARSE_TARGET` reaches the 44px floor with a
-// pseudo-element instead of resizing the visible button.
-const FIELD_TOGGLE = `text-on-surface-variant hover:text-on-surface ${COARSE_TARGET}`;
-
-interface PasswordFieldProps {
-  id: string;
-  label: string;
-  /** Omitted on the confirm row, which restates rather than decides. */
-  consequence?: string;
-  value: string;
-  onChange: (value: string) => void;
-  disabled: boolean;
-  autoComplete: string;
+interface PanelProps {
+  kind: Kind;
+  actions: PasswordActions;
 }
 
-/**
- * One password row. It owns its own show/hide state, which is the whole point
- * of the extraction — three near-identical blocks and three `showX` flags
- * collapse into one component the card never has to think about.
- */
-function PasswordField({
-  id,
-  label,
-  consequence,
-  value,
-  onChange,
-  disabled,
-  autoComplete,
-}: PasswordFieldProps) {
+function PasswordPanel({ kind, actions }: PanelProps) {
   const { t } = useTranslation("system-settings");
-  const [visible, setVisible] = useState(false);
-  const Glyph = visible ? EyeOffIcon : EyeIcon;
+  const { verifyPassword, changePassword, isPending } = actions;
 
-  return (
-    <div className={STACK_ROW}>
-      <div className={ROW.TEXT}>
-        <label htmlFor={id} className={ROW.LABEL}>
-          {label}
-        </label>
-        {consequence ? (
-          <span className={ROW.CONSEQUENCE}>{consequence}</span>
-        ) : null}
-      </div>
-
-      {/* `mt-auto` bottom-aligns the field, so on a wide card the three
-          fields share one edge even when one consequence wraps further. */}
-      <div className="relative mt-auto w-full">
-        <Input
-          id={id}
-          type={visible ? "text" : "password"}
-          host="container"
-          autoComplete={autoComplete}
-          value={value}
-          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-            onChange(e.target.value)
-          }
-          required
-          disabled={disabled}
-          className={cn(FIELD_GROUP, "pr-11")}
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className={cn(
-            FIELD_TOGGLE,
-            "absolute top-1/2 right-1.5 -translate-y-1/2",
-          )}
-          onClick={() => setVisible((v) => !v)}
-          aria-pressed={visible}
-          aria-label={t(visible ? `${K}.toggle.hide` : `${K}.toggle.show`)}
-        >
-          <Glyph className="size-4" aria-hidden="true" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-export default function SSHPasswordCard() {
-  const { t } = useTranslation("system-settings");
-  const { saved, markSaved } = useSaveFlash();
-  const { changePassword, isPending } = useSshPassword();
-
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [enforceStrong, setEnforceStrong] = useState(true);
+  const [current, setCurrent] = useState("");
   const [error, setError] = useState("");
-  // Bumped on a successful change to remount the group, which re-hides any
-  // field the user had revealed.
+  const [dialogOpen, setDialogOpen] = useState(false);
+  // True once a change landed. The web tab is then already leaving for /login/,
+  // so the dialog stays locked instead of flashing back to editable.
+  const [leaving, setLeaving] = useState(false);
+  // Bumped to remount the field (re-hiding it) and the dialog (clearing it).
   const [formKey, setFormKey] = useState(0);
 
   const reset = useCallback(() => {
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+    setCurrent("");
     setError("");
+    setDialogOpen(false);
     setFormKey((k) => k + 1);
   }, []);
 
-  const canSubmit =
-    currentPassword.length > 0 &&
-    newPassword.length > 0 &&
-    confirmPassword.length > 0 &&
-    !isPending;
-
-  const handleSubmit = useCallback(
+  const handleContinue = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
+      if (current.length === 0 || isPending) return;
       setError("");
 
-      const problem = policyError(newPassword, enforceStrong);
-      if (problem) {
-        setError(t(`${K}.errors.${problem}`));
-        return;
-      }
-
-      if (newPassword !== confirmPassword) {
-        setError(t(`${K}.errors.mismatch`));
-        return;
-      }
-
-      const result = await changePassword(
-        currentPassword,
-        newPassword,
-        enforceStrong,
-      );
+      const result = await verifyPassword(current);
       if (result.success) {
-        toast.success(t(`${K}.toast_saved`));
-        markSaved();
-        reset();
+        setDialogOpen(true);
       } else {
-        toast.error(result.message ?? t(`${K}.errors.failed`));
+        setError(result.message ?? t("passwords.errors.verify_failed"));
       }
     },
-    [
-      currentPassword,
-      newPassword,
-      confirmPassword,
-      enforceStrong,
-      changePassword,
-      reset,
-      markSaved,
-      t,
-    ],
+    [current, isPending, verifyPassword, t],
   );
+
+  const handleDialogOpenChange = useCallback(
+    (open: boolean) => {
+      setDialogOpen(open);
+      // Cancelling drops the typed password too: Continue re-asks for it.
+      if (!open) {
+        setCurrent("");
+        setError("");
+        setFormKey((k) => k + 1);
+      }
+    },
+    [],
+  );
+
+  const handleSave = useCallback(
+    async (newPassword: string, enforceStrong: boolean) => {
+      const result = await changePassword(current, newPassword, enforceStrong);
+      if (!result.success) {
+        toast.error(result.message ?? t("passwords.errors.change_failed"));
+        return;
+      }
+      if (kind === "web") {
+        setLeaving(true);
+        return;
+      }
+      toast.success(t("passwords.ssh.toast_saved"));
+      reset();
+    },
+    [changePassword, current, kind, reset, t],
+  );
+
+  const fieldId = `password-current-${kind}`;
+
+  return (
+    <>
+      <form
+        key={`form-${formKey}`}
+        onSubmit={handleContinue}
+        className={cn(CARD_BODY, "gap-4")}
+      >
+        {/* The row group is this card's slack absorber: the page grid locks
+            every cell to `h-full`, and the group is what grows to fill it. */}
+        <div className={cn(ROW_GROUP, GROUP_FILL)}>
+          <div className={STACK_ROW}>
+            <div className={ROW.TEXT}>
+              <label htmlFor={fieldId} className={ROW.LABEL}>
+                {t(`passwords.${kind}.label`)}
+              </label>
+              <span className={ROW.CONSEQUENCE}>
+                {t(`passwords.${kind}.consequence`)}
+              </span>
+            </div>
+            <PasswordInput
+              id={fieldId}
+              host="container"
+              autoComplete="current-password"
+              value={current}
+              onChange={(next) => {
+                setCurrent(next);
+                if (error) setError("");
+              }}
+              disabled={isPending || leaving}
+              invalid={error.length > 0}
+              className={FIELD_GROUP}
+            />
+          </div>
+        </div>
+  
+        {error ? (
+          <div role="alert" className={cn(NOTICE.BOX, NOTICE.FAILED)}>
+            <CircleAlertIcon className={NOTICE.GLYPH} aria-hidden="true" />
+            <span className={NOTICE.TEXT}>{error}</span>
+          </div>
+        ) : null}
+  
+        {/* The form is the flex column, so `mt-auto` reaches the card's
+            bottom edge and Continue stays inside the form. */}
+        <CardFoot
+          actions={
+            <Button
+              type="submit"
+              size="action"
+              disabled={current.length === 0 || isPending || leaving}
+            >
+              {isPending && !dialogOpen ? (
+                <Loader2Icon
+                  className="size-4 motion-safe:animate-spin"
+                  aria-hidden="true"
+                />
+              ) : null}
+              {t("passwords.continue")}
+            </Button>
+          }
+        />
+      </form>
+
+      {/* A SIBLING of the form, not a child: the dialog portals to <body> but
+          React still bubbles its submit event up the component tree, so inside
+          the form every Save would also fire Continue. */}
+      <PasswordChangeDialog
+        key={`dialog-${formKey}`}
+        open={dialogOpen}
+        onOpenChange={handleDialogOpenChange}
+        title={t(`passwords.${kind}.dialog_title`)}
+        description={t(`passwords.${kind}.dialog_description`)}
+        busy={isPending || leaving}
+        onSubmit={handleSave}
+      />
+    </>
+  );
+}
+
+export default function PasswordCard() {
+  const { t } = useTranslation("system-settings");
+  const web = useWebPassword();
+  const ssh = useSshPassword();
+  const [tab, setTab] = useState<Kind>("web");
 
   return (
     <Card className={CARD_SHELL}>
       <CardHeader className={CARD_PAD}>
-        <CardTitle className={CARD_TITLE}>{t(`${K}.card.title`)}</CardTitle>
+        <CardTitle className={CARD_TITLE}>{t("passwords.card.title")}</CardTitle>
         <CardDescription className={CARD_DESC}>
-          {t(`${K}.card.description`)}
+          {t("passwords.card.description")}
         </CardDescription>
       </CardHeader>
 
       <CardContent className={cn(CARD_PAD, CARD_BODY)}>
-        <form
-          onSubmit={handleSubmit}
-          className={cn(CARD_BODY, "gap-4")}
+        <Tabs
+          value={tab}
+          onValueChange={(next) => setTab(next as Kind)}
+          className="min-h-0 flex-1 gap-4"
         >
-          {/* The row group is this card's slack absorber: the page grid locks
-              every cell to `h-full`, and the group is what grows to fill it. */}
-          <div key={formKey} className={cn(ROW_GROUP, GROUP_FILL)}>
-            {/* Stacked on a phone and in the half-width desktop cell; one row
-                only if the card spans the page. */}
-            <div className={PASSWORD_GRID}>
-              <PasswordField
-                id="ssh-current-password"
-                label={t(`${K}.fields.current.label`)}
-                consequence={t(`${K}.fields.current.consequence`)}
-                value={currentPassword}
-                onChange={setCurrentPassword}
-                disabled={isPending}
-                autoComplete="current-password"
-              />
-              <PasswordField
-                id="ssh-new-password"
-                label={t(`${K}.fields.new.label`)}
-                consequence={t(
-                  enforceStrong
-                    ? `${K}.fields.new.consequence_strong`
-                    : `${K}.fields.new.consequence_weak`,
-                )}
-                value={newPassword}
-                onChange={setNewPassword}
-                disabled={isPending}
-                autoComplete="new-password"
-              />
-              <PasswordField
-                id="ssh-confirm-password"
-                label={t(`${K}.fields.confirm.label`)}
-                value={confirmPassword}
-                onChange={setConfirmPassword}
-                disabled={isPending}
-                autoComplete="new-password"
-              />
-            </div>
-            <div className={cn(ROW.ROOT, "min-h-0")}>
-              <div className={ROW.TEXT}>
-                <span className={ROW.LABEL}>
-                  {t(`${K}.fields.strong.label`)}
-                </span>
-                <span className={ROW.CONSEQUENCE}>
-                  {t(`${K}.fields.strong.consequence`)}
-                </span>
-              </div>
-              <div className={ROW.CONTROL}>
-                <SegmentedField
-                  value={enforceStrong ? "on" : "off"}
-                  onValueChange={(next) => setEnforceStrong(next === "on")}
-                  options={[
-                    { value: "off", label: t("state.off", { ns: "common" }) },
-                    { value: "on", label: t("state.on", { ns: "common" }) },
-                  ]}
-                  ariaLabel={t(`${K}.fields.strong.label`)}
-                  disabled={isPending}
-                  breakpoint="never"
-                  glyph={renderCheckGlyph}
-                />
-              </div>
-            </div>
-          </div>
-
-          {error ? (
-            <div role="alert" className={cn(NOTICE.BOX, NOTICE.FAILED)}>
-              <CircleAlertIcon className={NOTICE.GLYPH} aria-hidden="true" />
-              <span className={NOTICE.TEXT}>{error}</span>
-            </div>
-          ) : null}
-
-          {/* The form is the flex column, so `mt-auto` reaches the card's
-              bottom edge and the submit stays inside the form. */}
-          <CardFoot
-            actions={
-              <SaveButton
-                type="submit"
-                isSaving={isPending}
-                saved={saved}
-                label={t(`${K}.card.save`)}
-                disabled={!canSubmit}
-                size="action"
-              />
-            }
-          />
-        </form>
+          <TabsList className="w-full" aria-label={t("passwords.tabs.aria")}>
+            {KINDS.map((kind) => (
+              <TabsTrigger key={kind} value={kind}>
+                {t(`passwords.tabs.${kind}`)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <TabsContent value="web" className={CARD_BODY}>
+            <PasswordPanel kind="web" actions={web} />
+          </TabsContent>
+          <TabsContent value="ssh" className={CARD_BODY}>
+            <PasswordPanel kind="ssh" actions={ssh} />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

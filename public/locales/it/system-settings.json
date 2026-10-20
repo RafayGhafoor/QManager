@@ -1232,41 +1232,48 @@
     },
     "section": "Riavvio pianificato"
   },
-  "ssh": {
+  "passwords": {
     "card": {
-      "title": "Accesso SSH",
-      "description": "La password root per le sessioni SSH su questo modem. È separata dalla password con cui accedi a QManager.",
-      "save": "Aggiorna password SSH"
+      "title": "Password",
+      "description": "Cambia la password con cui accedi a QManager o la password root per SSH. Ognuna richiede prima la sua password attuale."
     },
-    "fields": {
-      "current": {
-        "label": "La tua password QManager",
-        "consequence": "Serve a confermare che sei tu. È la password web con cui hai effettuato l'accesso, non quella SSH."
-      },
-      "new": {
-        "label": "Nuova password SSH",
-        "consequence_strong": "Almeno cinque caratteri, con maiuscole, minuscole e un numero. Ha effetto immediato: le sessioni SSH già aperte restano attive.",
-        "consequence_weak": "Almeno cinque caratteri. Ha effetto immediato: le sessioni SSH già aperte restano attive."
-      },
-      "confirm": {
-        "label": "Conferma la nuova password"
-      },
-      "strong": {
-        "label": "Richiedi password complessa",
-        "consequence": "Disattivata, è accettata qualsiasi password di almeno cinque caratteri."
-      }
+    "tabs": {
+      "aria": "Password da cambiare",
+      "web": "Password web",
+      "ssh": "Password SSH"
     },
+    "web": {
+      "label": "Password web attuale",
+      "consequence": "La password con cui accedi a QManager.",
+      "dialog_title": "Cambia la password web",
+      "dialog_description": "Dopo la modifica verrai disconnesso."
+    },
+    "ssh": {
+      "label": "Password SSH attuale",
+      "consequence": "La password root per le sessioni SSH su questo modem.",
+      "dialog_title": "Cambia la password SSH",
+      "dialog_description": "Ha effetto immediato: le sessioni SSH già aperte restano attive.",
+      "toast_saved": "Password SSH aggiornata correttamente."
+    },
+    "continue": "Continua",
     "toggle": {
       "show": "Mostra password",
       "hide": "Nascondi password"
     },
-    "errors": {
-      "too_short": "La password SSH deve avere almeno 5 caratteri.",
-      "mismatch": "Le password non coincidono.",
-      "failed": "Modifica della password SSH non riuscita.",
-      "weak": "La nuova password deve contenere almeno 5 caratteri e includere lettere maiuscole, minuscole e un numero."
+    "dialog": {
+      "new_label": "Nuova password",
+      "confirm_label": "Conferma la nuova password",
+      "match": "Le password coincidono",
+      "mismatch": "Le password non coincidono",
+      "cancel": "Annulla",
+      "save": "Salva password"
     },
-    "toast_saved": "Password SSH aggiornata correttamente."
+    "errors": {
+      "too_short": "La password deve avere almeno 5 caratteri.",
+      "weak": "La password deve contenere almeno 5 caratteri e includere lettere maiuscole, minuscole e un numero.",
+      "verify_failed": "Impossibile verificare la password. Riprova.",
+      "change_failed": "Impossibile cambiare la password. Riprova."
+    }
   },
   "low_power": {
     "section": "Modalità di risparmio energetico",
@@ -1305,7 +1312,9 @@
     "card_title": "Porta web",
     "card_description": "Le porte su cui risponde questa interfaccia. LuCI si sposta con lei.",
     "http_label": "Porta HTTP",
+    "http_consequence": "La porta non cifrata per questa interfaccia e per LuCI.",
     "https_label": "Porta HTTPS",
+    "https_consequence": "La porta cifrata per questa interfaccia e per LuCI.",
     "pending": "Si aprirà su {{origin}} dopo l'applicazione.",
     "moving": "Spostamento su {{origin}}…",
     "invalid": "Usa un numero intero da 1 a 65535.",
