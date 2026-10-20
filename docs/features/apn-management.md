@@ -162,9 +162,9 @@ PDP type translation: `ipv4` → `IP`, `ipv6` → `IPV6`, `ipv4v6` → `IPV4V6`.
 An empty `cids[].apn` value (`""`) means "the live AT read failed or the context has no APN defined" — it is NOT confirmation that the modem has APN `""`. Both layers treat it as unknown:
 
 - **Backend:** the GET now retries the compound AT call exactly once on empty; if still empty, it calls `die "at_failed"` rather than returning `active:1` alongside an empty `cids[]`. No `success:true` response ever carries a fully empty `cids[]`.
-- **Frontend:** `liveApn` is derived as `liveCtx?.apn || null` — the `||` operator (not `??`) collapses an empty string to `null`. The existing `liveApn !== null` guards then fall through to the **"Active"** badge. Only a *non-empty* live APN that differs from the stored one produces a confirmed "Not live".
+- **Frontend:** `liveApn` is derived as `liveCtx?.apn || null` — the `||` operator (not `??`) collapses an empty string to `null`. The `liveApn !== null` guards then render no verdict (unknown). Only a *non-empty* live APN that differs from the stored one produces a confirmed mismatch.
 
-> ℹ️ NOTE: The `||` vs `??` distinction is load-bearing. `??` passes through `""` as a defined value, causing the badge comparison to treat an AT-read failure as a confirmed APN mismatch. Always use `||` here.
+> ℹ️ NOTE: The `||` vs `??` distinction is load-bearing. `??` passes through `""` as a defined value, causing the verdict comparison to treat an AT-read failure as a confirmed APN mismatch. Always use `||` here.
 
 ### Single compound GET round-trip
 
@@ -234,22 +234,22 @@ IMS and SOS contexts appear in the `cids` array (the CID picker) with their `apn
 
 ### Frontend state model
 
-`apn-settings-card.tsx` renders the APN form and a live-status badge derived from `ApnSettingsResponse`:
+`apn-settings-card.tsx` reports live state as **readout rows, not a status chip** (redesign 2026-10-20). Three pill rows sit above the settings group: **Mode** (Custom APN, or Carrier default in quiet ink), **Network is using** (the live CID's APN, mono) and **Data context** (`CID n`, or a quiet `link_off` + "Not connected" when `data_cid_source` is `none`). The verdict rides the APN row as a glyph plus ink, with an `sr-only` word:
 
-| Condition | Badge |
+| Condition | Network is using row |
 |---|---|
-| Custom SIM Profile active with APN | **Overridden** (muted) — fieldset disabled; the override `Banner` shown |
-| `active == 1` and stored APN matches live CID APN | **Active** (success + `check_circle`) |
-| `active == 1` and live CID APN is non-empty and differs from stored APN | **Not live** (warning + `warning`) — suppressed while `isSaving` to avoid flicker; an empty or absent live APN falls through to **Active** (unknown, not a mismatch) |
-| `active == 0` | **Carrier default** (muted + `do_not_disturb_on`) — form is pre-filled with stored APN but "Use carrier default" button state reflects that carrier is in control |
+| `active == 1` and stored APN matches live CID APN (case-insensitive) | `check_circle` in `success-on-surface` |
+| `active == 1`, live CID APN non-empty and different | `warning` in `warning-on-surface`, plus a one-line note revealed under the rows (`REVEAL`, emphasized). Suppressed while `isSaving` |
+| live APN empty or absent, or `active == 0` | no glyph; a dash when unknown (unknown, never a mismatch) |
+| Custom SIM Profile active with APN | the override `Banner`; the APN card's fieldset is disabled and dimmed |
 
-**Why "Not live" exists:** if for any reason the boot reconcile does not run or cannot match the APN (e.g. a carrier that overrides the APN string on attach), `active == 1` but the live CID APN differs. The badge makes this visible without requiring manual intervention. It also appears when the carrier genuinely replaces the configured APN string.
+**Why the mismatch state exists:** if the boot reconcile does not run or cannot match the APN (e.g. a carrier that overrides the APN string on attach), `active == 1` but the live CID APN differs. The row makes this visible without manual intervention.
 
-**Optimistic badge suppression during COPS cycle:** `patchCidApn` in `use-apn-settings.ts` optimistically updates the matching `cids[]` entry immediately after a successful save, so the badge does not briefly flash "Not live" against a stale snapshot. The 1500 ms reconcile then overwrites this with the live server value.
+**Optimistic suppression during COPS cycle:** `patchCidApn` in `use-apn-settings.ts` optimistically updates the matching `cids[]` entry immediately after a successful save, so the row does not briefly flag a mismatch against a stale snapshot. The 1500 ms reconcile then overwrites this with the live server value.
 
 ### CID picker — carrier badges and AlertDialog confirmation
 
-`apn-settings-card.tsx` renders the CID selector from `cids[]` (the live modem contexts). Each option carries a `CidBadge`. Context type is identity, so these are neutral `Tag`s with Material glyphs, not status chips:
+`apn-settings-card.tsx` renders the CID selector from `cids[]` (the live modem contexts). Each option carries a `CidTag`. Context type is identity, so these are neutral `Tag`s with Material glyphs, not status chips:
 
 | `apn_type` | Badge | Color |
 |---|---|---|
@@ -268,20 +268,20 @@ All `jq` expressions in `apn.sh` use explicit `if x == null then … else … en
 
 After a successful save or deactivate, the hook applies an optimistic local patch immediately, then schedules a silent background re-fetch after 1500 ms (`RECONCILE_DELAY_MS`) and a second one after 8000 ms (`RECONCILE_LATE_DELAY_MS`) for slow attaches. This is necessary because `AT+COPS=0` returns `OK` before the attach fully completes — the fresh `active_cid` / `cids` state is not readable immediately after the POST returns.
 
-On save, `patchCidApn` also optimistically updates the matching entry in `cids[]` with the stored APN, so the honest-badge comparison does not flash "Not live" against a stale CID snapshot during the COPS settle window.
+On save, `patchCidApn` also optimistically updates the matching entry in `cids[]` with the stored APN, so the verdict comparison does not flash a mismatch against a stale CID snapshot during the COPS settle window.
 
 ### Page Layout and Hook Contracts
 
-The page opens with `CellularPageHeader`. The APN card and the MBN card stack full width (a one-column grid inside the disabled fieldset). Banners sit above the fieldset: the deferred-reboot banner (below) and the profile override banner.
+The page opens with `CellularPageHeader`, then the profile override banner, then the two write cards on `APN_PAIR` (`components/cellular/settings/shapes.ts`): side by side at `@4xl/main`, stacked below, locked to one height and arriving on the card cascade (`staggerContainer` / `staggerItem`). Each card's settings are a `ROW_GROUP` of `SettingRow`s (label + consequence left, control right, delta chip while dirty) with a row cascade. The MBN bundle list is the pair's one slack absorber (`APN_PAIR.LIST_SLOT` / `LIST_FILL`): it fills the APN card's height when paired and caps at 17rem when stacked. Only the APN card sits inside the override fieldset; MBN is outside it, since no profile manages carrier bundles.
 
 - `useApnSettings`: `save` and `deactivate` return `ApnActionResult` (`{ ok, error }`, error already translated through `resolveErrorMessage`). The hook's `error` is the **read** error only. Handlers toast the returned reason on failure.
 - `useMbnSettings`: `saveMbn` returns `MbnActionResult` with the same shape; its `error` is likewise read-only.
 - Each card renders a destructive `ConditionScreen` with Retry when its first read fails (the APN card only when `apn === null`).
-- The live APN string and the APN input are mono (opaque strings); the status badges use Material glyphs.
+- The live APN string, the APN input and bundle names are mono (opaque strings); verdict glyphs are Material.
 
 ### MBN Card and Deferred Reboot
 
-Auto-select is a `SegmentedField` (On/Off). After a successful MBN save the reboot `AlertDialog` opens. ANY close other than Reboot now (Later, Esc, overlay click) calls `requestRebootLater("mbn")`, which persists the deferred-reboot flag. The APN page then shows a `Banner role="deferred-reboot"` while `usePendingReboot().source === "mbn"`, with Dismiss and Reboot now actions. Reboot now has no success toast (the `/reboot/` hand-off is the signal) and only a failure toast. The reboot is never issued from a CGI response path.
+Auto-select is a `SegmentedField` (On/Off) row. Bundles are native radio rows (`CHOICE_ROW`): the drafted one is the `primary-container` row with a check, the running one carries a "Running now" caption, and the list dims with a revealed reason while auto-select is on. After a successful MBN save the reboot `AlertDialog` opens. ANY close other than Reboot now (Later, Esc, overlay click) calls `requestRebootLater("mbn")`, which persists the deferred-reboot flag. The APN page then shows a `Banner role="deferred-reboot"` while `usePendingReboot().source === "mbn"`, with Dismiss and Reboot now actions. Reboot now has no success toast (the `/reboot/` hand-off is the signal) and only a failure toast. The reboot is never issued from a CGI response path.
 
 ### Custom SIM Profile override gate
 
@@ -289,7 +289,7 @@ Auto-select is a `SegmentedField` (On/Off). After a successful MBN save the rebo
 
 The verdict arrives over **two sequential fetches** — `useSimProfiles` first learns `activeProfileId` (`list.sh`), then an effect fetches that profile's APN (`get.sh`). Until both settle, the page holds the APN card in its loading skeleton and keeps the fieldset disabled (`overrideUndetermined`). The "still determining" status is **derived during render** from `simLoading` + a `checkedId` state — there is no synchronous `setState` in the effect, satisfying the React-Compiler `set-state-in-effect` rule.
 
-> ℹ️ NOTE: `apn_profiles.json`'s `active` pointer is intentionally NOT cleared when a Custom SIM Profile takes over. The stored pointer represents the user's intent for when the profile deactivates — resetting it would silently discard the APN the user had configured. The badge change (`Overridden`) is purely presentational.
+> ℹ️ NOTE: `apn_profiles.json`'s `active` pointer is intentionally NOT cleared when a Custom SIM Profile takes over. The stored pointer represents the user's intent for when the profile deactivates — resetting it would silently discard the APN the user had configured. The override banner is purely presentational.
 
 When the Custom SIM Profile is **deactivated** (non-Verizon path), `deactivate.sh` calls `reapply_active_apn_slot` (defined in `apn_mgr.sh`) to restore the live APN:
 
