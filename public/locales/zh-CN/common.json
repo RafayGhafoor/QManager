@@ -422,8 +422,7 @@
     },
     "community": {
       "title": "社区",
-      "description": "Discord 上的 Cellular Modem Talk/Development。",
-      "body": "用户在这里分享配置、共同排查问题、交流蜂窝网络话题。扫码或直接打开邀请链接。",
+      "description": "用户在这里分享配置、共同排查问题、交流蜂窝网络话题。扫码或直接打开邀请链接。",
       "open_invite": "打开邀请链接",
       "qr_alt": "QManager Discord 服务器邀请二维码"
     },

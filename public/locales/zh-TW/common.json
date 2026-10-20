@@ -422,8 +422,7 @@
     },
     "community": {
       "title": "社群",
-      "description": "Discord 上的 Cellular Modem Talk/Development。",
-      "body": "使用者在這裡分享設定、一起排除問題，並討論行動網路話題。掃描或直接開啟邀請連結。",
+      "description": "使用者在這裡分享設定、一起排除問題，並討論行動網路話題。掃描或直接開啟邀請連結。",
       "open_invite": "開啟邀請連結",
       "qr_alt": "QManager Discord 伺服器邀請 QR 碼"
     },

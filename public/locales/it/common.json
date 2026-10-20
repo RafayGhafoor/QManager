@@ -422,8 +422,7 @@
     },
     "community": {
       "title": "Community",
-      "description": "Cellular Modem Talk/Development su Discord.",
-      "body": "Gli utenti condividono configurazioni, risolvono problemi insieme e parlano di reti cellulari. Scansiona o apri l’invito.",
+      "description": "Gli utenti condividono configurazioni, risolvono problemi insieme e parlano di reti cellulari. Scansiona o apri l’invito.",
       "open_invite": "Apri l’invito",
       "qr_alt": "Codice QR per l’invito al server Discord di QManager"
     },

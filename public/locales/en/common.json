@@ -422,8 +422,7 @@
     },
     "community": {
       "title": "Community",
-      "description": "Cellular Modem Talk/Development on Discord.",
-      "body": "Users share configurations, troubleshoot together, and talk cellular networking. Scan or open the invite.",
+      "description": "Users share configurations, troubleshoot together, and talk cellular networking. Scan or open the invite.",
       "open_invite": "Open the invite",
       "qr_alt": "QR code for the QManager Discord server invite"
     },

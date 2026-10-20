@@ -422,8 +422,7 @@
     },
     "community": {
       "title": "Komunitas",
-      "description": "Cellular Modem Talk/Development di Discord.",
-      "body": "Pengguna berbagi konfigurasi, memecahkan masalah bersama, dan membahas jaringan seluler. Pindai atau buka undangannya.",
+      "description": "Pengguna berbagi konfigurasi, memecahkan masalah bersama, dan membahas jaringan seluler. Pindai atau buka undangannya.",
       "open_invite": "Buka undangan",
       "qr_alt": "Kode QR untuk undangan server Discord QManager"
     },
