@@ -7,6 +7,7 @@
 # mkpasswd, then applies the new password via chpasswd.
 #
 # POST body: {"current_password":"...","new_password":"...","enforce_strong":true}
+#            {"current_password":"...","verify_only":true}  (check, change nothing)
 # Session: required (standard QManager cookie via cgi_base.sh).
 #
 # Endpoint: POST /cgi-bin/quecmanager/system/ssh_password.sh
@@ -27,26 +28,36 @@ cgi_read_post
 _current=$(printf '%s' "$POST_DATA" | jq -r '.current_password // empty' 2>/dev/null)
 _new=$(printf '%s' "$POST_DATA" | jq -r '.new_password // empty' 2>/dev/null)
 _enforce_strong=$(printf '%s' "$POST_DATA" | jq -r 'if .enforce_strong == false then "false" else "true" end' 2>/dev/null)
+_verify_only=$(printf '%s' "$POST_DATA" | jq -r 'if .verify_only == true then "true" else "false" end' 2>/dev/null)
 
-if [ -z "$_current" ] || [ -z "$_new" ]; then
+if [ "$_verify_only" = "true" ]; then
+    # The UI's "Continue" step: prove the current password, change nothing.
+    _new=""
+    if [ -z "$_current" ]; then
+        cgi_error "missing_fields" "current_password is required"
+        exit 0
+    fi
+elif [ -z "$_current" ] || [ -z "$_new" ]; then
     cgi_error "missing_fields" "Both current_password and new_password are required"
     exit 0
 fi
 
 # --- New-password policy (mirrors auth/password.sh exactly) -----------------
-_pw_len=$(printf '%s' "$_new" | wc -c)
-if [ "$_enforce_strong" = "false" ]; then
-    if [ "$_pw_len" -lt 5 ]; then
-        cgi_error "password_weak" "New password must be at least 5 characters"
-        exit 0
-    fi
-else
-    if [ "$_pw_len" -lt 5 ] \
-       || ! printf '%s' "$_new" | grep -q '[A-Z]' \
-       || ! printf '%s' "$_new" | grep -q '[a-z]' \
-       || ! printf '%s' "$_new" | grep -q '[0-9]'; then
-        cgi_error "password_weak" "New password must be at least 5 characters and include uppercase, lowercase, and a number"
-        exit 0
+if [ "$_verify_only" != "true" ]; then
+    _pw_len=$(printf '%s' "$_new" | wc -c)
+    if [ "$_enforce_strong" = "false" ]; then
+        if [ "$_pw_len" -lt 5 ]; then
+            cgi_error "password_weak" "New password must be at least 5 characters"
+            exit 0
+        fi
+    else
+        if [ "$_pw_len" -lt 5 ] \
+           || ! printf '%s' "$_new" | grep -q '[A-Z]' \
+           || ! printf '%s' "$_new" | grep -q '[a-z]' \
+           || ! printf '%s' "$_new" | grep -q '[0-9]'; then
+            cgi_error "password_weak" "New password must be at least 5 characters and include uppercase, lowercase, and a number"
+            exit 0
+        fi
     fi
 fi
 
@@ -105,6 +116,11 @@ _recomputed=$(openssl passwd "$_openssl_flag" -salt "$_hash_salt" "$_current" 2>
 if [ -z "$_recomputed" ] || [ "$_recomputed" != "$_shadow_line" ]; then
     sleep 1
     cgi_error "invalid_password" "Current password is incorrect"
+    exit 0
+fi
+
+if [ "$_verify_only" = "true" ]; then
+    cgi_success
     exit 0
 fi
 

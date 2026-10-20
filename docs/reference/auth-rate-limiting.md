@@ -102,6 +102,8 @@ The target differs from the RM520N source here: uhttpd runs CGI as root, so the 
 
 `attempts_remaining` on the wrong-password branch comes from `qm_get_rate_limit_status` called after `qm_record_failed_attempt`, so it reflects the failure that just happened.
 
+`auth/password.sh` (the web-password change, including its `verify_only` mode) runs the same gate: `qm_check_rate_limit` first (a locked caller gets the same `429 rate_limited` body), `qm_record_failed_attempt` on a wrong current password, `qm_clear_attempts` once it is right. The counter is shared with sign-in, so wrong guesses typed into the Passwords card count toward locking the owner out of `/login`, and a correct one never clears a lock that has already engaged. `system/ssh_password.sh` is not part of the ladder.
+
 The target keeps its own password rules for first-time setup: `enforce_strong` from the request, a 5-character minimum plus upper, lower and digit when strong is on, and the `password_weak` error. The source's `password_too_short` code and `qm_set_ssh_password` were not ported.
 
 ### `GET auth/check.sh`
