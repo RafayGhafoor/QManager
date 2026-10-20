@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
@@ -104,12 +103,28 @@ const WizardPanel = ({
   );
 };
 
-// Sentinel value for the "+ Create scenario" Select item. Picking it navigates
-// to Connection Scenarios with ?create=1, which that page reads post-mount to
-// open its New Scenario dialog immediately (and then strips the param).
+// Sentinel value for the "+ Create scenario" Select item. Picking it hands off
+// to the page (`onCreateScenario`), which closes the wizard and opens the
+// scenarios card's New dialog on the same page.
 const CREATE_SCENARIO_VALUE = "__create_scenario__";
-const SCENARIOS_CREATE_HREF =
-  "/cellular/custom-profiles/connection-scenarios?create=1";
+
+export type WizardTab = (typeof TAB_ORDER)[number];
+
+/** What a successful save reports back to the page. */
+export interface ProfileSaveOutcome {
+  /** True when an APN, CID, PDP, IMEI, TTL or HL field changed on an edit:
+   *  those only reach the modem on the next activation. */
+  networkChanged: boolean;
+  /** The backend re-armed the active profile's schedule on this save. */
+  scheduleRearmed: boolean;
+}
+
+/** The network half of a draft key, for `networkChanged`. */
+function networkKey(key: string | null): string {
+  if (!key) return "";
+  const a = JSON.parse(key) as unknown[];
+  return JSON.stringify(a.slice(3, 9));
+}
 
 // Synthetic "Custom" value for the APN Profiles select — shown automatically
 // when the typed APN matches none of the saved slots. Picking it is a no-op
@@ -129,10 +144,14 @@ interface ProfileInputProps {
   currentSettings: UseCurrentSettingsReturn;
   /** null = new profile, otherwise the profile being edited */
   editingId: string | null;
-  /** Called after a successful save (the page returns to the registry). */
-  onDone: () => void;
-  /** Called by Cancel (the page returns to the registry, draft dropped). */
+  /** Called after a successful save (the page closes the wizard). */
+  onDone: (outcome: ProfileSaveOutcome) => void;
+  /** Called by Cancel (the page closes the wizard, draft dropped). */
   onCancel: () => void;
+  /** The step the wizard opens on ("scenario" from Edit schedule). */
+  initialTab?: WizardTab;
+  /** "+ Create scenario" in the default-scenario Select. */
+  onCreateScenario?: () => void;
 }
 
 /**
@@ -212,13 +231,14 @@ const ProfileInputComponent = ({
   editingId,
   onDone,
   onCancel,
+  initialTab = "identity",
+  onCreateScenario,
 }: ProfileInputProps) => {
   const { t } = useTranslation("cellular");
-  const router = useRouter();
   const { scenarios, nameForId } = useScenarioList();
   const savedApn = useApnSettings();
 
-  const [tab, setTab] = React.useState("identity");
+  const [tab, setTab] = React.useState<string>(initialTab);
   const [tabDir, setTabDir] = React.useState(1);
   const [submitting, setSubmitting] = React.useState(false);
   const [attempted, setAttempted] = React.useState(false);
@@ -346,12 +366,12 @@ const ProfileInputComponent = ({
       );
       setBaseline(draftKey(loaded));
       setAttempted(false);
-      setTab("identity");
+      setTab(initialTab);
     });
     return () => {
       cancelled = true;
     };
-  }, [editingId, getProfile]);
+  }, [editingId, getProfile, initialTab]);
 
   // --- Window CRUD ----------------------------------------------------------
   const addWindow = () => {
@@ -380,7 +400,7 @@ const ProfileInputComponent = ({
   // of committing it as the selected value.
   const handleDefaultScenarioChange = (value: string) => {
     if (value === CREATE_SCENARIO_VALUE) {
-      router.push(SCENARIOS_CREATE_HREF);
+      onCreateScenario?.();
       return;
     }
     setDefaultScenario(value);
@@ -550,12 +570,17 @@ const ProfileInputComponent = ({
 
     if (result.ok) {
       markSaved();
+      const outcome: ProfileSaveOutcome = {
+        networkChanged:
+          isEditing && networkKey(baseline) !== networkKey(currentKey),
+        scheduleRearmed: result.scheduleRearmed === true,
+      };
       toast.success(
         isEditing
           ? t("custom_profiles.form.profile_updated")
           : t("custom_profiles.form.profile_added"),
       );
-      onDone();
+      onDone(outcome);
     } else {
       toast.error(result.error);
     }

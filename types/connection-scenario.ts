@@ -137,6 +137,8 @@ export interface ConnectionScenario {
   name: string;
   /** Short description */
   description: string;
+  /** Identity glyph id (see `scenario-icons.ts`); unset = the default glyph */
+  icon?: string;
   /** SVG pattern type for the card overlay */
   pattern: "balanced" | "gaming" | "streaming" | "custom";
   /** Scenario configuration */
@@ -150,6 +152,7 @@ export interface ConnectionScenario {
 export const DEFAULT_SCENARIOS: ConnectionScenario[] = [
   {
     id: "balanced",
+    icon: "zap",
     name: "Balanced",
     description: "Auto band selection",
     pattern: "balanced",
@@ -165,6 +168,7 @@ export const DEFAULT_SCENARIOS: ConnectionScenario[] = [
   },
   {
     id: "gaming",
+    icon: "gamepad",
     name: "Gaming",
     description: "Low latency, SA priority",
     pattern: "gaming",
@@ -180,6 +184,7 @@ export const DEFAULT_SCENARIOS: ConnectionScenario[] = [
   },
   {
     id: "streaming",
+    icon: "play",
     name: "Streaming",
     description: "High bandwidth, stable connection",
     pattern: "streaming",
