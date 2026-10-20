@@ -5,11 +5,15 @@ import { motion } from "motion/react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
+  AppWindowIcon,
   CableIcon,
   CheckIcon,
   CircleAlertIcon,
-  CircleCheckIcon,
-  CircleOffIcon,
+  LaptopIcon,
+  LinkIcon,
+  MicrochipIcon,
+  RouterIcon,
+  UsbIcon,
 } from "lucide-react";
 
 import {
@@ -20,30 +24,31 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CardFoot } from "@/components/ui/card-foot";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { HintIcon } from "@/components/ui/hint-icon";
 import { SEGMENTED, SegmentedField } from "@/components/ui/segmented-field";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tag } from "@/components/ui/tag";
 import { staggerRowItem, staggerRows } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 import { useHostAtPorts } from "@/hooks/use-host-at-ports";
 
 import { ConditionBlock } from "../condition-block";
+import { PathDiagram } from "../hardware/path-diagram";
 import {
   CARD_BODY,
   CARD_DESC,
   CARD_PAD,
   CARD_SHELL,
   CARD_TITLE,
-  CHIP_GLYPH,
   CONDITION_PANEL,
   GROUP_FILL,
   ROW,
+  PATH,
   ROW_GROUP,
   SKELETON_HARDWARE,
-  STATUS_ROW,
 } from "../shapes";
 
 // =============================================================================
@@ -55,7 +60,7 @@ import {
 // on the row (Principle 6), never behind a tip.
 //
 // Same anatomy as Hardware Offload, its row-mate on /system-settings/hardware:
-// a decision row, a status row, then the footer. Change one, change both.
+// a decision row, the path diagram, then the footer. Change one, change both.
 // =============================================================================
 
 const K = "host_at";
@@ -93,9 +98,12 @@ function HostAtSkeleton() {
               <Skeleton className={SKELETON_HARDWARE.PILL} />
             </div>
           </div>
-          <div className={STATUS_ROW}>
-            <Skeleton className={cn(SKELETON_HARDWARE.LABEL, "w-16")} />
-            <Skeleton className={SKELETON_HARDWARE.CHIP} />
+          <div className={PATH.ROOT}>
+            <div className={PATH.HEAD}>
+              <Skeleton className={cn(SKELETON_HARDWARE.LABEL, "w-24")} />
+              <Skeleton className={SKELETON_HARDWARE.CHIP} />
+            </div>
+            <Skeleton className={SKELETON_HARDWARE.PATH} />
           </div>
         </div>
         <CardFoot
@@ -173,6 +181,10 @@ const HostAtPortsCard = () => {
     );
   }
 
+  // The diagram draws the draft while one is open (Preview, drawn still), else
+  // what is running, which is the only picture that flows.
+  const shownOn = dirty ? draft === "on" : state.running;
+
   return (
     <Card className={CARD_SHELL}>
       <HostAtHeader />
@@ -210,19 +222,59 @@ const HostAtPortsCard = () => {
             </div>
           </motion.div>
 
-          <motion.div variants={staggerRowItem} className={STATUS_ROW}>
-            <span className={ROW.LABEL}>{t(`${K}.status_label`)}</span>
-            {state.running ? (
-              <Badge variant="success">
-                <CircleCheckIcon className={CHIP_GLYPH} aria-hidden="true" />
-                {t(`${K}.status_active`)}
-              </Badge>
-            ) : (
-              <Badge variant="muted">
-                <CircleOffIcon className={CHIP_GLYPH} aria-hidden="true" />
-                {t(`${K}.status_off`)}
-              </Badge>
-            )}
+          <motion.div variants={staggerRowItem}>
+            <PathDiagram
+              eyebrow={t(`${K}.path_eyebrow`)}
+              hint={
+                <HintIcon label={t(`${K}.path_hint_label`)}>
+                  {t(`${K}.path_hint`)}
+                </HintIcon>
+              }
+              trailing={dirty ? <Tag>{t(`${K}.path_preview`)}</Tag> : null}
+              ariaLabel={t(
+                shownOn ? `${K}.path_aria_open` : `${K}.path_aria_closed`,
+              )}
+              live={!dirty}
+              sources={[
+                {
+                  key: "computer",
+                  icon: LaptopIcon,
+                  label: t(`${K}.path_computer`),
+                  lit: shownOn,
+                },
+                {
+                  key: "qmanager",
+                  icon: AppWindowIcon,
+                  label: t(`${K}.path_qmanager`),
+                  lit: true,
+                },
+              ]}
+              lanes={[
+                {
+                  key: "port",
+                  icon: state.pcie ? MicrochipIcon : UsbIcon,
+                  label: state.pcie
+                    ? t(`${K}.path_port_pcie`)
+                    : t(`${K}.path_port_usb`),
+                  lit: shownOn,
+                  shut: !shownOn,
+                },
+                {
+                  key: "internal",
+                  icon: LinkIcon,
+                  label: t(`${K}.path_internal`),
+                  lit: true,
+                },
+              ]}
+              sinks={[
+                {
+                  key: "modem",
+                  icon: RouterIcon,
+                  label: t(`${K}.path_modem`),
+                  lit: true,
+                },
+              ]}
+            />
           </motion.div>
         </motion.div>
 

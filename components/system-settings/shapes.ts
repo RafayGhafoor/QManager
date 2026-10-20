@@ -738,4 +738,74 @@ export const SKELETON_HARDWARE = {
   CHIP: "h-[1.375rem] w-20 rounded-pill",
   /** The footer's Apply pill. */
   ACTION: `${FIELD_HEIGHT} w-28 rounded-pill`,
+  /** The path diagram's field, mirroring `PATH.FIELD`. */
+  PATH: "h-[6.5rem] w-full rounded-inline",
+} as const;
+
+/**
+ * The path diagram on the Hardware pair: the ways traffic or a command can
+ * travel, drawn as icons joined by lines, read left to right. Two lanes run
+ * between the ends, so a reader sees there are two ways and which one is used.
+ *
+ * It rides on the card's `ROW_GROUP` rather than wrapping itself in a tile, so
+ * the card keeps one inner container (The One-Nest Rule). Green is spent only on
+ * the discs in play (`success-container`, user call 2026-10-20); everything else
+ * stays neutral. The lines are ink, never green: the line in play takes
+ * `on-surface-variant`, a resting one the quieter `outline`. Colour never carries
+ * the state alone: the resting lane's name dims, a shut lane carries an X, and a
+ * lane that is really running has beads flowing along it (`animate-path-flow`).
+ *
+ * `FIELD` is pinned, not floored, because the skeleton mirrors it
+ * (`SKELETON_HARDWARE.PATH`). Two lanes of 52px, so a 36px disc fits a lane.
+ * Lines are laid against the 25% and 75% rows, which is why both rows are equal.
+ */
+export const PATH = {
+  ROOT: "@container/path flex flex-col gap-3 rounded-field px-4 pt-3 pb-4 @2xl/card:px-[1.125rem]",
+  HEAD: "flex min-h-[1.375rem] items-center justify-between gap-2",
+  EYEBROW:
+    "text-on-surface-variant inline-flex items-center gap-1.5 text-xs font-medium",
+  FIELD:
+    "grid h-[6.5rem] grid-cols-[auto_minmax(1.5rem,1fr)_auto_minmax(1.5rem,1fr)_auto] grid-rows-2",
+  /**
+   * A lone end spans both lanes: the disc over its name. The top padding is the
+   * name's height, so the disc, not the pair, centres on the seam the fork and
+   * merge lines meet at.
+   */
+  STACK: "row-span-2 flex min-w-0 flex-col items-center justify-center gap-1.5 pt-[1.375rem]",
+  /** One of a pair, or a lane's node: the disc beside its name. */
+  INLINE: "flex min-w-0 items-center gap-1.5",
+  DISC: "grid size-8 flex-none place-items-center rounded-pill transition-[background-color,color] duration-[var(--duration-standard)] ease-standard",
+  DISC_LONE: "size-11",
+  DISC_LIT: "bg-success-container text-on-success-container",
+  DISC_REST: "bg-surface-container-high text-on-surface-variant",
+  GLYPH: "size-4",
+  GLYPH_LONE: "size-5",
+  LABEL:
+    "text-xs leading-4 font-semibold whitespace-nowrap transition-[color] duration-[var(--duration-standard)] ease-standard",
+  LABEL_LIT: "text-on-surface",
+  LABEL_REST: "text-on-surface-variant",
+  /** A lane's name drops on a narrow card when both ends are named pairs. */
+  LABEL_QUIET: "@max-[22rem]/path:hidden",
+  /** A joint spanning both lanes (a fork or a merge). */
+  JOINT: "relative row-span-2 self-stretch",
+  LANE: "relative flex items-center self-stretch px-1",
+  LINE: "relative h-0 w-full border-t-2 transition-[border-color] duration-[var(--duration-standard)] ease-standard",
+  LINE_LIT: "border-on-surface-variant",
+  LINE_REST: "border-outline",
+  /** The bus joining a fork or merge to its lanes. */
+  BUS: "absolute h-1/4 w-0 -translate-x-px border-l-2 transition-[border-color] duration-[var(--duration-standard)] ease-standard",
+  ARROW:
+    "absolute top-px -right-px size-0 -translate-y-1/2 border-y-[4px] border-l-[6px] border-y-transparent transition-[border-color] duration-[var(--duration-standard)] ease-standard",
+  ARROW_LIT: "border-l-on-surface-variant",
+  ARROW_REST: "border-l-outline",
+  /**
+   * A bead's host spans the line and travels its own width (`animate-path-flow`),
+   * carrying the bead pinned to its right edge from start to end. The bead rests
+   * invisible, so Reduced (no animation) shows only the still line.
+   */
+  FLOW: "pointer-events-none absolute inset-x-0 top-0 h-0 opacity-0 motion-safe:animate-path-flow",
+  BEAD: "bg-success-on-surface absolute -top-1 right-0 size-1.5 rounded-pill",
+  /** The X on a shut lane, centred on its line. */
+  SHUT: "bg-destructive-container text-on-destructive-container absolute top-1/2 left-1/2 grid size-[1.125rem] -translate-1/2 place-items-center rounded-pill",
+  SHUT_GLYPH: "size-3",
 } as const;

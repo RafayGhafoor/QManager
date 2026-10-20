@@ -11,7 +11,7 @@ import { CARD_CELL, CARD_GRID, PAGE_HEAD, PAGE_ROOT } from "../shapes";
 
 const K = "hardware.page";
 
-// A symmetric pair: both cards are a decision row, a status row and a footer,
+// A symmetric pair: both cards are a decision row, a path diagram and a footer,
 // and each nominates its row group as the slack absorber in every state.
 const HardwareSettings = () => {
   const { t } = useTranslation("system-settings");

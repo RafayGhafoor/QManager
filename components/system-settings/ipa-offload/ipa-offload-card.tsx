@@ -7,10 +7,11 @@ import { useTranslation } from "react-i18next";
 import {
   CheckIcon,
   CircleAlertIcon,
-  CircleCheckIcon,
-  CircleOffIcon,
   CpuIcon,
+  EthernetPortIcon,
+  RadioTowerIcon,
   RotateCcwIcon,
+  ZapIcon,
 } from "lucide-react";
 
 import {
@@ -24,8 +25,10 @@ import { CardFoot } from "@/components/ui/card-foot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { HintIcon } from "@/components/ui/hint-icon";
 import { SEGMENTED, SegmentedField } from "@/components/ui/segmented-field";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tag } from "@/components/ui/tag";
 import { staggerRowItem, staggerRows } from "@/lib/motion";
 import { requestRebootLater, usePendingReboot } from "@/lib/reboot";
 import { cn } from "@/lib/utils";
@@ -33,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { useIpaOffload } from "@/hooks/use-ipa-offload";
 
 import { ConditionBlock } from "../condition-block";
+import { PathDiagram } from "../hardware/path-diagram";
 import {
   CARD_BODY,
   CARD_DESC,
@@ -43,9 +47,9 @@ import {
   CONDITION_PANEL,
   GROUP_FILL,
   ROW,
+  PATH,
   ROW_GROUP,
   SKELETON_HARDWARE,
-  STATUS_ROW,
 } from "../shapes";
 
 // =============================================================================
@@ -55,7 +59,7 @@ import {
 // the next reboot. So Apply never reboots: on success it arms the persistent
 // deferred-reboot banner (`requestRebootLater("ipa_offload")`) and toasts.
 //
-// The status row is honest about that split. `enabled` is the BOOT state, so
+// The status chip is honest about that split. `enabled` is the BOOT state, so
 // while this card's own reboot is still pending the row says so rather than
 // claiming the new state is already running.
 // =============================================================================
@@ -95,9 +99,12 @@ function OffloadSkeleton() {
               <Skeleton className={SKELETON_HARDWARE.PILL} />
             </div>
           </div>
-          <div className={STATUS_ROW}>
-            <Skeleton className={cn(SKELETON_HARDWARE.LABEL, "w-16")} />
-            <Skeleton className={SKELETON_HARDWARE.CHIP} />
+          <div className={PATH.ROOT}>
+            <div className={PATH.HEAD}>
+              <Skeleton className={cn(SKELETON_HARDWARE.LABEL, "w-24")} />
+              <Skeleton className={SKELETON_HARDWARE.CHIP} />
+            </div>
+            <Skeleton className={SKELETON_HARDWARE.PATH} />
           </div>
         </div>
         <CardFoot
@@ -185,6 +192,10 @@ const IpaOffloadCard = () => {
   }
 
   const rebootPending = pendingReboot?.source === "ipa_offload";
+  // The diagram draws the draft while one is open (Preview), else the saved boot
+  // state. It flows only when that state is what is running: not for a draft,
+  // and not while this card's reboot is still pending.
+  const shownOn = dirty ? draft === "on" : state.enabled;
 
   return (
     <Card className={CARD_SHELL}>
@@ -219,24 +230,59 @@ const IpaOffloadCard = () => {
             </div>
           </motion.div>
 
-          <motion.div variants={staggerRowItem} className={STATUS_ROW}>
-            <span className={ROW.LABEL}>{t(`${K}.status_label`)}</span>
-            {rebootPending ? (
-              <Badge variant="warning">
-                <RotateCcwIcon className={CHIP_GLYPH} aria-hidden="true" />
-                {t(`${K}.pending_reboot_badge`)}
-              </Badge>
-            ) : state.enabled ? (
-              <Badge variant="success">
-                <CircleCheckIcon className={CHIP_GLYPH} aria-hidden="true" />
-                {t(`${K}.status_on`)}
-              </Badge>
-            ) : (
-              <Badge variant="muted">
-                <CircleOffIcon className={CHIP_GLYPH} aria-hidden="true" />
-                {t(`${K}.status_off`)}
-              </Badge>
-            )}
+          <motion.div variants={staggerRowItem}>
+            <PathDiagram
+              eyebrow={t(`${K}.path_eyebrow`)}
+              hint={
+                <HintIcon label={t(`${K}.path_hint_label`)}>
+                  {t(`${K}.path_hint`)}
+                </HintIcon>
+              }
+              trailing={
+                dirty ? (
+                  <Tag>{t(`${K}.path_preview`)}</Tag>
+                ) : rebootPending ? (
+                  <Badge variant="warning">
+                    <RotateCcwIcon className={CHIP_GLYPH} aria-hidden="true" />
+                    {t(`${K}.pending_reboot_badge`)}
+                  </Badge>
+                ) : null
+              }
+              ariaLabel={t(
+                shownOn ? `${K}.path_aria_hardware` : `${K}.path_aria_cpu`,
+              )}
+              live={!dirty && !rebootPending}
+              sources={[
+                {
+                  key: "ethernet",
+                  icon: EthernetPortIcon,
+                  label: t(`${K}.path_ethernet`),
+                  lit: true,
+                },
+              ]}
+              lanes={[
+                {
+                  key: "hardware",
+                  icon: ZapIcon,
+                  label: t(`${K}.path_hardware`),
+                  lit: shownOn,
+                },
+                {
+                  key: "cpu",
+                  icon: CpuIcon,
+                  label: t(`${K}.path_cpu`),
+                  lit: !shownOn,
+                },
+              ]}
+              sinks={[
+                {
+                  key: "cellular",
+                  icon: RadioTowerIcon,
+                  label: t(`${K}.path_cellular`),
+                  lit: true,
+                },
+              ]}
+            />
           </motion.div>
         </motion.div>
 

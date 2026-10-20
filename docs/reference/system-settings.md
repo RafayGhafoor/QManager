@@ -200,9 +200,11 @@ A draft-and-apply card. An On/Off `SegmentedField` edits a local draft, committe
 
 - Apply POSTs as before. On success it calls `requestRebootLater("ipa_offload")` (the
   deferred-reboot banner) and toasts; on failure it toasts the returned reason.
-- The status row reads "Pending reboot" (warning chip) while the pending-reboot flag's
-  source is `ipa_offload`, otherwise On/Off from the boot-enable state. The old card showed
-  "Takes effect after reboot" unconditionally.
+- The status is drawn, not listed: a path diagram (Ethernet forking into a Hardware lane and a CPU lane,
+  merging into Cellular) shows both ways traffic can go and lights the one in use. There is no On/Off chip:
+  the head shows a warning "Pending reboot" chip only while the pending-reboot flag's source is `ipa_offload`
+  (the diagram is then drawn still, since the saved state is not yet running), and while a draft is open the
+  diagram draws it still under a Preview tag. See [Path diagram](#path-diagram-hardwarepath-diagramtsx).
 - Firmware without the vendor init script (`available: false`) shows a neutral "Not on this
   modem" state instead of a disabled switch.
 
@@ -215,6 +217,34 @@ A draft-and-apply card. An On/Off `SegmentedField` edits a local draft, committe
 On/Off for the vendor host AT bridge ([at-broker.md](../features/at-broker.md)). It gained
 dedicated unreachable-state copy (`host_at.{unavailable_title,error_title,error_description}`)
 with the move.
+
+Its status is the same kind of diagram: Computer through the USB (or PCIe) port, and QManager through its
+built-in link, both into the Modem. QManager's lane is always lit and flowing; the computer's lane follows
+`running`, and with host access off it rests with an X on its line, so turning access off visibly cuts only the
+computer's path. No status chip; a draft is drawn still under a Preview tag.
+
+### Path diagram (`hardware/path-diagram.tsx`)
+
+The Hardware pair's status visual, in the spirit of Traffic Engine's handshake strip but drawn as a route:
+icon discs joined by lines, read left to right, with two lanes between the ends so a reader sees there are
+two ways and which one is used. One end may be a lone node that forks into (or merges out of) both lanes.
+
+- **Colour.** Green is spent only on the discs in play (`success-container` with `on-success-container`, user
+  call 2026-10-20); resting discs sit on `surface-container-high`. Lines are never green: the line in play
+  takes `on-surface-variant` with an arrowhead, a resting one the quieter `outline`. A shut lane carries an X
+  in a small `destructive-container` disc on its line. Names take `on-surface` in play, `on-surface-variant`
+  at rest, so state never rides on colour alone.
+- **Flow.** While `live` (the drawing is the real running state), beads travel the in-play lines toward the
+  destination: `animate-path-flow` in `app/globals.css`, on the `ambient` token, `linear` because it is a
+  continuous stream, applied only as `motion-safe:`. The bead rests at opacity 0, so Reduced shows a still
+  solid line. A draft (Preview) or a pending reboot passes `live={false}` and draws the same picture still.
+  This is the third sanctioned loop in DESIGN.md > The One-Loop Rule (2026-10-20).
+- **Layout.** It rides on the card's `ROW_GROUP` rather than wrapping itself in a tile (The One-Nest Rule);
+  geometry is `PATH` in `shapes.ts`, pinned so `SKELETON_HARDWARE.PATH` mirrors it. On a narrow card (path
+  container under 22rem) the lane names drop when a named pair feeds the lanes (Host AT), since each route is
+  already named by its ends; Hardware Offload keeps every name and fits a 243px field.
+- **Motion.** Nodes fade in and lines draw on along `rowCascadeDelay`; a state change is a fill and ink
+  transition on the `standard` clock. Copy lives under `ipa_offload.path_*` and `host_at.path_*`.
 
 ---
 
