@@ -37,7 +37,6 @@ import {
   BAND_LEGEND,
   CARD_PAD,
   CATEGORY_BADGE,
-  PILL_QUIET,
   SKELETON_SHAPE,
   bandChipA11yKey,
   bandChipClass,
@@ -393,27 +392,37 @@ export function BandGridCard({
 
       <CardFoot
         className={CARD_PAD}
-        status={footStatus}
+        status={
+          <>
+            <div className="flex flex-none items-center gap-1.5">
+              <Button
+                type="button"
+                variant="tonal-neutral"
+                size="icon"
+                onClick={() => setCheckedBands(new Set(supportedBands))}
+                disabled={isFrozen}
+                aria-label={t(`${K}.card_buttons.select_all`)}
+                title={t(`${K}.card_buttons.select_all`)}
+              >
+                <MaterialSymbol name="done_all" size={18} />
+              </Button>
+              <Button
+                type="button"
+                variant="tonal-neutral"
+                size="icon"
+                onClick={() => setCheckedBands(new Set())}
+                disabled={isFrozen || noneSelected}
+                aria-label={t(`${K}.card_buttons.deselect_all`)}
+                title={t(`${K}.card_buttons.deselect_all`)}
+              >
+                <MaterialSymbol name="close" size={18} />
+              </Button>
+            </div>
+            {footStatus}
+          </>
+        }
         actions={
           <>
-            <Button
-              type="button"
-              variant="tonal-neutral"
-              onClick={() => setCheckedBands(new Set(supportedBands))}
-              disabled={isFrozen}
-              className={PILL_QUIET}
-            >
-              {t(`${K}.card_buttons.select_all`)}
-            </Button>
-            <Button
-              type="button"
-              variant="tonal-neutral"
-              onClick={() => setCheckedBands(new Set())}
-              disabled={isFrozen || noneSelected}
-              className={PILL_QUIET}
-            >
-              {t(`${K}.card_buttons.deselect_all`)}
-            </Button>
             <Button
               type="button"
               variant="tonal-neutral"

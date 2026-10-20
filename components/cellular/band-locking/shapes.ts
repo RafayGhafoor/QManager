@@ -173,8 +173,6 @@ export const BAND_LEGEND = {
   SWATCH_LIVE: `size-3 rounded-pill bg-surface-container ${BAND_CHIP_LIVE_RING}`,
 } as const;
 
-/** Quick-select pills: smaller than the two real actions, which write. */
-export const PILL_QUIET = "h-9 px-3.5 text-xs font-semibold";
 
 // -----------------------------------------------------------------------------
 // Status chips
