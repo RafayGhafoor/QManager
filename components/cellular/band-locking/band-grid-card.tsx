@@ -107,12 +107,12 @@ const chipVariants: Variants = {
 };
 
 // Two icon buttons that reveal their label on hover or keyboard focus. The pair
-// sits in a fixed-width slot and each button is absolutely placed, so the reveal
-// overlays its neighbour instead of reflowing the footer's status text. The
+// sits in a flex row, so an expanding button pushes its neighbour along instead
+// of covering it (the footer's status text shifts with it). The
 // width change is a container size change, so it runs on `standard` /
 // `--ease-standard`; reduced motion shows the label with no transition. Touch has
 // no hover, so those buttons stay icon-only and keep their aria-label.
-const SELECTION_TOOLS = "relative h-[2.625rem] w-[5.625rem] flex-none";
+const SELECTION_TOOLS = "flex flex-none items-center gap-1.5";
 
 function RevealButton({
   glyph,
@@ -128,7 +128,7 @@ function RevealButton({
       type="button"
       variant="tonal-neutral"
       aria-label={label}
-      className={`group/reveal absolute top-0 z-0 h-[2.625rem] gap-0 px-3 hover:z-10 focus-visible:z-10 ${className ?? ""}`}
+      className={`group/reveal h-[2.625rem] gap-0 px-3 ${className ?? ""}`}
       {...props}
     >
       <MaterialSymbol name={glyph} size={18} className="flex-none" />
@@ -435,14 +435,12 @@ export function BandGridCard({
                 label={t(`${K}.card_buttons.select_all`)}
                 onClick={() => setCheckedBands(new Set(supportedBands))}
                 disabled={isFrozen}
-                className="left-0"
               />
               <RevealButton
                 glyph="close"
                 label={t(`${K}.card_buttons.deselect_all`)}
                 onClick={() => setCheckedBands(new Set())}
                 disabled={isFrozen || noneSelected}
-                className="left-12"
               />
             </div>
             {footStatus}
