@@ -16,6 +16,12 @@ Each Custom SIM Profile carries a `.scenario` binding: a `default` scenario appl
 | Guard error code | `scenario_locked_by_schedule` |
 | Reboot on scenario apply | Never |
 
+## Saving the Active Profile Re-Arms the Schedule (B1)
+
+`profiles/save.sh` used to write to disk only, so a schedule edit on the active profile did nothing until the next reapply. Now, after a successful save of the **active** profile, it calls `scenario_install_cron` (teardown when the schedule is now off) and returns `schedule_rearmed: true|false` beside the normal envelope. `scenario_install_cron` ends with a synchronous `scenario_apply` snap, so the current window applies immediately.
+
+**Why:** the alternative (auto-reapplying the profile, as the RM520N fork does) runs the APN attach cycle, MPDN and possibly an IMEI reboot. Re-arming cron touches none of that: no CFUN, no MPDN, no reboot. Network-field edits stay pending until the user activates or hits Reapply; see [custom-sim-profiles.md](custom-sim-profiles.md) "No auto-reapply on save".
+
 ## Schema
 
 The `.scenario` object stored inside a profile JSON:
@@ -179,7 +185,7 @@ The hook runs a 60-second tick (`TICK_INTERVAL_MS = 60_000`) to advance `schedul
 
 ## Schedule Editor UI
 
-The schedule editor is the Connection tab of the single-page profile editor, inline in `components/cellular/custom-profiles/profile-input.tsx` (the former `profile-form/scenario-card.tsx` and `scenario-binding/schedule-rule-row.tsx` are gone; the latter was dead code with no importers). The default scenario picker reads first; the time-of-day schedule is an explicit opt-in below it, switched by a `SegmentedField` (On/Off). The persisted JSON contract, device cron, and canonical resolution rule are unchanged from the backend's perspective.
+The schedule editor is the Scenario tab of the profile wizard (hosted by `profile-form-dialog.tsx`), inline in `components/cellular/custom-profiles/profile-input.tsx` (the former `profile-form/scenario-card.tsx` and `scenario-binding/schedule-rule-row.tsx` are gone; the latter was dead code with no importers). The default scenario picker reads first; the time-of-day schedule is an explicit opt-in below it, switched by a `SegmentedField` (On/Off). The persisted JSON contract, device cron, and canonical resolution rule are unchanged from the backend's perspective.
 
 ### Simplified Daily-Only Model
 
@@ -201,14 +207,16 @@ The editor reads `custom_profiles.form.{schedule_inline_label,schedule_inline_hi
 
 ---
 
-## Connection Scenarios Page UI
+## Connection Scenarios Card UI
 
-Route `/cellular/custom-profiles/connection-scenarios`. Components live in `components/cellular/custom-profiles/connection-scenarios/`: `connection-scenario.tsx` (page shell), `connection-scenario-card.tsx` (coordinator of both cards), `scenario-item.tsx` (tile), `active-config-card.tsx` (Selected-scenario card) and `scenario-dialog.tsx` (the one Add/Edit dialog). Hook: `hooks/use-connection-scenarios.ts`. `abstract-pattern.tsx` and `add-scenario-item.tsx` were deleted.
+Scenarios no longer have their own page. They render as `ConnectionScenariosCard` (`connection-scenarios/connection-scenario-card.tsx`) on `/cellular/custom-profiles`, beside the saved profiles list (see [custom-sim-profiles.md](custom-sim-profiles.md) for the page anatomy). The old route `/cellular/custom-profiles/connection-scenarios` is a client-side redirect (`router.replace`) that maps `?action=create` to `?action=create-scenario`; on the merged page `?action=create-scenario` opens the scenario dialog once. `connection-scenario.tsx` (the page shell) was deleted. Other components in `components/cellular/custom-profiles/connection-scenarios/`: `scenario-item.tsx` (tile), `active-config-card.tsx` (Selected-scenario card), `scenario-dialog.tsx` (the one Add/Edit dialog), `scenario-icons.ts`. Hook: `hooks/use-connection-scenarios.ts`, shared through `ConnectionScenariosProvider` (one fetch for the page).
+
+The card is embeddable: the page drives it with `openAddSignal`, `autoOpenAddDialog`, `radioOwnedByProfile` and `nextFireByScenarioId`. `nextFireByScenarioId` is a `Record<scenarioId, epoch ms>` computed by the page from the **active profile's** day timeline (`lib/schedule-timeline.ts`): each scenario's next start later today, and only while a schedule is armed, so a tile never claims a time nothing will honour. The Today ribbon (`schedule-ribbon.tsx`) uses the same timeline, which must agree with `lib/scenario-schedule.ts` (first match wins, blocks wrap past midnight).
 
 - **No gradients; identity is an icon id (B5.25).** A custom scenario persists `icon`, a key from `SCENARIO_ICONS` (`connection-scenarios/scenario-icons.ts`, 12 Material glyphs, picked in the dialog), never the glyph itself; a missing or unknown id resolves to `auto_awesome`. Never rename or remove a shipped id (re-point it instead). `scenarios/save.sh` accepts `icon` only as `[a-z0-9_-]{1,32}` (shell `case`, the device jq has no regex), refuses anything else with `invalid_field`, drops an empty or `null` one, and strips the retired `gradient` on every save.
 - **Stored display strings (B5.26, decided 2026-10-18: stable tokens).** `config.mode` is no longer written (the label comes from `atModeValue`; `save.sh` deletes it on save). `config.optimization` holds a stable English token the app writes (`Balanced`, `Latency`, `Throughput`, `Custom`; `OPTIMIZATION_TOKENS` in `types/connection-scenario.ts`) or the user's own text from the edit dialog; display goes through `optimizationLabelKey` (token to `cellular` key, else verbatim). The dialog seeds the translated label, and an untouched field writes back the original token. Records saved before this may hold a translated string and show it verbatim until edited. Nothing in the backend reads `mode`, `optimization` or `gradient`; the modem applies `atModeValue` and the band lists only.
 - **Tiles** are identity, not decoration: a glyph disc on the strong `primary` fill, the name and description, and neutral `Tag`s for the network mode and, when the scenario pins bands, "Band lock". The active scenario carries a filled `success` "Active" chip with `check_circle`. The selected tile (a view-only choice) is promoted to `primary-container`.
-- **Scenarios card** lists built-ins then customs; its header carries **New scenario**. `?create=1` opens the Add dialog once and strips itself from the URL.
+- **Scenarios card** lists built-ins then customs; **New scenario** (card header and page header) and `?action=create-scenario` open the Add dialog.
 - **Selected-scenario card** shows the selected tile's configuration as receipt rows and commits from `CardFoot`: for customs, Delete (ghost) and Edit (`tonal-neutral`); Activate as a `SaveButton`, disabled when that scenario is already active. While the active profile's schedule lock holds, Activate is withheld and an info block states the lock and names the next change (`nextChangeAt`).
 - **One dialog** adds and edits custom scenarios; deletes confirm through an `AlertDialog`.
 - **Hook contract.** `activateScenario` and `deleteCustomScenario` return `ScenarioActionResult = { ok: true } | { ok: false; error: string }`; `saveCustomScenario` returns `{ ok: true; id } | { ok: false; error }`. `error` is already resolved (`resolveErrorMessage`, so `scenario_locked_by_schedule` arrives translated) and handlers toast the returned reason, one toast per mutation.

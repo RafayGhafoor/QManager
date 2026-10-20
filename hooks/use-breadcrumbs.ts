@@ -16,7 +16,6 @@ const routeNameMap: Record<string, string> = {
   cellular: 'Cellular',
   sms: 'SMS Center',
   'custom-profiles': 'Custom Profiles',
-  'connection-scenarios': 'Connection Scenarios',
   'cell-locking': 'Band Locking',
   'tower-locking': 'Tower Locking',
   'frequency-locking': 'Frequency Locking',

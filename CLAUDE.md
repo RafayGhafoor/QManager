@@ -73,13 +73,13 @@ Each doc holds invariants the code doesn't show. CGI / hook / type / reboot tabl
 
 `docs/features/`:
 - `dpi-settings.md`: Traffic Engine (Video Optimizer + Masquerade, `/local-network/traffic-engine`), `nfqws`, NFQUEUE 200, `12-mangle-qmanager-dpi.nft`
-- `custom-sim-profiles.md`: `qmanager_profile_apply`, `profile_mgr.sh`, Verizon MPDN, ICCID auto-apply, profile locks
+- `custom-sim-profiles.md`: merged profiles+scenarios page (`custom-profile.tsx`, `active-profile-hero.tsx`, `schedule-ribbon.tsx`, `profile-form-dialog.tsx`), no auto-reapply on save (`schedule_rearmed`), deep links + scenarios-route redirect, `qmanager_profile_apply`, `profile_mgr.sh`, Verizon MPDN, ICCID auto-apply, profile locks
 - `config-backup-restore.md`: `.qmbackup`, `qmanager_config_restore`, `config_backup_sections.sh`, deferred-reboot banner
 - `language-packs.md`: i18n loading, `qmanager_language_install`, `language_packs.sh`, manifest, `bun run package:lang`
 - `error-codes.md`: error envelopes, `resolveErrorMessage`, `errors.json`, `at-commands` namespace
 - `tower-lock-failover.md`: tower locking, `qmanager_tower_failover`, failover spawn gating
 - `antenna-alignment.md`: `/cellular/antenna-alignment` + `antenna-statistics`, `normalizeSignalValue` / `isPortReporting`, Positions recorder, antenna type toggle
-- `scenario-profile-binding.md`: Connection Scenarios, `qmanager_scenario_schedule`, `scenario_mgr.sh`, `qmanager_profile_scenario` cron, per-profile band locks, `scenario_locked_by_schedule`
+- `scenario-profile-binding.md`: Connection Scenarios, `qmanager_scenario_schedule`, `scenario_mgr.sh`, `qmanager_profile_scenario` cron, `profiles/save.sh` re-arm (`schedule_rearmed`), scenarios card on the profiles page (old route redirects), per-profile band locks, `scenario_locked_by_schedule`
 - `sms.md`: `cellular/sms.sh`, `sms_sent.sh`, `set_smsc`, `sms-settings-dialog.tsx`, `brand-mark.tsx`, `lib/logo-store.ts`, `qsms` broker client (`sms_tool` retired), `/dev/smd11`, `AT+CPMS` storage (`sms_storage.sh`, `qmanager_sms_storage`), ME+SM merge
 - `alerts.md`: `/monitoring/alerts`, `alert_engine.sh` (downtime state machine on `ev_link_state`, reboot detection via `boot_id`), `alert_routing.sh`, `monitoring/alerts.sh`, `alert_routing.json`, `use-alerts.ts`, `alert_after_min`, `record_planned_reboot`, `/etc/qmanager/crash.log`, Recent Reboots, `AlertsMutationResult`
 - `cellular-settings.md`: `/cellular/settings`, `cellular/settings.sh`, `use-cellular-settings.ts` (`ApplyPhase`, `WRITABLE_SETTING_KEYS`), `settings/shapes.ts`, `AT+QSIMDET`, `.sim.status`

@@ -1,6 +1,6 @@
 # Custom SIM Profiles
 
-Route: `/cellular/custom-profiles`. Stores named modem configuration bundles (APN, CID, PDP type, IMEI, TTL/HL, scenario binding) that can be activated on demand or automatically when a matching SIM is inserted. IMEI is optional — empty string means "don't change."
+Route: `/cellular/custom-profiles` (also hosts Connection Scenarios, see [scenario-profile-binding.md](scenario-profile-binding.md)). Stores named modem configuration bundles (APN, CID, PDP type, IMEI, TTL/HL, scenario binding) that can be activated on demand or automatically when a matching SIM is inserted. IMEI is optional — empty string means "don't change."
 
 ## Quick Reference
 
@@ -8,14 +8,21 @@ Route: `/cellular/custom-profiles`. Stores named modem configuration bundles (AP
 |---|---|
 | Page route | `/cellular/custom-profiles` |
 | Coordinator | `components/cellular/custom-profiles/custom-profile.tsx` |
-| Editor view (form) | `components/cellular/custom-profiles/profile-input.tsx` |
-| Registry view (list) | `components/cellular/custom-profiles/profile-view.tsx` |
+| Wizard dialog | `components/cellular/custom-profiles/profile-form-dialog.tsx` (hosts `profile-input.tsx`) |
+| Wizard form | `components/cellular/custom-profiles/profile-input.tsx` |
+| Hero ("in force now") | `components/cellular/custom-profiles/active-profile-hero.tsx` |
+| Today card | `components/cellular/custom-profiles/schedule-ribbon.tsx` (`ScheduleTodayCard`, `ScheduleMiniBar`), timeline from `lib/schedule-timeline.ts` |
+| Saved profiles list | `components/cellular/custom-profiles/profile-view.tsx` |
+| Scenarios card | `components/cellular/custom-profiles/connection-scenarios/connection-scenario-card.tsx` (`ConnectionScenariosCard`) |
+| Deactivate dialog | `components/cellular/custom-profiles/deactivate-progress-dialog.tsx` |
+| ICCID compare | `components/cellular/custom-profiles/profile-iccid.ts` (`canonicalIccid`, `iccidMismatch`) |
+| Old scenarios route | `app/cellular/custom-profiles/connection-scenarios/page.tsx` (client-side redirect) |
 | Empty state | `components/cellular/custom-profiles/empty-profile.tsx` |
 | Apply dialog | `components/cellular/custom-profiles/apply-progress-dialog.tsx` |
-| List hook | `hooks/use-sim-profiles.ts` |
+| List hook + provider | `hooks/use-sim-profiles.ts` (`SimProfilesProvider`) |
 | Apply hook | `hooks/use-profile-apply.ts` |
 | Settings hook | `hooks/use-current-settings.ts` |
-| Scenario hook | `hooks/use-scenario-list.ts` |
+| Scenario hooks + provider | `hooks/use-scenario-list.ts`, `hooks/use-connection-scenarios.ts` (`ConnectionScenariosProvider`) |
 | Active profile hook | `hooks/use-active-profile.ts` |
 | Types | `types/sim-profile.ts` |
 | MNO presets | `constants/mno-presets.ts` |
@@ -26,22 +33,55 @@ Route: `/cellular/custom-profiles`. Stores named modem configuration bundles (AP
 | Pending re-apply marker | `/tmp/qmanager_profile_pending_apply` (ICCID + caller, tab-separated; latest-wins) |
 | SIM-switch quiesce flag | `/tmp/qmanager_sim_switch_active` (producer `cellular/settings.sh`, consumer `qmanager_poller`, mtime-bounded 60s) |
 
-## Page Layout — One Card per View
+## Page Layout — One Page, Profiles and Scenarios
 
-The feature is a single page at `/cellular/custom-profiles/` (`app/cellular/custom-profiles/page.tsx`). There are no sub-routes and no URL parameters; the URL never changes while creating or editing a profile.
+The feature is a single page at `/cellular/custom-profiles/` (`app/cellular/custom-profiles/page.tsx`, wrapped in `Suspense` for `useSearchParams`). Connection Scenarios used to be a sub-route; they now render as a card on this page (RM520N centralized layout, fork snapshot `a05c4e92`). Plan: `docs/plans/2026-10-20-centralized-sim-profiles.md`.
 
-The coordinator (`custom-profile.tsx`) renders `CellularPageHeader` and then exactly one card at a time. It holds `view = { kind: "registry" } | { kind: "editor"; id: string | null }` (`id` null = new profile):
+The coordinator (`custom-profile.tsx`) is wrapped in `SimProfilesProvider` and `ConnectionScenariosProvider`, so the hero, list, wizard and scenarios card share one fetch each. `useActiveProfile` and `useScenarioList` read the shared instances when a provider is present and fall back to their own fetch elsewhere (band-locking, apn-settings, ttl-settings, IPPT), so those callers are unchanged.
 
-- **Registry — `profile-view.tsx`** — the Saved Profiles card. A **New profile** button in its header opens the editor with `id: null`; **Edit** in a row's menu opens it with that row's id.
-- **Editor — `profile-input.tsx`** — the Add/Edit form. It receives `onDone` (after a successful save) and `onCancel`, both of which return to the registry.
+Layout, top to bottom:
 
-The registry stays mounted (wrapped in `hidden`) while the editor is open, so returning to it never re-runs its detail prefetch and skeleton. The editor is keyed by `id ?? "new"` and fades in with the `quick` motion token.
+1. `CellularPageHeader` with **New scenario** (tonal) and **New profile**.
+2. `ActiveProfileHero` (`active-profile-hero.tsx`), the "in force now" surface. Three cross-faded states: active profile, `NoActiveProfile`, `ActiveProfileUnavailable` (list/detail read failed).
+3. `ScheduleTodayCard` (`schedule-ribbon.tsx`), a 24h ribbon built from `lib/schedule-timeline.ts`. **Edit schedule** opens the wizard on the `scenario` step.
+4. A grid `@4xl/main:grid-cols-[1.15fr_1fr]`: `profile-view.tsx` (saved profiles; rows carry a `ScheduleMiniBar`) beside `ConnectionScenariosCard`.
 
-The coordinator instantiates one `useSimProfiles()` and one `useCurrentSettings(true)` and passes them to both views. `currentSettings.settings?.iccid` drives the registry's SIM-mismatch chip and the editor's Load from SIM. The header is wired to `custom_profiles.page.title` / `custom_profiles.page.description`. There is no `ProfileOverrideAlert` (`profile-override-alert.tsx` and the `scenario-binding/` folder were deleted); the override gates elsewhere use `Banner role="override"`.
+A `pageReady` latch reveals the hero, the list and the scenarios card together on first load; later background refreshes never re-skeleton the page.
 
-## Editor — Add / Edit Profile (`profile-input.tsx`)
+**Deep links** (read with `useSearchParams`): `?action=create` opens the profile wizard, `?action=create-scenario` (`SCENARIO_CREATE_ACTION`) opens the scenario dialog. The old route `/cellular/custom-profiles/connection-scenarios` is a client-side `router.replace` redirect (the static export has no server redirects) that translates the old `?action=create` to `?action=create-scenario`. The sidebar child "Connection Scenarios" is gone; the breadcrumb and the Band Locking scenario-gate banner link to this page.
 
-The card title flips between "Add Profile" (when `editingId` is null) and "Edit Profile" (when `editingId` is set). All form state is controlled React — no library form state.
+### Flow ownership
+
+The coordinator owns every flow that touches the modem, so the hero, rows and wizard only raise intents:
+
+- **Activation**, the other-SIM confirm (with the Verizon note), and `ApplyProgressDialog` (4 steps: apn, ttl_hl, mpdn_rule, imei).
+- **Deactivation** via `deactivate-progress-dialog.tsx` (confirm and working phases only).
+- **Adopting a running apply.** If an apply is already in flight (another tab, or a boot auto-apply), the coordinator attaches the progress dialog to it, keyed by `profile_id:started_at` so the same run never opens twice.
+- **Wizard** (`profile-form-dialog.tsx`) reports `onDone({ networkChanged, scheduleRearmed })`. Its "+ Create scenario" action closes the wizard and opens the scenario dialog on the same page.
+
+### No auto-reapply on save
+
+Saving the active profile does **not** reapply it. This deliberately diverges from the fork: a reapply runs the APN attach cycle (the LAN drops), the MPDN step and possibly an IMEI reboot, which must be the user's call.
+
+- **Schedule edits take effect immediately.** `profiles/save.sh` (B1, commit `4b06bd55`) re-arms the cron when the saved profile is the active one: `scenario_install_cron` (which runs `scenario_apply` synchronously; teardown when the schedule is now off). It returns `schedule_rearmed: true|false` next to the usual envelope. No CFUN, no MPDN, no reboot. The hook surfaces it as `scheduleRearmed`.
+- **Network edits are marked pending.** When APN, CID, PDP type, IMEI, TTL or HL changed on the active profile, the hero shows a Fact-Is-Info `info` badge "Applies on next activation" plus a **Reapply** action. The marker clears after a successful apply of that profile or after a deactivate.
+
+### Apply and deactivate close
+
+- Apply close: one toast (`activated` / `activated_partial` / the error), `refresh()`, `setPendingReboot("imei")` when `requires_reboot`, then reset.
+- Deactivate success: toast `custom_profiles.view.toast.deactivated`, and `setPendingReboot("verizon_revert")` when `requiresReboot`.
+
+### Verizon checklist (all preserved across the merge)
+
+- Wizard brick-warning dialog on selecting Verizon, CID locked to 3; "Use my saved APN" does not copy the CID for Verizon.
+- `MPDN locked` info badge on list rows **and** on the hero identity tile.
+- The other-SIM activation confirm carries the Verizon note.
+- The deactivate dialog shows `custom_profiles.deactivate_dialog.verizon_note` for Verizon (MPDN revert, reboot deferred to the banner).
+- IP Passthrough lock still reads `useActiveProfile().isVerizonActive`.
+
+## Wizard — Add / Edit Profile (`profile-input.tsx`)
+
+The form now lives in `profile-form-dialog.tsx` (a dialog with an `initialTab` prop; the rules below are unchanged). The title flips between "Add Profile" (when `editingId` is null) and "Edit Profile" (when `editingId` is set). All form state is controlled React — no library form state.
 
 ### Tabs
 
@@ -54,7 +94,7 @@ The form body is a shadcn `Tabs` with four tabs, all freely clickable:
 | `scenario` | Default Scenario, optional schedule with up to 2 daily windows |
 | `review` | Live read-only summary across all tabs |
 
-The editor commits from `CardFoot` (Card-Foot Apply Rule), not from buttons under the tabs. Status on the left: the duplicate-ICCID error, else "Unsaved changes". Actions on the right: Cancel (ghost, calls `onCancel`), then **Next** (`tonal-neutral`) on the first three tabs or the `SaveButton` on Review (wired with `form={formId}` so Enter still submits; blocked while the ICCID is a duplicate).
+The wizard commits from its footer, not from buttons under the tabs. Status on the left: the duplicate-ICCID error, else "Unsaved changes". Actions on the right: Cancel (ghost, closes the dialog), then **Next** (`tonal-neutral`) on the first three tabs or the `SaveButton` on Review (wired with `form={formId}` so Enter still submits; blocked while the ICCID is a duplicate).
 
 **Validation is inline.** Required-field errors appear on the fields after a submit attempt, and the editor jumps to the first tab holding an invalid field. There are no validation toasts. The duplicate-ICCID collision shows as soon as it exists. The schedule on/off control is a `SegmentedField`.
 
@@ -126,7 +166,7 @@ The Scenario tab supports up to **2** daily schedule windows (hard cap: `MAX_WIN
 
 `stripScenarioKeys(form.scenario)` strips the `_key` client-only fields before POST. See [scenario-profile-binding.md](scenario-profile-binding.md) for the full `_key` invariant.
 
-## Registry — Saved Profiles (`profile-view.tsx`)
+## Saved Profiles (`profile-view.tsx`)
 
 Renders the `ProfileSummary[]` from `useSimProfiles()`. Profiles are sorted so the active one always leads. Each row shows: name + MNO `Tag`, the scenario line, the config readout, a translated status chip (active / SIM mismatch / inactive), and a mismatch note when the SIM differs. States: skeleton (summary fetch plus detail prefetch), an error state (`ConditionScreen` with retry when the list read fails; `sim.error` is the list-read error only), and an empty state with a New profile action (`empty-profile.tsx`).
 
@@ -142,13 +182,13 @@ Config readout: neutral `Tag`s for `APN <name>` (the name in mono), `CID <n>`, `
 
 Status for each row is derived at render time via `deriveStatus(isActive, profileIccid, currentIccid)`. `currentIccid` comes from `useCurrentSettings(true).settings?.iccid` — the coordinator passes it down as a prop. A profile reaches `"mismatch"` only when: it is the active profile AND its `sim_iccid` is non-empty AND `iccidMismatch(sim_iccid, currentIccid)` holds. An empty `sim_iccid` means SIM-agnostic; such profiles never mismatch.
 
-`iccidMismatch` compares canonical forms (`canonicalIccid`: drop whitespace, uppercase, strip one trailing BCD pad `F`), mirroring `iccid_canonicalize` in `sim_db.sh`. `current_settings.sh` already returns the canonical form, so a raw compare would flag an F-padded stored ICCID as a false mismatch. An unknown live ICCID (`null` / empty) is never a mismatch, the same "don't know" rule as the backend.
+`iccidMismatch` (shared by the hero, rows and mismatch confirm, `profile-iccid.ts`) compares canonical forms (`canonicalIccid`: drop whitespace, uppercase, strip one trailing BCD pad `F`), mirroring `iccid_canonicalize` in `sim_db.sh`. `current_settings.sh` already returns the canonical form, so a raw compare would flag an F-padded stored ICCID as a false mismatch. An unknown live ICCID (`null` / empty) is never a mismatch, the same "don't know" rule as the backend.
 
 ### Mismatch Activation — Confirm, Then Apply (B5.37)
 
 `apply.sh` never checks the ICCID and the manual worker runs without `--auto`, so activating a profile bound to another SIM applies **every step to the SIM in the modem** (APN to the CID, TTL/HL, MPDN rule, IMEI) and writes the marker. It is not held "until a matching SIM is inserted": it lasts until the next `auto_apply_profile` call (boot, verified SIM switch, watchdog Tier 3 / SIM-failover revert) finds no profile for the live SIM and runs the mismatch-deactivate branch (marker cleared, scenario reset, Verizon MPDN revert + pending reboot); at boot `reconcile_active_apn_slot_at_boot` then restores the APN slot. An IMEI override is not reverted by that path.
 
-The registry therefore gates it in the UI only (no backend change):
+The coordinator therefore gates it in the UI only (no backend change):
 - **Inactive rows** bound to another SIM carry a Fact-Is-Info `info` badge `Other SIM` (`sim_card_alert`, `custom_profiles.pills.other_sim`). The active row does not; it already carries the `SIM mismatch` warning chip.
 - **Activate** on such a row opens an `AlertDialog` (`custom_profiles.view.mismatch_confirm.*`: title, description, a Verizon-only `verizon_note` line, `confirm` "Apply to this SIM"). Confirm runs the normal apply (Sequenced Pipeline Dialog, one outcome toast on close). Cancel writes nothing and does not toast.
 - **The active mismatch row's note** (`custom_profiles.view.mismatch_note`) says the profile was applied to the SIM in the modem and turns off at the next restart or SIM change.
@@ -169,7 +209,7 @@ While the apply is in flight (not terminal) and `applyState.profile_id` matches 
 
 **Delete** → `AlertDialog` confirm → `sim.deleteProfile(id)` → `toast.success/error`.
 
-**Edit** → calls `onEdit(id)`, which sets the coordinator's `view` to `{ kind: "editor", id }`. There is no dialog; the URL does not change.
+**Edit** → calls `onEdit(id)`, which opens the wizard dialog for that profile. The URL does not change.
 
 ## Apply Pipeline
 
@@ -276,7 +316,7 @@ The installer now guards against this: `install_file()` compares `wc -c` of sour
 |---|---|---|---|
 | `profiles/list.sh` | GET | — | `{ profiles: ProfileSummary[], active_profile_id: string\|null }` — **summaries only, no `settings`** |
 | `profiles/get.sh` | GET | `?id=<id>` | Full `SimProfile` including `settings.apn.{cid,name,pdp_type}`, `settings.imei`, `settings.ttl`, `settings.hl` |
-| `profiles/save.sh` | POST | Flat body (see above) | `{ success, id? }` or `{ success:false, error, detail }` |
+| `profiles/save.sh` | POST | Flat body (see above) | `{ success, id?, schedule_rearmed? }` (`schedule_rearmed` set when the saved profile is the active one) or `{ success:false, error, detail }` |
 | `profiles/delete.sh` | POST | `{ id }` | `{ success }` |
 | `profiles/apply.sh` | POST | `{ id }` | `{ success }` or `{ success:false, error, detail }` |
 | `profiles/apply_status.sh` | GET | — | `ProfileApplyState` |
@@ -287,7 +327,7 @@ The installer now guards against this: `install_file()` compares `wc -c` of sour
 
 ## i18n Status
 
-All components are fully internationalized. `custom-profile.tsx`, `profile-input.tsx`, `profile-view.tsx`, `apply-progress-dialog.tsx`, and `empty-profile.tsx` are all wired to the `cellular` namespace. `custom_profiles.*` keys exist in all five locales (en, id, it, zh-CN, zh-TW). Key subtrees added in the most recent pass: `custom_profiles.view.*`, `custom_profiles.form.*` (including `form.review.*`, `form.verizon_inline.*`, `form.pdp_inline.*`, and `form.fields.reuse_apn_{label,placeholder,custom}`), `custom_profiles.apply_dialog.*`, `custom_profiles.pills.*`, and `custom_profiles.card.*`.
+All components are fully internationalized. `custom-profile.tsx`, `active-profile-hero.tsx`, `schedule-ribbon.tsx`, `profile-form-dialog.tsx`, `profile-input.tsx`, `profile-view.tsx`, `apply-progress-dialog.tsx`, `deactivate-progress-dialog.tsx`, and `empty-profile.tsx` are all wired to the `cellular` namespace. `custom_profiles.*` keys exist in all five locales (en, id, it, zh-CN, zh-TW). Key subtrees added in the most recent pass: `custom_profiles.view.*`, `custom_profiles.form.*` (including `form.review.*`, `form.verizon_inline.*`, `form.pdp_inline.*`, and `form.fields.reuse_apn_{label,placeholder,custom}`), `custom_profiles.apply_dialog.*`, `custom_profiles.pills.*`, and `custom_profiles.card.*`.
 
 ## Poller Quiesce During a SIM Switch — `/tmp/qmanager_sim_switch_active`
 

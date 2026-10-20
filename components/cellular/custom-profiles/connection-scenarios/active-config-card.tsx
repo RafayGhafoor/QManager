@@ -48,6 +48,8 @@ interface ActiveConfigCardProps {
   scheduleLocked: boolean;
   /** "HH:MM" of the next scheduled transition (shown while locked). */
   nextChangeAt: string | null;
+  /** Name of the profile whose schedule owns the scenario. */
+  ownerProfileName?: string | null;
 }
 
 export const ActiveConfigCard = ({
@@ -62,6 +64,7 @@ export const ActiveConfigCard = ({
   onActivate,
   scheduleLocked,
   nextChangeAt,
+  ownerProfileName,
 }: ActiveConfigCardProps) => {
   const { t } = useTranslation("cellular");
   const K = "scenarios.active_config_card";
@@ -140,7 +143,11 @@ export const ActiveConfigCard = ({
           >
             <MaterialSymbol name="lock_clock" size={18} className="mt-px flex-none" />
             <div className="grid gap-0.5 text-sm">
-              <p>{t("scenarios.schedule_lock.hint")}</p>
+              <p>
+                {ownerProfileName
+                  ? t("scenarios.schedule_lock.owned_hint", { profile: ownerProfileName })
+                  : t("scenarios.schedule_lock.hint")}
+              </p>
               {nextChangeAt ? (
                 <p className="text-xs tabular-nums opacity-80">
                   {t("scenarios.schedule_lock.next_change", { time: nextChangeAt })}

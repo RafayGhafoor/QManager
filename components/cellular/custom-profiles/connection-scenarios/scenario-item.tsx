@@ -49,6 +49,8 @@ interface ScenarioItemProps {
   isSelected: boolean;
   modeLabel: string;
   onSelect: (id: string) => void;
+  /** "HH:MM" of the next scheduled start, when a schedule will run it. */
+  nextAt?: string;
 }
 
 export const ScenarioItem = ({
@@ -57,6 +59,7 @@ export const ScenarioItem = ({
   isSelected,
   modeLabel,
   onSelect,
+  nextAt,
 }: ScenarioItemProps) => {
   const { t } = useTranslation("cellular");
   const { lte_bands, nsa_nr_bands, sa_nr_bands } = scenario.config;
@@ -106,6 +109,11 @@ export const ScenarioItem = ({
           <Tag variant="neutral">{modeLabel}</Tag>
           {pinsBands ? (
             <Tag variant="neutral">{t("scenarios.scenario_item.band_lock")}</Tag>
+          ) : null}
+          {nextAt ? (
+            <Tag variant="neutral">
+              {t("scenarios.scenario_item.next_at", { time: nextAt })}
+            </Tag>
           ) : null}
         </div>
       </button>

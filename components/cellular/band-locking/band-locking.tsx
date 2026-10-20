@@ -7,7 +7,8 @@ import { toast } from "sonner";
 
 import { ConditionScreen } from "@/components/cellular/condition-screen";
 import { CellularPageHeader } from "@/components/cellular/page-header";
-import { Banner } from "@/components/ui/banner";
+import Link from "next/link";
+import { Banner, bannerActionVariants } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { useBandLocking } from "@/hooks/use-band-locking";
@@ -233,6 +234,14 @@ const BandLockingComponent = () => {
           role="override"
           title={t(`${K}.scenario_gate_title`, { scenario: activeScenarioName })}
           description={t(`${K}.scenario_gate_note`)}
+          action={
+            <Link
+              href="/cellular/custom-profiles"
+              className={bannerActionVariants({ tone: "primary" })}
+            >
+              {t(`${K}.scenario_gate_action`)}
+            </Link>
+          }
         />
       ) : null}
 

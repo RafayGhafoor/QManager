@@ -44,9 +44,9 @@ import { Tag } from "@/components/ui/tag";
 import { staggerRowItem, staggerRows } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import EmptyProfileComponent from "./empty-profile";
-import { ApplyProgressDialog } from "./apply-progress-dialog";
+import { iccidMismatch } from "./profile-iccid";
+import { ScheduleMiniBar } from "./schedule-ribbon";
 import type { UseSimProfilesReturn } from "@/hooks/use-sim-profiles";
-import { useProfileApply } from "@/hooks/use-profile-apply";
 import { useScenarioList } from "@/hooks/use-scenario-list";
 import {
   formatProfileDate,
@@ -54,14 +54,13 @@ import {
   type SimProfile,
   type PdpType,
 } from "@/types/sim-profile";
-import { setPendingReboot } from "@/lib/reboot/pending";
 
 // =============================================================================
 // ProfileViewComponent — the registry: every saved Custom SIM Profile
 // =============================================================================
-// One of the page's two views (the other is the editor). One card holds the
-// whole roster; each profile is one `surface-container` row (the card's one
-// inner container), the active profile first.
+// The left column of the merged SIM Profiles page. One card holds the whole
+// roster; each profile is one `surface-container` row (the card's one inner
+// container), the active profile first, with its day schedule as a mini bar.
 //
 // Identity (the carrier preset, the config: APN, CID, PDP, TTL, HL) is `Tag`s.
 // Facts that change what the modem does (an IMEI override, Verizon's MPDN
@@ -73,30 +72,12 @@ import { setPendingReboot } from "@/lib/reboot/pending";
 // (rows never shimmer twice). SIM mismatch is derived client-side through
 // `iccidMismatch` (canonical compare, mirrors `iccid_canonicalize`).
 //
-// Activation opens the Sequenced Pipeline Dialog first; its outcome toasts
-// once on close, and a needed reboot defers to the persistent banner. A
-// profile bound to another SIM confirms first: apply.sh never checks the
-// ICCID, so the profile lands on the SIM in the modem and lasts until the next
-// auto-apply (boot, SIM switch, watchdog) finds no match and clears it.
+// Activate and Deactivate belong to the page (`custom-profile.tsx`): it owns
+// the mismatch confirm, the apply pipeline dialog, the deactivate dialog and
+// their toasts, shared with the hero. Delete stays here with its own confirm.
 // =============================================================================
 
 type ProfileStatus = "active" | "mismatch" | "inactive";
-
-/** Compare-time ICCID form, mirroring `iccid_canonicalize` (`sim_db.sh`):
- *  drop whitespace, uppercase, strip one trailing BCD pad nibble. */
-function canonicalIccid(iccid: string): string {
-  return iccid.replace(/\s+/g, "").toUpperCase().replace(/F$/, "");
-}
-
-/** Bound to a SIM other than the live one. An empty binding is SIM-agnostic;
- *  an unknown live ICCID is "don't know", never a mismatch. */
-function iccidMismatch(
-  profileIccid: string,
-  currentIccid: string | null,
-): boolean {
-  if (!profileIccid || !currentIccid) return false;
-  return canonicalIccid(profileIccid) !== canonicalIccid(currentIccid);
-}
 
 function deriveStatus(
   isActive: boolean,
@@ -137,10 +118,23 @@ interface ProfileViewProps {
   sim: UseSimProfilesReturn;
   /** Live SIM ICCID from current_settings.sh, for mismatch detection. */
   currentIccid: string | null;
-  /** Open the editor on a saved profile. */
+  /** Open the wizard on a saved profile. */
   onEdit: (id: string) => void;
-  /** Open the editor on a new profile. */
+  /** Open the wizard on a new profile (the empty state's action). */
   onAdd: () => void;
+  /** Activate a row; the page confirms a SIM mismatch and runs the apply. */
+  onActivate: (profile: ProfileSummary) => void;
+  /** Deactivate the active row; the page owns the dialog and its toast. */
+  onDeactivate: () => void;
+  /** The profile an apply is running for, if any. */
+  applyingProfileId: string | null;
+  /** The modem is mid-mutation: every row's Activate goes dead. */
+  pageBusy?: boolean;
+  /** One clock for the page, shared with the Today card. */
+  now: Date;
+  /** The page holds every card in skeleton until all are ready. */
+  holdSkeleton?: boolean;
+  onLocalReadyChange?: (ready: boolean) => void;
 }
 
 const ProfileViewComponent = ({
@@ -148,87 +142,21 @@ const ProfileViewComponent = ({
   currentIccid,
   onEdit,
   onAdd,
+  onActivate,
+  onDeactivate,
+  applyingProfileId,
+  pageBusy = false,
+  now,
+  holdSkeleton = false,
+  onLocalReadyChange,
 }: ProfileViewProps) => {
   const { t } = useTranslation("cellular");
   const { profiles, activeProfileId, isLoading, error, getProfile } = sim;
-  const { deleteProfile, deactivateProfile, refresh } = sim;
+  const { deleteProfile, refresh } = sim;
   const { nameForId } = useScenarioList();
 
-  const { applyProfile, applyState, error: applyError, reset } =
-    useProfileApply();
-  const [applyOpen, setApplyOpen] = React.useState(false);
   const [pendingDelete, setPendingDelete] =
     React.useState<ProfileSummary | null>(null);
-  const [pendingMismatch, setPendingMismatch] =
-    React.useState<ProfileSummary | null>(null);
-
-  const startApply = (id: string) => {
-    setApplyOpen(true);
-    applyProfile(id);
-  };
-
-  // A profile bound to another SIM confirms before anything is written.
-  const handleActivate = (profile: ProfileSummary) => {
-    if (iccidMismatch(profile.sim_iccid, currentIccid)) {
-      setPendingMismatch(profile);
-      return;
-    }
-    startApply(profile.id);
-  };
-
-  const confirmMismatch = () => {
-    if (!pendingMismatch) return;
-    const target = pendingMismatch;
-    setPendingMismatch(null);
-    startApply(target.id);
-  };
-
-  // On close (only reachable at a terminal state): one toast for the outcome,
-  // refresh the list if it landed, and defer an IMEI-change reboot. Read the
-  // state BEFORE reset() clears it.
-  const handleApplyClose = () => {
-    const finished = applyState?.status;
-    const name = applyState?.profile_name ?? "";
-    const needsReboot = applyState?.requires_reboot === true;
-    const succeeded = finished === "complete" || finished === "partial";
-    const failure =
-      applyError ?? t("custom_profiles.view.toast.activate_error");
-
-    setApplyOpen(false);
-    reset();
-
-    if (succeeded) {
-      toast.success(
-        t(
-          finished === "partial"
-            ? "custom_profiles.view.toast.activated_partial"
-            : "custom_profiles.view.toast.activated",
-          { name },
-        ),
-      );
-      refresh();
-      if (needsReboot) setPendingReboot("imei");
-    } else if (finished === "failed") {
-      toast.error(failure);
-    }
-  };
-
-  const applyTerminal =
-    applyState?.status === "complete" ||
-    applyState?.status === "partial" ||
-    applyState?.status === "failed";
-
-  const handleDeactivate = async (profile: ProfileSummary) => {
-    const result = await deactivateProfile();
-    if (result.ok) {
-      toast.success(
-        t("custom_profiles.view.toast.deactivated", { name: profile.name }),
-      );
-      if (result.requiresReboot) setPendingReboot("verizon_revert");
-    } else {
-      toast.error(result.error);
-    }
-  };
 
   const confirmDelete = async () => {
     if (!pendingDelete) return;
@@ -273,9 +201,16 @@ const ProfileViewComponent = ({
     };
   }, [profiles, getProfile, isLoading]);
 
-  const showSkeleton =
+  const localSkeleton =
     (isLoading && profiles.length === 0) ||
     (profiles.length > 0 && !detailsHydrated);
+
+  // Report readiness up; the page ANDs it with the hero and scenarios card.
+  React.useEffect(() => {
+    onLocalReadyChange?.(!localSkeleton);
+  }, [localSkeleton, onLocalReadyChange]);
+
+  const showSkeleton = holdSkeleton || localSkeleton;
   // A failed list read with nothing to show: say so, never "no profiles yet".
   const showError = !isLoading && profiles.length === 0 && error !== null;
 
@@ -290,26 +225,16 @@ const ProfileViewComponent = ({
   );
 
   return (
-    <Card className="@container/card">
+    <Card className="@container/card h-full">
       <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-48 flex-1 flex-col gap-1.5">
-            <CardTitle>{t("custom_profiles.view.title")}</CardTitle>
-            <CardDescription>
-              {profiles.length > 0
-                ? t("custom_profiles.view.count", {
-                    count: profiles.length,
-                  })
-                : t("custom_profiles.view.subtitle")}
-            </CardDescription>
-          </div>
-          {profiles.length > 0 ? (
-            <Button size="action" onClick={onAdd}>
-              <MaterialSymbol name="add" size={18} />
-              {t("custom_profiles.registry.add")}
-            </Button>
-          ) : null}
-        </div>
+        <CardTitle>{t("custom_profiles.view.title")}</CardTitle>
+        <CardDescription>
+          {profiles.length > 0
+            ? t("custom_profiles.view.count", {
+                count: profiles.length,
+              })
+            : t("custom_profiles.view.subtitle")}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {showSkeleton ? (
@@ -344,15 +269,13 @@ const ProfileViewComponent = ({
                   currentIccid,
                 )}
                 scenarioName={nameForId(profile.scenario.default)}
-                busy={
-                  applyOpen &&
-                  !applyTerminal &&
-                  applyState?.profile_id === profile.id
-                }
+                applying={applyingProfileId === profile.id}
+                pageBusy={pageBusy}
                 otherSim={iccidMismatch(profile.sim_iccid, currentIccid)}
                 full={details[profile.id] ?? null}
-                onActivate={() => handleActivate(profile)}
-                onDeactivate={() => handleDeactivate(profile)}
+                now={now}
+                onActivate={() => onActivate(profile)}
+                onDeactivate={onDeactivate}
                 onEdit={() => onEdit(profile.id)}
                 onDelete={() => setPendingDelete(profile)}
               />
@@ -386,45 +309,6 @@ const ProfileViewComponent = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <AlertDialog
-        open={pendingMismatch !== null}
-        onOpenChange={(open) => !open && setPendingMismatch(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("custom_profiles.view.mismatch_confirm.title", {
-                name: pendingMismatch?.name ?? "",
-              })}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("custom_profiles.view.mismatch_confirm.description")}
-              {pendingMismatch?.mno === "Verizon" ? (
-                <>
-                  {" "}
-                  {t("custom_profiles.view.mismatch_confirm.verizon_note")}
-                </>
-              ) : null}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              {t("actions.cancel", { ns: "common" })}
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={confirmMismatch}>
-              {t("custom_profiles.view.mismatch_confirm.confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <ApplyProgressDialog
-        open={applyOpen}
-        applyState={applyState}
-        error={applyError}
-        onClose={handleApplyClose}
-      />
     </Card>
   );
 };
@@ -437,9 +321,11 @@ const ProfileRow = ({
   summary,
   status,
   scenarioName,
-  busy,
+  applying,
+  pageBusy,
   otherSim,
   full,
+  now,
   onActivate,
   onDeactivate,
   onEdit,
@@ -448,10 +334,14 @@ const ProfileRow = ({
   summary: ProfileSummary;
   status: ProfileStatus;
   scenarioName: string;
-  busy: boolean;
+  /** An apply is running for this profile. */
+  applying: boolean;
+  /** Some mutation holds the modem. */
+  pageBusy: boolean;
   /** Bound to a SIM other than the one in the modem. */
   otherSim: boolean;
   full: SimProfile | null;
+  now: Date;
   onActivate: () => void;
   onDeactivate: () => void;
   onEdit: () => void;
@@ -491,6 +381,14 @@ const ProfileRow = ({
                   })}
             </span>
           </div>
+          {scheduled ? (
+            <ScheduleMiniBar
+              schedule={summary.scenario.schedule}
+              fallbackScenarioId={summary.scenario.default}
+              now={now}
+              className="max-w-80"
+            />
+          ) : null}
           {full ? (
             <ConfigPills
               profile={full}
@@ -507,18 +405,23 @@ const ProfileRow = ({
             {t(chip.key)}
           </Badge>
           {isActive ? (
-            <Button variant="tonal-neutral" size="sm" onClick={onDeactivate}>
+            <Button
+              variant="tonal-neutral"
+              size="sm"
+              onClick={onDeactivate}
+              disabled={pageBusy}
+            >
               <MaterialSymbol name="power_settings_new" size={16} />
               {t("custom_profiles.table.actions_menu.deactivate")}
             </Button>
           ) : (
-            <Button size="sm" onClick={onActivate} disabled={busy}>
+            <Button size="sm" onClick={onActivate} disabled={pageBusy}>
               <MaterialSymbol
-                name={busy ? "progress_activity" : "play_arrow"}
+                name={applying ? "progress_activity" : "play_arrow"}
                 size={16}
-                className={busy ? "motion-safe:animate-spin" : undefined}
+                className={applying ? "motion-safe:animate-spin" : undefined}
               />
-              {busy
+              {applying
                 ? t("custom_profiles.view.activating")
                 : t("custom_profiles.table.actions_menu.activate")}
             </Button>

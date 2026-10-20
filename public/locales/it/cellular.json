@@ -199,7 +199,9 @@
   "custom_profiles": {
     "page": {
       "title": "Profilo SIM personalizzato",
-      "description": "Raggruppa le impostazioni APN, IMEI e TTL/HL in profili con un clic."
+      "description": "Raggruppa le impostazioni APN, IMEI e TTL/HL in profili con un clic.",
+      "new_profile": "Nuovo profilo",
+      "new_scenario": "Nuovo scenario"
     },
     "view": {
       "title": "Profili salvati",
@@ -329,6 +331,10 @@
         "start_label": "Inizio",
         "end_label": "Fine",
         "block_scenario_label": "Scenario",
+        "active_now_line": "Adesso → {{scenario}}",
+        "active_now_line_with_next": "Adesso → {{scenario}} · prossimo cambio {{time}}",
+        "otherwise_label": "Altrimenti",
+        "entries_cap_hint": "Fino a {{max}} finestre orarie. Rimuovine una per aggiungerne un'altra.",
         "empty_schedule_hint": "Nessuna finestra — il comportamento è identico all'uso diretto di {{name}}.",
         "overlap_warning": "Questa finestra si sovrappone a un'altra. In caso di sovrapposizione, vince quella più in alto.",
         "schedule_invalid": "Correggi le voci di pianificazione evidenziate prima di salvare.",
@@ -344,14 +350,16 @@
         "move_up_aria": "Sposta la finestra su",
         "move_down_aria": "Sposta la finestra giù",
         "expand_rule_aria": "Modifica finestra",
-        "active_now_line": "Adesso → {{scenario}}",
-        "active_now_line_with_next": "Adesso → {{scenario}} · prossimo cambio {{time}}",
         "overnight_hint": "Termina il giorno dopo",
-        "otherwise_label": "Altrimenti",
-        "entries_cap_hint": "Fino a {{max}} finestre orarie. Rimuovine una per aggiungerne un'altra.",
         "create_new": "Crea un nuovo scenario"
       },
       "loading_current": "Lettura SIM…",
+      "advanced": {
+        "title": "Avanzate",
+        "summary_imei": "Override IMEI",
+        "summary_ttl": "TTL {{value}}",
+        "summary_hl": "HL {{value}}"
+      },
       "back_to_list": "Torna ai profili",
       "edit_loading": "Caricamento profilo…",
       "steps": {
@@ -388,12 +396,6 @@
         "desc": "Come apparirà questo profilo nel registro e cosa cambia all'attivazione.",
         "untitled": "Profilo senza nome",
         "reboot_note": "L'attivazione riavvia il modem per applicare la modifica dell'IMEI."
-      },
-      "advanced": {
-        "title": "Avanzate",
-        "summary_imei": "Override IMEI",
-        "summary_ttl": "TTL {{value}}",
-        "summary_hl": "HL {{value}}"
       },
       "discard_dialog": {
         "title": "Annullare le modifiche?",
@@ -478,9 +480,14 @@
     },
     "deactivate_dialog": {
       "title": "Disattiva profilo",
-      "description": "Cancellare l'indicatore del profilo attivo? Le impostazioni correnti del modem (APN, IMEI, TTL) non verranno ripristinate: verrà rimosso solo il badge \"Attivo\".",
+      "description": "La sua pianificazione si interrompe, torna lo scenario di connessione predefinito e vengono ripristinate le normali impostazioni APN.",
       "confirm": "Disattiva",
-      "deactivating": "Disattivazione…"
+      "working_title": "Disattivazione del profilo",
+      "unknown_profile": "Nessun nome profilo",
+      "confirm_headline": "Smettere di usare questo profilo?",
+      "working_headline": "Ripristino delle impostazioni normali",
+      "working_sub": "La connessione mobile potrebbe cadere brevemente durante il ripristino dell'APN. Non uscire da questa pagina.",
+      "verizon_note": "Anche la regola di instradamento dei dati di questo profilo Verizon viene ripristinata e in seguito il modem richiede un riavvio. Riavvia dal banner quando sei pronto."
     },
     "apply_dialog": {
       "title": "Applicazione del profilo",
@@ -520,6 +527,18 @@
       "cancel": "Annulla",
       "confirm": "Ho capito, continua"
     },
+    "empty_state": {
+      "title": "Nessun profilo personalizzato",
+      "description": "Gestisci i tuoi profili SIM personalizzati qui.",
+      "description_full": "Crea un profilo per salvare le impostazioni APN, IMEI e TTL di una SIM e applicarle in un solo passaggio.",
+      "refresh": "Aggiorna",
+      "card_title": "Profili SIM personalizzati",
+      "card_description": "Pacchetti di impostazioni APN, IMEI e TTL applicati al modem in un solo passaggio.",
+      "teaching_headline": "Nessun profilo ancora",
+      "teaching_body": "Un profilo SIM personalizzato raggruppa nome APN, protocollo IP, override TTL/HL e un IMEI opzionale in un preset salvato. Attivandolo si applicano tutte le impostazioni contemporaneamente, quindi cambiare operatore o slot SIM richiede pochi secondi.",
+      "cta_new": "Nuovo profilo",
+      "cta_refresh": "Aggiorna"
+    },
     "pills": {
       "ip_v4": "IPv4",
       "ip_v6": "IPv6",
@@ -533,42 +552,30 @@
       "other_sim": "Altra SIM",
       "apn_prefix": "APN "
     },
-    "empty_state": {
-      "title": "Nessun profilo personalizzato",
-      "description": "Gestisci i tuoi profili SIM personalizzati qui.",
-      "description_full": "Crea un profilo per salvare le impostazioni APN, IMEI e TTL di una SIM e applicarle in un solo passaggio.",
-      "refresh": "Aggiorna",
-      "card_title": "Profili SIM personalizzati",
-      "card_description": "Pacchetti di impostazioni APN, IMEI e TTL applicati al modem in un solo passaggio.",
-      "teaching_headline": "Nessun profilo ancora",
-      "teaching_body": "Un profilo SIM personalizzato raggruppa nome APN, protocollo IP, override TTL/HL e un IMEI opzionale in un preset salvato. Attivandolo si applicano tutte le impostazioni contemporaneamente, quindi cambiare operatore o slot SIM richiede pochi secondi.",
-      "cta_new": "Nuovo profilo",
-      "cta_refresh": "Aggiorna"
-    },
     "active_card": {
       "none_title": "Nessun profilo attivo",
       "none_description": "Il modem usa le impostazioni correnti. Attiva un profilo salvato per applicare un pacchetto.",
       "subtitle": "Applicato al modem ora",
       "subtitle_with_mno": "Applicato ora · {{mno}}",
+      "scenario_default": "Scenario: {{name}}",
+      "scenario_scheduled": "Scenario: {{name}} (pianificato)",
       "mismatch_note": "Questo profilo è stato creato per una SIM diversa da quella attualmente inserita. Riattivalo per questa SIM o attiva il profilo corrispondente.",
       "verizon_locked_note": "L'instradamento dati è bloccato sul contesto PDP 3. IP Passthrough non è disponibile mentre questo profilo è attivo.",
-      "edit_button": "Modifica",
-      "scenario_default": "Scenario: {{name}}",
-      "scenario_scheduled": "Scenario: {{name}} (pianificato)"
-    },
-    "card": {
-      "label_iccid": "SIM",
-      "label_updated": "Aggiornato"
-    },
-    "edit": {
-      "not_found_title": "Profilo non trovato",
-      "not_found_desc": "Questo profilo potrebbe essere stato eliminato. Torna ai profili salvati."
+      "edit_button": "Modifica"
     },
     "list": {
       "new_button": "Nuovo",
       "bound_sim": "Associato alla SIM {{iccid}}",
       "detail_unavailable": "Impossibile caricare le impostazioni di questo profilo.",
       "only_active_hint": "Il tuo unico profilo è quello attivo. Creane un altro per passare da una configurazione all'altra."
+    },
+    "edit": {
+      "not_found_title": "Profilo non trovato",
+      "not_found_desc": "Questo profilo potrebbe essere stato eliminato. Torna ai profili salvati."
+    },
+    "card": {
+      "label_iccid": "SIM",
+      "label_updated": "Aggiornato"
     },
     "registry": {
       "add": "Nuovo profilo",
@@ -579,13 +586,64 @@
       "save_failed": "Impossibile salvare il profilo.",
       "delete_failed": "Impossibile eliminare il profilo.",
       "deactivate_failed": "Impossibile disattivare il profilo."
+    },
+    "hero": {
+      "eyebrow": "In vigore ora",
+      "iccid": "ICCID {{value}}",
+      "edit": "Modifica",
+      "deactivate": "Disattiva",
+      "reapply": "Riapplica profilo",
+      "pending_network": "Si applica alla prossima attivazione",
+      "notice": {
+        "unknown_step": "sconosciuto",
+        "applying_title": "Applicazione di {{name}}",
+        "applying_body": "Passaggio {{step}} di {{total}}. La connessione potrebbe cadere brevemente mentre la radio si riaggancia.",
+        "partial_title": "Applicato solo in parte",
+        "partial_body": "Il passaggio {{step}} non è stato applicato. Riapplica il profilo per ritentare tutti i passaggi.",
+        "mismatch_title": "È inserita una SIM diversa",
+        "mismatch_body": "Questo profilo è stato salvato per un'altra SIM. Le sue impostazioni si applicano alla SIM nel modem fino al prossimo riavvio o cambio di SIM."
+      },
+      "tiles": {
+        "identity": "Identità",
+        "scenario": "Scenario in vigore",
+        "scheduled": "Pianificato",
+        "not_scheduled": "Non pianificato",
+        "radio": "Configurazione radio",
+        "band_locking": "Blocco bande",
+        "bands_auto": "Tutte le bande"
+      },
+      "scenario": {
+        "unknown": "Scenario sconosciuto"
+      },
+      "ribbon": {
+        "title": "Pianificazione di oggi",
+        "edit": "Modifica pianificazione",
+        "unknown_scenario": "Scenario sconosciuto",
+        "aria_label": "Pianificazione degli scenari di oggi: {{schedule}}",
+        "aria_segment": "{{name}} fino alle {{end}}",
+        "aria_join": ", poi ",
+        "aria_empty": "Nessuna pianificazione di scenari per oggi"
+      },
+      "badge": {
+        "live": "Attivo",
+        "applying": "Applicazione",
+        "partial": "Applicato in parte",
+        "mismatch": "SIM non corrispondente"
+      }
+    },
+    "hero_empty": {
+      "title": "Nessun profilo attivo",
+      "description": "Il modem usa le normali impostazioni APN e lo scenario di connessione predefinito. Salva un profilo per associare APN, TTL e pianificazione degli scenari a una SIM.",
+      "description_saved": "Al momento nulla è in vigore. Attiva uno dei profili salvati qui sotto per ripristinarne impostazioni e pianificazione.",
+      "activate_action": "Attiva un profilo"
+    },
+    "hero_error": {
+      "title": "Dettagli del profilo non disponibili",
+      "description": "Sul modem c'è un profilo attivo, ma non è stato possibile caricarne i dettagli. Sul dispositivo non è cambiato nulla.",
+      "retry": "Riprova"
     }
   },
   "scenarios": {
-    "page": {
-      "title": "Scenari di connessione",
-      "description": "Passa la radio tra le configurazioni di rete salvate."
-    },
     "default_balanced_name": "Equilibrato",
     "default_balanced_description": "Selezione automatica della banda",
     "default_gaming_name": "Gioco",
@@ -599,8 +657,12 @@
     "mode_option_lte": "LTE Solo",
     "mode_option_nrsa": "5G Solo SA",
     "mode_option_nrsa_nsa": "5G SA/NSA",
+    "redirect": {
+      "label": "Apertura di Profili personalizzati…"
+    },
     "scenario_item": {
       "active_badge": "Attivo",
+      "next_at": "Prossimo alle {{time}}",
       "delete_confirm": {
         "title": "Elimina scenario",
         "description": "Sei sicuro di voler eliminare \"{{name}}\"? Questa azione non può essere annullata.",
@@ -683,6 +745,7 @@
       "badge": "Pianificato",
       "hint": "Disattiva la pianificazione del profilo per scegliere uno scenario manualmente.",
       "next_change": "Prossimo cambio alle {{time}}",
+      "owned_hint": "La pianificazione di {{profile}} controlla lo scenario. Disattivala per sceglierne uno manualmente.",
       "blocked_toast": "Lo scenario di connessione è gestito dalla pianificazione del profilo attivo. Disattivala per cambiarlo manualmente."
     },
     "list_card": {
@@ -1075,6 +1138,7 @@
         "refresh_error": "Impossibile aggiornare la configurazione delle bande"
       },
       "scenario_gate_title": "Lo scenario {{scenario}} gestisce le tue bande",
+      "scenario_gate_action": "Apri scenari",
       "scenario_gate_note": "Passa allo scenario Bilanciato per bloccare le bande manualmente.",
       "read_error_title": "Impossibile leggere la configurazione delle bande",
       "refresh_blocked_watcher": "Attendi la fine del controllo di failover",
@@ -2454,6 +2518,17 @@
       "errors": {
         "read_failed": "Il dispositivo non è riuscito a leggere l'elenco delle reti vietate della SIM.",
         "unreachable": "Impossibile raggiungere il dispositivo."
+      }
+    }
+  },
+  "profiles": {
+    "today": {
+      "armed": "Pianificazione attiva",
+      "not_armed": "Nessuna pianificazione",
+      "summary": {
+        "until": "in vigore fino alle {{time}}, poi {{next}}",
+        "rest_of_day": "in vigore per il resto della giornata",
+        "all_day": "in vigore tutto il giorno"
       }
     }
   }

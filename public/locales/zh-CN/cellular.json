@@ -199,7 +199,9 @@
   "custom_profiles": {
     "page": {
       "title": "自定义 SIM 配置文件",
-      "description": "将 APN、IMEI 和 TTL/HL 设置打包为一键式配置文件。"
+      "description": "将 APN、IMEI 和 TTL/HL 设置打包为一键式配置文件。",
+      "new_profile": "新建配置文件",
+      "new_scenario": "新建场景"
     },
     "view": {
       "title": "已保存的配置文件",
@@ -329,7 +331,10 @@
         "start_label": "开始",
         "end_label": "结束",
         "block_scenario_label": "场景",
+        "active_now_line": "当前 → {{scenario}}",
+        "active_now_line_with_next": "当前 → {{scenario}} · 下次切换 {{time}}",
         "otherwise_label": "其他时间",
+        "entries_cap_hint": "最多 {{max}} 个时段。请先删除一个再添加。",
         "empty_schedule_hint": "暂无时段 — 效果与直接使用 {{name}} 相同。",
         "overlap_warning": "此时段与另一个时段重叠。重叠时，列表靠前的时段优先生效。",
         "schedule_invalid": "请先修正高亮显示的计划时段再保存。",
@@ -346,10 +351,7 @@
         "move_down_aria": "下移时段",
         "expand_rule_aria": "编辑时段",
         "overnight_hint": "次日结束",
-        "create_new": "创建新场景",
-        "active_now_line": "当前 → {{scenario}}",
-        "active_now_line_with_next": "当前 → {{scenario}} · 下次切换 {{time}}",
-        "entries_cap_hint": "最多 {{max}} 个时段。请先删除一个再添加。"
+        "create_new": "创建新场景"
       },
       "loading_current": "正在读取 SIM…",
       "advanced": {
@@ -478,9 +480,14 @@
     },
     "deactivate_dialog": {
       "title": "停用配置文件",
-      "description": "清除活动配置文件标记？调制解调器当前的设置（APN、IMEI、TTL）不会恢复——仅移除「活动」标记。",
+      "description": "其计划将停止，默认连接场景将恢复，常规 APN 设置也会还原。",
       "confirm": "停用",
-      "deactivating": "停用中…"
+      "working_title": "正在停用配置文件",
+      "unknown_profile": "无配置文件名称",
+      "confirm_headline": "停止使用此配置文件？",
+      "working_headline": "正在恢复常规设置",
+      "working_sub": "还原 APN 期间，移动连接可能会短暂中断。请勿离开此页面。",
+      "verizon_note": "此 Verizon 配置文件的数据路由规则也会被还原，之后调制解调器需要重启。准备好后，请通过横幅重启。"
     },
     "apply_dialog": {
       "title": "正在应用配置文件",
@@ -556,10 +563,6 @@
       "verizon_locked_note": "数据路由已锁定到 PDP 上下文 3。此配置激活期间，IP 直通不可用。",
       "edit_button": "编辑"
     },
-    "card": {
-      "label_iccid": "SIM",
-      "label_updated": "更新时间"
-    },
     "list": {
       "new_button": "新建",
       "bound_sim": "绑定到 SIM {{iccid}}",
@@ -570,6 +573,10 @@
       "not_found_title": "未找到配置",
       "not_found_desc": "该配置可能已被删除。返回已保存的配置。"
     },
+    "card": {
+      "label_iccid": "SIM",
+      "label_updated": "更新时间"
+    },
     "registry": {
       "add": "新建配置",
       "error_title": "无法加载您的配置"
@@ -579,13 +586,64 @@
       "save_failed": "无法保存配置。",
       "delete_failed": "无法删除配置。",
       "deactivate_failed": "无法停用配置。"
+    },
+    "hero": {
+      "eyebrow": "当前生效",
+      "iccid": "ICCID {{value}}",
+      "edit": "编辑",
+      "deactivate": "停用",
+      "reapply": "重新应用配置文件",
+      "pending_network": "下次激活时应用",
+      "notice": {
+        "unknown_step": "未知",
+        "applying_title": "正在应用 {{name}}",
+        "applying_body": "第 {{step}} 步，共 {{total}} 步。无线电重新附着期间，连接可能会短暂中断。",
+        "partial_title": "仅部分应用",
+        "partial_body": "{{step}} 步骤未能应用。请重新应用配置文件以再次尝试所有步骤。",
+        "mismatch_title": "插入了不同的 SIM",
+        "mismatch_body": "此配置文件是为另一张 SIM 保存的。在下次重启或更换 SIM 之前，其设置将应用于调制解调器中的 SIM。"
+      },
+      "tiles": {
+        "identity": "身份",
+        "scenario": "生效场景",
+        "scheduled": "已计划",
+        "not_scheduled": "未计划",
+        "radio": "无线电配置",
+        "band_locking": "频段锁定",
+        "bands_auto": "所有频段"
+      },
+      "scenario": {
+        "unknown": "未知场景"
+      },
+      "ribbon": {
+        "title": "今日计划",
+        "edit": "编辑计划",
+        "unknown_scenario": "未知场景",
+        "aria_label": "今日场景计划：{{schedule}}",
+        "aria_segment": "{{name}}，持续到 {{end}}",
+        "aria_join": "，然后",
+        "aria_empty": "今日没有场景计划"
+      },
+      "badge": {
+        "live": "活动",
+        "applying": "应用中",
+        "partial": "部分应用",
+        "mismatch": "SIM 不匹配"
+      }
+    },
+    "hero_empty": {
+      "title": "没有活动的配置文件",
+      "description": "调制解调器将使用常规 APN 设置和默认连接场景。保存配置文件即可将 APN、TTL 和场景计划绑定到某张 SIM。",
+      "description_saved": "当前没有生效的配置。请在下方激活一个已保存的配置文件，以恢复其设置和计划。",
+      "activate_action": "激活配置文件"
+    },
+    "hero_error": {
+      "title": "无法获取配置文件详情",
+      "description": "调制解调器上有一个活动的配置文件，但无法加载其详情。设备上未发生任何更改。",
+      "retry": "重试"
     }
   },
   "scenarios": {
-    "page": {
-      "title": "连接场景",
-      "description": "在已保存的网络设置之间切换无线电。"
-    },
     "default_balanced_name": "均衡",
     "default_balanced_description": "自动选择频段",
     "default_gaming_name": "游戏",
@@ -599,8 +657,12 @@
     "mode_option_lte": "仅 LTE",
     "mode_option_nrsa": "仅 5G SA",
     "mode_option_nrsa_nsa": "5G SA / NSA",
+    "redirect": {
+      "label": "正在打开自定义配置文件…"
+    },
     "scenario_item": {
       "active_badge": "活动",
+      "next_at": "下次于 {{time}}",
       "delete_confirm": {
         "title": "删除场景",
         "description": "确定要删除「{{name}}」吗？此操作不可撤销。",
@@ -683,6 +745,7 @@
       "badge": "已计划",
       "hint": "关闭此配置的计划以手动选择场景。",
       "next_change": "下次切换于 {{time}}",
+      "owned_hint": "场景由「{{profile}}」的计划控制。关闭该计划即可手动选择。",
       "blocked_toast": "连接场景由活动配置的计划控制。请关闭计划以手动更改。"
     },
     "list_card": {
@@ -1075,6 +1138,7 @@
         "refresh_error": "无法刷新频段配置"
       },
       "scenario_gate_title": "{{scenario}} 场景正在管理您的频段",
+      "scenario_gate_action": "打开场景",
       "scenario_gate_note": "切换到“均衡”场景即可手动锁定频段。",
       "read_error_title": "无法读取频段配置",
       "refresh_blocked_watcher": "请等待故障转移检查完成",
@@ -2454,6 +2518,17 @@
       "errors": {
         "read_failed": "设备无法读取 SIM 卡的禁用网络列表。",
         "unreachable": "无法连接到设备。"
+      }
+    }
+  },
+  "profiles": {
+    "today": {
+      "armed": "计划已启用",
+      "not_armed": "无计划",
+      "summary": {
+        "until": "持续到 {{time}}，然后切换为 {{next}}",
+        "rest_of_day": "持续到今日结束",
+        "all_day": "全天生效"
       }
     }
   }

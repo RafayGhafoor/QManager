@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { authFetch } from "@/lib/auth-fetch";
+import { useSharedConnectionScenarios } from "@/hooks/use-connection-scenarios";
 import type {
   ScenarioListResponse,
   StoredScenario,
@@ -37,6 +38,8 @@ export interface UseScenarioListReturn {
 
 export function useScenarioList(): UseScenarioListReturn {
   const { t } = useTranslation("cellular");
+  const shared = useSharedConnectionScenarios();
+  const enabled = shared === null;
   const [custom, setCustom] = useState<StoredScenario[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const mountedRef = useRef(true);
@@ -62,9 +65,13 @@ export function useScenarioList(): UseScenarioListReturn {
     }
   }, []);
 
+  // Under a ConnectionScenariosProvider the shared instance owns the request.
   useEffect(() => {
+    if (!enabled) return;
     fetchList();
-  }, [fetchList]);
+  }, [enabled, fetchList]);
+
+  const customScenarios = shared ? shared.customScenarios : custom;
 
   // Memoized so the array identity is stable across renders. Without this the
   // list rebuilt every render, giving nameForId — and every value derived from
@@ -76,9 +83,9 @@ export function useScenarioList(): UseScenarioListReturn {
       { id: "balanced", name: t("scenarios.default_balanced_name"), isDefault: true },
       { id: "gaming", name: t("scenarios.default_gaming_name"), isDefault: true },
       { id: "streaming", name: t("scenarios.default_streaming_name"), isDefault: true },
-      ...custom.map((s) => ({ id: s.id, name: s.name, isDefault: false })),
+      ...customScenarios.map((s) => ({ id: s.id, name: s.name, isDefault: false })),
     ],
-    [custom, t],
+    [customScenarios, t],
   );
 
   const nameForId = useCallback(
@@ -92,8 +99,8 @@ export function useScenarioList(): UseScenarioListReturn {
 
   return {
     scenarios,
-    isLoading,
+    isLoading: shared ? shared.isLoading : isLoading,
     nameForId,
-    refresh: fetchList,
+    refresh: shared ? shared.refresh : fetchList,
   };
 }

@@ -4,6 +4,7 @@ v0.1.32 is in progress, headlined by a much faster connection to the modem: ever
 
 ## ✨ New Features
 
+- **SIM Profiles and Connection Scenarios share one page.** **Cellular → Custom SIM Profiles** now shows what is in force right now, today's schedule as a 24-hour timeline, and your saved profiles next to your scenarios, so you can see and change everything in one place. Creating or editing a profile opens in a dialog, and you can add a scenario from the same page.
 - **Modem commands are about 100× faster.** Each command to the modem now takes about 10 ms instead of about 1 s. Two changes add up: commands release the modem the moment they finish, and QManager now keeps one connection to the modem open instead of starting several helper programs for every command (a further 5× on its own). Pages and background services no longer queue behind each other, a modem that stops answering can no longer leave everything waiting for minutes, and a late answer can no longer show up in the wrong place. It also picks itself back up when the modem restarts, never sends the same command twice, and answers at once while a cell scan is running instead of waiting for the scan to finish.
 - **New System Health Check.** **System Settings → System Health Check** tests every part of QManager on your modem in about ten seconds, from the modem connection and background services to the firewall and your settings files, and lists anything that failed or needs attention first. It changes nothing on the device, and you can download a support bundle with your IMEI, passwords, phone numbers and email addresses removed.
 - **Run QManager on a port of your choice.** QManager still uses ports 80 and 443 by default, but you can now move it (and LuCI with it) to other ports from **System Settings → Web Port**, from the new optional step in first-time setup, or when the installer asks during an SSH install. Over SSH, `qmanager_web_port set 8080 8443` does the same, and `qmanager_web_port reset` goes back to 80 and 443. If the web server can't start on the new ports, the old ones come back on their own.
@@ -17,6 +18,9 @@ v0.1.32 is in progress, headlined by a much faster connection to the modem: ever
 
 ## ✅ Improvements
 
+- **Saving the active profile updates its schedule straight away.** Changing the schedule on the profile in use now takes effect immediately instead of waiting for the next activation.
+- **Network edits to the active profile say when they apply.** Changes to the APN, IMEI, TTL or hop limit are marked "Applies on next activation", with a one-click Reapply when you want the connection to restart. Nothing reconnects behind your back.
+- **Old Connection Scenarios links keep working.** The separate Connection Scenarios page now takes you to the combined page.
 - **Data Used and Storage are back on the dashboard.** The Device & Speed card shows how much you have downloaded and uploaded since your last reset, kept across reboots and connection drops, with a reset button beside it, and how full the modem's storage is.
 - **First-time setup no longer skips settings that didn't apply.** Choosing "APN only" during setup never actually saved the APN, and a network mode or band lock the modem rejected was silently dropped while setup moved on. Each of these now saves for real, and if the modem refuses one, setup stays on that step and tells you why, so you can try again or skip it. The setup wizard also has a refreshed look in the new design, with the QManager mark on the welcome screen.
 
