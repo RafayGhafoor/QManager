@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -35,7 +36,7 @@ import {
   type MaterialSymbolName,
 } from "@/components/ui/material-symbol";
 import { RevealButton } from "@/components/ui/reveal-button";
-import { useSaveFlash } from "@/components/ui/save-button";
+import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import {
   Select,
   SelectContent,
@@ -207,6 +208,9 @@ export interface NrSaTowerCardProps {
   isLocking: boolean;
   /** A cell picked from a carrier tile; the nonce lets the same cell re-apply. */
   prefill: { cell: NrSaLockCell; nonce: number } | null;
+  isSavingSettings: boolean;
+  /** Keep this radio's lock after a reboot (modem-wide write, one radio). */
+  onSetPersist: (on: boolean) => Promise<void>;
   onLock: (cell: NrSaLockCell) => Promise<TowerActionResult>;
   onUnlock: () => Promise<TowerActionResult>;
 }
@@ -219,9 +223,11 @@ export default function NrSaTowerCard({
   servingNr,
   isLoading,
   isLocking,
+  isSavingSettings,
   prefill,
   onLock,
   onUnlock,
+  onSetPersist,
 }: NrSaTowerCardProps): React.JSX.Element {
   const { t } = useTranslation("cellular");
   const { saved, markSaved } = useSaveFlash();
@@ -415,9 +421,11 @@ export default function NrSaTowerCard({
           </div>
         </CardContent>
         <div className={`${CARD_PAD} ${CARD_FOOT}`}>
+          <div className="flex items-center gap-1.5">
+            <Skeleton className={SKELETON_SHAPE.REVEAL} />
+            <Skeleton className={SKELETON_SHAPE.REVEAL} />
+          </div>
           <div className={CARD_FOOT_ACTIONS}>
-            <Skeleton className={SKELETON_SHAPE.ACTION_QUIET} />
-            <Skeleton className={SKELETON_SHAPE.ACTION_SECONDARY} />
             <Skeleton className={SKELETON_SHAPE.ACTION} />
           </div>
         </div>
@@ -439,9 +447,14 @@ export default function NrSaTowerCard({
           ? hasAnyInput
             ? t(`${K}.blocked.lock_incomplete_nr`)
             : t(`${K}.blocked.lock_empty_nr`)
-          : posture === "locked" && !hasChanges
-            ? t(`${K}.blocked.lock_unchanged`)
-            : null;
+          : null;
+
+  // Which of the two writes the state calls for (see the footer).
+  const lockedAsSaved = posture === "locked" && !hasChanges;
+  const showUnlock = posture === "unknown" || lockedAsSaved;
+  const showLock = !lockedAsSaved;
+  const keepOn =
+    modemState?.persist_nr === true && modemState?.persist_read_ok !== false;
 
   const status = LEG_BADGE[posture];
   const headerChip: { variant: BadgeVariant; glyph: MaterialSymbolName; label: string } =
@@ -791,32 +804,54 @@ export default function NrSaTowerCard({
                 onClick={handleClear}
                 disabled={formDisabled || !hasAnyInput}
               />
+              <RevealButton
+                glyph="restart_alt"
+                variant={keepOn ? "tonal" : "tonal-neutral"}
+                label={
+                  keepOn
+                    ? t(`${K}.actions.persist_on`)
+                    : t(`${K}.actions.persist_off`)
+                }
+                aria-pressed={keepOn}
+                onClick={() => void onSetPersist(!keepOn)}
+                disabled={isLocking || isSavingSettings}
+                blockedReason={
+                  modemState?.persist_read_ok === false
+                    ? t(`${K}.blocked.persist_unread`)
+                    : null
+                }
+              />
               {footStatus}
             </>
           }
           actions={
             <>
-              {/* Gated on the modem's lock state only, never on the network
-                  gate: a lock on an unreachable cell must always be removable.
-                  Shown only while a lock exists; an unreadable lock state
-                  keeps it live as the way out. */}
-              {posture !== "unlocked" ? (
-                <RevealButton
-                  glyph="lock_open"
-                  variant="default"
-                  label={t(`${K}.actions.unlock`)}
+              {/* One write at a time, whichever the state calls for: Remove
+                  lock while the saved lock is what is on the modem, Lock when
+                  there is none or the fields now differ from it. An unreadable
+                  lock state shows both: Remove lock is harmless when nothing is
+                  locked, and the way out when something is. */}
+              {showUnlock ? (
+                <Button
+                  type="button"
+                  variant="tonal-neutral"
+                  size="action"
                   onClick={() => setShowUnlockDialog(true)}
                   disabled={isLocking}
+                >
+                  {t(`${K}.actions.unlock`)}
+                </Button>
+              ) : null}
+              {showLock ? (
+                <SaveButton
+                  onClick={requestLock}
+                  isSaving={isLocking}
+                  saved={saved}
+                  label={t(`${K}.actions.lock`)}
+                  blockedReason={lockBlockedReason}
+                  size="action"
                 />
               ) : null}
-              <RevealButton
-                glyph="lock"
-                variant="default"
-                label={t(`${K}.actions.lock`)}
-                onClick={requestLock}
-                status={isLocking ? "saving" : saved ? "saved" : "idle"}
-                blockedReason={lockBlockedReason}
-              />
             </>
           }
         />

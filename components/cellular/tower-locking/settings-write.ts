@@ -1,35 +1,36 @@
 import { toast } from "sonner";
 import type { TFunction } from "i18next";
 
-import type { TowerActionResult } from "@/types/tower-locking";
+import type {
+  TowerActionResult,
+  TowerSettingsChange,
+} from "@/types/tower-locking";
 
 const K = "cell_locking.tower_locking";
 
 export type UpdateTowerSettings = (
-  persist: boolean,
-  failover: { enabled: boolean; threshold: number },
+  change: TowerSettingsChange,
 ) => Promise<TowerActionResult>;
 
 /**
- * One settings write, one toast, whichever control asked for it. Persist and
- * failover share a single CGI call, so both the failover tiles and the
- * keep-after-reboot toggle go through here. Returns whether the write landed.
+ * One settings write, one toast, whichever control asked for it. Failover and
+ * each radio's keep-after-reboot go through the same CGI call. Returns whether
+ * the write landed (a rejected `save_ctrl` warns and counts as not landed).
  */
 export async function writeTowerSettings(
   t: TFunction,
   update: UpdateTowerSettings,
-  persist: boolean,
-  failover: { enabled: boolean; threshold: number },
+  change: TowerSettingsChange,
   successMessage: string,
 ): Promise<boolean> {
-  const result = await update(persist, failover);
+  const result = await update(change);
   if (!result.ok) {
     toast.error(result.error ?? t(`${K}.errors.settings_failed`));
     return false;
   }
   if (result.warning === "persist_command_failed") {
     toast.warning(t(`${K}.toast.persist_command_failed`));
-    return true;
+    return false;
   }
   toast.success(successMessage);
   return true;

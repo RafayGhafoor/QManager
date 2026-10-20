@@ -11,6 +11,7 @@ import type {
   TowerScheduleConfig,
   TowerStatusResponse,
   TowerLockResponse,
+  TowerSettingsChange,
   TowerSettingsResponse,
   TowerScheduleResponse,
   TowerFailoverStatusResponse,
@@ -140,13 +141,10 @@ export interface UseTowerLockingReturn {
   unlockNrSa: () => Promise<TowerActionResult>;
 
   /**
-   * Update persist and failover settings (`settings.sh` takes both together).
-   * Persist changes are sent to the modem immediately via AT command.
+   * Update persist (per radio) and failover settings. Only the parts passed are
+   * written. Persist changes are sent to the modem immediately via AT command.
    */
-  updateSettings: (
-    persist: boolean,
-    failover: { enabled: boolean; threshold: number }
-  ) => Promise<TowerActionResult>;
+  updateSettings: (change: TowerSettingsChange) => Promise<TowerActionResult>;
 
   /** Update schedule configuration and manage cron entries. */
   updateSchedule: (schedule: TowerScheduleConfig) => Promise<TowerActionResult>;
@@ -457,11 +455,10 @@ export function useTowerLocking(): UseTowerLockingReturn {
   // Update Settings (persist + failover)
   // ---------------------------------------------------------------------------
   const updateSettings = useCallback(
-    async (
-      persist: boolean,
-      failover: { enabled: boolean; threshold: number }
-    ): Promise<TowerActionResult> => {
+    async (change: TowerSettingsChange): Promise<TowerActionResult> => {
       const fallback = t(`${K}.settings_failed`);
+      const { persist_lte, persist_nr, failover } = change;
+      const asksPersist = persist_lte !== undefined || persist_nr !== undefined;
       setIsSavingSettings(true);
 
       try {
@@ -469,9 +466,14 @@ export function useTowerLocking(): UseTowerLockingReturn {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            persist,
-            failover_enabled: failover.enabled,
-            failover_threshold: failover.threshold,
+            ...(persist_lte !== undefined ? { persist_lte } : null),
+            ...(persist_nr !== undefined ? { persist_nr } : null),
+            ...(failover
+              ? {
+                  failover_enabled: failover.enabled,
+                  failover_threshold: failover.threshold,
+                }
+              : null),
           }),
         });
 
@@ -489,46 +491,69 @@ export function useTowerLocking(): UseTowerLockingReturn {
           };
         }
 
-        // The config was written but the modem rejected the `save_ctrl` write,
-        // so "Keep lock after reboot" did NOT take. Keep the config's persist as
-        // it was and report the partial success instead of claiming it.
+        // The modem rejected the `save_ctrl` write (or could not be read), so
+        // the radio's setting did NOT change. Report the partial success rather
+        // than claiming it.
         const persistTook = !data.persist_command_failed;
+        if (asksPersist && persistTook) {
+          const lteNow = data.persist_lte;
+          const nrNow = data.persist_nr;
+          setModemState((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  persist_lte: typeof lteNow === "boolean" ? lteNow : prev.persist_lte,
+                  persist_nr: typeof nrNow === "boolean" ? nrNow : prev.persist_nr,
+                  persist_read_ok: true,
+                }
+              : prev
+          );
+        }
         setConfig((prev) =>
           prev
             ? {
                 ...prev,
-                persist: persistTook ? persist : prev.persist,
-                failover: {
-                  enabled: failover.enabled,
-                  threshold: failover.threshold,
-                },
+                persist:
+                  asksPersist && typeof data.persist === "boolean"
+                    ? data.persist
+                    : prev.persist,
+                ...(failover
+                  ? {
+                      failover: {
+                        enabled: failover.enabled,
+                        threshold: failover.threshold,
+                      },
+                    }
+                  : null),
               }
             : prev
         );
 
         // Keep failoverState in step. Disabling failover kills the watcher;
         // enabling it with an active lock spawns one.
-        if (data.watcher_spawned) {
-          setFailoverState((prev) =>
-            prev
-              ? { ...prev, enabled: true, activated: false, watcher_running: true }
-              : { enabled: true, activated: false, watcher_running: true }
-          );
-          startFailoverPolling();
-        } else {
-          if (!failover.enabled && failoverPollRef.current) {
-            clearInterval(failoverPollRef.current);
-            failoverPollRef.current = null;
+        if (failover) {
+          if (data.watcher_spawned) {
+            setFailoverState((prev) =>
+              prev
+                ? { ...prev, enabled: true, activated: false, watcher_running: true }
+                : { enabled: true, activated: false, watcher_running: true }
+            );
+            startFailoverPolling();
+          } else {
+            if (!failover.enabled && failoverPollRef.current) {
+              clearInterval(failoverPollRef.current);
+              failoverPollRef.current = null;
+            }
+            setFailoverState((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    enabled: failover.enabled,
+                    ...(failover.enabled ? {} : { watcher_running: false }),
+                  }
+                : { enabled: failover.enabled, activated: false, watcher_running: false }
+            );
           }
-          setFailoverState((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  enabled: failover.enabled,
-                  ...(failover.enabled ? {} : { watcher_running: false }),
-                }
-              : { enabled: failover.enabled, activated: false, watcher_running: false }
-          );
         }
 
         return persistTook

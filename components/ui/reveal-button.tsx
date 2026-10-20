@@ -1,7 +1,6 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { CheckIcon, Loader2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,14 +18,12 @@ import { cn } from "@/lib/utils";
 // RevealButton — an icon button that reveals its label on hover or focus
 // =============================================================================
 // Used where a row of text buttons would crowd the edge (Band Locking's
-// select/deselect, Tower Locking's lock/unlock). In a flex row an expanding
+// select/deselect, Tower Locking's clear / keep-after-reboot). In a flex row an expanding
 // button pushes its neighbour along instead of covering it. The width change is
 // a container size change, so it runs on `standard` / `--ease-standard`; reduced
 // motion shows the label with no transition. Touch has no hover, so those
 // buttons stay icon-only and keep their aria-label.
 //
-// `status` swaps the glyph in place (spinner while writing, check once saved)
-// and the label never changes, so the button's width never moves mid-write.
 // `blockedReason` blocks the click without `disabled`, so the reason stays
 // focusable and tooltipped (same contract as `SaveButton`).
 // =============================================================================
@@ -35,21 +32,18 @@ export interface RevealButtonProps
   extends Omit<ComponentProps<typeof Button>, "children" | "size"> {
   glyph: MaterialSymbolName;
   label: string;
-  status?: "idle" | "saving" | "saved";
   blockedReason?: string | null;
 }
 
 export function RevealButton({
   glyph,
   label,
-  status = "idle",
   blockedReason = null,
   variant = "tonal-neutral",
   className,
   onClick,
   ...props
 }: RevealButtonProps) {
-  const active = status !== "idle";
   const blocked = Boolean(blockedReason);
 
   const button = (
@@ -57,10 +51,10 @@ export function RevealButton({
       type="button"
       variant={variant}
       aria-label={blockedReason ? `${label} — ${blockedReason}` : label}
-      aria-disabled={active || blocked || undefined}
+      aria-disabled={blocked || undefined}
       data-blocked={blocked || undefined}
       onClick={(event) => {
-        if (active || blocked) {
+        if (blocked) {
           event.preventDefault();
           return;
         }
@@ -72,13 +66,7 @@ export function RevealButton({
       )}
       {...props}
     >
-      {status === "saving" ? (
-        <Loader2Icon className="size-[18px] flex-none motion-safe:animate-spin" />
-      ) : status === "saved" ? (
-        <CheckIcon className="size-[18px] flex-none" />
-      ) : (
-        <MaterialSymbol name={glyph} size={18} className="flex-none" />
-      )}
+      <MaterialSymbol name={glyph} size={18} className="flex-none" />
       <span className="max-w-0 overflow-hidden opacity-0 transition-[max-width,opacity] duration-[var(--duration-standard)] ease-[var(--ease-standard)] group-hover/reveal:max-w-40 group-hover/reveal:opacity-100 group-focus-visible/reveal:max-w-40 group-focus-visible/reveal:opacity-100 motion-reduce:transition-none">
         <span className="block whitespace-nowrap pl-2 pr-0.5 text-xs font-semibold">
           {label}

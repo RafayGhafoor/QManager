@@ -43,8 +43,8 @@ import {
 // a daily window (schedule). Each reports the SAVED state (config) and, where
 // the modem has an opinion, the LIVE state separately: the failover chip is the
 // watcher's. The threshold renders empty until it has actually been read, never
-// a plausible default. Keep-after-reboot lives under the leg cards
-// (`persist-toggle.tsx`); it shares this tile's settings write.
+// a plausible default. Keep-after-reboot is per radio and lives in each leg
+// card's footer; it shares this tile's settings write.
 // =============================================================================
 
 const K = "cell_locking.tower_locking";
@@ -117,8 +117,7 @@ export function TowerAutomationTiles({
     await writeTowerSettings(
       t,
       onUpdateSettings,
-      config.persist,
-      { ...config.failover, enabled: next },
+      { failover: { ...config.failover, enabled: next } },
       next
         ? t(`${K}.toast.failover_enabled`)
         : t(`${K}.toast.failover_disabled`),
@@ -130,8 +129,7 @@ export function TowerAutomationTiles({
     const ok = await writeTowerSettings(
       t,
       onUpdateSettings,
-      config.persist,
-      { ...config.failover, threshold: parsedThreshold },
+      { failover: { ...config.failover, threshold: parsedThreshold } },
       t(`${K}.toast.threshold_saved`),
     );
     if (ok) markSaved();

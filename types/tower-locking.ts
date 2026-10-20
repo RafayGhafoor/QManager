@@ -116,10 +116,25 @@ export interface TowerLockResponse {
   detail?: string;
 }
 
+/**
+ * One settings write. Every part is optional and an absent part is left alone:
+ * a failover save never touches persistence, and one radio's persistence never
+ * touches the other's.
+ */
+export interface TowerSettingsChange {
+  persist_lte?: boolean;
+  persist_nr?: boolean;
+  failover?: { enabled: boolean; threshold: number };
+}
+
 /** Response from POST /cgi-bin/quecmanager/tower/settings.sh */
 export interface TowerSettingsResponse {
   success: boolean;
+  /** Both radios keep the lock. */
   persist?: boolean;
+  /** Each radio's value after the call; null when persistence was not part of it. */
+  persist_lte?: boolean | null;
+  persist_nr?: boolean | null;
   failover_enabled?: boolean;
   failover_threshold?: number;
   persist_command_failed?: boolean;

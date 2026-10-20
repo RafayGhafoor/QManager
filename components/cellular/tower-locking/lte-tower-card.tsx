@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -32,7 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { RevealButton } from "@/components/ui/reveal-button";
-import { useSaveFlash } from "@/components/ui/save-button";
+import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import {
   Select,
   SelectContent,
@@ -151,6 +152,9 @@ export interface LteTowerCardProps {
   isLocking: boolean;
   /** A cell picked from a carrier tile; the nonce lets the same cell re-apply. */
   prefill: { cell: LteLockCell; nonce: number } | null;
+  isSavingSettings: boolean;
+  /** Keep this radio's lock after a reboot (modem-wide write, one radio). */
+  onSetPersist: (on: boolean) => Promise<void>;
   /** Free slots, reported up so the tiles can say when the card is full. */
   onFreeSlotsChange?: (free: number) => void;
   onLock: (cells: LteLockCell[]) => Promise<TowerActionResult>;
@@ -163,9 +167,11 @@ export default function LteTowerCard({
   carriers,
   isLoading,
   isLocking,
+  isSavingSettings,
   prefill,
   onLock,
   onUnlock,
+  onSetPersist,
   onFreeSlotsChange,
 }: LteTowerCardProps): React.JSX.Element {
   const { t } = useTranslation("cellular");
@@ -297,9 +303,14 @@ export default function LteTowerCard({
       ? hasAnyValue
         ? t(`${K}.blocked.lock_incomplete_lte`)
         : t(`${K}.blocked.lock_empty_lte`)
-      : posture === "locked" && !hasChanges
-        ? t(`${K}.blocked.lock_unchanged`)
-        : null;
+      : null;
+
+  // Which of the two writes the state calls for (see the footer).
+  const lockedAsSaved = posture === "locked" && !hasChanges;
+  const showUnlock = posture === "unknown" || lockedAsSaved;
+  const showLock = !lockedAsSaved;
+  const keepOn =
+    modemState?.persist_lte === true && modemState?.persist_read_ok !== false;
 
   // --- Handlers ---------------------------------------------------------------
   const setSlotField = (index: number, field: keyof SlotValue, value: string) =>
@@ -394,9 +405,11 @@ export default function LteTowerCard({
           </div>
         </CardContent>
         <div className={`${CARD_PAD} ${CARD_FOOT}`}>
+          <div className="flex items-center gap-1.5">
+            <Skeleton className={SKELETON_SHAPE.REVEAL} />
+            <Skeleton className={SKELETON_SHAPE.REVEAL} />
+          </div>
           <div className={CARD_FOOT_ACTIONS}>
-            <Skeleton className={SKELETON_SHAPE.ACTION_QUIET} />
-            <Skeleton className={SKELETON_SHAPE.ACTION_SECONDARY} />
             <Skeleton className={SKELETON_SHAPE.ACTION} />
           </div>
         </div>
@@ -754,31 +767,54 @@ export default function LteTowerCard({
                 onClick={() => setSlots(slotsFromCells(undefined))}
                 disabled={isLocking || !hasAnyValue}
               />
+              <RevealButton
+                glyph="restart_alt"
+                variant={keepOn ? "tonal" : "tonal-neutral"}
+                label={
+                  keepOn
+                    ? t(`${K}.actions.persist_on`)
+                    : t(`${K}.actions.persist_off`)
+                }
+                aria-pressed={keepOn}
+                onClick={() => void onSetPersist(!keepOn)}
+                disabled={isLocking || isSavingSettings}
+                blockedReason={
+                  modemState?.persist_read_ok === false
+                    ? t(`${K}.blocked.persist_unread`)
+                    : null
+                }
+              />
               {footStatus}
             </>
           }
           actions={
             <>
-              {/* Only while a lock exists. An unreadable lock state keeps it
-                  live: unlocking is harmless when nothing is locked, and the
-                  way out when something is. */}
-              {posture !== "unlocked" ? (
-                <RevealButton
-                  glyph="lock_open"
-                  variant="default"
-                  label={t(`${K}.actions.unlock`)}
+              {/* One write at a time, whichever the state calls for: Remove
+                  lock while the saved lock is what is on the modem, Lock when
+                  there is none or the fields now differ from it. An unreadable
+                  lock state shows both: Remove lock is harmless when nothing is
+                  locked, and the way out when something is. */}
+              {showUnlock ? (
+                <Button
+                  type="button"
+                  variant="tonal-neutral"
+                  size="action"
                   onClick={() => setShowUnlockDialog(true)}
                   disabled={isLocking}
+                >
+                  {t(`${K}.actions.unlock`)}
+                </Button>
+              ) : null}
+              {showLock ? (
+                <SaveButton
+                  onClick={requestLock}
+                  isSaving={isLocking}
+                  saved={saved}
+                  label={t(`${K}.actions.lock`)}
+                  blockedReason={lockBlockedReason}
+                  size="action"
                 />
               ) : null}
-              <RevealButton
-                glyph="lock"
-                variant="default"
-                label={t(`${K}.actions.lock`)}
-                onClick={requestLock}
-                status={isLocking ? "saving" : saved ? "saved" : "idle"}
-                blockedReason={lockBlockedReason}
-              />
             </>
           }
         />

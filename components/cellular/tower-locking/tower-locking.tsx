@@ -20,10 +20,11 @@ import TowerAutomationTiles from "./automation-tiles";
 import TowerLiveStrip, { type CanTarget } from "./live-strip";
 import LteTowerCard from "./lte-tower-card";
 import NrSaTowerCard from "./nr-sa-tower-card";
-import TowerPersistToggle from "./persist-toggle";
+import { writeTowerSettings } from "./settings-write";
 import { defaultScsForBand } from "./simple-mode-utils";
 import {
   LEG_CARD_ID,
+  LEG_KEYS,
   SECTION_HEAD,
   TOWER_HERO,
   TOWER_SECTION,
@@ -45,7 +46,8 @@ import {
 //                          protects both radios, so it is not a leg-card
 //                          setting);
 //   3. the leg cards, 2-up on a wide column (where the target changes);
-//   4. keep-lock-after-reboot, modem-wide, so under the cards and not in one.
+//   Keep-after-reboot is per radio (the modem takes LTE and NR separately), so
+//   each leg card owns its toggle in the footer.
 // Do not re-merge 1 and 2: each section's header describes only its own body.
 //
 // The prefill bus: "use this cell" on a carrier tile reaches a form owned by a
@@ -148,6 +150,20 @@ const TowerLockingComponent = () => {
     },
     [nonce, modemData?.nr?.arfcn, modemData?.nr?.pci, modemData?.nr?.scs],
   );
+
+  // Keep one radio's lock across a reboot. One CGI call, one radio: the other
+  // radio's setting is left exactly as the modem holds it.
+  const handleSetPersist = async (leg: TowerLeg, on: boolean) => {
+    const name = t(LEG_KEYS[leg].short);
+    await writeTowerSettings(
+      t,
+      tower.updateSettings,
+      leg === "lte" ? { persist_lte: on } : { persist_nr: on },
+      on
+        ? t(`${K}.toast.persist_enabled`, { leg: name })
+        : t(`${K}.toast.persist_disabled`, { leg: name }),
+    );
+  };
 
   // The RSRP of whichever leg the modem is actually registered on.
   const activeRsrp =
@@ -289,6 +305,8 @@ const TowerLockingComponent = () => {
               carriers={lteCarriers}
               isLoading={tower.isLoading}
               isLocking={tower.isLteLocking}
+              isSavingSettings={tower.isSavingSettings}
+              onSetPersist={(on) => handleSetPersist("lte", on)}
               prefill={ltePrefill}
               onFreeSlotsChange={setLteFreeSlots}
               onLock={tower.lockLte}
@@ -312,21 +330,13 @@ const TowerLockingComponent = () => {
               }}
               isLoading={tower.isLoading}
               isLocking={tower.isNrLocking}
+              isSavingSettings={tower.isSavingSettings}
+              onSetPersist={(on) => handleSetPersist("nr_sa", on)}
               prefill={nrPrefill}
               onLock={tower.lockNrSa}
               onUnlock={tower.unlockNrSa}
             />
           </motion.div>
-        </motion.div>
-
-        <motion.div variants={staggerItem}>
-          <TowerPersistToggle
-            config={tower.config}
-            modemState={tower.modemState}
-            isLoading={tower.isLoading}
-            isSavingSettings={tower.isSavingSettings}
-            onUpdateSettings={tower.updateSettings}
-          />
         </motion.div>
       </motion.div>
     </div>

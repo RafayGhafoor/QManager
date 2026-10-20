@@ -256,33 +256,6 @@ export const LEG_BADGE: Record<
   unknown: { variant: "muted", glyph: "help" },
 };
 
-export type PersistPosture = "on" | "off" | "split" | "unknown";
-
-export const PERSIST_BADGE: Record<
-  PersistPosture,
-  { variant: BadgeVariant; glyph: MaterialSymbolName }
-> = {
-  on: { variant: "success", glyph: "check_circle" },
-  off: { variant: "muted", glyph: "do_not_disturb_on" },
-  split: { variant: "warning", glyph: "warning" },
-  unknown: { variant: "muted", glyph: "help" },
-};
-
-/** What the modem itself reports for "keep after reboot", per radio. */
-export function persistPosture(
-  modemState: {
-    persist_lte: boolean;
-    persist_nr: boolean;
-    persist_read_ok?: boolean;
-  } | null,
-): PersistPosture {
-  if (!modemState) return "unknown";
-  if (modemState.persist_read_ok === false) return "unknown";
-  if (modemState.persist_lte && modemState.persist_nr) return "on";
-  if (!modemState.persist_lte && !modemState.persist_nr) return "off";
-  return "split";
-}
-
 // --- Skeletons ---------------------------------------------------------------
 
 /** Mirrors of the loaded shapes. Slot rows compose `SLOT_ROW.ROOT` instead. */
@@ -296,7 +269,7 @@ export const SKELETON_SHAPE = {
   TILE_VALUE: "h-8 w-24 rounded-field",
   ACTION: "h-[2.625rem] w-36 rounded-pill",
   ACTION_SECONDARY: "h-[2.625rem] w-40 rounded-pill",
-  ACTION_QUIET: "h-9 w-24 rounded-pill",
+  REVEAL: "h-[2.625rem] w-[2.625rem] rounded-pill",
   CONTROL_ROW: "h-[3.25rem] w-full rounded-field",
   READBACK: "h-[4.25rem] w-full rounded-field",
   CARRIER_TILE: "h-[5.4375rem] w-full rounded-tile",
