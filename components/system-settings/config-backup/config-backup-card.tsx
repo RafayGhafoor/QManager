@@ -20,6 +20,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -227,16 +233,33 @@ const ConfigBackupCard = () => {
 
       <CardContent className={cn(CARD_PAD, CARD_BODY)}>
         <form onSubmit={handleSubmit} className={cn(CARD_BODY, "gap-5")}>
-          {GROUPS.map((group) => (
-            <fieldset key={group} className="flex flex-col gap-2">
-              <legend className={cn(PICK.LABEL, "mb-2")}>
-                {t(`${K}.group_${group}`)}
-              </legend>
-              <div className={ROW_GROUP}>
-                {BACKUP_SECTIONS.filter((s) => s.group === group).map(renderRow)}
-              </div>
-            </fieldset>
-          ))}
+          {/* Connection opens first; the rest stay folded to save height. */}
+          <Accordion
+            type="multiple"
+            defaultValue={["connection"]}
+            className="flex flex-col gap-3"
+          >
+            {GROUPS.map((group) => (
+              <AccordionItem
+                key={group}
+                value={group}
+                className="border-b-0"
+              >
+                <AccordionTrigger
+                  className={cn(PICK.LABEL, "items-center rounded-field py-1.5")}
+                >
+                  {t(`${K}.group_${group}`)}
+                </AccordionTrigger>
+                <AccordionContent className="pt-1 pb-0">
+                  <div className={ROW_GROUP}>
+                    {BACKUP_SECTIONS.filter((s) => s.group === group).map(
+                      renderRow,
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
 
           <fieldset className="flex flex-col gap-2">
             <legend className={cn(PICK.LABEL, "mb-2")}>
