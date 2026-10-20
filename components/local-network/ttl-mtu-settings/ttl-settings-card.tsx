@@ -72,6 +72,9 @@ const renderCheckGlyph = (className: string) => (
 const TTL_MIN = 1;
 const TTL_MAX = 255;
 
+/** What the TTL and hop-limit fields hold while the rewrite is off. */
+const DEFAULT_HOPS = "64";
+
 const ERR_VALUE_RANGE = `${K}.errors.value_range`;
 const ERR_NO_VALUE = `${K}.errors.no_value`;
 
@@ -151,8 +154,10 @@ export function TtlSettingsCard({
         ? null
         : {
             enabled: serverEnabled,
-            ttl: serverTtl > 0 ? String(serverTtl) : "",
-            hl: serverHl > 0 ? String(serverHl) : "",
+            // While the rewrite is off the fields show the usual 64 as a real
+            // value, so switching it on starts from something sensible.
+            ttl: serverTtl > 0 ? String(serverTtl) : serverEnabled ? "" : DEFAULT_HOPS,
+            hl: serverHl > 0 ? String(serverHl) : serverEnabled ? "" : DEFAULT_HOPS,
           },
     [serverEnabled, serverTtl, serverHl],
   );
