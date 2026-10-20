@@ -119,7 +119,8 @@ stale notices.
 temperature and distance rows in one tonal group, committed from `CardFoot` (Discard, then
 `SaveButton`); each row has its own `Unsaved` marker. The **Tracked SIMs** row (count, from
 `useKnownSims()`, lifted into `system-settings.tsx` so the band tile and the row share one
-GET) sits in the same card with an inline **Clear** row action. Clear is not a draft
+GET) sits in the same card with an inline **Clear** row action (icon-only, label revealed on hover/focus via
+`reveal-label-button.tsx`, the same as the header Refresh). Clear is not a draft
 commit, so it is exempt from the `CardFoot` rule and does not touch Discard or Save. See
 [known-sims.md](../features/known-sims.md#frontend-tracked-sims-grouptsx).
 
@@ -131,8 +132,11 @@ commit, so it is exempt from the `CardFoot` rule and does not touch Discard or S
 
 ### Scheduled Reboot (`scheduled-operations-card.tsx`)
 
-The only scheduled operation left: one `ROW_GROUP` with an enable switch, a time field and a
-day rail. It saves through one internal hook (`useAutosaveSchedule`): the switch saves at
+The only scheduled operation left: one `ROW_GROUP` with an enable switch, a time field, a
+day rail and a read-only **Modem time** row. That row ticks the `device_clock` from the GET
+(`useSystemSettings().deviceClock`, stamped with the browser time it arrived): the device's
+own wall time and zone, never the browser's. A clock before 2025 shows a `warning` chip
+("Not set yet"), since the schedule guard will not fire on it; no clock reads `—`. It saves through one internal hook (`useAutosaveSchedule`): the switch saves at
 once; any other edit saves 800ms after the last, only while the block is on; a failure
 reverts to the server's values and toasts the returned reason; unmounting with an edit
 queued warns through `*.toast.unsaved`. There is no Save button, so the card keeps a
