@@ -691,13 +691,9 @@
     "strong_hint": "Richiede lettere maiuscole, minuscole e caratteri numerici."
   },
   "not_found": {
-    "scan_label": "Nessun segnale: la console non riesce ad acquisire un percorso per questo indirizzo",
-    "code_label": "Errore 404",
-    "badge": "Nessun percorso acquisito",
-    "title": "Questo percorso non esiste",
-    "description": "Nessuno risponde a questo indirizzo; potrebbe essere stato spostato o il link è errato.",
-    "requested_route": "Percorso richiesto",
-    "back": "Indietro",
+    "scene_label": "Un falò che scoppietta sotto un cielo stellato",
+    "title": "Sembra che tu ti sia perso, avventuriero",
+    "description": "Vuoi tornare a migliorare le tue connessioni?",
     "home": "Torna alla Dashboard",
     "footer": "QManager (Gestione modem Quectel)"
   }

@@ -691,13 +691,9 @@
     "strong_hint": "Memerlukan huruf besar, huruf kecil, dan angka."
   },
   "not_found": {
-    "scan_label": "Tidak ada sinyal: konsol tidak dapat memperoleh rute untuk alamat ini",
-    "code_label": "Kesalahan 404",
-    "badge": "Tidak ada rute",
-    "title": "Rute ini tidak ada",
-    "description": "Tidak ada yang menjawab di alamat ini; mungkin sudah dipindahkan atau tautannya salah ketik.",
-    "requested_route": "Rute yang diminta",
-    "back": "Kembali",
+    "scene_label": "Api unggun berderak di bawah langit berbintang",
+    "title": "Sepertinya kamu tersesat, petualang",
+    "description": "Mau kembali membuat koneksimu lebih baik?",
     "home": "Kembali ke Dasbor",
     "footer": "QManager (Manajemen Modem Quectel)"
   }

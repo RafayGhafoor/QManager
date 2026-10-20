@@ -799,6 +799,159 @@
 }
 
 /* ---------------------------------------------------------------------------
+   404 campfire (app/not-found.tsx, components/not-found/campfire-scene.tsx).
+   The one sanctioned decorative loop (DESIGN.md > The One-Loop Rule). Pixel-art
+   sprite cadence: every curve is stepped, so these continuous loops keep their
+   own tempo rather than the duration scale. The resting styles are a complete
+   still frame (flame frame 0, embers mid-rise), which is what Reduced shows.
+--------------------------------------------------------------------------- */
+
+/* Three flame frames, each visible for a third of the cycle. */
+@keyframes campfire-frame {
+  0% {
+    opacity: 1;
+  }
+  33.333%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.campfire-frame {
+  animation: campfire-frame 540ms step-end infinite;
+}
+
+.campfire-frame-1 {
+  opacity: 0;
+  animation-delay: -360ms;
+}
+
+.campfire-frame-2 {
+  opacity: 0;
+  animation-delay: -180ms;
+}
+
+@keyframes campfire-glow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.campfire-glow {
+  animation: campfire-glow 900ms steps(3) infinite;
+}
+
+/* Embers rise 14 scene pixels in pixel-sized steps and fade out. */
+@keyframes campfire-ember {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  12%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--ember-dx, 0px), -14px);
+    opacity: 0;
+  }
+}
+
+.campfire-ember {
+  animation: campfire-ember var(--ember-dur, 2s) steps(14) var(--ember-delay, 0s)
+    infinite;
+}
+
+@keyframes campfire-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.campfire-star {
+  animation: campfire-twinkle 3.2s step-end infinite;
+}
+
+/* The way home: an amber pixel button with notched corners and a bevel. The
+   clip-path would clip a focus ring, so the ring sits on the frame around it. */
+.campfire-button-frame {
+  display: inline-flex;
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+}
+
+.campfire-button-frame:has(.campfire-button:focus-visible) {
+  outline-color: var(--campfire-amber-light);
+}
+
+.campfire-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.75rem;
+  padding: 0 1.25rem 0.125rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--campfire-amber-ink);
+  background-color: var(--campfire-amber);
+  box-shadow:
+    inset 0 -4px 0 var(--campfire-amber-edge),
+    inset 0 4px 0 var(--campfire-amber-light);
+  clip-path: polygon(
+    0 4px,
+    4px 4px,
+    4px 0,
+    calc(100% - 4px) 0,
+    calc(100% - 4px) 4px,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 4px) calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    4px calc(100% - 4px),
+    0 calc(100% - 4px)
+  );
+  outline: none;
+  transition:
+    background-color var(--duration-quick) var(--ease-quick),
+    transform var(--duration-quick) var(--ease-quick);
+}
+
+.campfire-button:hover {
+  background-color: var(--campfire-amber-hover);
+}
+
+.campfire-button:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 -2px 0 var(--campfire-amber-edge),
+    inset 0 2px 0 var(--campfire-amber-light);
+}
+
+:root {
+  @variant motion-reduce {
+    & .campfire-frame,
+    & .campfire-glow,
+    & .campfire-ember,
+    & .campfire-star {
+      animation: none;
+    }
+
+    & .campfire-button:active {
+      transform: none;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
    Banner entrance (DESIGN.md > Banner System > Motion). A 6px rise plus fade on
    `emphasized`. Enter only: there is deliberately no exit keyframe, because a
    banner leaving means the condition cleared and that should feel immediate.

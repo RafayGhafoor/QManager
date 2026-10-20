@@ -691,13 +691,9 @@
     "strong_hint": "需要包含大寫字母、小寫字母和數字。"
   },
   "not_found": {
-    "scan_label": "無訊號：主控台無法為此位址取得路由",
-    "code_label": "錯誤 404",
-    "badge": "未取得路由",
-    "title": "此路由不存在",
-    "description": "此位址沒有回應；它可能已被移動，或連結輸入錯誤。",
-    "requested_route": "請求的路由",
-    "back": "返回",
+    "scene_label": "星空下劈啪作響的營火",
+    "title": "冒險者，你好像迷路了",
+    "description": "要回去繼續優化你的連線嗎？",
     "home": "返回儀表板",
     "footer": "QManager（Quectel 模組管理）"
   }

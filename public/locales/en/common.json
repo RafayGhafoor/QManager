@@ -691,14 +691,10 @@
     "strong_hint": "Requires uppercase, lowercase, and numeric characters."
   },
   "not_found": {
-    "scan_label": "No signal: the console can't acquire a route for this address",
-    "code_label": "Error 404",
-    "badge": "No route acquired",
-    "title": "This route doesn't exist",
-    "description": "Nothing answers at this address; it may have moved, or the link was mistyped.",
-    "requested_route": "Requested route",
-    "back": "Go back",
-    "home": "Return to Dashboard",
+    "scene_label": "A campfire crackling under a starry night sky",
+    "title": "You seem to be lost, adventurer",
+    "description": "Want to go back to making your connections better?",
+    "home": "Back to Dashboard",
     "footer": "QManager (Quectel Modem Management)"
   }
 }
