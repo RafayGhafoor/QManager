@@ -39,7 +39,7 @@ export interface Scenario {
 }
 
 export const SCENARIO_TILE_SHAPE =
-  "flex h-full min-h-[8.5rem] w-full flex-col gap-3 rounded-tile px-4 py-4 text-left transition-colors duration-[var(--duration-quick)] ease-out focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-[3px] focus-visible:outline-none";
+  "flex h-full min-h-[9rem] w-full flex-col gap-3.5 rounded-tile px-6 py-5 text-left transition-colors duration-[var(--duration-quick)] ease-out focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-[3px] focus-visible:outline-none";
 
 export const SCENARIO_GRID =
   "grid grid-cols-1 gap-3 @md/card:grid-cols-2 @4xl/card:grid-cols-4";
