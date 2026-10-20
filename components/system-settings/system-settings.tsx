@@ -5,13 +5,11 @@ import { RefreshCcwIcon } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
-import { useMotionReduced } from "@/components/motion-preference";
-import { Button } from "@/components/ui/button";
 import { useKnownSims } from "@/hooks/use-known-sims";
 import { useSystemSettings } from "@/hooks/use-system-settings";
 import { staggerContainer, staggerItem } from "@/lib/motion";
-import { cn } from "@/lib/utils";
 
+import { RevealLabelButton } from "@/components/system-settings/reveal-label-button";
 import ScheduledOperationsCard from "@/components/system-settings/scheduled-operations-card";
 import { StatusBand } from "@/components/system-settings/status-band";
 import SystemSettingsCard from "@/components/system-settings/system-settings-card";
@@ -21,7 +19,6 @@ import {
   CARD_GRID,
   PAGE_HEAD,
   PAGE_ROOT,
-  PILL_GLYPH,
 } from "./shapes";
 
 const K = "page";
@@ -35,7 +32,6 @@ const SystemSettings = () => {
   // Refresh button reconcile the count.
   const knownSims = useKnownSims();
 
-  const reduceMotion = useMotionReduced();
   const { refresh: refreshSettings, isLoading } = settingsState;
   const { refresh: refreshKnownSims } = knownSims;
 
@@ -43,8 +39,6 @@ const SystemSettings = () => {
     void refreshSettings();
     void refreshKnownSims();
   }, [refreshSettings, refreshKnownSims]);
-
-  const refreshLabel = t(`${K}.refresh`);
 
   return (
     <motion.div
@@ -62,37 +56,13 @@ const SystemSettings = () => {
             <p className={PAGE_HEAD.DESC}>{t(`${K}.description`)}</p>
           </div>
           <div className={PAGE_HEAD.ACTIONS}>
-            {/* Icon-only at rest; the label unfolds on hover or keyboard focus,
-                as on Cellular Settings. It animates `grid-template-columns`,
-                which `MotionConfig` cannot see, so the easing is dropped under
-                reduced motion. The accessible name is always the full label. */}
-            <Button
-              type="button"
-              variant="tonal-neutral"
+            <RevealLabelButton
+              icon={RefreshCcwIcon}
+              label={t(`${K}.refresh`)}
               onClick={handleRefresh}
               disabled={isLoading}
-              size="action"
-              aria-label={refreshLabel}
-              title={refreshLabel}
-              className="group/refresh gap-0"
-            >
-              <RefreshCcwIcon
-                className={cn(PILL_GLYPH, isLoading && "motion-safe:animate-spin")}
-                aria-hidden="true"
-              />
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "grid grid-cols-[0fr] group-hover/refresh:grid-cols-[1fr] group-focus-visible/refresh:grid-cols-[1fr]",
-                  !reduceMotion &&
-                    "transition-[grid-template-columns] duration-[var(--duration-standard)] ease-[var(--ease-standard)]",
-                )}
-              >
-                <span className="min-w-0 overflow-hidden">
-                  <span className="block pl-2">{refreshLabel}</span>
-                </span>
-              </span>
-            </Button>
+              spinning={isLoading}
+            />
           </div>
         </div>
       </motion.div>

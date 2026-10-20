@@ -22,6 +22,7 @@ import { staggerRowItem } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { UseKnownSimsReturn } from "@/hooks/use-known-sims";
 
+import { RevealLabelButton } from "./reveal-label-button";
 import {
   GROUP_LABEL,
   PILL_GLYPH,
@@ -139,16 +140,13 @@ export default function TrackedSimsGroup({
                 {t("actions.retry", { ns: "common" })}
               </Button>
             ) : empty ? null : (
-              <Button
-                type="button"
+              <RevealLabelButton
+                icon={Trash2Icon}
+                label={t(`${K}.clear_button`)}
                 variant="tonal-destructive"
-                size="action"
                 onClick={() => setOpen(true)}
                 disabled={isClearing}
-              >
-                <Trash2Icon className={PILL_GLYPH} aria-hidden="true" />
-                {t(`${K}.clear_button`)}
-              </Button>
+              />
             )}
           </div>
         </motion.div>
