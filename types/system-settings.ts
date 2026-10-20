@@ -16,18 +16,10 @@ export interface ScheduleConfig {
   days: number[]; // 0=Sun, 6=Sat
 }
 
-export interface LowPowerConfig {
-  enabled: boolean;
-  start_time: string; // HH:MM
-  end_time: string; // HH:MM
-  days: number[]; // 0=Sun, 6=Sat
-}
-
 export interface SystemSettingsResponse {
   success: boolean;
   settings: SystemSettings;
   scheduled_reboot: ScheduleConfig;
-  low_power: LowPowerConfig;
 }
 
 // --- Day Labels (shared with tower locking) --------------------------------

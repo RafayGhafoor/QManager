@@ -708,10 +708,7 @@
     }
   },
   "known_sims": {
-    "card": {
-      "title": "Tracked SIMs",
-      "description": "The SIMs QManager has seen, so only a genuinely new one raises an alert."
-    },
+    "section": "Tracked SIMs",
     "rows": {
       "count": {
         "consequence": "QManager remembers the SIMs it has seen, so it only alerts you when a genuinely new SIM is inserted. Clearing forgets every SIM except the one currently inserted.",
@@ -1159,9 +1156,10 @@
     "stale": "Last confirmed read"
   },
   "preferences": {
+    "section": "Time & Units",
     "card": {
-      "title": "Time & Units",
-      "description": "How this modem keeps time, and the units every reading is shown in.",
+      "title": "Device & Units",
+      "description": "How this modem keeps time, the units readings use, and the SIMs it remembers.",
       "save": "Save Preferences"
     },
     "rows": {
@@ -1199,8 +1197,8 @@
   },
   "reboot": {
     "card": {
-      "title": "Scheduled Operations",
-      "description": "Restart the modem, or switch its radio off, automatically on a weekly schedule."
+      "title": "Scheduled Reboot",
+      "description": "Restart the modem automatically on a weekly schedule."
     },
     "rows": {
       "enabled": {
@@ -1245,8 +1243,7 @@
       "save_failed": "Failed to save reboot schedule",
       "update_failed": "Failed to update reboot schedule",
       "unsaved": "Reboot schedule change wasn’t saved — you left the page before it could save."
-    },
-    "section": "Scheduled Reboot"
+    }
   },
   "passwords": {
     "card": {
@@ -1289,39 +1286,6 @@
       "weak": "Password must be at least 5 characters and include uppercase, lowercase, and a number.",
       "verify_failed": "Couldn't check the password. Try again.",
       "change_failed": "Couldn't change the password. Try again."
-    }
-  },
-  "low_power": {
-    "section": "Low Power Mode",
-    "rows": {
-      "enabled": {
-        "off": "Off",
-        "armed": "Armed",
-        "label": "Low power window",
-        "no_day": "Never starts",
-        "consequence": "The modem radio switches off at the start time and back on at the end time. Watchdog, alerts and network events pause while it is off."
-      },
-      "start": {
-        "label": "Start Time",
-        "consequence": "The radio switches off at this time."
-      },
-      "end": {
-        "label": "End Time",
-        "consequence": "The radio switches back on at this time."
-      },
-      "days": {
-        "label": "Repeat On",
-        "rail": "Low power mode days of the week",
-        "consequence": "With no day selected the window never starts."
-      }
-    },
-    "toast": {
-      "enabled": "Low power mode enabled",
-      "disabled": "Low power mode disabled",
-      "saved": "Low power schedule saved",
-      "save_failed": "Failed to save low power schedule",
-      "update_failed": "Failed to update low power schedule",
-      "unsaved": "Low power schedule change wasn't saved. You left the page before it could save."
     }
   },
   "web_port": {

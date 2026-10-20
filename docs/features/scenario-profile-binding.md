@@ -119,7 +119,7 @@ Steps:
 
 ### `scenario_teardown_cron`
 
-Removes only lines containing the `qmanager_profile_scenario` marker. Other scheduler markers (`qmanager_tower_schedule`, `qmanager_scheduled_reboot`, `qmanager_low_power`) share the same root crontab; teardown greps only its own marker and leaves theirs intact. If removing the lines leaves an empty crontab, an empty crontab is written (`echo "" | crontab -`) so crond does not see a stale view.
+Removes only lines containing the `qmanager_profile_scenario` marker. Other scheduler markers (`qmanager_tower_schedule`, `qmanager_scheduled_reboot`) share the same root crontab; teardown greps only its own marker and leaves theirs intact. If removing the lines leaves an empty crontab, an empty crontab is written (`echo "" | crontab -`) so crond does not see a stale view.
 
 ### Cron Marker
 
@@ -230,4 +230,4 @@ When the user changes the device timezone, the existing `system/settings.sh` han
 
 ## Known Debt — Shared Crontab Writers Without Crond Reload
 
-The existing scheduler subsystems — `tower/schedule.sh` (`qmanager_tower_schedule`), scheduled-reboot, and low-power (`system/settings.sh`) — write their crontab via `crontab -` **without** issuing `( /etc/init.d/cron reload & )`. They share the same dormant-crond gap that `scenario_install_cron` now handles for the scenario scheduler. This was deliberately not fixed in this change (out of scope for scenario-profile binding). A future pass should unify cron install across all scheduler subsystems with the reload idiom.
+The existing scheduler subsystems — `tower/schedule.sh` (`qmanager_tower_schedule`) and scheduled-reboot (`system/settings.sh`) — write their crontab via `crontab -` **without** issuing `( /etc/init.d/cron reload & )`. They share the same dormant-crond gap that `scenario_install_cron` now handles for the scenario scheduler. This was deliberately not fixed in this change (out of scope for scenario-profile binding). A future pass should unify cron install across all scheduler subsystems with the reload idiom.

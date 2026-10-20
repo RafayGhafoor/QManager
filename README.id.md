@@ -57,7 +57,6 @@
 - **Notifikasi Email** — Pemberitahuan gangguan via Gmail SMTP (msmtp), dikirim saat pemulihan dengan detail durasi
 - **Notifikasi SMS** — Pemberitahuan gangguan via SMS, dikirim selama pemadaman aktif setelah ambang batas terlampaui
 - **WAN Interface Guard** — Menonaktifkan otomatis profil WAN bayangan untuk mencegah loop retry netifd yang memboroskan CPU
-- **Mode Hemat Daya** — Jendela mati daya CFUN terjadwal via cron
 - **Tailscale VPN** — Instalasi, autentikasi, dan pemantauan status dengan satu klik
 - **Pembaruan Perangkat Lunak** — Pemeriksaan pembaruan OTA dalam aplikasi, unduhan, verifikasi, dan instalasi
 - **Log Sistem** — Penampil log terpusat dengan fitur pencarian
@@ -296,7 +295,6 @@ QManager menjalankan 11 layanan init.d di perangkat:
 | `qmanager_ttl` | TTL/HL — menerapkan aturan iptables saat boot |
 | `qmanager_mtu` | MTU — menerapkan pengaturan MTU antarmuka |
 | `qmanager_imei_check` | Integritas IMEI — memverifikasi cadangan IMEI saat boot |
-| `qmanager_low_power_check` | Hemat daya — memasuki kembali CFUN=0 jika dalam jendela terjadwal |
 
 ---
 

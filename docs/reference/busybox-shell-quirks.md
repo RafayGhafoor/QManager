@@ -87,6 +87,6 @@ This is an OpenWRT/UCI behavior, not specific to BusyBox shell. It affects any C
 
 ## Known Debt — Cron Writers Without Crond Reload
 
-The existing scheduler subsystems — `tower/schedule.sh` (`qmanager_tower_schedule`), scheduled-reboot, and low-power (`system/settings.sh`) — write the crontab via `crontab -` without issuing `( /etc/init.d/cron reload & )`. This means they share the "dormant crond" gap: on a device that has never had a crontab, the schedule writes correctly but crond never fires because procd has not spawned it yet.
+The existing scheduler subsystems — `tower/schedule.sh` (`qmanager_tower_schedule`) and scheduled-reboot (`system/settings.sh`) — write the crontab via `crontab -` without issuing `( /etc/init.d/cron reload & )`. This means they share the "dormant crond" gap: on a device that has never had a crontab, the schedule writes correctly but crond never fires because procd has not spawned it yet.
 
 `scenario_install_cron` (`scenario_mgr.sh`) now handles this for the scenario scheduler. The other schedulers have not been updated and remain affected. A future pass should unify cron install across all scheduler subsystems with the reload idiom.

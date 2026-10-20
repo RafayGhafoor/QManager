@@ -43,7 +43,6 @@
 - Watchdog connessione multi-step
 - Avvisi Email/SMS
 - WAN guard
-- Modalita' low power schedulata
 - Integrazione Tailscale
 - Aggiornamenti OTA in-app
 - Viewer log di sistema

@@ -222,7 +222,7 @@ Network event detection (sourced by the poller). Detects state changes and appen
 | `snapshot_event_state` | Save current state for next comparison |
 | `detect_events` | Compare current vs. previous state, emit events |
 | `detect_scc_pci_changes` | Detect SCC cell handoffs |
-| `detect_data_connection_events` | The ONE link/quality detector (ledger B2.3). Called by the poller every cycle from the always-run local block (after `read_ping_data`/`read_dns_data`, before `alert_engine_check`), not from `detect_events`. Decides `internet_lost`/`internet_restored` and the `high_latency`/`latency_recovered` and `high_packet_loss`/`packet_loss_recovered` pairs; publishes `ev_link_state` (`down`/`up`/`""` for stale, unknown or low power). Rules in [`connection-quality.md`](features/connection-quality.md#one-detector-eventssh) |
+| `detect_data_connection_events` | The ONE link/quality detector (ledger B2.3). Called by the poller every cycle from the always-run local block (after `read_ping_data`/`read_dns_data`, before `alert_engine_check`), not from `detect_events`. Decides `internet_lost`/`internet_restored` and the `high_latency`/`latency_recovered` and `high_packet_loss`/`packet_loss_recovered` pairs; publishes `ev_link_state` (`down`/`up`/`""` for stale or unknown). Rules in [`connection-quality.md`](features/connection-quality.md#one-detector-eventssh) |
 | `_ev_settle <channel> <value> [sticky]` | Generic settle debounce for discrete radio identifiers. rc 0 settled on a new value (`_EV_SETTLED_FROM`/`_EV_SETTLED_TO`), 1 nothing to report, 2 churning (`_EV_FLAP_N`). `EV_SETTLE_SAMPLES=3`, `EV_FLAP_THRESHOLD=6`, `EV_FLAP_WINDOW=300` s. A blank value is no observation. Channel name is interpolated into variable names, so it must be a bare identifier. State is poller memory (a restart re-settles) |
 | `_ev_ca_check <channel> <tech> <scc-count>` | CA announcements for one tech (`lte_ca` / `nr_ca`), keyed on the SCC count through a sticky `_ev_settle`. Called from `detect_events`. See [CA settle rules](#ca-change-settle-rules) |
 | `_ev_ca_diff` | Added/removed band diff, one `added\|removed` line (no more "(+B7, -B7)") |
@@ -276,7 +276,7 @@ One centralized downtime state machine (sourced by poller, last in the alert-lib
 - `alert_engine_reboot_detect` — one-shot per poller start (called from `main()`), compares the kernel's per-boot `/proc/sys/kernel/random/boot_id` against `/etc/qmanager/last_boot_id`; a change means a real reboot happened (a bare procd respawn keeps the same `boot_id` and stages nothing). Classifies the cause from the shared `/etc/qmanager/crash.log` ledger (newest row within a ±300s window → `watchdog`/`user`/`unplanned`) and stages `/tmp/qmanager_reboot_pending.json`.
 - `_ae_reboot_check` — per-cycle delivery of a staged reboot alert once `conn_internet_available == "true"`; reuses the same `sms_alert_emit`/`email_alert_emit` rc-contract; coalesces >3 all-cause reboots/hour into one storm message via `/tmp/qmanager_reboot_storm_hour`
 - See [`docs/features/alerts.md`](features/alerts.md#reboot-alerts) for the full detection/classification/delivery model, and the critical **tier4-only vs all-cause reboot-count** distinction between `qmanager_watchcat`'s `count_recent_reboots()` and this engine's `_ae_reboot_count_last_hour()` — both read the same `crash.log` file but must never be conflated
-- Has no edge detector of its own: follows `ev_link_state`, published each cycle by `events.sh` `detect_data_connection_events`. Suppressed only by low-power mode; a watchdog recovery no longer freezes the outage machine (an outage the watchdog fixes is still alerted, SMS rc 2 retries a send made mid-CFUN). Reboot delivery (`_ae_reboot_check`) is still held mid-recovery and on stale ping data
+- Has no edge detector of its own: follows `ev_link_state`, published each cycle by `events.sh` `detect_data_connection_events`. A watchdog recovery no longer freezes the outage machine (an outage the watchdog fixes is still alerted, SMS rc 2 retries a send made mid-CFUN). Reboot delivery (`_ae_reboot_check`) is still held mid-recovery and on stale ping data
 - One alert wait for every channel: `CQ_ALERT_AFTER_MIN` from `cq_alert_after_min` (`conn_state.sh`), re-resolved at init, at outage start and on SMS/email reloads
 - Dispatches sends via `sms_alert_emit`/`email_alert_emit <event> <secs>`, which return an rc contract of `0` (sent), `1` (failed, terminal), `2` (not ready, retry next cycle)
 - See [`docs/features/alerts.md`](features/alerts.md) for the full routing/capability model and clock-step rationale
@@ -482,43 +482,6 @@ Cron-called script that logs the event and reboots the device.
 
 Minimal script: logs via qlog, drops a `record_planned_reboot "user"` breadcrumb, then calls `reboot`. Scheduled reboots fold into the single `user` cause bucket for the reboot-alert feature — there is no separate "scheduled" classification.
 
-### qmanager_low_power
-
-Cron-called script to enter or exit low power mode (modem airplane mode).
-
-**Location:** `scripts/usr/bin/qmanager_low_power`
-**Usage:** `qmanager_low_power enter|exit`
-
-**Enter mode:**
-
-1. Writes timestamp to `/tmp/qmanager_low_power_active`
-2. Creates `/tmp/qmanager_watchcat.lock` (pauses watchdog into LOCKED state)
-3. Sends `AT+CFUN=0` (disables modem radio)
-
-**Exit mode:**
-
-1. No-ops if flag file absent (handles spurious cron fires on non-active days)
-2. Sends `AT+CFUN=1` (re-enables modem radio)
-3. Sleeps 3 seconds for modem settling
-4. Removes both flag files
-
-**Cron pattern:** Two entries — `enter` fires on selected days, `exit` fires on all 7 days (no-ops if not in low power). This handles overnight windows like 23:00-06:00 where exit day differs from enter day.
-
-### qmanager_low_power_check
-
-Boot-time one-shot: checks if the device rebooted during a scheduled low power window and re-enters CFUN=0 if so. Ensures modem stays off during configured quiet hours even after an unexpected reboot.
-
-**Location:** `scripts/usr/bin/qmanager_low_power_check`
-
-**Flow:**
-
-1. Exit immediately if low power not enabled in UCI
-2. Check if current day of week matches configured days
-3. Convert start/end times to minutes-since-midnight
-4. Handle both normal (08:00-17:00) and overnight (23:00-06:00) windows
-5. If inside window: set state flags immediately, sleep 30s (modem init), send `AT+CFUN=0`
-6. If outside window: clean up any stale flags from before reboot
-
 ### qmanager_dpi_install (nfqws Installer)
 
 **Type:** One-shot background script (spawned by CGI)
@@ -587,7 +550,6 @@ result=$(qcmd 'AT+QENG="servingcell"')
 | `qmanager_mtu` | non-procd | 99 | `qmanager_mtu_apply` | MTU application daemon |
 | `qmanager_imei_check` | non-procd | 99 | `qmanager_imei_check` | Boot-time IMEI check (one-shot, double-fork) |
 | `qmanager_tower_failover` | non-procd | 99 | `qmanager_tower_failover` | Tower failover watchdog |
-| `qmanager_low_power_check` | non-procd | 99 | `qmanager_low_power_check` | Boot-time low power window check (one-shot, double-fork) |
 | `qmanager_dpi` | procd | 99 | `nfqws` (x2) | DPI evasion: Video Optimizer (queue 200) + Traffic Masquerade (queue 201), each UCI-gated |
 | `qmanager_sites` | procd | 99 | `qmanager_sites` | Sites monitor (per-site latency); always enabled, on/off in `/etc/qmanager/sites.json` |
 
@@ -750,7 +712,7 @@ All auth endpoints set `_SKIP_AUTH=1`.
 
 | Script | Method | Description |
 |--------|--------|-------------|
-| `settings.sh` | GET/POST | System preferences, scheduled reboot, low power mode |
+| `settings.sh` | GET/POST | System preferences, scheduled reboot |
 | `reboot.sh` | POST | Trigger device reboot (uses `cgi_reboot_response`) |
 | `logs.sh` | GET | System log output |
 
@@ -784,8 +746,6 @@ All auth endpoints set `_SKIP_AUTH=1`.
 | `qmanager_sms_log.json` | poller (sms) | SMS log NDJSON |
 | `qmanager_sms_reload` | CGI | Trigger file for SMS config reload |
 | `qmanager_force_tier2` | CGI (settings.sh, bands/lock.sh) | Touch-flag; consumed by poller to force an early Tier-2 poll after SIM switch or band lock |
-| `qmanager_low_power_active` | low_power | Low power mode flag (timestamp; suppresses events + alerts) |
-| `qmanager_watchcat.lock` | low_power | Watchdog pause lock (forces LOCKED state) |
 | `qmanager_dpi_install.json` | dpi_install | nfqws installer progress/result |
 | `qmanager_dpi_install.pid` | dpi_install | Retired: now `/var/run/qmanager/dpi_install.pid` (B5.11) |
 | `qmanager_dpi_verify.json` | dpi_verify | DPI verification test results |
@@ -824,10 +784,6 @@ All auth endpoints set `_SKIP_AUTH=1`.
 | `quecmanager.settings.sched_reboot_enabled` | `0`, `1` | Scheduled reboot on/off |
 | `quecmanager.settings.sched_reboot_time` | `HH:MM` | Scheduled reboot time |
 | `quecmanager.settings.sched_reboot_days` | `0,1,...,6` | Scheduled reboot days (0=Sun) |
-| `quecmanager.settings.low_power_enabled` | `0`, `1` | Low power mode on/off |
-| `quecmanager.settings.low_power_start` | `HH:MM` | Low power window start |
-| `quecmanager.settings.low_power_end` | `HH:MM` | Low power window end |
-| `quecmanager.settings.low_power_days` | `0,1,...,6` | Low power days (0=Sun) |
 | `quecmanager.video_optimizer.enabled` | `0`, `1` | Video Optimizer on/off |
 | `quecmanager.video_optimizer.quic_enabled` | `0`, `1` | QUIC desync on/off (default `1`) |
 | `quecmanager.video_optimizer.interface` | interface name | WAN interface (default `rmnet_data0`) |

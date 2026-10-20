@@ -85,10 +85,10 @@ Each doc holds invariants the code doesn't show. CGI / hook / type / reboot tabl
 - `cellular-settings.md`: `/cellular/settings`, `cellular/settings.sh`, `use-cellular-settings.ts` (`ApplyPhase`, `WRITABLE_SETTING_KEYS`), `settings/shapes.ts`, `AT+QSIMDET`, `.sim.status`
 - `apn-management.md`: single-APN model, `cellular/apn.sh`, `apn_mgr.sh`, `data_cid.sh` (QMAP-free data-CID detection, `data_cid_source`), `apn_profiles.json`, `use-apn-settings.ts`, COPS apply, boot reconcile, "Not live" badge, APN allow-list, `carrier_cid_protected`, suggested APNs (`apn-presets.json`, `bun run apn:update`, overlay)
 - `band-locking.md`: `bands/current.sh`, `bands/lock.sh` (`lte`/`nsa_nr5g`/`sa_nr5g`/`nrdc_nr5g`), `qmanager_band_failover`, `supported_bands*.env`, `policy_band`
-- `known-sims.md`: `sim_db.sh`, `known_iccids`, `system/known_sims.sh`, `tracked-sims-card.tsx`, `use-known-sims.ts`
+- `known-sims.md`: `sim_db.sh`, `known_iccids`, `system/known_sims.sh`, `tracked-sims-group.tsx`, `use-known-sims.ts`
 - `connection-quality.md`: `qmanager_ping`, `conn_state.sh`, ICMP probe (v4/v6 fallback), ping profiles, `system/ping_profile.sh` + `quality_thresholds.sh`, DNS lookup time (`qmanager_dns.json`), `events.sh` `detect_data_connection_events` / `ev_link_state` / `ca_change` debounce, `connectivity.thresholds`
 - `connection-watchdog.md`: `qmanager_watchcat`, `monitoring/watchdog.sh`, `use-watchdog-settings.ts`, recovery ladder, SSR hold, SIM failover + auto-failback (`primary_recheck_*`)
-- `scheduled-jobs.md`: crond jobs (scheduled reboot, low power, tower/scenario schedule, auto-update), 1970 clock guard `schedule_guard.sh` / `_qm_timer_fire_allowed`, catch-up
+- `scheduled-jobs.md`: crond jobs (scheduled reboot, tower/scenario schedule, auto-update), 1970 clock guard `schedule_guard.sh` / `_qm_timer_fire_allowed`, catch-up
 - `sms-forwarding.md`: `qmanager_sms_forward`, `cellular/sms_forwarding.sh`, `forwarding-center.tsx`
 - `tailscale-vpn.md`: `vpn/tailscale.sh`, `tailscale_mgr.sh` (install/update, sha256, rollback, lock), `tailscale_net.sh`, `qmanager_tailscale_net`, fw4 zone + `ip rule pref 1990`, `set_exit_node`
 - `diagnostics.md`: `system/diagnostics.sh`, `qmanager_debug_report`, IPA offload (`ipa_offload.sh`, `r8125_ioss.init`), `pending_reboot_required`

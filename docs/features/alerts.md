@@ -114,9 +114,7 @@ The downtime timer measures elapsed time with `mono_now()` (`/proc/uptime`'s mon
 
 ### Suppression (both channels, one place)
 
-`alert_engine_check` has one gate that stops everything:
-
-- `/tmp/qmanager_low_power_active` present → low-power mode, no radio-adjacent work. The detector also publishes `ev_link_state=""` in low power and logs nothing (the link is down on purpose).
+`alert_engine_check` has no global suppression gate: it follows `ev_link_state` every cycle.
 
 A watchdog recovery (`conn_during_recovery = "true"`) **no longer freezes the outage machine**. Before B2.3 the engine bailed entirely during recovery, so an outage the watchdog fixed was invisible to the channels. Now:
 
@@ -149,7 +147,7 @@ The engine dispatches to the channel libs via `sms_alert_emit <event> <secs>` / 
 
 ## Reboot Alerts
 
-Unlike `connection_lost`/`connection_restored`, a reboot has no outage window and no downtime timer — it is a **separate one-shot detect-then-deliver path** inside `alert_engine.sh`, called from `alert_engine_check` (`_ae_reboot_check`, step 3, after the low-power gate and only while `conn_during_recovery != "true"` and the ping data is not stale, so it inherits low-power + recovery-churn suppression; it runs before the outage machine).
+Unlike `connection_lost`/`connection_restored`, a reboot has no outage window and no downtime timer — it is a **separate one-shot detect-then-deliver path** inside `alert_engine.sh`, called from `alert_engine_check` (`_ae_reboot_check`, step 3, only while `conn_during_recovery != "true"` and the ping data is not stale, so it inherits recovery-churn suppression; it runs before the outage machine).
 
 ### Detection: `boot_id`, not uptime or a shutdown hook
 
@@ -161,7 +159,7 @@ The device exposes no clean-shutdown signal — a reboot can be a button press, 
 4. **Changed** → a real reboot happened. Classify the cause, stage a pending alert, and immediately overwrite `last_boot_id` with the new value (so a mid-boot procd respawn of the *new* boot can't re-detect the same reboot a second time).
 5. **No stored value** (fresh install / first boot ever) → record the id and stage nothing. There is no "before" to compare against.
 
-**Held until the clock is set (ledger B2.4).** Classification compares crash.log's wall-clock epochs against `now - uptime`, and at poller start the wall clock can still read 1970 (NITZ/ntpd not stepped yet). Classifying then misses the in-window breadcrumb (a planned reboot labelled `unplanned`) and writes the post-facto `unplanned` row with a 1970 epoch. So when `boot_id` changed but `date +%s` is below `_AE_SANE_EPOCH` (1700000000), detection holds: it stores the live id in `_ae_boot_unresolved`, does **not** commit `last_boot_id` (a poller respawn in the window re-detects it) and stages nothing. `alert_engine_check` step 1b retries `alert_engine_reboot_detect` every cycle until the clock is sane; it runs ahead of the low-power gate because it only records the reboot. The "holding" log line prints once per boot id. Harness-verified on the RM551E with a stubbed 1970 clock: nothing committed or written while held; one classification with a real epoch once the clock was restored, and no second detection.
+**Held until the clock is set (ledger B2.4).** Classification compares crash.log's wall-clock epochs against `now - uptime`, and at poller start the wall clock can still read 1970 (NITZ/ntpd not stepped yet). Classifying then misses the in-window breadcrumb (a planned reboot labelled `unplanned`) and writes the post-facto `unplanned` row with a 1970 epoch. So when `boot_id` changed but `date +%s` is below `_AE_SANE_EPOCH` (1700000000), detection holds: it stores the live id in `_ae_boot_unresolved`, does **not** commit `last_boot_id` (a poller respawn in the window re-detects it) and stages nothing. `alert_engine_check` step 1b retries `alert_engine_reboot_detect` every cycle until the clock is sane; it runs ahead of the outage machine because it only records the reboot. The "holding" log line prints once per boot id. Harness-verified on the RM551E with a stubbed 1970 clock: nothing committed or written while held; one classification with a real epoch once the clock was restored, and no second detection.
 
 **Why `boot_id` and not `/proc/uptime` or a wall-clock delta:** a baseband subsystem restart (SSR) does **not** reset the kernel's uptime counter or regenerate `boot_id` — only a real Linux kernel reboot does. Any detector built on uptime dropping, or on a wall-clock gap, would misfire on every SSR self-heal (already a semi-frequent event on this hardware — see [Connection Watchdog](connection-watchdog.md) SSR-aware hold). `boot_id` is also immune to the NITZ/ntpd clock-step problem the rest of this engine works around.
 

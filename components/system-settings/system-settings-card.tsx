@@ -55,6 +55,9 @@ import type {
 import { TIMEZONES } from "@/types/system-settings";
 
 import { ConditionBlock } from "./condition-block";
+import TrackedSimsGroup, {
+  type TrackedSimsGroupProps,
+} from "./tracked-sims-group";
 import {
   CARD_BODY,
   CARD_DESC,
@@ -66,7 +69,7 @@ import {
   DELTA,
   FIELD,
   FIELD_GLYPH,
-  GROUP_FILL,
+  GROUP_LABEL,
   LABEL_LINE,
   NOTICE,
   ROW,
@@ -75,15 +78,18 @@ import {
 } from "./shapes";
 
 // =============================================================================
-// Time & Units — the writable half of /system-settings' preferences
+// Device & Units — the writable half of /system-settings' preferences
 // =============================================================================
-// Three decisions in one tonal group: the zone the whole device measures time
-// against, and the two units every reading is rendered in. The zone leads
+// Two labelled groups. Time & Units: the zone the whole device measures time
+// against, and the two units every reading is rendered in; the zone leads
 // because it is the only one of the three with a consequence beyond display.
+// Tracked SIMs: the remembered-SIM count with its inline Clear.
+//
+// The foot commits the units draft only. Tracked SIMs owns its own data and
+// acts at once, so it renders in every state of the units half (loading, failed
+// read, form) rather than waiting on it.
 //
 // The always-visible clock readout lives on the page's status band, not here.
-// What this card keeps is the FAILURE case — the zone was saved but never
-// reached the live clock — which is a fact about this card's own write.
 // =============================================================================
 
 const K = "preferences";
@@ -98,7 +104,9 @@ const DISTANCE_LABEL_ID = "preferences-distance-label";
 type SystemSettingsCardProps = Pick<
   UseSystemSettingsReturn,
   "settings" | "isLoading" | "isSaving" | "error" | "saveSettings" | "refresh"
->;
+> & {
+  sims: TrackedSimsGroupProps;
+};
 
 export default function SystemSettingsCard({
   settings,
@@ -107,8 +115,10 @@ export default function SystemSettingsCard({
   error,
   saveSettings,
   refresh,
+  sims,
 }: SystemSettingsCardProps) {
   const { t } = useTranslation("system-settings");
+  const simsGroup = <TrackedSimsGroup {...sims} />;
 
   return (
     <Card className={CARD_SHELL}>
@@ -121,7 +131,7 @@ export default function SystemSettingsCard({
 
       <CardContent className={cn(CARD_PAD, CARD_BODY, "gap-4")}>
         {isLoading ? (
-          <PreferencesSkeleton />
+          <PreferencesSkeleton sims={simsGroup} />
         ) : !settings ? (
           // No settings to show — a failed read, or an envelope carrying none.
           // The form would otherwise fill itself with its own fallbacks.
@@ -145,8 +155,10 @@ export default function SystemSettingsCard({
             isSaving={isSaving}
             error={error}
             saveSettings={saveSettings}
+            sims={simsGroup}
           />
         )}
+        {!isLoading && !settings ? simsGroup : null}
       </CardContent>
     </Card>
   );
@@ -158,11 +170,17 @@ export default function SystemSettingsCard({
  * Real `ROW_GROUP` / `ROW.ROOT` boxes wearing slivers, so the skeleton's height
  * RESOLVES to the loaded row's rather than being asserted against it.
  */
-function PreferencesSkeleton(): React.JSX.Element {
+function PreferencesSkeleton({
+  sims,
+}: {
+  sims: React.ReactNode;
+}): React.JSX.Element {
+  const { t } = useTranslation("system-settings");
   return (
     <>
-      <div className={cn(ROW_GROUP, GROUP_FILL)}>
-        {[0, 1, 2, 3].map((i) => (
+      <span className={GROUP_LABEL}>{t(`${K}.section`)}</span>
+      <div className={ROW_GROUP}>
+        {[0, 1, 2].map((i) => (
           <div key={i} className={ROW.ROOT}>
             <div className={ROW.TEXT}>
               <Skeleton className={cn(SKELETON.TIME.LABEL, "w-28")} />
@@ -178,6 +196,7 @@ function PreferencesSkeleton(): React.JSX.Element {
           </div>
         ))}
       </div>
+      {sims}
       {/* The card foot. Absent, the card grows by its height plus the gap. */}
       <CardFoot
         liveStatus={false}
@@ -195,6 +214,8 @@ interface PreferencesFormProps {
   isSaving: boolean;
   error: string | null;
   saveSettings: (payload: SaveSettingsPayload) => Promise<SaveResult>;
+  /** The Tracked SIMs group, slotted above the foot that commits the units. */
+  sims: React.ReactNode;
 }
 
 function PreferencesForm({
@@ -202,6 +223,7 @@ function PreferencesForm({
   isSaving,
   error,
   saveSettings,
+  sims,
 }: PreferencesFormProps): React.JSX.Element {
   const { t } = useTranslation("system-settings");
   const { saved, markSaved } = useSaveFlash();
@@ -311,10 +333,8 @@ function PreferencesForm({
 
       {/* No `initial`/`animate`: this container is a child of the page cascade
           and must stay on the parent's clock. */}
-      <motion.div
-        className={cn(ROW_GROUP, GROUP_FILL)}
-        variants={staggerRows}
-      >
+      <span className={GROUP_LABEL}>{t(`${K}.section`)}</span>
+      <motion.div className={ROW_GROUP} variants={staggerRows}>
         {/* ── Time zone ───────────────────────────────────────────────── */}
         <motion.div variants={staggerRowItem} className={ROW.ROOT}>
           <div className={ROW.TEXT}>
@@ -476,7 +496,10 @@ function PreferencesForm({
         </motion.div>
       </motion.div>
 
-      {/* Each row carries its own unsaved marker; the foot only commits. */}
+      {sims}
+
+      {/* Each row carries its own unsaved marker; the foot only commits the
+          units (Tracked SIMs acts inline). */}
       <CardFoot
         actions={
           <>

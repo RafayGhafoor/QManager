@@ -708,10 +708,7 @@
     }
   },
   "known_sims": {
-    "card": {
-      "title": "已跟踪的 SIM 卡",
-      "description": "QManager 见过的 SIM 卡；只有全新的 SIM 卡才会触发提醒。"
-    },
+    "section": "已跟踪的 SIM 卡",
     "rows": {
       "count": {
         "consequence": "QManager 会记住已识别过的 SIM 卡，仅在插入全新 SIM 卡时才提醒您。清除会忘记除当前插入之外的所有 SIM 卡。",
@@ -1159,9 +1156,10 @@
     "stale": "上次确认的读数"
   },
   "preferences": {
+    "section": "时间与单位",
     "card": {
-      "title": "时间与单位",
-      "description": "本调制解调器如何计时，以及各项读数所使用的单位。",
+      "title": "设备与单位",
+      "description": "本调制解调器如何计时、读数所用的单位，以及它记住的 SIM 卡。",
       "save": "保存偏好设置"
     },
     "rows": {
@@ -1199,8 +1197,8 @@
   },
   "reboot": {
     "card": {
-      "title": "计划任务",
-      "description": "按每周计划自动重启调制解调器，或关闭其射频。"
+      "title": "计划重启",
+      "description": "按每周计划自动重启调制解调器。"
     },
     "rows": {
       "enabled": {
@@ -1245,8 +1243,7 @@
       "save_failed": "保存重启计划失败",
       "update_failed": "更新重启计划失败",
       "unsaved": "重启计划的更改未保存——您在保存完成前离开了页面。"
-    },
-    "section": "计划重启"
+    }
   },
   "passwords": {
     "card": {
@@ -1289,39 +1286,6 @@
       "weak": "密码至少需要 5 个字符，且包含大写字母、小写字母和数字。",
       "verify_failed": "无法验证密码，请重试。",
       "change_failed": "无法修改密码，请重试。"
-    }
-  },
-  "low_power": {
-    "section": "低功耗模式",
-    "rows": {
-      "enabled": {
-        "off": "已关闭",
-        "armed": "已启用",
-        "label": "低功耗时段",
-        "no_day": "不会开始",
-        "consequence": "调制解调器射频在开始时间关闭，并在结束时间重新开启。关闭期间，看门狗、提醒和网络事件会暂停。"
-      },
-      "start": {
-        "label": "开始时间",
-        "consequence": "射频在此时间关闭。"
-      },
-      "end": {
-        "label": "结束时间",
-        "consequence": "射频在此时间重新开启。"
-      },
-      "days": {
-        "label": "重复",
-        "rail": "低功耗模式的星期几",
-        "consequence": "未选择任何日期时，该时段不会开始。"
-      }
-    },
-    "toast": {
-      "enabled": "已启用低功耗模式",
-      "disabled": "已禁用低功耗模式",
-      "saved": "低功耗计划已保存",
-      "save_failed": "保存低功耗计划失败",
-      "update_failed": "更新低功耗计划失败",
-      "unsaved": "低功耗计划的更改未保存：保存完成前您已离开页面。"
     }
   },
   "web_port": {

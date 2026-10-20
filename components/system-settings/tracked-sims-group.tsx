@@ -1,0 +1,197 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import { motion } from "motion/react";
+import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import { Loader2Icon, RotateCwIcon, Trash2Icon } from "lucide-react";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { staggerRowItem } from "@/lib/motion";
+import { cn } from "@/lib/utils";
+import type { UseKnownSimsReturn } from "@/hooks/use-known-sims";
+
+import {
+  GROUP_LABEL,
+  PILL_GLYPH,
+  ROW,
+  ROW_GROUP,
+  SKELETON,
+  VALUE,
+  VALUE_NONE,
+} from "./shapes";
+
+// =============================================================================
+// Tracked SIMs — the set of SIMs the device will not flag as new
+// =============================================================================
+// The second group of the Device & Units card. The device keeps a membership
+// set, not a list: it can say HOW MANY SIMs it remembers, and forget them, but
+// it cannot name them. So the group is one row holding the count, with Clear as
+// an inline operational action (it commits nothing from the card's draft, so it
+// stays off the card foot, which belongs to the units).
+//
+// `count === null` is a failed read and `0` is a genuine empty set. The row says
+// which: rendering the unknown as a zero would assert a fact.
+// =============================================================================
+
+const K = "known_sims";
+
+export type TrackedSimsGroupProps = Pick<
+  UseKnownSimsReturn,
+  "count" | "isLoading" | "isClearing" | "refresh" | "clear"
+>;
+
+export default function TrackedSimsGroup({
+  count,
+  isLoading,
+  isClearing,
+  refresh,
+  clear,
+}: TrackedSimsGroupProps) {
+  const { t } = useTranslation("system-settings");
+  const [open, setOpen] = useState(false);
+
+  const handleClear = useCallback(async () => {
+    const result = await clear();
+    setOpen(false);
+    if (result.ok) {
+      toast.success(t(`${K}.toast_cleared`));
+    } else {
+      toast.error(result.message ?? t(`${K}.toast_clear_failed`));
+    }
+  }, [clear, t]);
+
+  const label = <span className={GROUP_LABEL}>{t(`${K}.section`)}</span>;
+
+  // --- Loading: the real row box wearing slivers, so the height resolves ---
+  if (isLoading) {
+    return (
+      <>
+        {label}
+        <div className={ROW_GROUP} aria-hidden="true">
+          <div className={ROW.ROOT}>
+            <div className={ROW.TEXT}>
+              <Skeleton className={cn(SKELETON.SIMS.LABEL, "w-36")} />
+              <Skeleton className={cn(SKELETON.SIMS.ID, "w-full")} />
+              <Skeleton className={cn(SKELETON.SIMS.ID, "w-2/3")} />
+            </div>
+            <div className={cn(ROW.CONTROL, "gap-3")}>
+              <Skeleton className={SKELETON.SIMS.CHIP} />
+              <Skeleton className={SKELETON.SIMS.ACTION} />
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const failed = count === null;
+  const empty = count === 0;
+
+  const consequence = failed
+    ? t(`${K}.states.error_description`)
+    : empty
+      ? t(`${K}.states.empty_description`)
+      : t(`${K}.rows.count.consequence`);
+
+  return (
+    <>
+      {label}
+      <div className={ROW_GROUP}>
+        {/* Declared here and not inherited: the count lands after the page's
+            cascade has run, and a variants-only child would wait at opacity 0. */}
+        <motion.div
+          variants={staggerRowItem}
+          initial="hidden"
+          animate="visible"
+          className={ROW.ROOT}
+          role={failed ? "alert" : undefined}
+        >
+          <div className={ROW.TEXT}>
+            <span className={ROW.LABEL}>
+              {failed
+                ? t(`${K}.states.error_title`)
+                : t(`${K}.rows.count.label`)}
+            </span>
+            <span className={ROW.CONSEQUENCE}>{consequence}</span>
+          </div>
+          <div className={cn(ROW.CONTROL, "gap-3")}>
+            <span className={VALUE}>{failed ? VALUE_NONE : count}</span>
+            {failed ? (
+              <Button
+                type="button"
+                variant="tonal-neutral"
+                size="action"
+                onClick={() => void refresh()}
+              >
+                <RotateCwIcon className={PILL_GLYPH} aria-hidden="true" />
+                {t("actions.retry", { ns: "common" })}
+              </Button>
+            ) : empty ? null : (
+              <Button
+                type="button"
+                variant="tonal-destructive"
+                size="action"
+                onClick={() => setOpen(true)}
+                disabled={isClearing}
+              >
+                <Trash2Icon className={PILL_GLYPH} aria-hidden="true" />
+                {t(`${K}.clear_button`)}
+              </Button>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t(`${K}.clear_dialog_title`)}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(`${K}.clear_dialog_description`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isClearing} size="action">
+              {t("actions.cancel", { ns: "common" })}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              size="action"
+              disabled={isClearing}
+              onClick={(e) => {
+                // Keep the dialog mounted through the request so the button can
+                // show its own in-flight state; Radix would close it otherwise.
+                e.preventDefault();
+                void handleClear();
+              }}
+            >
+              {isClearing ? (
+                <>
+                  <Loader2Icon
+                    className="size-4 motion-safe:animate-spin"
+                    aria-hidden="true"
+                  />
+                  {t(`${K}.clear_dialog_clearing`)}
+                </>
+              ) : (
+                t(`${K}.clear_dialog_confirm`)
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}

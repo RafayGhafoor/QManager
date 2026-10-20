@@ -708,10 +708,7 @@
     }
   },
   "known_sims": {
-    "card": {
-      "title": "SIM registrate",
-      "description": "Le SIM che QManager ha già visto: solo una SIM davvero nuova genera un avviso."
-    },
+    "section": "SIM registrate",
     "rows": {
       "count": {
         "consequence": "QManager ricorda le SIM già viste, così ti avvisa solo quando viene inserita una SIM davvero nuova. La cancellazione dimentica tutte le SIM tranne quella attualmente inserita.",
@@ -1159,9 +1156,10 @@
     "stale": "Ultima lettura confermata"
   },
   "preferences": {
+    "section": "Ora e unità",
     "card": {
-      "title": "Ora e unità",
-      "description": "Come questo modem tiene l'ora e in quali unità viene mostrata ogni lettura.",
+      "title": "Dispositivo e unità",
+      "description": "Come questo modem tiene l'ora, le unità usate dalle letture e le SIM che ricorda.",
       "save": "Salva preferenze"
     },
     "rows": {
@@ -1199,8 +1197,8 @@
   },
   "reboot": {
     "card": {
-      "title": "Operazioni programmate",
-      "description": "Riavvia il modem o spegni la sua radio automaticamente con una pianificazione settimanale."
+      "title": "Riavvio pianificato",
+      "description": "Riavvia il modem automaticamente con una pianificazione settimanale."
     },
     "rows": {
       "enabled": {
@@ -1245,8 +1243,7 @@
       "save_failed": "Impossibile salvare la pianificazione dei riavvii",
       "update_failed": "Impossibile aggiornare la pianificazione dei riavvii",
       "unsaved": "Modifica alla pianificazione dei riavvii non salvata: hai lasciato la pagina prima che potesse essere salvata."
-    },
-    "section": "Riavvio pianificato"
+    }
   },
   "passwords": {
     "card": {
@@ -1289,39 +1286,6 @@
       "weak": "La password deve contenere almeno 5 caratteri e includere lettere maiuscole, minuscole e un numero.",
       "verify_failed": "Impossibile verificare la password. Riprova.",
       "change_failed": "Impossibile cambiare la password. Riprova."
-    }
-  },
-  "low_power": {
-    "section": "Modalità di risparmio energetico",
-    "rows": {
-      "enabled": {
-        "off": "Disattivato",
-        "armed": "Attivo",
-        "label": "Finestra a basso consumo",
-        "no_day": "Non parte mai",
-        "consequence": "La radio del modem si spegne all'ora di inizio e si riaccende all'ora di fine. Watchdog, avvisi ed eventi di rete restano sospesi finché è spenta."
-      },
-      "start": {
-        "label": "Ora di inizio",
-        "consequence": "La radio si spegne a quest'ora."
-      },
-      "end": {
-        "label": "Ora di fine",
-        "consequence": "La radio si riaccende a quest'ora."
-      },
-      "days": {
-        "label": "Ripeti",
-        "rail": "Giorni della settimana in modalità risparmio energetico",
-        "consequence": "Senza giorni selezionati la finestra non parte mai."
-      }
-    },
-    "toast": {
-      "enabled": "Modalità di risparmio energetico abilitata",
-      "disabled": "Modalità di risparmio energetico disabilitata",
-      "saved": "Programmazione a basso consumo salvata",
-      "save_failed": "Impossibile salvare la pianificazione a basso consumo",
-      "update_failed": "Impossibile aggiornare la pianificazione a basso consumo",
-      "unsaved": "La modifica alla pianificazione a basso consumo non è stata salvata: hai lasciato la pagina prima del salvataggio."
     }
   },
   "web_port": {

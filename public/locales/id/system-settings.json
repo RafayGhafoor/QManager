@@ -708,10 +708,7 @@
     }
   },
   "known_sims": {
-    "card": {
-      "title": "SIM Terdaftar",
-      "description": "SIM yang pernah dikenali QManager, sehingga hanya SIM yang benar-benar baru yang memunculkan peringatan."
-    },
+    "section": "SIM Terdaftar",
     "rows": {
       "count": {
         "consequence": "QManager mengingat SIM yang pernah terdeteksi, sehingga hanya memberi tahu Anda saat SIM yang benar-benar baru dipasang. Menghapus akan melupakan semua SIM kecuali yang sedang terpasang.",
@@ -1159,9 +1156,10 @@
     "stale": "Pembacaan terakhir yang dikonfirmasi"
   },
   "preferences": {
+    "section": "Waktu & Satuan",
     "card": {
-      "title": "Waktu & Satuan",
-      "description": "Bagaimana modem ini menyimpan waktu, dan satuan yang dipakai untuk setiap pembacaan.",
+      "title": "Perangkat & Satuan",
+      "description": "Bagaimana modem ini menyimpan waktu, satuan yang dipakai pembacaan, dan SIM yang diingatnya.",
       "save": "Simpan Preferensi"
     },
     "rows": {
@@ -1199,8 +1197,8 @@
   },
   "reboot": {
     "card": {
-      "title": "Operasi Terjadwal",
-      "description": "Reboot modem atau matikan radionya secara otomatis sesuai jadwal mingguan."
+      "title": "Reboot Terjadwal",
+      "description": "Reboot modem secara otomatis sesuai jadwal mingguan."
     },
     "rows": {
       "enabled": {
@@ -1245,8 +1243,7 @@
       "save_failed": "Gagal menyimpan jadwal reboot",
       "update_failed": "Gagal memperbarui jadwal reboot",
       "unsaved": "Perubahan jadwal reboot tidak tersimpan — Anda meninggalkan halaman sebelum sempat disimpan."
-    },
-    "section": "Reboot Terjadwal"
+    }
   },
   "passwords": {
     "card": {
@@ -1289,39 +1286,6 @@
       "weak": "Kata sandi minimal 5 karakter dan menyertakan huruf besar, huruf kecil, dan angka.",
       "verify_failed": "Tidak dapat memeriksa kata sandi. Coba lagi.",
       "change_failed": "Tidak dapat mengubah kata sandi. Coba lagi."
-    }
-  },
-  "low_power": {
-    "section": "Mode Hemat Daya",
-    "rows": {
-      "enabled": {
-        "off": "Mati",
-        "armed": "Aktif",
-        "label": "Jendela hemat daya",
-        "no_day": "Tidak pernah mulai",
-        "consequence": "Radio modem mati pada waktu mulai dan menyala kembali pada waktu selesai. Watchdog, peringatan, dan peristiwa jaringan ditangguhkan selama radio mati."
-      },
-      "start": {
-        "label": "Waktu Mulai",
-        "consequence": "Radio dimatikan pada waktu ini."
-      },
-      "end": {
-        "label": "Waktu Selesai",
-        "consequence": "Radio dinyalakan kembali pada waktu ini."
-      },
-      "days": {
-        "label": "Ulangi Pada",
-        "rail": "Hari mode hemat daya dalam seminggu",
-        "consequence": "Tanpa hari yang dipilih, jendela ini tidak pernah mulai."
-      }
-    },
-    "toast": {
-      "enabled": "Mode hemat daya diaktifkan",
-      "disabled": "Mode hemat daya dinonaktifkan",
-      "saved": "Jadwal hemat daya tersimpan",
-      "save_failed": "Gagal menyimpan jadwal hemat daya",
-      "update_failed": "Gagal memperbarui jadwal hemat daya",
-      "unsaved": "Perubahan jadwal hemat daya tidak tersimpan: Anda meninggalkan halaman sebelum selesai."
     }
   },
   "web_port": {

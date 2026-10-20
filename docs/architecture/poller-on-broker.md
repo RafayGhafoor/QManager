@@ -695,7 +695,7 @@ long anyone can be held up, not running things in parallel.
 Evidence:
 - After boot only four QManager processes are resident on the test modem:
   `qmanager_atd`, `qmanager_ping`, `qmanager_poller`, `qmanager_sites`
-  (`modem_ps`, 2026-10-19). `eth_link`, `imei_check`, `low_power_check`,
+  (`modem_ps`, 2026-10-19). `eth_link`, `imei_check`,
   `mtu`, `ttl`, `sms_storage`, `vpn_zone` and `netbird_zone` are non-procd
   `start()` scripts that run once and exit (their headers say so); their
   steady-state cost is zero.

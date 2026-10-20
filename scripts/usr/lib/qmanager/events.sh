@@ -462,7 +462,7 @@ detect_scc_pci_changes() {
 # has no edge detector of its own: it follows ev_link_state, so the Activity
 # feed and the alert channels can never disagree about an outage.
 #
-#   ev_link_state  "down" | "up" | ""  ("" = stale/unknown, or low power)
+#   ev_link_state  "down" | "up" | ""  ("" = stale/unknown only)
 #
 # Rules, in order:
 #   * It follows the ping daemon's reachable verdict (conn_internet_available),
@@ -520,16 +520,6 @@ _ev_entry_held() {
 
 detect_data_connection_events() {
     case "$prev_ev_internet" in true|false) ;; *) prev_ev_internet="" ;; esac
-
-    # Scheduled low power: the link is down on purpose. Nothing is logged or
-    # alerted, and the baseline follows the reading so the exit is not an edge.
-    if [ -f "/tmp/qmanager_low_power_active" ]; then
-        case "$conn_internet_available" in
-            true|false) prev_ev_internet="$conn_internet_available" ;;
-        esac
-        ev_link_state=""
-        return 0
-    fi
 
     _ev_set_link_state
 
@@ -641,12 +631,6 @@ detect_data_connection_events() {
 
 # Compare current state vs previous and emit events for any changes
 detect_events() {
-    # Suppress all events during scheduled low power mode
-    if [ -f "/tmp/qmanager_low_power_active" ]; then
-        snapshot_event_state
-        return
-    fi
-
     # First cycle: populate previous state, don't generate events
     if [ "$events_initialized" = "false" ]; then
         snapshot_event_state

@@ -11,16 +11,16 @@ The other sub-routes have their own docs: [logs.md](logs.md), [languages.md](lan
 [system-health-check.md](../features/system-health-check.md) (which also hosts the Debug
 Report card).
 
-The index is a header (title, hostname `Tag`, Refresh), a status band of three tiles,
-and three cards. Page description: "How this device keeps time, when it restarts, and which
-SIMs it remembers." **Time & Units** and **Scheduled Operations** sit side by side as a
-symmetric 2-up; **Tracked SIMs** is a full-width card (`@3xl/main:col-span-2`) below them.
+The index is a header (title and an icon-only Refresh that reveals its label on hover or
+focus; no hostname badge), a status band of three tiles, and two cards. Page description:
+"How this device keeps time, when it restarts, and which SIMs it remembers." **Device & Units**
+and **Scheduled Reboot** sit side by side as a symmetric 2-up. Tracked SIMs is no longer a
+card of its own: it is a row inside Device & Units.
 
 | Cell | Component | Data |
 | --- | --- | --- |
-| Time & Units | `system-settings-card.tsx` | `useSystemSettings()` -> `settings` |
-| Scheduled Operations | `scheduled-operations-card.tsx` | `scheduledReboot`, `lowPower` |
-| Tracked SIMs | `tracked-sims-card.tsx` | `useKnownSims()` |
+| Device & Units | `system-settings-card.tsx` | `useSystemSettings()` -> `settings`, plus `useKnownSims()` for the Tracked SIMs row |
+| Scheduled Reboot | `scheduled-operations-card.tsx` | `scheduledReboot` |
 
 Passwords and Web Port live on [Device Access](#device-access-system-settingsdevice-access);
 Hardware Offload and Host AT Ports on [Hardware](#hardware-system-settingshardware); the
@@ -56,8 +56,7 @@ Geometry is restated from the system's numbers, never imported across a family b
 ## What the backend actually sends
 
 `system/settings.sh` GET returns `settings` (`hostname`,
-`temp_unit`, `distance_unit`, `timezone`, `zonename`), `scheduled_reboot` and
-`low_power`. It does **not** send the fields the source UI used: `effective_offset`,
+`temp_unit`, `distance_unit`, `timezone`, `zonename`), and `scheduled_reboot`. It does **not** send the fields the source UI used: `effective_offset`,
 `effective_zone_abbr`, `timezone_applied`, `timezone_apply_status`, and the reboot
 `armed` / `reason` arm status. The UI that needed them is therefore absent, not faked:
 
@@ -68,7 +67,7 @@ Geometry is restated from the system's numbers, never imported across a family b
 - The `sms_tool_device` payload field is not sent: `settings.sh` ignores it.
 
 `known_sims.sh` returns only `{success, count}` (GET and `clear`). There is no
-registry sidecar, so the **Tracked SIMs** card shows a count, not a list, and the band's
+registry sidecar, so the **Tracked SIMs** row shows a count, not a list, and the band's
 SIM tile reads the same count.
 
 ## Save results
@@ -91,12 +90,11 @@ stale notices.
 
 - **`useKnownSims().count` is `number | null`.** The hook swallows a failed GET by
   design; without the null a swallowed failure is indistinguishable from a genuine zero.
-  The card has an error screen for `null` and a separate empty screen for `0`; the band
+  The row has an error state for `null` and a separate empty screen for `0`; the band
   tile renders `—` for `null`.
 - **A payload that omits a key is not an error.** Cards gate their condition block on
   `!data`, not on `error && !data`; the second form renders invented defaults as though
-  the device had reported them. The schedule card needs **both** `scheduledReboot` and
-  `lowPower` before it renders the form.
+  the device had reported them. The schedule card needs `scheduledReboot` before it renders the form.
 - **Schedule blocks sync on identity** (`server !== prev`), never on truthiness, and are
   held off while a save is queued or in flight (`savePending`), so a refresh landing
   inside the debounce window cannot overwrite the edit being saved.
@@ -106,7 +104,7 @@ stale notices.
 - **One cascade root per route, for everything present at mount.** `system-settings.tsx`
   declares `initial`/`animate`; the card grid is a nested `staggerContainer`. A row
   cascade that mounts on a skeleton -> data swap arrives after the page's clock has run,
-  so it declares its own `initial="hidden" animate="visible"` (the Tracked SIMs row).
+  so it declares its own `initial="hidden" animate="visible"`.
 - **`DAY_PILL.RAIL` needs a definite host**, so it rides `ROW.RAIL_ROOT`.
 - **Icons are lucide here.** `/system-settings` is not in the Material set.
   `HintIcon` is the only exception, and the index uses none.
@@ -115,10 +113,15 @@ stale notices.
 
 ## Cards
 
-### Time & Units (`system-settings-card.tsx`)
+### Device & Units (`system-settings-card.tsx`)
 
-Time zone, temperature and distance rows in one tonal group, committed from `CardFoot`
-(Discard, then `SaveButton`). Each row has its own `Unsaved` marker.
+"How this modem keeps time, the units readings use, and the SIMs it remembers." Time zone,
+temperature and distance rows in one tonal group, committed from `CardFoot` (Discard, then
+`SaveButton`); each row has its own `Unsaved` marker. The **Tracked SIMs** row (count, from
+`useKnownSims()`, lifted into `system-settings.tsx` so the band tile and the row share one
+GET) sits in the same card with an inline **Clear** row action. Clear is not a draft
+commit, so it is exempt from the `CardFoot` rule and does not touch Discard or Save. See
+[known-sims.md](../features/known-sims.md#frontend-tracked-sims-grouptsx).
 
 > ℹ️ NOTE: The target-only **Force Tailscale Fixes** row was removed with the Tailscale
 > rework. The fw4 zone and routing rule are now automatic, and the on/off lives in the
@@ -126,15 +129,17 @@ Time zone, temperature and distance rows in one tonal group, committed from `Car
 > `settings.sh` no longer reads or writes `force_tailscale_fixes`; an old client that
 > still posts it is ignored.
 
-### Scheduled Operations (`scheduled-operations-card.tsx`)
+### Scheduled Reboot (`scheduled-operations-card.tsx`)
 
-Two blocks, **Scheduled reboot** and **Low power window** (target-only), each an
-`ROW_GROUP` with an enable switch, time field(s) and a day rail. Both save the same way,
-through one internal hook (`useAutosaveSchedule`): the switch saves at once; any other
-edit saves 800ms after the last, only while the block is on; a failure reverts to the
-server's values and toasts the returned reason; unmounting with an edit queued warns
-through `*.toast.unsaved`. There is no Save button, so the card keeps a decorative
-receipt strip plus an `sr-only` hint wired by `aria-describedby`.
+The only scheduled operation left: one `ROW_GROUP` with an enable switch, a time field and a
+day rail. It saves through one internal hook (`useAutosaveSchedule`): the switch saves at
+once; any other edit saves 800ms after the last, only while the block is on; a failure
+reverts to the server's values and toasts the returned reason; unmounting with an edit
+queued warns through `*.toast.unsaved`. There is no Save button, so the card keeps a
+decorative receipt strip plus an `sr-only` hint wired by `aria-describedby`.
+
+> ℹ️ NOTE: Low Power Mode (a scheduled CFUN=0 window) was removed from this page and the
+> backend; see [scheduled-jobs.md](../features/scheduled-jobs.md#retired-low-power-mode).
 
 The receipt strip's `aria-hidden="true"` is correct: `toast.success` announces every
 save through Sonner's live region, and the strip's layers are cross-faded by opacity,
@@ -143,10 +148,6 @@ which would otherwise read as one permanent string.
 The backend rejects "enabled with no days" (`no_days`), so the `Never fires` chip and
 the band's `no_day` face are reachable only transiently, between a day being cleared and
 its save being refused.
-
-### Tracked SIMs (`tracked-sims-card.tsx`)
-
-See [known-sims.md](../features/known-sims.md#frontend-tracked-sims-cardtsx).
 
 ---
 
@@ -293,7 +294,7 @@ GET and can land later, and without it the tile would show a confident `0`.
 
 ## i18n
 
-Subtrees: `page`, `band`, `preferences`, `reboot`, `low_power`, `ssh`, `known_sims`,
+Subtrees: `page`, `band`, `preferences`, `reboot`, `ssh`, `known_sims`,
 `device_access`, `hardware`, `web_port`, `ipa_offload`, `host_at`, in all five packs (en,
 zh-CN, zh-TW, it, id). The regroup added `device_access.page.{title,description}`,
 `hardware.page.{title,description}`,

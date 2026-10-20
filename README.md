@@ -69,7 +69,6 @@
 - **Email Alerts** — Downtime notifications via Gmail SMTP (msmtp), sent on recovery with duration details
 - **SMS Alerts** — Downtime notifications by SMS, sent during active outages once threshold is exceeded
 - **WAN Interface Guard** — Automatically disables phantom WAN profiles to prevent netifd CPU-wasting retry loops
-- **Low Power Mode** — Scheduled CFUN power-down windows via cron
 - **Tailscale VPN** — One-click installation, authentication, and status monitoring
 - **Software Updates** — In-app OTA update checking, download, verification, and installation
 - **System Logs** — Centralized log viewer with search
@@ -332,7 +331,6 @@ QManager runs 11 init.d services on the device:
 | `qmanager_ttl` | TTL/HL — applies iptables rules at boot |
 | `qmanager_mtu` | MTU — applies interface MTU settings |
 | `qmanager_imei_check` | IMEI integrity — verifies IMEI backup on boot |
-| `qmanager_low_power_check` | Low power — re-enters CFUN=0 if inside scheduled window |
 
 ---
 

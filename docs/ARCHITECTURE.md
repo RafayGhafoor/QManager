@@ -151,8 +151,6 @@ Auth endpoints use `_SKIP_AUTH=1` to bypass the automatic auth check in `cgi_bas
 | `/tmp/qmanager_email_log.json` | poller (email) | NDJSON | Email alert log (max 100) |
 | `/tmp/qmanager_sms_log.json` | poller (sms) | NDJSON | SMS alert log (max 100) |
 | `/tmp/qmanager_sms_reload` | CGI | Empty | Trigger poller SMS alert config reload |
-| `/tmp/qmanager_low_power_active` | low_power | Timestamp | Low power mode flag (suppresses events + alerts) |
-| `/tmp/qmanager_watchcat.lock` | low_power | Empty | Watchdog pause lock (forces LOCKED state) |
 | `/etc/qmanager/` | CGI scripts | Various | Persistent configuration |
 
 ---
@@ -185,12 +183,8 @@ init.d/qmanager_imei_check (non-procd, one-shot)
 init.d/qmanager_tower_failover (non-procd)
   └── qmanager_tower_failover (tower failover watchdog)
 
-init.d/qmanager_low_power_check (non-procd, one-shot)
-  └── qmanager_low_power_check (boot-time low power window check)
-
 cron (managed by system/settings.sh CGI)
-  ├── qmanager_scheduled_reboot (reboot at configured time)
-  └── qmanager_low_power enter|exit (CFUN=0/1 at configured times)
+  └── qmanager_scheduled_reboot (reboot at configured time)
 ```
 
 ### Daemon Communication
@@ -224,7 +218,7 @@ The poller's `events.sh` library detects state changes and emits events to an ND
 | `sim_failover` | SIM slot switched by watchdog | warning |
 | `sim_swap_detected` | Physical SIM card changed at boot | info |
 
-Events are suppressed during active watchcat recovery to prevent noise. All events are also suppressed during scheduled low power mode (when `/tmp/qmanager_low_power_active` exists).
+Events are suppressed during active watchcat recovery to prevent noise.
 
 ---
 
