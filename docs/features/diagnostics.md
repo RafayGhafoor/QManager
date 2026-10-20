@@ -1,6 +1,6 @@
 # Diagnostics & IPA Hardware Offload
 
-QManager's Diagnostics feature lets users (and support staff) generate a single-file plain-text snapshot of the modem's state — kernel logs, system metrics, network interfaces, and sanitized UCI config — then download it directly from the browser. The companion IPA Offload toggle controls whether the Realtek r8125 2.5G NIC uses kernel-bypass hardware offloading at next boot; disabling it is the community-recommended fix for random Ethernet drops observed mainly on AT&T with sdxpinn r01a04 firmware.
+QManager's Diagnostics feature lets users (and support staff) generate a single-file plain-text snapshot of the modem's state — kernel logs, system metrics, network interfaces, and sanitized UCI config — then download it directly from the browser. It lives as the **Debug Report** card at the end of System Health Check (`/system-settings/system-health-check`). The companion IPA Offload setting (the **Hardware Offload** card on `/system-settings/hardware`) controls whether the Realtek r8125 2.5G NIC uses kernel-bypass hardware offloading at next boot; disabling it is the community-recommended fix for random Ethernet drops observed mainly on AT&T with sdxpinn r01a04 firmware.
 
 ## Quick Reference
 
@@ -9,6 +9,8 @@ QManager's Diagnostics feature lets users (and support staff) generate a single-
 | Diagnostic daemon | `/usr/bin/qmanager_debug_report` |
 | Diagnostics CGI | `POST /cgi-bin/quecmanager/system/diagnostics.sh` |
 | IPA offload CGI | `GET/POST /cgi-bin/quecmanager/system/ipa_offload.sh` |
+| UI — diagnostics | `components/system-settings/diagnostics/diagnostics-card.tsx` ("Debug Report"), on `/system-settings/system-health-check` |
+| UI — IPA offload | `components/system-settings/ipa-offload/ipa-offload-card.tsx` ("Hardware Offload"), on `/system-settings/hardware` |
 | Hook — diagnostics | `hooks/use-diagnostics.ts` |
 | Hook — IPA offload | `hooks/use-ipa-offload.ts` |
 | Types — diagnostics | `types/diagnostics.ts` |
@@ -228,6 +230,14 @@ The CGI calls `$INIT enable` or `$INIT disable` — standard OpenWRT init.d subc
 
 The frontend uses `requestRebootLater("ipa_offload")` (via `lib/reboot/index.ts`, `RebootSource` member `"ipa_offload"`) to arm the deferred-reboot banner. The user sees the change is pending and can reboot when convenient.
 
+### Apply flow (Hardware Offload card)
+
+The card (`/system-settings/hardware`) is a draft-and-apply surface, not a save-on-toggle switch: an On/Off `SegmentedField` edits a local draft, committed from `CardFoot` (status left, "Takes effect after a reboot."; Discard, then an Apply `SaveButton`). Apply POSTs `enable`/`disable` as above. On success it calls `requestRebootLater("ipa_offload")` and toasts; on failure it toasts the failure reason returned by the hook.
+
+**Why:** the old bare `Switch` saved (and armed the banner) the instant it was toggled; the canon commits a card editing a draft from `CardFoot`, and booleans use `SegmentedField`.
+
+The status row shows "Pending reboot" (warning chip) while the pending-reboot flag's source is `ipa_offload`, otherwise On/Off from the boot-enable state (the previous card showed "Takes effect after reboot" unconditionally). When the GET reports `available: false` the card shows a neutral "Not on this modem" state instead of a disabled control.
+
 ### Error Codes
 
 | Code | Meaning |
@@ -246,7 +256,7 @@ Action-only hook (no mount fetch). `capture()` posts `{"action":"capture"}`, rec
 
 ### `useIpaOffload` (hooks/use-ipa-offload.ts)
 
-Fetches current state on mount. The `setEnabled(bool)` toggle is **pessimistic**: it POSTs the action and then silently re-fetches authoritative state (via `fetchState(true)`) rather than flipping local state. This avoids a stale Switch state when the write partially fails or is gated by `available: false`. The component is responsible for calling `requestRebootLater("ipa_offload")` on success.
+Fetches current state on mount. `setEnabled(bool)` is **pessimistic**: it POSTs the action and then silently re-fetches authoritative state (via `fetchState(true)`) rather than flipping local state. This avoids stale card state when the write partially fails or is gated by `available: false`. It resolves an `IpaOffloadMutationResult` (`types/ipa-offload.ts`), `{ ok, error? }`, instead of a boolean, so the card toasts the call's own failure reason; a failed save does **not** set the hook's load `error` (that stays reserved for a failed read, which flips the card to its unreachable state). The component is responsible for calling `requestRebootLater("ipa_offload")` on success.
 
 ---
 
@@ -266,4 +276,4 @@ A plain ASCII space replacement is always byte-safe. Logs captured **before** th
 
 ## Locale Status
 
-The `diagnostics` and `ipa_offload` i18n namespaces in `public/locales/en/system-settings.json` are complete for English. Non-English locales (zh-CN, zh-TW, id, it, and others) do not yet have these keys — they will fall back to English strings until a locale backfill pass is done.
+The `diagnostics` and `ipa_offload` subtrees of `public/locales/*/system-settings.json` are present in all five locales (en, zh-CN, zh-TW, it, id). The regroup added `ipa_offload.{status_on,status_off,reboot_note,discard,unavailable_title,error_title,error_description}` to each.

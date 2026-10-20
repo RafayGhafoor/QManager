@@ -151,17 +151,19 @@ const navSystem: NavItem[] = [
     url: "/system-settings",
     icon: "settings",
     items: [
-      { t_key: "logs", url: "/system-settings/logs" },
-      {
-        t_key: "system_health_check",
-        url: "/system-settings/system-health-check",
-      },
       { t_key: "languages", url: "/system-settings/languages" },
+      { t_key: "device_access", url: "/system-settings/device-access" },
       {
         t_key: "configuration_backup",
         url: "/system-settings/config-backup",
       },
       { t_key: "adaptive_polling", url: "/system-settings/adaptive-polling" },
+      { t_key: "hardware", url: "/system-settings/hardware" },
+      {
+        t_key: "system_health_check",
+        url: "/system-settings/system-health-check",
+      },
+      { t_key: "logs", url: "/system-settings/logs" },
     ],
   },
   {

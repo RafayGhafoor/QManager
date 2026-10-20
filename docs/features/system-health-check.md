@@ -12,8 +12,12 @@ An on-demand, read-only sweep of every QManager subsystem on the device (49 chec
 | CGIs | `system/health-check/{run,status,clear,download}.sh` | Start, read, clear and download. Contracts in `docs/API-REFERENCE.md` |
 | Hook | `hooks/use-system-health-check.ts` | Polls `status.sh` every 500 ms while a run is live |
 | Types | `types/system-health-check.ts` | `HealthCheckJob`, `HealthCheckTest`, `TestCategory`, `RunResponse` |
-| UI | `components/system-settings/system-health-check/**` | Page header, status band, Needs attention, All checks. `shapes.ts` holds geometry, tones and the per-category check counts |
+| UI | `components/system-settings/system-health-check/**` | Page header, status band, Needs attention, All checks, then the Debug Report card. `shapes.ts` holds geometry, tones and the per-category check counts |
 | Copy | `public/locales/*/system-settings.json` → `health_check` | Folded into the existing namespace (`keyPrefix: "health_check"`). A new namespace would make every published language pack fail the install worker's required-namespace check |
+
+## Debug Report card
+
+`DiagnosticsCard` (`components/system-settings/diagnostics/diagnostics-card.tsx`, titled "Debug Report") renders as a full-width card after All Checks, in **every** page state (loading, empty, error, loaded). It moved here from the `/system-settings` index. It does not depend on a check run: it has its own hook and CGI (`useDiagnostics`, `system/diagnostics.sh`; see [diagnostics.md](diagnostics.md)), so a failed or never-run health check must not hide it. It is the capture path when the health check itself cannot reach the device.
 
 ## Runtime files
 

@@ -6,7 +6,7 @@ only AT path: the original shell gatekeeper and its `atcli_smd11` helper were
 removed on 2026-10-16. A separate, unrelated-in-speed toggle turns the vendor
 host AT bridge on or off.
 
-**UI:** System Settings: Host AT Ports card (On / Off).
+**UI:** System Settings: Host AT Ports card (On / Off) on **Hardware** (`/system-settings/hardware`).
 **Source:** `native/qmanager_atd/` (Rust crate). The prebuilt binary is
 `dependencies/qmanager_atd`. The build recipe is in `dependencies/README.md`.
 

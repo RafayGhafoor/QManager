@@ -1,12 +1,24 @@
 {
   "page": {
     "title": "系统设置",
-    "description": "本设备如何计时、谁可以访问它，以及它记住了哪些 SIM 卡。",
+    "description": "本设备如何计时、何时重启，以及它记住了哪些 SIM 卡。",
     "refresh": "刷新"
   },
+  "device_access": {
+    "page": {
+      "title": "设备访问",
+      "description": "用于访问此调制解调器的密码和端口。"
+    }
+  },
+  "hardware": {
+    "page": {
+      "title": "硬件",
+      "description": "Ethernet 流量和已连接的主机如何访问调制解调器的硬件。"
+    }
+  },
   "diagnostics": {
-    "card_title": "诊断",
-    "card_description": "生成调试报告，便于排查问题时分享。",
+    "card_title": "调试报告",
+    "card_description": "此调制解调器的快照，便于排查问题时分享。",
     "body": "生成调制解调器当前状态的纯文本快照（无线状态、网络配置和近期日志）并下载到您的设备。在您选择分享该文件之前，不会有任何数据离开调制解调器。",
     "button_capture": "下载调试报告",
     "button_capturing": "正在生成…",
@@ -16,14 +28,20 @@
   "ipa_offload": {
     "card_title": "硬件卸载",
     "card_description": "通过调制解调器的 IPA 硬件路径处理数据包。",
-    "enable_label": "启用硬件卸载",
-    "cpu_warning": "硬件卸载默认开启，由专用硬件处理 Ethernet 流量。如果出现随机的 Ethernet 断线，可将其关闭，使流量改由 CPU 处理（在部分固件和运营商上已知有效）；CPU 能够轻松应对高速流量。",
-    "unavailable_hint": "此调制解调器的固件未提供 IPA 硬件卸载路径，因此无法更改此设置。",
+    "enable_label": "硬件卸载",
+    "cpu_warning": "如果出现随机的 Ethernet 断线，请将其关闭，使流量改由 CPU 处理。",
+    "unavailable_hint": "此调制解调器的固件没有可更改的硬件卸载路径。",
     "status_label": "状态",
-    "pending_reboot_badge": "重启后生效",
+    "pending_reboot_badge": "待重启",
     "toast_enabled": "硬件卸载已启用。重启后生效。",
     "toast_disabled": "硬件卸载已禁用。重启后生效。",
-    "toast_failed": "更新硬件卸载失败"
+    "toast_failed": "无法更新硬件卸载。",
+    "status_on": "已开启",
+    "status_off": "已关闭",
+    "reboot_note": "重启后生效。",
+    "unavailable_title": "此调制解调器不支持",
+    "error_title": "无法读取硬件卸载",
+    "error_description": "设置未能加载，请稍后重试。"
   },
   "host_at": {
     "card_title": "主机 AT 端口",
@@ -38,7 +56,10 @@
     "discard": "放弃",
     "toast_on": "已开启主机 AT 端口。",
     "toast_off": "已关闭主机 AT 端口。",
-    "toast_failed": "无法更新主机 AT 端口。"
+    "toast_failed": "无法更新主机 AT 端口。",
+    "unavailable_title": "此调制解调器不支持",
+    "error_title": "无法读取主机 AT 端口",
+    "error_description": "设置未能加载，请稍后重试。"
   },
   "config_backup": {
     "page_title": "配置备份",
@@ -1295,6 +1316,8 @@
     "confirm_action": "更改端口",
     "toast_failed": "无法更改网页端口。",
     "toast_unchanged": "网页端口已保存。",
-    "toast_unreachable": "新端口没有响应，QManager 仍使用旧端口。"
+    "toast_unreachable": "新端口没有响应，QManager 仍使用旧端口。",
+    "error_title": "无法读取网页端口",
+    "error_description": "端口未能加载，请稍后重试。"
   }
 }

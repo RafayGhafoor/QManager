@@ -15,8 +15,6 @@
     "mode_video": "Video Optimizer",
     "mode_masquerade": "Masquerade",
     "aria_mode_selector": "Mode mesin",
-    "state_protecting": "Melindungi video",
-    "state_masquerading": "Menyamar sebagai {{domain}}",
     "state_starting": "Memulai",
     "state_stopping": "Menghentikan",
     "state_switching": "Beralih",

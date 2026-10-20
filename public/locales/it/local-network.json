@@ -15,8 +15,6 @@
     "mode_video": "Ottimizzatore video",
     "mode_masquerade": "Masquerade",
     "aria_mode_selector": "Modalità motore",
-    "state_protecting": "Protezione video attiva",
-    "state_masquerading": "Maschera come {{domain}}",
     "state_starting": "Avvio",
     "state_stopping": "Arresto",
     "state_switching": "Cambio",

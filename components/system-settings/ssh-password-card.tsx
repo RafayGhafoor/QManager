@@ -31,6 +31,7 @@ import {
   FIELD,
   GROUP_FILL,
   NOTICE,
+  PASSWORD_GRID,
   ROW,
   ROW_GROUP,
 } from "./shapes";
@@ -115,7 +116,9 @@ function PasswordField({
         ) : null}
       </div>
 
-      <div className="relative w-full">
+      {/* `mt-auto` bottom-aligns the field, so on a wide card the three
+          fields share one edge even when one consequence wraps further. */}
+      <div className="relative mt-auto w-full">
         <Input
           id={id}
           type={visible ? "text" : "password"}
@@ -234,36 +237,40 @@ export default function SSHPasswordCard() {
           {/* The row group is this card's slack absorber: the page grid locks
               every cell to `h-full`, and the group is what grows to fill it. */}
           <div key={formKey} className={cn(ROW_GROUP, GROUP_FILL)}>
-            <PasswordField
-              id="ssh-current-password"
-              label={t(`${K}.fields.current.label`)}
-              consequence={t(`${K}.fields.current.consequence`)}
-              value={currentPassword}
-              onChange={setCurrentPassword}
-              disabled={isPending}
-              autoComplete="current-password"
-            />
-            <PasswordField
-              id="ssh-new-password"
-              label={t(`${K}.fields.new.label`)}
-              consequence={t(
-                enforceStrong
-                  ? `${K}.fields.new.consequence_strong`
-                  : `${K}.fields.new.consequence_weak`,
-              )}
-              value={newPassword}
-              onChange={setNewPassword}
-              disabled={isPending}
-              autoComplete="new-password"
-            />
-            <PasswordField
-              id="ssh-confirm-password"
-              label={t(`${K}.fields.confirm.label`)}
-              value={confirmPassword}
-              onChange={setConfirmPassword}
-              disabled={isPending}
-              autoComplete="new-password"
-            />
+            {/* Stacked on a phone, one row on a wide card (Device Access is a
+                single-column page, so this card is always full width). */}
+            <div className={PASSWORD_GRID}>
+              <PasswordField
+                id="ssh-current-password"
+                label={t(`${K}.fields.current.label`)}
+                consequence={t(`${K}.fields.current.consequence`)}
+                value={currentPassword}
+                onChange={setCurrentPassword}
+                disabled={isPending}
+                autoComplete="current-password"
+              />
+              <PasswordField
+                id="ssh-new-password"
+                label={t(`${K}.fields.new.label`)}
+                consequence={t(
+                  enforceStrong
+                    ? `${K}.fields.new.consequence_strong`
+                    : `${K}.fields.new.consequence_weak`,
+                )}
+                value={newPassword}
+                onChange={setNewPassword}
+                disabled={isPending}
+                autoComplete="new-password"
+              />
+              <PasswordField
+                id="ssh-confirm-password"
+                label={t(`${K}.fields.confirm.label`)}
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+                disabled={isPending}
+                autoComplete="new-password"
+              />
+            </div>
             <div className={cn(ROW.ROOT, "min-h-0")}>
               <div className={ROW.TEXT}>
                 <span className={ROW.LABEL}>

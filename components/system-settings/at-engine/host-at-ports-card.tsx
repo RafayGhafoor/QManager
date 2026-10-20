@@ -5,11 +5,11 @@ import { motion } from "motion/react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
-  AlertTriangleIcon,
+  CableIcon,
   CheckIcon,
+  CircleAlertIcon,
   CircleCheckIcon,
   CircleOffIcon,
-  RotateCcwIcon,
 } from "lucide-react";
 
 import {
@@ -20,16 +20,31 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CardFoot } from "@/components/ui/card-foot";
-import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
-import { SegmentedField } from "@/components/ui/segmented-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { SEGMENTED, SegmentedField } from "@/components/ui/segmented-field";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { staggerRows, staggerRowItem } from "@/lib/motion";
+import { staggerRowItem, staggerRows } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 
 import { useHostAtPorts } from "@/hooks/use-host-at-ports";
-import { SETTING_ROW, SettingRow } from "./setting-row";
+
+import { ConditionBlock } from "../condition-block";
+import {
+  CARD_BODY,
+  CARD_DESC,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_TITLE,
+  CHIP_GLYPH,
+  CONDITION_PANEL,
+  GROUP_FILL,
+  ROW,
+  ROW_GROUP,
+  SKELETON_HARDWARE,
+  STATUS_ROW,
+} from "../shapes";
 
 // =============================================================================
 // Host AT Ports — USB/PCIe host access to the modem's AT engine
@@ -37,14 +52,64 @@ import { SETTING_ROW, SettingRow } from "./setting-row";
 // QManager never uses these ports (its own path is internal), so turning them
 // off never affects the UI or the cellular connection. It only stops an
 // attached computer from sending AT commands. That consequence stays visible
-// on the card while Off is selected (Principle 6), never behind a tip.
+// on the row (Principle 6), never behind a tip.
+//
+// Same anatomy as Hardware Offload, its row-mate on /system-settings/hardware:
+// a decision row, a status row, then the footer. Change one, change both.
 // =============================================================================
+
+const K = "host_at";
 
 type Choice = "on" | "off";
 
+const renderCheckGlyph = (className: string) => (
+  <CheckIcon size={SEGMENTED.GLYPH} className={className} aria-hidden="true" />
+);
+
+function HostAtHeader() {
+  const { t } = useTranslation("system-settings");
+  return (
+    <CardHeader className={CARD_PAD}>
+      <CardTitle className={CARD_TITLE}>{t(`${K}.card_title`)}</CardTitle>
+      <CardDescription className={CARD_DESC}>
+        {t(`${K}.card_description`)}
+      </CardDescription>
+    </CardHeader>
+  );
+}
+
+function HostAtSkeleton() {
+  return (
+    <Card className={CARD_SHELL} aria-hidden="true">
+      <HostAtHeader />
+      <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+        <div className={cn(ROW_GROUP, GROUP_FILL)}>
+          <div className={ROW.ROOT}>
+            <div className={ROW.TEXT}>
+              <Skeleton className={cn(SKELETON_HARDWARE.LABEL, "w-28")} />
+              <Skeleton className={cn(SKELETON_HARDWARE.CONSEQUENCE, "w-full")} />
+            </div>
+            <div className={ROW.CONTROL}>
+              <Skeleton className={SKELETON_HARDWARE.PILL} />
+            </div>
+          </div>
+          <div className={STATUS_ROW}>
+            <Skeleton className={cn(SKELETON_HARDWARE.LABEL, "w-16")} />
+            <Skeleton className={SKELETON_HARDWARE.CHIP} />
+          </div>
+        </div>
+        <CardFoot
+          liveStatus={false}
+          actions={<Skeleton className={SKELETON_HARDWARE.ACTION} />}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
 const HostAtPortsCard = () => {
   const { t } = useTranslation("system-settings");
-  const { state, isLoading, isSaving, error, setEnabled, refresh } = useHostAtPorts();
+  const { state, isLoading, isSaving, setEnabled, refresh } = useHostAtPorts();
   const { saved, markSaved } = useSaveFlash();
 
   const savedChoice: Choice | null = state ? (state.enabled ? "on" : "off") : null;
@@ -56,128 +121,122 @@ const HostAtPortsCard = () => {
   }
 
   const dirty = draft !== null && savedChoice !== null && draft !== savedChoice;
-  const unavailable = state !== null && !state.available;
 
   const handleApply = async () => {
     if (!draft || !dirty) return;
     const result = await setEnabled(draft === "on");
     if (result.ok) {
       markSaved();
-      toast.success(
-        draft === "on" ? t("host_at.toast_on") : t("host_at.toast_off"),
-      );
+      toast.success(draft === "on" ? t(`${K}.toast_on`) : t(`${K}.toast_off`));
     } else {
-      toast.error(result.error ?? t("host_at.toast_failed"));
+      toast.error(result.error ?? t(`${K}.toast_failed`));
     }
   };
 
+  if (isLoading && state === null) return <HostAtSkeleton />;
+
+  if (state === null) {
+    return (
+      <Card className={CARD_SHELL}>
+        <HostAtHeader />
+        <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+          <ConditionBlock
+            tone="destructive"
+            glyph={CircleAlertIcon}
+            ariaRole="alert"
+            title={t(`${K}.error_title`)}
+            description={t(`${K}.error_description`)}
+            onRetry={refresh}
+            retryLabel={t("actions.retry", { ns: "common" })}
+            className={CONDITION_PANEL.SCREEN}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!state.available) {
+    return (
+      <Card className={CARD_SHELL}>
+        <HostAtHeader />
+        <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+          <ConditionBlock
+            tone="neutral"
+            glyph={CableIcon}
+            ariaRole="status"
+            title={t(`${K}.unavailable_title`)}
+            description={t(`${K}.unavailable`)}
+            className={CONDITION_PANEL.SCREEN}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardTitle>{t("host_at.card_title")}</CardTitle>
-        <CardDescription>{t("host_at.card_description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="grid gap-2">
-            <div className={SETTING_ROW}>
-              <Skeleton className="h-5 w-28" />
-              <Skeleton className="h-[2.625rem] w-36 rounded-pill" />
-            </div>
-            <div className={SETTING_ROW}>
-              <Skeleton className="h-5 w-16" />
-              <Skeleton className="h-6 w-20 rounded-pill" />
-            </div>
-          </div>
-        ) : error && state === null ? (
-          <div className="grid gap-3">
-            <Alert variant="destructive">
-              <AlertTriangleIcon className="size-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-            <Button variant="tonal-neutral" onClick={refresh} className="w-fit">
-              <RotateCcwIcon className="size-4" />
-              {t("actions.retry", { ns: "common" })}
-            </Button>
-          </div>
-        ) : state && draft ? (
-          <motion.div
-            className="grid gap-2"
-            variants={staggerRows}
-            initial="hidden"
-            animate="visible"
-          >
-            <motion.div variants={staggerRowItem}>
-              <SettingRow label={t("host_at.access_label")}>
-                <SegmentedField<Choice>
-                  value={draft}
-                  onValueChange={setDraft}
-                  ariaLabel={t("host_at.access_label")}
-                  breakpoint="never"
-                  disabled={isSaving || unavailable}
-                  options={[
-                    { value: "on", label: t("state.on", { ns: "common" }) },
-                    { value: "off", label: t("state.off", { ns: "common" }) },
-                  ]}
-                  glyph={(className) => (
-                    <CheckIcon className={className} size={16} aria-hidden="true" />
-                  )}
-                />
-              </SettingRow>
-            </motion.div>
-
-            {unavailable ? (
-              <motion.p
-                variants={staggerRowItem}
-                className="text-sm text-muted-foreground"
-              >
-                {t("host_at.unavailable")}
-              </motion.p>
-            ) : draft === "off" ? (
-              <motion.p
-                variants={staggerRowItem}
-                className="text-sm text-muted-foreground"
-              >
+    <Card className={CARD_SHELL}>
+      <HostAtHeader />
+      <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+        {/* Declared here and not inherited: the card swaps in after its
+            skeleton, once the page cascade has already run. */}
+        <motion.div
+          className={cn(ROW_GROUP, GROUP_FILL)}
+          variants={staggerRows}
+          initial="hidden"
+          animate="visible"
+        >
+          <motion.div variants={staggerRowItem} className={ROW.ROOT}>
+            <div className={ROW.TEXT}>
+              <span className={ROW.LABEL}>{t(`${K}.access_label`)}</span>
+              <span className={ROW.CONSEQUENCE}>
                 {state.pcie
-                  ? t("host_at.consequence_pcie")
-                  : t("host_at.consequence_usb")}
-              </motion.p>
-            ) : null}
+                  ? t(`${K}.consequence_pcie`)
+                  : t(`${K}.consequence_usb`)}
+              </span>
+            </div>
+            <div className={ROW.CONTROL}>
+              <SegmentedField<Choice>
+                value={draft ?? "off"}
+                onValueChange={setDraft}
+                options={[
+                  { value: "off", label: t("state.off", { ns: "common" }) },
+                  { value: "on", label: t("state.on", { ns: "common" }) },
+                ]}
+                ariaLabel={t(`${K}.access_label`)}
+                disabled={isSaving}
+                breakpoint="never"
+                glyph={renderCheckGlyph}
+              />
+            </div>
+          </motion.div>
 
-            {!unavailable && (
-              <motion.div variants={staggerRowItem}>
-                <SettingRow label={t("host_at.status_label")}>
-                  {state.running ? (
-                    <Badge variant="success">
-                      <CircleCheckIcon className="size-3" aria-hidden="true" />
-                      {t("host_at.status_active")}
-                    </Badge>
-                  ) : (
-                    <Badge variant="muted">
-                      <CircleOffIcon className="size-3" aria-hidden="true" />
-                      {t("host_at.status_off")}
-                    </Badge>
-                  )}
-                </SettingRow>
-              </motion.div>
+          <motion.div variants={staggerRowItem} className={STATUS_ROW}>
+            <span className={ROW.LABEL}>{t(`${K}.status_label`)}</span>
+            {state.running ? (
+              <Badge variant="success">
+                <CircleCheckIcon className={CHIP_GLYPH} aria-hidden="true" />
+                {t(`${K}.status_active`)}
+              </Badge>
+            ) : (
+              <Badge variant="muted">
+                <CircleOffIcon className={CHIP_GLYPH} aria-hidden="true" />
+                {t(`${K}.status_off`)}
+              </Badge>
             )}
           </motion.div>
-        ) : null}
-      </CardContent>
+        </motion.div>
 
-      {state && !unavailable && (
         <CardFoot
-          className="px-6"
           actions={
             <>
               <Button
                 type="button"
-                variant="tonal-neutral"
+                variant="ghost"
                 size="action"
                 onClick={() => setDraft(savedChoice)}
                 disabled={!dirty || isSaving}
               >
-                {t("host_at.discard")}
+                {t("actions.discard", { ns: "common" })}
               </Button>
               <SaveButton
                 onClick={handleApply}
@@ -190,7 +249,7 @@ const HostAtPortsCard = () => {
             </>
           }
         />
-      )}
+      </CardContent>
     </Card>
   );
 };

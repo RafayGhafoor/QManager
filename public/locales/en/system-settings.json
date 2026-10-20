@@ -1,12 +1,24 @@
 {
   "page": {
     "title": "System Settings",
-    "description": "How this device keeps time, who can reach it, and which SIMs it remembers.",
+    "description": "How this device keeps time, when it restarts, and which SIMs it remembers.",
     "refresh": "Refresh"
   },
+  "device_access": {
+    "page": {
+      "title": "Device Access",
+      "description": "The password and ports used to reach this modem."
+    }
+  },
+  "hardware": {
+    "page": {
+      "title": "Hardware",
+      "description": "How Ethernet traffic and a connected host reach the modem's hardware."
+    }
+  },
   "diagnostics": {
-    "card_title": "Diagnostics",
-    "card_description": "Capture a debug report to share when troubleshooting.",
+    "card_title": "Debug Report",
+    "card_description": "A snapshot of this modem to share when troubleshooting.",
     "body": "Generates a plain-text snapshot of the modem's current state (radio status, network configuration, and recent logs) and downloads it to your device. No data leaves the modem until you choose to share the file.",
     "button_capture": "Download Debug Report",
     "button_capturing": "Capturing…",
@@ -16,14 +28,20 @@
   "ipa_offload": {
     "card_title": "Hardware Offload",
     "card_description": "Route packet processing through the modem's IPA hardware path.",
-    "enable_label": "Enable Hardware Offload",
-    "cpu_warning": "Hardware offload is on by default and processes Ethernet traffic in dedicated hardware. If you see random Ethernet drops, turn it off to route traffic through the CPU instead (a known fix on some firmware and carriers); the CPU handles high speeds without trouble.",
-    "unavailable_hint": "This modem's firmware does not expose the IPA hardware offload path, so this setting cannot be changed.",
+    "enable_label": "Hardware offload",
+    "cpu_warning": "If you see random Ethernet drops, turn it off to route traffic through the CPU.",
+    "unavailable_hint": "This modem's firmware has no hardware offload path to change.",
     "status_label": "Status",
-    "pending_reboot_badge": "Takes effect after reboot",
+    "pending_reboot_badge": "Pending reboot",
     "toast_enabled": "Hardware offload enabled. Reboot to apply.",
     "toast_disabled": "Hardware offload disabled. Reboot to apply.",
-    "toast_failed": "Failed to update hardware offload"
+    "toast_failed": "Couldn't update hardware offload.",
+    "status_on": "On",
+    "status_off": "Off",
+    "reboot_note": "Takes effect after a reboot.",
+    "unavailable_title": "Not on this modem",
+    "error_title": "Couldn't read hardware offload",
+    "error_description": "The setting didn't load. Try again in a moment."
   },
   "host_at": {
     "card_title": "Host AT Ports",
@@ -38,7 +56,10 @@
     "discard": "Discard",
     "toast_on": "Host AT ports turned on.",
     "toast_off": "Host AT ports turned off.",
-    "toast_failed": "Couldn't update host AT ports."
+    "toast_failed": "Couldn't update host AT ports.",
+    "unavailable_title": "Not on this modem",
+    "error_title": "Couldn't read host AT ports",
+    "error_description": "The setting didn't load. Try again in a moment."
   },
   "config_backup": {
     "page_title": "Configuration Backup",
@@ -1295,6 +1316,8 @@
     "confirm_action": "Change port",
     "toast_failed": "Couldn't change the web port.",
     "toast_unchanged": "Web port saved.",
-    "toast_unreachable": "The new port didn't answer, so QManager stayed on the old one."
+    "toast_unreachable": "The new port didn't answer, so QManager stayed on the old one.",
+    "error_title": "Couldn't read the web port",
+    "error_description": "The ports didn't load. Try again in a moment."
   }
 }
