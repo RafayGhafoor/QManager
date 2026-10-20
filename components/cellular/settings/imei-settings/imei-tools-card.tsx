@@ -25,11 +25,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   IMEI_CUSTOM_ID,
   IMEI_TAC_PRESETS,
   getImeiTacPreset,
@@ -384,29 +379,35 @@ const IMEIToolsCard = () => {
                   </div>
                   {/* The verdict cell — see `BREAKDOWN.CELL_VALID` for why the
                       check digit is the one that carries it. */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div
-                        tabIndex={0}
-                        aria-label={`${t(`${K}.breakdown.check`)}: ${luhnLabel}`}
+                  <div
+                    className={cn(
+                      BREAKDOWN.CELL,
+                      BREAKDOWN.CELL_NEUTRAL,
+                      isLuhnValid
+                        ? BREAKDOWN.CELL_VALID
+                        : BREAKDOWN.CELL_INVALID,
+                    )}
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+                      <span className={SETTING_ROW.CONSEQUENCE}>
+                        {t(`${K}.breakdown.check`)}
+                      </span>
+                      <span
                         className={cn(
-                          BREAKDOWN.CELL,
-                          BREAKDOWN.CELL_NEUTRAL,
+                          SETTING_ROW.CONSEQUENCE,
+                          "font-medium",
                           isLuhnValid
-                            ? BREAKDOWN.CELL_VALID
-                            : BREAKDOWN.CELL_INVALID,
+                            ? "text-success-on-surface"
+                            : "text-destructive-on-surface",
                         )}
                       >
-                        <span className={SETTING_ROW.CONSEQUENCE}>
-                          {t(`${K}.breakdown.check`)}
-                        </span>
-                        <span className={READOUT_ROW.VALUE_MONO}>
-                          {breakdown.checkDigit}
-                        </span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent variant="info">{luhnLabel}</TooltipContent>
-                  </Tooltip>
+                        {luhnLabel}
+                      </span>
+                    </div>
+                    <span className={READOUT_ROW.VALUE_MONO}>
+                      {breakdown.checkDigit}
+                    </span>
+                  </div>
                 </div>
               ) : (
                 <p className={SETTING_ROW.CONSEQUENCE}>

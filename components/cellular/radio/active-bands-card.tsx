@@ -697,11 +697,11 @@ export function ActiveBandsCard({
                             <Badge variant="muted">
                               <SwapLabel
                                 swapKey="released"
-                                className="gap-1.5"
+                                className="gap-1"
                               >
                                 <MaterialSymbol
                                   name="do_not_disturb_on"
-                                  size={15}
+                                  size={12}
                                   filled
                                 />
                                 {t("radio_info.bands.released")}

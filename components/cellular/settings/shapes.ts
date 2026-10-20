@@ -957,8 +957,8 @@ export const BREAKDOWN = {
    * the manufacturer assigns, and the part the Luhn test is judging. The cell
    * keeps the neutral fill and carries the verdict as an inset ring (no layout
    * shift against its neighbours): `success` when the number passes,
-   * `destructive` when it fails. A tooltip names the verdict, so the colour
-   * never carries it alone.
+   * `destructive` when it fails. The cell also prints the verdict as text on its
+   * label line, so the colour never carries it alone.
    */
   CELL_VALID: "ring-2 ring-inset ring-success",
   CELL_INVALID: "ring-2 ring-inset ring-destructive",

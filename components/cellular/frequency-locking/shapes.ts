@@ -307,8 +307,8 @@ export const BADGE_GLYPH_SIZE = 12;
 export type LockPosture = "locked" | "unlocked" | "blocked" | "unknown";
 
 /**
- * The "Experimental" chip is a NON-STATUS label, so it takes `secondary` rather
- * than a status role.
+ * The "Experimental" chip is a fact that is neither fault nor health, so it is
+ * a filled `info` badge (Fact-Is-Info) rather than a status role.
  *
  * It was amber in the comp, which put a permanently-lit `warning` chip in the
  * title row of a page whose whole state system is about to use amber for
@@ -323,7 +323,7 @@ export type LockPosture = "locked" | "unlocked" | "blocked" | "unknown";
  * in the confirmation dialogs, contextually and unavoidably.
  */
 export const EXPERIMENTAL_BADGE = {
-  variant: "secondary" as BadgeVariant,
+  variant: "info" as BadgeVariant,
   glyph: "science" as MaterialSymbolName,
 };
 
