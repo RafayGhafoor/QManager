@@ -769,20 +769,23 @@ export const SKELETON_HARDWARE = {
 
 /**
  * The path diagram on the Hardware pair: the ways traffic or a command can
- * travel, drawn as icons joined by lines, read left to right. Two lanes run
+ * travel, drawn as nodes joined by routes, read left to right. Two lanes run
  * between the ends, so a reader sees there are two ways and which one is used.
  *
  * It rides on the card's `ROW_GROUP` rather than wrapping itself in a tile, so
- * the card keeps one inner container (The One-Nest Rule). Green is spent only on
- * the discs in play (`success-container`, user call 2026-10-20); everything else
- * stays neutral. The lines are ink, never green: the line in play takes
- * `on-surface-variant`, a resting one the quieter `outline`. Colour never carries
- * the state alone: the resting lane's name dims, a shut lane carries an X, and a
- * lane that is really running has beads flowing along it (`animate-path-flow`).
+ * the card keeps one inner container (The One-Nest Rule). The routes are one
+ * measured SVG under the nodes: a fork leaves a lone source as one trunk and
+ * bends into each lane on rounded elbows, and the lanes bend back into one trunk
+ * before a lone sink, so every arrow lands once. Green is spent only on the discs
+ * in play (`success`, the filled check-disc green, user call 2026-10-20) and the
+ * beads; the lines are ink: the route in play takes `on-surface-variant`, a
+ * resting one the quieter `outline`. Colour never carries the state alone: the
+ * resting lane's name dims, a shut lane carries an X, and a route that is really
+ * running has beads travelling it end to end (`animate-path-flow`), slipping
+ * under each node they pass through, so nodes are opaque.
  *
  * `FIELD` is pinned, not floored, because the skeleton mirrors it
- * (`SKELETON_HARDWARE.PATH`). Two lanes of 52px, so a 36px disc fits a lane.
- * Lines are laid against the 25% and 75% rows, which is why both rows are equal.
+ * (`SKELETON_HARDWARE.PATH`). Two lanes of 52px, so a 36px node fits a lane.
  */
 export const PATH = {
   ROOT: "@container/path flex flex-col gap-3 rounded-field px-4 pt-3 pb-4 @2xl/card:px-[1.125rem]",
@@ -790,47 +793,47 @@ export const PATH = {
   EYEBROW:
     "text-on-surface-variant inline-flex items-center gap-1.5 text-xs font-medium",
   FIELD:
-    "grid h-[6.5rem] grid-cols-[auto_minmax(1.5rem,1fr)_auto_minmax(1.5rem,1fr)_auto] grid-rows-2",
+    "relative grid h-[6.5rem] grid-cols-[auto_minmax(2.75rem,1fr)_auto_minmax(2.75rem,1fr)_auto] grid-rows-2 items-center",
   /**
    * A lone end spans both lanes: the disc over its name. The top padding is the
-   * name's height, so the disc, not the pair, centres on the seam the fork and
-   * merge lines meet at.
+   * name's height, so the disc, not the pair, centres on the seam the trunks
+   * meet it at.
    */
-  STACK: "row-span-2 flex min-w-0 flex-col items-center justify-center gap-1.5 pt-[1.375rem]",
-  /** One of a pair, or a lane's node: the disc beside its name. */
-  INLINE: "flex min-w-0 items-center gap-1.5",
-  DISC: "grid size-8 flex-none place-items-center rounded-pill transition-[background-color,color] duration-[var(--duration-standard)] ease-standard",
+  STACK: "relative z-10 row-span-2 flex min-w-0 flex-col items-center justify-center gap-1.5 pt-[1.375rem]",
+  /**
+   * One of a pair, or a lane's node: a pill holding the disc and its name. The
+   * pills in a column share its width, so the lines leave them on one edge. The
+   * pill is opaque so a bead passing through vanishes under it.
+   */
+  CHIP: "bg-surface-container-high relative z-10 flex min-w-0 items-center gap-1.5 rounded-pill p-1",
+  DISC: "grid size-7 flex-none place-items-center rounded-pill transition-[background-color,color] duration-[var(--duration-standard)] ease-standard",
   DISC_LONE: "size-11",
-  DISC_LIT: "bg-success-container text-on-success-container",
+  DISC_LIT: "bg-success text-success-foreground",
+  /** At rest a lone disc keeps its own fill; a chip's disc lets the pill show. */
   DISC_REST: "bg-surface-container-high text-on-surface-variant",
+  DISC_REST_CHIP: "bg-transparent text-on-surface-variant",
   GLYPH: "size-4",
   GLYPH_LONE: "size-5",
   LABEL:
     "text-xs leading-4 font-semibold whitespace-nowrap transition-[color] duration-[var(--duration-standard)] ease-standard",
+  /** A chip's name carries the pill's trailing padding, so a nameless chip is round. */
+  LABEL_CHIP: "pr-2.5",
   LABEL_LIT: "text-on-surface",
   LABEL_REST: "text-on-surface-variant",
   /** A lane's name drops on a narrow card when both ends are named pairs. */
   LABEL_QUIET: "@max-[22rem]/path:hidden",
-  /** A joint spanning both lanes (a fork or a merge). */
-  JOINT: "relative row-span-2 self-stretch",
-  LANE: "relative flex items-center self-stretch px-1",
-  LINE: "relative h-0 w-full border-t-2 transition-[border-color] duration-[var(--duration-standard)] ease-standard",
-  LINE_LIT: "border-on-surface-variant",
-  LINE_REST: "border-outline",
-  /** The bus joining a fork or merge to its lanes. */
-  BUS: "absolute h-1/4 w-0 -translate-x-px border-l-2 transition-[border-color] duration-[var(--duration-standard)] ease-standard",
-  ARROW:
-    "absolute top-px -right-px size-0 -translate-y-1/2 border-y-[4px] border-l-[6px] border-y-transparent transition-[border-color] duration-[var(--duration-standard)] ease-standard",
-  ARROW_LIT: "border-l-on-surface-variant",
-  ARROW_REST: "border-l-outline",
+  /** The routes, under the nodes. */
+  ROUTES: "pointer-events-none absolute inset-0 z-0 size-full overflow-visible",
+  LINE: "fill-none [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:2] transition-[stroke] duration-[var(--duration-standard)] ease-standard",
+  LINE_LIT: "stroke-on-surface-variant",
+  LINE_REST: "stroke-outline",
   /**
-   * A bead's host spans the line and travels its own width (`animate-path-flow`),
-   * carrying the bead pinned to its right edge from start to end. The bead rests
-   * invisible, so Reduced (no animation) shows only the still line.
+   * Two beads ride each running route as zero-length round-capped dashes, half
+   * the route apart, so the stream reads as continuous (`animate-path-flow`
+   * shifts the dash offset). Only drawn when motion is allowed.
    */
-  FLOW: "pointer-events-none absolute inset-x-0 top-0 h-0 opacity-0 motion-safe:animate-path-flow",
-  BEAD: "bg-success-on-surface absolute -top-1 right-0 size-1.5 rounded-pill",
+  BEADS: "stroke-success fill-none [stroke-linecap:round] [stroke-width:6] [stroke-dasharray:0_50] motion-safe:animate-path-flow",
   /** The X on a shut lane, centred on its line. */
-  SHUT: "bg-destructive-container text-on-destructive-container absolute top-1/2 left-1/2 grid size-[1.125rem] -translate-1/2 place-items-center rounded-pill",
+  SHUT: "bg-destructive-container text-on-destructive-container absolute z-10 grid size-[1.125rem] -translate-1/2 place-items-center rounded-pill",
   SHUT_GLYPH: "size-3",
 } as const;

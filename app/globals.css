@@ -799,28 +799,23 @@
   animation: live-ping var(--duration-ambient) var(--ease-ambient) infinite;
 }
 
-/* Path flow: beads riding the in-play lane of the Hardware pair's path diagram
-   (components/system-settings/hardware/path-diagram.tsx), the third sanctioned
-   loop (DESIGN.md > The One-Loop Rule, 2026-10-20). It runs only on a lane that
-   is really carrying traffic, never on a draft or a pending reboot. The bead's
-   host spans the line and travels its own width, so the bead (pinned to the
-   host's right edge) crosses the line start to end on transform alone.
-   `linear`, not the ambient ease: this is a continuous stream, and an eased
-   bead would read as bunching at the ends. Written as a utility so it is only
-   ever applied under `motion-safe:`; the bead rests at opacity 0, so Reduced
-   shows the still solid line and no beads. */
+/* Path flow: beads riding the routes in play on the Hardware pair's path
+   diagram (components/system-settings/hardware/path-diagram.tsx), the third
+   sanctioned loop (DESIGN.md > The One-Loop Rule, 2026-10-20). It runs only on
+   a route that is really carrying traffic, never on a draft or a pending
+   reboot. The beads are zero-length round-capped dashes on an SVG path with
+   `pathLength="100"` and a `0 50` dash pattern, so two beads sit half the route
+   apart; walking the offset down one period carries them start to end, and the
+   pattern repeats seamlessly. The route starts and ends under opaque nodes, so
+   beads emerge from the source and sink into the destination with no fade.
+   `linear`, not the ambient ease: this is a continuous stream. Applied only
+   under `motion-safe:`, and the beads are not drawn at all under Reduced. */
 @keyframes path-flow {
-  0% {
-    transform: translateX(-100%);
-    opacity: 0;
+  from {
+    stroke-dashoffset: 50;
   }
-  15%,
-  80% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(0);
-    opacity: 0;
+  to {
+    stroke-dashoffset: 0;
   }
 }
 

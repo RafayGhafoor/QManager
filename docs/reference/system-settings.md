@@ -250,19 +250,28 @@ computer's path. No status chip; a draft is drawn still under a Preview tag.
 ### Path diagram (`hardware/path-diagram.tsx`)
 
 The Hardware pair's status visual, in the spirit of Traffic Engine's handshake strip but drawn as a route:
-icon discs joined by lines, read left to right, with two lanes between the ends so a reader sees there are
-two ways and which one is used. One end may be a lone node that forks into (or merges out of) both lanes.
+nodes joined by routes, read left to right, with two lanes between the ends so a reader sees there are two
+ways and which one is used. One end may be a lone node (a disc over its name) that forks into (or merges out
+of) both lanes; every other node is a pill holding its disc and name, and the pills in a column share a width.
 
-- **Colour.** Green is spent only on the discs in play (`success-container` with `on-success-container`, user
-  call 2026-10-20); resting discs sit on `surface-container-high`. Lines are never green: the line in play
-  takes `on-surface-variant` with an arrowhead, a resting one the quieter `outline`. A shut lane carries an X
-  in a small `destructive-container` disc on its line. Names take `on-surface` in play, `on-surface-variant`
-  at rest, so state never rides on colour alone.
-- **Flow.** While `live` (the drawing is the real running state), beads travel the in-play lines toward the
-  destination: `animate-path-flow` in `app/globals.css`, on the `ambient` token, `linear` because it is a
-  continuous stream, applied only as `motion-safe:`. The bead rests at opacity 0, so Reduced shows a still
-  solid line. A draft (Preview) or a pending reboot passes `live={false}` and draws the same picture still.
-  This is the third sanctioned loop in DESIGN.md > The One-Loop Rule (2026-10-20).
+- **Routes.** The grid places the nodes; the routes are one SVG under them, measured from where the nodes
+  actually landed (a `ResizeObserver` on the field and every node), so a line always meets a node's edge
+  whatever the label or locale. A fork leaves its lone source as one trunk and bends into each lane on
+  rounded elbows at one shared column; a merge bends both lanes back into one trunk, so the sink takes a
+  single arrow. The route in play is drawn after the resting one, so it owns any shared trunk.
+- **Colour.** Green is spent only on the discs in play (`success` with `success-foreground`, the filled
+  check-disc green, user call 2026-10-20) and the beads; resting lone discs sit on `surface-container-high`,
+  a resting chip's disc lets the pill show. Lines are never green: the route in play takes
+  `on-surface-variant`, a resting one the quieter `outline`. A shut lane carries an X in a small
+  `destructive-container` disc on its own leg and loses its inbound arrow. Names take `on-surface` in play,
+  `on-surface-variant` at rest, so state never rides on colour alone.
+- **Flow.** While `live` (the drawing is the real running state), beads travel each route in play end to end,
+  from the source's centre to the sink's, slipping under every opaque node they pass through: two
+  zero-length round-capped dashes on a `pathLength="100"` path with a `0 50` pattern, walked by
+  `animate-path-flow` in `app/globals.css` (on the `ambient` token, `linear` because it is a continuous
+  stream, `motion-safe:` only). Under Reduced the beads are not drawn, so the routes are still solid lines. A
+  draft (Preview) or a pending reboot passes `live={false}` and draws the same picture still. This is the
+  third sanctioned loop in DESIGN.md > The One-Loop Rule (2026-10-20).
 - **Layout.** It rides on the card's `ROW_GROUP` rather than wrapping itself in a tile (The One-Nest Rule);
   geometry is `PATH` in `shapes.ts`, pinned so `SKELETON_HARDWARE.PATH` mirrors it. On a narrow card (path
   container under 22rem) the lane names drop when a named pair feeds the lanes (Host AT), since each route is
