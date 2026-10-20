@@ -698,20 +698,15 @@ export const SKELETON_POLLING = {
 export const CARD_SPAN = "@3xl/main:col-span-2";
 
 /**
- * SSH Access's three password fields. Device Access is a two-column page, so
- * the card is half width on a desktop and the fields stack, one per row, each
- * spanning the card. Only a card that is itself full width (the page collapses
- * to one column) is wide enough to lay them in a row; each cell bottom-aligns
- * its field (`STACK_ROW` plus `mt-auto`), so a wrapping consequence cannot
- * stagger the inputs.
- */
-export const PASSWORD_GRID = "grid grid-cols-1 gap-0.5 @4xl/card:grid-cols-3";
-
-/**
  * Web Port's HTTP and HTTPS rows: one per row, key left and port right, so the
  * two ports line up with the stacked fields beside them.
+ *
+ * `content-start` keeps the rows at their natural height. The grid sits in a
+ * `GROUP_FILL` group that grows to the cell's height, and a grid's default
+ * `align-content: stretch` would spread two rows across all of it, leaving a
+ * wide gap where every other row group has the 2px `gap-0.5`.
  */
-export const PORT_GRID = "grid grid-cols-1 gap-0.5";
+export const PORT_GRID = "grid grid-cols-1 content-start gap-0.5";
 
 /** The port field: a narrow numeric box, a figure rather than an identifier. */
 export const PORT_FIELD = "w-full text-[0.84375rem] font-medium tabular-nums @2xl/card:w-28";

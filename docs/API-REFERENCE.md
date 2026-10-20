@@ -118,6 +118,14 @@ Change password. Requires authentication.
 ```
 Destroys all sessions (forces re-login).
 
+**Verify only.** `{"current_password":"...","verify_only":true}` checks the current password and changes nothing: it needs no `new_password`, leaves the session and the password alone, and answers `{ "success": true }`. The Passwords card calls it for its Continue step. Only the JSON boolean `true` enables it (the string `"true"` falls through to a normal change and fails `missing_fields`).
+
+The current-password check shares the login rate limit (`/tmp/qmanager_auth_attempts.json`): a wrong password returns `invalid_password` with `attempts_remaining` and counts toward the lockout, a locked caller gets `429 rate_limited` with `retry_after`, and a correct password clears the counter. See [`reference/auth-rate-limiting.md`](reference/auth-rate-limiting.md).
+
+### POST `/system/ssh_password.sh`
+
+Change the SSH (root) password. Requires authentication. Same request shape as `/auth/password.sh` (`current_password`, `new_password`, `enforce_strong`), but `current_password` is the **current SSH password**, checked against the root hash in `/etc/shadow` (not the QManager web password). Existing SSH sessions and the web session are unaffected. `{"current_password":"...","verify_only":true}` checks the current password and changes nothing. A wrong password answers `invalid_password` after a 1 s delay; this endpoint has no lockout ladder.
+
 ---
 
 ## Public (unauthenticated)

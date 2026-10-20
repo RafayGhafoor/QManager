@@ -7,7 +7,12 @@ import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type {
   SshPasswordChangeRequest,
   SshPasswordChangeResponse,
+  SshPasswordVerifyRequest,
 } from "@/types/ssh-password";
+import type {
+  PasswordActionResult,
+  PasswordActions,
+} from "@/types/password-change";
 
 // =============================================================================
 // useSshPassword — Mutation hook for changing the SSH root password
@@ -15,48 +20,27 @@ import type {
 // Posts to /cgi-bin/quecmanager/system/ssh_password.sh. Resolves to a result
 // object rather than a bare boolean, so the caller toasts the device's reason
 // from the returned value and never from hook state read after an `await`.
+// `verifyPassword` is the Passwords card's Continue step: the same endpoint in
+// `verify_only` mode, which checks the current password and changes nothing.
 // The QManager web session is NOT affected by a successful change.
 // =============================================================================
 
 const CGI_ENDPOINT = "/cgi-bin/quecmanager/system/ssh_password.sh";
 
-export interface ChangeSshPasswordResult {
-  success: boolean;
-  /**
-   * The reason, already translated (`resolveErrorMessage`). Absent on success
-   * and when the failure carried no reason, so the caller shows its own line.
-   */
-  message?: string;
-}
-
-export interface UseSshPasswordReturn {
-  changePassword: (
-    currentPassword: string,
-    newPassword: string,
-    enforceStrong: boolean,
-  ) => Promise<ChangeSshPasswordResult>;
-  isPending: boolean;
-}
+export type ChangeSshPasswordResult = PasswordActionResult;
+export type UseSshPasswordReturn = PasswordActions;
 
 export function useSshPassword(): UseSshPasswordReturn {
   const { t } = useTranslation("errors");
   const [isPending, setIsPending] = useState(false);
 
-  const changePassword = useCallback(
+  const post = useCallback(
     async (
-      currentPassword: string,
-      newPassword: string,
-      enforceStrong: boolean,
-    ): Promise<ChangeSshPasswordResult> => {
+      body: SshPasswordChangeRequest | SshPasswordVerifyRequest,
+    ): Promise<PasswordActionResult> => {
       setIsPending(true);
 
       try {
-        const body: SshPasswordChangeRequest = {
-          current_password: currentPassword,
-          new_password: newPassword,
-          enforce_strong: enforceStrong,
-        };
-
         const resp = await authFetch(CGI_ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -84,5 +68,25 @@ export function useSshPassword(): UseSshPasswordReturn {
     [t],
   );
 
-  return { changePassword, isPending };
+  const changePassword = useCallback(
+    (
+      currentPassword: string,
+      newPassword: string,
+      enforceStrong: boolean,
+    ) =>
+      post({
+        current_password: currentPassword,
+        new_password: newPassword,
+        enforce_strong: enforceStrong,
+      }),
+    [post],
+  );
+
+  const verifyPassword = useCallback(
+    (currentPassword: string) =>
+      post({ current_password: currentPassword, verify_only: true }),
+    [post],
+  );
+
+  return { changePassword, verifyPassword, isPending };
 }

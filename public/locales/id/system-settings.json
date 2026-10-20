@@ -1248,41 +1248,48 @@
     },
     "section": "Reboot Terjadwal"
   },
-  "ssh": {
+  "passwords": {
     "card": {
-      "title": "Akses SSH",
-      "description": "Kata sandi root untuk sesi SSH ke modem ini. Berbeda dari kata sandi yang Anda pakai untuk masuk ke QManager.",
-      "save": "Perbarui Kata Sandi SSH"
+      "title": "Kata Sandi",
+      "description": "Ubah kata sandi yang Anda pakai untuk masuk ke QManager, atau kata sandi root untuk SSH. Masing-masing meminta kata sandinya yang sekarang terlebih dahulu."
     },
-    "fields": {
-      "current": {
-        "label": "Kata sandi QManager Anda",
-        "consequence": "Untuk memastikan ini memang Anda. Ini kata sandi web yang Anda pakai saat masuk, bukan kata sandi SSH."
-      },
-      "new": {
-        "label": "Kata sandi SSH baru",
-        "consequence_strong": "Minimal lima karakter, dengan huruf besar, huruf kecil, dan angka. Langsung berlaku; sesi SSH yang sedang berjalan tetap terbuka.",
-        "consequence_weak": "Minimal lima karakter. Langsung berlaku; sesi SSH yang sedang berjalan tetap terbuka."
-      },
-      "confirm": {
-        "label": "Konfirmasi kata sandi baru"
-      },
-      "strong": {
-        "label": "Wajibkan kata sandi kuat",
-        "consequence": "Jika nonaktif, kata sandi apa pun dengan minimal lima karakter diterima."
-      }
+    "tabs": {
+      "aria": "Kata sandi yang diubah",
+      "web": "Kata Sandi Web",
+      "ssh": "Kata Sandi SSH"
     },
+    "web": {
+      "label": "Kata sandi web saat ini",
+      "consequence": "Kata sandi yang Anda pakai untuk masuk ke QManager.",
+      "dialog_title": "Ubah kata sandi web",
+      "dialog_description": "Anda akan keluar setelah mengubahnya."
+    },
+    "ssh": {
+      "label": "Kata sandi SSH saat ini",
+      "consequence": "Kata sandi root untuk sesi SSH ke modem ini.",
+      "dialog_title": "Ubah kata sandi SSH",
+      "dialog_description": "Langsung berlaku; sesi SSH yang sedang berjalan tetap terbuka.",
+      "toast_saved": "Kata sandi SSH berhasil diperbarui."
+    },
+    "continue": "Lanjutkan",
     "toggle": {
       "show": "Tampilkan kata sandi",
       "hide": "Sembunyikan kata sandi"
     },
-    "errors": {
-      "too_short": "Kata sandi SSH minimal 5 karakter.",
-      "mismatch": "Kata sandi tidak cocok.",
-      "failed": "Gagal mengubah kata sandi SSH.",
-      "weak": "Kata sandi baru harus minimal 5 karakter dan menyertakan huruf besar, huruf kecil, dan angka."
+    "dialog": {
+      "new_label": "Kata sandi baru",
+      "confirm_label": "Konfirmasi kata sandi baru",
+      "match": "Kata sandi cocok",
+      "mismatch": "Kata sandi tidak cocok",
+      "cancel": "Batal",
+      "save": "Simpan kata sandi"
     },
-    "toast_saved": "Kata sandi SSH berhasil diperbarui."
+    "errors": {
+      "too_short": "Kata sandi minimal 5 karakter.",
+      "weak": "Kata sandi minimal 5 karakter dan menyertakan huruf besar, huruf kecil, dan angka.",
+      "verify_failed": "Tidak dapat memeriksa kata sandi. Coba lagi.",
+      "change_failed": "Tidak dapat mengubah kata sandi. Coba lagi."
+    }
   },
   "low_power": {
     "section": "Mode Hemat Daya",
@@ -1321,7 +1328,9 @@
     "card_title": "Port Web",
     "card_description": "Port yang didengarkan antarmuka ini. LuCI ikut pindah.",
     "http_label": "Port HTTP",
+    "http_consequence": "Port tanpa enkripsi untuk antarmuka ini dan LuCI.",
     "https_label": "Port HTTPS",
+    "https_consequence": "Port terenkripsi untuk antarmuka ini dan LuCI.",
     "pending": "Akan terbuka di {{origin}} setelah diterapkan.",
     "moving": "Pindah ke {{origin}}…",
     "invalid": "Gunakan bilangan bulat dari 1 sampai 65535.",

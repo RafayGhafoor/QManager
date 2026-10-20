@@ -10,6 +10,12 @@ export interface SshPasswordChangeRequest {
   enforce_strong: boolean;
 }
 
+/** Check the current password only; nothing is changed. */
+export interface SshPasswordVerifyRequest {
+  current_password: string;
+  verify_only: true;
+}
+
 export type SshPasswordErrorCode =
   | "method_not_allowed"
   | "missing_fields"

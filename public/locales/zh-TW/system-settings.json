@@ -1248,41 +1248,48 @@
     },
     "section": "排程重啟"
   },
-  "ssh": {
+  "passwords": {
     "card": {
-      "title": "SSH 存取",
-      "description": "透過 SSH 登入本數據機的 root 密碼。它與您登入 QManager 所使用的密碼是分開的。",
-      "save": "更新 SSH 密碼"
+      "title": "密碼",
+      "description": "變更您登入 QManager 所使用的密碼，或 SSH 的 root 密碼。每一項都需要先輸入其目前的密碼。"
     },
-    "fields": {
-      "current": {
-        "label": "您的 QManager 密碼",
-        "consequence": "用於驗證是您本人。這是您登入網頁時使用的密碼，不是 SSH 密碼。"
-      },
-      "new": {
-        "label": "新的 SSH 密碼",
-        "consequence_strong": "至少五個字元，且包含大寫字母、小寫字母和數字。立即生效，已建立的 SSH 工作階段不會中斷。",
-        "consequence_weak": "至少五個字元。立即生效，已建立的 SSH 工作階段不會中斷。"
-      },
-      "confirm": {
-        "label": "確認新密碼"
-      },
-      "strong": {
-        "label": "強制使用強密碼",
-        "consequence": "關閉後，任何至少五個字元的密碼都可使用。"
-      }
+    "tabs": {
+      "aria": "要變更的密碼",
+      "web": "網頁密碼",
+      "ssh": "SSH 密碼"
     },
+    "web": {
+      "label": "目前的網頁密碼",
+      "consequence": "您登入 QManager 所使用的密碼。",
+      "dialog_title": "變更網頁密碼",
+      "dialog_description": "變更後您將會登出。"
+    },
+    "ssh": {
+      "label": "目前的 SSH 密碼",
+      "consequence": "透過 SSH 登入本數據機的 root 密碼。",
+      "dialog_title": "變更 SSH 密碼",
+      "dialog_description": "立即生效，已建立的 SSH 工作階段不會中斷。",
+      "toast_saved": "SSH 密碼已更新。"
+    },
+    "continue": "繼續",
     "toggle": {
       "show": "顯示密碼",
       "hide": "隱藏密碼"
     },
-    "errors": {
-      "too_short": "SSH 密碼至少需要 5 個字元。",
-      "mismatch": "兩次輸入的密碼不一致。",
-      "failed": "SSH 密碼變更失敗。",
-      "weak": "新密碼至少需要 5 個字元，且包含大寫字母、小寫字母和數字。"
+    "dialog": {
+      "new_label": "新密碼",
+      "confirm_label": "確認新密碼",
+      "match": "兩次密碼一致",
+      "mismatch": "兩次密碼不一致",
+      "cancel": "取消",
+      "save": "儲存密碼"
     },
-    "toast_saved": "SSH 密碼已更新。"
+    "errors": {
+      "too_short": "密碼至少需要 5 個字元。",
+      "weak": "密碼至少需要 5 個字元，且包含大寫字母、小寫字母和數字。",
+      "verify_failed": "無法驗證密碼，請再試一次。",
+      "change_failed": "無法變更密碼，請再試一次。"
+    }
   },
   "low_power": {
     "section": "低功耗模式",
@@ -1321,7 +1328,9 @@
     "card_title": "網頁連接埠",
     "card_description": "本介面監聽的連接埠，LuCI 會一併變更。",
     "http_label": "HTTP 連接埠",
+    "http_consequence": "本介面與 LuCI 使用的明文連接埠。",
     "https_label": "HTTPS 連接埠",
+    "https_consequence": "本介面與 LuCI 使用的加密連接埠。",
     "pending": "套用後將在 {{origin}} 開啟。",
     "moving": "正在切換到 {{origin}}…",
     "invalid": "請輸入 1 到 65535 之間的整數。",
