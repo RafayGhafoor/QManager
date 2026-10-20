@@ -6,8 +6,17 @@
     "monitoring": "监控",
     "system": "系统"
   },
+  "breadcrumb": "面包屑导航",
   "items": {
     "home": "主页",
+    "cellular_overview": "概览",
+    "sms_inbox": "收件箱",
+    "band_locking_bands": "频段",
+    "cell_scanner_full_scan": "全面扫描",
+    "cellular_settings_general": "常规",
+    "ip_passthrough": "IP 直通",
+    "connection_quality_overview": "概览",
+    "system_settings_general": "常规",
     "cellular_information": "蜂窝网络信息",
     "antenna_statistics": "天线统计",
     "antenna_alignment": "天线对准",
@@ -55,13 +64,16 @@
     "prometheus": "Prometheus"
   },
   "switcher": {
-    "opens_new_tab": "在新标签页中打开"
+    "opens_new_tab": "在新标签页中打开",
+    "apps": "应用",
+    "current": "当前应用"
   },
   "user": {
     "signed_in": "已登录"
   },
   "actions": {
-    "toggle_section": "展开/收起 {{section}} 分区"
+    "toggle_section": "展开/收起 {{section}} 分区",
+    "toggle_sidebar": "展开/收起侧边栏"
   },
   "status": {
     "watchdog_acting": "处理中",

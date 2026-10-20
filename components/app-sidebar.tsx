@@ -4,7 +4,11 @@ import * as React from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppSwitcher } from "@/components/app-switcher";
-import { NavSection, type NavItem } from "@/components/nav-section";
+import {
+  NavSection,
+  type NavItem,
+  type NavStatus,
+} from "@/components/nav-section";
 import { NavUser } from "@/components/nav-user";
 import DonateDialog from "@/components/donate-dialog";
 import { useWatchdogIndicator } from "@/hooks/use-watchdog-indicator";
@@ -13,7 +17,9 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarRail,
 } from "@/components/ui/sidebar";
+import type { NavGroup } from "@/lib/nav-tree";
 
 // Icons are Material Symbols Rounded ligature names, resolved against the
 // build-time subset in app/fonts. Adding one here means adding it to the
@@ -113,6 +119,32 @@ const navLocalNetwork: NavItem[] = [
   },
 ];
 
+// The Watchdog row's live status is injected at render (AppSidebar), so the
+// array itself stays static and the breadcrumb can read it too.
+const navMonitoring: NavItem[] = [
+  {
+    t_key: "connection_quality",
+    url: "/monitoring/connection-quality",
+    icon: "speed",
+    items: [
+      { t_key: "latency_monitor", url: "/monitoring/latency" },
+      { t_key: "network_events", url: "/monitoring/events" },
+      { t_key: "prometheus", url: "/monitoring/prometheus" },
+    ],
+  },
+  { t_key: "alerts", url: "/monitoring/alerts", icon: "notifications" },
+  { t_key: "watchdog", url: "/monitoring/watchdog", icon: "pets" },
+  { t_key: "tailscale", url: "/monitoring/tailscale", icon: "vpn_lock" },
+  { t_key: "netbird", url: "/monitoring/netbird", icon: "hub" },
+];
+
+// Donate opens a dialog; its onClick is injected at render.
+const navFooter: NavItem[] = [
+  { t_key: "about_device", url: "/about-device", icon: "router" },
+  { t_key: "support", url: "/support", icon: "support" },
+  { t_key: "donate", url: "#", icon: "favorite" },
+];
+
 const navSystem: NavItem[] = [
   {
     t_key: "system_settings",
@@ -152,82 +184,97 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // The Watchdog row reports live state so a user on any page learns the modem
   // is being acted on. Tone follows what is happening to the device, not how
   // dramatic it sounds: recovery is intervention, cooldown is verification.
-  const navMonitoring: NavItem[] = React.useMemo(
-    () => [
-      {
-        t_key: "connection_quality",
-        url: "/monitoring/connection-quality",
-        icon: "speed",
-        items: [
-          { t_key: "latency_monitor", url: "/monitoring/latency" },
-          { t_key: "network_events", url: "/monitoring/events" },
-          { t_key: "prometheus", url: "/monitoring/prometheus" },
-        ],
-      },
-      { t_key: "alerts", url: "/monitoring/alerts", icon: "notifications" },
-      {
-        t_key: "watchdog",
-        url: "/monitoring/watchdog",
-        icon: "pets",
-        status: watchdog
-          ? watchdog.activity === "recovery"
-            ? {
-                tone: "destructive" as const,
-                label: t("status.watchdog_acting"),
-                description: t("status.watchdog_acting_detail", {
-                  tier: watchdog.tier,
-                }),
-              }
-            : {
-                tone: "warning" as const,
-                label: t("status.watchdog_settling"),
-                description: t("status.watchdog_settling_detail"),
-              }
-          : undefined,
-      },
-      { t_key: "tailscale", url: "/monitoring/tailscale", icon: "vpn_lock" },
-      { t_key: "netbird", url: "/monitoring/netbird", icon: "hub" },
-    ],
+  const watchdogStatus: NavStatus | undefined = React.useMemo(
+    () =>
+      watchdog
+        ? watchdog.activity === "recovery"
+          ? {
+              tone: "destructive",
+              label: t("status.watchdog_acting"),
+              description: t("status.watchdog_acting_detail", {
+                tier: watchdog.tier,
+              }),
+            }
+          : {
+              tone: "warning",
+              label: t("status.watchdog_settling"),
+              description: t("status.watchdog_settling_detail"),
+            }
+        : undefined,
     [watchdog, t],
   );
 
-  const navFooter: NavItem[] = React.useMemo(
-    () => [
-      { t_key: "about_device", url: "/about-device", icon: "router" },
-      { t_key: "support", url: "/support", icon: "support" },
-      {
-        t_key: "donate",
-        url: "#",
-        icon: "favorite",
-        onClick: () => setDonateOpen(true),
-      },
-    ],
-    [],
+  // Live and interactive bits joined onto the static tree. Identity is kept for
+  // every group that does not change, so NavSection only re-renders for news.
+  const groups: NavGroup[] = React.useMemo(
+    () =>
+      NAV_GROUPS.map((group) => {
+        if (group.items === navMonitoring) {
+          return {
+            ...group,
+            items: navMonitoring.map((item) =>
+              item.t_key === "watchdog"
+                ? { ...item, status: watchdogStatus }
+                : item,
+            ),
+          };
+        }
+        if (group.items === navFooter) {
+          return {
+            ...group,
+            items: navFooter.map((item) =>
+              item.t_key === "donate"
+                ? { ...item, onClick: () => setDonateOpen(true) }
+                : item,
+            ),
+          };
+        }
+        return group;
+      }),
+    [watchdogStatus],
   );
 
   return (
-    <Sidebar variant="inset" {...props}>
+    <Sidebar variant="inset" collapsible="icon" {...props}>
       <SidebarHeader>
         <AppSwitcher />
       </SidebarHeader>
 
       <SidebarContent>
-        <NavSection groupKey="dashboard" items={navMain} />
-        <NavSection groupKey="cellular" items={navCellular} />
-        <NavSection groupKey="local_network" items={navLocalNetwork} />
-        <NavSection groupKey="monitoring" items={navMonitoring} />
-        <NavSection groupKey="system" items={navSystem} />
-        {/* Unlabelled, quieter, and pinned to the bottom: these are about the
-            product rather than the device, so they sit outside the sections a
-            user navigates by. */}
-        <NavSection items={navFooter} size="sm" className="mt-auto" />
+        {groups.map((group) => (
+          <NavSection
+            key={group.groupKey ?? "footer"}
+            groupKey={group.groupKey}
+            items={group.items}
+            size={group.size}
+            // Unlabelled, quieter, and pinned to the bottom: these are about
+            // the product rather than the device, so they sit outside the
+            // sections a user navigates by.
+            className={group.groupKey ? undefined : "mt-auto"}
+          />
+        ))}
       </SidebarContent>
 
       <SidebarFooter>
         <NavUser />
       </SidebarFooter>
 
+      <SidebarRail label={t("actions.toggle_sidebar")} />
+
       <DonateDialog open={donateOpen} onOpenChange={setDonateOpen} />
     </Sidebar>
   );
 }
+
+/**
+ * The whole tree, in sidebar order. The header breadcrumb resolves routes
+ * against it (lib/nav-tree.ts), so a row added here is named in both places.
+ */
+export const NAV_GROUPS: readonly NavGroup[] = [
+  { groupKey: "dashboard", items: navMain },
+  { groupKey: "cellular", items: navCellular },
+  { groupKey: "local_network", items: navLocalNetwork },
+  { groupKey: "monitoring", items: navMonitoring },
+  { groupKey: "system", items: navSystem },
+  { items: navFooter, size: "sm" },
+];

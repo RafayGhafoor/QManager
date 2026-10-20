@@ -6,8 +6,17 @@
     "monitoring": "Monitoraggio",
     "system": "Sistema"
   },
+  "breadcrumb": "Percorso di navigazione",
   "items": {
     "home": "Home",
+    "cellular_overview": "Panoramica",
+    "sms_inbox": "Posta in arrivo",
+    "band_locking_bands": "Bande",
+    "cell_scanner_full_scan": "Scansione completa",
+    "cellular_settings_general": "Generali",
+    "ip_passthrough": "Passthrough IP",
+    "connection_quality_overview": "Panoramica",
+    "system_settings_general": "Generali",
     "cellular_information": "Informazioni rete mobile",
     "antenna_statistics": "Statistiche dell'antenna",
     "antenna_alignment": "Allineamento dell'antenna",
@@ -55,13 +64,16 @@
     "prometheus": "Prometheus"
   },
   "switcher": {
-    "opens_new_tab": "Si apre in una nuova scheda"
+    "opens_new_tab": "Si apre in una nuova scheda",
+    "apps": "App",
+    "current": "App corrente"
   },
   "user": {
     "signed_in": "Connesso"
   },
   "actions": {
-    "toggle_section": "Apri o chiudi la sezione {{section}}"
+    "toggle_section": "Apri o chiudi la sezione {{section}}",
+    "toggle_sidebar": "Mostra o nascondi la barra laterale"
   },
   "status": {
     "watchdog_acting": "in azione",

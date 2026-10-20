@@ -6,8 +6,17 @@
     "monitoring": "Monitoring",
     "system": "System"
   },
+  "breadcrumb": "Breadcrumb",
   "items": {
     "home": "Home",
+    "cellular_overview": "Overview",
+    "sms_inbox": "Inbox",
+    "band_locking_bands": "Bands",
+    "cell_scanner_full_scan": "Full Scan",
+    "cellular_settings_general": "General",
+    "ip_passthrough": "IP Passthrough",
+    "connection_quality_overview": "Overview",
+    "system_settings_general": "General",
     "cellular_information": "Cellular Information",
     "antenna_statistics": "Antenna Statistics",
     "antenna_alignment": "Antenna Alignment",
@@ -55,13 +64,16 @@
     "prometheus": "Prometheus"
   },
   "switcher": {
-    "opens_new_tab": "Opens in a new tab"
+    "opens_new_tab": "Opens in a new tab",
+    "apps": "Apps",
+    "current": "Current app"
   },
   "user": {
     "signed_in": "Signed in"
   },
   "actions": {
-    "toggle_section": "Toggle {{section}} section"
+    "toggle_section": "Toggle {{section}} section",
+    "toggle_sidebar": "Toggle sidebar"
   },
   "status": {
     "watchdog_acting": "acting",

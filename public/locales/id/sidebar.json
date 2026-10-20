@@ -6,8 +6,17 @@
     "monitoring": "Monitoring",
     "system": "Sistem"
   },
+  "breadcrumb": "Jejak navigasi",
   "items": {
     "home": "Beranda",
+    "cellular_overview": "Ringkasan",
+    "sms_inbox": "Kotak Masuk",
+    "band_locking_bands": "Band",
+    "cell_scanner_full_scan": "Pindai Penuh",
+    "cellular_settings_general": "Umum",
+    "ip_passthrough": "Passthrough IP",
+    "connection_quality_overview": "Ringkasan",
+    "system_settings_general": "Umum",
     "cellular_information": "Informasi Seluler",
     "antenna_statistics": "Statistik Antena",
     "antenna_alignment": "Penyelarasan Antena",
@@ -55,13 +64,16 @@
     "prometheus": "Prometheus"
   },
   "switcher": {
-    "opens_new_tab": "Membuka di tab baru"
+    "opens_new_tab": "Membuka di tab baru",
+    "apps": "Aplikasi",
+    "current": "Aplikasi saat ini"
   },
   "user": {
     "signed_in": "Masuk"
   },
   "actions": {
-    "toggle_section": "Buka atau tutup bagian {{section}}"
+    "toggle_section": "Buka atau tutup bagian {{section}}",
+    "toggle_sidebar": "Buka atau tutup bilah sisi"
   },
   "status": {
     "watchdog_acting": "bertindak",
