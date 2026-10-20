@@ -8,6 +8,7 @@
   toast.error(resolveErrorMessage(t, res.error, res.detail, "Save failed"));
   ```
   The helper resolves via `{ ns: "errors" }` explicitly, so the caller's own namespace hook is fine — no second `useTranslation` needed.
+- **`carrier_cid_protected`**: `cellular/apn.sh` save refused because the target CID holds an IMS/SOS context and the request lacked `allow_carrier_cid:true` (see [apn-management.md](apn-management.md)).
 - **Adding a new code**: emit the snake_case string from the CGI → add one key to EN `errors.json` → add the zh-CN counterpart. `bun run i18n:check` enforces parity.
 - **AT-commands namespace migration**: Plan 12 moved `system-settings.at_terminal.{commands,blocked_*,warning_disable_radio}` out into a new `at-commands` namespace (26 command labels + `blocked.*` + `warnings.*`). `BLOCKED_COMMANDS` / `WARNING_COMMANDS` `messageKey` values dropped the `blocked_`/`warning_` prefix; consumers resolve via `t(\`blocked.\${key}\`, { ns: "at-commands" })` / `t(\`warnings.\${key}\`, { ns: "at-commands" })`.
 - **`sim_slot_switch_unverified`**: emitted by `cellular/settings.sh` when a SIM slot switch's `AT+QUIMSLOT=N` write cannot be confirmed via read-back after a full retry (`verify_quimslot()` — see [custom-sim-profiles.md](custom-sim-profiles.md)). Added to all 5 locales (en/id/it/zh-CN/zh-TW). Takes the `cgi_error` HTTP-200-envelope path like every other code here — never `success: true`.

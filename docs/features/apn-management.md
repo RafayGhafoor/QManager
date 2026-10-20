@@ -57,20 +57,22 @@ The page label changed to "APN Settings" in the sidebar and breadcrumb; the **ro
   "active": 1,
   "active_cid": 1,
   "internet_cid": 1,
+  "data_cid_source": "route",
   "apn": { "apn": "gomo.ph", "pdp_type": "ipv4v6", "cid": 1 },
   "cids": [
-    { "cid": 1, "apn": "gomo.ph", "apn_type": "",          "is_internet": true  },
-    { "cid": 2, "apn": "ims",     "apn_type": "ims",       "is_internet": false },
-    { "cid": 3, "apn": "sos",     "apn_type": "emergency", "is_internet": false },
-    { "cid": 4, "apn": "",        "apn_type": "",          "is_internet": false }
+    { "cid": 1, "apn": "gomo.ph", "apn_type": "",          "is_internet": true,  "activated": true  },
+    { "cid": 2, "apn": "ims",     "apn_type": "ims",       "is_internet": false, "activated": true  },
+    { "cid": 3, "apn": "sos",     "apn_type": "emergency", "is_internet": false, "activated": false },
+    { "cid": 4, "apn": "",        "apn_type": "",          "is_internet": false, "activated": null  }
   ]
 }
 ```
 
 - `active` — `1` when a custom APN is applied, `0` for carrier-default.
 - `apn` — the stored slot-1 object. **Always present** (pre-fills the form even when `active == 0`), so the form retains the last-used APN when the user temporarily deactivates.
-- `cids` — the modem's live PDP contexts 1–6, each tagged via `apn_type_of()`. IMS and SOS contexts are **included and tagged**, not hidden. `is_internet` = (`cid === active_cid`).
-- `active_cid` and `internet_cid` are always equal — both identify the live WAN-bearing PDP context.
+- `cids` — the modem's live PDP contexts 1–6, each tagged via `qm_apn_class()` (`data_cid.sh`). IMS and SOS contexts are **included and tagged**, not hidden. `is_internet` = (`cid === active_cid` **and** a bearer was found; it is false on every row when `data_cid_source` is `none`). `activated` is the `+CGACT` state (`null` when the modem did not report it).
+- `active_cid` and `internet_cid` are always equal — both identify the live data-bearing PDP context. When no bearer is up (`data_cid_source: "none"`) they fall back to the stored slot-1 CID so the picker still has a value.
+- `data_cid_source` — `route` / `local` / `ipv6_prefix` / `pdp` / `none` (see [Data CID detection](#data-cid-detection-no-qmap)). Additive and optional for older clients.
 - **Removed from this version:** `profiles[]` array and `max_profiles`.
 
 **Error response:**
@@ -81,7 +83,7 @@ The page label changed to "APN Settings" in the sidebar and breadcrumb; the **ro
 
 Error codes: `parse_failed`, `at_failed`.
 
-- `at_failed` — emitted when the compound live AT read (`AT+CGDCONT?;+CGACT?;+CGPADDR;+QMAP="WWAN"`) returns empty even after one immediate retry. The GET never pairs `active:1` with an empty `cids[]`; it dies instead, and the hook's `if (!data.success) return;` preserves the last-known-good `cids` state rather than clobbering it.
+- `at_failed` — emitted when the compound live AT read (`AT+CGDCONT?;+CGACT?;+CGPADDR`) fails at the transport level even after one immediate retry, or the reply carries no `+CGDCONT:` line at all. A modem `ERROR` that still answered the `+CGDCONT?` section is parsed, not fatal. The GET never pairs `active:1` with an empty `cids[]`; it dies instead, and the hook's `if (!data.success) return;` preserves the last-known-good `cids` state rather than clobbering it.
 
 ## POST Contracts
 
@@ -95,13 +97,15 @@ Persists the APN configuration to slot 1, **always applies to the modem** (COPS 
 { "action": "save", "apn": "gomo.ph", "pdp_type": "ipv4v6", "cid": 1 }
 ```
 
-No `id` or `name` field. `cid` must be 1–6. `pdp_type` must be `ipv4`, `ipv6`, or `ipv4v6`. `apn` is required (non-empty).
+No `id` or `name` field. `cid` must be 1–6. `pdp_type` must be `ipv4`, `ipv6`, or `ipv4v6`. `apn` is required (non-empty) and must match the strict allow-list `[A-Za-z0-9._-]`, at most 100 characters (`invalid_value` otherwise; the value is spliced into `AT+CGDCONT="..."`, so `"`, CR/LF, `;` and `,` would inject AT commands). The card validates the same pattern client-side (`error_invalid`).
+
+Optional `"allow_carrier_cid": true`: required when the live `AT+CGDCONT?` shows the target CID holds an IMS/SOS-tagged context, otherwise the save is refused with `carrier_cid_protected` before any AT write (backend mirror of the UI confirm; the card sends it only after the AlertDialog, or when the stored setting already targets that CID). If the guard's `CGDCONT?` read fails it **fails open** (the save proceeds, as before). `deactivate` has no guard.
 
 **Success response:** `{ "success": true }`
 
 > ⚠️ WARNING: If the modem apply (COPS cycle) succeeds but the config persist to `/usrdata/qmanager/apn_profiles.json` fails, the action still returns `success: true`. The modem is already live on the new APN; returning an error would mislead the UI. A `qlog_warn` is emitted. The hook's 1500 ms silent reconcile fetch will resync the stored state.
 
-Error codes: `parse_failed`, `missing_fields`, `invalid_cid`, `invalid_pdp_type`, `invalid_value`, `persist_failed`, `cops_detach_failed`, `cgdcont_failed`, `cops_attach_failed`.
+Error codes: `parse_failed`, `missing_fields`, `invalid_cid`, `invalid_pdp_type`, `invalid_value`, `carrier_cid_protected`, `persist_failed`, `cops_detach_failed`, `cgdcont_failed`, `cops_attach_failed`.
 
 ### action: deactivate
 
@@ -138,7 +142,8 @@ The product requirement — "reapply the custom APN after reboots and SIM change
 
 | Operation | AT sequence |
 |---|---|
-| GET (one round-trip) | `AT+CGDCONT?;+CGACT?;+CGPADDR;+QMAP="WWAN"` |
+| GET (one round-trip) | `AT+CGDCONT?;+CGACT?;+CGPADDR` (no QMAP) |
+| save — carrier-CID guard | `AT+CGDCONT?` (skipped when `allow_carrier_cid`) |
 | save / deactivate — deregister | `AT+COPS=2` |
 | save — write APN | `AT+CGDCONT=<cid>,"<PDP_AT>","<apn>"` |
 | deactivate — write blank APN (forces carrier default) | `AT+CGDCONT=<cid>,"<PDP_AT>",""` |
@@ -163,11 +168,21 @@ An empty `cids[].apn` value (`""`) means "the live AT read failed or the context
 
 ### Single compound GET round-trip
 
-The GET handler issues one `run_at` call: `AT+CGDCONT?;+CGACT?;+CGPADDR;+QMAP="WWAN"`. All four sections parse from the single `blob`.
+The GET handler issues one `at_exec` call: `AT+CGDCONT?;+CGACT?;+CGPADDR` (one retry on a transport failure). All three sections parse from the single reply, which is handed to `qm_detect_data_cid`. `detect_active_cid()` no longer exists (it was QMAP-based and had no callers).
 
-> ⚠️ WARNING: Do NOT call `detect_active_cid()` from `cgi_at.sh` inside the GET path. That function issues its own `qcmd 'AT+CGPADDR;+QMAP="WWAN"'`, negating the single-round-trip optimization and adding an extra modem channel handshake for no benefit.
+> ⚠️ WARNING: Never put `AT+QMAP` back into this compound. Some firmware (RM551E-GL fw ...R02A01M8G) answers ERROR to every QMAP form, and a reply containing `ERROR` used to make the whole page fail with `at_failed`.
 
-Active-CID detection is inlined: QMAP is authoritative (first non-zero IP wins); CGPADDR (first octet > 0, valid 4-octet IPv4) is the fallback; default `"1"`.
+### Data CID detection (no QMAP)
+
+`scripts/usr/lib/qmanager/data_cid.sh` decides which CID carries the internet data. The pure parser `qm_parse_data_cid <blob> <route_src_list> <local4_list> <local6_list>` takes the AT reply plus kernel facts (from `qm_kernel_wan_facts`: default-route `src`, local IPv4 addresses, local global IPv6 addresses), so it is fixture-testable (`sh tools/data-cid/test.sh`). A candidate is a CID with CGACT 1 (or unknown) and a non-zero IPv4 or global IPv6 in `+CGPADDR` (16-octet dotted and colon-hex IPv6 both handled). First match wins:
+
+1. `route` — the default-route source equals a candidate's IPv4 (authoritative, even for a service-looking APN; covers Verizon).
+2. `local` — exactly one candidate IPv4 is on a local interface.
+3. `ipv6_prefix` — exactly one candidate IPv6 /64 equals a local global /64 (IPv6-only data).
+4. `pdp` — lowest-numbered candidate whose APN is not a service label (ims, sos, xcap, ut, rcs, mms, admin, fota, supl, emergency, vzwims, vzwadmin, vzwapp; matched by whole dot-label, not substring).
+5. `none` — bearer down, or only IMS-type contexts are up.
+
+Outputs `QM_DATA_CID`, `QM_DATA_CID_SOURCE`, `QM_DATA_IPV4/6` and `QM_CID_ROWS` (`cid|activated|ipv4|ipv6|candidate|apn`). Also used by `profiles/current_settings.sh` and `ondemand_radio.sh`. Stored slot CID is never used as evidence, only as the display fallback when the source is `none`.
 
 ### COPS detach/attach cycle (required, not legacy)
 
@@ -187,7 +202,7 @@ The user PDP context APN does NOT survive a modem power cycle in NVRAM. Carrier-
 
 1. **Defer to Custom SIM Profiles.** If `/etc/qmanager/active_profile` is non-empty, the profile system owns the APN at boot via `auto_apply_profile`. The reconciler returns immediately. The call-site in `qmanager_poller` additionally gates on `[ ! -s /etc/qmanager/active_profile ]` before calling the function.
 2. Read `apn_profiles.json`. If `active == 0` or slot 1's `apn` is empty, nothing to do. (`active == 0` means the user deliberately chose the carrier-default state — it is preserved unconditionally.)
-3. Compare the stored APN against the live `AT+CGDCONT?` value for slot 1's CID.
+3. Compare the stored APN against the live `AT+CGDCONT?` value for slot 1's CID, **case-insensitively** (3GPP APNs are case-insensitive; a case-only difference must not trigger a COPS cycle).
 4. **Match:** return without touching the modem (idempotent — no WAN drop on a clean boot where the APN is already correct).
 5. **Mismatch:** run the mandatory COPS detach/attach cycle.
 
@@ -251,7 +266,7 @@ All `jq` expressions in `apn.sh` use explicit `if x == null then … else … en
 
 ### Optimistic update + reconcile
 
-After a successful save or deactivate, the hook applies an optimistic local patch immediately, then schedules a silent background re-fetch after 1500 ms (`RECONCILE_DELAY_MS`). This is necessary because `AT+COPS=0` returns `OK` before the attach fully completes — the fresh `active_cid` / `cids` state is not readable immediately after the POST returns.
+After a successful save or deactivate, the hook applies an optimistic local patch immediately, then schedules a silent background re-fetch after 1500 ms (`RECONCILE_DELAY_MS`) and a second one after 8000 ms (`RECONCILE_LATE_DELAY_MS`) for slow attaches. This is necessary because `AT+COPS=0` returns `OK` before the attach fully completes — the fresh `active_cid` / `cids` state is not readable immediately after the POST returns.
 
 On save, `patchCidApn` also optimistically updates the matching entry in `cids[]` with the stored APN, so the honest-badge comparison does not flash "Not live" against a stale CID snapshot during the COPS settle window.
 

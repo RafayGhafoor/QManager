@@ -2161,7 +2161,8 @@
           "apn": {
             "label": "APN *",
             "placeholder": "fast.t-mobile.com",
-            "error_required": "APN 为必填项"
+            "error_required": "APN 为必填项",
+            "error_invalid": "仅可使用字母、数字、点、连字符和下划线（最多 100 个字符）"
           },
           "pdp_type": {
             "label": "PDP 类型",

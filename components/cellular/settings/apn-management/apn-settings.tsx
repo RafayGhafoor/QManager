@@ -38,6 +38,7 @@ const APNSettingsComponent = () => {
     cids,
     active,
     activeCid,
+    dataCidSource,
     isLoading,
     isSaving,
     error,
@@ -139,6 +140,7 @@ const APNSettingsComponent = () => {
           cids={cids}
           active={active}
           activeCid={activeCid}
+          dataCidSource={dataCidSource}
           isLoading={isLoading || overrideUndetermined}
           isSaving={isSaving}
           loadError={apn === null ? error : null}

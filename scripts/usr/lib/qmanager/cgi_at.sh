@@ -76,67 +76,6 @@ at_exec() {
 }
 
 # ---------------------------------------------------------------------------
-# detect_active_cid
-# Determine which CID is carrying WAN data by cross-referencing
-# AT+CGPADDR (IPs assigned per CID) with AT+QMAP="WWAN" (authoritative WAN CID).
-#
-# Sets global: active_cid="<number>"  (defaults to "1" if both methods fail)
-# Respects:    CMD_GAP (inter-command sleep, defaults to 0.2s if unset)
-#
-# Usage:
-#   detect_active_cid
-#   echo "Active CID: $active_cid"
-# ---------------------------------------------------------------------------
-detect_active_cid() {
-    local cgpaddr_cids qmap_cid raw
-    active_cid=""
-
-    # Compound AT: fetch both CID sources in one call
-    raw=$(qcmd 'AT+CGPADDR;+QMAP="WWAN"' 2>/dev/null)
-
-    # Step 1: +CGPADDR lines — collect CIDs with real IPv4 addresses
-    cgpaddr_cids=""
-    cgpaddr_cids=$(printf '%s\n' "$raw" | awk -F'[,"]' '
-        /\+CGPADDR:/ {
-            cid = $1; gsub(/[^0-9]/, "", cid)
-            ip = $3
-            if (ip != "" && ip != "0.0.0.0" && ip !~ /^0+(\.0+)*$/) {
-                split(ip, octets, ".")
-                if (length(octets) == 4 && octets[1]+0 > 0) {
-                    print cid
-                }
-            }
-        }
-    ')
-
-    # Step 2: +QMAP line — WAN-connected CID (authoritative)
-    qmap_cid=$(printf '%s\n' "$raw" | awk -F',' '
-        /\+QMAP:/ {
-            gsub(/"/, "", $5)
-            ip = $5
-            cid = $3
-            gsub(/[^0-9]/, "", cid)
-            if (ip != "" && ip != "0.0.0.0" && ip != "0:0:0:0:0:0:0:0") {
-                print cid
-                exit
-            }
-        }
-    ')
-
-    # Step 3: QMAP is authoritative; CGPADDR is fallback
-    if [ -n "$qmap_cid" ]; then
-        active_cid="$qmap_cid"
-        qlog_debug "Active CID from QMAP: $qmap_cid (CGPADDR CIDs: $cgpaddr_cids)"
-    elif [ -n "$cgpaddr_cids" ]; then
-        active_cid=$(printf '%s\n' "$cgpaddr_cids" | head -1)
-        qlog_debug "Active CID from CGPADDR fallback: $active_cid"
-    fi
-
-    # Default to CID 1 if both detection methods failed
-    [ -z "$active_cid" ] && active_cid="1"
-}
-
-# ---------------------------------------------------------------------------
 # parse_cgdcont <raw_response>
 # Parse AT+CGDCONT? response into a JSON array [{cid, pdp_type, apn}].
 # Outputs JSON array to stdout. Outputs "[]" if input is empty or unmatched.

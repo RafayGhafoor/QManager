@@ -11,6 +11,7 @@
   "autosel_failed": "Pemilihan mode otomatis gagal",
   "blocked": "Perintah ini diblokir dari eksekusi langsung",
   "cannot_remove_bundled": "Paket bahasa bawaan tidak dapat dihapus",
+  "carrier_cid_protected": "Konteks ini dikelola oleh operator. Konfirmasikan perubahan di pemilih CID terlebih dahulu.",
   "cgdcont_failed": "Gagal mengkonfigurasi konteks PDP",
   "checksum_mismatch": "Checksum file tidak cocok — unduhan mungkin rusak",
   "chpasswd_failed": "Gagal mengubah kata sandi",

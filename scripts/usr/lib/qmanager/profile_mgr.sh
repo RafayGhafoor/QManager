@@ -769,6 +769,11 @@ profile_release_spawn_lock() {
 #   AT+QMAP="WWAN"   → +QMAP: "WWAN",<connected>,<pdp>,"IPV4","..."
 #   AT+QCFG="usbnet" → +QCFG: "usbnet",<mode>
 #
+# NOTE: every helper here is QMAP-intrinsic. Firmware without AT+QMAP (e.g.
+# RM551E-GL fw ...R02A01M8G answers ERROR to every form) cannot run Verizon
+# MPDN at all; mpdn_get_active_pdp then returns empty. To learn the data CID on
+# any firmware use data_cid.sh (qm_detect_data_cid) instead. Known follow-up.
+#
 # USB net mode compatibility: 1=ECM, 3=RNDIS (supported); 0=RMNet, 2=MBIM (not supported)
 # =============================================================================
 

@@ -11,6 +11,7 @@
   "autosel_failed": "Automatic mode selection failed",
   "blocked": "This command is blocked from direct execution",
   "cannot_remove_bundled": "Bundled language packs cannot be removed",
+  "carrier_cid_protected": "This context is managed by your carrier. Confirm the change in the CID picker first.",
   "cgdcont_failed": "Failed to configure PDP context",
   "checksum_mismatch": "File checksum does not match — download may be corrupt",
   "chpasswd_failed": "Failed to change password",

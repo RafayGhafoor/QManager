@@ -423,39 +423,39 @@ Start speed test, check results, and check if speedtest binary is available.
 
 ### GET/POST `/cellular/apn.sh`
 
+Single-APN model (slot 1). See [apn-management.md](features/apn-management.md).
+
 **GET Response:**
 ```json
 {
   "success": true,
-  "profiles": [
-    {
-      "cid": 1,
-      "apn": "fast.t-mobile.com",
-      "pdp_type": "IPV4V6",
-      "is_data": true
-    }
-  ],
-  "active_cid": 1
+  "active": 1,
+  "active_cid": 1,
+  "internet_cid": 1,
+  "data_cid_source": "route",
+  "apn": { "apn": "fast.t-mobile.com", "pdp_type": "ipv4v6", "cid": 1 },
+  "cids": [
+    { "cid": 1, "apn": "fast.t-mobile.com", "apn_type": "", "is_internet": true, "activated": true },
+    { "cid": 2, "apn": "ims", "apn_type": "ims", "is_internet": false, "activated": true }
+  ]
 }
 ```
 
-**POST Request (create/update):**
+`data_cid_source` is `route`, `local`, `ipv6_prefix`, `pdp` or `none` (no bearer up; `is_internet` is then false everywhere). `apn_type` is `""`, `"ims"` or `"emergency"`.
+
+**POST Request (save):**
 ```json
 {
-  "action": "set",
+  "action": "save",
   "cid": 1,
   "apn": "fast.t-mobile.com",
-  "pdp_type": "IPV4V6"
+  "pdp_type": "ipv4v6",
+  "allow_carrier_cid": false
 }
 ```
+`apn` must match `[A-Za-z0-9._-]`, 1-100 characters (`invalid_value`). `allow_carrier_cid` is required to overwrite an IMS/SOS context (`carrier_cid_protected` otherwise).
 
-**POST Request (delete):**
-```json
-{
-  "action": "delete",
-  "cid": 3
-}
-```
+**POST Request (deactivate):** `{ "action": "deactivate" }` returns `{ "success": true, "active": 0 }`.
 
 ### GET/POST `/cellular/mbn.sh`
 
@@ -463,14 +463,14 @@ Start speed test, check results, and check if speedtest binary is available.
 ```json
 {
   "success": true,
+  "auto_sel": 1,
   "profiles": [
-    { "name": "Commercial-TMO", "active": true }
-  ],
-  "auto_sel": true
+    { "index": 0, "selected": true, "activated": true, "name": "Commercial-TMO", "version": "...", "date": "..." }
+  ]
 }
 ```
 
-**POST Actions:** `"apply_profile"`, `"auto_sel"`, `"reboot"`
+**POST Actions:** `{"action":"apply_profile","profile_name":"..."}` and `{"action":"auto_sel","auto_sel":0|1}` both return `{"success":true,"reboot_required":true}` (the MBN change needs a reboot; the UI defers it behind a dialog and the deferred-reboot banner); `{"action":"reboot"}` reboots.
 
 ### GET/POST `/cellular/imei.sh`
 

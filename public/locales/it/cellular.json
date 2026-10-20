@@ -2161,7 +2161,8 @@
           "apn": {
             "label": "APN *",
             "placeholder": "fast.t-mobile.com",
-            "error_required": "L'APN è obbligatorio"
+            "error_required": "L'APN è obbligatorio",
+            "error_invalid": "Usa solo lettere, numeri, punti, trattini e trattini bassi (massimo 100 caratteri)"
           },
           "pdp_type": {
             "label": "Tipo PDP",

@@ -11,6 +11,7 @@ import type {
   ApnSettingsResponse,
   ApnSaveRequest,
   ApnSaveResponse,
+  DataCidSource,
 } from "@/types/apn-settings";
 
 // =============================================================================
@@ -31,6 +32,9 @@ const CGI_ENDPOINT = "/cgi-bin/quecmanager/cellular/apn.sh";
 // fresh active_cid/cids state isn't readable immediately — a short delayed
 // silent refresh reconciles the optimistic patch.
 const RECONCILE_DELAY_MS = 1500;
+// A second silent refresh catches a slow attach: the data bearer often comes up
+// well after COPS=0 returns, so the first reconcile can still read "no bearer".
+const RECONCILE_LATE_DELAY_MS = 8000;
 const K = "core_settings.apn.errors";
 
 export interface UseApnSettingsReturn {
@@ -42,6 +46,8 @@ export interface UseApnSettingsReturn {
   active: number | null;
   /** The live WAN-bearing CID, or null before first fetch. */
   activeCid: number | null;
+  /** How the live data CID was identified, or null before first fetch. */
+  dataCidSource: DataCidSource | null;
   /** True while initial fetch is in progress. */
   isLoading: boolean;
   /** True while a save/deactivate operation is in progress. */
@@ -62,6 +68,7 @@ export function useApnSettings(): UseApnSettingsReturn {
   const [cids, setCids] = useState<CidContext[] | null>(null);
   const [active, setActive] = useState<number | null>(null);
   const [activeCid, setActiveCid] = useState<number | null>(null);
+  const [dataCidSource, setDataCidSource] = useState<DataCidSource | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +109,7 @@ export function useApnSettings(): UseApnSettingsReturn {
       setActiveCid(
         typeof data.active_cid === "number" ? data.active_cid : null
       );
+      setDataCidSource(data.data_cid_source ?? null);
     } catch {
       if (!mountedRef.current) return;
       setError(t(`${K}.load_failed`));
@@ -131,9 +139,11 @@ export function useApnSettings(): UseApnSettingsReturn {
   }, []);
 
   const scheduleReconcile = useCallback(() => {
-    setTimeout(() => {
-      if (mountedRef.current) fetchSettings(true);
-    }, RECONCILE_DELAY_MS);
+    for (const delay of [RECONCILE_DELAY_MS, RECONCILE_LATE_DELAY_MS]) {
+      setTimeout(() => {
+        if (mountedRef.current) fetchSettings(true);
+      }, delay);
+    }
   }, [fetchSettings]);
 
   // Shared POST wrapper. Returns the parsed body on HTTP success, or throws.
@@ -168,7 +178,7 @@ export function useApnSettings(): UseApnSettingsReturn {
         }
         if (!mountedRef.current) return { ok: true };
         // Optimistic update: reflect the stored setting immediately.
-        setApn(request);
+        setApn({ apn: request.apn, pdp_type: request.pdp_type, cid: request.cid });
         setActive(1);
         // Reflect on the live CID so the "Active vs Not live" badge doesn't
         // flash "Not live" before the reconcile picks up the modem's response.
@@ -213,6 +223,7 @@ export function useApnSettings(): UseApnSettingsReturn {
     cids,
     active,
     activeCid,
+    dataCidSource,
     isLoading,
     isSaving,
     error,

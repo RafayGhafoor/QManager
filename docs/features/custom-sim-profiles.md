@@ -110,6 +110,8 @@ Selecting a carrier from the MNO picker auto-fills APN, TTL, and HL from `MNO_PR
 
 The "Load from SIM" button (Identity tab header) calls `currentSettings.refresh()` and autofills ICCID, IMEI, APN, CID, and PDP type once the response lands. A `loadRequestedRef` flag gates the autofill so the coordinator's mount fetch never triggers it — only an explicit user button press fills the form.
 
+> ℹ️ NOTE: `profiles/current_settings.sh` (Load from SIM) no longer reads `AT+QMAP="WWAN"`; its `active_cid` comes from `data_cid.sh` (CGPADDR confirmed against the kernel route), falling back to 1. Response shape unchanged. The Verizon MPDN helpers in `profile_mgr.sh` remain QMAP-intrinsic.
+
 ### APN Quick-Pick
 
 The Network tab's **APN Name** input includes a **"Use my saved APN"** quick-pick button, visible only when the APN Settings slot 1 has a non-empty `apn`. The picker reads slot 1 via `useApnSettings()` (`hooks/use-apn-settings.ts`, GET `cellular/apn.sh`).

@@ -1229,7 +1229,9 @@ _cgcontrdp_active_cid() {
 
 # -----------------------------------------------------------------------------
 # Parse AT+CGCONTRDP — APN name and DNS servers
-# Uses the WAN-active PDP context (identified by +QMAP "WWAN" mux_id).
+# Uses the WAN-active PDP context. The caller passes it as the optional second
+# argument (the data CID resolved by data_cid.sh); without it the CID falls back
+# to the +QMAP "WWAN" mux_id, then to 1 (legacy behaviour, QMAP firmwares only).
 #
 # 3GPP TS 27.007 field positions (fixed, whatever the quoting):
 #   +CGCONTRDP: <cid>,<bearer_id>,<apn>,<local_addr[ mask]>,<gw_addr>,
@@ -1273,6 +1275,7 @@ _cgcontrdp_dns_split() {
 
 parse_cgcontrdp() {
     local raw="$1"
+    local want_cid="$2"
 
     t2_apn=""
     t2_primary_dns=""
@@ -1287,8 +1290,11 @@ parse_cgcontrdp() {
     local normalized active_cid data_line
     normalized=$(printf '%s' "$raw" | tr '\r' '\n' | sed '/^$/d')
 
-    # Identify the WAN-active PDP CID via +QMAP, then pick the matching CGCONTRDP line.
-    active_cid=$(_cgcontrdp_active_cid "$normalized")
+    # WAN-active PDP CID: the caller's (numeric) choice, else via +QMAP / default 1.
+    case "$want_cid" in
+        ''|*[!0-9]*) active_cid=$(_cgcontrdp_active_cid "$normalized") ;;
+        *)           active_cid="$want_cid" ;;
+    esac
     data_line=$(printf '%s\n' "$normalized" | grep "^+CGCONTRDP: *${active_cid}," | head -1)
 
     if [ -z "$data_line" ]; then
