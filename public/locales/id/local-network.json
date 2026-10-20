@@ -27,7 +27,6 @@
     "hero_takeover_prompt": "Mengaktifkan ini menghentikan {{mode}}.",
     "hero_running_prompt": "Aktif. Mengaktifkan {{mode}} menghentikan ini.",
     "tile_uptime": "Uptime",
-    "tile_apply": "Terapkan",
     "toast_video_enabled": "Video Optimizer kini melindungi video",
     "toast_video_disabled": "Video Optimizer dimatikan",
     "toast_masquerade_enabled": "Masquerade kini aktif",

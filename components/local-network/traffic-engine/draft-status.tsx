@@ -1,11 +1,13 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import { FIELD } from "./shapes";
 
 /**
- * The foot status both mode panels share. A dirty draft on a running mode is
- * an unsaved change; on an idle mode it rides along with the next enable, and
- * the line says so instead of offering an Apply that cannot reach the engine.
+ * The note both mode panels show under their field. A running mode applies the
+ * field as it commits, so only an idle mode has anything to say: the value
+ * rides along with the next enable. A Fact-Is-Info line, shown only while it
+ * applies.
  */
 export function DraftStatus({
   dirty,
@@ -15,12 +17,8 @@ export function DraftStatus({
   running: boolean;
 }) {
   const { t } = useTranslation("local-network");
-  if (!dirty) return null;
+  if (!dirty || running) return null;
   return (
-    <span className="font-medium">
-      {running
-        ? t("common:state.unsaved")
-        : t("traffic_engine.draft_applies_on_enable")}
-    </span>
+    <p className={FIELD.HELPER}>{t("traffic_engine.draft_applies_on_enable")}</p>
   );
 }

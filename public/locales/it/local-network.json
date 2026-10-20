@@ -27,7 +27,6 @@
     "hero_takeover_prompt": "Abilitarla interrompe {{mode}}.",
     "hero_running_prompt": "Attivo. Abilitare {{mode}} interrompe questa modalità.",
     "tile_uptime": "Tempo di attività",
-    "tile_apply": "Applica",
     "toast_video_enabled": "L'ottimizzatore video ora protegge il video",
     "toast_video_disabled": "Ottimizzatore video disattivato",
     "toast_masquerade_enabled": "Masquerade ora attivo",

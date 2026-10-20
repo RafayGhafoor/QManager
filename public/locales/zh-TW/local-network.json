@@ -27,7 +27,6 @@
     "hero_takeover_prompt": "啟用此模式將停止{{mode}}。",
     "hero_running_prompt": "執行中。啟用{{mode}}將停止此模式。",
     "tile_uptime": "執行時長",
-    "tile_apply": "套用",
     "toast_video_enabled": "影片最佳化器正在保護影片",
     "toast_video_disabled": "影片最佳化器已關閉",
     "toast_masquerade_enabled": "流量偽裝已啟用",

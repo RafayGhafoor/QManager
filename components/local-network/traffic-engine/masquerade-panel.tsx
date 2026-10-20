@@ -9,11 +9,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CardFoot } from "@/components/ui/card-foot";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldError } from "@/components/ui/field";
-import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { HintIcon } from "@/components/ui/hint-icon";
 import type { useTrafficMasquerade } from "@/hooks/use-traffic-masquerade";
 import type { UseTtlSettingsReturn } from "@/hooks/use-ttl-settings";
@@ -52,14 +49,16 @@ interface MasqueradePanelProps {
   /** Enable handler; owns the idle-vs-takeover confirm decision. */
   onEnable: (sniDomain: string) => void;
   onDisable: () => void;
-  /** Re-apply the draft to the running mode. Resolves true on success. */
+  /** Re-apply the domain to the running mode. Resolves true on success. */
   onApply: (sniDomain: string) => Promise<boolean>;
 }
 
 /**
  * Masquerade: the enable row, the Bypass Hotspot row, the disguise-domain
- * draft and an injection test. The test mirrors Video Optimizer's verify check
- * exactly so the two confidence surfaces stay in lockstep.
+ * field and an injection test. Every control applies as it changes; the domain
+ * commits on blur or Enter while the mode runs, and otherwise rides along with
+ * the next enable. The test mirrors Video Optimizer's verify check exactly so
+ * the two confidence surfaces stay in lockstep.
  */
 export function MasqueradePanel({
   hook,
@@ -77,21 +76,19 @@ export function MasqueradePanel({
   const { t } = useTranslation("local-network");
   const { settings, isSaving, testResult, runTest } = hook;
   const busy = isSaving || transitioning;
-  const formId = useId();
   const errorId = useId();
 
   const savedDomain = settings?.sni_domain || DEFAULT_SNI_DOMAIN;
   const [sniDomain, setSniDomain] = useState(savedDomain);
-  const { saved, markSaved } = useSaveFlash();
 
   const sniErrorKey = useMemo(() => validateDomainKey(sniDomain), [sniDomain]);
   const sniError = sniErrorKey ? t(sniErrorKey) : null;
   const isDirty = sniDomain !== savedDomain;
 
-  const handleApply = useCallback(async () => {
-    if (sniError || !running) return;
-    if (await onApply(sniDomain)) markSaved();
-  }, [sniError, running, sniDomain, onApply, markSaved]);
+  const commit = useCallback(() => {
+    if (sniError || !running || !isDirty || busy) return;
+    void onApply(sniDomain);
+  }, [sniError, running, isDirty, busy, sniDomain, onApply]);
 
   const testing = testResult.status === "running";
 
@@ -120,11 +117,11 @@ export function MasqueradePanel({
         <BypassHotspotRow ttl={ttl} />
 
         <form
-          id={formId}
           className={FIELD.ROOT}
           onSubmit={(e) => {
             e.preventDefault();
-            void handleApply();
+            // Enter leaves the field, so blur is the single commit path.
+            e.currentTarget.querySelector("input")?.blur();
           }}
         >
           <div className={FIELD.LABEL_ROW}>
@@ -144,6 +141,7 @@ export function MasqueradePanel({
             autoCapitalize="none"
             value={sniDomain}
             onChange={(e) => setSniDomain(e.target.value)}
+            onBlur={commit}
             disabled={busy}
             placeholder={t("masquerade.placeholder_domain")}
             className={FIELD.TEXT}
@@ -151,6 +149,7 @@ export function MasqueradePanel({
             aria-describedby={sniError ? errorId : undefined}
           />
           {sniError ? <FieldError id={errorId}>{sniError}</FieldError> : null}
+          <DraftStatus dirty={isDirty && !sniError} running={running} />
         </form>
 
         {/* Injection test: shared layout with Video Optimizer's verify check */}
@@ -176,33 +175,6 @@ export function MasqueradePanel({
         </EngineCheckRow>
       </CardContent>
 
-      {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
-      <CardFoot
-        className={CARD_PAD}
-        status={<DraftStatus dirty={isDirty} running={running} />}
-        actions={
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="action"
-              onClick={() => setSniDomain(savedDomain)}
-              disabled={!isDirty || busy}
-            >
-              {t("common:actions.discard")}
-            </Button>
-            <SaveButton
-              type="submit"
-              form={formId}
-              isSaving={isSaving}
-              saved={saved}
-              disabled={!running || !isDirty || !!sniError || busy}
-              label={t("traffic_engine.tile_apply")}
-              size="action"
-            />
-          </>
-        }
-      />
     </Card>
   );
 }

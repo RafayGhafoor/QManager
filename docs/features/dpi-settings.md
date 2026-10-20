@@ -22,7 +22,7 @@ Frontend only; no CGI contract changed. Class constants live in `components/loca
 
 - **`engine-status-card.tsx` is the anchor.** The state chip sits in the card header: `success` ("Protecting video" / "Masquerading"), `info` while starting, stopping or switching, `muted` when idle. Three tabular stats sit below. On a narrow card the chip drops under the title.
 - **Switch rows are `SegmentedField`.** `engine-enable-row.tsx` and `bypass-hotspot-row.tsx` render On / Off pills through the shared `setting-row.tsx` layout (label left, control right), not a bare `Switch`. The Bypass Hotspot value-based ownership rules above are unchanged.
-- **Each mode panel commits from a `CardFoot`.** Video Optimizer and Masquerade each own a draft; the foot shows `draft-status.tsx` on the left, then Discard and `SaveButton` on the right.
+- **Mode panels have no `CardFoot`, Discard or Apply.** Every control applies as it changes: the enable and Bypass Hotspot toggles save immediately, and the Desync Strength / disguise-domain field commits on blur or Enter while its mode runs (re-apply via `onApply`). While the mode is idle the value just rides along with the next enable, and `draft-status.tsx` shows a one-line note under the field. The CDN hostlist card keeps its own Discard/Save.
 - **`result-alert.tsx`** uses filled tonal fills (no tinted outlines).
 
 ### Hook result contract

@@ -9,11 +9,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CardFoot } from "@/components/ui/card-foot";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldError } from "@/components/ui/field";
-import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { HintIcon } from "@/components/ui/hint-icon";
 import type { useVideoOptimizer } from "@/hooks/use-video-optimizer";
 import type { UseTtlSettingsReturn } from "@/hooks/use-ttl-settings";
@@ -47,7 +44,7 @@ interface VideoOptimizerPanelProps {
   /** Enable handler; owns the idle-vs-takeover confirm decision. */
   onEnable: (desyncRepeats: number) => void;
   onDisable: () => void;
-  /** Re-apply the draft to the running mode. Resolves true on success. */
+  /** Re-apply the strength to the running mode. Resolves true on success. */
   onApply: (desyncRepeats: number) => Promise<boolean>;
 }
 
@@ -59,8 +56,10 @@ const parseRepeats = (text: string): number | null => {
 
 /**
  * Video Optimizer: the enable row, the Bypass Hotspot row, the desync-strength
- * draft and a verify check in one card, committing its draft from the foot.
- * The CDN domain list is a sibling card mounted by the composer.
+ * field and a verify check in one card. Every control applies as it changes;
+ * the strength commits on blur or Enter while the mode runs, and otherwise
+ * rides along with the next enable. The CDN domain list is a sibling card
+ * mounted by the composer.
  */
 export function VideoOptimizerPanel({
   hook,
@@ -78,20 +77,18 @@ export function VideoOptimizerPanel({
   const { t } = useTranslation("local-network");
   const { settings, isSaving, verifyResult, runVerification } = hook;
   const busy = isSaving || transitioning;
-  const formId = useId();
   const errorId = useId();
 
   const savedRepeats = settings?.desync_repeats ?? 1;
   const [repeatsText, setRepeatsText] = useState<string>(String(savedRepeats));
-  const { saved, markSaved } = useSaveFlash();
 
   const repeats = useMemo(() => parseRepeats(repeatsText), [repeatsText]);
   const isDirty = repeats !== savedRepeats;
 
-  const handleApply = useCallback(async () => {
-    if (repeats === null || !running) return;
-    if (await onApply(repeats)) markSaved();
-  }, [repeats, running, onApply, markSaved]);
+  const commit = useCallback(() => {
+    if (repeats === null || !running || !isDirty || busy) return;
+    void onApply(repeats);
+  }, [repeats, running, isDirty, busy, onApply]);
 
   const verifying = verifyResult.status === "running";
 
@@ -118,43 +115,49 @@ export function VideoOptimizerPanel({
         <BypassHotspotRow ttl={ttl} />
 
         <form
-          id={formId}
           className={FIELD.ROOT}
           onSubmit={(e) => {
             e.preventDefault();
-            void handleApply();
+            // Enter leaves the field, so blur is the single commit path.
+            e.currentTarget.querySelector("input")?.blur();
           }}
         >
-          <div className={FIELD.LABEL_ROW}>
-            <label htmlFor="dpi-desync-repeats" className={FIELD.LABEL}>
-              {t("video_optimizer.label_desync_repeats")}
-            </label>
-            <HintIcon label={t("video_optimizer.aria_desync_repeats_info")}>
-              {t("video_optimizer.help_desync_repeats")}
-            </HintIcon>
+          <div className={FIELD.INLINE}>
+            <div className={FIELD.INLINE_TEXT}>
+              <div className={FIELD.LABEL_ROW}>
+                <label htmlFor="dpi-desync-repeats" className={FIELD.LABEL}>
+                  {t("video_optimizer.label_desync_repeats")}
+                </label>
+                <HintIcon label={t("video_optimizer.aria_desync_repeats_info")}>
+                  {t("video_optimizer.help_desync_repeats")}
+                </HintIcon>
+              </div>
+              <p className={FIELD.HELPER}>
+                {t("video_optimizer.helper_desync_repeats")}
+              </p>
+            </div>
+            <Input
+              id="dpi-desync-repeats"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={10}
+              step={1}
+              value={repeatsText}
+              onChange={(e) => setRepeatsText(e.target.value)}
+              onBlur={commit}
+              disabled={busy}
+              aria-invalid={repeats === null}
+              aria-describedby={repeats === null ? errorId : undefined}
+              className={FIELD.NUMBER}
+            />
           </div>
-          <p className={FIELD.HELPER}>
-            {t("video_optimizer.helper_desync_repeats")}
-          </p>
-          <Input
-            id="dpi-desync-repeats"
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={10}
-            step={1}
-            value={repeatsText}
-            onChange={(e) => setRepeatsText(e.target.value)}
-            disabled={busy}
-            aria-invalid={repeats === null}
-            aria-describedby={repeats === null ? errorId : undefined}
-            className={FIELD.NUMBER}
-          />
           {repeats === null ? (
             <FieldError id={errorId}>
               {t("invalid_repeats", { ns: "errors" })}
             </FieldError>
           ) : null}
+          <DraftStatus dirty={isDirty && repeats !== null} running={running} />
         </form>
 
         {/* Verify check: shared layout with Masquerade's injection test */}
@@ -181,33 +184,6 @@ export function VideoOptimizerPanel({
         </EngineCheckRow>
       </CardContent>
 
-      {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
-      <CardFoot
-        className={CARD_PAD}
-        status={<DraftStatus dirty={isDirty} running={running} />}
-        actions={
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="action"
-              onClick={() => setRepeatsText(String(savedRepeats))}
-              disabled={!isDirty || busy}
-            >
-              {t("common:actions.discard")}
-            </Button>
-            <SaveButton
-              type="submit"
-              form={formId}
-              isSaving={isSaving}
-              saved={saved}
-              disabled={!running || !isDirty || repeats === null || busy}
-              label={t("traffic_engine.tile_apply")}
-              size="action"
-            />
-          </>
-        }
-      />
     </Card>
   );
 }

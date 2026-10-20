@@ -27,7 +27,6 @@
     "hero_takeover_prompt": "Enabling this stops {{mode}}.",
     "hero_running_prompt": "Active. Enabling {{mode}} stops this.",
     "tile_uptime": "Uptime",
-    "tile_apply": "Apply",
     "toast_video_enabled": "Video Optimizer is now protecting video",
     "toast_video_disabled": "Video Optimizer turned off",
     "toast_masquerade_enabled": "Masquerade is now active",

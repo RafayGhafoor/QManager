@@ -117,6 +117,9 @@ export const FIELD = {
   LABEL: "text-sm font-semibold text-on-surface",
   HELPER: "text-on-surface-variant text-xs",
   NUMBER: "h-9 w-24 tabular-nums",
+  /** A short value: label and helper left, the input pinned right. */
+  INLINE: "flex flex-wrap items-center justify-between gap-3",
+  INLINE_TEXT: "flex min-w-0 flex-1 flex-col gap-2",
   TEXT: "h-9 font-mono text-[0.8125rem] @md/card:max-w-sm",
 } as const;
 

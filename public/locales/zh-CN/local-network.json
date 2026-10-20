@@ -27,7 +27,6 @@
     "hero_takeover_prompt": "启用此模式将停止{{mode}}。",
     "hero_running_prompt": "运行中。启用{{mode}}将停止此模式。",
     "tile_uptime": "运行时长",
-    "tile_apply": "应用",
     "toast_video_enabled": "视频优化器正在保护视频",
     "toast_video_disabled": "视频优化器已关闭",
     "toast_masquerade_enabled": "流量伪装已激活",
