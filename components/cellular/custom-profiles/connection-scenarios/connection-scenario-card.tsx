@@ -16,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { ExpandButton } from "@/components/ui/expand-button";
 import {
   Card,
   CardContent,
@@ -337,10 +337,13 @@ const ConnectionScenariosCard = ({
               <CardTitle>{t("scenarios.list_card.title")}</CardTitle>
               <CardDescription>{t("scenarios.list_card.description")}</CardDescription>
             </div>
-            <Button size="action" onClick={openAdd} disabled={isLoading}>
-              <MaterialSymbol name="add" size={18} />
-              {t("scenarios.add_button.label")}
-            </Button>
+            <ExpandButton
+              variant="tonal"
+              onClick={openAdd}
+              disabled={isLoading}
+              icon={<MaterialSymbol name="add" size={18} />}
+              label={t("scenarios.add_button.label")}
+            />
           </div>
         </CardHeader>
         <CardContent>
