@@ -306,9 +306,9 @@ POST)
 
         injected=$((count_after - count_before))
         if [ "$injected" -gt 0 ]; then
-            printf '{"success":true,"injected":true,"packets":%d,"message":"Fake SNI injection confirmed — %d packets processed"}' "$injected" "$injected"
+            printf '{"success":true,"injected":true,"packets":%d,"message":"Fake SNI injection confirmed (%d packets processed)"}' "$injected" "$injected"
         else
-            printf '{"success":true,"injected":false,"packets":0,"message":"No packets intercepted. The cellular interface may have changed — try restarting the service."}'
+            printf '{"success":true,"injected":false,"packets":0,"message":"No packets intercepted. The cellular interface may have changed. Try restarting the service."}'
         fi
         ;;
 
