@@ -237,40 +237,44 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   );
 
   return (
-    <Sidebar
-      variant="inset"
-      collapsible="icon"
-      mobileTitle={t("mobile.title")}
-      mobileDescription={t("mobile.description")}
-      {...props}
-    >
-      <SidebarHeader>
-        <AppSwitcher />
-      </SidebarHeader>
+    <>
+      <Sidebar
+        variant="inset"
+        collapsible="icon"
+        mobileTitle={t("mobile.title")}
+        mobileDescription={t("mobile.description")}
+        {...props}
+      >
+        <SidebarHeader>
+          <AppSwitcher />
+        </SidebarHeader>
 
-      <SidebarContent>
-        {groups.map((group) => (
-          <NavSection
-            key={group.groupKey ?? "footer"}
-            groupKey={group.groupKey}
-            items={group.items}
-            size={group.size}
-            // Unlabelled, quieter, and pinned to the bottom: these are about
-            // the product rather than the device, so they sit outside the
-            // sections a user navigates by.
-            className={group.groupKey ? undefined : "mt-auto"}
-          />
-        ))}
-      </SidebarContent>
+        <SidebarContent>
+          {groups.map((group) => (
+            <NavSection
+              key={group.groupKey ?? "footer"}
+              groupKey={group.groupKey}
+              items={group.items}
+              size={group.size}
+              // Unlabelled, quieter, and pinned to the bottom: these are about
+              // the product rather than the device, so they sit outside the
+              // sections a user navigates by.
+              className={group.groupKey ? undefined : "mt-auto"}
+            />
+          ))}
+        </SidebarContent>
 
-      <SidebarFooter>
-        <NavUser />
-      </SidebarFooter>
+        <SidebarFooter>
+          <NavUser />
+        </SidebarFooter>
 
-      <SidebarRail label={t("actions.toggle_sidebar")} />
+        <SidebarRail label={t("actions.toggle_sidebar")} />
+      </Sidebar>
 
+      {/* Outside <Sidebar>: on a phone the sidebar is a sheet that unmounts its
+        children when it closes, and Donate closes it as the dialog opens. */}
       <DonateDialog open={donateOpen} onOpenChange={setDonateOpen} />
-    </Sidebar>
+    </>
   );
 }
 
