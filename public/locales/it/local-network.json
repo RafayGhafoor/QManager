@@ -301,7 +301,7 @@
   },
   "ippt": {
     "page": {
-      "title": "Passthrough IP",
+      "title": "Passthrough IP e USB",
       "description": "Assegna l'IP pubblico del modem direttamente a un solo dispositivo collegato, invece di far instradare tutta la LAN dal modem."
     },
     "header": {
@@ -334,24 +334,25 @@
     },
     "rows": {
       "mode": {
-        "label": "Modalità"
+        "label": "Modalità",
+        "description": "Instrada tutta la LAN o passa l'IP pubblico a un solo dispositivo."
       },
       "target": {
         "label": "Dispositivo di destinazione",
-        "pick_mode": "Scegli prima una modalità."
+        "pick_mode": "Scegli prima una modalità.",
+        "description": "Il dispositivo che riceve l'IP pubblico."
       },
       "nat": {
         "label": "NAT",
-        "hint": "Con NAT va bene per quasi ogni configurazione.",
-        "hint_label": "Informazioni sul NAT"
+        "description": "Con NAT va bene per quasi ogni configurazione."
       },
       "usb": {
-        "label": "Connessione USB"
+        "label": "Connessione USB",
+        "description": "Il protocollo usato quando il modem si collega via USB."
       },
       "dns": {
         "label": "Proxy DNS",
-        "hint": "Attivo, il modem risponde al DNS via DHCP per il dispositivo di destinazione.",
-        "hint_label": "Informazioni sul proxy DNS"
+        "description": "Attivo, il modem risponde al DNS via DHCP per il dispositivo di destinazione."
       }
     },
     "options": {

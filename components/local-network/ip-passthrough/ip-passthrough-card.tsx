@@ -33,7 +33,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CardFoot } from "@/components/ui/card-foot";
-import { HintIcon } from "@/components/ui/hint-icon";
 import { fieldVariants } from "@/components/ui/input";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import {
@@ -136,14 +135,12 @@ function resolveMac(d: Draft): string {
 
 function SettingRow({
   label,
-  hint,
   sub,
   held = false,
   wide = false,
   children,
 }: {
   label: string;
-  hint?: React.ReactNode;
   sub?: string;
   held?: boolean;
   wide?: boolean;
@@ -154,7 +151,6 @@ function SettingRow({
       <div className={cn(SETTING.KEY, held && SETTING.HELD)}>
         <span className={SETTING.KEY_LINE}>
           {label}
-          {hint}
         </span>
         {sub ? <span className={SETTING.KEY_SUB}>{sub}</span> : null}
       </div>
@@ -529,7 +525,10 @@ export function IPPassthroughCard({
                 onSubmit={handleSubmit}
                 {...rowCascade}
               >
-                <SettingRow label={t(`${K}.rows.mode.label`)}>
+                <SettingRow
+                  label={t(`${K}.rows.mode.label`)}
+                  sub={t(`${K}.rows.mode.description`)}
+                >
                   <SegmentedField
                     value={state.draft.mode}
                     onValueChange={(v) => setField("mode", v)}
@@ -552,7 +551,11 @@ export function IPPassthroughCard({
 
                 <SettingRow
                   label={t(`${K}.rows.target.label`)}
-                  sub={macRequired ? undefined : t(`${K}.rows.target.pick_mode`)}
+                  sub={
+                    macRequired
+                      ? t(`${K}.rows.target.description`)
+                      : t(`${K}.rows.target.pick_mode`)
+                  }
                   held={!macRequired}
                   wide
                 >
@@ -659,11 +662,7 @@ export function IPPassthroughCard({
               <motion.div className={SETTING.GROUP} {...rowCascade}>
                 <SettingRow
                   label={t(`${K}.rows.nat.label`)}
-                  hint={
-                    <HintIcon label={t(`${K}.rows.nat.hint_label`)}>
-                      {t(`${K}.rows.nat.hint`)}
-                    </HintIcon>
-                  }
+                  sub={t(`${K}.rows.nat.description`)}
                 >
                   <SegmentedField
                     value={state.draft.nat}
@@ -676,7 +675,11 @@ export function IPPassthroughCard({
                   />
                 </SettingRow>
 
-                <SettingRow label={t(`${K}.rows.usb.label`)} wide>
+                <SettingRow
+                  label={t(`${K}.rows.usb.label`)}
+                  sub={t(`${K}.rows.usb.description`)}
+                  wide
+                >
                   <SegmentedField
                     value={state.draft.usb}
                     onValueChange={(v) => setField("usb", v)}
@@ -690,11 +693,7 @@ export function IPPassthroughCard({
 
                 <SettingRow
                   label={t(`${K}.rows.dns.label`)}
-                  hint={
-                    <HintIcon label={t(`${K}.rows.dns.hint_label`)}>
-                      {t(`${K}.rows.dns.hint`)}
-                    </HintIcon>
-                  }
+                  sub={t(`${K}.rows.dns.description`)}
                 >
                   <SegmentedField
                     value={state.draft.dns}

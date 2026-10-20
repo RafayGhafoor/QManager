@@ -301,7 +301,7 @@
   },
   "ippt": {
     "page": {
-      "title": "IP 直通",
+      "title": "IP 直通與 USB",
       "description": "將數據機的公網 IP 直接交給一台已連線的裝置，而不是為整個區域網路做路由。"
     },
     "header": {
@@ -334,24 +334,25 @@
     },
     "rows": {
       "mode": {
-        "label": "模式"
+        "label": "模式",
+        "description": "路由整個區域網路，或將公網 IP 直通給一台裝置。"
       },
       "target": {
         "label": "目標裝置",
-        "pick_mode": "請先選擇模式。"
+        "pick_mode": "請先選擇模式。",
+        "description": "接收公網 IP 的裝置。"
       },
       "nat": {
         "label": "NAT 轉換",
-        "hint": "幾乎所有情境都適合啟用 NAT。",
-        "hint_label": "關於 NAT"
+        "description": "幾乎所有情境都適合啟用 NAT。"
       },
       "usb": {
-        "label": "USB 連線"
+        "label": "USB 連線",
+        "description": "數據機透過 USB 連線時使用的通訊協定。"
       },
       "dns": {
         "label": "DNS 代理",
-        "hint": "開啟後，由數據機為目標裝置回應 DHCP DNS。",
-        "hint_label": "關於 DNS 代理"
+        "description": "開啟後，由數據機為目標裝置回應 DHCP DNS。"
       }
     },
     "options": {

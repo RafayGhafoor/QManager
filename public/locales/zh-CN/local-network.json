@@ -301,7 +301,7 @@
   },
   "ippt": {
     "page": {
-      "title": "IP 直通",
+      "title": "IP 直通与 USB",
       "description": "将调制解调器的公网 IP 直接交给一台连接设备，而不是为整个局域网做路由。"
     },
     "header": {
@@ -334,24 +334,25 @@
     },
     "rows": {
       "mode": {
-        "label": "模式"
+        "label": "模式",
+        "description": "路由整个局域网，或将公网 IP 直通给一台设备。"
       },
       "target": {
         "label": "目标设备",
-        "pick_mode": "请先选择模式。"
+        "pick_mode": "请先选择模式。",
+        "description": "接收公网 IP 的设备。"
       },
       "nat": {
         "label": "NAT 转换",
-        "hint": "几乎所有场景都适合启用 NAT。",
-        "hint_label": "关于 NAT"
+        "description": "几乎所有场景都适合启用 NAT。"
       },
       "usb": {
-        "label": "USB 连接"
+        "label": "USB 连接",
+        "description": "调制解调器通过 USB 连接时使用的协议。"
       },
       "dns": {
         "label": "DNS 代理",
-        "hint": "开启后，由调制解调器为目标设备应答 DHCP DNS。",
-        "hint_label": "关于 DNS 代理"
+        "description": "开启后，由调制解调器为目标设备应答 DHCP DNS。"
       }
     },
     "options": {

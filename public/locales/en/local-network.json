@@ -301,7 +301,7 @@
   },
   "ippt": {
     "page": {
-      "title": "IP Passthrough",
+      "title": "IP Passthrough & USB",
       "description": "Hand the modem's public IP straight to one connected device instead of routing for the whole LAN."
     },
     "header": {
@@ -334,24 +334,25 @@
     },
     "rows": {
       "mode": {
-        "label": "Mode"
+        "label": "Mode",
+        "description": "Route the whole LAN, or pass the public IP to one device."
       },
       "target": {
         "label": "Target device",
-        "pick_mode": "Pick a mode first."
+        "pick_mode": "Pick a mode first.",
+        "description": "The device that receives the public IP."
       },
       "nat": {
         "label": "NAT",
-        "hint": "With NAT suits almost every setup.",
-        "hint_label": "About NAT"
+        "description": "With NAT suits almost every setup."
       },
       "usb": {
-        "label": "USB connection"
+        "label": "USB connection",
+        "description": "The protocol used when the modem connects over USB."
       },
       "dns": {
         "label": "DNS proxy",
-        "hint": "On, the modem answers DHCP DNS for the target device.",
-        "hint_label": "About DNS proxy"
+        "description": "On, the modem answers DHCP DNS for the target device."
       }
     },
     "options": {

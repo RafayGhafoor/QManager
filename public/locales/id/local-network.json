@@ -301,7 +301,7 @@
   },
   "ippt": {
     "page": {
-      "title": "Passthrough IP",
+      "title": "Passthrough IP & USB",
       "description": "Serahkan IP publik modem langsung ke satu perangkat yang terhubung, bukan merutekan untuk seluruh LAN."
     },
     "header": {
@@ -334,24 +334,25 @@
     },
     "rows": {
       "mode": {
-        "label": "Mode"
+        "label": "Mode",
+        "description": "Rutekan seluruh LAN, atau teruskan IP publik ke satu perangkat."
       },
       "target": {
         "label": "Perangkat target",
-        "pick_mode": "Pilih mode terlebih dahulu."
+        "pick_mode": "Pilih mode terlebih dahulu.",
+        "description": "Perangkat yang menerima IP publik."
       },
       "nat": {
         "label": "NAT",
-        "hint": "Dengan NAT cocok untuk hampir semua pengaturan.",
-        "hint_label": "Tentang NAT"
+        "description": "Dengan NAT cocok untuk hampir semua pengaturan."
       },
       "usb": {
-        "label": "Koneksi USB"
+        "label": "Koneksi USB",
+        "description": "Protokol yang dipakai saat modem terhubung lewat USB."
       },
       "dns": {
         "label": "Proxy DNS",
-        "hint": "Aktif, modem menjawab DNS lewat DHCP untuk perangkat target.",
-        "hint_label": "Tentang proxy DNS"
+        "description": "Aktif, modem menjawab DNS lewat DHCP untuk perangkat target."
       }
     },
     "options": {

@@ -29,7 +29,7 @@ const routeNameMap: Record<string, string> = {
   'fplmn-settings': 'FPLMN Settings',
   'local-network': 'Local Network',
   ethernet: 'Ethernet Status',
-  'ip-passthrough': 'IP Passthrough',
+  'ip-passthrough': 'IP Passthrough & USB',
   'custom-dns': 'Custom DNS',
   'ttl-settings': 'TTL & MTU Settings',
   monitoring: 'Monitoring',
