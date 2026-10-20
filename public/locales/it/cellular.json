@@ -2062,8 +2062,7 @@
         "verifying": "Verifica di ciò che il modem ha applicato"
       },
       "footer": {
-        "reread": "Rileggi dal modem",
-        "in_sync": "Le impostazioni salvate corrispondono al modem."
+        "refresh": "Aggiorna"
       },
       "strip": {
         "label": "Stato in tempo reale",
@@ -2083,7 +2082,6 @@
       },
       "rate_ceiling": {
         "eyebrow": "Tetto di velocità concesso dalla rete",
-        "in_force": "AMBR {{radio}} in vigore",
         "no_ceiling": "Nessun tetto letto",
         "sr_rate_block": "{{radio}}: {{state}}",
         "provenance": "I limiti di velocità sono tetti concessi dalla rete, non velocità misurate. Vengono letti all'apertura della pagina e di nuovo dopo ogni salvataggio.",

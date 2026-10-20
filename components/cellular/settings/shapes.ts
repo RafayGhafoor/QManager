@@ -1,4 +1,3 @@
-import type { BadgeVariant } from "@/components/ui/badge";
 import type { MaterialSymbolName } from "@/components/ui/material-symbol";
 
 // =============================================================================
@@ -255,6 +254,12 @@ export const STRIP = {
   DISC_LTE: "bg-lte text-lte-foreground",
   DISC_SPATIAL: "bg-spatial text-spatial-foreground",
   DISC_NEUTRAL: "bg-surface-container-high text-on-surface-variant",
+  /**
+   * The SIM disc changes fill when the card's state does (ready -> PIN, a swap),
+   * so the colour eases on the standard clock instead of snapping.
+   */
+  DISC_MOTION:
+    "transition-colors duration-[var(--duration-standard)] ease-[var(--ease-standard)]",
   /**
    * A FAILED read. The band keeps the family box and goes neutral rather than
    * shimmering: a skeleton is a promise that data is on its way, and holding one
@@ -1355,28 +1360,69 @@ export const EMPTY_BLOCK = {
 // -----------------------------------------------------------------------------
 
 /**
- * SIM presence, as published by the poller's `.sim.status`.
+ * SIM presence, as published by the poller's `.sim.status`, carried by the SIM
+ * tile's DISC and nothing else: the state is the disc's fill, not a chip beside
+ * the figure. The disc is already the only coloured element on the strip, so a
+ * verdict colour there adds no second ink.
  *
- * Every state carries its OWN glyph — `success-container` and `warning-container`
- * measure 1.03:1 apart and are identical under deuteranopia, so the glyph is the
- * only thing separating a ready SIM from one asking for a PIN. `not_inserted` is
- * `muted`, not `destructive`: an empty slot is a deliberate configuration, not a
- * fault. `error` is the fault.
+ * Only a verdict earns a verdict fill. `ready` is success, a SIM asking for a
+ * PIN/PUK is warning, `error` is destructive. `not_inserted` and `unknown` stay
+ * on the neutral disc: an empty slot is a deliberate configuration, not a fault.
  *
- * Keyed onto `BadgeVariant`, never onto a class string, so a new state without a
- * matching role fails the build.
+ * Every state carries its OWN glyph, because `success` and `warning` fills are
+ * not separable under deuteranopia and the glyph is what still tells a ready
+ * card from one asking for a PIN. The spoken/hover state name comes from the
+ * `sim_status` catalog group at the call site.
  */
-export const SIM_STATUS_BADGE: Record<
+export const SIM_STATUS_DISC: Record<
   string,
-  { variant: BadgeVariant; glyph: MaterialSymbolName }
+  { disc: string; glyph: MaterialSymbolName }
 > = {
-  ready: { variant: "success", glyph: "check_circle" },
-  pin_required: { variant: "warning", glyph: "sim_card_alert" },
-  puk_required: { variant: "warning", glyph: "lock" },
-  not_inserted: { variant: "muted", glyph: "sim_card" },
-  error: { variant: "destructive", glyph: "error" },
-  unknown: { variant: "muted", glyph: "help" },
+  ready: { disc: "bg-success text-success-foreground", glyph: "sim_card" },
+  pin_required: {
+    disc: "bg-warning text-warning-foreground",
+    glyph: "sim_card_alert",
+  },
+  puk_required: { disc: "bg-warning text-warning-foreground", glyph: "lock" },
+  not_inserted: {
+    disc: "bg-surface-container-high text-on-surface-variant",
+    glyph: "sim_card",
+  },
+  error: {
+    disc: "bg-destructive text-destructive-foreground",
+    glyph: "error",
+  },
+  unknown: {
+    disc: "bg-surface-container-high text-on-surface-variant",
+    glyph: "help",
+  },
 };
 
 /** Glyph size inside a dense chip. */
 export const BADGE_GLYPH_SIZE = 12;
+
+// -----------------------------------------------------------------------------
+// Refresh — the Network card foot's left-edge action
+// -----------------------------------------------------------------------------
+
+/**
+ * The page-level "read the modem again" action, on the left edge of the apply
+ * foot so it never competes with Discard and Save on the right.
+ *
+ * ICON AT REST, LABEL WHEN THERE IS ROOM. The label collapses to the glyph while
+ * edits are pending or saving, because that is exactly when the foot's status
+ * line (count, consequence) needs the width. The collapse animates
+ * `grid-template-columns` on the standard clock, which `MotionConfig` cannot see,
+ * so the consumer drops `LABEL_MOTION` under reduced motion via `useMotionReduced()`.
+ * The accessible name is always the full label.
+ */
+export const REFRESH_BUTTON = {
+  GLYPH: 18,
+  /** The label wrapper. `0fr` -> `1fr` is state, set at the call site. */
+  LABEL: "grid",
+  LABEL_MOTION:
+    "transition-[grid-template-columns] duration-[var(--duration-standard)] ease-[var(--ease-standard)]",
+  /** `min-w-0` lets the 0fr column actually collapse; the inner pad is clipped with it. */
+  LABEL_CLIP: "min-w-0 overflow-hidden",
+  LABEL_TEXT: "block pl-2",
+} as const;

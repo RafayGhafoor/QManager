@@ -40,6 +40,8 @@ export interface ApplyFootProps {
   saved: boolean;
   /** Secondary actions, rendered before Discard. Text only, ghost or tonal-neutral. */
   secondary?: React.ReactNode;
+  /** An action on the foot's left edge, ahead of the status text. */
+  leading?: React.ReactNode;
   /** Copy, all pre-translated by the caller. */
   copy: {
     count: string;
@@ -64,6 +66,7 @@ export function ApplyFoot({
   onSave,
   saved,
   secondary,
+  leading,
   copy,
 }: ApplyFootProps) {
   const activeIndex = APPLY_STEPS.indexOf(
@@ -112,7 +115,12 @@ export function ApplyFoot({
   return (
     <CardFoot
       className={CARD_PAD}
-      status={status}
+      status={
+        <>
+          {leading}
+          {status}
+        </>
+      }
       actions={
         <>
           {secondary}

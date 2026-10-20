@@ -2062,8 +2062,7 @@
         "verifying": "正在確認數據機已套用的設定"
       },
       "footer": {
-        "reread": "從數據機重新讀取",
-        "in_sync": "已儲存的設定與數據機一致。"
+        "refresh": "重新整理"
       },
       "strip": {
         "label": "即時狀態",
@@ -2083,7 +2082,6 @@
       },
       "rate_ceiling": {
         "eyebrow": "網路授予的速率上限",
-        "in_force": "{{radio}} AMBR 生效中",
         "no_ceiling": "未讀到上限",
         "sr_rate_block": "{{radio}}：{{state}}",
         "provenance": "速率上限是網路授予的上限值，不是實測速度。它們在頁面開啟時讀取，每次儲存後再讀取一次。",

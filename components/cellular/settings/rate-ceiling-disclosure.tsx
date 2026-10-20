@@ -327,15 +327,6 @@ export function RateCeilingDisclosure({
         ? (ambr.nr5g[0] ?? null)
         : null;
 
-  const inForceTag =
-    governing === null
-      ? null
-      : t(`${K}.rate_ceiling.in_force`, {
-          radio: t(
-            governing === "lte" ? `${K}.ambr.lte_short` : `${K}.ambr.nr_short`,
-          ),
-        });
-
   return (
     <div className={RATE_CEILING.ROOT}>
       <button
@@ -371,7 +362,6 @@ export function RateCeilingDisclosure({
                 {t(`${K}.rate_ceiling.no_ceiling`)}
               </span>
             )}
-            {inForceTag ? <Tag>{inForceTag}</Tag> : null}
           </span>
         </span>
         <MaterialSymbol

@@ -17,6 +17,7 @@ import CellularSettingsCard from "./cellular-settings-card";
 import LiveStateStrip from "./live-state-strip";
 import ApplyFoot from "./apply-foot";
 import RateCeilingDisclosure from "./rate-ceiling-disclosure";
+import RefreshButton from "./refresh-button";
 import { CARD_CELL, PAGE_ROOT } from "./shapes";
 
 // =============================================================================
@@ -219,16 +220,12 @@ const CellularSettingsComponent = () => {
                   onDiscard={form.discard}
                   onSave={handleSave}
                   saved={saved}
-                  secondary={
-                    <Button
-                      type="button"
-                      variant="ghost"
+                  leading={
+                    <RefreshButton
                       onClick={form.refresh}
                       disabled={form.isSaving}
-                      size="action"
-                    >
-                      {t(`${K}.footer.reread`)}
-                    </Button>
+                      compact={form.changeCount > 0 || form.isSaving}
+                    />
                   }
                   copy={{
                     count: t(`${K}.save_bar.count`, { count: form.changeCount }),
@@ -240,7 +237,6 @@ const CellularSettingsComponent = () => {
                     failed: t(`${K}.save_bar.failed`, {
                       fields: failedLabels.join(", "),
                     }),
-                    idle: t(`${K}.footer.in_sync`),
                     steps: {
                       writing: t(`${K}.apply.writing`),
                       recovering: t(`${K}.apply.recovering`),

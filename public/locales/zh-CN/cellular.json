@@ -2062,8 +2062,7 @@
         "verifying": "正在确认调制解调器已应用的设置"
       },
       "footer": {
-        "reread": "从调制解调器重新读取",
-        "in_sync": "已保存的设置与调制解调器一致。"
+        "refresh": "刷新"
       },
       "strip": {
         "label": "实时状态",
@@ -2083,7 +2082,6 @@
       },
       "rate_ceiling": {
         "eyebrow": "网络授予的速率上限",
-        "in_force": "{{radio}} AMBR 生效中",
         "no_ceiling": "未读到上限",
         "sr_rate_block": "{{radio}}：{{state}}",
         "provenance": "速率上限是网络授予的上限值，不是实测速度。它们在页面打开时读取，每次保存后再读取一次。",

@@ -15,7 +15,7 @@ import type { CarrierComponent, ModemStatus } from "@/types/modem-status";
 
 import {
   BADGE_GLYPH_SIZE,
-  SIM_STATUS_BADGE,
+  SIM_STATUS_DISC,
   SLOT_CHIP,
   SLOT_GLYPH,
   STRIP,
@@ -157,21 +157,32 @@ function Tile({
   mono = false,
   badge,
   caption,
+  discLabel,
 }: {
   glyph: MaterialSymbolName;
   /** The disc's fill pair — the only colour a tile is allowed to carry. */
   disc: string;
+  /**
+   * Names a state the disc alone carries (the SIM tile), as both its hover title
+   * and its accessible name. Omit for a purely decorative disc.
+   */
+  discLabel?: string;
   eyebrow: string;
   value: string;
   /** True when the value is an identifier the device emits verbatim. */
   mono?: boolean;
-  /** An inline chip riding beside the figure (the SIM tile's status). */
+  /** An inline chip riding beside the figure. */
   badge?: React.ReactNode;
   caption?: React.ReactNode;
 }) {
   return (
     <div className={cn(TILE_SHAPE.ROOT, STRIP.BODY)}>
-      <span className={cn(TILE_SHAPE.DISC, disc)}>
+      <span
+        className={cn(TILE_SHAPE.DISC, STRIP.DISC_MOTION, disc)}
+        {...(discLabel
+          ? { role: "img", "aria-label": discLabel, title: discLabel }
+          : {})}
+      >
         <MaterialSymbol name={glyph} filled size={STRIP.GLYPH} />
       </span>
       <div className={STRIP.TEXT}>
@@ -300,7 +311,7 @@ export function LiveStateStrip({
 
   const slot = network?.sim_slot ?? null;
   const simStatus = status?.sim?.status ?? "unknown";
-  const simTone = SIM_STATUS_BADGE[simStatus] ?? SIM_STATUS_BADGE.unknown;
+  const simDisc = SIM_STATUS_DISC[simStatus] ?? SIM_STATUS_DISC.unknown;
   // The slot the tile's own value is NOT about. During a ~35s slot apply the
   // settings GET may already report this one active while the poller still
   // reports the other — the chip renders that honestly rather than flattening it.
@@ -386,23 +397,14 @@ export function LiveStateStrip({
             />
 
             <Tile
-              glyph="sim_card"
-              disc={STRIP.DISC_NEUTRAL}
+              glyph={simDisc.glyph}
+              disc={simDisc.disc}
+              discLabel={t(`${SIM_STATUS_GROUP}.${simStatus}`)}
               eyebrow={t(`${K}.strip.sim`)}
               value={
                 slot === null
                   ? t(`${K}.readout.unknown`)
                   : t(`${K}.readout.slot_n`, { slot })
-              }
-              badge={
-                <Badge variant={simTone.variant}>
-                  <MaterialSymbol
-                    name={simTone.glyph}
-                    filled
-                    size={BADGE_GLYPH_SIZE}
-                  />
-                  {t(`${SIM_STATUS_GROUP}.${simStatus}`)}
-                </Badge>
               }
               caption={peerSlot ? <SlotChip entry={peerSlot} /> : null}
             />

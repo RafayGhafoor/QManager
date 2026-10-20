@@ -2062,8 +2062,7 @@
         "verifying": "Memastikan apa yang diterapkan modem"
       },
       "footer": {
-        "reread": "Baca ulang dari modem",
-        "in_sync": "Pengaturan tersimpan cocok dengan modem."
+        "refresh": "Segarkan"
       },
       "strip": {
         "label": "Status langsung",
@@ -2083,7 +2082,6 @@
       },
       "rate_ceiling": {
         "eyebrow": "Plafon kecepatan yang diberikan jaringan",
-        "in_force": "AMBR {{radio}} berlaku",
         "no_ceiling": "Plafon tidak terbaca",
         "sr_rate_block": "{{radio}}: {{state}}",
         "provenance": "Batas kecepatan adalah plafon yang diberikan jaringan, bukan kecepatan terukur. Nilainya dibaca saat halaman dibuka dan sekali lagi setiap kali selesai menyimpan.",

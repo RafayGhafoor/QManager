@@ -2062,8 +2062,7 @@
         "verifying": "Confirming what the modem applied"
       },
       "footer": {
-        "reread": "Re-read from modem",
-        "in_sync": "Saved settings match the modem."
+        "refresh": "Refresh"
       },
       "strip": {
         "label": "Live state",
@@ -2083,7 +2082,6 @@
       },
       "rate_ceiling": {
         "eyebrow": "Rate ceiling granted by the network",
-        "in_force": "{{radio}} AMBR in force",
         "no_ceiling": "No ceiling read",
         "sr_rate_block": "{{radio}}: {{state}}",
         "provenance": "Rate limits are ceilings the network grants, not measured speed. They are read when the page opens and again after each save.",
