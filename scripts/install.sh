@@ -839,6 +839,67 @@ retire_bandwidth_monitor() {
     return 0
 }
 
+# Retire Low Power Mode (cron entries, boot-check init.d, daemons, UCI keys).
+# Runs unconditionally from main(), before stop_services, so the old broker
+# and qcmd link are still live for the CFUN restore. If a box is upgraded
+# inside a low-power window the radio is off (CFUN=0): bring it back with
+# AT+CFUN=1 (never 1,1) and drop the flag + watchcat lock that window set.
+# The watchcat lock is shared with the watchdog, so it is only removed here.
+# Idempotent; silent on fresh installs.
+retire_low_power() {
+    local retired=0
+    local cron_now=""
+    local cron_clean=""
+
+    if [ -f /tmp/qmanager_low_power_active ]; then
+        if command -v qcmd >/dev/null 2>&1; then
+            run_capture_timeout 10 qcmd 'AT+CFUN=1' >/dev/null 2>&1 || true
+        fi
+        rm -f /tmp/qmanager_low_power_active /tmp/qmanager_watchcat.lock
+        retired=1
+    fi
+
+    if [ -f "$INITD_DIR/qmanager_low_power_check" ]; then
+        "$INITD_DIR/qmanager_low_power_check" disable >/dev/null 2>&1 || true
+        rm -f "$INITD_DIR/qmanager_low_power_check"
+        retired=1
+    fi
+    rm -f /etc/rc.d/*qmanager_low_power* 2>/dev/null || true
+
+    if [ -f "$BIN_DIR/qmanager_low_power" ] || [ -f "$BIN_DIR/qmanager_low_power_check" ]; then
+        retired=1
+    fi
+    rm -f "$BIN_DIR/qmanager_low_power" "$BIN_DIR/qmanager_low_power_check"
+
+    cron_now=$(crontab -l 2>/dev/null || true)
+    if printf '%s\n' "$cron_now" | grep -q "qmanager_low_power"; then
+        cron_clean=$(printf '%s\n' "$cron_now" \
+            | grep -v "qmanager_low_power" \
+            | grep -v "^# QManager Low Power Mode")
+        if [ -n "$cron_clean" ]; then
+            printf '%s\n' "$cron_clean" | crontab - 2>/dev/null || true
+        else
+            echo "" | crontab - 2>/dev/null || true
+        fi
+        retired=1
+    fi
+
+    local key
+    local deleted=0
+    for key in low_power_enabled low_power_start low_power_end low_power_days; do
+        if uci -q delete "quecmanager.settings.$key" 2>/dev/null; then
+            deleted=1
+        fi
+    done
+    if [ "$deleted" = "1" ]; then
+        uci -q commit quecmanager 2>/dev/null || true
+        retired=1
+    fi
+
+    [ "$retired" = "1" ] && info "Retired Low Power Mode"
+    return 0
+}
+
 install_packages() {
     step "Installing required packages"
 
@@ -2079,6 +2140,9 @@ main() {
 
     # Must run before stop_services and regardless of --skip-packages (OTA path).
     retire_bandwidth_monitor
+
+    # Same rules; also before stop_services so qcmd can still restore CFUN=1.
+    retire_low_power
 
     if [ "$DO_PACKAGES" = "1" ]; then
         install_packages

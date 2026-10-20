@@ -7,7 +7,7 @@
 # This is part of the UNAUTH attack surface alongside public/overview.sh and
 # public/hostname.sh. The entire contract is these two string fields; do not
 # add fields here without a security review — quecmanager.settings holds
-# other, non-public settings (scheduled reboot, low power) in the same section.
+# other, non-public settings (scheduled reboot) in the same section.
 #
 # Mirrors the GET read path of system/settings.sh: same UCI keys, same
 # defaults. Each value is allowlisted, so a hand-edited UCI value can never be

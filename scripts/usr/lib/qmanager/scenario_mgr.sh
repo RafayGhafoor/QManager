@@ -267,9 +267,8 @@ scenario_block_for_now() {
 # =============================================================================
 # Cron Install / Teardown
 # =============================================================================
-# Single root crontab shared with qmanager_tower_schedule / _scheduled_reboot /
-# _low_power. Our marker (qmanager_profile_scenario) shares no substring with
-# those, so `grep -v "$SCENARIO_CRON_MARKER"` only touches our lines.
+# Single root crontab shared with qmanager_tower_schedule / _scheduled_reboot.
+# Our marker (qmanager_profile_scenario) shares no substring with those, so `grep -v "$SCENARIO_CRON_MARKER"` only touches our lines.
 #
 # crond "active with no instances" trap: procd only spawns crond once a
 # non-empty crontab exists; writing via `crontab -` starts it. Teardown to an

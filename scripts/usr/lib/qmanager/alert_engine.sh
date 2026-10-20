@@ -28,7 +28,7 @@
 #   by Connection Quality), measured with the MONOTONIC clock (mono_now, the
 #   same clock ping.json's .mono uses), NOT wall-clock epoch. A NITZ clock-step
 #   during an SSR-driven outage therefore cannot corrupt the timer.
-# Suppression [guardrail 3]: bails on low-power. A watchdog recovery does not
+# Recovery [guardrail 3]: a watchdog recovery does not
 #   freeze the outage machine; the SMS lib's rc 2 ("not registered") retries a
 #   send made during a CFUN cycle. Reboot delivery is still held mid-recovery.
 # =============================================================================
@@ -54,7 +54,6 @@ _ae_store_boot_id() {
 _AE_SMS_RELOAD="/tmp/qmanager_sms_reload"
 _AE_EMAIL_RELOAD="/tmp/qmanager_email_reload"
 _AE_ROUTING_RELOAD="/tmp/qmanager_alert_routing_reload"
-_AE_LOW_POWER="/tmp/qmanager_low_power_active"
 
 # --- Reboot-alert detection + delivery (a separate one-shot path) ------------
 # boot_id is a per-boot kernel UUID: stable within a boot, regenerated on every
@@ -188,10 +187,7 @@ alert_engine_check() {
         alert_engine_reboot_detect
     fi
 
-    # --- 2. Suppression gate [guardrail 3]: low-power mode, no radio work ----
-    [ -f "$_AE_LOW_POWER" ] && return 0
-
-    # --- 3. Post-recovery reboot alert (separate one-shot path) --------------
+    # --- 2. Post-recovery reboot alert (separate one-shot path) --------------
     # NOT part of the outage state machine — a reboot has no outage window.
     # Held during watchdog recovery churn and on stale ping data. Cheap
     # early-out when there is no staged pending file (the common case).
@@ -201,7 +197,7 @@ alert_engine_check() {
         esac
     fi
 
-    # --- 4. Signal source [guardrail 1]: the events.sh detector --------------
+    # --- 3. Signal source [guardrail 1]: the events.sh detector --------------
     # ev_link_state is decided once per cycle by detect_data_connection_events
     # (ICMP reachability only). "" = stale/unknown: a running outage is left
     # untouched and nothing new starts. A watchdog recovery no longer freezes
