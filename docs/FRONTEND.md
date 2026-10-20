@@ -288,7 +288,7 @@ All TypeScript interfaces are in `types/`. The main data contract is `modem-stat
 | `ip-passthrough.ts` | `IPPassthroughSettings` | IP passthrough |
 | `about-device.ts` | `AboutDeviceInfo` | About device page |
 | `sms.ts` | `SMSMessage`, `SMSSendPayload` | SMS feature |
-| `system-settings.ts` | `SystemSettings`, `ScheduleConfig`, `LowPowerConfig`, `SystemSettingsResponse`, `TimezoneEntry`, `DAY_LABELS`, `TIMEZONES` | System settings page |
+| `system-settings.ts` | `SystemSettings`, `ScheduleConfig`, `SystemSettingsResponse`, `TimezoneEntry`, `DAY_LABELS`, `TIMEZONES` | System settings page |
 | `speedtest.ts` | `SpeedtestResult`, `SpeedtestStatus` | Speed test |
 
 ### Utility Types & Functions (modem-status.ts)

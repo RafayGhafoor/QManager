@@ -13,7 +13,7 @@ This model replaced the older single-value `/etc/qmanager/last_iccid` scheme, wh
 | Persistent set file | `/etc/qmanager/known_iccids` (UBIFS, newline-delimited) |
 | Legacy file (retired) | `/etc/qmanager/last_iccid` (read-once for migration; no longer written) |
 | Banner flag | `/tmp/qmanager_sim_swap_detected` (tmpfs; cleared by `clear` action) |
-| Frontend component | `components/system-settings/tracked-sims-card.tsx` (the "Tracked SIMs" card on `/system-settings`) |
+| Frontend component | `components/system-settings/tracked-sims-group.tsx` (the "Tracked SIMs" row of the Device & Units card on `/system-settings`) |
 | Frontend hook | `hooks/use-known-sims.ts` (shared with the page's status band) |
 | Frontend i18n namespace | `system-settings`, keys `known_sims.*` |
 
@@ -106,16 +106,18 @@ Sources `cgi_base.sh` and `sim_db.sh`. Handles GET, POST `list`, POST `clear`, a
 
 Unknown actions return `cgi_error "invalid_action"`.
 
-## Frontend: `tracked-sims-card.tsx`
+## Frontend: `tracked-sims-group.tsx`
 
-The "Tracked SIMs" card on `/system-settings`, driven by `useKnownSims()` (`hooks/use-known-sims.ts`). The hook is mounted ONCE by the page root and handed to the card and to the status band's Tracked SIMs tile, so the two cannot disagree; the page's Refresh button calls its `refresh()`.
+The "Tracked SIMs" row inside the Device & Units card on `/system-settings` (no longer a standalone card), driven by `useKnownSims()` (`hooks/use-known-sims.ts`). The hook is mounted ONCE by the page root and handed to the card and to the status band's Tracked SIMs tile, so the two cannot disagree; the page's Refresh button calls its `refresh()`.
 
 The set is a membership store with no names, so the card shows a count and nothing else. It has four states:
 
-- Loading: the real row box wearing skeleton slivers, plus a skeleton foot.
-- `count === null`: the read failed. A destructive condition block with a retry. The count is never rendered as 0, because 0 is a real answer.
-- `count === 0`: an empty condition block. There is nothing to clear, so no Clear action.
-- `count > 0`: one row ("SIMs remembered" and the count) and a destructive **Clear** in the card foot.
+It renders in every state of the card's units half (it owns its own data), always as one row under a "Tracked SIMs" group label:
+
+- Loading: the real row box wearing skeleton slivers (count and Clear).
+- `count === null`: the read failed. The row says so (`role="alert"`), shows `—` and a Retry. The count is never rendered as 0, because 0 is a real answer.
+- `count === 0`: the row shows 0 with the empty-state sentence. There is nothing to clear, so no Clear action.
+- `count > 0`: "SIMs remembered", the count, and a `tonal-destructive` **Clear** as an inline row action (not a `CardFoot` commit; the foot commits the units draft only).
 
 Clear opens an `AlertDialog` that says the current SIM is kept. On confirm the hook POSTs `{"action":"clear"}`, takes the new count from the response, and the card fires `toast.success` / `toast.error`. A failure's reason comes from the returned `ClearKnownSimsResult.message` (`resolveErrorMessage`), never from hook state.
 

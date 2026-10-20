@@ -16,7 +16,7 @@ write that was never synced can come back as a 0-byte file.
 - About 48 `uci commit` sites write `/etc/config/*`. libuci's durability is not
   verifiable from this repo; a `sync` after the commit is the cheap guard.
 - **No periodic loop writes persistent storage every few seconds.** The poller,
-  watchcat, ping, SMS forwarding and low-power loops write tmpfs only. The
+  watchcat, ping and SMS forwarding loops write tmpfs only. The
   only periodic persistent writer is the sites monitor's hourly
   `/usrdata/qmanager/sites/*.jsonl` append. Flash wear from loops is low.
 

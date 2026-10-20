@@ -1655,7 +1655,7 @@ Both must be JSON numbers, 1 to 65535, different from each other, and not held b
 
 ### GET/POST `/system/settings.sh`
 
-System preferences, scheduled reboot, and low power mode.
+System preferences and scheduled reboot.
 
 **GET Response:**
 ```json
@@ -1670,12 +1670,6 @@ System preferences, scheduled reboot, and low power mode.
   "scheduled_reboot": {
     "enabled": false,
     "time": "04:00",
-    "days": [0, 1, 2, 3, 4, 5, 6]
-  },
-  "low_power": {
-    "enabled": false,
-    "start_time": "23:00",
-    "end_time": "06:00",
     "days": [0, 1, 2, 3, 4, 5, 6]
   }
 }
@@ -1695,7 +1689,7 @@ System preferences, scheduled reboot, and low power mode.
 - `force_tailscale_fixes` was retired: `settings.sh` neither returns nor reads it (an old client that posts it is ignored). The Tailscale fixes are automatic and toggled with `set_net_fixes` on `/vpn/tailscale.sh`.
 - `temp_unit`: `"celsius"` or `"fahrenheit"`
 - `distance_unit`: `"km"` or `"miles"`
-- `hostname`/`timezone`/`zonename`: written to UCI `system.@system[0]`. Handler compares each incoming value to the current UCI value and only writes when changed. When any of these three actually change, the handler backgrounds `/etc/init.d/system reload` to republish `/tmp/TZ`, `/tmp/localtime`, and kernel hostname. When `timezone` or `zonename` changes, it additionally backgrounds `/etc/init.d/cron restart` so busybox crond (which caches TZ at startup) picks up the new zone for `qmanager_scheduled_reboot` and `qmanager_low_power` entries. Both spawns are fire-and-forget so the HTTP response returns promptly.
+- `hostname`/`timezone`/`zonename`: written to UCI `system.@system[0]`. Handler compares each incoming value to the current UCI value and only writes when changed. When any of these three actually change, the handler backgrounds `/etc/init.d/system reload` to republish `/tmp/TZ`, `/tmp/localtime`, and kernel hostname. When `timezone` or `zonename` changes, it additionally backgrounds `/etc/init.d/cron restart` so busybox crond (which caches TZ at startup) picks up the new zone for `qmanager_scheduled_reboot` entries. Both spawns are fire-and-forget so the HTTP response returns promptly.
 
 **POST (save_scheduled_reboot):**
 
@@ -1712,22 +1706,7 @@ System preferences, scheduled reboot, and low power mode.
 - Manages cron entries for `/usr/bin/qmanager_scheduled_reboot`
 - Config persisted in UCI `quecmanager.settings.sched_reboot_*`
 
-**POST (save_low_power):**
-
-```json
-{
-  "action": "save_low_power",
-  "enabled": true,
-  "start_time": "23:00",
-  "end_time": "06:00",
-  "days": [0, 1, 2, 3, 4, 5, 6]
-}
-```
-
-- Creates two cron entries: `enter` at start_time on selected days, `exit` at end_time on all 7 days
-- Exit cron fires on all days to handle overnight windows (e.g., 23:00-06:00) — no-ops if flag absent
-- Enables/disables `qmanager_low_power_check` init.d (boot-time window check)
-- Disabling while active immediately triggers `qmanager_low_power exit` (restores CFUN=1)
+- Low Power Mode was removed: `settings.sh` no longer returns a `low_power` object, and `action: "save_low_power"` is rejected as an unknown action. `install.sh` `retire_low_power()` cleans up upgrades (see [`scheduled-jobs.md`](features/scheduled-jobs.md#retired-low-power-mode)).
 
 ### POST `/system/reboot.sh`
 

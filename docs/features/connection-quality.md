@@ -173,7 +173,7 @@ The `custom` preset stores the user-supplied value in `latency_custom_ms` / `los
 
 ### One Detector (`events.sh`)
 
-`detect_data_connection_events` in `scripts/usr/lib/qmanager/events.sh` is the **only** place link transitions (`internet_lost` / `internet_restored`) and quality pairs (`high_latency` / `latency_recovered`, `high_packet_loss` / `packet_loss_recovered`) are decided (ledger B2.3). The poller calls it every cycle from the always-run local block, after `read_ping_data` / `read_dns_data` and before `alert_engine_check`; it is no longer called from `detect_events`, which only runs when an AT read is due. It publishes `ev_link_state` (`"down"`, `"up"`, or `""` for stale, unknown or low power) and the alert engine follows that value instead of keeping its own edge detector. **Why:** two detectors disagreed under watchdog recovery (live: two consecutive `internet_lost` with no restore between, and a `high_packet_loss` 100 % logged during an outage).
+`detect_data_connection_events` in `scripts/usr/lib/qmanager/events.sh` is the **only** place link transitions (`internet_lost` / `internet_restored`) and quality pairs (`high_latency` / `latency_recovered`, `high_packet_loss` / `packet_loss_recovered`) are decided (ledger B2.3). The poller calls it every cycle from the always-run local block, after `read_ping_data` / `read_dns_data` and before `alert_engine_check`; it is no longer called from `detect_events`, which only runs when an AT read is due. It publishes `ev_link_state` (`"down"`, `"up"`, or `""` for stale or unknown) and the alert engine follows that value instead of keeping its own edge detector. **Why:** two detectors disagreed under watchdog recovery (live: two consecutive `internet_lost` with no restore between, and a `high_packet_loss` 100 % logged during an outage).
 
 **Link rules, in order**
 
@@ -181,7 +181,6 @@ The `custom` preset stores the user-supplied value in `latency_custom_ms` / `los
 - Stale or unknown ping data is no transition; every counter stays frozen.
 - The first reading after a poller start is adopted silently.
 - The first true to false edge always logs `internet_lost`, even when the watchdog raised its recovery flag before the poller saw the drop. Only a **repeat** drop after a restore inside the same recovery window is held (`ev_recov_restored`, cleared when the daemon's recovery flag clears), so one outage logs exactly one lost/restored pair.
-- Scheduled low power logs nothing and publishes `ev_link_state=""`; the baseline follows the reading so the exit is not an edge.
 
 **Quality rules**
 

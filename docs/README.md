@@ -81,7 +81,7 @@ The `out/` directory contains the complete frontend — deploy it to the OpenWRT
 - **Latency Monitoring** — Real-time ping with 24-hour history and aggregated views
 - **Cell Scanner** — Active and neighbor cell scanning with frequency calculator
 - **Network Settings** — Ethernet link speed, TTL/HL, MTU, DNS, IP passthrough
-- **System Settings** — WAN Guard toggle, unit preferences (temp/distance), timezone, scheduled reboot, low power mode
+- **System Settings** — WAN Guard toggle, unit preferences (temp/distance), timezone, scheduled reboot
 - **Tailscale VPN** — Status monitoring and management
 - **Dark/Light Mode** — Full theme support with OKLCH colors
 

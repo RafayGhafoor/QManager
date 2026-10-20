@@ -94,7 +94,7 @@ The hazard is forward-looking. `LoginLanguagePicker` and `ModeToggle` were both 
 Both live in `components/dashboard/network-status.tsx` and are covered by DESIGN.md's **Network Status Landmark Rule**: Network Status is a recognized landmark on the one glance surface, and re-glyphing it buys nothing.
 
 1. **The SIM orb keeps lucide** `CardSimIcon` and `Plane`.
-2. **The RAT glyphs keep `react-icons/md`** — `MdOutline5G`, `Md4gPlusMobiledata`, `Md4gMobiledata`, `Md3gMobiledata`. These are typographic marks (the low-power leaf that used to sit here migrated to Material `energy_savings_leaf` — it is an ordinary pictogram, so the exception never covered it). They are ("5G", "4G+", "3G"), not pictograms, and Material Symbols has no equivalent.
+2. **The RAT glyphs keep `react-icons/md`** — `MdOutline5G`, `Md4gPlusMobiledata`, `Md4gMobiledata`, `Md3gMobiledata`. These are typographic marks. They are ("5G", "4G+", "3G"), not pictograms, and Material Symbols has no equivalent.
 
 > ℹ️ NOTE: `react-icons` is a legacy dependency that is not to be extended. These five glyphs are the only sanctioned survivors on the dashboard.
 
