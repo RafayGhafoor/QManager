@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { AlertTriangleIcon, Loader2Icon, RotateCcwIcon } from "lucide-react";
+import { CircleAlertIcon, Loader2Icon } from "lucide-react";
 
 import {
   Card,
@@ -17,7 +17,6 @@ import { SaveButton } from "@/components/ui/save-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +30,23 @@ import {
 
 import { useWebPort } from "@/hooks/use-web-port";
 import { originForPorts, waitForOrigin } from "@/lib/web-port";
-import { SETTING_ROW, SettingRow } from "@/components/system-settings/at-engine/setting-row";
+import { cn } from "@/lib/utils";
+
+import { ConditionBlock } from "../condition-block";
+import {
+  CARD_BODY,
+  CARD_DESC,
+  CARD_PAD,
+  CARD_SHELL,
+  CARD_TITLE,
+  CONDITION_PANEL,
+  GROUP_FILL,
+  PORT_FIELD,
+  PORT_GRID,
+  ROW,
+  ROW_GROUP,
+  SKELETON_HARDWARE,
+} from "../shapes";
 
 // =============================================================================
 // Web Port — the HTTP / HTTPS ports QManager (and LuCI, same server) listen on
@@ -40,9 +55,14 @@ import { SETTING_ROW, SettingRow } from "@/components/system-settings/at-engine/
 // after replying, and rolls itself back if it cannot bind them. The card then
 // waits for the new origin and moves the browser there; that navigation is
 // the success signal, so only a failure toasts. SSH twin: qmanager_web_port.
+//
+// Lives on /system-settings/device-access, a single-column page, so the card
+// is always wide on a desktop: the two rows sit side by side (`PORT_GRID`)
+// rather than stretching one key/value pair across the whole card.
 // =============================================================================
 
-const FIELD = "w-28 tabular-nums";
+/** Where the browser lands after a move: this card's own page on the new origin. */
+const LANDING_PATH = "/system-settings/device-access/";
 
 type Phase = "idle" | "moving";
 
@@ -54,7 +74,7 @@ function parsePort(raw: string): number | null {
 
 const WebPortCard = () => {
   const { t } = useTranslation("system-settings");
-  const { state, isLoading, isSaving, error, save, refresh } = useWebPort();
+  const { state, isLoading, isSaving, save, refresh } = useWebPort();
   const httpId = useId();
   const httpsId = useId();
 
@@ -105,7 +125,7 @@ const WebPortCard = () => {
     setPhase("moving");
     const origin = originForPorts(result.httpPort ?? httpPort, result.httpsPort ?? httpsPort);
     if (await waitForOrigin(origin)) {
-      window.location.assign(`${origin}/system-settings/`);
+      window.location.assign(`${origin}${LANDING_PATH}`);
       return;
     }
     // The server rolled back (or the new port is unreachable from here).
@@ -121,45 +141,82 @@ const WebPortCard = () => {
         {t("web_port.moving", { origin: target })}
       </span>
     ) : dirty && invalid ? (
-      <span className="font-medium text-destructive">{t("web_port.invalid")}</span>
+      <span className="text-destructive-on-surface font-medium">{t("web_port.invalid")}</span>
     ) : same ? (
-      <span className="font-medium text-destructive">{t("web_port.same")}</span>
+      <span className="text-destructive-on-surface font-medium">{t("web_port.same")}</span>
     ) : dirty ? (
       <span className="font-medium">{t("web_port.pending", { origin: target })}</span>
     ) : null;
 
+  const header = (
+    <CardHeader className={CARD_PAD}>
+      <CardTitle className={CARD_TITLE}>{t("web_port.card_title")}</CardTitle>
+      <CardDescription className={CARD_DESC}>
+        {t("web_port.card_description")}
+      </CardDescription>
+    </CardHeader>
+  );
+
+  if (isLoading && state === null) {
+    return (
+      <Card className={CARD_SHELL} aria-hidden="true">
+        {header}
+        <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+          <div className={cn(ROW_GROUP, GROUP_FILL, PORT_GRID)}>
+            {[0, 1].map((i) => (
+              <div key={i} className={ROW.ROOT}>
+                <div className={ROW.TEXT}>
+                  <Skeleton className={cn(SKELETON_HARDWARE.LABEL, "w-24")} />
+                </div>
+                <div className={ROW.CONTROL}>
+                  <Skeleton className={SKELETON_HARDWARE.FIELD} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <CardFoot
+            liveStatus={false}
+            actions={<Skeleton className={SKELETON_HARDWARE.ACTION} />}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (state === null) {
+    return (
+      <Card className={CARD_SHELL}>
+        {header}
+        <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+          <ConditionBlock
+            tone="destructive"
+            glyph={CircleAlertIcon}
+            ariaRole="alert"
+            title={t("web_port.error_title")}
+            description={t("web_port.error_description")}
+            onRetry={refresh}
+            retryLabel={t("actions.retry", { ns: "common" })}
+            className={CONDITION_PANEL.SCREEN}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const fieldsDisabled = isSaving || phase === "moving";
+
   return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardTitle>{t("web_port.card_title")}</CardTitle>
-        <CardDescription>{t("web_port.card_description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading && state === null ? (
-          <div className="grid gap-2">
-            <div className={SETTING_ROW}>
-              <Skeleton className="h-5 w-24" />
-              <Skeleton className="h-10 w-28 rounded-field" />
+    <Card className={CARD_SHELL}>
+      {header}
+      <CardContent className={cn(CARD_PAD, CARD_BODY)}>
+        <div className={cn(ROW_GROUP, GROUP_FILL, PORT_GRID)}>
+          <div className={ROW.ROOT}>
+            <div className={ROW.TEXT}>
+              <label htmlFor={httpId} className={ROW.LABEL}>
+                {t("web_port.http_label")}
+              </label>
             </div>
-            <div className={SETTING_ROW}>
-              <Skeleton className="h-5 w-24" />
-              <Skeleton className="h-10 w-28 rounded-field" />
-            </div>
-          </div>
-        ) : error && state === null ? (
-          <div className="grid gap-3">
-            <Alert variant="destructive">
-              <AlertTriangleIcon className="size-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-            <Button variant="tonal-neutral" onClick={refresh} className="w-fit">
-              <RotateCcwIcon className="size-4" />
-              {t("actions.retry", { ns: "common" })}
-            </Button>
-          </div>
-        ) : state ? (
-          <div className="grid gap-2">
-            <SettingRow label={<label htmlFor={httpId}>{t("web_port.http_label")}</label>}>
+            <div className={ROW.CONTROL}>
               <Input
                 id={httpId}
                 type="number"
@@ -168,14 +225,21 @@ const WebPortCard = () => {
                 min={1}
                 max={65535}
                 step={1}
-                className={FIELD}
+                className={PORT_FIELD}
                 value={httpDraft}
-                disabled={isSaving || phase === "moving"}
+                disabled={fieldsDisabled}
                 aria-invalid={dirty && (httpPort === null || same) ? true : undefined}
                 onChange={(e) => setHttpDraft(e.target.value.trim())}
               />
-            </SettingRow>
-            <SettingRow label={<label htmlFor={httpsId}>{t("web_port.https_label")}</label>}>
+            </div>
+          </div>
+          <div className={ROW.ROOT}>
+            <div className={ROW.TEXT}>
+              <label htmlFor={httpsId} className={ROW.LABEL}>
+                {t("web_port.https_label")}
+              </label>
+            </div>
+            <div className={ROW.CONTROL}>
               <Input
                 id={httpsId}
                 type="number"
@@ -184,35 +248,32 @@ const WebPortCard = () => {
                 min={1}
                 max={65535}
                 step={1}
-                className={FIELD}
+                className={PORT_FIELD}
                 value={httpsDraft}
-                disabled={isSaving || phase === "moving"}
+                disabled={fieldsDisabled}
                 aria-invalid={dirty && (httpsPort === null || same) ? true : undefined}
                 onChange={(e) => setHttpsDraft(e.target.value.trim())}
               />
-            </SettingRow>
+            </div>
           </div>
-        ) : null}
-      </CardContent>
+        </div>
 
-      {state && (
         <CardFoot
-          className="px-6"
           status={status}
           actions={
             <>
               <Button
                 type="button"
-                variant="tonal-neutral"
+                variant="ghost"
                 size="action"
                 onClick={discard}
-                disabled={!dirty || isSaving || phase === "moving"}
+                disabled={!dirty || fieldsDisabled}
               >
-                {t("web_port.discard")}
+                {t("actions.discard", { ns: "common" })}
               </Button>
               <SaveButton
                 onClick={() => setConfirmOpen(true)}
-                isSaving={isSaving || phase === "moving"}
+                isSaving={fieldsDisabled}
                 saved={false}
                 label={t("actions.apply", { ns: "common" })}
                 disabled={!canSave}
@@ -221,7 +282,7 @@ const WebPortCard = () => {
             </>
           }
         />
-      )}
+      </CardContent>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
