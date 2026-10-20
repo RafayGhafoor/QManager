@@ -383,7 +383,17 @@
       "copyright": "© {{year}} QManager. Tutti i diritti riservati.",
       "repository": "Repository GitHub",
       "release_notes": "Note di rilascio",
+      "credits": "Crediti",
       "support": "Sostieni il progetto"
+    },
+    "credits": {
+      "title": "Crediti",
+      "description": "QManager si appoggia a alcuni servizi esterni e a dati aperti. Grazie a tutti coloro che li rendono possibili.",
+      "roles": {
+        "apn": "Preset APN degli operatori",
+        "logos": "Loghi dei brand per mittenti SMS e siti monitorati",
+        "icons": "Icone dei siti quando non si trova un logo"
+      }
     },
     "errors": {
       "fetch_failed": "Impossibile leggere le informazioni del dispositivo"

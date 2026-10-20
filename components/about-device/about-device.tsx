@@ -12,6 +12,7 @@ import { staggerContainer, staggerItem } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 import AddressesCard from "./addresses-card";
+import CreditsDialog from "./credits-dialog";
 import IdentityBand from "./identity-band";
 import ModemCard from "./modem-card";
 import QManagerBand from "./qmanager-band";
@@ -34,6 +35,7 @@ const AboutDeviceComponent = () => {
   const { t } = useTranslation("common");
   const { data, isLoading, isRefreshing, error, refresh } = useAboutDevice();
   const [donateOpen, setDonateOpen] = React.useState(false);
+  const [creditsOpen, setCreditsOpen] = React.useState(false);
 
   const view = aboutView({ data, isLoading, error });
   const busy = isLoading || isRefreshing;
@@ -74,9 +76,13 @@ const AboutDeviceComponent = () => {
         <AddressesCard view={view} data={data} />
       </motion.div>
 
-      <QManagerBand onSupport={() => setDonateOpen(true)} />
+      <QManagerBand
+        onSupport={() => setDonateOpen(true)}
+        onCredits={() => setCreditsOpen(true)}
+      />
 
       <DonateDialog open={donateOpen} onOpenChange={setDonateOpen} />
+      <CreditsDialog open={creditsOpen} onOpenChange={setCreditsOpen} />
     </motion.div>
   );
 };

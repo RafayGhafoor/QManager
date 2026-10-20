@@ -383,7 +383,17 @@
       "copyright": "© {{year}} QManager. Seluruh hak cipta dilindungi.",
       "repository": "Repositori GitHub",
       "release_notes": "Catatan rilis",
+      "credits": "Kredit",
       "support": "Dukung proyek ini"
+    },
+    "credits": {
+      "title": "Kredit",
+      "description": "QManager memakai beberapa layanan eksternal dan data terbuka. Terima kasih kepada semua pihak di baliknya.",
+      "roles": {
+        "apn": "Preset APN operator",
+        "logos": "Logo merek untuk pengirim SMS dan situs yang dipantau",
+        "icons": "Ikon situs saat logo tidak ditemukan"
+      }
     },
     "errors": {
       "fetch_failed": "Tidak dapat membaca informasi perangkat"

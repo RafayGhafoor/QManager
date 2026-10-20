@@ -383,7 +383,17 @@
       "copyright": "© {{year}} QManager. All rights reserved.",
       "repository": "GitHub repository",
       "release_notes": "Release notes",
+      "credits": "Credits",
       "support": "Support the project"
+    },
+    "credits": {
+      "title": "Credits",
+      "description": "QManager leans on a few outside services and open data. Thank you to everyone behind them.",
+      "roles": {
+        "apn": "Carrier APN presets",
+        "logos": "Brand logos for SMS senders and monitored sites",
+        "icons": "Website icons when no logo is found"
+      }
     },
     "errors": {
       "fetch_failed": "Could not read the device information"
