@@ -30,12 +30,11 @@ import { staggerRowItem, staggerRows } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 import type {
-  SaveLowPowerPayload,
   SaveResult,
   SaveScheduledRebootPayload,
   UseSystemSettingsReturn,
 } from "@/hooks/use-system-settings";
-import type { LowPowerConfig, ScheduleConfig } from "@/types/system-settings";
+import type { ScheduleConfig } from "@/types/system-settings";
 
 import { ConditionBlock } from "./condition-block";
 import {
@@ -64,7 +63,6 @@ const K = "reboot";
 const renderCheckGlyph = (className: string) => (
   <CheckIcon size={SEGMENTED.GLYPH} className={className} aria-hidden="true" />
 );
-const LP = "low_power";
 
 /** Index 0-6 = Sun-Sat, matching `ScheduleConfig.days`. The status band reads
     the same keys, so the two cannot ship rival weekday names. */
@@ -73,19 +71,14 @@ export const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as con
 /** The sr-only line that says this card saves without a Save button. */
 const AUTOSAVE_HINT_ID = "scheduled-autosave-hint";
 
-/** Section heading over a group of rows. The card's own title stays the card's. */
-const SECTION_LABEL = "text-on-surface-variant px-1 text-xs font-semibold";
-
 /** The debounce between the last edit and the save it triggers. */
 const SAVE_DEBOUNCE_MS = 800;
 
 // -----------------------------------------------------------------------------
-// useAutosaveSchedule — one schedule block's draft, debounce and revert rules
+// useAutosaveSchedule — the schedule's draft, debounce and revert rules
 // -----------------------------------------------------------------------------
-// The reboot block and the low-power block save exactly the same way: the switch
-// saves at once, every other edit saves 800ms after the last while the schedule
-// is on, and a failed save puts the server's values back. They differ only in
-// which fields they hold, so the rules live here once.
+// The switch saves at once, every other edit saves 800ms after the last while
+// the schedule is on, and a failed save puts the server's values back.
 
 interface ScheduleLike {
   enabled: boolean;
@@ -381,7 +374,7 @@ function TimeRow({
   );
 }
 
-/** The switch row that every schedule block hangs off. */
+/** The switch row the schedule hangs off. */
 function EnableRow({
   id,
   ns,
@@ -433,25 +426,12 @@ function EnableRow({
 
 type ScheduledOperationsCardProps = Pick<
   UseSystemSettingsReturn,
-  | "scheduledReboot"
-  | "lowPower"
-  | "isLoading"
-  | "error"
-  | "saveScheduledReboot"
-  | "saveLowPower"
-  | "refresh"
+  "scheduledReboot" | "isLoading" | "error" | "saveScheduledReboot" | "refresh"
 >;
 
 const REBOOT_FALLBACK: ScheduleConfig = {
   enabled: false,
   time: "04:00",
-  days: [],
-};
-
-const LOW_POWER_FALLBACK: LowPowerConfig = {
-  enabled: false,
-  start_time: "23:00",
-  end_time: "06:00",
   days: [],
 };
 
@@ -464,22 +444,11 @@ const REBOOT_KEYS: ToastKeys = {
   unsaved: `${K}.toast.unsaved`,
 };
 
-const LOW_POWER_KEYS: ToastKeys = {
-  enabled: `${LP}.toast.enabled`,
-  disabled: `${LP}.toast.disabled`,
-  saved: `${LP}.toast.saved`,
-  saveFailed: `${LP}.toast.save_failed`,
-  updateFailed: `${LP}.toast.update_failed`,
-  unsaved: `${LP}.toast.unsaved`,
-};
-
 const ScheduledOperationsCard = ({
   scheduledReboot,
-  lowPower,
   isLoading,
   error,
   saveScheduledReboot,
-  saveLowPower,
   refresh,
 }: ScheduledOperationsCardProps) => {
   const { t } = useTranslation("system-settings");
@@ -536,46 +505,6 @@ const ScheduledOperationsCard = ({
               </div>
             </div>
           </div>
-          <div className={cn(ROW_GROUP)}>
-            <div className={ROW.ROOT}>
-              <div className={ROW.TEXT}>
-                <Skeleton className={cn(SKELETON.REBOOT.LABEL, "w-36")} />
-                <Skeleton
-                  className={cn(SKELETON.REBOOT.CONSEQUENCE, "w-full")}
-                />
-                <Skeleton
-                  className={cn(SKELETON.REBOOT.CONSEQUENCE_2, "w-2/3")}
-                />
-              </div>
-              <div className={ROW.CONTROL}>
-                <Skeleton className={SKELETON.REBOOT.PILL} />
-              </div>
-            </div>
-            {[0, 1].map((i) => (
-              <div key={i} className={ROW.ROOT}>
-                <div className={ROW.TEXT}>
-                  <Skeleton className={cn(SKELETON.REBOOT.LABEL, "w-24")} />
-                  <Skeleton
-                    className={cn(SKELETON.REBOOT.CONSEQUENCE, "w-3/5")}
-                  />
-                </div>
-                <div className={ROW.CONTROL}>
-                  <Skeleton className={SKELETON.REBOOT.FIELD} />
-                </div>
-              </div>
-            ))}
-            <div className={ROW.RAIL_ROOT}>
-              <div className={ROW.TEXT}>
-                <Skeleton className={cn(SKELETON.REBOOT.LABEL, "w-24")} />
-                <Skeleton className={cn(SKELETON.REBOOT.CONSEQUENCE, "w-4/5")} />
-              </div>
-              <div className={DAY_PILL.RAIL}>
-                {DAY_KEYS.map((key) => (
-                  <Skeleton key={key} className={SKELETON.REBOOT.DAY} />
-                ))}
-              </div>
-            </div>
-          </div>
           {/* The autosave receipt strip. Absent, the card grows by the strip
               and its gap the moment the data lands. */}
           <div className={RECEIPT_ROW}>
@@ -589,7 +518,7 @@ const ScheduledOperationsCard = ({
   // No schedule to show: a failed read, or an envelope carrying none. The form
   // must not render, because its fields would be defaults and the switch would
   // arm them.
-  if (!scheduledReboot || !lowPower) {
+  if (!scheduledReboot) {
     return (
       <Card className={CARD_SHELL}>
         {head}
@@ -613,10 +542,8 @@ const ScheduledOperationsCard = ({
     <ScheduledOperationsForm
       head={head}
       scheduledReboot={scheduledReboot}
-      lowPower={lowPower}
       error={error}
       saveScheduledReboot={saveScheduledReboot}
-      saveLowPower={saveLowPower}
     />
   );
 };
@@ -624,25 +551,21 @@ const ScheduledOperationsCard = ({
 // -----------------------------------------------------------------------------
 // Form
 // -----------------------------------------------------------------------------
-// Mounted only once both schedules exist, so each block's draft starts from the
-// device's values and never from a seeded week the user did not choose.
+// Mounted only once the schedule exists, so the draft starts from the device's
+// values and never from a seeded week the user did not choose.
 
 function ScheduledOperationsForm({
   head,
   scheduledReboot,
-  lowPower,
   error,
   saveScheduledReboot,
-  saveLowPower,
 }: {
   head: React.ReactNode;
   scheduledReboot: ScheduleConfig;
-  lowPower: LowPowerConfig;
   error: string | null;
   saveScheduledReboot: (
     payload: SaveScheduledRebootPayload,
   ) => Promise<SaveResult>;
-  saveLowPower: (payload: SaveLowPowerPayload) => Promise<SaveResult>;
 }) {
   const { t } = useTranslation("system-settings");
 
@@ -659,21 +582,7 @@ function ScheduledOperationsForm({
       }),
   });
 
-  const lp = useAutosaveSchedule<LowPowerConfig>({
-    server: lowPower,
-    fallback: LOW_POWER_FALLBACK,
-    keys: LOW_POWER_KEYS,
-    save: (draft) =>
-      saveLowPower({
-        action: "save_low_power",
-        enabled: draft.enabled,
-        start_time: draft.start_time,
-        end_time: draft.end_time,
-        days: draft.days,
-      }),
-  });
-
-  const isSaving = reboot.isSaving || lp.isSaving;
+  const isSaving = reboot.isSaving;
 
   return (
     <Card className={CARD_SHELL}>
@@ -694,8 +603,6 @@ function ScheduledOperationsForm({
           {t(`${K}.states.autosave`)}
         </span>
 
-        {/* ── Scheduled reboot ────────────────────────────────────────── */}
-        <span className={SECTION_LABEL}>{t(`${K}.section`)}</span>
         <motion.div
           variants={staggerRows}
           className={cn(ROW_GROUP, GROUP_FILL)}
@@ -720,39 +627,6 @@ function ScheduledOperationsForm({
             label={t(`${K}.rows.days.label`)}
             consequence={t(`${K}.rows.days.consequence`)}
             railLabel={t(`${K}.rows.days.rail`)}
-          />
-        </motion.div>
-
-        {/* ── Low power window ────────────────────────────────────────── */}
-        <span className={SECTION_LABEL}>{t(`${LP}.section`)}</span>
-        <motion.div variants={staggerRows} className={ROW_GROUP}>
-          <EnableRow
-            id="low-power-mode"
-            ns={LP}
-            checked={lp.draft.enabled}
-            hasDays={lp.draft.days.length > 0}
-            onChange={lp.setEnabled}
-          />
-          <TimeRow
-            id="low-power-start"
-            label={t(`${LP}.rows.start.label`)}
-            consequence={t(`${LP}.rows.start.consequence`)}
-            value={lp.draft.start_time}
-            onChange={(start_time) => lp.edit({ start_time })}
-          />
-          <TimeRow
-            id="low-power-end"
-            label={t(`${LP}.rows.end.label`)}
-            consequence={t(`${LP}.rows.end.consequence`)}
-            value={lp.draft.end_time}
-            onChange={(end_time) => lp.edit({ end_time })}
-          />
-          <DayRail
-            days={lp.draft.days}
-            onToggle={lp.toggleDay}
-            label={t(`${LP}.rows.days.label`)}
-            consequence={t(`${LP}.rows.days.consequence`)}
-            railLabel={t(`${LP}.rows.days.rail`)}
           />
         </motion.div>
 

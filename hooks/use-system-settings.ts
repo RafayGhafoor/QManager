@@ -7,7 +7,6 @@ import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type {
   SystemSettings,
   ScheduleConfig,
-  LowPowerConfig,
   SystemSettingsResponse,
 } from "@/types/system-settings";
 
@@ -40,14 +39,6 @@ export interface SaveScheduledRebootPayload {
   days: number[];
 }
 
-export interface SaveLowPowerPayload {
-  action: "save_low_power";
-  enabled: boolean;
-  start_time: string;
-  end_time: string;
-  days: number[];
-}
-
 // ─── Save Result ──────────────────────────────────────────────────────────
 
 /**
@@ -68,7 +59,6 @@ export interface SaveResult {
 export interface UseSystemSettingsReturn {
   settings: SystemSettings | null;
   scheduledReboot: ScheduleConfig | null;
-  lowPower: LowPowerConfig | null;
   isLoading: boolean;
   isSaving: boolean;
   /** Set only by a failed READ. Cleared by the next read. */
@@ -77,7 +67,6 @@ export interface UseSystemSettingsReturn {
   saveScheduledReboot: (
     payload: SaveScheduledRebootPayload,
   ) => Promise<SaveResult>;
-  saveLowPower: (payload: SaveLowPowerPayload) => Promise<SaveResult>;
   refresh: (silent?: boolean) => Promise<void>;
 }
 
@@ -88,7 +77,6 @@ export function useSystemSettings(): UseSystemSettingsReturn {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [scheduledReboot, setScheduledReboot] =
     useState<ScheduleConfig | null>(null);
-  const [lowPower, setLowPower] = useState<LowPowerConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -134,7 +122,6 @@ export function useSystemSettings(): UseSystemSettingsReturn {
 
       setSettings(json.settings);
       setScheduledReboot(json.scheduled_reboot);
-      setLowPower(json.low_power);
     } catch (err) {
       if (!mountedRef.current) return;
       if (seq <= appliedSeqRef.current) return;
@@ -160,10 +147,7 @@ export function useSystemSettings(): UseSystemSettingsReturn {
   // ---------------------------------------------------------------------------
   const postAction = useCallback(
     async (
-      payload:
-        | SaveSettingsPayload
-        | SaveScheduledRebootPayload
-        | SaveLowPowerPayload,
+      payload: SaveSettingsPayload | SaveScheduledRebootPayload,
     ): Promise<SaveResult> => {
       setIsSaving(true);
 
@@ -215,21 +199,14 @@ export function useSystemSettings(): UseSystemSettingsReturn {
     [postAction],
   );
 
-  const saveLowPower = useCallback(
-    (payload: SaveLowPowerPayload) => postAction(payload),
-    [postAction],
-  );
-
   return {
     settings,
     scheduledReboot,
-    lowPower,
     isLoading,
     isSaving,
     error,
     saveSettings,
     saveScheduledReboot,
-    saveLowPower,
     refresh: fetchSettings,
   };
 }
