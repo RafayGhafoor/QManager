@@ -46,11 +46,7 @@ import {
 import { SegmentedField } from "@/components/ui/segmented-field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tag } from "@/components/ui/tag";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { HintIcon } from "@/components/ui/hint-icon";
 import { staggerRowItem, staggerRows } from "@/lib/motion";
 import type { CarrierComponent, NetworkType } from "@/types/modem-status";
 import {
@@ -437,20 +433,12 @@ export default function NrSaTowerCard({
     ? `${FIELD_TILE.ROOT} ${FIELD_TILE.UNUSED}`
     : FIELD_TILE.ROOT;
 
-  const scsProvenance =
+  // Only a guess is worth saying: a value read from the serving cell is the
+  // expected case and needs no mark.
+  const scsGuessTip =
     scsSource === "band_default" && band
-      ? {
-          glyph: "warning" as MaterialSymbolName,
-          className: "text-warning-on-surface",
-          tip: t(`${K}.fields.scs_guess`, { band }),
-        }
-      : scsSource === "servingcell"
-        ? {
-            glyph: "check_circle" as MaterialSymbolName,
-            className: "text-success-on-surface",
-            tip: t(`${K}.fields.scs_from_serving`),
-          }
-        : null;
+      ? t(`${K}.fields.scs_guess`, { band })
+      : null;
 
   const footStatus = writeError ? (
     <span
@@ -654,30 +642,15 @@ export default function NrSaTowerCard({
                   <Label htmlFor={`${fieldId}-scs`} className={FIELD_LABEL}>
                     {t(`${K}.fields.scs`)}
                   </Label>
-                  {scsProvenance ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label={scsProvenance.tip}
-                          className="focus-visible:ring-ring focus-visible:ring-offset-background inline-flex rounded-pill focus-visible:ring-[3px] focus-visible:ring-offset-2 focus-visible:outline-none"
-                        >
-                          <MaterialSymbol
-                            name={scsProvenance.glyph}
-                            size={14}
-                            className={scsProvenance.className}
-                          />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="w-64 text-pretty">
-                        {scsProvenance.tip}
-                      </TooltipContent>
-                    </Tooltip>
+                  {scsGuessTip ? (
+                    <HintIcon tone="warning" label={t(`${K}.fields.scs`)}>
+                      {scsGuessTip}
+                    </HintIcon>
                   ) : null}
                 </div>
-                {scsProvenance ? (
+                {scsGuessTip ? (
                   <span id={`${fieldId}-scs-provenance`} className="sr-only">
-                    {scsProvenance.tip}
+                    {scsGuessTip}
                   </span>
                 ) : null}
                 <Select
@@ -692,7 +665,7 @@ export default function NrSaTowerCard({
                     id={`${fieldId}-scs`}
                     className={FIELD_TILE.SELECT}
                     aria-describedby={
-                      scsProvenance ? `${fieldId}-scs-provenance` : undefined
+                      scsGuessTip ? `${fieldId}-scs-provenance` : undefined
                     }
                   >
                     <SelectValue placeholder={t(`${K}.fields.scs`)} />

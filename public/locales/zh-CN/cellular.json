@@ -1285,8 +1285,7 @@
         "slot_clear": "清除小区 {{index}}",
         "slot_in_use": "位于小区 {{index}}",
         "pick_placeholder": "选择一个在用载波",
-        "scs_guess": "已按频段 {{band}} 的默认值填入。若锁定失败，请与您的基站核对。",
-        "scs_from_serving": "读取自调制解调器当前驻留的小区。"
+        "scs_guess": "已按频段 {{band}} 的默认值填入。若锁定失败，请与您的基站核对。"
       },
       "card": {
         "unread_note": "调制解调器未报告锁定状态。",

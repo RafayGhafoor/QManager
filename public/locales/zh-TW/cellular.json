@@ -1285,8 +1285,7 @@
         "slot_clear": "清除小區 {{index}}",
         "slot_in_use": "位於小區 {{index}}",
         "pick_placeholder": "選擇一個在用載波",
-        "scs_guess": "已按頻段 {{band}} 的預設值填入。若鎖定失敗，請與您的基站核對。",
-        "scs_from_serving": "讀取自數據機當前駐留的小區。"
+        "scs_guess": "已按頻段 {{band}} 的預設值填入。若鎖定失敗，請與您的基站核對。"
       },
       "card": {
         "unread_note": "數據機未報告鎖定狀態。",

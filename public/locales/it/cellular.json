@@ -1285,8 +1285,7 @@
         "slot_clear": "Svuota la cella {{index}}",
         "slot_in_use": "Nella cella {{index}}",
         "pick_placeholder": "Scegli una portante attiva",
-        "scs_guess": "Compilato dal valore predefinito della banda {{band}}. Verificalo con la tua torre se il blocco fallisce.",
-        "scs_from_serving": "Letto dalla cella a cui è agganciato il modem."
+        "scs_guess": "Compilato dal valore predefinito della banda {{band}}. Verificalo con la tua torre se il blocco fallisce."
       },
       "card": {
         "unread_note": "Il modem non ha segnalato lo stato del blocco.",

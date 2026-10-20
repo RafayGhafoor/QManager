@@ -1285,8 +1285,7 @@
         "slot_clear": "Clear cell {{index}}",
         "slot_in_use": "In cell {{index}}",
         "pick_placeholder": "Pick a carrier on air",
-        "scs_guess": "Filled from the band {{band}} default. Check it against your tower if the lock fails.",
-        "scs_from_serving": "Read from the cell the modem is camped on."
+        "scs_guess": "Filled from the band {{band}} default. Check it against your tower if the lock fails."
       },
       "card": {
         "unread_note": "The modem did not report its lock state.",

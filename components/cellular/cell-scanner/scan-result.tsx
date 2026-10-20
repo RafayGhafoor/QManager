@@ -17,11 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { prbToBandwidthMhz } from "@/lib/earfcn";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { HintIcon } from "@/components/ui/hint-icon";
 import type { CellScanResult } from "@/types/cell-scanner";
 
 import ScanTable from "./scan-table";
@@ -103,22 +99,11 @@ export function createCellScanColumns(
       cell: ({ row }) => (
         <span className="flex items-center gap-1">
           <span className="font-semibold">{row.original.provider}</span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="-m-2 inline-flex p-2"
-                aria-label={labels.networkCodes}
-              >
-                <MaterialSymbol name="info" size={12} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <span className={TABLE.IDENT}>
-                {row.original.mcc} {row.original.mnc}
-              </span>
-            </TooltipContent>
-          </Tooltip>
+          <HintIcon label={labels.networkCodes}>
+            <span className={TABLE.IDENT}>
+              MCC {row.original.mcc} / MNC {row.original.mnc}
+            </span>
+          </HintIcon>
         </span>
       ),
     },

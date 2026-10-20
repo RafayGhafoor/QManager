@@ -1285,8 +1285,7 @@
         "slot_clear": "Kosongkan sel {{index}}",
         "slot_in_use": "Di sel {{index}}",
         "pick_placeholder": "Pilih carrier yang aktif",
-        "scs_guess": "Diisi dari nilai default band {{band}}. Periksa dengan tower Anda jika penguncian gagal.",
-        "scs_from_serving": "Dibaca dari sel tempat modem terhubung."
+        "scs_guess": "Diisi dari nilai default band {{band}}. Periksa dengan tower Anda jika penguncian gagal."
       },
       "card": {
         "unread_note": "Modem tidak melaporkan status penguncian.",
