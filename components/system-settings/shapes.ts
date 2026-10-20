@@ -793,7 +793,7 @@ export const PATH = {
   EYEBROW:
     "text-on-surface-variant inline-flex items-center gap-1.5 text-xs font-medium",
   FIELD:
-    "relative grid h-[6.5rem] grid-cols-[auto_minmax(2.75rem,1fr)_auto_minmax(2.75rem,1fr)_auto] grid-rows-2 items-center",
+    "relative grid h-[6.5rem] grid-cols-[auto_minmax(1.5rem,1fr)_auto_minmax(1.5rem,1fr)_auto] grid-rows-2 items-center",
   /**
    * A lone end spans both lanes: the disc over its name. The top padding is the
    * name's height, so the disc, not the pair, centres on the seam the trunks
@@ -802,10 +802,11 @@ export const PATH = {
   STACK: "relative z-10 row-span-2 flex min-w-0 flex-col items-center justify-center gap-1.5 pt-[1.375rem]",
   /**
    * One of a pair, or a lane's node: a pill holding the disc and its name. The
-   * pills in a column share its width, so the lines leave them on one edge. The
-   * pill is opaque so a bead passing through vanishes under it.
+   * pills in a column share its width, so the lines leave them on one edge. A
+   * pill never shrinks under its name, or a line would run over it. The pill
+   * is opaque so a bead passing through vanishes under it.
    */
-  CHIP: "bg-surface-container-high relative z-10 flex min-w-0 items-center gap-1.5 rounded-pill p-1",
+  CHIP: "bg-surface-container-high relative z-10 flex items-center gap-1.5 rounded-pill p-1",
   DISC: "grid size-7 flex-none place-items-center rounded-pill transition-[background-color,color] duration-[var(--duration-standard)] ease-standard",
   DISC_LONE: "size-11",
   DISC_LIT: "bg-success text-success-foreground",
