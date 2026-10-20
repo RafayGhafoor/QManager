@@ -199,7 +199,9 @@
   "custom_profiles": {
     "page": {
       "title": "Custom SIM Profile",
-      "description": "Bundle APN, IMEI, and TTL/HL settings into one-click profiles."
+      "description": "Bundle APN, IMEI, and TTL/HL settings into one-click profiles.",
+      "new_profile": "New profile",
+      "new_scenario": "New scenario"
     },
     "view": {
       "title": "Saved Profiles",
@@ -478,9 +480,14 @@
     },
     "deactivate_dialog": {
       "title": "Deactivate Profile",
-      "description": "Clear the active profile marker? The modem's current settings (APN, IMEI, TTL) will not be reverted — only the \"Active\" badge will be removed.",
+      "description": "Its schedule stops, the default connection scenario returns, and your regular APN settings are restored.",
       "confirm": "Deactivate",
-      "deactivating": "Deactivating…"
+      "working_title": "Deactivating Profile",
+      "unknown_profile": "No profile name",
+      "confirm_headline": "Stop using this profile?",
+      "working_headline": "Restoring your regular settings",
+      "working_sub": "The mobile connection may drop briefly while the APN is restored. Please don't navigate away.",
+      "verizon_note": "This Verizon profile's data routing rule is reverted too, and the modem needs a reboot afterwards. Reboot from the banner when you are ready."
     },
     "apply_dialog": {
       "title": "Applying Profile",
@@ -579,13 +586,64 @@
       "save_failed": "Couldn't save the profile.",
       "delete_failed": "Couldn't delete the profile.",
       "deactivate_failed": "Couldn't deactivate the profile."
+    },
+    "hero": {
+      "eyebrow": "In force now",
+      "iccid": "ICCID {{value}}",
+      "edit": "Edit",
+      "deactivate": "Deactivate",
+      "reapply": "Reapply profile",
+      "pending_network": "Applies on next activation",
+      "notice": {
+        "unknown_step": "unknown",
+        "applying_title": "Applying {{name}}",
+        "applying_body": "Step {{step}} of {{total}}. The connection may drop briefly while the radio reattaches.",
+        "partial_title": "Only partly applied",
+        "partial_body": "The {{step}} step did not apply. Reapply the profile to try every step again.",
+        "mismatch_title": "A different SIM is inserted",
+        "mismatch_body": "This profile was saved for another SIM. Its settings apply to the SIM in the modem until the next restart or SIM change."
+      },
+      "tiles": {
+        "identity": "Identity",
+        "scenario": "Scenario in force",
+        "scheduled": "Scheduled",
+        "not_scheduled": "Not scheduled",
+        "radio": "Radio configuration",
+        "band_locking": "Band locking",
+        "bands_auto": "All bands"
+      },
+      "scenario": {
+        "unknown": "Unknown scenario"
+      },
+      "ribbon": {
+        "title": "Today's schedule",
+        "edit": "Edit schedule",
+        "unknown_scenario": "Unknown scenario",
+        "aria_label": "Today's scenario schedule: {{schedule}}",
+        "aria_segment": "{{name}} until {{end}}",
+        "aria_join": ", then ",
+        "aria_empty": "No scenario schedule for today"
+      },
+      "badge": {
+        "live": "Active",
+        "applying": "Applying",
+        "partial": "Partly applied",
+        "mismatch": "SIM mismatch"
+      }
+    },
+    "hero_empty": {
+      "title": "No profile is active",
+      "description": "The modem runs your regular APN settings and the default connection scenario. Save a profile to pin an APN, TTL and scenario schedule to a SIM.",
+      "description_saved": "Nothing is in force right now. Activate one of your saved profiles below to put its settings and schedule back in place.",
+      "activate_action": "Activate a profile"
+    },
+    "hero_error": {
+      "title": "Profile details unavailable",
+      "description": "A profile is active on your modem, but its details couldn't be loaded. Nothing has changed on the device.",
+      "retry": "Try again"
     }
   },
   "scenarios": {
-    "page": {
-      "title": "Connection Scenarios",
-      "description": "Switch the radio between saved network setups."
-    },
     "default_balanced_name": "Balanced",
     "default_balanced_description": "Auto band selection",
     "default_gaming_name": "Gaming",
@@ -2460,6 +2518,17 @@
       "errors": {
         "read_failed": "The device could not read the SIM's forbidden network list.",
         "unreachable": "Unable to reach the device."
+      }
+    }
+  },
+  "profiles": {
+    "today": {
+      "armed": "Schedule armed",
+      "not_armed": "No schedule",
+      "summary": {
+        "until": "in force until {{time}}, then {{next}}",
+        "rest_of_day": "in force for the rest of today",
+        "all_day": "in force all day"
       }
     }
   }
