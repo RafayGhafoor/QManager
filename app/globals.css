@@ -750,9 +750,10 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Ambient loops (DESIGN.md > Motion). These two are the ONLY continuous
-   animations sanctioned in the product, and both are gated on something being
-   genuinely live — the One-Loop Rule. Both are written on the ambient token
+   Ambient loops (DESIGN.md > Motion). These three (the ring, the ping and the
+   path flow) are the ONLY live continuous animations sanctioned in the
+   product, each gated on something being genuinely live — the One-Loop Rule.
+   All are written on the ambient token
    pair rather than a literal `2s ease-in-out` so a future retune moves every
    surface at once.
 --------------------------------------------------------------------------- */
@@ -796,6 +797,35 @@
 
 .animate-live-ping {
   animation: live-ping var(--duration-ambient) var(--ease-ambient) infinite;
+}
+
+/* Path flow: beads riding the in-play lane of the Hardware pair's path diagram
+   (components/system-settings/hardware/path-diagram.tsx), the third sanctioned
+   loop (DESIGN.md > The One-Loop Rule, 2026-10-20). It runs only on a lane that
+   is really carrying traffic, never on a draft or a pending reboot. The bead's
+   host spans the line and travels its own width, so the bead (pinned to the
+   host's right edge) crosses the line start to end on transform alone.
+   `linear`, not the ambient ease: this is a continuous stream, and an eased
+   bead would read as bunching at the ends. Written as a utility so it is only
+   ever applied under `motion-safe:`; the bead rests at opacity 0, so Reduced
+   shows the still solid line and no beads. */
+@keyframes path-flow {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  15%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+}
+
+@utility animate-path-flow {
+  animation: path-flow var(--duration-ambient) linear infinite;
 }
 
 /* ---------------------------------------------------------------------------
