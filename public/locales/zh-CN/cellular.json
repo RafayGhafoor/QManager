@@ -696,7 +696,9 @@
       },
       "activate": "激活",
       "edit": "编辑",
-      "running_note": "此场景当前正在运行。"
+      "running_note": "此场景当前正在运行。",
+      "show_details": "显示详情",
+      "hide_details": "隐藏详情"
     },
     "add_dialog": {
       "title": "新建连接场景",

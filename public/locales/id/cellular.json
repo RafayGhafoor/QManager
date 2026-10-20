@@ -696,7 +696,9 @@
       },
       "activate": "Aktifkan",
       "edit": "Ubah",
-      "running_note": "Skenario ini sedang berjalan."
+      "running_note": "Skenario ini sedang berjalan.",
+      "show_details": "Tampilkan detail",
+      "hide_details": "Sembunyikan detail"
     },
     "add_dialog": {
       "title": "Skenario Koneksi Baru",

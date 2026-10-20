@@ -696,7 +696,9 @@
       },
       "activate": "Attiva",
       "edit": "Modifica",
-      "running_note": "Questo scenario è in esecuzione ora."
+      "running_note": "Questo scenario è in esecuzione ora.",
+      "show_details": "Mostra dettagli",
+      "hide_details": "Nascondi dettagli"
     },
     "add_dialog": {
       "title": "Nuovo scenario di connessione",

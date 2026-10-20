@@ -696,7 +696,9 @@
       },
       "activate": "Activate",
       "edit": "Edit",
-      "running_note": "This scenario is running now."
+      "running_note": "This scenario is running now.",
+      "show_details": "Show details",
+      "hide_details": "Hide details"
     },
     "add_dialog": {
       "title": "New Connection Scenario",
