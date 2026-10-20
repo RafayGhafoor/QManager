@@ -2158,10 +2158,11 @@
       "edit": {
         "fields": {
           "apn": {
-            "label": "APN *",
+            "label": "APN",
             "placeholder": "fast.t-mobile.com",
             "error_required": "APN 為必填項",
-            "error_invalid": "僅可使用字母、數字、點、連字號和底線（最多 100 個字元）"
+            "error_invalid": "僅可使用字母、數字、點、連字號和底線（最多 100 個字元）",
+            "consequence": "電信商提供的行動數據存取點名稱。"
           },
           "pdp_type": {
             "label": "PDP 型別",
@@ -2171,7 +2172,8 @@
               "ipv4": "IPv4",
               "ipv6": "IPv6",
               "ipv4v6": "IPv4v6"
-            }
+            },
+            "consequence": "連線要求使用的 IP 版本。"
           },
           "modem_profile": {
             "label": "CID",
@@ -2180,7 +2182,8 @@
             "option_template": "CID {{cid}}",
             "for_internet": "網際網路",
             "ims_badge": "IMS",
-            "sos_badge": "SOS"
+            "sos_badge": "SOS",
+            "consequence": "承載數據的數據機內容。"
           }
         },
         "cid_confirm": {
@@ -2198,12 +2201,17 @@
           "description": "選擇數據機執行的電信業者韌體設定檔；變更後需要重新啟動。"
         },
         "auto_select": {
-          "label": "自動選擇設定檔"
+          "label": "自動選擇設定檔",
+          "consequence": "數據機會選擇與 SIM 卡相符的設定檔。"
         },
         "configuration": {
           "label": "運營商設定",
           "placeholder": "選擇運營商設定",
-          "option_active_suffix": "（活動）"
+          "option_active_suffix": "（活動）",
+          "running": "執行中",
+          "auto_hint": "關閉自動選擇後才能選擇設定檔。",
+          "empty_title": "沒有電信商設定檔",
+          "empty_body": "數據機未列出任何電信商設定檔。"
         },
         "save": "儲存設定",
         "reboot_dialog": {
@@ -2231,6 +2239,14 @@
         "load_failed": "數據機未回傳 APN 設定，請稍後再試。",
         "save_failed": "無法儲存 APN。",
         "deactivate_failed": "無法切換到電信業者預設 APN。"
+      },
+      "readout": {
+        "mode_label": "模式",
+        "custom": "自訂 APN",
+        "context_label": "數據內容",
+        "not_connected": "未連線",
+        "matches": "與已儲存的 APN 一致",
+        "not_live_note": "網路正在使用的 APN 與已儲存的不同。"
       }
     },
     "imei": {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
 import ApnSettingsCard from "./apn-settings-card";
@@ -10,19 +11,25 @@ import { Banner } from "@/components/ui/banner";
 import { useApnSettings } from "@/hooks/use-apn-settings";
 import { useMbnSettings } from "@/hooks/use-mbn-settings";
 import { useSimProfiles } from "@/hooks/use-sim-profiles";
+import { staggerContainer, staggerItem } from "@/lib/motion";
+import { cn } from "@/lib/utils";
+
+import { APN_PAIR, PAGE_ROOT } from "../shapes";
 
 // =============================================================================
 // APNSettingsComponent — APN Settings page coordinator (single-APN model)
 // =============================================================================
-// Two stacked cards: the APN (what the data connection dials) and the carrier
-// profile (MBN). They are unrelated settings, so they stack full-width rather
-// than sitting as a uniform two-column pair.
+// Two write cards side by side on desktop (`APN_PAIR`), stacked below
+// `@4xl/main`: the APN (what the data connection dials, plus what is live) and
+// the carrier profile (MBN). Both are write surfaces of comparable weight with
+// their own CardFoot, locked to one height; the MBN bundle list absorbs the
+// slack. They arrive on the family's card cascade.
 //
 // Gating: when a Custom SIM Profile is active AND that profile sets a
-// non-empty APN, this whole page becomes read-only. The user can still see
-// the current configuration but can't edit it — the source of truth is the
-// profile. We wrap the cards in a disabled <fieldset> rather than threading
-// `disabled` through every child component.
+// non-empty APN, the APN card becomes read-only; the source of truth is the
+// profile. It is a disabled <fieldset> rather than `disabled` threaded through
+// every child. MBN sits OUTSIDE the gate: no profile manages carrier bundles,
+// so a profile owning the APN has nothing to say about it.
 //
 // An MBN change needs a reboot. The dialog after a successful save offers it;
 // "Later" persists the deferred-reboot flag, and the app-shell banner
@@ -109,12 +116,14 @@ const APNSettingsComponent = () => {
     : t("core_settings.apn.managed_by_profile_fallback");
 
   return (
-    <div className="@container/main mx-auto flex flex-col gap-5 p-2">
+    <div className={PAGE_ROOT}>
       <CellularPageHeader
         title={t("core_settings.apn.page.title")}
         description={t("core_settings.apn.page.description")}
       />
 
+      {/* Outside the cascade: a condition arriving should not queue behind the
+          cards it governs. `Banner` owns its own entrance. */}
       {isProfileControlled ? (
         <Banner
           role="override"
@@ -125,41 +134,51 @@ const APNSettingsComponent = () => {
         />
       ) : null}
 
-      {/* Fieldset wrap: `pointer-events-none opacity-60` makes the disabled
-          state visually obvious while leaving values readable. */}
-      <fieldset
-        disabled={isProfileControlled || overrideUndetermined}
-        className={
-          isProfileControlled
-            ? "pointer-events-none m-0 grid grid-cols-1 gap-4 border-0 p-0 opacity-60"
-            : "m-0 grid grid-cols-1 gap-4 border-0 p-0"
-        }
+      <motion.div
+        className={APN_PAIR.GRID}
+        variants={staggerContainer}
+        initial="hidden"
+        animate="visible"
       >
-        <ApnSettingsCard
-          apn={apn}
-          cids={cids}
-          active={active}
-          activeCid={activeCid}
-          dataCidSource={dataCidSource}
-          isLoading={isLoading || overrideUndetermined}
-          isSaving={isSaving}
-          loadError={apn === null ? error : null}
-          onRetry={() => refresh()}
-          onSave={save}
-          onDeactivate={deactivate}
-        />
+        <motion.div variants={staggerItem} className={APN_PAIR.CELL}>
+          {/* `pointer-events-none opacity-60` makes the locked state obvious
+              while leaving values readable. */}
+          <fieldset
+            disabled={isProfileControlled || overrideUndetermined}
+            className={cn(
+              "m-0 flex min-w-0 flex-col border-0 p-0",
+              isProfileControlled && "pointer-events-none opacity-60",
+            )}
+          >
+            <ApnSettingsCard
+              apn={apn}
+              cids={cids}
+              active={active}
+              activeCid={activeCid}
+              dataCidSource={dataCidSource}
+              isLoading={isLoading || overrideUndetermined}
+              isSaving={isSaving}
+              loadError={apn === null ? error : null}
+              onRetry={() => refresh()}
+              onSave={save}
+              onDeactivate={deactivate}
+            />
+          </fieldset>
+        </motion.div>
 
-        <MBNCard
-          profiles={mbnProfiles}
-          autoSel={autoSel}
-          isLoading={mbnLoading}
-          isSaving={mbnSaving}
-          loadError={mbnProfiles === null ? mbnError : null}
-          onRetry={() => refreshMbn()}
-          onSave={saveMbn}
-          onReboot={rebootDevice}
-        />
-      </fieldset>
+        <motion.div variants={staggerItem} className={APN_PAIR.CELL}>
+          <MBNCard
+            profiles={mbnProfiles}
+            autoSel={autoSel}
+            isLoading={mbnLoading}
+            isSaving={mbnSaving}
+            loadError={mbnProfiles === null ? mbnError : null}
+            onRetry={() => refreshMbn()}
+            onSave={saveMbn}
+            onReboot={rebootDevice}
+          />
+        </motion.div>
+      </motion.div>
     </div>
   );
 };

@@ -2158,10 +2158,11 @@
       "edit": {
         "fields": {
           "apn": {
-            "label": "APN *",
+            "label": "APN",
             "placeholder": "fast.t-mobile.com",
             "error_required": "APN wajib diisi",
-            "error_invalid": "Gunakan hanya huruf, angka, titik, tanda hubung, dan garis bawah (maksimal 100 karakter)"
+            "error_invalid": "Gunakan hanya huruf, angka, titik, tanda hubung, dan garis bawah (maksimal 100 karakter)",
+            "consequence": "Nama yang diberikan operator untuk data seluler."
           },
           "pdp_type": {
             "label": "Tipe PDP",
@@ -2171,7 +2172,8 @@
               "ipv4": "IPv4",
               "ipv6": "IPv6",
               "ipv4v6": "IPv4v6"
-            }
+            },
+            "consequence": "Versi IP yang diminta koneksi."
           },
           "modem_profile": {
             "label": "CID",
@@ -2180,7 +2182,8 @@
             "option_template": "CID {{cid}}",
             "for_internet": "Internet",
             "ims_badge": "IMS",
-            "sos_badge": "SOS"
+            "sos_badge": "SOS",
+            "consequence": "Konteks modem yang membawa data Anda."
           }
         },
         "cid_confirm": {
@@ -2198,12 +2201,17 @@
           "description": "Pilih profil firmware operator yang dijalankan modem; perubahan memerlukan reboot."
         },
         "auto_select": {
-          "label": "Pilih Otomatis Profil"
+          "label": "Pilih Otomatis Profil",
+          "consequence": "Modem memilih profil yang cocok dengan SIM Anda."
         },
         "configuration": {
           "label": "Konfigurasi Operator",
           "placeholder": "Pilih Konfigurasi Operator",
-          "option_active_suffix": " (Aktif)"
+          "option_active_suffix": " (Aktif)",
+          "running": "Sedang berjalan",
+          "auto_hint": "Matikan pilih otomatis untuk memilih profil.",
+          "empty_title": "Tidak ada profil operator",
+          "empty_body": "Modem tidak mencantumkan profil operator apa pun."
         },
         "save": "Simpan Pengaturan",
         "reboot_dialog": {
@@ -2231,6 +2239,14 @@
         "load_failed": "Modem tidak mengembalikan pengaturan APN. Coba lagi sebentar lagi.",
         "save_failed": "Tidak dapat menyimpan APN.",
         "deactivate_failed": "Tidak dapat beralih ke APN bawaan operator."
+      },
+      "readout": {
+        "mode_label": "Mode",
+        "custom": "APN kustom",
+        "context_label": "Konteks data",
+        "not_connected": "Tidak terhubung",
+        "matches": "Sama dengan APN yang disimpan",
+        "not_live_note": "Jaringan menggunakan APN yang berbeda dari yang disimpan."
       }
     },
     "imei": {

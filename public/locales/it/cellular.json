@@ -2158,10 +2158,11 @@
       "edit": {
         "fields": {
           "apn": {
-            "label": "APN *",
+            "label": "APN",
             "placeholder": "fast.t-mobile.com",
             "error_required": "L'APN è obbligatorio",
-            "error_invalid": "Usa solo lettere, numeri, punti, trattini e trattini bassi (massimo 100 caratteri)"
+            "error_invalid": "Usa solo lettere, numeri, punti, trattini e trattini bassi (massimo 100 caratteri)",
+            "consequence": "Il nome fornito dall'operatore per i dati mobili."
           },
           "pdp_type": {
             "label": "Tipo PDP",
@@ -2171,7 +2172,8 @@
               "ipv4": "IPv4",
               "ipv6": "IPv6",
               "ipv4v6": "IPv4v6"
-            }
+            },
+            "consequence": "Quali versioni IP richiede la connessione."
           },
           "modem_profile": {
             "label": "CID",
@@ -2180,7 +2182,8 @@
             "option_template": "CID {{cid}}",
             "for_internet": "Internet",
             "ims_badge": "IMS",
-            "sos_badge": "SOS"
+            "sos_badge": "SOS",
+            "consequence": "Il contesto del modem che trasporta i dati."
           }
         },
         "cid_confirm": {
@@ -2198,12 +2201,17 @@
           "description": "Scegli il profilo firmware dell'operatore usato dal modem; le modifiche richiedono un riavvio."
         },
         "auto_select": {
-          "label": "Profilo di selezione automatica"
+          "label": "Profilo di selezione automatica",
+          "consequence": "Il modem sceglie il profilo adatto alla tua SIM."
         },
         "configuration": {
           "label": "Configurazione del corriere",
           "placeholder": "Scegli Configurazione operatore",
-          "option_active_suffix": " (Attivo)"
+          "option_active_suffix": " (Attivo)",
+          "running": "In uso ora",
+          "auto_hint": "Disattiva la selezione automatica per scegliere un profilo.",
+          "empty_title": "Nessun profilo operatore",
+          "empty_body": "Il modem non ha elencato alcun profilo operatore."
         },
         "save": "Salva impostazioni",
         "reboot_dialog": {
@@ -2231,6 +2239,14 @@
         "load_failed": "Il modem non ha restituito le impostazioni APN. Riprova tra poco.",
         "save_failed": "Impossibile salvare l'APN.",
         "deactivate_failed": "Impossibile passare all'APN predefinito dell'operatore."
+      },
+      "readout": {
+        "mode_label": "Modalità",
+        "custom": "APN personalizzato",
+        "context_label": "Contesto dati",
+        "not_connected": "Non connesso",
+        "matches": "Corrisponde all'APN salvato",
+        "not_live_note": "La rete sta usando un APN diverso da quello salvato."
       }
     },
     "imei": {

@@ -2158,10 +2158,11 @@
       "edit": {
         "fields": {
           "apn": {
-            "label": "APN *",
+            "label": "APN",
             "placeholder": "fast.t-mobile.com",
             "error_required": "APN is required",
-            "error_invalid": "Use only letters, numbers, dots, hyphens and underscores (up to 100 characters)"
+            "error_invalid": "Use only letters, numbers, dots, hyphens and underscores (up to 100 characters)",
+            "consequence": "The name your carrier gives for mobile data."
           },
           "pdp_type": {
             "label": "PDP Type",
@@ -2171,7 +2172,8 @@
               "ipv4": "IPv4",
               "ipv6": "IPv6",
               "ipv4v6": "IPv4v6"
-            }
+            },
+            "consequence": "Which IP versions the connection asks for."
           },
           "modem_profile": {
             "label": "CID",
@@ -2180,7 +2182,8 @@
             "option_template": "CID {{cid}}",
             "for_internet": "Internet",
             "ims_badge": "IMS",
-            "sos_badge": "SOS"
+            "sos_badge": "SOS",
+            "consequence": "The modem context that carries your data."
           }
         },
         "cid_confirm": {
@@ -2198,12 +2201,17 @@
           "description": "Choose the carrier firmware profile the modem runs; changes need a reboot."
         },
         "auto_select": {
-          "label": "Auto-Select Profile"
+          "label": "Auto-Select Profile",
+          "consequence": "The modem picks the profile that matches your SIM."
         },
         "configuration": {
           "label": "Carrier Configuration",
           "placeholder": "Choose Carrier Configuration",
-          "option_active_suffix": " (Active)"
+          "option_active_suffix": " (Active)",
+          "running": "Running now",
+          "auto_hint": "Turn off auto-select to choose a profile.",
+          "empty_title": "No carrier profiles",
+          "empty_body": "The modem didn't list any carrier profiles."
         },
         "save": "Save Settings",
         "reboot_dialog": {
@@ -2231,6 +2239,14 @@
         "load_failed": "The modem didn't answer with its APN settings. Try again in a moment.",
         "save_failed": "Couldn't save the APN.",
         "deactivate_failed": "Couldn't switch to the carrier default APN."
+      },
+      "readout": {
+        "mode_label": "Mode",
+        "custom": "Custom APN",
+        "context_label": "Data context",
+        "not_connected": "Not connected",
+        "matches": "Matches the saved APN",
+        "not_live_note": "The network is using a different APN than the one saved."
       }
     },
     "imei": {

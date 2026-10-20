@@ -2158,10 +2158,11 @@
       "edit": {
         "fields": {
           "apn": {
-            "label": "APN *",
+            "label": "APN",
             "placeholder": "fast.t-mobile.com",
             "error_required": "APN 为必填项",
-            "error_invalid": "仅可使用字母、数字、点、连字符和下划线（最多 100 个字符）"
+            "error_invalid": "仅可使用字母、数字、点、连字符和下划线（最多 100 个字符）",
+            "consequence": "运营商提供的移动数据接入点名称。"
           },
           "pdp_type": {
             "label": "PDP 类型",
@@ -2171,7 +2172,8 @@
               "ipv4": "IPv4",
               "ipv6": "IPv6",
               "ipv4v6": "IPv4v6"
-            }
+            },
+            "consequence": "连接请求使用的 IP 版本。"
           },
           "modem_profile": {
             "label": "CID",
@@ -2180,7 +2182,8 @@
             "option_template": "CID {{cid}}",
             "for_internet": "互联网",
             "ims_badge": "IMS",
-            "sos_badge": "SOS"
+            "sos_badge": "SOS",
+            "consequence": "承载数据的调制解调器上下文。"
           }
         },
         "cid_confirm": {
@@ -2198,12 +2201,17 @@
           "description": "选择调制解调器运行的运营商固件配置文件；更改后需要重启。"
         },
         "auto_select": {
-          "label": "自动选择配置文件"
+          "label": "自动选择配置文件",
+          "consequence": "调制解调器会选择与 SIM 卡匹配的配置文件。"
         },
         "configuration": {
           "label": "运营商配置",
           "placeholder": "选择运营商配置",
-          "option_active_suffix": "（活动）"
+          "option_active_suffix": "（活动）",
+          "running": "正在运行",
+          "auto_hint": "关闭自动选择后才能选择配置文件。",
+          "empty_title": "没有运营商配置文件",
+          "empty_body": "调制解调器未列出任何运营商配置文件。"
         },
         "save": "保存设置",
         "reboot_dialog": {
@@ -2231,6 +2239,14 @@
         "load_failed": "调制解调器未返回 APN 设置，请稍后重试。",
         "save_failed": "无法保存 APN。",
         "deactivate_failed": "无法切换到运营商默认 APN。"
+      },
+      "readout": {
+        "mode_label": "模式",
+        "custom": "自定义 APN",
+        "context_label": "数据上下文",
+        "not_connected": "未连接",
+        "matches": "与已保存的 APN 一致",
+        "not_live_note": "网络正在使用的 APN 与已保存的不同。"
       }
     },
     "imei": {
