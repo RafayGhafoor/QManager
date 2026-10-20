@@ -258,7 +258,7 @@ export function TowerAutomationTiles({
           >
             {t(`${K}.automation.threshold_label`)}
           </label>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <div className="relative w-[6.5rem]">
               <Input
                 id="tower-failover-threshold"

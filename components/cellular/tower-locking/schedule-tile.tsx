@@ -254,7 +254,9 @@ export function ScheduleTile({ config, onScheduleChange }: ScheduleTileProps) {
       </div>
 
       <fieldset className={`${AUTO_TILE.FOOT} flex flex-col gap-1.5`}>
-        <legend className={FIELD_LABEL}>{t(`${K}.schedule.days`)}</legend>
+        <legend className={`${FIELD_LABEL} mb-3`}>
+          {t(`${K}.schedule.days`)}
+        </legend>
         <div
           className={DAY_CHIP.ROW}
           role="group"
