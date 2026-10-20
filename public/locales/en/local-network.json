@@ -170,40 +170,54 @@
     }
   },
   "dns": {
-    "page_title": "Custom DNS Settings",
+    "page_title": "Custom DNS",
     "page_description": "Override carrier-assigned DNS servers with your preferred resolvers for all devices on the local network.",
-    "card_title": "Custom DNS Configuration",
-    "card_description": "Override carrier DNS servers for all devices on your local network.",
-    "label_enable": "Enable Custom DNS",
-    "label_provider": "DNS Provider",
     "provider_custom": "Custom",
-    "label_primary_dns": "Primary DNS Server",
     "placeholder_primary_dns": "e.g. 8.8.8.8",
-    "label_secondary_dns": "Secondary DNS Server",
     "placeholder_secondary_dns": "e.g. 1.1.1.1",
-    "label_tertiary_dns": "Tertiary DNS Server",
-    "label_tertiary_dns_optional_suffix": " (optional)",
     "placeholder_tertiary_dns": "e.g. 8.8.4.4",
-    "label_ipv4_section": "IPv4 DNS Servers",
-    "label_ipv6_section": "IPv6 DNS Servers",
-    "label_primary_dns6": "Primary IPv6 DNS",
     "placeholder_primary_dns6": "e.g. 2606:4700:4700::1111",
-    "label_secondary_dns6": "Secondary IPv6 DNS",
     "placeholder_secondary_dns6": "e.g. 2606:4700:4700::1001",
     "error_at_least_one": "Enter at least one DNS server address",
     "error_invalid_ipv6": "Enter a valid IPv6 address (e.g. 2606:4700:4700::1111).",
     "toast_success_enabled": "Custom DNS applied successfully",
     "toast_success_disabled": "Reverted to carrier DNS",
     "toast_error_apply": "Could not apply the DNS settings",
-    "enable_description": "Off uses the DNS servers your carrier assigns.",
-    "receipt_primary": "Primary",
-    "receipt_secondary": "Secondary",
-    "receipt_none": "None",
     "error_load_title": "Could not read DNS settings",
     "error_load_desc": "The modem did not answer. Check the connection and try again.",
     "errors": {
       "fetch_failed": "Could not load DNS settings",
       "apply_failed": "Could not apply the DNS settings"
+    },
+    "error_invalid_ipv4": "Enter a valid IPv4 address (e.g. 9.9.9.9).",
+    "blocked_invalid": "Fix the highlighted address first.",
+    "cards": {
+      "resolver": {
+        "title": "Resolver",
+        "description": "Which DNS servers the devices on your network are given."
+      },
+      "ipv4": {
+        "title": "IPv4 servers",
+        "description": "Up to three, tried in order."
+      },
+      "ipv6": {
+        "title": "IPv6 servers",
+        "description": "Up to two, for devices that use IPv6."
+      }
+    },
+    "rows": {
+      "mode": {
+        "label": "Custom DNS",
+        "consequence_on": "Devices on your network use the servers below.",
+        "consequence_off": "Devices use the servers your carrier assigns."
+      },
+      "provider": {
+        "label": "Provider",
+        "consequence": "Fills both server lists. Editing an address makes it Custom."
+      },
+      "primary": "Primary",
+      "secondary": "Secondary",
+      "tertiary": "Tertiary"
     }
   },
   "ttl_mtu": {
