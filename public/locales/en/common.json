@@ -695,6 +695,6 @@
     "title": "You seem to be lost, adventurer",
     "description": "Want to go back to making your connections better?",
     "home": "Back to Dashboard",
-    "footer": "QManager (Quectel Modem Management)"
+    "footer": "QManager"
   }
 }
