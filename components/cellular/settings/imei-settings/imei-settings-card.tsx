@@ -216,7 +216,7 @@ const IMEISettingsCard = ({
                       role="img"
                       tabIndex={0}
                       aria-label={t(`${K}.status.unchanged`)}
-                      className="size-7 flex-none p-0"
+                      className="size-7 flex-none bg-success p-0 text-success-foreground"
                     >
                       <MaterialSymbol name="check" size={BADGE_GLYPH_SIZE} />
                     </Badge>
