@@ -96,11 +96,12 @@ const ROW_MIN_H = "min-h-[2.625rem]";
 const PILL_H = "h-[2.625rem]";
 const KEY_LH = "leading-5";
 
+/** Two peer cards side by side from a 56rem column, stacked below it. */
+export const CARD_GRID = "grid grid-cols-1 gap-5 @4xl/main:grid-cols-2";
+
 export const SETTING = {
-  /** The two groups: stacked on a narrow card, side by side from 56rem so no row spans the full card. */
-  GROUPS: "grid grid-cols-1 gap-x-10 gap-y-6 @4xl/card:grid-cols-2",
-  /** One group: its label, then its rows. */
-  GROUP: "flex min-w-0 flex-col gap-3.5 @4xl/card:content-start",
+  /** One card's rows. */
+  GROUP: "flex min-w-0 flex-col gap-3.5",
   /** Key left, control right; on a narrow card the control wraps, still right-aligned. */
   ROW: `flex ${ROW_MIN_H} flex-wrap items-center justify-between gap-x-4 gap-y-2`,
   KEY: "flex min-w-0 flex-col gap-px",
@@ -185,8 +186,6 @@ export const SKELETON = {
   EYEBROW: `h-3.5 w-24 rounded-inline`,
   TITLE: `h-6 w-40 rounded-inline`,
   BLURB: `h-5 w-52 max-w-full rounded-inline`,
-  /** A group label (the eyebrow's line box). */
-  LABEL: "h-3.5 w-20 rounded-inline",
   ROW_KEY: `h-5 w-24 rounded-inline`,
   /** One line of the Mode note (12.5px at leading 1.5). */
   NOTE_LINE: "h-[1.171875rem] rounded-inline",

@@ -73,11 +73,11 @@ import type {
 import {
   AUTOMATIC_MAC,
   CARD_DESC,
+  CARD_GRID,
   CARD_PAD,
   CARD_SHELL,
   CARD_TITLE,
   DEVICE_PICK,
-  EYEBROW,
   FOOT,
   LOCK_NOTE,
   MAC_FIELD,
@@ -177,32 +177,23 @@ function SettingRow({
   );
 }
 
-/** Mirrors the two groups: a label over each, the Mode note's lines under the first row. */
-function SettingsSkeleton() {
-  const groups: { pills: string[]; note: boolean }[] = [
-    { pills: ["w-60", "w-72"], note: true },
-    { pills: ["w-52", "w-72", "w-28"], note: false },
-  ];
+/** Mirrors one card's rows; `note` adds the Mode note's lines under the first row. */
+function SettingsSkeleton({ pills, note = false }: { pills: string[]; note?: boolean }) {
   return (
-    <div className={SETTING.GROUPS} aria-hidden>
-      {groups.map(({ pills, note }, g) => (
-        <div key={g} className={SETTING.GROUP}>
-          <Skeleton className={SKELETON.LABEL} />
-          {pills.map((pill, i) => (
-            <React.Fragment key={i}>
-              <div className={SETTING.ROW}>
-                <Skeleton className={SKELETON.ROW_KEY} />
-                <Skeleton className={cn(SKELETON.PILL, "ml-auto", pill)} />
-              </div>
-              {note && i === 0 ? (
-                <div className="flex flex-col gap-1">
-                  <Skeleton className={cn(SKELETON.NOTE_LINE, "w-full")} />
-                  <Skeleton className={cn(SKELETON.NOTE_LINE, "w-3/4")} />
-                </div>
-              ) : null}
-            </React.Fragment>
-          ))}
-        </div>
+    <div className={SETTING.GROUP} aria-hidden>
+      {pills.map((pill, i) => (
+        <React.Fragment key={i}>
+          <div className={SETTING.ROW}>
+            <Skeleton className={SKELETON.ROW_KEY} />
+            <Skeleton className={cn(SKELETON.PILL, "ml-auto", pill)} />
+          </div>
+          {note && i === 0 ? (
+            <div className="flex flex-col gap-1">
+              <Skeleton className={cn(SKELETON.NOTE_LINE, "w-full")} />
+              <Skeleton className={cn(SKELETON.NOTE_LINE, "w-3/4")} />
+            </div>
+          ) : null}
+        </React.Fragment>
       ))}
     </div>
   );
@@ -511,52 +502,53 @@ export function IPPassthroughCard({
 
   return (
     <>
-      <Card className={CARD_SHELL}>
-        <CardHeader className={CARD_PAD}>
-          <CardTitle className={CARD_TITLE}>{t(`${K}.card.title`)}</CardTitle>
-          <CardDescription className={CARD_DESC}>
-            {t(`${K}.card.description`)}
-          </CardDescription>
-        </CardHeader>
+      <div className={CARD_GRID}>
+        {/* Passthrough owns the one apply: Mode is what reboots into a new topology. */}
+        <Card className={CARD_SHELL}>
+          <CardHeader className={CARD_PAD}>
+            <CardTitle className={CARD_TITLE}>
+              {t(`${K}.groups.passthrough`)}
+            </CardTitle>
+            <CardDescription className={CARD_DESC}>
+              {t(`${K}.card.description`)}
+            </CardDescription>
+          </CardHeader>
 
-        <CardContent className={cn(CARD_PAD, "flex flex-col gap-5")}>
-          {locked ? (
-            <div role="status" className={LOCK_NOTE.ROOT}>
-              <span aria-hidden className={LOCK_NOTE.DISC}>
-                <LockIcon className={LOCK_NOTE.GLYPH} />
-              </span>
-              <div className={LOCK_NOTE.TEXT}>
-                <p className={LOCK_NOTE.TITLE}>
-                  {t(`${K}.locked_by_verizon.title`)}
-                </p>
-                <p className={LOCK_NOTE.BODY}>
-                  {t(`${K}.locked_by_verizon.body`, {
-                    name: activeProfile?.name ?? "",
-                  })}
-                </p>
+          <CardContent className={cn(CARD_PAD, "flex flex-col gap-5")}>
+            {locked ? (
+              <div role="status" className={LOCK_NOTE.ROOT}>
+                <span aria-hidden className={LOCK_NOTE.DISC}>
+                  <LockIcon className={LOCK_NOTE.GLYPH} />
+                </span>
+                <div className={LOCK_NOTE.TEXT}>
+                  <p className={LOCK_NOTE.TITLE}>
+                    {t(`${K}.locked_by_verizon.title`)}
+                  </p>
+                  <p className={LOCK_NOTE.BODY}>
+                    {t(`${K}.locked_by_verizon.body`, {
+                      name: activeProfile?.name ?? "",
+                    })}
+                  </p>
+                </div>
+                <Link href="/cellular/custom-profiles" className={LOCK_NOTE.ACTION}>
+                  {t(`${K}.locked_by_verizon.cta`)}
+                </Link>
               </div>
-              <Link href="/cellular/custom-profiles" className={LOCK_NOTE.ACTION}>
-                {t(`${K}.locked_by_verizon.cta`)}
-              </Link>
-            </div>
-          ) : null}
+            ) : null}
 
-          {state === null ? (
-            pending ? (
-              <SettingsSkeleton />
+            {state === null ? (
+              pending ? (
+                <SettingsSkeleton pills={["w-60", "w-72"]} note />
+              ) : (
+                unread
+              )
             ) : (
-              unread
-            )
-          ) : (
-            <motion.form
-              id={formId}
-              className={SETTING.GROUPS}
-              onSubmit={handleSubmit}
-              {...rowCascade}
-            >
-              <div className={SETTING.GROUP}>
-                <span className={EYEBROW}>{t(`${K}.groups.passthrough`)}</span>
-
+              <motion.form
+                id={formId}
+                className={SETTING.GROUP}
+                onSubmit={handleSubmit}
+                {...rowCascade}
+              >
                 <SettingRow label={t(`${K}.rows.mode.label`)} dirty={modeDirty}>
                   <SegmentedField
                     value={state.draft.mode}
@@ -650,11 +642,66 @@ export function IPPassthroughCard({
                     </motion.div>
                   ) : null}
                 </SettingRow>
-              </div>
+              </motion.form>
+            )}
+          </CardContent>
 
-              <div className={SETTING.GROUP}>
-                <span className={EYEBROW}>{t(`${K}.groups.network`)}</span>
+          {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
+          <CardFoot
+            className={CARD_PAD}
+            status={
+              dirtyCount > 0 ? (
+                <span className={FOOT.LINE}>
+                  <span className={FOOT.DOT} aria-hidden />
+                  {t(`${K}.card.unsaved`, { count: dirtyCount })}
+                </span>
+              ) : undefined
+            }
+            actions={
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleDiscard}
+                  disabled={isSaving || dirtyCount === 0}
+                  size="action"
+                >
+                  {t("common:actions.discard")}
+                </Button>
+                <SaveButton
+                  type="submit"
+                  form={formId}
+                  variant={modeDirty ? "destructive" : "default"}
+                  isSaving={isSaving}
+                  saved={saved}
+                  label={t(`${K}.card.apply`)}
+                  blockedReason={blockedReason}
+                  size="action"
+                />
+              </>
+            }
+          />
+        </Card>
 
+        {/* Network shares the draft and the reboot, so it has no footer of its own:
+            the Passthrough footer counts and applies both. */}
+        <Card className={CARD_SHELL}>
+          <CardHeader className={CARD_PAD}>
+            <CardTitle className={CARD_TITLE}>{t(`${K}.groups.network`)}</CardTitle>
+            <CardDescription className={CARD_DESC}>
+              {t(`${K}.card.network_description`)}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className={CARD_PAD}>
+            {state === null ? (
+              pending ? (
+                <SettingsSkeleton pills={["w-52", "w-72", "w-28"]} />
+              ) : (
+                unread
+              )
+            ) : (
+              <motion.div className={SETTING.GROUP} {...rowCascade}>
                 <SettingRow
                   label={t(`${K}.rows.nat.label`)}
                   dirty={natDirty}
@@ -706,47 +753,11 @@ export function IPPassthroughCard({
                     glyph={NO_GLYPH}
                   />
                 </SettingRow>
-              </div>
-            </motion.form>
-          )}
-        </CardContent>
-
-        {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
-        <CardFoot
-          className={CARD_PAD}
-          status={
-            dirtyCount > 0 ? (
-              <span className={FOOT.LINE}>
-                <span className={FOOT.DOT} aria-hidden />
-                {t(`${K}.card.unsaved`, { count: dirtyCount })}
-              </span>
-            ) : undefined
-          }
-          actions={
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={handleDiscard}
-                disabled={isSaving || dirtyCount === 0}
-                size="action"
-              >
-                {t("common:actions.discard")}
-              </Button>
-              <SaveButton
-                type="submit"
-                form={formId}
-                variant={modeDirty ? "destructive" : "default"}
-                isSaving={isSaving}
-                saved={saved}
-                label={t(`${K}.card.apply`)}
-                blockedReason={blockedReason}
-                size="action"
-              />
-            </>
-          }
-        />
-      </Card>
+              </motion.div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
         <AlertDialogContent>

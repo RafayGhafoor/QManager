@@ -322,8 +322,8 @@
       "gateway_off": "區域網路閘道不提供服務"
     },
     "card": {
-      "title": "設定",
       "description": "套用會寫入所有設定並重啟數據機。",
+      "network_description": "與直通設定一起套用，只需一次重啟。",
       "apply": "套用並重啟",
       "unsaved_one": "{{count}} 項未儲存的變更",
       "unsaved_other": "{{count}} 項未儲存的變更",

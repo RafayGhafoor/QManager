@@ -322,8 +322,8 @@
       "gateway_off": "Gateway LAN tidak dilayani"
     },
     "card": {
-      "title": "Pengaturan",
       "description": "Menerapkan akan menulis semua pengaturan dan me-reboot modem.",
+      "network_description": "Diterapkan bersama passthrough, dengan satu kali reboot.",
       "apply": "Terapkan dan reboot",
       "unsaved_one": "{{count}} perubahan belum tersimpan",
       "unsaved_other": "{{count}} perubahan belum tersimpan",

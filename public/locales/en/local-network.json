@@ -322,8 +322,8 @@
       "gateway_off": "LAN gateway not served"
     },
     "card": {
-      "title": "Settings",
       "description": "Applying writes every setting and reboots the modem.",
+      "network_description": "Applied together with Passthrough, in one reboot.",
       "apply": "Apply and reboot",
       "unsaved_one": "{{count}} unsaved change",
       "unsaved_other": "{{count}} unsaved changes",
