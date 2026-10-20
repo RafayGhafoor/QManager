@@ -15,7 +15,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -55,16 +54,13 @@ import type {
 
 import { compositeValue, parseCompositeValue } from "./simple-mode-utils";
 import {
-  BADGE_GLYPH_SIZE,
   CARD_PAD,
   CONTROL_ROW,
   FIELD_CONTROL,
-  LEG_BADGE,
   LEG_CARD_ID,
   LEG_KEYS,
   NOTICE,
   NOTICE_TONE,
-  READBACK,
   SKELETON_SHAPE,
   SLOT_ROW,
   TOWER_CARD,
@@ -128,11 +124,13 @@ function slotToCell(slot: SlotValue): LteLockCell | null {
   return { earfcn, pci };
 }
 
+// Detected is the default: it is the safer way in, and only an explicit
+// switch to Manual is remembered.
 function readPickMode(): boolean {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "true";
+    return window.localStorage.getItem(STORAGE_KEY) !== "false";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -239,14 +237,6 @@ export default function LteTowerCard({
       : modemState.lte_locked
         ? "locked"
         : "unlocked";
-  const status = LEG_BADGE[posture];
-  const statusLabel =
-    posture === "locked"
-      ? t(`${K}.card.status_locked`)
-      : posture === "unlocked"
-        ? t(`${K}.card.status_unlocked`)
-        : t(`${K}.card.status_unknown`);
-
   const readbackCells = useMemo<LteLockCell[]>(
     () =>
       modemState?.lte_read_ok !== false && modemState?.lte_locked
@@ -264,6 +254,21 @@ export default function LteTowerCard({
       .sort()
       .join("|");
   const hasChanges = cellsKey(validCells) !== cellsKey(readbackCells);
+  // The modem holds these, in the same shape as the slot composites.
+  const lockedComposites = new Set(
+    readbackCells.map((c) => compositeValue(c.earfcn, c.pci)),
+  );
+  const hasUnusedLock = slotComposites.some(
+    (composite, i) => {
+      const cell = slotToCell(activeSlots[i]);
+      return (
+        composite !== "" &&
+        lockedComposites.has(composite) &&
+        cell !== null &&
+        !isOnAir(cell.earfcn, cell.pci)
+      );
+    },
+  );
 
   const lockBlockedReason = isLocking
     ? null
@@ -345,12 +350,9 @@ export default function LteTowerCard({
     return (
       <Card id={LEG_CARD_ID.lte} className={TOWER_CARD}>
         <CardHeader className={CARD_PAD}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-2">
-              <Skeleton className={SKELETON_SHAPE.CARD_TITLE} />
-              <Skeleton className={SKELETON_SHAPE.CARD_DESC} />
-            </div>
-            <Skeleton className={SKELETON_SHAPE.CARD_CHIP} />
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className={SKELETON_SHAPE.CARD_TITLE} />
+            <Skeleton className={SKELETON_SHAPE.CARD_DESC} />
           </div>
         </CardHeader>
         <CardContent className={`${CARD_PAD} flex flex-col gap-4`}>
@@ -398,70 +400,28 @@ export default function LteTowerCard({
       <MaterialSymbol name="visibility_off" size={16} className="flex-none" />
       {t(`${K}.card.unread_note`)}
     </span>
+  ) : hasUnusedLock ? (
+    <span className="text-warning-on-surface inline-flex items-center gap-1.5">
+      <MaterialSymbol name="warning" size={16} className="flex-none" />
+      <span className="min-w-0">{t(`${K}.card.unused_lte`)}</span>
+    </span>
   ) : null;
 
   return (
     <>
       <Card id={LEG_CARD_ID.lte} className={`${TOWER_CARD} scroll-mt-20`}>
         <CardHeader className={CARD_PAD}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-1">
-              <CardTitle className="truncate text-lg">
-                {t(LEG_KEYS.lte.title)}
-              </CardTitle>
-              <CardDescription className="text-pretty">
-                {t(LEG_KEYS.lte.description)}
-              </CardDescription>
-            </div>
-            <Badge variant={status.variant} className="flex-none">
-              <MaterialSymbol name={status.glyph} size={BADGE_GLYPH_SIZE} />
-              {statusLabel}
-            </Badge>
+          <div className="flex min-w-0 flex-col gap-1">
+            <CardTitle className="truncate text-lg">
+              {t(LEG_KEYS.lte.title)}
+            </CardTitle>
+            <CardDescription className="text-pretty">
+              {t(LEG_KEYS.lte.description)}
+            </CardDescription>
           </div>
         </CardHeader>
 
         <CardContent className={`${CARD_PAD} flex flex-col gap-4`}>
-          {/* What the modem actually holds, printed beside the fields it may
-              disagree with. Only when there is a pair: the chip already says
-              "Unlocked". */}
-          {readbackCells.length > 0 ? (
-            <div className={READBACK.ROOT}>
-              <span className={READBACK.LABEL}>
-                <MaterialSymbol
-                  name="cell_tower"
-                  size={14}
-                  className="flex-none"
-                />
-                {t(`${K}.card.readback_label`)}
-              </span>
-              <ul className={READBACK.LIST}>
-                {readbackCells.map((cell) => (
-                  <li
-                    key={`${cell.earfcn}-${cell.pci}`}
-                    className={READBACK.ROW}
-                  >
-                    <span className={READBACK.VALUE}>
-                      {t(`${K}.live.target_pair`, {
-                        channel: `${t(`${K}.live.tile_earfcn`)} ${cell.earfcn}`,
-                        pci: cell.pci,
-                      })}
-                    </span>
-                    {isOnAir(cell.earfcn, cell.pci) ? (
-                      <Badge variant="success" className="ml-auto flex-none">
-                        <MaterialSymbol
-                          name="cell_tower"
-                          size={BADGE_GLYPH_SIZE}
-                          filled
-                        />
-                        {t(`${K}.live.target_serving`)}
-                      </Badge>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
           <div className="flex flex-col gap-1.5">
             <div className={CONTROL_ROW}>
               <Label id="lte-input-mode-label" className="min-w-0">
@@ -478,8 +438,8 @@ export default function LteTowerCard({
                   value={pickActive ? "pick" : "type"}
                   onValueChange={handlePickMode}
                   options={[
-                    { value: "type", label: t(`${K}.card.mode_type`) },
                     { value: "pick", label: t(`${K}.card.mode_pick`) },
+                    { value: "type", label: t(`${K}.card.mode_type`) },
                   ]}
                   ariaLabel={t(`${K}.card.input_mode`)}
                   disabled={!hasOptions || isLocking}
@@ -534,6 +494,9 @@ export default function LteTowerCard({
               const blank = isSlotBlank(slot);
               const cell = slotToCell(slot);
               const serving = cell !== null && isOnAir(cell.earfcn, cell.pci);
+              // Locked on the modem yet not carrying traffic: outline it.
+              const unused =
+                cell !== null && !serving && lockedComposites.has(composite);
               // A filled row sits on surface-container, so its fields step up.
               const host = blank ? "surface" : "container";
 
@@ -543,10 +506,30 @@ export default function LteTowerCard({
                   variants={staggerRowItem}
                   role="group"
                   aria-labelledby={headingId}
-                  className={blank ? SLOT_ROW.EMPTY : SLOT_ROW.ROOT}
+                  className={
+                    blank
+                      ? SLOT_ROW.EMPTY
+                      : `${SLOT_ROW.ROOT} ${unused ? SLOT_ROW.UNUSED : ""}`
+                  }
                 >
-                  <span id={headingId} className={SLOT_ROW.INDEX}>
-                    {t(`${K}.fields.slot`, { index: index + 1 })}
+                  <span className={SLOT_ROW.INDEX_ROW}>
+                    <span className={SLOT_ROW.DOT_SLOT} aria-hidden="true">
+                      {serving ? (
+                        <>
+                          <span className={SLOT_ROW.DOT_PING} />
+                          <span className={`relative ${SLOT_ROW.DOT}`} />
+                        </>
+                      ) : null}
+                    </span>
+                    <span id={headingId} className={SLOT_ROW.INDEX}>
+                      {t(`${K}.fields.slot`, { index: index + 1 })}
+                      {serving ? (
+                        <span className="sr-only">
+                          {" "}
+                          ({t(`${K}.live.target_serving`)})
+                        </span>
+                      ) : null}
+                    </span>
                   </span>
 
                   <div className={SLOT_ROW.FIELDS}>
@@ -674,16 +657,6 @@ export default function LteTowerCard({
                   </div>
 
                   <div className={SLOT_ROW.META}>
-                    {serving ? (
-                      <Badge variant="success">
-                        <MaterialSymbol
-                          name="cell_tower"
-                          size={BADGE_GLYPH_SIZE}
-                          filled
-                        />
-                        {t(`${K}.live.target_serving`)}
-                      </Badge>
-                    ) : null}
                     <button
                       type="button"
                       className={SLOT_ROW.CLEAR}

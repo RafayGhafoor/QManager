@@ -100,7 +100,14 @@ export const FIELD_LABEL =
 
 /** LTE slot rows: SHELL-free, fields step up to `surface-container-high`. */
 export const SLOT_ROW = {
-  ROOT: "flex min-h-14 flex-wrap items-center gap-x-3 gap-y-2 rounded-field bg-surface-container px-4 py-2.5",
+  ROOT: "flex min-h-14 flex-wrap items-center gap-x-3 gap-y-2 rounded-field bg-surface-container px-4 py-2.5 transition-[box-shadow] duration-[var(--duration-standard)] ease-standard",
+  /** Locked on the modem, but the modem is not using this cell. */
+  UNUSED: "shadow-[inset_0_0_0_2px_var(--warning)]",
+  /** The "Cell N" label; the dot slot is always reserved so labels line up. */
+  INDEX_ROW: "flex min-w-[4.25rem] flex-none items-center gap-1.5",
+  DOT_SLOT: "relative grid size-2 flex-none place-items-center",
+  DOT: "size-2 rounded-pill bg-success",
+  DOT_PING: "absolute inset-0 rounded-pill bg-success animate-live-ping",
   EMPTY:
     "flex min-h-14 flex-wrap items-center gap-x-3 gap-y-2 rounded-field border border-dashed border-outline px-4 py-2.5",
   INDEX: "min-w-[3.25rem] flex-none text-xs font-semibold text-on-surface-variant",
@@ -121,6 +128,8 @@ export const FIELD_TILE = {
     "transition-[box-shadow] duration-[var(--duration-quick)] ease-out",
     "focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background focus-within:ring-[3px]",
   ].join(" "),
+  /** Locked on the modem, but the modem is not camped on this cell. */
+  UNUSED: "shadow-[inset_0_0_0_2px_var(--warning)]",
   LABEL: `${FIELD_LABEL} w-full`,
   CONTROL: [
     "h-8 w-full min-w-0 rounded-none border-0 bg-transparent px-0 py-0 shadow-none",

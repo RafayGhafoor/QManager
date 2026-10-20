@@ -15,7 +15,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -64,18 +63,15 @@ import {
 
 import { compositeValue, defaultScsForBand, parseCompositeValue } from "./simple-mode-utils";
 import {
-  BADGE_GLYPH_SIZE,
   CARD_PAD,
   CONTROL_ROW,
   FIELD_GRID,
   FIELD_LABEL,
   FIELD_TILE,
-  LEG_BADGE,
   LEG_CARD_ID,
   LEG_KEYS,
   NOTICE,
   NOTICE_TONE,
-  READBACK,
   SKELETON_SHAPE,
   TOWER_CARD,
   type LegPosture,
@@ -108,14 +104,6 @@ const GATE_SPEC: Record<
 > = {
   nsa: { tone: "warning", glyph: "warning" },
   lte_only: { tone: "info", glyph: "signal_cellular_off" },
-};
-
-const GATE_CHIP: Record<
-  GateKind,
-  { variant: BadgeVariant; glyph: MaterialSymbolName }
-> = {
-  nsa: { variant: "muted", glyph: "do_not_disturb_on" },
-  lte_only: { variant: "muted", glyph: "signal_cellular_off" },
 };
 
 const renderCheckGlyph = (className: string) => (
@@ -181,11 +169,12 @@ function resolveScs(
   };
 }
 
+// Detected is the default: only an explicit switch to Manual is remembered.
 function readPickMode(): boolean {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "true";
+    return window.localStorage.getItem(STORAGE_KEY) !== "false";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -385,12 +374,9 @@ export default function NrSaTowerCard({
     return (
       <Card id={LEG_CARD_ID.nr_sa} className={TOWER_CARD}>
         <CardHeader className={CARD_PAD}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-2">
-              <Skeleton className={SKELETON_SHAPE.CARD_TITLE} />
-              <Skeleton className={SKELETON_SHAPE.CARD_DESC} />
-            </div>
-            <Skeleton className={SKELETON_SHAPE.CARD_CHIP} />
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className={SKELETON_SHAPE.CARD_TITLE} />
+            <Skeleton className={SKELETON_SHAPE.CARD_DESC} />
           </div>
         </CardHeader>
         <CardContent className={`${CARD_PAD} flex flex-col gap-4`}>
@@ -441,26 +427,15 @@ export default function NrSaTowerCard({
   const keepOn =
     modemState?.persist_nr === true && modemState?.persist_read_ok !== false;
 
-  const status = LEG_BADGE[posture];
-  const headerChip: { variant: BadgeVariant; glyph: MaterialSymbolName; label: string } =
-    gate !== null && posture !== "locked"
-      ? {
-          ...GATE_CHIP[gate],
-          label:
-            gate === "nsa"
-              ? t(`${K}.card.status_gated_nsa`)
-              : t(`${K}.card.status_gated_lte`),
-        }
-      : {
-          variant: status.variant,
-          glyph: status.glyph,
-          label:
-            posture === "locked"
-              ? t(`${K}.card.status_locked`)
-              : posture === "unlocked"
-                ? t(`${K}.card.status_unlocked`)
-                : t(`${K}.card.status_unknown`),
-        };
+  // The modem holds this cell, the fields still match it, and it is not on air.
+  const lockedUnused =
+    lockedAsSaved &&
+    lockedCell !== null &&
+    !isOnAir(lockedCell.arfcn, lockedCell.pci);
+
+  const tileClass = lockedUnused
+    ? `${FIELD_TILE.ROOT} ${FIELD_TILE.UNUSED}`
+    : FIELD_TILE.ROOT;
 
   const scsProvenance =
     scsSource === "band_default" && band
@@ -490,6 +465,11 @@ export default function NrSaTowerCard({
       <MaterialSymbol name="visibility_off" size={16} className="flex-none" />
       {t(`${K}.card.unread_note`)}
     </span>
+  ) : lockedUnused ? (
+    <span className="text-warning-on-surface inline-flex items-center gap-1.5">
+      <MaterialSymbol name="warning" size={16} className="flex-none" />
+      <span className="min-w-0">{t(`${K}.card.unused_nr`)}</span>
+    </span>
   ) : null;
 
   const gateSpec = gate ? GATE_SPEC[gate] : null;
@@ -498,19 +478,13 @@ export default function NrSaTowerCard({
     <>
       <Card id={LEG_CARD_ID.nr_sa} className={`${TOWER_CARD} scroll-mt-20`}>
         <CardHeader className={CARD_PAD}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-1">
-              <CardTitle className="truncate text-lg">
-                {t(LEG_KEYS.nr_sa.title)}
-              </CardTitle>
-              <CardDescription className="text-pretty">
-                {t(LEG_KEYS.nr_sa.description)}
-              </CardDescription>
-            </div>
-            <Badge variant={headerChip.variant} className="flex-none">
-              <MaterialSymbol name={headerChip.glyph} size={BADGE_GLYPH_SIZE} />
-              {headerChip.label}
-            </Badge>
+          <div className="flex min-w-0 flex-col gap-1">
+            <CardTitle className="truncate text-lg">
+              {t(LEG_KEYS.nr_sa.title)}
+            </CardTitle>
+            <CardDescription className="text-pretty">
+              {t(LEG_KEYS.nr_sa.description)}
+            </CardDescription>
           </div>
         </CardHeader>
 
@@ -550,39 +524,6 @@ export default function NrSaTowerCard({
               </motion.div>
             ) : null}
 
-            {lockedCell ? (
-              <motion.div variants={staggerRowItem} className={READBACK.ROOT}>
-                <span className={READBACK.LABEL}>
-                  <MaterialSymbol
-                    name="cell_tower"
-                    size={14}
-                    className="flex-none"
-                  />
-                  {t(`${K}.card.readback_label`)}
-                </span>
-                <ul className={READBACK.LIST}>
-                  <li className={READBACK.ROW}>
-                    <span className={READBACK.VALUE}>
-                      {t(`${K}.live.target_pair`, {
-                        channel: `${t(`${K}.live.tile_arfcn`)} ${lockedCell.arfcn}`,
-                        pci: lockedCell.pci,
-                      })}
-                    </span>
-                    {isOnAir(lockedCell.arfcn, lockedCell.pci) ? (
-                      <Badge variant="success" className="ml-auto flex-none">
-                        <MaterialSymbol
-                          name="cell_tower"
-                          size={BADGE_GLYPH_SIZE}
-                          filled
-                        />
-                        {t(`${K}.live.target_serving`)}
-                      </Badge>
-                    ) : null}
-                  </li>
-                </ul>
-              </motion.div>
-            ) : null}
-
             <motion.div variants={staggerRowItem} className={CONTROL_ROW}>
               <Label id={`${fieldId}-mode-label`} className="min-w-0">
                 {t(`${K}.card.input_mode`)}
@@ -592,8 +533,8 @@ export default function NrSaTowerCard({
                   value={pickActive ? "pick" : "type"}
                   onValueChange={handlePickMode}
                   options={[
-                    { value: "type", label: t(`${K}.card.mode_type`) },
                     { value: "pick", label: t(`${K}.card.mode_pick`) },
+                    { value: "type", label: t(`${K}.card.mode_type`) },
                   ]}
                   ariaLabel={t(`${K}.card.input_mode`)}
                   disabled={!hasOptions || formDisabled}
@@ -606,7 +547,10 @@ export default function NrSaTowerCard({
             {/* Four value tiles (SHELL resolution: the tile carries fill and
                 focus ring, the control inside is transparent). */}
             <motion.div className={FIELD_GRID} variants={staggerRows}>
-              <motion.div variants={staggerRowItem} className={FIELD_TILE.ROOT}>
+              <motion.div
+                variants={staggerRowItem}
+                className={tileClass}
+              >
                 <Label
                   htmlFor={`${fieldId}-arfcn`}
                   className={FIELD_TILE.LABEL}
@@ -681,7 +625,10 @@ export default function NrSaTowerCard({
                 )}
               </motion.div>
 
-              <motion.div variants={staggerRowItem} className={FIELD_TILE.ROOT}>
+              <motion.div
+                variants={staggerRowItem}
+                className={tileClass}
+              >
                 <Label htmlFor={`${fieldId}-pci`} className={FIELD_TILE.LABEL}>
                   {t(`${K}.fields.pci`)}
                 </Label>
@@ -696,7 +643,10 @@ export default function NrSaTowerCard({
                 />
               </motion.div>
 
-              <motion.div variants={staggerRowItem} className={FIELD_TILE.ROOT}>
+              <motion.div
+                variants={staggerRowItem}
+                className={tileClass}
+              >
                 {/* The provenance mark is a sibling of the label, not a child:
                     nested, its click also activates the label and opens the
                     select under the tooltip. */}
@@ -757,7 +707,10 @@ export default function NrSaTowerCard({
                 </Select>
               </motion.div>
 
-              <motion.div variants={staggerRowItem} className={FIELD_TILE.ROOT}>
+              <motion.div
+                variants={staggerRowItem}
+                className={tileClass}
+              >
                 <Label htmlFor={`${fieldId}-band`} className={FIELD_TILE.LABEL}>
                   {t(`${K}.fields.band`)}
                 </Label>

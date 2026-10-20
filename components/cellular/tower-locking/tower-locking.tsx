@@ -133,6 +133,17 @@ const TowerLockingComponent = () => {
         );
         return;
       }
+      // Already on the list (held by the modem or saved in the config): do
+      // nothing and say so, rather than rewrite the lock for no change.
+      if (action === "add") {
+        const listed = [...lteHeld, ...(tower.config?.lte?.cells ?? [])].some(
+          (cell) => cell?.earfcn === here.earfcn && cell?.pci === here.pci,
+        );
+        if (listed) {
+          toast.info(t(`${K}.toast.cell_exists`), { id: "tower-cell-exists" });
+          return;
+        }
+      }
       const result = await tower.lockLte(
         action === "add" ? [...others, here] : [here],
       );
