@@ -1,0 +1,771 @@
+<title>System Settings Regroup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rethink+Sans:wght@400..800&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,400..600,0..1,0&display=block">
+<style>
+/* Layout: the proposal wraps a live prototype of the QManager shell (sidebar + page column),
+   then the card map, sidebar order, motion contract and build plan as plain grouped cards.
+   Tokens are the QManager canon values from app/globals.css (light, then authored dark). */
+:root {
+  --background: oklch(0.985 0.003 258);
+  --foreground: oklch(0.205 0.011 258);
+  --card: oklch(1 0 258);
+  --surface-container: oklch(0.967 0.005 258);
+  --surface-container-high: oklch(0.938 0.007 258);
+  --on-surface-variant: oklch(0.505 0.012 258);
+  --primary: oklch(0.565 0.235 262);
+  --primary-foreground: oklch(0.985 0.006 262);
+  --primary-container: oklch(0.89 0.052 262);
+  --on-primary-container: oklch(0.36 0.16 262);
+  --success: oklch(0.54 0.15 149);
+  --success-container: oklch(0.895 0.145 149);
+  --on-success-container: oklch(0.36 0.1 149);
+  --warning: oklch(0.56 0.118 72);
+  --warning-container: oklch(0.855 0.115 72);
+  --on-warning-container: oklch(0.36 0.075 72);
+  --destructive: oklch(0.48 0.192 27);
+  --muted-container: oklch(0.938 0.007 258);
+  --outline: oklch(0.868 0.008 258);
+  --border: oklch(0.905 0.006 258);
+  --sidebar: oklch(0.967 0.005 258);
+  --shadow-whisper: 0 1px 2px oklch(0.205 0.011 258 / 6%);
+  --card-sheen: none;
+  --frame-ground: oklch(0.985 0.003 258);
+
+  --font-ui: "Rethink Sans", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --dur-quick: 360ms;
+  --dur-standard: 600ms;
+  --dur-emphasized: 800ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
+
+  --r-tile: 12px;
+  --r-card: 16px;
+  --r-hero: 20px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: oklch(0.12 0.008 258);
+    --foreground: oklch(0.965 0.004 258);
+    --card: oklch(0.17 0.009 258);
+    --surface-container: oklch(0.2 0.01 258);
+    --surface-container-high: oklch(0.235 0.012 258);
+    --on-surface-variant: oklch(0.762 0.011 258);
+    --primary: oklch(0.605 0.2 262);
+    --primary-foreground: oklch(0.195 0.055 262);
+    --primary-container: oklch(0.375 0.145 262);
+    --on-primary-container: oklch(0.9 0.047 262);
+    --success: oklch(0.74 0.2 149);
+    --success-container: oklch(0.31 0.086 149);
+    --on-success-container: oklch(0.9 0.11 149);
+    --warning: oklch(0.79 0.166 72);
+    --warning-container: oklch(0.41 0.086 72);
+    --on-warning-container: oklch(0.9 0.077 72);
+    --destructive: oklch(0.64 0.2 27);
+    --muted-container: oklch(0.235 0.012 258);
+    --outline: oklch(0.33 0.013 258);
+    --border: oklch(0.288 0.012 258);
+    --sidebar: oklch(0.17 0.009 258);
+    --shadow-whisper: 0 0 #0000;
+    --card-sheen: linear-gradient(180deg, oklch(1 0 0 / 0.045) 0%, oklch(1 0 0 / 0) 42%, oklch(0 0 0 / 0.03) 100%);
+    --frame-ground: oklch(0.12 0.008 258);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --background: oklch(0.12 0.008 258);
+  --foreground: oklch(0.965 0.004 258);
+  --card: oklch(0.17 0.009 258);
+  --surface-container: oklch(0.2 0.01 258);
+  --surface-container-high: oklch(0.235 0.012 258);
+  --on-surface-variant: oklch(0.762 0.011 258);
+  --primary: oklch(0.605 0.2 262);
+  --primary-foreground: oklch(0.195 0.055 262);
+  --primary-container: oklch(0.375 0.145 262);
+  --on-primary-container: oklch(0.9 0.047 262);
+  --success: oklch(0.74 0.2 149);
+  --success-container: oklch(0.31 0.086 149);
+  --on-success-container: oklch(0.9 0.11 149);
+  --warning: oklch(0.79 0.166 72);
+  --warning-container: oklch(0.41 0.086 72);
+  --on-warning-container: oklch(0.9 0.077 72);
+  --destructive: oklch(0.64 0.2 27);
+  --muted-container: oklch(0.235 0.012 258);
+  --outline: oklch(0.33 0.013 258);
+  --border: oklch(0.288 0.012 258);
+  --sidebar: oklch(0.17 0.009 258);
+  --shadow-whisper: 0 0 #0000;
+  --card-sheen: linear-gradient(180deg, oklch(1 0 0 / 0.045) 0%, oklch(1 0 0 / 0) 42%, oklch(0 0 0 / 0.03) 100%);
+  --frame-ground: oklch(0.12 0.008 258);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--primary-container); color: var(--on-primary-container); }
+:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.wrap {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+  display: flex; flex-direction: column; gap: 28px;
+  max-width: 1440px; margin-inline: auto;
+}
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--font-mono); font-size: 0.92em; }
+.ms {
+  font-family: "Material Symbols Rounded";
+  font-weight: 400; font-style: normal; line-height: 1;
+  font-variation-settings: "FILL" 0, "wght" 400, "opsz" 20;
+  font-size: 20px; display: inline-block; width: 1em; overflow: hidden;
+  transition: font-variation-settings var(--dur-standard) var(--ease-standard);
+}
+svg.lu { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+svg.lu.s3 { width: 12px; height: 12px; }
+
+/* ---------- Proposal header ---------- */
+.lede { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; justify-content: space-between; }
+.lede h1 { margin: 0; font-size: clamp(1.75rem, 3.2vw, 2.25rem); font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
+.lede p { margin: 6px 0 0; color: var(--on-surface-variant); max-width: 41rem; font-size: 15px; }
+.lede .facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+/* Segmented control (SegmentedField look) */
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--surface-container-high); }
+.seg button {
+  font: inherit; font-size: 13px; font-weight: 600; border: 0; cursor: pointer;
+  padding: 6px 14px; border-radius: 999px; background: transparent; color: var(--on-surface-variant);
+  display: inline-flex; gap: 6px; align-items: center;
+  transition: background-color var(--dur-quick) ease-out, color var(--dur-quick) ease-out;
+}
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--foreground); box-shadow: var(--shadow-whisper); }
+.seg.sm button { padding: 4px 11px; font-size: 12.5px; }
+
+/* Chips & tags */
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.badge.success { background: var(--success-container); color: var(--on-success-container); }
+.badge.warning { background: var(--warning-container); color: var(--on-warning-container); }
+.badge.info { background: var(--primary-container); color: var(--on-primary-container); }
+.badge.muted { background: var(--muted-container); color: var(--on-surface-variant); }
+.tag { display: inline-flex; align-items: center; gap: 5px; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 500; border: 1px solid var(--outline); color: var(--on-surface-variant); white-space: nowrap; }
+.tag.nr { border-color: color-mix(in oklch, var(--primary) 55%, transparent); color: var(--primary); }
+
+/* Buttons */
+.btn { font: inherit; font-weight: 600; font-size: 13.5px; border: 0; border-radius: 999px; height: 36px; padding: 0 16px; display: inline-flex; gap: 8px; align-items: center; cursor: pointer; white-space: nowrap; transition: background-color var(--dur-quick) ease-out, opacity var(--dur-quick) ease-out; }
+.btn.primary { background: var(--primary); color: var(--primary-foreground); }
+.btn.primary[disabled] { opacity: 0.45; cursor: default; }
+.btn.ghost { background: transparent; color: var(--on-surface-variant); }
+.btn.ghost:hover { background: var(--surface-container); }
+.btn.outline { background: transparent; color: var(--foreground); box-shadow: inset 0 0 0 1px var(--outline); }
+.btn.action { height: 42px; padding: 0 20px; }
+
+/* ---------- Prototype frame ---------- */
+.frame {
+  border-radius: var(--r-hero); background: var(--frame-ground);
+  box-shadow: inset 0 0 0 1px var(--border);
+  display: grid; grid-template-columns: 256px minmax(0, 1fr); overflow: hidden; min-height: 640px;
+}
+.side { background: var(--sidebar); padding: 18px 12px; display: flex; flex-direction: column; gap: 18px; border-right: 1px solid var(--border); }
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; font-weight: 700; font-size: 15px; }
+.brand svg { width: 26px; height: 26px; }
+.navgroup .gl { font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; color: var(--on-surface-variant); padding: 0 12px 6px; text-transform: uppercase; }
+.navgroup.dim .nav { color: var(--on-surface-variant); }
+.navlist { position: relative; display: flex; flex-direction: column; gap: 2px; }
+.pill {
+  position: absolute; left: 0; right: 0; top: 0; height: 36px; border-radius: 999px;
+  background: var(--primary-container); z-index: 0; pointer-events: none;
+  transition: transform var(--dur-standard) var(--ease-standard), height var(--dur-standard) var(--ease-standard);
+}
+.pill[data-settling] { transition: none; }
+.nav {
+  position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; width: 100%;
+  height: 36px; padding: 0 16px; border-radius: 999px; border: 0; background: transparent;
+  font: inherit; font-size: 14px; color: var(--foreground); cursor: pointer; text-align: left;
+  transition: color var(--dur-quick) ease-out, background-color var(--dur-quick) ease-out;
+}
+.nav:hover:not([aria-current="page"]) { background: color-mix(in oklch, var(--surface-container-high) 70%, transparent); }
+.nav[aria-current="page"] { color: var(--on-primary-container); font-weight: 600; }
+.nav[aria-current="page"] .ms { font-variation-settings: "FILL" 1, "wght" 500, "opsz" 20; }
+.nav.sub { height: 32px; padding-left: 48px; font-size: 13.5px; color: var(--on-surface-variant); }
+.nav.sub[aria-current="page"] { color: var(--on-primary-container); }
+.nav .new { margin-left: auto; }
+.nav.stat { cursor: default; }
+.subrail { position: relative; display: flex; flex-direction: column; gap: 1px; }
+.subrail::before { content: ""; position: absolute; left: 26px; top: 4px; bottom: 4px; width: 1px; background: var(--border); }
+
+.main { min-width: 0; padding: 22px 24px 28px; display: flex; flex-direction: column; gap: 20px; container-type: inline-size; container-name: main; }
+
+/* Page anatomy */
+.ph { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between; }
+.ph h2 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ph p { margin: 4px 0 0; color: var(--on-surface-variant); max-width: 41rem; }
+.crumb { font-size: 13px; color: var(--on-surface-variant); display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+
+.band { display: grid; gap: 14px; grid-template-columns: 1fr; }
+@container main (min-width: 720px) { .band { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.tile { height: 104px; border-radius: var(--r-tile); background: var(--card); background-image: var(--card-sheen); box-shadow: var(--shadow-whisper); display: flex; gap: 14px; align-items: center; padding: 0 18px; min-width: 0; }
+.disc { width: 52px; height: 52px; border-radius: 999px; display: grid; place-items: center; flex: none; }
+.disc svg.lu { width: 22px; height: 22px; }
+.disc.p { background: var(--primary-container); color: var(--on-primary-container); }
+.disc.s { background: var(--success-container); color: var(--on-success-container); }
+.disc.m { background: var(--surface-container-high); color: var(--on-surface-variant); }
+.tile .tx { min-width: 0; display: flex; flex-direction: column; }
+.tile .ey { font-size: 12px; color: var(--on-surface-variant); font-weight: 500; }
+.tile .va { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .ca { font-size: 12px; color: var(--on-surface-variant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.grid { display: grid; gap: 20px; grid-template-columns: 1fr; align-items: stretch; }
+@container main (min-width: 860px) { .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); } .span2 { grid-column: 1 / -1; } }
+.cell { display: flex; min-width: 0; }
+.card {
+  flex: 1; min-width: 0; border-radius: var(--r-card); background: var(--card); background-image: var(--card-sheen); box-shadow: var(--shadow-whisper);
+  padding: 22px 24px 20px; display: flex; flex-direction: column; gap: 16px; container-type: inline-size; container-name: card;
+}
+.card h3 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.005em; }
+.card .cd { margin: 3px 0 0; color: var(--on-surface-variant); font-size: 13.5px; }
+.card .hd { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+.body { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; }
+.group { background: var(--surface-container); border-radius: var(--r-tile); padding: 4px 14px; display: flex; flex-direction: column; }
+.group + .group { margin-top: 10px; }
+.glabel { font-size: 12px; font-weight: 600; color: var(--on-surface-variant); margin: 8px 0 2px; }
+.row { display: flex; gap: 12px; align-items: center; justify-content: space-between; min-height: 48px; padding-block: 6px; flex-wrap: wrap; }
+.row + .row { border-top: 1px solid var(--border); }
+.row .k { font-weight: 500; }
+.row .k small { display: block; color: var(--on-surface-variant); font-weight: 400; font-size: 12.5px; }
+.row .v { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.select { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 10px; background: var(--card); box-shadow: inset 0 0 0 1px var(--outline); font-size: 13.5px; }
+.select svg { width: 14px; height: 14px; color: var(--on-surface-variant); }
+.sw { width: 36px; height: 20px; border-radius: 999px; background: var(--surface-container-high); box-shadow: inset 0 0 0 1px var(--outline); position: relative; flex: none; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 999px; background: var(--on-surface-variant); }
+.sw.on { background: var(--primary); box-shadow: none; }
+.sw.on::after { left: 19px; background: var(--primary-foreground); }
+.days { display: flex; gap: 4px; flex-wrap: wrap; }
+.day { width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center; font-size: 12px; font-weight: 600; background: var(--card); box-shadow: inset 0 0 0 1px var(--outline); color: var(--on-surface-variant); }
+.day.on { background: var(--primary); color: var(--primary-foreground); box-shadow: none; }
+.quiet { color: var(--on-surface-variant); }
+.fields { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@container card (min-width: 620px) { .fields.three { grid-template-columns: repeat(3, minmax(0, 1fr)); } .fields.twoc { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.field label { display: block; font-size: 12.5px; font-weight: 500; color: var(--on-surface-variant); margin-bottom: 6px; }
+.input { height: 42px; border-radius: 10px; background: var(--card); box-shadow: inset 0 0 0 1px var(--outline); display: flex; align-items: center; padding: 0 12px; font-size: 14px; color: var(--foreground); gap: 8px; }
+.input .sfx { margin-left: auto; color: var(--on-surface-variant); font-size: 12.5px; }
+.input.ph { color: var(--on-surface-variant); }
+.foot { margin-top: auto; padding-top: 16px; min-height: 64px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.foot .st { font-size: 13px; color: var(--on-surface-variant); min-width: 13rem; flex: 1; }
+.foot .ac { display: flex; gap: 8px; margin-left: auto; }
+.cons { font-size: 13px; color: var(--on-surface-variant); }
+
+.ghostcard .cd { margin-bottom: 0; }
+.unchanged { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: var(--r-tile); background: var(--surface-container); color: var(--on-surface-variant); font-size: 13.5px; }
+
+/* Before view: destination tags */
+.dest { margin-left: auto; }
+.card.leaving { box-shadow: var(--shadow-whisper), inset 0 0 0 1px color-mix(in oklch, var(--primary) 35%, transparent); }
+
+/* ---------- Entrances (canon: 120ms card step, 10px; 80ms row step, 5px) ---------- */
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes riseRow { from { opacity: 0; transform: translateY(5px); } }
+@keyframes fade { from { opacity: 0; } }
+.in { animation: rise var(--dur-standard) var(--ease-standard) both; }
+.in-row { animation: riseRow var(--dur-standard) var(--ease-standard) both; }
+@media (prefers-reduced-motion: reduce) {
+  .in, .in-row { animation-name: fade; }
+  .pill { transition: none; }
+}
+
+/* ---------- Proposal sections ---------- */
+.sections { display: grid; gap: 20px; grid-template-columns: 1fr; }
+@media (min-width: 1000px) { .sections { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sections .wide { grid-column: 1 / -1; } }
+.sec { border-radius: var(--r-card); background: var(--card); background-image: var(--card-sheen); box-shadow: var(--shadow-whisper), inset 0 0 0 1px var(--border); padding: 22px 24px; min-width: 0; }
+.sec h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.sec > p.cd { margin: 4px 0 14px; color: var(--on-surface-variant); }
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th { text-align: left; font-weight: 600; font-size: 12px; color: var(--on-surface-variant); padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td .why { color: var(--on-surface-variant); }
+ol.order { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; counter-reset: o; }
+ol.order li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--border); counter-increment: o; }
+ol.order li:last-child { border-bottom: 0; }
+ol.order li::before { content: counter(o); font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
+ol.order li span.why { display: block; color: var(--on-surface-variant); font-size: 13px; }
+ul.plain { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+ul.plain li::marker { color: var(--on-surface-variant); }
+.kv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; font-size: 13.5px; }
+.kv div:nth-child(odd) { color: var(--on-surface-variant); }
+.kv div:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; }
+.q { margin-top: 14px; padding: 14px 16px; border-radius: var(--r-tile); background: var(--primary-container); color: var(--on-primary-container); font-size: 13.5px; }
+.q strong { font-weight: 700; }
+h4 { margin: 18px 0 8px; font-size: 13px; font-weight: 650; }
+
+/* ---------- Phone width ---------- */
+@media (max-width: 860px) {
+  .frame { grid-template-columns: 1fr; min-height: 0; }
+  .side { border-right: 0; border-bottom: 1px solid var(--border); padding: 14px 10px; gap: 10px; }
+  .side .navgroup.dim, .side .brand { display: none; }
+  .main { padding: 18px 14px 22px; }
+}
+</style>
+
+<div class="wrap">
+  <header class="lede">
+    <div>
+      <h1>System Settings Regroup</h1>
+      <p>The index drops from a band and eight unrelated cards to a band and three cards about time, schedules and SIMs. Access and hardware get pages of their own, and the sidebar is reordered by how often each page is opened.</p>
+      <div class="facts">
+        <span class="badge info"><svg class="lu s3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>2 new sub-routes</span>
+        <span class="tag">Frontend only</span>
+        <span class="tag">No backend, CGI or UCI change</span>
+        <span class="tag">No existing URL changes</span>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Compare">
+        <button type="button" id="vBefore" aria-pressed="false">Before</button>
+        <button type="button" id="vAfter" aria-pressed="true">After</button>
+      </div>
+      <div class="seg sm" role="group" aria-label="Theme">
+        <button type="button" id="tSys" aria-pressed="true">System</button>
+        <button type="button" id="tLight" aria-pressed="false">Light</button>
+        <button type="button" id="tDark" aria-pressed="false">Dark</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="frame" aria-label="Prototype">
+    <aside class="side">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="var(--primary)" stroke-width="4.5"/><path d="M16 16 L27 27" stroke="var(--on-primary-container)" stroke-width="4.5" stroke-linecap="round"/></svg>
+        QManager
+      </div>
+      <div class="navgroup dim" aria-hidden="true">
+        <div class="gl">Monitoring</div>
+        <div class="navlist">
+          <div class="nav stat"><span class="ms">speed</span>Connection Quality</div>
+          <div class="nav stat"><span class="ms">pets</span>Watchdog</div>
+        </div>
+      </div>
+      <nav class="navgroup" aria-label="System">
+        <div class="gl">System</div>
+        <div class="navlist" id="navlist"></div>
+      </nav>
+    </aside>
+    <div class="main" id="main" aria-live="polite"></div>
+  </section>
+
+  <div class="sections">
+    <section class="sec wide">
+      <h2>Where every card goes</h2>
+      <p class="cd">Cards keep their hooks, internals and copy. Only their page changes, plus one control fix so the Hardware pair matches.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Card</th><th>Today</th><th>Proposed</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Time &amp; Units</td><td>System Settings</td><td><span class="tag">Stays</span></td><td class="why">Daily-use preferences, and the band's Time zone tile reads it.</td></tr>
+            <tr><td>Scheduled Operations</td><td>System Settings</td><td><span class="tag">Stays</span></td><td class="why">Feeds the band's Next reboot tile.</td></tr>
+            <tr><td>Tracked SIMs</td><td>System Settings</td><td><span class="tag">Stays</span>, full-width band</td><td class="why">Feeds the band's SIM tile. One short row can't fill half a symmetric pair, so it spans the row.</td></tr>
+            <tr><td>SSH Access</td><td>System Settings</td><td><span class="tag nr">Device Access</span></td><td class="why">Both cards answer "how do I reach this modem", and both are set once and rarely touched.</td></tr>
+            <tr><td>Web Port</td><td>System Settings</td><td><span class="tag nr">Device Access</span></td><td class="why">Same question. It keeps its port-move confirm dialog and redirect.</td></tr>
+            <tr><td>Hardware Offload</td><td>System Settings</td><td><span class="tag nr">Hardware</span></td><td class="why">A low-level data path that needs a reboot. It shouldn't sit beside the time zone picker.</td></tr>
+            <tr><td>Host AT Ports</td><td>System Settings</td><td><span class="tag nr">Hardware</span></td><td class="why">The other host-facing hardware switch. Same shape, so the two form a natural pair.</td></tr>
+            <tr><td>Diagnostics (debug report)</td><td>System Settings</td><td><span class="tag nr">System Health Check</span></td><td class="why">Both are troubleshooting. The report is the next step when the checks don't explain a fault.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>Sidebar order</h2>
+      <p class="cd">Sub-routes under System Settings, ordered by how often each is opened, then by how risky it is to change.</p>
+      <ol class="order">
+        <li><div>Languages<span class="why">The most-used setting after the index, and often the first thing a new user changes.</span></div><span class="tag">was 3rd</span></li>
+        <li><div>Device Access<span class="why">Passwords and ports. Set during setup, revisited when a password changes.</span></div><span class="badge info"><svg class="lu s3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New</span></li>
+        <li><div>Configuration Backup<span class="why">Before an update or a risky change. Kept near the top on purpose.</span></div><span class="tag">was 4th</span></li>
+        <li><div>Adaptive Polling<span class="why">Tuning, opened rarely.</span></div><span class="tag">was 5th</span></li>
+        <li><div>Hardware<span class="why">Rare, and needs a reboot. Deep in the list, where an accidental click is less likely.</span></div><span class="badge info"><svg class="lu s3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New</span></li>
+        <li><div>System Health Check<span class="why">Troubleshooting, now with the debug report.</span></div><span class="tag">was 2nd</span></li>
+        <li><div>Logs<span class="why">The last stop when troubleshooting.</span></div><span class="tag">was 1st</span></li>
+      </ol>
+      <h4>Unchanged</h4>
+      <p class="quiet" style="margin:0">Software Update and AT Terminal stay as their own top-level rows in the System group. Existing sub-route URLs are untouched, so bookmarks keep working and no redirect stubs are needed.</p>
+    </section>
+
+    <section class="sec">
+      <h2>Motion</h2>
+      <p class="cd">Only the existing <span class="mono">lib/motion.ts</span> tokens. Click the sidebar above to see each one.</p>
+      <div class="kv">
+        <div>Nav pill slides between rows</div><div>standard 600ms, standard curve</div>
+        <div>Active glyph FILL 0 → 1</div><div>standard 600ms</div>
+        <div>Header, band, cards cascade</div><div>120ms step, 10px rise</div>
+        <div>Rows inside a card</div><div>80ms step, 5px rise</div>
+        <div>Outgoing page</div><div>none (Enter-Only Rule)</div>
+        <div>Reduced motion</div><div>opacity only, pill jumps</div>
+      </div>
+      <h4>Per route</h4>
+      <ul class="plain">
+        <li>Each new page is one cascade root (<span class="mono">staggerContainer</span>, <span class="mono">initial</span>/<span class="mono">animate</span> once). The card grid is a nested container that inherits <span class="mono">visible</span>.</li>
+        <li>Cards that swap in after a skeleton declare their own <span class="mono">initial="hidden" animate="visible"</span>, as the Tracked SIMs row already does.</li>
+        <li>No springs, no loops, no exit animation. Reduced motion goes through <span class="mono">useMotionReduced()</span> only.</li>
+      </ul>
+    </section>
+
+    <section class="sec wide">
+      <h2>Build plan</h2>
+      <p class="cd">Frontend only. It goes in a worktree off <span class="mono">development-home</span>, one commit per step.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Step</th><th>Files</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>1. Device Access route</td><td class="mono">app/system-settings/device-access/page.tsx<br>components/system-settings/device-access/device-access.tsx</td><td class="why">Header + single-column stack. SSH and Web Port recompose on <span class="mono">@container/card</span>: 3 fields in a row for SSH and 2 for Web Port on a wide card, stacked on a phone.</td></tr>
+            <tr><td>2. Hardware route</td><td class="mono">app/system-settings/hardware/page.tsx<br>components/system-settings/hardware/hardware.tsx<br>ipa-offload/ipa-offload-card.tsx</td><td class="why">Symmetric pair. Hardware Offload swaps its bare <span class="mono">Switch</span> for <span class="mono">SegmentedField</span> + <span class="mono">CardFoot</span> + <span class="mono">SaveButton</span> to match Host AT Ports, which counts as reworking it. The reboot hand-off is unchanged.</td></tr>
+            <tr><td>3. Debug report move</td><td class="mono">system-health-check/system-health-check.tsx</td><td class="why">The full-width card after All Checks renders in every page state (loading, empty, error, loaded), because it doesn't depend on a check run.</td></tr>
+            <tr><td>4. Slim the index</td><td class="mono">system-settings.tsx, shapes.ts</td><td class="why">Three cards. Tracked SIMs spans the row. The page description becomes one sentence about time, schedules and SIMs.</td></tr>
+            <tr><td>5. Sidebar</td><td class="mono">components/app-sidebar.tsx</td><td class="why">New order plus two rows. No new Material glyphs are needed, because sub-rows carry no icon.</td></tr>
+            <tr><td>6. Copy, five catalogs</td><td class="mono">public/locales/{en,zh-CN,zh-TW,it,id}/sidebar.json, system-settings.json</td><td class="why"><span class="mono">items.device_access</span>, <span class="mono">items.hardware</span>, <span class="mono">device_access.page.*</span>, <span class="mono">hardware.page.*</span>, the new index description, and Hardware Offload's save toasts. zh-TW comes from zh-CN through OpenCC.</td></tr>
+            <tr><td>7. Docs</td><td class="mono">docs/reference/system-settings.md, docs/features/README.md, web-port.md, diagnostics.md, CLAUDE.md routing</td><td class="why">The cell table moves to the new pages, and each moved card's doc names its new route.</td></tr>
+            <tr><td>8. Validate</td><td class="mono">bunx tsc --noEmit · eslint on touched files · bun run icons:check</td><td class="why">Preview at 375px and desktop in both themes, toasts on every save path, and a grep of the copy for debug-build strings.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="q"><strong>Two decisions for you.</strong> The new pages are called <strong>Device Access</strong> and <strong>Hardware</strong>. Rename either if you prefer, for example "Access &amp; Security" or "Hardware &amp; Ports". The debug report lands on System Health Check; the other candidate home is Logs.</div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Glyphs (lucide geometry, drawn inline) ----------
+  var L = {
+    refresh: '<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    power: '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
+    sim: '<path d="M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M8 12h8v6H8z"/>',
+    check: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+    off: '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/>',
+    alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+    chevron: '<path d="m6 9 6 6 6-6"/>',
+    eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+    play: '<path d="m6 3 14 9-14 9z"/>',
+    steth: '<path d="M11 2v2M5 2v2M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1"/><path d="M8 15a6 6 0 0 0 12 0v-3"/><circle cx="20" cy="10" r="2"/>',
+    info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>'
+  };
+  function g(name, cls) { return '<svg class="lu' + (cls ? " " + cls : "") + '" viewBox="0 0 24 24" aria-hidden="true">' + L[name] + "</svg>"; }
+
+  // ---------- Small builders ----------
+  function badge(v, glyph, text) { return '<span class="badge ' + v + '">' + g(glyph, "s3") + text + "</span>"; }
+  function tag(text, v) { return '<span class="tag' + (v ? " " + v : "") + '">' + text + "</span>"; }
+  function seg(opts, on) {
+    return '<span class="seg sm" aria-hidden="true">' + opts.map(function (o) {
+      return '<button type="button" tabindex="-1" aria-pressed="' + (o === on) + '">' + o + "</button>";
+    }).join("") + "</span>";
+  }
+  function row(k, v, sub) { return '<div class="row r"><div class="k">' + k + (sub ? "<small>" + sub + "</small>" : "") + '</div><div class="v">' + v + "</div></div>"; }
+  function select(v) { return '<span class="select">' + v + g("chevron") + "</span>"; }
+  function sw(on) { return '<span class="sw' + (on ? " on" : "") + '" aria-hidden="true"></span>'; }
+  function days(on) {
+    var d = ["S", "M", "T", "W", "T", "F", "S"];
+    return '<span class="days">' + d.map(function (x, i) { return '<span class="day' + (on.indexOf(i) > -1 ? " on" : "") + '">' + x + "</span>"; }).join("") + "</span>";
+  }
+  function field(label, value, opts) {
+    opts = opts || {};
+    return '<div class="field r"><label>' + label + '</label><div class="input' + (opts.ph ? " ph" : "") + '">' +
+      (opts.mono ? '<span class="num">' + value + "</span>" : value) + (opts.sfx ? '<span class="sfx">' + opts.sfx + "</span>" : "") + "</div></div>";
+  }
+  function foot(status, actions) { return '<div class="foot r"><div class="st">' + (status || "") + '</div><div class="ac">' + actions + "</div></div>"; }
+  function save(label, disabled) { return '<button type="button" class="btn primary" tabindex="-1"' + (disabled ? " disabled" : "") + ">" + label + "</button>"; }
+  function ghost(label) { return '<button type="button" class="btn ghost" tabindex="-1">' + label + "</button>"; }
+  function card(o) {
+    return '<div class="cell c' + (o.span ? " span2" : "") + '"><div class="card' + (o.cls ? " " + o.cls : "") + '">' +
+      '<div class="hd r"><div><h3>' + o.title + '</h3><p class="cd">' + o.desc + "</p></div>" + (o.dest || "") + "</div>" +
+      '<div class="body">' + (o.body || "") + "</div>" + (o.foot || "") + "</div></div>";
+  }
+  function tile(disc, glyph, ey, va, ca) {
+    return '<div class="tile c"><span class="disc ' + disc + '">' + g(glyph) + '</span><div class="tx"><span class="ey">' + ey +
+      '</span><span class="va num">' + va + '</span><span class="ca">' + ca + "</span></div></div>";
+  }
+  function header(title, desc, opts) {
+    opts = opts || {};
+    return '<div class="ph c"><div>' + (opts.crumb ? '<div class="crumb">System Settings ' + g("chevron") .replace('viewBox', 'style="transform:rotate(-90deg);width:12px;height:12px" viewBox') + " " + title + "</div>" : "") +
+      "<h2>" + title + (opts.tagHtml || "") + "</h2><p>" + desc + "</p></div>" + (opts.action || "") + "</div>";
+  }
+  var refreshBtn = '<button type="button" class="btn outline action" tabindex="-1">' + g("refresh") + "Refresh</button>";
+  var hostTag = ' <span class="tag mono">qmanager-rm551e</span>';
+
+  // ---------- Card bodies shared by both views ----------
+  var C = {
+    time: function (extra) {
+      return card(Object.assign({
+        title: "Time &amp; Units",
+        desc: "How this modem keeps time, and the units every reading is shown in.",
+        body: '<div class="group">' + row("Time zone", select("Asia/Manila")) + row("Temperature", seg(["°C", "°F"], "°C")) + row("Distance", seg(["km", "mi"], "km")) + "</div>",
+        foot: foot("", ghost("Discard") + save("Save", true))
+      }, extra));
+    },
+    sched: function (extra) {
+      return card(Object.assign({
+        title: "Scheduled Operations",
+        desc: "Restart the modem, or switch its radio off, automatically on a weekly schedule.",
+        body: '<div class="group">' + row("Automatic reboot", sw(true)) + row("Time", '<span class="select num">03:00</span>') + row("Repeat on", days([0])) + "</div>" +
+          '<div class="group">' + row('<span class="quiet">Low power window</span>', sw(false)) + row('<span class="quiet">Start – End</span>', '<span class="quiet num">01:00 – 05:00</span>') + "</div>",
+        foot: foot("Saves as you edit", "")
+      }, extra));
+    },
+    sims: function (extra) {
+      return card(Object.assign({
+        title: "Tracked SIMs",
+        desc: "The SIMs QManager has seen, so only a genuinely new one raises an alert.",
+        body: '<div class="group">' + row("SIMs remembered", badge("info", "bell", "Alerts on") + '<span class="num" style="font-weight:700;font-size:16px">2</span>') + "</div>",
+        foot: foot("Clearing keeps the SIM that is inserted now.", ghost("Clear…"))
+      }, extra));
+    },
+    ssh: function (extra, wide) {
+      return card(Object.assign({
+        title: "SSH Access",
+        desc: "The root password for SSH sessions into this modem.",
+        body: '<div class="fields' + (wide ? " three" : "") + '">' + field("Your QManager password", "••••••••", { sfx: g("eye") }) +
+          field("New SSH password", "At least 5 characters", { ph: true, sfx: g("eye") }) + field("Confirm new password", "Repeat it", { ph: true, sfx: g("eye") }) + "</div>" +
+          '<div class="group" style="margin-top:6px">' + row("Enforce strong password", seg(["On", "Off"], "On"), "Upper case, lower case and a digit") + "</div>",
+        foot: foot("Your web session stays signed in.", save("Change password", true))
+      }, extra));
+    },
+    port: function (extra, wide) {
+      return card(Object.assign({
+        title: "Web Port",
+        desc: "The ports this interface listens on. LuCI moves with it.",
+        body: '<div class="fields' + (wide ? " twoc" : "") + '">' + field("HTTP port", "80", { mono: true }) + field("HTTPS port", "443", { mono: true }) + "</div>",
+        foot: foot("", ghost("Discard") + save("Apply", true))
+      }, extra));
+    },
+    ipaNew: function (extra) {
+      return card(Object.assign({
+        title: "Hardware Offload",
+        desc: "Route packet processing through the modem's IPA hardware path.",
+        body: '<div class="group">' + row("Hardware offload", seg(["On", "Off"], "On")) + row("Status", badge("success", "check", "Active")) + "</div>" +
+          '<p class="cons r" style="margin:6px 0 0">If you see random Ethernet drops, turn it off to route traffic through the CPU.</p>',
+        foot: foot("Takes effect after a reboot.", ghost("Discard") + save("Save", true))
+      }, extra));
+    },
+    ipaOld: function (extra) {
+      return card(Object.assign({
+        title: "Hardware Offload",
+        desc: "Route packet processing through the modem's IPA hardware path.",
+        body: '<div class="group">' + row("Enable Hardware Offload", sw(true)) + "</div>"
+      }, extra));
+    },
+    hostat: function (extra) {
+      return card(Object.assign({
+        title: "Host AT Ports",
+        desc: "AT access for a computer connected over USB or PCIe.",
+        body: '<div class="group">' + row("Host access", seg(["On", "Off"], "On")) + row("Status", badge("success", "check", "Active")) + "</div>" +
+          '<p class="cons r" style="margin:6px 0 0">A connected computer can\'t send AT commands while this is off.</p>',
+        foot: foot("", ghost("Discard") + save("Save", true))
+      }, extra));
+    },
+    diag: function (extra) {
+      return card(Object.assign({
+        title: "Diagnostics",
+        desc: "Capture a debug report to share when troubleshooting.",
+        body: '<p class="cons r" style="margin:0">A plain-text snapshot of radio status, network configuration and recent logs. Nothing leaves the modem until you share the file.</p>',
+        foot: foot("", '<button type="button" class="btn primary" tabindex="-1">' + g("download") + "Download Debug Report</button>")
+      }, extra));
+    }
+  };
+
+  function band() {
+    return '<div class="band">' +
+      tile("p", "clock", "Time zone", "Asia/Manila", "Used for logs and schedules") +
+      tile("s", "power", "Next reboot", "Sun 03:00", "Repeats on Sun") +
+      tile("m", "sim", "Tracked SIMs", "2", "Only a new SIM raises an alert") + "</div>";
+  }
+  function unchanged(title, desc, cards) {
+    return header(title, desc, { crumb: true }) +
+      '<div class="unchanged c">' + g("info") + "This page doesn't change. Only its place in the sidebar moves.</div>" +
+      '<div class="grid two">' + cards.map(function (c) { return card({ title: c[0], desc: c[1], cls: "ghostcard" }); }).join("") + "</div>";
+  }
+
+  // ---------- Pages ----------
+  var PAGES = {
+    index: function () {
+      return header("System Settings", "How this device keeps time, when it restarts, and which SIMs it remembers.", { tagHtml: hostTag, action: refreshBtn }) +
+        band() + '<div class="grid two">' + C.time() + C.sched() + C.sims({ span: true }) + "</div>";
+    },
+    languages: function () {
+      return unchanged("Languages", "Choose the interface language and install community packs.", [
+        ["Display Language", "The language this interface is shown in."],
+        ["Community Packs", "Languages contributed by the community."]
+      ]);
+    },
+    access: function () {
+      return header("Device Access", "The password and ports used to reach this modem.", { crumb: true }) +
+        '<div class="grid">' + C.ssh({}, true) + C.port({}, true) + "</div>";
+    },
+    backup: function () {
+      return unchanged("Configuration Backup", "Save this device's settings to a file, or restore them from one.", [
+        ["Create Backup", "Choose what to include and download a backup file."],
+        ["Restore Backup", "Apply a backup file to this device."]
+      ]);
+    },
+    polling: function () {
+      return unchanged("Adaptive Polling", "Trade update speed for load as the modem goes idle.", [
+        ["Adaptive Polling", "Tiers, idle detection and the current tier."]
+      ]);
+    },
+    hardware: function () {
+      return header("Hardware", "How Ethernet traffic and a connected host reach the modem's hardware.", { crumb: true }) +
+        '<div class="grid two">' + C.ipaNew() + C.hostat() + "</div>";
+    },
+    health: function () {
+      return header("System Health Check", "Check every QManager subsystem on this device, then download the results.", {
+        crumb: true, action: '<button type="button" class="btn primary action" tabindex="-1">' + g("play") + "Run checks</button>"
+      }) +
+        '<div class="band">' + tile("s", "check", "Result", "Healthy", "No check needs attention") + tile("m", "steth", "Checks", "49 of 49", "Last run 12 min ago") + tile("m", "clock", "Duration", "38 s", "AT broker to firewall") + "</div>" +
+        '<div class="grid">' + card({ title: "All Checks", desc: "Every check from the last run, grouped by subsystem.", body: '<div class="group">' + row("AT broker", badge("success", "check", "8 passed")) + row("Services", badge("success", "check", "14 passed")) + row("Firewall", badge("success", "check", "6 passed")) + "</div>" }) +
+        C.diag({ title: "Debug Report", dest: badge("info", "arrow", "Moved here") }) + "</div>";
+    },
+    logs: function () {
+      return unchanged("Logs", "Read what QManager and the modem have been doing.", [
+        ["System Log", "Live transcript with level and source filters."]
+      ]);
+    },
+    before: function () {
+      function d(to) { return to ? '<span class="dest">' + tag("→ " + to, "nr") + "</span>" : '<span class="dest">' + tag("Stays") + "</span>"; }
+      return header("System Settings", "How this device keeps time, who can reach it, and which SIMs it remembers.", { tagHtml: hostTag, action: refreshBtn }) +
+        band() + '<div class="grid two">' +
+        C.time({ dest: d() }) + C.sched({ dest: d() }) +
+        C.ssh({ dest: d("Device Access"), cls: "leaving" }) + C.sims({ dest: d() }) +
+        C.ipaOld({ dest: d("Hardware"), cls: "leaving" }) + C.hostat({ dest: d("Hardware"), cls: "leaving" }) +
+        C.port({ dest: d("Device Access"), cls: "leaving" }) + C.diag({ dest: d("Health Check"), cls: "leaving" }) +
+        "</div>";
+    }
+  };
+
+  // ---------- Navigation models ----------
+  var NAV_AFTER = [
+    { id: "index", label: "System Settings", icon: "settings" },
+    { id: "languages", label: "Languages", sub: true },
+    { id: "access", label: "Device Access", sub: true, isNew: true },
+    { id: "backup", label: "Configuration Backup", sub: true },
+    { id: "polling", label: "Adaptive Polling", sub: true },
+    { id: "hardware", label: "Hardware", sub: true, isNew: true },
+    { id: "health", label: "System Health Check", sub: true },
+    { id: "logs", label: "Logs", sub: true },
+    { id: "update", label: "Software Update", icon: "download", inert: true },
+    { id: "at", label: "AT Terminal", icon: "terminal", inert: true }
+  ];
+  var NAV_BEFORE = [
+    { id: "before", label: "System Settings", icon: "settings" },
+    { id: "logs", label: "Logs", sub: true, inert: true },
+    { id: "health", label: "System Health Check", sub: true, inert: true },
+    { id: "languages", label: "Languages", sub: true, inert: true },
+    { id: "backup", label: "Configuration Backup", sub: true, inert: true },
+    { id: "polling", label: "Adaptive Polling", sub: true, inert: true },
+    { id: "update", label: "Software Update", icon: "download", inert: true },
+    { id: "at", label: "AT Terminal", icon: "terminal", inert: true }
+  ];
+
+  var state = { view: "after", page: "index" };
+  var navlist = document.getElementById("navlist");
+  var main = document.getElementById("main");
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  function renderNav() {
+    var items = state.view === "after" ? NAV_AFTER : NAV_BEFORE;
+    var html = '<span class="pill" id="pill" data-settling></span>';
+    var inSub = false;
+    items.forEach(function (it) {
+      if (it.sub && !inSub) { html += '<div class="subrail">'; inSub = true; }
+      if (!it.sub && inSub) { html += "</div>"; inSub = false; }
+      var cur = it.id === state.page ? ' aria-current="page"' : "";
+      var dis = it.inert ? ' data-inert="1" title="Not part of this change"' : "";
+      html += '<button type="button" class="nav' + (it.sub ? " sub" : "") + '" data-id="' + it.id + '"' + cur + dis + ">" +
+        (it.icon ? '<span class="ms" aria-hidden="true">' + it.icon + "</span>" : "") + "<span>" + it.label + "</span>" +
+        (it.isNew ? '<span class="new badge info">' + g("info", "s3").replace(L.info, '<path d="M12 5v14M5 12h14"/>') + "New</span>" : "") + "</button>";
+    });
+    if (inSub) html += "</div>";
+    navlist.innerHTML = html;
+    placePill(true);
+  }
+
+  function placePill(settle) {
+    var pill = document.getElementById("pill");
+    var cur = navlist.querySelector('[aria-current="page"]');
+    if (!pill || !cur) return;
+    var top = cur.getBoundingClientRect().top - navlist.getBoundingClientRect().top;
+    if (settle) pill.setAttribute("data-settling", "");
+    pill.style.height = cur.offsetHeight + "px";
+    pill.style.transform = "translateY(" + top + "px)";
+    if (settle) { void pill.offsetWidth; pill.removeAttribute("data-settling"); }
+  }
+
+  function renderPage() {
+    main.innerHTML = PAGES[state.page]();
+    // Cascade: page-level children on the 120ms step; rows inside each card on the 80ms step.
+    var blocks = main.querySelectorAll(".c");
+    var i = 0;
+    blocks.forEach(function (el) {
+      el.classList.add("in");
+      el.style.animationDelay = (i * 120) + "ms";
+      var rows = el.querySelectorAll(".r");
+      rows.forEach(function (r, j) {
+        r.classList.add("in-row");
+        r.style.animationDelay = (i * 120 + 120 + Math.min(j, 10) * 80) + "ms";
+      });
+      i++;
+    });
+  }
+
+  navlist.addEventListener("click", function (e) {
+    var b = e.target.closest(".nav");
+    if (!b || b.dataset.inert) return;
+    if (b.dataset.id === state.page) return;
+    navlist.querySelectorAll(".nav").forEach(function (n) { n.removeAttribute("aria-current"); });
+    b.setAttribute("aria-current", "page");
+    state.page = b.dataset.id;
+    placePill(false);
+    renderPage();
+  });
+
+  function setView(v) {
+    state.view = v;
+    state.page = v === "after" ? "index" : "before";
+    document.getElementById("vBefore").setAttribute("aria-pressed", String(v === "before"));
+    document.getElementById("vAfter").setAttribute("aria-pressed", String(v === "after"));
+    renderNav();
+    renderPage();
+  }
+  document.getElementById("vBefore").addEventListener("click", function () { setView("before"); });
+  document.getElementById("vAfter").addEventListener("click", function () { setView("after"); });
+
+  function setTheme(t) {
+    var root = document.documentElement;
+    if (t === "system") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", t);
+    [["tSys", "system"], ["tLight", "light"], ["tDark", "dark"]].forEach(function (p) {
+      document.getElementById(p[0]).setAttribute("aria-pressed", String(p[1] === t));
+    });
+  }
+  document.getElementById("tSys").addEventListener("click", function () { setTheme("system"); });
+  document.getElementById("tLight").addEventListener("click", function () { setTheme("light"); });
+  document.getElementById("tDark").addEventListener("click", function () { setTheme("dark"); });
+
+  window.addEventListener("resize", function () { placePill(true); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { placePill(true); });
+
+  setView("after");
+})();
+</script>
