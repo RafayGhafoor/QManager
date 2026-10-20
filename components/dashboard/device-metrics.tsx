@@ -16,6 +16,12 @@ import { Badge } from "@/components/ui/badge";
 import { TickingValue } from "@/components/ui/ticking-value";
 import { TickGroup } from "@/components/ui/tick-group";
 import { Button } from "@/components/ui/button";
+import { Tag } from "@/components/ui/tag";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import type { DeviceStatus, LteStatus, NrStatus } from "@/types/modem-status";
 import {
@@ -29,7 +35,12 @@ import { useStorage } from "@/hooks/use-storage";
 import { useUnitPreferences } from "@/hooks/use-system-settings";
 import { useSpeedtest, type SpeedtestPhase } from "@/hooks/use-speedtest";
 import { formatSpeed, type SpeedtestProgressLine } from "@/types/speedtest";
-import { DUR, staggerRows, staggerRowItem } from "@/lib/motion";
+import {
+  DUR,
+  EASE_QUICK,
+  staggerRows,
+  staggerRowItem,
+} from "@/lib/motion";
 import {
   ABSENT,
   CARD_DESC,
@@ -126,7 +137,7 @@ function SpeedFigure({
         <MaterialSymbol name={glyph} size={14} filled className={glyphClass} />
         {label}
       </span>
-      <span className={FIGURE.VALUE}>
+      <span className={cn(FIGURE.VALUE, "@max-sm/card:text-lg")}>
         {value === null ? (
           ABSENT
         ) : (
@@ -175,9 +186,9 @@ function MeterRow({
 }
 
 /**
- * Skeleton (Skeleton-Mirror Rule): four meter groups, two pills and the
- * speed-test group (head row over its pinned tile), i.e. the exact geometry of
- * the loaded body at the exact same heights.
+ * Skeleton (Skeleton-Mirror Rule): four meter groups, the shared cell-distance
+ * pill and the pinned speed-test tile, i.e. the exact geometry of the loaded
+ * body at the exact same heights.
  *
  * It used to draw TEN generic rows for a smaller body, so the card lost height
  * the instant data landed and dragged its grid siblings with it.
@@ -194,14 +205,8 @@ function MetricsSkeleton() {
           <Skeleton className={cn(METER_H, "w-full rounded-pill")} />
         </div>
       ))}
-      {Array.from({ length: 2 }).map((_, i) => (
-        <Skeleton key={i} className="h-10 w-full rounded-pill" />
-      ))}
-      <div className="mt-auto flex flex-col gap-2">
-        <div className={SPEEDTEST.HEAD}>
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-6 w-24 rounded-pill" />
-        </div>
+      <Skeleton className="h-10 w-full rounded-pill" />
+      <div className="mt-auto">
         <Skeleton className={cn(SPEEDTEST.TILE_H, "w-full rounded-tile")} />
       </div>
     </div>
@@ -256,6 +261,18 @@ const DeviceMetricsComponent = ({
     setSpeedtestOpen(open);
     if (!open) void refreshSpeedtest();
   };
+  // The run/idle crossfade is for a swap the user watches happen. A card that
+  // mounts already running (or idle) rides the page cascade instead of fading
+  // a second time, so `swapped` stays false until the first real change.
+  const [prevRunning, setPrevRunning] = useState(isRunning);
+  const [swapped, setSwapped] = useState(false);
+  if (prevRunning !== isRunning) {
+    setPrevRunning(isRunning);
+    setSwapped(true);
+  }
+  const runControlLabel = t(
+    isRunning ? "speedtest.view_running" : "speedtest.run_short",
+  );
   const reading = liveReading(phase, currentProgress);
   const phaseLabelKey = PHASE_LABEL_KEY[phase];
   const runLabel = phaseLabelKey
@@ -451,133 +468,163 @@ const DeviceMetricsComponent = ({
           </span>
         </MeterRow>
 
-        {/* ── LTE Cell Distance ─────────────────────────────────────────── */}
+        {/* ── Cell Distance ─────────────────────────────────────────────────
+            One row for both legs: the radio is identity, so each figure leads
+            with its outline Tag, and one info tip covers both timing-advance
+            caveats. Both legs always draw (an empty one reads ABSENT) so the
+            two figures keep their edges as a leg comes and goes. */}
         <PillRow
           label={
             <>
-              <span className="truncate">{t("metrics.lte_cell_distance")}</span>
-              <HintIcon label={t("metrics.lte_cell_distance")}>
-                {!unreachable && lteTa
-                  ? t("metrics.lte_distance_tooltip", { ta: lteTa })
-                  : t("metrics.ta_unavailable")}
+              <span className="truncate @max-sm/card:hidden">
+                {t("metrics.cell_distance")}
+              </span>
+              <span className="hidden truncate @max-sm/card:inline">
+                {t("metrics.cell_distance_short")}
+              </span>
+              <HintIcon label={t("metrics.cell_distance")}>
+                <span className="block">
+                  {!unreachable && lteTa
+                    ? t("metrics.lte_distance_tooltip", { ta: lteTa })
+                    : t("metrics.ta_unavailable")}
+                </span>
+                <span className="mt-1 block">
+                  {!unreachable && nrTa
+                    ? t("metrics.nr_distance_tooltip", { ta: nrTa })
+                    : t("metrics.ta_unavailable")}
+                </span>
               </HintIcon>
             </>
           }
         >
-          <span className={VALUE_CLASS}>
-            <TickingValue value={lteDistance}>{lteDistance}</TickingValue>
-          </span>
-        </PillRow>
-
-        {/* ── NR Cell Distance ──────────────────────────────────────────── */}
-        <PillRow
-          label={
-            <>
-              <span className="truncate">{t("metrics.nr_cell_distance")}</span>
-              <HintIcon label={t("metrics.nr_cell_distance")}>
-                {!unreachable && nrTa
-                  ? t("metrics.nr_distance_tooltip", { ta: nrTa })
-                  : t("metrics.ta_unavailable")}
-              </HintIcon>
-            </>
-          }
-        >
-          <span className={VALUE_CLASS}>
-            <TickingValue value={nrDistance}>{nrDistance}</TickingValue>
+          <span className="inline-flex items-center gap-3 @max-sm/card:gap-2">
+            <span className="inline-flex items-center gap-1.5">
+              <Tag variant="lte" className="py-0 @max-sm/card:px-1.5">
+                LTE
+              </Tag>
+              <span className={VALUE_CLASS}>
+                <TickingValue value={lteDistance}>{lteDistance}</TickingValue>
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Tag variant="nr" className="py-0 @max-sm/card:px-1.5">
+                NR
+              </Tag>
+              <span className={VALUE_CLASS}>
+                <TickingValue value={nrDistance}>{nrDistance}</TickingValue>
+              </span>
+            </span>
           </span>
         </PillRow>
 
         {/* ── Speed Test ────────────────────────────────────────────────────
-            Moved here from Connection Quality so the two cards end on one
-            figure row each. The tile is pinned (SPEEDTEST.TILE), so a run
-            starting or finishing moves nothing. The result's age is not shown.
-            Numerals stay neutral; direction ink sits on the arrow glyphs only. */}
-        <motion.div
-          variants={staggerRowItem}
-          className="mt-auto flex flex-col gap-2"
-        >
-          <div className={SPEEDTEST.HEAD}>
-            <span className="truncate text-sm font-semibold text-on-surface-variant">
-              {t("speedtest.section_label")}
-            </span>
-            <Button
-              size="xs"
-              className="shrink-0"
-              onClick={() => setSpeedtestOpen(true)}
-            >
-              <MaterialSymbol
-                name={isRunning ? "visibility" : "play_arrow"}
-                size={16}
-                filled
-              />
-              {t(isRunning ? "speedtest.view_running" : "speedtest.run_short")}
-            </Button>
-          </div>
-
+            One pinned tile: the run control leads, the three figures follow.
+            The play glyph alone says "run", so it carries a tooltip. A run
+            starting or finishing swaps the figures for the live reading on a
+            `quick` crossfade and moves nothing (SPEEDTEST.TILE is pinned). The
+            result's age is not shown. Numerals stay neutral; direction ink
+            sits on the arrow glyphs only. */}
+        <motion.div variants={staggerRowItem} className="mt-auto">
           <div className={SPEEDTEST.TILE}>
-            {isRunning ? (
-              <div className="flex h-full flex-col justify-center gap-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex min-w-0 items-center gap-2 text-[13px]/5 font-semibold text-on-surface-variant">
-                    <span aria-hidden className="relative inline-flex size-[7px] shrink-0">
-                      <span className="absolute inset-0 rounded-pill bg-primary animate-live-ping" />
-                      <span className="relative size-[7px] rounded-pill bg-primary" />
+            <div className="flex h-full items-center gap-5 @max-sm/card:gap-3">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon-lg"
+                    className="shrink-0"
+                    aria-label={runControlLabel}
+                    onClick={() => setSpeedtestOpen(true)}
+                  >
+                    <motion.span
+                      key={isRunning ? "view" : "run"}
+                      className="inline-flex"
+                      initial={swapped ? { opacity: 0 } : false}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: DUR.quick, ease: EASE_QUICK }}
+                    >
+                      <MaterialSymbol
+                        name={isRunning ? "visibility" : "play_arrow"}
+                        size={20}
+                        filled
+                      />
+                    </motion.span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">{runControlLabel}</TooltipContent>
+              </Tooltip>
+
+              <motion.div
+                key={isRunning ? "running" : "idle"}
+                className="min-w-0 flex-1"
+                initial={swapped ? { opacity: 0 } : false}
+                animate={{ opacity: 1 }}
+                transition={{ duration: DUR.quick, ease: EASE_QUICK }}
+              >
+                {isRunning ? (
+                  <div className="flex flex-col justify-center gap-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex min-w-0 items-center gap-2 text-[13px]/5 font-semibold text-on-surface-variant">
+                        <span aria-hidden className="relative inline-flex size-[7px] shrink-0">
+                          <span className="absolute inset-0 rounded-pill bg-primary animate-live-ping" />
+                          <span className="relative size-[7px] rounded-pill bg-primary" />
+                        </span>
+                        <span className="truncate">{runLabel}</span>
+                      </span>
+                      {/* No TickingValue: the 500ms run cadence would never let the tick finish. */}
+                      <span className={FIGURE.VALUE}>
+                        {reading ? reading.value : ABSENT}
+                        {reading ? (
+                          <span className={FIGURE.UNIT}>{t(reading.unitKey)}</span>
+                        ) : null}
+                      </span>
+                    </div>
+                    <span
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.round(progressPct)}
+                      aria-label={runLabel}
+                      className="block"
+                    >
+                      <MetricBar
+                        value={progressPct}
+                        max={100}
+                        warnAt={Number.POSITIVE_INFINITY}
+                        dangerAt={Number.POSITIVE_INFINITY}
+                        track="surface-container-high"
+                      />
                     </span>
-                    <span className="truncate">{runLabel}</span>
-                  </span>
-                  {/* No TickingValue: the 500ms run cadence would never let the tick finish. */}
-                  <span className={FIGURE.VALUE}>
-                    {reading ? reading.value : ABSENT}
-                    {reading ? (
-                      <span className={FIGURE.UNIT}>{t(reading.unitKey)}</span>
-                    ) : null}
-                  </span>
-                </div>
-                <span
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round(progressPct)}
-                  aria-label={runLabel}
-                  className="block"
-                >
-                  <MetricBar
-                    value={progressPct}
-                    max={100}
-                    warnAt={Number.POSITIVE_INFINITY}
-                    dangerAt={Number.POSITIVE_INFINITY}
-                    track="surface-container-high"
-                  />
-                </span>
-              </div>
-            ) : (
-              <div className={SPEEDTEST.FIGS}>
-                <SpeedFigure
-                  glyph={DIRECTION.DOWN.ICON}
-                  glyphClass={DIRECTION.DOWN.CLASS}
-                  label={t("speedtest.result_download")}
-                  value={cachedResult?.download.bandwidth ?? null}
-                  text={cachedResult ? formatSpeed(cachedResult.download.bandwidth) : ""}
-                  unit={t("speedtest.unit_mbps")}
-                />
-                <SpeedFigure
-                  glyph={DIRECTION.UP.ICON}
-                  glyphClass={DIRECTION.UP.CLASS}
-                  label={t("speedtest.result_upload")}
-                  value={cachedResult?.upload.bandwidth ?? null}
-                  text={cachedResult ? formatSpeed(cachedResult.upload.bandwidth) : ""}
-                  unit={t("speedtest.unit_mbps")}
-                />
-                <SpeedFigure
-                  glyph="network_ping"
-                  glyphClass="shrink-0 text-on-surface-variant"
-                  label={t("speedtest.result_ping")}
-                  value={cachedResult ? Math.round(cachedResult.ping.latency) : null}
-                  text={cachedResult ? String(Math.round(cachedResult.ping.latency)) : ""}
-                  unit={t("speedtest.unit_ms")}
-                />
-              </div>
-            )}
+                  </div>
+                ) : (
+                  <div className={SPEEDTEST.FIGS}>
+                    <SpeedFigure
+                      glyph={DIRECTION.DOWN.ICON}
+                      glyphClass={DIRECTION.DOWN.CLASS}
+                      label={t("speedtest.result_download")}
+                      value={cachedResult?.download.bandwidth ?? null}
+                      text={cachedResult ? formatSpeed(cachedResult.download.bandwidth) : ""}
+                      unit={t("speedtest.unit_mbps")}
+                    />
+                    <SpeedFigure
+                      glyph={DIRECTION.UP.ICON}
+                      glyphClass={DIRECTION.UP.CLASS}
+                      label={t("speedtest.result_upload")}
+                      value={cachedResult?.upload.bandwidth ?? null}
+                      text={cachedResult ? formatSpeed(cachedResult.upload.bandwidth) : ""}
+                      unit={t("speedtest.unit_mbps")}
+                    />
+                    <SpeedFigure
+                      glyph="network_ping"
+                      glyphClass="shrink-0 text-on-surface-variant"
+                      label={t("speedtest.result_ping")}
+                      value={cachedResult ? Math.round(cachedResult.ping.latency) : null}
+                      text={cachedResult ? String(Math.round(cachedResult.ping.latency)) : ""}
+                      unit={t("speedtest.unit_ms")}
+                    />
+                  </div>
+                )}
+              </motion.div>
+            </div>
           </div>
         </motion.div>
       </motion.div>

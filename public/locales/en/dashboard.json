@@ -82,8 +82,8 @@
     "high_cpu_warning": "High CPU",
     "memory_usage": "Memory Usage",
     "storage_label": "Storage",
-    "lte_cell_distance": "LTE Cell Distance",
-    "nr_cell_distance": "NR Cell Distance",
+    "cell_distance": "Cell Distance",
+    "cell_distance_short": "Distance",
     "lte_distance_tooltip": "This is only an approximation based on the LTE Timing Advance value of {{ta}}.",
     "nr_distance_tooltip": "This is only an approximation based on the NR Timing Advance value of {{ta}}.",
     "ta_unavailable": "Timing Advance value is not available.",
@@ -139,7 +139,6 @@
     "error_description": "Couldn't load signal history: {{message}}"
   },
   "speedtest": {
-    "section_label": "Speed Test",
     "run_short": "Run test",
     "view_running": "View",
     "idle_description": "Start a speed test to measure your current network speed.",

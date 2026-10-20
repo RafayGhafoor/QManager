@@ -82,8 +82,8 @@
     "high_cpu_warning": "CPU Tinggi",
     "memory_usage": "Penggunaan Memori",
     "storage_label": "Penyimpanan",
-    "lte_cell_distance": "Jarak Sel LTE",
-    "nr_cell_distance": "Jarak Sel NR",
+    "cell_distance": "Jarak Sel",
+    "cell_distance_short": "Jarak",
     "lte_distance_tooltip": "Ini hanya perkiraan berdasarkan nilai LTE Timing Advance sebesar {{ta}}.",
     "nr_distance_tooltip": "Ini hanya perkiraan berdasarkan nilai NR Timing Advance sebesar {{ta}}.",
     "ta_unavailable": "Nilai Timing Advance tidak tersedia.",
@@ -139,7 +139,6 @@
     "error_description": "Tidak dapat memuat riwayat sinyal: {{message}}"
   },
   "speedtest": {
-    "section_label": "Tes Kecepatan",
     "run_short": "Mulai tes",
     "view_running": "Lihat",
     "idle_description": "Mulai tes kecepatan untuk mengukur kecepatan jaringan Anda saat ini.",

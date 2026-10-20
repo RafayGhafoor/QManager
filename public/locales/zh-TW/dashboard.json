@@ -82,8 +82,8 @@
     "high_cpu_warning": "CPU 佔用過高",
     "memory_usage": "記憶體使用率",
     "storage_label": "儲存空間",
-    "lte_cell_distance": "LTE 基站距離",
-    "nr_cell_distance": "NR 基站距離",
+    "cell_distance": "基站距離",
+    "cell_distance_short": "距離",
     "lte_distance_tooltip": "這只是基於 LTE 時間提前量 {{ta}} 的估算值。",
     "nr_distance_tooltip": "這只是基於 NR 時間提前量 {{ta}} 的估算值。",
     "ta_unavailable": "時間提前量資料不可用。",
@@ -139,7 +139,6 @@
     "error_description": "無法載入訊號歷史：{{message}}"
   },
   "speedtest": {
-    "section_label": "速度測試",
     "run_short": "開始測速",
     "view_running": "查看",
     "idle_description": "開始速度測試以測量當前的網路速度。",

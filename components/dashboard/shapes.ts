@@ -471,11 +471,15 @@ export const FIGURE = {
  * starting or finishing moves nothing (The Skeleton-Mirror Rule).
  */
 export const SPEEDTEST = {
-  HEAD: "flex min-h-6 items-center justify-between gap-2",
   TILE: "h-[4.25rem] rounded-tile bg-surface-container p-3.5",
   /** Mirrors TILE's pinned height, for the skeleton. */
   TILE_H: "h-[4.25rem]",
-  FIGS: "grid h-full grid-cols-3 content-center gap-2",
+  /**
+   * Three equal columns while the card is roomy. On a narrow card (a phone)
+   * they size to their content and spread, because a three-digit Mbps figure
+   * plus its unit does not fit a third of the tile.
+   */
+  FIGS: "grid h-full grid-cols-3 content-center gap-2 @max-sm/card:grid-cols-[auto_auto_auto] @max-sm/card:justify-between",
 } as const;
 
 /**
