@@ -2161,7 +2161,12 @@
             "placeholder": "fast.t-mobile.com",
             "error_required": "APN wajib diisi",
             "error_invalid": "Gunakan hanya huruf, angka, titik, tanda hubung, dan garis bawah (maksimal 100 karakter)",
-            "consequence": "Nama yang diberikan operator untuk data seluler."
+            "consequence": "Nama yang diberikan operator untuk data seluler.",
+            "presets": {
+              "trigger": "Tampilkan APN yang disarankan",
+              "group_network": "Disarankan untuk SIM ini",
+              "group_mvno": "Merek lain di jaringan ini"
+            }
           },
           "pdp_type": {
             "label": "Tipe PDP",

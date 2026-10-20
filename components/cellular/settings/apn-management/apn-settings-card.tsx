@@ -29,7 +29,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tag } from "@/components/ui/tag";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -64,6 +63,9 @@ import type {
   DataCidSource,
 } from "@/types/apn-settings";
 import { PDP_TYPE_OPTIONS } from "@/types/apn-settings";
+import type { ApnPreset } from "@/lib/apn-presets";
+
+import { ApnPresetField } from "./apn-preset-field";
 
 // =============================================================================
 // APN Configuration — the write card
@@ -118,6 +120,8 @@ export interface ApnSettingsCardProps {
   onRetry: () => void;
   onSave: (request: ApnSaveRequest) => Promise<ApnActionResult>;
   onDeactivate: () => Promise<ApnActionResult>;
+  /** Known internet APNs for the SIM's network; null hides the suggestions. */
+  presets: ApnPreset[] | null;
 }
 
 // =============================================================================
@@ -371,6 +375,7 @@ export default function ApnSettingsCard({
   onRetry,
   onSave,
   onDeactivate,
+  presets,
 }: ApnSettingsCardProps) {
   const { t } = useTranslation("cellular");
   const { saved, markSaved } = useSaveFlash();
@@ -557,25 +562,33 @@ export default function ApnSettingsCard({
                 dirty={apnDirty}
                 control={
                   <div className="flex w-full flex-col gap-1.5 @2xl/card:w-60">
-                    <Input
-                      host="container"
-                      className={cn(FIELD_SHELL, "@2xl/card:w-full")}
-                      aria-labelledby={apnLabelId}
-                      autoCapitalize="none"
-                      autoCorrect="off"
-                      spellCheck={false}
-                      placeholder={t(`${F}.apn.placeholder`)}
-                      value={apnValue}
-                      onChange={(e) => {
-                        setApnValue(e.target.value);
+                    <ApnPresetField
+                      presets={presets}
+                      onPick={(preset) => {
+                        setApnValue(preset.apn);
+                        if (preset.pdpType) setPdpType(preset.pdpType);
                         if (apnError) setApnError("");
                       }}
-                      disabled={isSaving}
-                      maxLength={100}
-                      required
-                      aria-required="true"
-                      aria-invalid={!!apnError}
-                      aria-describedby={apnError ? `${apnLabelId}-err` : undefined}
+                      inputProps={{
+                        host: "container",
+                        className: cn(FIELD_SHELL, "@2xl/card:w-full"),
+                        "aria-labelledby": apnLabelId,
+                        autoCapitalize: "none",
+                        autoCorrect: "off",
+                        spellCheck: false,
+                        placeholder: t(`${F}.apn.placeholder`),
+                        value: apnValue,
+                        onChange: (e) => {
+                          setApnValue(e.target.value);
+                          if (apnError) setApnError("");
+                        },
+                        disabled: isSaving,
+                        maxLength: 100,
+                        required: true,
+                        "aria-required": "true",
+                        "aria-invalid": !!apnError,
+                        "aria-describedby": apnError ? `${apnLabelId}-err` : undefined,
+                      }}
                     />
                     {apnError ? (
                       <span

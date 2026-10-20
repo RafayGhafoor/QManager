@@ -8,7 +8,9 @@ import ApnSettingsCard from "./apn-settings-card";
 import MBNCard from "./mbn-card";
 import { CellularPageHeader } from "@/components/cellular/page-header";
 import { Banner } from "@/components/ui/banner";
+import { useApnPresets } from "@/hooks/use-apn-presets";
 import { useApnSettings } from "@/hooks/use-apn-settings";
+import { useModemStatus } from "@/hooks/use-modem-status";
 import { useMbnSettings } from "@/hooks/use-mbn-settings";
 import { useSimProfiles } from "@/hooks/use-sim-profiles";
 import { staggerContainer, staggerItem } from "@/lib/motion";
@@ -66,6 +68,11 @@ const APNSettingsComponent = () => {
   } = useMbnSettings();
 
   const { activeProfileId, isLoading: simLoading, getProfile } = useSimProfiles();
+
+  // Suggested APNs for the SIM in the slot, matched by its IMSI. The IMSI only
+  // changes on a SIM swap, so a slow poll is enough.
+  const { data: modemStatus } = useModemStatus({ pollInterval: 10000 });
+  const presetMatch = useApnPresets(modemStatus?.device?.imsi);
 
   // --- SIM Profile override check (async) ----------------------------------
   // Gate iff the active profile has a non-empty APN name. Empty APN = profile
@@ -162,6 +169,7 @@ const APNSettingsComponent = () => {
               onRetry={() => refresh()}
               onSave={save}
               onDeactivate={deactivate}
+              presets={presetMatch?.presets ?? null}
             />
           </fieldset>
         </motion.div>

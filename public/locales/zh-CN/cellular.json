@@ -2161,7 +2161,12 @@
             "placeholder": "fast.t-mobile.com",
             "error_required": "APN 为必填项",
             "error_invalid": "仅可使用字母、数字、点、连字符和下划线（最多 100 个字符）",
-            "consequence": "运营商提供的移动数据接入点名称。"
+            "consequence": "运营商提供的移动数据接入点名称。",
+            "presets": {
+              "trigger": "显示推荐的 APN",
+              "group_network": "适用于此 SIM 卡",
+              "group_mvno": "此网络上的其他品牌"
+            }
           },
           "pdp_type": {
             "label": "PDP 类型",

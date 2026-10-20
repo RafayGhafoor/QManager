@@ -2161,7 +2161,12 @@
             "placeholder": "fast.t-mobile.com",
             "error_required": "APN is required",
             "error_invalid": "Use only letters, numbers, dots, hyphens and underscores (up to 100 characters)",
-            "consequence": "The name your carrier gives for mobile data."
+            "consequence": "The name your carrier gives for mobile data.",
+            "presets": {
+              "trigger": "Show suggested APNs",
+              "group_network": "Suggested for this SIM",
+              "group_mvno": "Other brands on this network"
+            }
           },
           "pdp_type": {
             "label": "PDP Type",
