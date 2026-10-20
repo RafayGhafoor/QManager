@@ -711,6 +711,33 @@ export const CARD_SPAN = "@3xl/main:col-span-2";
  */
 export const PORT_GRID = "grid grid-cols-1 content-start gap-0.5";
 
+/**
+ * A tab rail in the app's tab language: a pill track on `surface-container`,
+ * pill triggers, and the selected one FILLED `primary` with no shadow (the
+ * selection is a fill, never a chip with a drop shadow). `TabsList` and
+ * `TabsTrigger` still default to the legacy `rounded-lg` + white active chip, so
+ * the shape and the tonal fill are applied here, at the call site.
+ *
+ * Both `dark:` repeats are load-bearing: the primitive writes its rest ink and
+ * active fill under `dark:`, and a `dark:` utility out-ranks a bare one, so the
+ * bare override alone would paint the legacy colours in dark mode.
+ *
+ * The transition is the two-clock longhand `Badge` uses, because the primitive
+ * only transitions `color` and `box-shadow`, so the fill would otherwise cut in
+ * while its ink faded. `TWO_UP` is for exactly two equal triggers filling the card.
+ */
+export const TAB_RAIL = {
+  LIST_TWO_UP:
+    "grid h-auto w-full grid-cols-2 gap-1 rounded-pill bg-surface-container p-1",
+  TRIGGER: [
+    "h-9 rounded-pill border-0 px-4 text-sm font-medium pointer-coarse:h-11",
+    "text-on-surface-variant hover:text-on-surface dark:text-on-surface-variant dark:hover:text-on-surface",
+    "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none",
+    "dark:data-[state=active]:bg-primary dark:data-[state=active]:text-primary-foreground",
+    "[transition:color_var(--duration-standard)_var(--ease-standard),background-color_var(--duration-standard)_var(--ease-standard),box-shadow_var(--duration-quick)_ease-out]",
+  ].join(" "),
+} as const;
+
 /** The port field: a narrow numeric box, a figure rather than an identifier. */
 export const PORT_FIELD = "w-full text-[0.84375rem] font-medium tabular-nums @2xl/card:w-28";
 

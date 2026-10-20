@@ -34,6 +34,7 @@ import {
   NOTICE,
   ROW,
   ROW_GROUP,
+  TAB_RAIL,
 } from "./shapes";
 
 // =============================================================================
@@ -235,9 +236,16 @@ export default function PasswordCard() {
           onValueChange={(next) => setTab(next as Kind)}
           className="min-h-0 flex-1 gap-4"
         >
-          <TabsList className="w-full" aria-label={t("passwords.tabs.aria")}>
+          <TabsList
+            className={TAB_RAIL.LIST_TWO_UP}
+            aria-label={t("passwords.tabs.aria")}
+          >
             {KINDS.map((kind) => (
-              <TabsTrigger key={kind} value={kind}>
+              <TabsTrigger
+                key={kind}
+                value={kind}
+                className={TAB_RAIL.TRIGGER}
+              >
                 {t(`passwords.tabs.${kind}`)}
               </TabsTrigger>
             ))}
