@@ -6,6 +6,8 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { PanelLeftIcon } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
+import { DUR, EASE_EMPHASIZED_CSS } from "@/lib/motion"
+import { isMotionReduced } from "@/lib/motion-preference"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -192,7 +194,9 @@ function SidebarProvider({
             } as React.CSSProperties
           }
           className={cn(
-            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
+            // overflow-x-clip: mid-collapse the content is already full width
+            // but still slid right, and must not open a horizontal scroll.
+            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full overflow-x-clip",
             SIDEBAR_ICON_TOKENS,
             className
           )}
@@ -277,7 +281,9 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          "relative w-(--sidebar-width) bg-transparent in-data-[ready=true]:transition-[width] duration-[var(--duration-emphasized)] ease-emphasized",
+          // No width transition: it would reflow the page every frame.
+          // SidebarInset slides the content instead.
+          "relative w-(--sidebar-width) bg-transparent",
           "group-data-[collapsible=offcanvas]:w-0",
           "group-data-[side=right]:rotate-180",
           variant === "floating" || variant === "inset"
@@ -377,8 +383,63 @@ function SidebarRail({
 }
 
 function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
+  const ref = React.useRef<HTMLElement>(null)
+
+  // The page never reflows mid-collapse. The gap snaps to its final width, so
+  // the page lays out once, and the inset is then slid from where it was to
+  // where it now sits by a compositor transform (FLIP). Animating the gap's
+  // width instead re-laid-out every card, chart and container query on every
+  // frame, which halved the frame rate on the dashboard.
+  React.useEffect(() => {
+    const inset = ref.current
+    const gap = inset?.parentElement?.querySelector<HTMLElement>(
+      "[data-slot=sidebar-gap]"
+    )
+    if (!inset || !gap) return
+
+    let left = inset.offsetLeft
+    let gapWidth = gap.offsetWidth
+    let slide: Animation | null = null
+
+    // Fires after layout and before paint, so the transform lands in the same
+    // frame as the jump it hides.
+    const observer = new ResizeObserver(() => {
+      const nextLeft = inset.offsetLeft
+      const nextGapWidth = gap.offsetWidth
+      const delta = left - nextLeft
+      // A 0 width is the rail leaving or entering the layout at the desktop
+      // breakpoint, not a collapse; that resize simply snaps.
+      const animate =
+        delta !== 0 &&
+        gapWidth > 0 &&
+        nextGapWidth > 0 &&
+        inset.closest("[data-ready=true]") !== null &&
+        !isMotionReduced()
+      left = nextLeft
+      gapWidth = nextGapWidth
+      if (!animate) return
+
+      // A toggle mid-slide continues from where the content is on screen.
+      const from =
+        slide && slide.playState === "running"
+          ? new DOMMatrixReadOnly(getComputedStyle(inset).transform).m41 + delta
+          : delta
+      slide?.cancel()
+      slide = inset.animate(
+        [{ transform: `translateX(${from}px)` }, { transform: "translateX(0)" }],
+        { duration: DUR.emphasized * 1000, easing: EASE_EMPHASIZED_CSS }
+      )
+    })
+    observer.observe(gap)
+    return () => {
+      observer.disconnect()
+      slide?.cancel()
+    }
+  }, [])
+
   return (
     <main
+      ref={ref}
       data-slot="sidebar-inset"
       className={cn(
         "bg-background relative flex w-full flex-1 flex-col",
@@ -465,7 +526,11 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
         // The icon rail scrolls too: shadcn hides its overflow, which would clip
         // the lower groups on a laptop. Only the x axis is clipped, so the width
         // transition never flashes a horizontal scroll.
-        "flex min-h-0 flex-1 flex-col gap-[1.125rem] overflow-x-hidden overflow-y-auto py-1.5 pb-2 [scrollbar-width:none]",
+        // In the icon rail the hidden group label is pulled up by -mt-8, which is
+        // taller than the label, so the first row rides ~9px above this box and
+        // its pill gets clipped flat. The extra top padding gives that overshoot
+        // room and doubles as the air under the logo.
+        "flex min-h-0 flex-1 flex-col gap-[1.125rem] overflow-x-hidden overflow-y-auto py-1.5 pb-2 group-data-[collapsible=icon]:pt-4 [scrollbar-width:none]",
         className
       )}
       {...props}
