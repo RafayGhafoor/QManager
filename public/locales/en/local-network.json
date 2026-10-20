@@ -319,20 +319,14 @@
         "eth": "Set to hand the WAN IP to the Ethernet device",
         "usb": "Set to hand the WAN IP to the USB device"
       },
-      "no_target": "No device selected",
-      "gateway": "LAN gateway",
-      "gateway_served": "Served",
-      "gateway_not_served": "Not served"
+      "gateway_off": "LAN gateway not served"
     },
     "card": {
+      "title": "Settings",
       "description": "Applying writes every setting and reboots the modem.",
-      "network_description": "Applied together with Passthrough, in one reboot.",
       "apply": "Apply and reboot",
-      "discard": "Discard changes",
       "unsaved_one": "{{count}} unsaved change",
       "unsaved_other": "{{count}} unsaved changes",
-      "network_pending_one": "{{count}} unsaved change, applied with Passthrough",
-      "network_pending_other": "{{count}} unsaved changes, applied with Passthrough",
       "mac_label": "Target MAC address",
       "mac_placeholder": "XX:XX:XX:XX:XX:XX"
     },

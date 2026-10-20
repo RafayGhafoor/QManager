@@ -1,34 +1,27 @@
 "use client";
 
-import * as React from "react";
 import { useTranslation } from "react-i18next";
 import {
   CircleAlertIcon,
   EthernetPortIcon,
   RefreshCcwIcon,
+  RouteOffIcon,
   RouterIcon,
-  TriangleAlertIcon,
   UsbIcon,
 } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type {
-  DnsProxy,
-  IpptNat,
-  PassthroughMode,
-  UsbMode,
-} from "@/types/ip-passthrough";
+import type { PassthroughMode, UsbMode } from "@/types/ip-passthrough";
 
 import {
-  AUTOMATIC_MAC,
   CONDITION,
   DISC_TONE,
   DISC_TRANSITION,
   EYEBROW,
-  FIGS,
   HERO_PAD,
   HERO_SHELL,
   PILL_GLYPH,
@@ -38,6 +31,8 @@ import {
 
 // The saved configuration, not a measurement: the GET reads our own config file,
 // so every word here stays "Last applied" / "Set to", never "currently" or "live".
+// It answers one question, which topology was last applied. The settings
+// themselves live in the card below, so the strip repeats none of them.
 
 const K = "ippt";
 
@@ -67,36 +62,15 @@ const MODE_GLYPH = {
   usb: UsbIcon,
 } as const;
 
-function Figure({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className={FIGS.FIG}>
-      <span className={FIGS.KEY}>{label}</span>
-      {children}
-    </div>
-  );
-}
-
 export interface StatusStripProps {
   /** `null` until the first successful read. */
   mode: PassthroughMode | null;
-  targetMac: string | null;
-  ipptNat: IpptNat | null;
-  usbMode: UsbMode | null;
-  dnsProxy: DnsProxy | null;
   /** True when a read failed and left nothing behind. */
   failed: boolean;
   onRetry: () => void;
 }
 
-export function StatusStrip({
-  mode,
-  targetMac,
-  ipptNat,
-  usbMode,
-  dnsProxy,
-  failed,
-  onRetry,
-}: StatusStripProps) {
+export function StatusStrip({ mode, failed, onRetry }: StatusStripProps) {
   const { t } = useTranslation("local-network");
 
   if (mode === null) {
@@ -130,8 +104,6 @@ export function StatusStrip({
 
   const passing = mode !== "disabled";
   const Glyph = MODE_GLYPH[mode];
-  const mac = (targetMac ?? "").toUpperCase();
-  const automatic = mac === "" || mac === AUTOMATIC_MAC;
 
   return (
     <Card className={HERO_SHELL} role="region" aria-label={t(`${K}.status.label`)}>
@@ -154,42 +126,13 @@ export function StatusStrip({
           </div>
         </div>
 
-        <div className={FIGS.ROOT}>
-          <Figure label={t(`${K}.rows.target.label`)}>
-            {!passing ? (
-              <span className={cn(FIGS.VALUE, FIGS.QUIET)}>
-                {t(`${K}.status.no_target`)}
-              </span>
-            ) : automatic ? (
-              <span className={FIGS.VALUE}>{t(`${K}.options.target_automatic`)}</span>
-            ) : (
-              <span className={cn(FIGS.VALUE, FIGS.MONO)}>{mac}</span>
-            )}
-          </Figure>
-          <Figure label={t(`${K}.rows.nat.label`)}>
-            <span className={FIGS.VALUE}>
-              {t(ipptNat === "1" ? `${K}.options.nat_on` : `${K}.options.nat_off`)}
-            </span>
-          </Figure>
-          <Figure label={t(`${K}.rows.usb.label`)}>
-            <span className={FIGS.VALUE}>{usbMode ? USB_SHORT[usbMode] : ""}</span>
-          </Figure>
-          <Figure label={t(`${K}.rows.dns.label`)}>
-            <span className={FIGS.VALUE}>
-              {t(dnsProxy === "enabled" ? `${K}.options.dns_on` : `${K}.options.dns_off`)}
-            </span>
-          </Figure>
-          <Figure label={t(`${K}.status.gateway`)}>
-            {passing ? (
-              <span className={FIGS.VALUE}>
-                {t(`${K}.status.gateway_not_served`)}
-                <TriangleAlertIcon className={FIGS.ALERT} aria-hidden />
-              </span>
-            ) : (
-              <span className={FIGS.VALUE}>{t(`${K}.status.gateway_served`)}</span>
-            )}
-          </Figure>
-        </div>
+        {/* A fact, not a fault (Fact-Is-Info): shown only while it applies. */}
+        {passing ? (
+          <Badge variant="info">
+            <RouteOffIcon aria-hidden />
+            {t(`${K}.status.gateway_off`)}
+          </Badge>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -207,14 +150,6 @@ export function StatusStripSkeleton() {
             <Skeleton className={SKELETON.TITLE} />
             <Skeleton className={SKELETON.BLURB} />
           </div>
-        </div>
-        <div className={FIGS.ROOT}>
-          {Array.from({ length: FIGS.COUNT }, (_, i) => (
-            <div key={i} className={FIGS.FIG}>
-              <Skeleton className={SKELETON.FIG_KEY} />
-              <Skeleton className={SKELETON.FIG_VALUE} />
-            </div>
-          ))}
         </div>
       </CardContent>
     </Card>

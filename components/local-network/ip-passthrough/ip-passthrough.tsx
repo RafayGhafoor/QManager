@@ -72,10 +72,6 @@ const IPPassthroughComponent = () => {
       <motion.div variants={staggerItem}>
         <StatusStrip
           mode={passthroughMode}
-          targetMac={targetMac}
-          ipptNat={ipptNat}
-          usbMode={usbMode}
-          dnsProxy={dnsProxy}
           failed={failed}
           onRetry={() => refresh()}
         />

@@ -319,20 +319,14 @@
         "eth": "设置为将 WAN IP 交给以太网设备",
         "usb": "设置为将 WAN IP 交给 USB 设备"
       },
-      "no_target": "未选择设备",
-      "gateway": "局域网网关",
-      "gateway_served": "提供服务",
-      "gateway_not_served": "不提供服务"
+      "gateway_off": "局域网网关不提供服务"
     },
     "card": {
+      "title": "设置",
       "description": "应用会写入所有设置并重启调制解调器。",
-      "network_description": "与直通设置一起应用，只需一次重启。",
       "apply": "应用并重启",
-      "discard": "放弃更改",
       "unsaved_one": "{{count}} 项未保存的更改",
       "unsaved_other": "{{count}} 项未保存的更改",
-      "network_pending_one": "{{count}} 项未保存的更改，随直通一起应用",
-      "network_pending_other": "{{count}} 项未保存的更改，随直通一起应用",
       "mac_label": "目标 MAC 地址",
       "mac_placeholder": "XX:XX:XX:XX:XX:XX"
     },

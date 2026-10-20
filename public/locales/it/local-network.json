@@ -319,20 +319,14 @@
         "eth": "Impostato per assegnare l'IP WAN al dispositivo Ethernet",
         "usb": "Impostato per assegnare l'IP WAN al dispositivo USB"
       },
-      "no_target": "Nessun dispositivo selezionato",
-      "gateway": "Gateway LAN",
-      "gateway_served": "Servito",
-      "gateway_not_served": "Non servito"
+      "gateway_off": "Gateway LAN non servito"
     },
     "card": {
+      "title": "Impostazioni",
       "description": "Applicare scrive tutte le impostazioni e riavvia il modem.",
-      "network_description": "Applicate insieme al passthrough, con un solo riavvio.",
       "apply": "Applica e riavvia",
-      "discard": "Scarta le modifiche",
       "unsaved_one": "{{count}} modifica non salvata",
       "unsaved_other": "{{count}} modifiche non salvate",
-      "network_pending_one": "{{count}} modifica non salvata, applicata con il passthrough",
-      "network_pending_other": "{{count}} modifiche non salvate, applicate con il passthrough",
       "mac_label": "Indirizzo MAC di destinazione",
       "mac_placeholder": "XX:XX:XX:XX:XX:XX"
     },

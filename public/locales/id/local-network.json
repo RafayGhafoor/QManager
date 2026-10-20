@@ -319,20 +319,14 @@
         "eth": "Disetel untuk menyerahkan IP WAN ke perangkat Ethernet",
         "usb": "Disetel untuk menyerahkan IP WAN ke perangkat USB"
       },
-      "no_target": "Tidak ada perangkat dipilih",
-      "gateway": "Gateway LAN",
-      "gateway_served": "Dilayani",
-      "gateway_not_served": "Tidak dilayani"
+      "gateway_off": "Gateway LAN tidak dilayani"
     },
     "card": {
+      "title": "Pengaturan",
       "description": "Menerapkan akan menulis semua pengaturan dan me-reboot modem.",
-      "network_description": "Diterapkan bersama passthrough, dengan satu kali reboot.",
       "apply": "Terapkan dan reboot",
-      "discard": "Buang perubahan",
       "unsaved_one": "{{count}} perubahan belum tersimpan",
       "unsaved_other": "{{count}} perubahan belum tersimpan",
-      "network_pending_one": "{{count}} perubahan belum tersimpan, diterapkan bersama passthrough",
-      "network_pending_other": "{{count}} perubahan belum tersimpan, diterapkan bersama passthrough",
       "mac_label": "Alamat MAC target",
       "mac_placeholder": "XX:XX:XX:XX:XX:XX"
     },

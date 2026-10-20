@@ -65,36 +65,15 @@ const STATUS_LINE = {
   BLURB: "leading-5",
 } as const;
 
-/** The phase on top; the figures span the card's full width beneath it, so both share its edges. */
+/** The phase holds the left edge; the one fact that applies sits on the right, wrapping beneath on a narrow card. */
 export const STATUS = {
-  BODY: "flex flex-col gap-5",
+  BODY: "flex flex-wrap items-center justify-between gap-x-6 gap-y-4",
   PHASE: "flex min-w-0 items-center gap-3.5",
   DISC: "grid size-11 flex-none place-items-center rounded-pill",
   GLYPH: "size-[1.375rem]",
   TEXT: "flex min-w-0 flex-col gap-0.5",
   TITLE: `text-xl ${STATUS_LINE.TITLE} font-bold tracking-[-0.01em]`,
   BLURB: `text-on-surface-variant text-[0.8125rem] ${STATUS_LINE.BLURB} text-pretty`,
-} as const;
-
-const FIG_PILL_H = "h-[2.625rem]";
-const FIG_KEY_LH = "leading-5 @5xl/card:leading-[0.875rem]";
-const FIG_VALUE_LH = "leading-5 @5xl/card:leading-[1.625rem]";
-
-/**
- * Below a 64rem card each figure is a receipt pill (key left, value right);
- * from 64rem the five sit as equal tiles in one row, wide enough for a MAC.
- */
-export const FIGS = {
-  COUNT: 5,
-  ROOT: "grid grid-cols-1 gap-[0.3125rem] @5xl/card:grid-cols-5 @5xl/card:gap-3.5",
-  FIG: `flex ${FIG_PILL_H} min-w-0 items-center justify-between gap-4 rounded-pill bg-surface-container px-4 @5xl/card:h-auto @5xl/card:flex-col @5xl/card:items-start @5xl/card:justify-start @5xl/card:gap-1.5 @5xl/card:rounded-tile @5xl/card:py-3.5`,
-  KEY: `text-on-surface-variant min-w-0 truncate text-[0.8125rem] ${FIG_KEY_LH} font-semibold @5xl/card:text-[0.6875rem] @5xl/card:tracking-[0.06em] @5xl/card:uppercase`,
-  VALUE: `inline-flex flex-none items-center gap-1.5 text-[0.8125rem] ${FIG_VALUE_LH} font-semibold whitespace-nowrap tabular-nums @5xl/card:text-lg @5xl/card:font-bold @5xl/card:tracking-[-0.01em]`,
-  QUIET: "text-on-surface-variant font-medium @5xl/card:font-semibold",
-  /** The MAC: an opaque string, never truncated. */
-  MONO: "font-mono @5xl/card:text-[0.9375rem] @5xl/card:font-semibold @5xl/card:tracking-normal",
-  /** Beside "Not served"; the figure itself stays plain ink. */
-  ALERT: "text-warning-on-surface size-3.5 flex-none",
 } as const;
 
 /** A failed read: one horizontal block in place of the strip's body. */
@@ -117,12 +96,11 @@ const ROW_MIN_H = "min-h-[2.625rem]";
 const PILL_H = "h-[2.625rem]";
 const KEY_LH = "leading-5";
 
-/** Two peer cards side by side from a 56rem column, stacked below it. */
-export const CARD_GRID = "grid grid-cols-1 gap-5 @4xl/main:grid-cols-2";
-
 export const SETTING = {
-  /** One card's rows. */
-  GROUP: "flex min-w-0 flex-col gap-3.5",
+  /** The two groups: stacked on a narrow card, side by side from 56rem so no row spans the full card. */
+  GROUPS: "grid grid-cols-1 gap-x-10 gap-y-6 @4xl/card:grid-cols-2",
+  /** One group: its label, then its rows. */
+  GROUP: "flex min-w-0 flex-col gap-3.5 @4xl/card:content-start",
   /** Key left, control right; on a narrow card the control wraps, still right-aligned. */
   ROW: `flex ${ROW_MIN_H} flex-wrap items-center justify-between gap-x-4 gap-y-2`,
   KEY: "flex min-w-0 flex-col gap-px",
@@ -207,8 +185,8 @@ export const SKELETON = {
   EYEBROW: `h-3.5 w-24 rounded-inline`,
   TITLE: `h-6 w-40 rounded-inline`,
   BLURB: `h-5 w-52 max-w-full rounded-inline`,
-  FIG_KEY: "h-3.5 w-20 rounded-inline",
-  FIG_VALUE: "h-5 w-16 rounded-inline @5xl/card:h-[1.625rem]",
+  /** A group label (the eyebrow's line box). */
+  LABEL: "h-3.5 w-20 rounded-inline",
   ROW_KEY: `h-5 w-24 rounded-inline`,
   /** One line of the Mode note (12.5px at leading 1.5). */
   NOTE_LINE: "h-[1.171875rem] rounded-inline",
