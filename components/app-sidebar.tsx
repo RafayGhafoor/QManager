@@ -161,6 +161,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         items: [
           { t_key: "latency_monitor", url: "/monitoring/latency" },
           { t_key: "network_events", url: "/monitoring/events" },
+          { t_key: "prometheus", url: "/monitoring/prometheus" },
         ],
       },
       { t_key: "alerts", url: "/monitoring/alerts", icon: "notifications" },
@@ -186,11 +187,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       },
       { t_key: "tailscale", url: "/monitoring/tailscale", icon: "vpn_lock" },
       { t_key: "netbird", url: "/monitoring/netbird", icon: "hub" },
-      {
-        t_key: "prometheus",
-        url: "/monitoring/prometheus",
-        icon: "stacked_line_chart",
-      },
     ],
     [watchdog, t],
   );
