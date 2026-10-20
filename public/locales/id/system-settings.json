@@ -1216,6 +1216,12 @@
         "label": "Ulangi pada",
         "consequence": "Tanpa hari yang dipilih, jadwal tidak akan pernah berjalan.",
         "rail": "Hari reboot dalam seminggu"
+      },
+      "clock": {
+        "label": "Waktu modem",
+        "consequence": "Tanggal dan waktu yang dipakai jadwal, dalam zona waktu yang diatur di Perangkat & Satuan.",
+        "unsynced": "Belum diatur",
+        "unsynced_consequence": "Modem belum mengambil waktu dari jaringan, jadi reboot terjadwal tidak bisa berjalan sampai itu terjadi."
       }
     },
     "days": {

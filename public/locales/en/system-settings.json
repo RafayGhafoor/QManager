@@ -1216,6 +1216,12 @@
         "label": "Repeat on",
         "consequence": "With no day selected the schedule never fires.",
         "rail": "Reboot days of the week"
+      },
+      "clock": {
+        "label": "Modem time",
+        "consequence": "The date and time the schedule runs on, in the time zone set under Device & Units.",
+        "unsynced": "Not set yet",
+        "unsynced_consequence": "The modem hasn't set its clock from the network yet, so a scheduled reboot can't fire until it does."
       }
     },
     "days": {

@@ -34,7 +34,10 @@ import type {
   SaveScheduledRebootPayload,
   UseSystemSettingsReturn,
 } from "@/hooks/use-system-settings";
-import type { ScheduleConfig } from "@/types/system-settings";
+import type {
+  DeviceClockReading,
+  ScheduleConfig,
+} from "@/types/system-settings";
 
 import { ConditionBlock } from "./condition-block";
 import {
@@ -55,7 +58,11 @@ import {
   ROW_GROUP,
   SAVE_LAYER,
   SKELETON,
+  VALUE_NONE,
 } from "./shapes";
+
+/** The live clock figure: a reading, so the UI face with tabular numerals. */
+const CLOCK_VALUE = "text-[0.9375rem] font-semibold tabular-nums";
 
 const K = "reboot";
 
@@ -420,13 +427,91 @@ function EnableRow({
   );
 }
 
+/**
+ * The schedule guard refuses to fire before this year: a clock that still
+ * reads earlier has not been set from the network (no battery-backed RTC).
+ */
+const CLOCK_TRUSTED_YEAR = 2025;
+
+/** "YYYY-MM-DDTHH:MM:SS" read as a wall time, in ms on a UTC axis. */
+function parseWallTime(local: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/.exec(local);
+  if (!m) return null;
+  const [, y, mo, d, h, mi, se] = m.map(Number);
+  return Date.UTC(y, mo - 1, d, h, mi, se);
+}
+
+/**
+ * The modem's own date and time, ticking. It is the device's wall clock and
+ * zone, not the browser's: the GET reports both the epoch and the device's
+ * local wall time, their difference is the device's UTC offset, and the
+ * elapsed browser time since the read advances it.
+ */
+function DeviceClockRow({ clock }: { clock: DeviceClockReading | null }) {
+  const { t, i18n } = useTranslation("system-settings");
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!clock) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [clock]);
+
+  const wallAtRead = clock ? parseWallTime(clock.local) : null;
+  let text: string | null = null;
+  let trusted = true;
+  if (clock && wallAtRead !== null) {
+    const wall = new Date(wallAtRead + Math.max(0, now - clock.receivedAt));
+    trusted = wall.getUTCFullYear() >= CLOCK_TRUSTED_YEAR;
+    text = new Intl.DateTimeFormat(i18n.language, {
+      timeZone: "UTC",
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(wall);
+  }
+
+  return (
+    <motion.div variants={staggerRowItem} className={ROW.ROOT}>
+      <div className={ROW.TEXT}>
+        <div className={LABEL_LINE}>
+          <span className={ROW.LABEL}>{t(`${K}.rows.clock.label`)}</span>
+          {text && !trusted ? (
+            <Badge variant="warning">
+              <TriangleAlertIcon className="size-3" aria-hidden="true" />
+              {t(`${K}.rows.clock.unsynced`)}
+            </Badge>
+          ) : null}
+        </div>
+        <span className={ROW.CONSEQUENCE}>
+          {text && !trusted
+            ? t(`${K}.rows.clock.unsynced_consequence`)
+            : t(`${K}.rows.clock.consequence`)}
+        </span>
+      </div>
+      <div className={ROW.CONTROL}>
+        <span className={CLOCK_VALUE}>{text ?? VALUE_NONE}</span>
+      </div>
+    </motion.div>
+  );
+}
+
 // -----------------------------------------------------------------------------
 // Card
 // -----------------------------------------------------------------------------
 
 type ScheduledOperationsCardProps = Pick<
   UseSystemSettingsReturn,
-  "scheduledReboot" | "isLoading" | "error" | "saveScheduledReboot" | "refresh"
+  | "scheduledReboot"
+  | "deviceClock"
+  | "isLoading"
+  | "error"
+  | "saveScheduledReboot"
+  | "refresh"
 >;
 
 const REBOOT_FALLBACK: ScheduleConfig = {
@@ -446,6 +531,7 @@ const REBOOT_KEYS: ToastKeys = {
 
 const ScheduledOperationsCard = ({
   scheduledReboot,
+  deviceClock,
   isLoading,
   error,
   saveScheduledReboot,
@@ -504,6 +590,15 @@ const ScheduledOperationsCard = ({
                 ))}
               </div>
             </div>
+            <div className={ROW.ROOT}>
+              <div className={ROW.TEXT}>
+                <Skeleton className={cn(SKELETON.REBOOT.LABEL, "w-28")} />
+                <Skeleton className={cn(SKELETON.REBOOT.CONSEQUENCE, "w-3/4")} />
+              </div>
+              <div className={ROW.CONTROL}>
+                <Skeleton className={SKELETON.REBOOT.CLOCK} />
+              </div>
+            </div>
           </div>
           {/* The autosave receipt strip. Absent, the card grows by the strip
               and its gap the moment the data lands. */}
@@ -542,6 +637,7 @@ const ScheduledOperationsCard = ({
     <ScheduledOperationsForm
       head={head}
       scheduledReboot={scheduledReboot}
+      deviceClock={deviceClock}
       error={error}
       saveScheduledReboot={saveScheduledReboot}
     />
@@ -557,11 +653,13 @@ const ScheduledOperationsCard = ({
 function ScheduledOperationsForm({
   head,
   scheduledReboot,
+  deviceClock,
   error,
   saveScheduledReboot,
 }: {
   head: React.ReactNode;
   scheduledReboot: ScheduleConfig;
+  deviceClock: DeviceClockReading | null;
   error: string | null;
   saveScheduledReboot: (
     payload: SaveScheduledRebootPayload,
@@ -628,6 +726,7 @@ function ScheduledOperationsForm({
             consequence={t(`${K}.rows.days.consequence`)}
             railLabel={t(`${K}.rows.days.rail`)}
           />
+          <DeviceClockRow clock={deviceClock} />
         </motion.div>
 
         {/* The autosave receipt. Announcing the result is the toast's job, so
