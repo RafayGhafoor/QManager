@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ComponentProps } from "react";
+import { useMemo, useState } from "react";
 import { motion, type Variants } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ import {
   CardFoot,
 } from "@/components/ui/card-foot";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
+import { RevealButton } from "@/components/ui/reveal-button";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DUR, EASE_STANDARD, rowCascadeDelay } from "@/lib/motion";
@@ -106,40 +107,10 @@ const chipVariants: Variants = {
   }),
 };
 
-// Two icon buttons that reveal their label on hover or keyboard focus. The pair
-// sits in a flex row, so an expanding button pushes its neighbour along instead
-// of covering it (the footer's status text shifts with it). The
-// width change is a container size change, so it runs on `standard` /
-// `--ease-standard`; reduced motion shows the label with no transition. Touch has
-// no hover, so those buttons stay icon-only and keep their aria-label.
+// The two selection buttons sit in a flex row, so an expanding one pushes its
+// neighbour along instead of covering it (the footer's status text shifts with
+// it). See `RevealButton`.
 const SELECTION_TOOLS = "flex flex-none items-center gap-1.5";
-
-function RevealButton({
-  glyph,
-  label,
-  className,
-  ...props
-}: {
-  glyph: "done_all" | "close";
-  label: string;
-} & Omit<ComponentProps<typeof Button>, "children" | "variant" | "size">) {
-  return (
-    <Button
-      type="button"
-      variant="tonal-neutral"
-      aria-label={label}
-      className={`group/reveal h-[2.625rem] gap-0 px-3 ${className ?? ""}`}
-      {...props}
-    >
-      <MaterialSymbol name={glyph} size={18} className="flex-none" />
-      <span className="max-w-0 overflow-hidden opacity-0 transition-[max-width,opacity] duration-[var(--duration-standard)] ease-[var(--ease-standard)] group-hover/reveal:max-w-40 group-hover/reveal:opacity-100 group-focus-visible/reveal:max-w-40 group-focus-visible/reveal:opacity-100 motion-reduce:transition-none">
-        <span className="block whitespace-nowrap pl-2 pr-0.5 text-xs font-semibold">
-          {label}
-        </span>
-      </span>
-    </Button>
-  );
-}
 
 export function BandGridCard({
   bandCategory,
