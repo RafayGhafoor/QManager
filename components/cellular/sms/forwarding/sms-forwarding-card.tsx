@@ -231,11 +231,6 @@ const SmsForwardingCard = ({ fwd }: { fwd: UseSmsForwardingReturn }) => {
           Enter-to-submit. */}
       <CardFoot
         className={CARD_FOOT_GUTTER}
-        status={
-          isDirty ? (
-            <span className="font-medium">{t("common:state.unsaved")}</span>
-          ) : null
-        }
         actions={
           <>
             <Button

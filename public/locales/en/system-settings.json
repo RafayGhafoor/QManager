@@ -35,7 +35,6 @@
     "status_label": "Status",
     "status_active": "Active",
     "status_off": "Off",
-    "pending": "Unsaved change",
     "discard": "Discard",
     "toast_on": "Host AT ports turned on.",
     "toast_off": "Host AT ports turned off.",

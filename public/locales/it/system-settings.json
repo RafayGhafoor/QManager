@@ -35,7 +35,6 @@
     "status_label": "Stato",
     "status_active": "Attive",
     "status_off": "Disattivate",
-    "pending": "Modifica non salvata",
     "discard": "Annulla",
     "toast_on": "Porte AT host attivate.",
     "toast_off": "Porte AT host disattivate.",

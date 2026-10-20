@@ -161,8 +161,6 @@ export const TICK_ROW = {
 export const FOOT = {
   /** One status line: glyph or dot, then a sentence that wraps. */
   LINE: "flex min-w-0 items-center gap-2",
-  /** Static: an unsaved draft is not live, so it takes no loop (One-Loop Rule). */
-  DOT: "size-[7px] flex-none rounded-pill bg-primary",
 } as const;
 
 // -----------------------------------------------------------------------------

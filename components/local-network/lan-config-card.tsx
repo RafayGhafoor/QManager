@@ -322,8 +322,6 @@ const LanConfigCard = () => {
                 <TriangleAlertIcon className="size-3.5 shrink-0" />
                 {error}
               </span>
-            ) : isDirty ? (
-              <span className="font-medium">{tCommon("state.unsaved")}</span>
             ) : null
           }
           actions={

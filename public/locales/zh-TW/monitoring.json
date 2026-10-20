@@ -136,7 +136,6 @@
         "blocked": "請修正標示的欄位",
         "blocked_in": "請修正 {{channels}} 中的錯誤",
         "clean": "所有變更已儲存",
-        "dirty": "未儲存的變更",
         "discard": "捨棄",
         "failed": "設定無法儲存。",
         "succeeded": "警示設定已儲存",
@@ -417,7 +416,6 @@
       "discard": "捨棄",
       "action": "儲存",
       "clean": "所有變更已儲存",
-      "dirty": "有未儲存的變更",
       "blockedIn": "儲存前請檢查 {{fields}}",
       "toastOk": "看門狗設定已儲存",
       "toastFail": "無法儲存看門狗設定",
@@ -623,7 +621,6 @@
       "title": "探測目標",
       "description": "依序 ping，直到有目標回應，用來判斷網際網路是否連通。",
       "restore": "還原預設值",
-      "unsaved": "未儲存",
       "save": "儲存探測目標",
       "leg": {
         "ipv4": "IPv4 目標",
@@ -688,7 +685,6 @@
         "very_tolerant": "非常寬鬆",
         "custom": "自訂"
       },
-      "unsaved": "未儲存",
       "save": "儲存門檻",
       "error": {
         "title": "無法讀取品質門檻",

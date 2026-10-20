@@ -1145,9 +1145,7 @@
       },
       "card": {
         "empty_title": "Nessuna banda qui",
-        "unavailable_note": "Blocco attuale sconosciuto, modifiche sospese.",
-        "pending_one": "{{count}} modifica non salvata",
-        "pending_other": "{{count}} modifiche non salvate"
+        "unavailable_note": "Blocco attuale sconosciuto, modifiche sospese."
       },
       "legend": {
         "selected": "Selezionata",
@@ -2044,8 +2042,6 @@
         }
       },
       "save_bar": {
-        "count_one": "{{count}} modifica in sospeso",
-        "count_other": "{{count}} modifiche in sospeso",
         "note": "L'applicazione interrompe brevemente la connessione. Il modem non si riavvia.",
         "discard": "Annulla modifiche",
         "save": "Salva impostazioni",
@@ -2403,8 +2399,6 @@
       "serving_now": "In uso ora",
       "handle_aria": "Riordina {{name}}, posizione {{rank}} di {{total}}",
       "save_bar": {
-        "count_one": "{{count}} modifica in sospeso",
-        "count_other": "{{count}} modifiche in sospeso",
         "note": "Al salvataggio il modem si registra di nuovo. Prevedi circa 3 secondi senza dati.",
         "discard": "Scarta",
         "save": "Salva priorità"

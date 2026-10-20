@@ -165,7 +165,6 @@ export function SpeedLimitCard({
       </CardContent>
       <CardFoot
         className="px-6"
-        status={isDirty && !isSaving ? t("state.unsaved", { ns: "common" }) : null}
         actions={
           <>
             <Button

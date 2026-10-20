@@ -52,8 +52,7 @@
     "enabled": "Aktif",
     "disabled": "Nonaktif",
     "on": "Nyala",
-    "off": "Mati",
-    "unsaved": "Perubahan belum disimpan"
+    "off": "Mati"
   },
   "connection": {
     "reconnecting": "Kehilangan kontak dengan perangkat. Menyambungkan ulang…"

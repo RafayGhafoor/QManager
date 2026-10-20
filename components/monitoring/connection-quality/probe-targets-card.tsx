@@ -59,7 +59,6 @@ import {
   CARD_SHELL,
   CARD_TITLE,
   CONDITION,
-  DELTA,
   EYEBROW,
   FAILED,
   FIELD_ERROR,
@@ -484,8 +483,6 @@ function ProbeForm({ profile, saved, cadence, answered }: ProbeFormProps) {
               <TriangleAlertIcon className={FAILED.GLYPH} aria-hidden="true" />
               {t(`${K}.failed`)}
             </span>
-          ) : isDirty ? (
-            <span className={DELTA}>{t(`${K}.unsaved`)}</span>
           ) : null
         }
         actions={

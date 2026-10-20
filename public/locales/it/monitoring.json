@@ -136,7 +136,6 @@
         "blocked": "Correggi i campi evidenziati",
         "blocked_in": "Correggi gli errori in {{channels}}",
         "clean": "Tutte le modifiche sono state salvate",
-        "dirty": "Modifiche non salvate",
         "discard": "Scarta",
         "failed": "Non è stato possibile salvare le impostazioni.",
         "succeeded": "Impostazioni di avviso salvate",
@@ -417,7 +416,6 @@
       "discard": "Scarta",
       "action": "Salva",
       "clean": "Tutte le modifiche sono state salvate",
-      "dirty": "Modifiche non salvate",
       "blockedIn": "Controlla {{fields}} prima di salvare",
       "toastOk": "Impostazioni del watchdog salvate",
       "toastFail": "Impossibile salvare le impostazioni del watchdog",
@@ -623,7 +621,6 @@
       "title": "Destinazioni delle sonde",
       "description": "Interrogati in ordine finché uno risponde, per capire se internet è raggiungibile.",
       "restore": "Ripristina i valori predefiniti",
-      "unsaved": "Non salvato",
       "save": "Salva le destinazioni",
       "leg": {
         "ipv4": "Destinazione IPv4",
@@ -688,7 +685,6 @@
         "very_tolerant": "Molto tollerante",
         "custom": "Personalizzato"
       },
-      "unsaved": "Non salvato",
       "save": "Salva le soglie",
       "error": {
         "title": "Impossibile leggere le soglie di qualità",

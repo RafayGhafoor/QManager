@@ -35,7 +35,6 @@
     "status_label": "Status",
     "status_active": "Aktif",
     "status_off": "Mati",
-    "pending": "Perubahan belum disimpan",
     "discard": "Buang",
     "toast_on": "Port AT host dinyalakan.",
     "toast_off": "Port AT host dimatikan.",

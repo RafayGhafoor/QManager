@@ -309,12 +309,8 @@ export function PrometheusCard({
 
         <CardFoot
           status={
-            dirty ? (
-              <span>
-                {enabled && !settings.token
-                  ? t(`${K}.foot.token_on_save`)
-                  : t("state.unsaved", { ns: "common" })}
-              </span>
+            dirty && enabled && !settings.token ? (
+              <span>{t(`${K}.foot.token_on_save`)}</span>
             ) : null
           }
           actions={

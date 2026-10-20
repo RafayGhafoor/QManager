@@ -35,7 +35,6 @@
     "status_label": "狀態",
     "status_active": "運作中",
     "status_off": "已關閉",
-    "pending": "有未儲存的變更",
     "discard": "放棄",
     "toast_on": "已開啟主機 AT 連接埠。",
     "toast_off": "已關閉主機 AT 連接埠。",

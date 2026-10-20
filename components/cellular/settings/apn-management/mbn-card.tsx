@@ -435,11 +435,6 @@ const MBNCard = ({
       {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps Enter-to-submit. */}
       <CardFoot
         className={CARD_PAD}
-        status={
-          isDirty ? (
-            <span className="font-medium text-on-surface">{t("common:state.unsaved")}</span>
-          ) : null
-        }
         actions={
           <>
             <Button

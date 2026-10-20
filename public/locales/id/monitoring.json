@@ -136,7 +136,6 @@
         "blocked": "Perbaiki kolom yang ditandai",
         "blocked_in": "Perbaiki kesalahan di {{channels}}",
         "clean": "Semua perubahan tersimpan",
-        "dirty": "Perubahan belum tersimpan",
         "discard": "Buang",
         "failed": "Pengaturan tidak dapat disimpan.",
         "succeeded": "Pengaturan peringatan tersimpan",
@@ -417,7 +416,6 @@
       "discard": "Buang",
       "action": "Simpan",
       "clean": "Semua perubahan tersimpan",
-      "dirty": "Ada perubahan yang belum disimpan",
       "blockedIn": "Periksa {{fields}} sebelum menyimpan",
       "toastOk": "Pengaturan watchdog tersimpan",
       "toastFail": "Tidak dapat menyimpan pengaturan watchdog",
@@ -623,7 +621,6 @@
       "title": "Target Probe",
       "description": "Di-ping berurutan sampai ada yang menjawab, untuk mengetahui apakah internet tersambung.",
       "restore": "Pulihkan bawaan",
-      "unsaved": "Belum tersimpan",
       "save": "Simpan Target Probe",
       "leg": {
         "ipv4": "Target IPv4",
@@ -688,7 +685,6 @@
         "very_tolerant": "Sangat toleran",
         "custom": "Kustom"
       },
-      "unsaved": "Belum tersimpan",
       "save": "Simpan Ambang",
       "error": {
         "title": "Tidak dapat membaca ambang kualitas",

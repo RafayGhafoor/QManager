@@ -668,8 +668,7 @@ export default function ApnSettingsCard({
 
       {/* Outside the form so `mt-auto` reaches the card edge; `form=` keeps
           Enter-to-submit. "Use carrier default" holds the left edge: it is not
-          part of the draft commit, so it sits apart from Discard and Save. The
-          unsaved-changes line rides beside it. */}
+          part of the draft commit, so it sits apart from Discard and Save. */}
       <CardFoot
         className={CARD_PAD}
         status={
@@ -685,9 +684,6 @@ export default function ApnSettingsCard({
                 {t(`${K}.carrier_default.button`)}
               </Button>
             )}
-            {isDirty ? (
-              <span className="font-medium text-on-surface">{t("common:state.unsaved")}</span>
-            ) : null}
           </>
         }
         actions={

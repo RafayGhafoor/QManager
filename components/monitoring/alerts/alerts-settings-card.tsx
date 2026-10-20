@@ -589,7 +589,7 @@ function MailerInstall({ hook }: { hook: UseAlertsReturn }) {
   );
 }
 
-// The foot's left edge: blocked, unsaved, or (clean) why the test is unavailable.
+// The foot's left edge: blocked, or (clean) why the test is unavailable.
 function SaveStatus({
   isDirty,
   blocked,
@@ -611,21 +611,9 @@ function SaveStatus({
       </span>
     );
   }
-  if (isDirty) {
-    return (
-      <span className={FOOT.LINE}>
-        <span className={FOOT.DOT} aria-hidden />
-        <span className="text-on-surface font-medium text-pretty">
-          {t("alerts.channels.save.dirty")}
-        </span>
-      </span>
-    );
-  }
-  return (
-    <span className="text-on-surface-variant text-pretty">
-      {idleText ?? t("alerts.channels.save.clean")}
-    </span>
-  );
+  const text = idleText ?? (isDirty ? null : t("alerts.channels.save.clean"));
+  if (!text) return null;
+  return <span className="text-on-surface-variant text-pretty">{text}</span>;
 }
 
 // -----------------------------------------------------------------------------

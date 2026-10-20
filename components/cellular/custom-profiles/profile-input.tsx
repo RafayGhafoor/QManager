@@ -156,7 +156,7 @@ interface ProfileInputProps {
 
 /**
  * Stable fingerprint of the editable draft (window ids excluded). Compared with
- * the loaded baseline to decide whether the footer shows "Unsaved changes".
+ * the loaded baseline to decide whether the draft differs from what is saved.
  */
 function draftKey(f: {
   name: string;
@@ -187,21 +187,6 @@ function draftKey(f: {
     f.windows.map((w) => [w.scenario, w.start, w.end]),
   ]);
 }
-
-const BLANK_DRAFT_KEY = draftKey({
-  name: "",
-  simIccid: "",
-  mnoId: MNO_CUSTOM_ID,
-  apn: "",
-  pdp: "ipv4v6",
-  cid: "1",
-  imei: "",
-  ttl: "",
-  hl: "",
-  defaultScenario: "balanced",
-  scheduleEnabled: false,
-  windows: [],
-});
 
 // UI PDP token <-> backend PDP token.
 const PDP_TO_BACKEND: Record<string, string> = {
@@ -323,7 +308,6 @@ const ProfileInputComponent = ({
     scheduleEnabled,
     windows,
   });
-  const dirty = currentKey !== (isEditing ? baseline : BLANK_DRAFT_KEY);
 
   // --- Edit-mode prefill ----------------------------------------------------
   const { getProfile } = sim;
@@ -1242,8 +1226,6 @@ const ProfileInputComponent = ({
               <MaterialSymbol name="error" size={16} />
               {t("custom_profiles.form.fields.sim_iccid_duplicate")}
             </span>
-          ) : dirty ? (
-            t("state.unsaved", { ns: "common" })
           ) : null
         }
         actions={

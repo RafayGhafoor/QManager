@@ -1145,9 +1145,7 @@
       },
       "card": {
         "empty_title": "Tidak ada band di sini",
-        "unavailable_note": "Kunci saat ini tidak diketahui, perubahan dijeda.",
-        "pending_one": "{{count}} perubahan belum disimpan",
-        "pending_other": "{{count}} perubahan belum disimpan"
+        "unavailable_note": "Kunci saat ini tidak diketahui, perubahan dijeda."
       },
       "legend": {
         "selected": "Dipilih",
@@ -2044,8 +2042,6 @@
         }
       },
       "save_bar": {
-        "count_one": "{{count}} perubahan tertunda",
-        "count_other": "{{count}} perubahan tertunda",
         "note": "Menerapkan akan memutus koneksi sebentar. Modem tidak melakukan reboot.",
         "discard": "Buang",
         "save": "Simpan Pengaturan",
@@ -2403,8 +2399,6 @@
       "serving_now": "Sedang dipakai",
       "handle_aria": "Ubah urutan {{name}}, posisi {{rank}} dari {{total}}",
       "save_bar": {
-        "count_one": "{{count}} perubahan menunggu",
-        "count_other": "{{count}} perubahan menunggu",
         "note": "Modem mendaftar ulang saat disimpan. Perkirakan sekitar 3 detik tanpa data.",
         "discard": "Buang",
         "save": "Simpan Prioritas"

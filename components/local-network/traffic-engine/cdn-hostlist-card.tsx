@@ -463,16 +463,12 @@ export function CdnHostlistCard() {
       <CardFoot
         className={CARD_PAD}
         status={
-          isDirty ? (
-            <span className="font-medium">{t("common:state.unsaved")}</span>
-          ) : (
-            <span className={HOSTLIST.SUMMARY}>
-              {t("traffic_engine.hostlist_summary", {
-                count: editDomains.length,
-                custom: customCount,
-              })}
-            </span>
-          )
+          <span className={HOSTLIST.SUMMARY}>
+            {t("traffic_engine.hostlist_summary", {
+              count: editDomains.length,
+              custom: customCount,
+            })}
+          </span>
         }
         actions={
           <>

@@ -521,8 +521,6 @@ const CustomDNSCard = () => {
               />
               {error}
             </span>
-          ) : isDirty ? (
-            <span className="font-medium">{t("common:state.unsaved")}</span>
           ) : null
         }
         actions={

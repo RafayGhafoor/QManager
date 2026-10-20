@@ -86,10 +86,6 @@ const CellularSettingsComponent = () => {
     t(`${K}.rows.${key}.label`),
   );
 
-  const pendingLabels = [...form.dirtyFields].map((key) =>
-    t(`${K}.rows.${key}.label`),
-  );
-
   const mountedRef = React.useRef(true);
   React.useEffect(() => {
     mountedRef.current = true;
@@ -227,9 +223,6 @@ const CellularSettingsComponent = () => {
                     />
                   }
                   copy={{
-                    count: t(`${K}.save_bar.count`, { count: form.changeCount }),
-                    // Names fields on BOTH cards, so an edit on the SIM card reads here.
-                    detail: pendingLabels.join(", "),
                     note: t(`${K}.save_bar.note`),
                     discard: t(`${K}.save_bar.discard`),
                     save: t(`${K}.save_bar.save`),

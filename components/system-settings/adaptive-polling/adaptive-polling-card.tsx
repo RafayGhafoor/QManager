@@ -255,9 +255,7 @@ export default function AdaptivePollingCard() {
 
   const fieldsDisabled = !draft.enabled || isSaving;
 
-  const status = isDirty ? (
-    <span className="font-medium">{t("common:state.unsaved")}</span>
-  ) : saveError ? (
+  const status = isDirty ? null : saveError ? (
     <span className="text-destructive-on-surface font-medium">
       {t(`${K}.save_failed_status`)}
     </span>

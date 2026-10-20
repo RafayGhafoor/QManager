@@ -1145,9 +1145,7 @@
       },
       "card": {
         "empty_title": "No bands here",
-        "unavailable_note": "Current lock unknown, so changes are paused.",
-        "pending_one": "{{count}} unsaved change",
-        "pending_other": "{{count}} unsaved changes"
+        "unavailable_note": "Current lock unknown, so changes are paused."
       },
       "legend": {
         "selected": "Selected",
@@ -2044,8 +2042,6 @@
         }
       },
       "save_bar": {
-        "count_one": "{{count}} change pending",
-        "count_other": "{{count}} changes pending",
         "note": "Applying interrupts the connection briefly. The modem does not reboot.",
         "discard": "Discard",
         "save": "Save Settings",
@@ -2403,8 +2399,6 @@
       "serving_now": "Serving now",
       "handle_aria": "Reorder {{name}}, position {{rank}} of {{total}}",
       "save_bar": {
-        "count_one": "{{count}} change pending",
-        "count_other": "{{count}} changes pending",
         "note": "The modem re-registers on save. Expect about 3 seconds without data.",
         "discard": "Discard",
         "save": "Save Priority"

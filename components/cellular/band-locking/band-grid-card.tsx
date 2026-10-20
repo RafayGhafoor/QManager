@@ -340,10 +340,6 @@ export function BandGridCard({
       <MaterialSymbol name="visibility_off" size={16} className="flex-none" />
       {t(`${K}.card.unavailable_note`)}
     </span>
-  ) : hasChanges ? (
-    <span className="font-medium tabular-nums text-on-surface">
-      {t(`${K}.card.pending`, { count: pendingCount })}
-    </span>
   ) : null;
 
   return (

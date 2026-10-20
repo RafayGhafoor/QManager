@@ -52,8 +52,7 @@
     "enabled": "Enabled",
     "disabled": "Disabled",
     "on": "On",
-    "off": "Off",
-    "unsaved": "Unsaved changes"
+    "off": "Off"
   },
   "connection": {
     "reconnecting": "Lost contact with the device. Reconnecting…"
