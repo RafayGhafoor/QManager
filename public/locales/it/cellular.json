@@ -676,10 +676,6 @@
     },
     "active_config_card": {
       "configuration": "{{name}} Configurazione",
-      "status": {
-        "active": "Attivo",
-        "not_active": "Non attivo"
-      },
       "config_labels": {
         "network_mode": "Modalità di rete",
         "optimization": "Ottimizzazione",
@@ -696,7 +692,6 @@
       },
       "activate": "Attiva",
       "edit": "Modifica",
-      "running_note": "Questo scenario è in esecuzione ora.",
       "show_details": "Mostra dettagli",
       "hide_details": "Nascondi dettagli"
     },

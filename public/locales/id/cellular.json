@@ -676,10 +676,6 @@
     },
     "active_config_card": {
       "configuration": "{{name}} konfigurasi",
-      "status": {
-        "active": "Aktif",
-        "not_active": "Tidak Aktif"
-      },
       "config_labels": {
         "network_mode": "Mode Jaringan",
         "optimization": "Optimalisasi",
@@ -696,7 +692,6 @@
       },
       "activate": "Aktifkan",
       "edit": "Ubah",
-      "running_note": "Skenario ini sedang berjalan.",
       "show_details": "Tampilkan detail",
       "hide_details": "Sembunyikan detail"
     },

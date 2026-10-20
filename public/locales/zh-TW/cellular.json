@@ -676,10 +676,6 @@
     },
     "active_config_card": {
       "configuration": "{{name}} 設定",
-      "status": {
-        "active": "活動",
-        "not_active": "未啟用"
-      },
       "config_labels": {
         "network_mode": "網路模式",
         "optimization": "最佳化",
@@ -696,7 +692,6 @@
       },
       "activate": "啟用",
       "edit": "編輯",
-      "running_note": "此場景目前正在執行。",
       "show_details": "顯示詳細資訊",
       "hide_details": "隱藏詳細資訊"
     },

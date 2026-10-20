@@ -111,11 +111,6 @@ export const ActiveConfigCard = ({
   const isCustom = !scenario.isDefault;
   const info = CONDITION_TONE.primary;
 
-  const chip = scheduleLocked
-    ? { variant: "info" as const, glyph: "lock_clock" as const, label: t("scenarios.schedule_lock.badge") }
-    : isActive
-      ? { variant: "success" as const, glyph: "check_circle" as const, label: t(`${K}.status.active`) }
-      : { variant: "muted" as const, glyph: "do_not_disturb_on" as const, label: t(`${K}.status.not_active`) };
 
   const { lte_bands, sa_nr_bands, nsa_nr_bands } = scenario.config;
   const rows: { label: string; value: string; quiet?: boolean }[] = [
@@ -139,10 +134,14 @@ export const ActiveConfigCard = ({
             <CardDescription>{scenario.description}</CardDescription>
           </div>
           <div className="flex flex-none items-center gap-2">
-            <Badge variant={chip.variant}>
-              <MaterialSymbol name={chip.glyph} size={12} />
-              {chip.label}
-            </Badge>
+            {/* Running state lives on the tile's disc; only the schedule lock,
+                which explains the missing Activate, is stated here. */}
+            {scheduleLocked ? (
+              <Badge variant="info">
+                <MaterialSymbol name="lock_clock" size={12} />
+                {t("scenarios.schedule_lock.badge")}
+              </Badge>
+            ) : null}
             <Button
               type="button"
               variant="ghost"
@@ -217,9 +216,6 @@ export const ActiveConfigCard = ({
 
       <CardFoot
         className="px-6"
-        status={
-          isActive && !scheduleLocked ? t(`${K}.running_note`) : null
-        }
         actions={
           <>
             {isCustom ? (
