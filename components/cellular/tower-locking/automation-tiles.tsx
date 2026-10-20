@@ -109,10 +109,15 @@ export function TowerAutomationTiles({
   const [prevThreshold, setPrevThreshold] = useState(savedThreshold);
   if (savedThreshold !== prevThreshold) {
     setPrevThreshold(savedThreshold);
-    setThresholdInput(savedText);
+    // Adopt the saved value only while the draft is untouched. A draft that
+    // moved on (the user kept dragging while the save was in flight) is newer
+    // than the echo of the previous commit and must not be overwritten.
+    const prevText = prevThreshold === null ? "" : String(prevThreshold);
+    if (thresholdInput === prevText) setThresholdInput(savedText);
   }
 
   const [thresholdSaving, setThresholdSaving] = useState(false);
+  const savingRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestRef = useRef({ config, onUpdateSettings, t });
   useEffect(() => {
@@ -155,15 +160,28 @@ export function TowerAutomationTiles({
       return;
     }
     if (value === cfg.failover.threshold) return;
+    // One write at a time; a newer draft waits for the in-flight one to land.
+    if (savingRef.current) {
+      saveTimerRef.current = setTimeout(() => void commitThreshold(text), 250);
+      return;
+    }
+    savingRef.current = true;
     setThresholdSaving(true);
     try {
-      await writeTowerSettings(
+      const landed = await writeTowerSettings(
         tr,
         update,
         { failover: { ...cfg.failover, threshold: value } },
         tr(`${K}.toast.threshold_saved`),
       );
+      // A failed write leaves the control showing a value the modem never took;
+      // put it back unless the user has already moved on.
+      if (!landed) {
+        const restored = String(cfg.failover.threshold);
+        setThresholdInput((cur) => (cur === text ? restored : cur));
+      }
     } finally {
+      savingRef.current = false;
       setThresholdSaving(false);
     }
   };
@@ -203,6 +221,9 @@ export function TowerAutomationTiles({
   }
 
   const controlsDisabled = !config || isSavingSettings;
+  // The threshold stays live during its own autosave: disabling it mid-drag
+  // drops the thumb and snaps it to the last saved value.
+  const thresholdDisabled = !config;
 
   return (
     <motion.div
@@ -270,7 +291,7 @@ export function TowerAutomationTiles({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") editThreshold(thresholdInput, true);
                 }}
-                disabled={controlsDisabled}
+                disabled={thresholdDisabled}
                 aria-invalid={thresholdErrored || undefined}
                 aria-describedby={
                   thresholdErrored
@@ -296,7 +317,7 @@ export function TowerAutomationTiles({
               step={1}
               value={[thresholdValid ? parsedThreshold : 0]}
               onValueChange={([v]) => editThreshold(String(v))}
-              disabled={controlsDisabled}
+              disabled={thresholdDisabled}
               className="min-w-32 flex-1"
             />
             {thresholdSaving ? (
