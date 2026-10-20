@@ -18,6 +18,8 @@ v0.1.32 is in progress, headlined by a much faster connection to the modem: ever
 
 ## ✅ Improvements
 
+- **APN Settings opens on modems without QMAP support.** On modems whose firmware does not understand the QMAP command, the APN page failed to load. QManager now works out which connection carries your data from the addresses the modem and the router report, so the page loads and marks the right connection. The same fix keeps the WAN address on the dashboard and Load from SIM correct. APN names are now checked (letters, numbers, dots, hyphens and underscores), saving over an IMS or emergency connection is refused unless you confirmed it, a case-only APN difference no longer restarts the connection at boot, and the "Not live" badge no longer flips while you type.
+
 - **Saving the active profile updates its schedule straight away.** Changing the schedule on the profile in use now takes effect immediately instead of waiting for the next activation.
 - **Network edits to the active profile say when they apply.** Changes to the APN, IMEI, TTL or hop limit are marked "Applies on next activation", with a one-click Reapply when you want the connection to restart. Nothing reconnects behind your back.
 - **Old Connection Scenarios links keep working.** The separate Connection Scenarios page now takes you to the combined page.

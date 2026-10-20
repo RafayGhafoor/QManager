@@ -105,18 +105,18 @@ The `lte_mimo_layers` AT command crashes the modem firmware when issued while th
 
 AT reads issued, in order:
 1. `AT+QENG="servingcell"` — learn current RAT (gates mimo)
-2. `AT+CGCONTRDP;+QMAP="WWAN"` — APN, DNS, WAN IP (always, mode-independent)
+2. `AT+CGPADDR;+CGCONTRDP` — APN, DNS, WAN IP (always, mode-independent). The data CID comes from `data_cid.sh` (`qm_detect_data_cid`: CGPADDR confirmed against the kernel default route; see [apn-management.md](apn-management.md)); `t2_wan_ipv4` / `t2_wan_ipv6` are that CID's CGPADDR addresses (cleared when no bearer is up, no longer stale) and `parse_cgcontrdp "<reply>" "<cid>"` picks that CID's record. No QMAP: firmware such as RM551E-GL answers ERROR to it.
 3. `AT+QNWCFG="nr5g_time_advance"` (+ `AT+QNWCFG="nr5g_mimo_layers"` if SA) — NR TA and SA MIMO
 4. `AT+QNWCFG="lte_time_advance"` (+ `AT+QNWCFG="lte_mimo_layers"` if LTE or NSA) — LTE TA and LTE/NSA MIMO
 
 **CGCONTRDP parsing (`parse_at.sh` `parse_cgcontrdp`):** the reply is normalised (`tr '' '
-'`) so CR-glued records split, the record is the one whose CID matches the active `+QMAP: "WWAN"` mux, and fields are read **by comma position** (3GPP: 3 = APN, 6 = primary DNS, 7 = secondary DNS), never by counting quoted tokens. The gateway (field 5) is bare on one record and quoted on the next, and an IMS-style record carries P-CSCF addresses after the DNS fields, so quote-counting read a quoted gateway or the P-CSCF pair as DNS. Quotes are stripped per field, and each DNS field may hold an adjacent `"<v4>" "<v6>"` pair; tokens are classified by octet count (4 = IPv4, 16 = dotted IPv6, colon-hex fallback) into the `_v4` / `_v6` fields, so an IPv6-only context now fills `primary_dns_v6` / `secondary_dns_v6`.
+'`) so CR-glued records split, the record is the one whose CID the caller passed as the optional second argument (legacy fallback without it: the `+QMAP: "WWAN"` mux, then 1), and fields are read **by comma position** (3GPP: 3 = APN, 6 = primary DNS, 7 = secondary DNS), never by counting quoted tokens. The gateway (field 5) is bare on one record and quoted on the next, and an IMS-style record carries P-CSCF addresses after the DNS fields, so quote-counting read a quoted gateway or the P-CSCF pair as DNS. Quotes are stripped per field, and each DNS field may hold an adjacent `"<v4>" "<v6>"` pair; tokens are classified by octet count (4 = IPv4, 16 = dotted IPv6, colon-hex fallback) into the `_v4` / `_v6` fields, so an IPv6-only context now fills `primary_dns_v6` / `secondary_dns_v6`.
 
 ### `ondemand_dataplane_refresh()`
 
-A lighter variant for apply paths: reads only `AT+CGCONTRDP;+QMAP="WWAN"` (APN / DNS / WAN IP) — no MIMO, no timing advance, no serving-cell probe. Returns 0 if the read succeeded, 1 otherwise.
+A lighter variant for apply paths: reads only `AT+CGPADDR;+CGCONTRDP` (APN / DNS / WAN IP) — no MIMO, no timing advance, no serving-cell probe. Returns 0 if the read succeeded, 1 otherwise.
 
-**Why apply paths use this and not `ondemand_radio_fetch()`:** After a COPS detach/attach cycle (APN apply, profile apply), the modem is mid-radio-attach. Issuing a MIMO or timing-advance read at that moment is exactly the dangerous timing `ondemand_radio_fetch()` guards against with its RAT probe. `ondemand_dataplane_refresh()` deliberately omits those reads — CGCONTRDP and QMAP are QCMAP/PDP reads, not L1 measurements, and are safe in any RAT.
+**Why apply paths use this and not `ondemand_radio_fetch()`:** After a COPS detach/attach cycle (APN apply, profile apply), the modem is mid-radio-attach. Issuing a MIMO or timing-advance read at that moment is exactly the dangerous timing `ondemand_radio_fetch()` guards against with its RAT probe. `ondemand_dataplane_refresh()` deliberately omits those reads — CGPADDR and CGCONTRDP are PDP reads, not L1 measurements, and are safe in any RAT.
 
 Loads last-known cache first, so the MIMO and TA fields it does not touch are preserved when the cache file is rewritten.
 
@@ -224,5 +224,5 @@ The preference / fallback pattern is consistent across all consumers: prefer the
 - **Cache file absent on first boot with no browser:** `load_ondemand_cache()` is a no-op. The first `write_cache()` emits empty strings for all on-demand fields. This is correct — the UI will start a fetch as soon as the page mounts and fill the values within 7 s.
 - **`updated_at: 0` in the response:** Occurs when the cache file is absent and the modem was unreachable on the first call. The UI should treat `0` as "never fetched" — not as epoch 0 (1970).
 - **MIMO skipped during RAT transition:** If `network_type` is empty after the serving-cell re-read (modem is switching between LTE and SA), neither MIMO command is issued. The prior cached value is kept in the cache file. The UI will see the last-known MIMO label until the next successful fetch resolves a definite RAT.
-- **`ondemand_dataplane_refresh` called during COPS re-attach:** The command it issues (`AT+CGCONTRDP;+QMAP="WWAN"`) may return empty or partial results if the PDP context is not yet re-established. The function checks for responses before writing — if no response arrives it returns 1 and leaves the cache untouched.
+- **`ondemand_dataplane_refresh` called during COPS re-attach:** The command it issues (`AT+CGPADDR;+CGCONTRDP`) may return empty or partial results if the PDP context is not yet re-established. The function checks for responses before writing — if no response arrives it returns 1 and leaves the cache untouched.
 - **The `force_tier2` flag no longer re-reads CGCONTRDP.** After the data-plane group was removed from Tier 2, `touch /tmp/qmanager_force_tier2` does not trigger an APN refresh. Apply chokepoints now call `ondemand_dataplane_refresh()` directly (backgrounded) for that purpose.
