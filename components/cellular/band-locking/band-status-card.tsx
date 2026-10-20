@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -10,6 +10,11 @@ import {
   qualityMeterTone,
 } from "@/components/cellular/signal-quality-display";
 import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { HintIcon } from "@/components/ui/hint-icon";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { MetricBar } from "@/components/ui/metric-bar";
@@ -32,7 +37,7 @@ import {
   BAND_HERO,
   CARRIER_DISC_GLYPH,
   CATEGORY_BADGE,
-  FAILOVER_BADGE,
+  FAILOVER_DOT,
   HERO_EYEBROW,
   HERO_ONAIR_GRID,
   HERO_ONAIR_PANEL,
@@ -71,6 +76,9 @@ import {
 // =============================================================================
 
 const K = "cell_locking.band_locking";
+
+/** Rail rows shown by default (LTE, NSA); SA and NR-DC fold behind a toggle. */
+const RAIL_PRIMARY_COUNT = 2;
 
 export interface BandStatusCardProps {
   failover: FailoverState;
@@ -236,8 +244,58 @@ export function BandStatusCard({
         })
       : t(`${K}.status.subtitle_${overall}`);
 
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const renderRailRow = ({
+    category,
+    posture,
+  }: {
+    category: BandCategory;
+    posture: BandPosture;
+  }) => {
+    const badge = CATEGORY_BADGE[posture];
+    // No ratio for a failed read: a real denominator over a fabricated zero is
+    // a count we do not have.
+    const ratio =
+      posture === "unavailable"
+        ? t(`${K}.status.ratio_unavailable`)
+        : t(`${K}.status.ratio`, {
+            count: lockedBands[category].length,
+            total: supportedBands[category].length,
+          });
+    const label = t(categoryShortKey(category));
+    const statusLabel = t(`${K}.status.rail_${posture}`);
+    return (
+      <button
+        key={category}
+        type="button"
+        onClick={() => onSelectCategory(category)}
+        className={HERO_RAIL_ROW}
+        aria-label={t(`${K}.status.rail_aria`, {
+          category: label,
+          ratio,
+          status: statusLabel,
+        })}
+      >
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className={HERO_RAIL_ROW_LABEL}>{label}</span>
+          <span className={HERO_RAIL_ROW_RATIO}>{ratio}</span>
+        </div>
+        <Badge variant={badge.variant} className="ml-auto flex-none">
+          <MaterialSymbol name={badge.glyph} size={BADGE_GLYPH_SIZE} />
+          {statusLabel}
+        </Badge>
+        <MaterialSymbol
+          name="chevron_right"
+          size={20}
+          className="flex-none text-on-surface-variant transition-transform duration-[var(--duration-quick)] ease-out group-hover:translate-x-0.5"
+        />
+      </button>
+    );
+  };
+
   const fKey = failoverKey(failover);
-  const fBadge = FAILOVER_BADGE[fKey];
+  const fDot = FAILOVER_DOT[fKey];
 
   const handleFailover = async (value: "on" | "off") => {
     const enabled = value === "on";
@@ -321,51 +379,35 @@ export function BandStatusCard({
           </div>
 
           <div className="flex flex-col gap-2">
-            {isLoading
-              ? RAIL_CATEGORIES.map((c) => (
-                  <Skeleton key={c} className={SKELETON_SHAPE.RAIL_ROW} />
-                ))
-              : postures.map(({ category, posture }) => {
-                  const badge = CATEGORY_BADGE[posture];
-                  // No ratio for a failed read: a real denominator over a
-                  // fabricated zero is a count we do not have.
-                  const ratio =
-                    posture === "unavailable"
-                      ? t(`${K}.status.ratio_unavailable`)
-                      : t(`${K}.status.ratio`, {
-                          count: lockedBands[category].length,
-                          total: supportedBands[category].length,
-                        });
-                  const label = t(categoryShortKey(category));
-                  const statusLabel = t(`${K}.status.rail_${posture}`);
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => onSelectCategory(category)}
-                      className={HERO_RAIL_ROW}
-                      aria-label={t(`${K}.status.rail_aria`, {
-                        category: label,
-                        ratio,
-                        status: statusLabel,
-                      })}
-                    >
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <span className={HERO_RAIL_ROW_LABEL}>{label}</span>
-                        <span className={HERO_RAIL_ROW_RATIO}>{ratio}</span>
-                      </div>
-                      <Badge variant={badge.variant} className="ml-auto flex-none">
-                        <MaterialSymbol name={badge.glyph} size={BADGE_GLYPH_SIZE} />
-                        {statusLabel}
-                      </Badge>
-                      <MaterialSymbol
-                        name="chevron_right"
-                        size={20}
-                        className="flex-none text-on-surface-variant transition-transform duration-[var(--duration-quick)] ease-out group-hover:translate-x-0.5"
-                      />
-                    </button>
-                  );
-                })}
+            {isLoading ? (
+              RAIL_CATEGORIES.slice(0, RAIL_PRIMARY_COUNT).map((c) => (
+                <Skeleton key={c} className={SKELETON_SHAPE.RAIL_ROW} />
+              ))
+            ) : (
+              <>
+                {postures.slice(0, RAIL_PRIMARY_COUNT).map(renderRailRow)}
+                <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
+                  <CollapsibleContent className="flex flex-col gap-2 pb-2">
+                    {postures.slice(RAIL_PRIMARY_COUNT).map(renderRailRow)}
+                  </CollapsibleContent>
+                  <CollapsibleTrigger className="group flex w-full items-center justify-center gap-1 rounded-pill px-3 py-1.5 text-xs font-medium text-on-surface-variant transition-colors duration-[var(--duration-quick)] ease-out hover:text-foreground focus-visible:ring-ring focus-visible:ring-[3px] focus-visible:outline-none">
+                    {moreOpen
+                      ? t(`${K}.status.rail_show_less`)
+                      : t(`${K}.status.rail_show_more`, {
+                          categories: postures
+                            .slice(RAIL_PRIMARY_COUNT)
+                            .map((p) => t(categoryShortKey(p.category)))
+                            .join(", "),
+                        })}
+                    <MaterialSymbol
+                      name="expand_more"
+                      size={16}
+                      className="transition-transform duration-[var(--duration-quick)] ease-out group-data-[state=open]:rotate-180"
+                    />
+                  </CollapsibleTrigger>
+                </Collapsible>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -376,6 +418,23 @@ export function BandStatusCard({
       ) : (
         <div className={HERO_ROW}>
           <div className="flex min-w-0 items-center gap-1.5">
+            {fDot ? (
+              <span
+                role="img"
+                aria-label={t(`${K}.settings_card.status.${fKey}`)}
+                title={t(`${K}.settings_card.status.${fKey}`)}
+                className="relative mr-1 flex size-2.5 flex-none"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`absolute inset-0 rounded-full opacity-60 motion-safe:animate-ping ${fDot.ping}`}
+                />
+                <span
+                  aria-hidden="true"
+                  className={`relative size-2.5 rounded-full ${fDot.dot}`}
+                />
+              </span>
+            ) : null}
             <p className={HERO_ROW_LABEL}>
               {t(`${K}.settings_card.band_failover_label`)}
             </p>
@@ -385,14 +444,6 @@ export function BandStatusCard({
           </div>
 
           <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
-            <Badge variant={fBadge.variant}>
-              <MaterialSymbol
-                name={fBadge.glyph}
-                size={BADGE_GLYPH_SIZE}
-                className={fBadge.spin ? "motion-safe:animate-spin" : undefined}
-              />
-              {t(`${K}.settings_card.status.${fKey}`)}
-            </Badge>
             <SegmentedField
               value={failover.enabled ? "on" : "off"}
               onValueChange={handleFailover}

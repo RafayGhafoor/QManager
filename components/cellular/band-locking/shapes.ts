@@ -185,14 +185,17 @@ export type FailoverKey = "disabled" | "fallback" | "monitoring" | "ready";
 
 /** Every failover state wears its own glyph: `success` and `warning`
  *  containers are 1.03:1 apart, so the glyph is the only separation. */
-export const FAILOVER_BADGE: Record<
+/** Failover status dot: `disabled` has none. `ready` is the armed (healthy)
+ *  state, `monitoring` the watcher checking a fresh lock, `fallback` the
+ *  watcher having fired and overridden the user's lock. */
+export const FAILOVER_DOT: Record<
   FailoverKey,
-  { variant: BadgeVariant; glyph: MaterialSymbolName; spin?: boolean }
+  { dot: string; ping: string } | null
 > = {
-  disabled: { variant: "muted", glyph: "do_not_disturb_on" },
-  fallback: { variant: "warning", glyph: "warning" },
-  monitoring: { variant: "info", glyph: "progress_activity", spin: true },
-  ready: { variant: "success", glyph: "check_circle" },
+  disabled: null,
+  ready: { dot: "bg-success", ping: "bg-success" },
+  monitoring: { dot: "bg-warning", ping: "bg-warning" },
+  fallback: { dot: "bg-destructive", ping: "bg-destructive" },
 };
 
 export function failoverKey(failover: {
