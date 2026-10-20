@@ -76,7 +76,7 @@
       }
     },
     "cellular_card": {
-      "title": "Connection details",
+      "title": "Connection Details",
       "description": "Reported by the network on the current attach."
     },
     "groups": {
@@ -616,7 +616,7 @@
         "unknown": "Unknown scenario"
       },
       "ribbon": {
-        "title": "Today's schedule",
+        "title": "Today's Schedule",
         "edit": "Edit schedule",
         "unknown_scenario": "Unknown scenario",
         "aria_label": "Today's scenario schedule: {{schedule}}",
@@ -1028,7 +1028,7 @@
         "loading_label": "Loading forwarding settings"
       },
       "health": {
-        "card_title": "Delivery & health",
+        "card_title": "Delivery & Health",
         "card_description": "Whether incoming messages are reaching your number.",
         "state_active": "Active",
         "state_issue": "Delivering with issues",
@@ -1261,11 +1261,11 @@
       },
       "legs": {
         "lte": {
-          "title": "LTE tower",
+          "title": "LTE Tower",
           "description": "Pin the 4G radio to up to three cells, by channel and PCI."
         },
         "nr_sa": {
-          "title": "5G NR-SA tower",
+          "title": "5G NR-SA Tower",
           "description": "Pin the 5G standalone radio to a single cell."
         }
       },
@@ -1440,11 +1440,11 @@
     "legs": {
       "lte": {
         "description": "Up to 2 EARFCNs. The modem may use only these.",
-        "title": "LTE channels"
+        "title": "LTE Channels"
       },
       "nr": {
         "description": "Up to 32 ARFCNs, each with its subcarrier spacing.",
-        "title": "5G NR channels"
+        "title": "5G NR Channels"
       }
     },
     "live": {
@@ -2430,7 +2430,7 @@
         "note": "Clearing writes to the SIM, not the modem, and nothing reboots. The list rebuilds itself if a network rejects the device again."
       },
       "card": {
-        "title": "Forbidden network list",
+        "title": "Forbidden Network List",
         "description": "QManager reads this list straight from the SIM each time you open this page.",
         "learn_more": "Learn more"
       },

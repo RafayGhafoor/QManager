@@ -221,7 +221,7 @@
       "paused": "Paused"
     },
     "now": {
-      "title": "Right now",
+      "title": "Right Now",
       "description": "What is still standing, and what keeps repeating.",
       "ongoing_one": "{{count}} problem ongoing",
       "ongoing_other": "{{count}} problems ongoing",
@@ -257,7 +257,7 @@
       "hours_other": "{{count}} hours"
     },
     "log": {
-      "title": "Event log",
+      "title": "Event Log",
       "description_loading": "Loading events.",
       "description_unreadable": "No counts to show while the log cannot be read.",
       "description": "Repeats are grouped; open one to see each event.",
@@ -408,7 +408,7 @@
       "description": "Report a bug, ask the community, or reach the maintainer."
     },
     "help": {
-      "title": "Get help",
+      "title": "Get Help",
       "description": "Four routes, in the order most people need them.",
       "bug": {
         "label": "Report a bug"
@@ -528,7 +528,7 @@
       "netFixesDescription": "Lets your tailnet devices reach this modem and its LAN."
     },
     "device": {
-      "title": "This device",
+      "title": "This Device",
       "description": "How the modem identifies itself on the tailnet.",
       "hostname": "Hostname",
       "ipv4": "IPv4",
@@ -542,7 +542,7 @@
       "emptyDescription": "Connect Tailscale and this modem's address, DNS name and relay appear here."
     },
     "peers": {
-      "title": "Network peers",
+      "title": "Network Peers",
       "description": "The other devices on your tailnet, and whether they are reachable.",
       "dash": "—",
       "unnamed": "Unnamed device",

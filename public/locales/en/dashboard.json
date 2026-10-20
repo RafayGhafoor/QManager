@@ -275,7 +275,7 @@
       "unknown": "Not reporting"
     },
     "now": {
-      "title": "Right now",
+      "title": "Right Now",
       "description": "The last 5 minutes of probes.",
       "eyebrow": "Round-trip time",
       "caption": "Average {{average}}, worst {{worst}}",
