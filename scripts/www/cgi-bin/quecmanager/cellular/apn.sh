@@ -2,6 +2,7 @@
 . /usr/lib/qmanager/cgi_base.sh
 . /usr/lib/qmanager/cgi_at.sh
 . /usr/lib/qmanager/apn_mgr.sh
+[ -f /usr/lib/qmanager/data_cid.sh ] && . /usr/lib/qmanager/data_cid.sh
 # =============================================================================
 # apn.sh — CGI Endpoint: APN Settings (GET + POST), AT-only
 # =============================================================================
@@ -19,19 +20,20 @@
 # (CIDs 1-6) under `cids`, with IMS/SOS contexts TAGGED (not dropped) via
 # apn_type_of(), so the UI can show what each hardware context currently holds.
 #
-# "Active CID" (the live WAN-bearing context) is derived inline from the
-# AT+QMAP="WWAN" / AT+CGPADDR sections of one compound query — never via
-# detect_active_cid(), which would re-query and negate the single round-trip.
+# "Active CID" (the live data-bearing context) comes from data_cid.sh: the
+# CGPADDR addresses of one compound query confirmed against the kernel's
+# default-route source / local addresses. No QMAP (several firmwares, e.g.
+# RM551E-GL, do not implement it and a single ERROR kills the whole reply).
 #
-# GET  -> { active, active_cid, internet_cid, apn{apn,pdp_type,cid}, cids[6] }
+# GET  -> { active, active_cid, internet_cid, data_cid_source,
+#           apn{apn,pdp_type,cid}, cids[6]{..., activated} }
 # POST -> {"action":"save"|"deactivate", ...} applies a change.
 #
 # AT commands used (GET):
-#   AT+CGDCONT?;+CGACT?;+CGPADDR;+QMAP="WWAN"   -> one round-trip, four sections
+#   AT+CGDCONT?;+CGACT?;+CGPADDR                -> one round-trip, three sections
 #     +CGDCONT: defined PDP contexts (CID, PDP type, APN)
 #     +CGACT:   per-context activation state
-#     +CGPADDR: per-CID assigned IP (active-CID fallback)
-#     +QMAP:    authoritative WAN CID + IP
+#     +CGPADDR: per-CID assigned IP (data-CID detection)
 #
 # AT commands used (POST save):
 #   AT+COPS=2                            -> deregister  (force full detach)
@@ -68,97 +70,71 @@ die() {
     exit 0
 }
 
-# Carrier-provisioned APN classification (case-insensitive substring match).
-# IMS (VoLTE) and SOS/emergency/XCAP/RCS contexts are operator-managed. Unlike
-# the prior version, a non-empty result no longer DROPS the row — it only TAGS
-# the modem-context entry under `cids` so the UI can label it.
-apn_type_of() {
-    _at_lc=$(printf '%s' "$1" | tr 'A-Z' 'a-z')
-    case "$_at_lc" in
-        *ims*)                               echo "ims" ;;
-        *sos*|*emergency*|*xcap*|*rcs*)      echo "emergency" ;;
-        *)                                   echo "" ;;
-    esac
-}
-
 # =============================================================================
 # GET — slot-1 APN + raw modem context table
 # =============================================================================
 if [ "$REQUEST_METHOD" = "GET" ]; then
     qlog_info "Fetching APN settings (v2 slot-1, AT)"
 
+    command -v qm_detect_data_cid >/dev/null 2>&1 || die "parse_failed" "Data-context detection is unavailable"
+
     # One compound call. Each qcmd invocation carries a fixed per-call cost
     # (process spawn + flock + modem channel handshake) that dominates the AT
-    # payload itself; chaining all four queries pays that cost once.
-    blob=$(run_at 'AT+CGDCONT?;+CGACT?;+CGPADDR;+QMAP="WWAN"')
-    # The live read fails transiently right after a COPS attach (AT channel
-    # busy -> run_at returns 1, empty stdout). A single immediate retry absorbs
-    # that common case without adding latency to the happy path. A sustained
-    # failure must surface honestly via die() -- returning active:1 with an
-    # all-empty cids[] would make the frontend badge mis-read the stored APN as
-    # a confirmed "Not live" mismatch.
-    if [ -z "$blob" ]; then
-        blob=$(run_at 'AT+CGDCONT?;+CGACT?;+CGPADDR;+QMAP="WWAN"')
+    # payload itself; chaining the three queries pays that cost once. A
+    # transport failure (rc 1) happens transiently right after a COPS attach
+    # (AT channel busy) and gets one immediate retry. A modem ERROR (rc 2) keeps
+    # whatever sections were answered: only "no +CGDCONT at all" is a failure.
+    # A sustained failure must surface honestly via die() -- returning active:1
+    # with an all-empty cids[] would make the frontend badge mis-read the stored
+    # APN as a confirmed "Not live" mismatch.
+    at_exec 'AT+CGDCONT?;+CGACT?;+CGPADDR'
+    at_rc=$?
+    if [ "$at_rc" -eq 1 ]; then
+        at_exec 'AT+CGDCONT?;+CGACT?;+CGPADDR'
+        at_rc=$?
     fi
-    if [ -z "$blob" ]; then
+    blob=$(printf '%s\n' "$AT_RAW" | tr -d '\r')
+    if [ "$at_rc" -eq 1 ] || ! printf '%s\n' "$blob" | grep -q '^+CGDCONT:'; then
         die "at_failed" "Could not read modem PDP contexts"
     fi
-    cgdcont_raw=$(printf '%s\n' "$blob" | grep '+CGDCONT:')
 
-    # --- Active CID (inline, NOT detect_active_cid which re-queries) --------
-    # Copied verbatim from profiles/current_settings.sh: CGPADDR collects CIDs
-    # with a valid 4-octet IPv4 (first octet > 0); QMAP is authoritative (first
-    # non-zero IP wins); CGPADDR is the fallback; default "1".
-    cgpaddr_cids=$(printf '%s\n' "$blob" | awk -F'[,"]' '
-        /\+CGPADDR:/ {
-            cid = $1; gsub(/[^0-9]/, "", cid)
-            ip = $3
-            if (ip != "" && ip != "0.0.0.0" && ip !~ /^0+(\.0+)*$/) {
-                split(ip, octets, ".")
-                if (length(octets) == 4 && octets[1]+0 > 0) {
-                    print cid
-                }
-            }
-        }
-    ')
-    qmap_cid=$(printf '%s\n' "$blob" | awk -F',' '
-        /\+QMAP:/ {
-            gsub(/"/, "", $5)
-            ip = $5
-            cid = $3
-            gsub(/[^0-9]/, "", cid)
-            if (ip != "" && ip != "0.0.0.0" && ip != "0:0:0:0:0:0:0:0") {
-                print cid
-                exit
-            }
-        }
-    ')
-    if [ -n "$qmap_cid" ]; then
-        active_cid="$qmap_cid"
-    elif [ -n "$cgpaddr_cids" ]; then
-        active_cid=$(printf '%s\n' "$cgpaddr_cids" | head -1)
-    else
-        active_cid="1"
-    fi
+    # --- Data CID (CGPADDR confirmed by the kernel route; see data_cid.sh) ---
+    qm_detect_data_cid "$blob"
+
+    # --- Stored slot-1 CID: display fallback when no bearer is up -----------
+    config_json=$(read_config_v2)
+    active_ptr=$(printf '%s' "$config_json" | jq -r '.active')
+    case "$active_ptr" in ''|*[!0-9]*) active_ptr=0 ;; esac
+    slot1_cid=$(printf '%s' "$config_json" | jq -r '
+        .profiles[] | select(.id == 1) |
+        if .cid == null then 1 else .cid end')
+    case "$slot1_cid" in ''|*[!0-9]*) slot1_cid=1 ;; esac
+
+    case "$QM_DATA_CID" in
+        ''|*[!0-9]*) active_cid="$slot1_cid"; data_cid_known=0 ;;
+        *)           active_cid="$QM_DATA_CID"; data_cid_known=1 ;;
+    esac
 
     # --- Modem context table (cids[]): every CID 1..MAX_CID, tagged ---------
-    # No carrier-skip: IMS/SOS contexts are kept and TAGGED via apn_type_of so
-    # the UI can label them. apn = live CGDCONT string ("" if undefined),
-    # is_internet = (cid == active_cid). Streamed as TSV (apn last column; it
-    # may legitimately be empty) then assembled with jq for correct typing.
+    # IMS/SOS contexts are kept and TAGGED via qm_apn_class so the UI can label
+    # them. apn = live CGDCONT string ("" if undefined), is_internet = the
+    # detected data CID (never true when no bearer is up), activated = CGACT
+    # state (empty -> null when the modem did not report it). Streamed as TSV
+    # (apn last; it may legitimately be empty) then assembled with jq.
     cids_tsv=""
     cid=1
     while [ "$cid" -le "$MAX_CID" ]; do
-        cgd_line=$(printf '%s\n' "$cgdcont_raw" | grep "^+CGDCONT: $cid,")
+        row=$(printf '%s\n' "$QM_CID_ROWS" | grep "^$cid|" | head -1)
         live_apn=""
-        if [ -n "$cgd_line" ]; then
-            live_apn=$(printf '%s' "$cgd_line" | awk -F'"' '{print $4}')
+        activated=""
+        if [ -n "$row" ]; then
+            activated=$(printf '%s' "$row" | cut -d'|' -f2)
+            live_apn=$(printf '%s' "$row" | cut -d'|' -f6-)
         fi
-        apn_type=$(apn_type_of "$live_apn")
-        [ "$cid" = "$active_cid" ] && is_internet=1 || is_internet=0
-        # 4 columns: cid, apn_type, is_internet, apn. apn is LAST because it can
-        # be empty — a trailing empty field survives the awk/split round-trip.
-        cids_tsv="${cids_tsv}${cid}	${apn_type}	${is_internet}	${live_apn}
+        apn_type=$(qm_apn_class "$live_apn")
+        is_internet=0
+        [ "$data_cid_known" = "1" ] && [ "$cid" = "$active_cid" ] && is_internet=1
+        cids_tsv="${cids_tsv}${cid}	${apn_type}	${is_internet}	${activated}	${live_apn}
 "
         cid=$((cid + 1))
     done
@@ -168,27 +144,22 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             cid:         (.[0] | tonumber),
             apn_type:    (if .[1] == null then "" else .[1] end),
             is_internet: (.[2] == "1"),
-            apn:         (if .[3] == null then "" else .[3] end)
+            activated:   (if .[3] == "1" then true elif .[3] == "0" then false else null end),
+            apn:         (if .[4] == null then "" else .[4] end)
         })')
     [ -z "$cids_json" ] && die "parse_failed" "Could not assemble modem context list"
 
     # --- Slot-1 stored APN (the single user APN) ----------------------------
-    # Read config; extract slot 1's fields. Always present (normalize_v2
-    # guarantees all 5 slots exist). The `apn` object reflects whatever is
-    # stored, even when active==0, so the form pre-fills with the last-saved
-    # value without requiring a separate fetch.
-    config_json=$(read_config_v2)
-    active_ptr=$(printf '%s' "$config_json" | jq -r '.active')
-
+    # Slot 1's fields come from the config read above (normalize_v2 guarantees
+    # all 5 slots exist). The `apn` object reflects whatever is stored, even
+    # when active==0, so the form pre-fills with the last-saved value without
+    # requiring a separate fetch.
     slot1_apn=$(printf '%s' "$config_json" | jq -r '
         .profiles[] | select(.id == 1) |
         if .apn == null then "" else .apn end')
     slot1_pdp=$(printf '%s' "$config_json" | jq -r '
         .profiles[] | select(.id == 1) |
         if .pdp_type == null then "ipv4v6" else .pdp_type end')
-    slot1_cid=$(printf '%s' "$config_json" | jq -r '
-        .profiles[] | select(.id == 1) |
-        if .cid == null then 1 else .cid end')
 
     apn_obj=$(jq -n \
         --arg apn "$slot1_apn" \
@@ -197,18 +168,20 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         '{ apn: $apn, pdp_type: $pdp_type, cid: $cid }')
     [ -z "$apn_obj" ] && die "parse_failed" "Could not assemble stored APN object"
 
-    qlog_info "APN settings: active=$active_ptr active_cid=$active_cid apn=$slot1_apn"
+    qlog_info "APN settings: active=$active_ptr active_cid=$active_cid source=$QM_DATA_CID_SOURCE apn=$slot1_apn"
 
     jq -n \
         --argjson apn_obj "$apn_obj" \
         --argjson cids "$cids_json" \
         --argjson active_ptr "$active_ptr" \
         --argjson active_cid "$active_cid" \
+        --arg data_cid_source "$QM_DATA_CID_SOURCE" \
         '{
             success: true,
             active: $active_ptr,
             active_cid: $active_cid,
             internet_cid: $active_cid,
+            data_cid_source: $data_cid_source,
             apn: $apn_obj,
             cids: $cids
         }'
@@ -241,11 +214,28 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
 
         # --- Validate apn + pdp_type ---------------------------------------
         [ -z "$APN" ] && die "missing_fields" "apn is required"
+        # Strict allow-list: the value is spliced into AT+CGDCONT="...", so any
+        # quote, CR/LF, ';' or ',' would let a direct POST inject AT commands.
         case "$APN" in
-            *'"'*) die "invalid_value" "APN may not contain a double-quote" ;;
+            *[!A-Za-z0-9._-]*) die "invalid_value" "APN may only contain letters, digits, '.', '-' and '_'" ;;
         esac
+        [ "${#APN}" -gt 100 ] && die "invalid_value" "APN must be 100 characters or fewer"
         PDP_AT=$(pdp_to_at "$PDP")
         [ -z "$PDP_AT" ] && die "invalid_pdp_type" "pdp_type must be ipv4, ipv6, or ipv4v6"
+
+        # --- Carrier-context guard (backend mirror of the UI confirm) --------
+        # Overwriting an IMS/SOS-tagged context breaks VoLTE/emergency calls. The
+        # UI confirms first and then sends allow_carrier_cid:true; a direct POST
+        # without it is refused. Fails OPEN when the live read fails (as before).
+        ALLOW_CARRIER=$(printf '%s' "$POST_DATA" | jq -r 'if .allow_carrier_cid == true then "1" else "0" end')
+        if [ "$ALLOW_CARRIER" != "1" ]; then
+            if at_exec 'AT+CGDCONT?' || [ $? -eq 2 ]; then
+                guard_apn=$(printf '%s\n' "$AT_RAW" | tr -d '\r' | grep "^+CGDCONT: $SLOT_CID," | head -1 | awk -F'"' '{print $4}')
+                if [ -n "$(qm_apn_class "$guard_apn")" ]; then
+                    die "carrier_cid_protected" "CID $SLOT_CID holds a carrier-managed context"
+                fi
+            fi
+        fi
 
         qlog_info "Save APN: apn=$APN pdp=$PDP_AT cid=$SLOT_CID"
 
