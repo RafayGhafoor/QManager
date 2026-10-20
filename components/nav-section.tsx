@@ -94,8 +94,15 @@ export function NavSection({
 }: NavSectionProps) {
   const { t } = useTranslation("sidebar");
   const pathname = normalizePath(usePathname());
-  const { state, isMobile } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const iconRail = state === "collapsed" && !isMobile;
+  // Below the desktop breakpoint the sidebar is a sheet over the page, so a
+  // row that takes the user somewhere (or opens a dialog) must dismiss it or
+  // it keeps covering what they asked for. Expanders never call this: toggling
+  // one is browsing the menu, not leaving it.
+  const dismissSheet = React.useCallback(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [isMobile, setOpenMobile]);
 
   // Sections auto-open to reveal where you are, and stay user-controllable
   // after that. A navigation re-derives them during render (not in an effect),
@@ -154,7 +161,10 @@ export function NavSection({
                   size={size}
                   tooltip={item.status?.description ?? label}
                   isActive={isActive}
-                  onClick={item.onClick}
+                  onClick={() => {
+                    dismissSheet();
+                    item.onClick?.();
+                  }}
                   className={cn(item.status && STATUS_TONE[item.status.tone])}
                 >
                   {item.onClick ? row : <Link href={item.url}>{row}</Link>}
@@ -256,7 +266,7 @@ export function NavSection({
                           asChild
                           isActive={isSubActive(pathname, sub)}
                         >
-                          <Link href={sub.url}>
+                          <Link href={sub.url} onClick={dismissSheet}>
                             <span>{t(`items.${sub.t_key}`)}</span>
                           </Link>
                         </SidebarMenuSubButton>

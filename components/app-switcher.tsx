@@ -30,7 +30,7 @@ import { APP_VERSION } from "@/lib/i18n/app-version";
 // header must still work when the sidebar is collapsed to its icon rail.
 export function AppSwitcher() {
   const { t } = useTranslation("sidebar");
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   return (
     <SidebarMenu>
@@ -83,7 +83,14 @@ export function AppSwitcher() {
             </DropdownMenuItem>
             {/* LuCI: opens the advanced OpenWrt UI in a new tab */}
             <DropdownMenuItem asChild>
-              <a href="/cgi-bin/luci" target="_blank" rel="noopener noreferrer">
+              <a
+                href="/cgi-bin/luci"
+                target="_blank"
+                rel="noopener noreferrer"
+                // LuCI opens in its own tab; drop the mobile sheet so this tab
+                // is not left covered when the user comes back to it.
+                onClick={() => setOpenMobile(false)}
+              >
                 <Image
                   src={OpenWrtLogo}
                   alt=""
