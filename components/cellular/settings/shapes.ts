@@ -955,13 +955,13 @@ export const BREAKDOWN = {
   /**
    * The check digit — the only part of an IMEI the machine derives rather than
    * the manufacturer assigns, and the part the Luhn test is judging. The cell
-   * carries the verdict: the solid `success` fill (the same green as the match
-   * badge beside the field) when the number passes, the `destructive` container
-   * when it fails. The badge's glyph and tooltip name it; the fill never
-   * carries it alone.
+   * keeps the neutral fill and carries the verdict as an inset ring (no layout
+   * shift against its neighbours): `success` when the number passes,
+   * `destructive` when it fails. A tooltip names the verdict, so the colour
+   * never carries it alone.
    */
-  CELL_VALID: "bg-success text-success-foreground",
-  CELL_INVALID: "bg-destructive-container text-on-destructive-container",
+  CELL_VALID: "ring-2 ring-inset ring-success",
+  CELL_INVALID: "ring-2 ring-inset ring-destructive",
 } as const;
 
 // -----------------------------------------------------------------------------

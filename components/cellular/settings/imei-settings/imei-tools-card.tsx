@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,7 +45,6 @@ import { cn } from "@/lib/utils";
 
 import SettingRow from "../setting-row";
 import {
-  BADGE_GLYPH_SIZE,
   BREAKDOWN,
   CARD_BODY_FILL,
   CARD_PAD,
@@ -64,7 +62,6 @@ import {
   SECTION_LABEL,
   SELECT_TRIGGER,
   SETTING_ROW,
-  SETTING_ROW_DIRTY,
 } from "../shapes";
 
 // =============================================================================
@@ -280,62 +277,18 @@ const IMEIToolsCard = () => {
               rather than as a dead `href`. The accessible name is on the
               control in both states, so it survives the label hiding at narrow
               container widths. */}
-          <div className="flex items-center gap-2.5">
-            {/* The verdict rides beside the field, icon-only: the tooltip names
-              it. Same badge as the device card's match mark. */}
+          <div className={CHECK_GROUP.ROOT}>
             {isComplete ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge
-                    variant={isLuhnValid ? "success" : "destructive"}
-                    role="img"
-                    tabIndex={0}
-                    aria-label={luhnLabel}
-                    className={cn(
-                      "size-7 flex-none p-0",
-                      isLuhnValid
-                        ? "bg-success text-success-foreground"
-                        : "bg-destructive text-destructive-foreground",
-                    )}
-                  >
-                    <MaterialSymbol
-                      name={isLuhnValid ? "check" : "close"}
-                      size={BADGE_GLYPH_SIZE}
-                    />
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>{luhnLabel}</TooltipContent>
-              </Tooltip>
-            ) : null}
-            <div className={cn(CHECK_GROUP.ROOT, "min-w-0 flex-1")}>
-              {isComplete ? (
-                <Button
-                  asChild
-                  variant="ghost"
-                  aria-label={t(`${K}.check.lookup`)}
-                  className={CHECK_GROUP.LEAD}
-                >
-                  <a
-                    href={`https://www.imei.info/?imei=${candidate}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <MaterialSymbol
-                      name="open_in_new"
-                      size={CHECK_GROUP.LEAD_GLYPH}
-                    />
-                    <span className={CHECK_GROUP.LEAD_LABEL}>
-                      {t(`${K}.check.lookup`)}
-                    </span>
-                  </a>
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled
-                  aria-label={t(`${K}.check.lookup`)}
-                  className={CHECK_GROUP.LEAD}
+              <Button
+                asChild
+                variant="ghost"
+                aria-label={t(`${K}.check.lookup`)}
+                className={CHECK_GROUP.LEAD}
+              >
+                <a
+                  href={`https://www.imei.info/?imei=${candidate}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   <MaterialSymbol
                     name="open_in_new"
@@ -344,42 +297,56 @@ const IMEIToolsCard = () => {
                   <span className={CHECK_GROUP.LEAD_LABEL}>
                     {t(`${K}.check.lookup`)}
                   </span>
-                </Button>
-              )}
+                </a>
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled
+                aria-label={t(`${K}.check.lookup`)}
+                className={CHECK_GROUP.LEAD}
+              >
+                <MaterialSymbol
+                  name="open_in_new"
+                  size={CHECK_GROUP.LEAD_GLYPH}
+                />
+                <span className={CHECK_GROUP.LEAD_LABEL}>
+                  {t(`${K}.check.lookup`)}
+                </span>
+              </Button>
+            )}
 
-              <input
-                id="imei-check-input"
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                maxLength={15}
-                value={candidate}
-                onChange={(event) =>
-                  setCandidate(
-                    event.target.value.replace(/\D/g, "").slice(0, 15),
-                  )
-                }
-                placeholder={t(`${K}.check.placeholder`)}
-                aria-label={t(`${K}.check.label`)}
-                className={CHECK_GROUP.INPUT}
-              />
+            <input
+              id="imei-check-input"
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={15}
+              value={candidate}
+              onChange={(event) =>
+                setCandidate(event.target.value.replace(/\D/g, "").slice(0, 15))
+              }
+              placeholder={t(`${K}.check.placeholder`)}
+              aria-label={t(`${K}.check.label`)}
+              className={CHECK_GROUP.INPUT}
+            />
 
-              {/* The 24px copy target that rides inside a pill — the same control
+            {/* The 24px copy target that rides inside a pill — the same control
                 the device card's readout uses, with its 44px hit area bought by
                 an inset overlay rather than by a bigger button. */}
-              <button
-                type="button"
-                onClick={handleCopy}
-                disabled={!candidate}
-                aria-label={t(`${K}.actions.copy`)}
-                className={cn(
-                  READOUT_ICON_ACTION,
-                  "disabled:pointer-events-none disabled:opacity-50",
-                )}
-              >
-                <MaterialSymbol name="content_copy" size={READOUT_ICON_GLYPH} />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleCopy}
+              disabled={!candidate}
+              aria-label={t(`${K}.actions.copy`)}
+              className={cn(
+                READOUT_ICON_ACTION,
+                "disabled:pointer-events-none disabled:opacity-50",
+              )}
+            >
+              <MaterialSymbol name="content_copy" size={READOUT_ICON_GLYPH} />
+            </button>
           </div>
 
           {/* The breakdown and the line that stands in for it are ONE slot, so
@@ -416,22 +383,30 @@ const IMEIToolsCard = () => {
                     </span>
                   </div>
                   {/* The verdict cell — see `BREAKDOWN.CELL_VALID` for why the
-                      check digit is the one that gets promoted. */}
-                  <div
-                    className={cn(
-                      BREAKDOWN.CELL,
-                      isLuhnValid
-                        ? BREAKDOWN.CELL_VALID
-                        : BREAKDOWN.CELL_INVALID,
-                    )}
-                  >
-                    <span className={SETTING_ROW_DIRTY.CONSEQUENCE_ON_FILL}>
-                      {t(`${K}.breakdown.check`)}
-                    </span>
-                    <span className={READOUT_ROW.VALUE_MONO}>
-                      {breakdown.checkDigit}
-                    </span>
-                  </div>
+                      check digit is the one that carries it. */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        tabIndex={0}
+                        aria-label={`${t(`${K}.breakdown.check`)}: ${luhnLabel}`}
+                        className={cn(
+                          BREAKDOWN.CELL,
+                          BREAKDOWN.CELL_NEUTRAL,
+                          isLuhnValid
+                            ? BREAKDOWN.CELL_VALID
+                            : BREAKDOWN.CELL_INVALID,
+                        )}
+                      >
+                        <span className={SETTING_ROW.CONSEQUENCE}>
+                          {t(`${K}.breakdown.check`)}
+                        </span>
+                        <span className={READOUT_ROW.VALUE_MONO}>
+                          {breakdown.checkDigit}
+                        </span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>{luhnLabel}</TooltipContent>
+                  </Tooltip>
                 </div>
               ) : (
                 <p className={SETTING_ROW.CONSEQUENCE}>
