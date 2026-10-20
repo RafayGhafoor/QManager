@@ -92,8 +92,8 @@ interface EngineCardProps {
 }
 
 /**
- * The anchor. Live view: the mode control (one engine, one mode), uptime,
- * packets, the Package drill row and Hotspot bypass on the left; the outbound
+ * The anchor. Live view: the mode control (one engine, one mode), Hotspot
+ * bypass, uptime, packets and the Package drill row on the left; the outbound
  * packet chart on the right. Package view: queue support, the engine, its
  * source and Remove, so the destructive action never sits beside live stats.
  */
@@ -265,6 +265,7 @@ export function EngineCard({
               {!kernelOk ? (
                 <p className={MODE_REASON}>{t("traffic_engine.mode_reason_kernel")}</p>
               ) : null}
+              <BypassHotspotRow ttl={ttl} />
               <div className={cn(ROWS, ENGINE_ROWS)}>
                 <MetricRow label={t("traffic_engine.tile_uptime")} value={running ? uptime : dash} quiet={!running} />
                 <MetricRow
@@ -289,7 +290,6 @@ export function EngineCard({
                   }
                 />
               </div>
-              <BypassHotspotRow ttl={ttl} />
             </div>
 
             <div className={LIVE.ROOT}>

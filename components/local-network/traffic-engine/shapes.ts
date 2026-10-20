@@ -122,12 +122,13 @@ export const CONTROL_COL = "@container/card flex min-w-0 flex-col gap-2";
 
 export const MODE_REASON = "text-on-surface-variant text-[0.8125rem] leading-5";
 
-/** The rows sit a step below the mode control; Hotspot bypass a step below them. */
-export const ENGINE_ROWS = "mt-2.5";
-export const HOTSPOT_ROW = "mt-3";
+/** Hotspot bypass sits a step below the mode control, the rows a step below it. */
+export const HOTSPOT_GROUP = "mt-3 flex flex-col gap-2";
+export const ENGINE_ROWS = "mt-3";
 
-/** Hotspot bypass's On/Off pill keeps its natural width. */
-export const HOTSPOT_CTL = "flex-none";
+/** Hotspot bypass's On/Off control fills the column like the mode control above it. */
+export const HOTSPOT_CTL =
+  "w-full [&>[data-slot=toggle-group]]:w-full [&_[data-slot=toggle-group-item]]:min-w-0 [&_[data-slot=toggle-group-item]]:flex-1";
 
 // -----------------------------------------------------------------------------
 // Live chart
@@ -214,8 +215,12 @@ export const STEPPER = {
 export const CHECK = {
   ROOT: "flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5",
   TEXT: "min-w-0 flex-[1_1_14rem]",
+  /** Collapses on exit (row height and the parent's row gap) so the card settles instead of jumping. */
+  RESULT_WRAP:
+    "grid basis-full grid-rows-[1fr] transition-[grid-template-rows,opacity,margin] duration-[var(--duration-standard)] ease-standard",
+  RESULT_LEAVING: "-mt-2.5 grid-rows-[0fr] opacity-0",
   RESULT:
-    "text-on-surface-variant animate-banner-in flex basis-full flex-wrap items-center gap-2 text-[0.8125rem] leading-5",
+    "text-on-surface-variant animate-banner-in flex min-h-0 flex-wrap items-center gap-2 overflow-hidden text-[0.8125rem] leading-5",
   RESULT_FIGURE: "text-on-surface font-semibold tabular-nums",
   RESULT_MONO: "text-on-surface font-mono text-[0.78125rem]",
 } as const;

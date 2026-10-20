@@ -8,8 +8,7 @@ import { HintIcon } from "@/components/ui/hint-icon";
 import { SEGMENTED, SegmentedField } from "@/components/ui/segmented-field";
 import type { UseTtlSettingsReturn } from "@/hooks/use-ttl-settings";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
-import { cn } from "@/lib/utils";
-import { FIELD, HOTSPOT_CTL, HOTSPOT_ROW } from "./shapes";
+import { FIELD, HOTSPOT_CTL, HOTSPOT_GROUP, LABEL, MODE_REASON } from "./shapes";
 
 // Hotspot bypass is a shortcut onto the global TTL/HL setting (the TTL page's
 // own backend). Ownership is value-based: 0/0 is off and interactive, 64/64 is
@@ -27,7 +26,7 @@ interface BypassHotspotRowProps {
   ttl: UseTtlSettingsReturn;
 }
 
-/** The Engine card's Hotspot bypass row: label and state left, On / Off right. */
+/** The Engine card's Hotspot bypass: label above, a full-width On / Off control like Mode. */
 export function BypassHotspotRow({ ttl }: BypassHotspotRowProps) {
   const { t } = useTranslation("local-network");
   const { data, isLoading, isSaving, saveTtlHl } = ttl;
@@ -55,22 +54,13 @@ export function BypassHotspotRow({ ttl }: BypassHotspotRowProps) {
     [saveTtlHl, t],
   );
 
-  const helper = externallyOwned
-    ? t("traffic_engine.bypass_helper_external", { ttl: ttlValue, hl: hlValue })
-    : active
-      ? t("traffic_engine.bypass_helper_active")
-      : t("traffic_engine.bypass_helper_idle");
-
   return (
-    <div className={cn(FIELD.ROW, HOTSPOT_ROW)}>
-      <div className={FIELD.TEXT}>
-        <div className={FIELD.LABEL_ROW}>
-          <span className={FIELD.LABEL}>{t("traffic_engine.bypass_label")}</span>
-          <HintIcon label={t("traffic_engine.aria_bypass_hint")}>
-            {t("traffic_engine.bypass_hint")}
-          </HintIcon>
-        </div>
-        <p className={FIELD.HINT}>{helper}</p>
+    <div className={HOTSPOT_GROUP}>
+      <div className={FIELD.LABEL_ROW}>
+        <span className={LABEL}>{t("traffic_engine.bypass_label")}</span>
+        <HintIcon label={t("traffic_engine.aria_bypass_hint")}>
+          {t("traffic_engine.bypass_hint")}
+        </HintIcon>
       </div>
       <SegmentedField
         value={active ? "on" : "off"}
@@ -85,6 +75,11 @@ export function BypassHotspotRow({ ttl }: BypassHotspotRowProps) {
           { value: "on", label: t("state.on", { ns: "common" }) },
         ]}
       />
+      {externallyOwned ? (
+        <p className={MODE_REASON}>
+          {t("traffic_engine.bypass_helper_external", { ttl: ttlValue, hl: hlValue })}
+        </p>
+      ) : null}
     </div>
   );
 }

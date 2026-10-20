@@ -242,8 +242,6 @@ export function VideoOptimizerCard({
               <HostnamesMenu draft={draft} />
               <BackButton onBack={() => open("main")} />
             </>
-          ) : engine.active ? (
-            <RunningChip />
           ) : undefined
         }
       />
@@ -352,16 +350,6 @@ export function VideoOptimizerCard({
   );
 }
 
-function RunningChip() {
-  const { t } = useTranslation("local-network");
-  return (
-    <Badge variant="success">
-      <CheckCircle2Icon className="size-3" aria-hidden="true" />
-      {t("traffic_engine.state_running")}
-    </Badge>
-  );
-}
-
 // -----------------------------------------------------------------------------
 // Masquerade
 // -----------------------------------------------------------------------------
@@ -405,7 +393,13 @@ export function MasqueradeCard({
             ? "pass"
             : "fail"
           : null,
-    message: testResult.status === "error" ? testResult.error : testResult.message,
+    // The pass line is built here so it is translated and carries no stray dash.
+    message:
+      testResult.status === "error"
+        ? testResult.error
+        : testResult.injected
+          ? t("traffic_engine.check_injection_confirmed", { count: testResult.packets ?? 0 })
+          : testResult.message,
   };
 
   return (
@@ -415,7 +409,6 @@ export function MasqueradeCard({
         padClassName={CARD_PAD}
         title={modeLabel}
         description={t("traffic_engine.masquerade_tagline")}
-        action={engine.active ? <RunningChip /> : undefined}
       />
       <ViewBody viewKey="main" direction={-1} className={CARD_PAD}>
         <div className={CARD_BODY}>
