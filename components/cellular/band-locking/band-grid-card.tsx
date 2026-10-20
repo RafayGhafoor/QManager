@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ComponentProps } from "react";
 import { motion, type Variants } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -105,6 +105,41 @@ const chipVariants: Variants = {
     },
   }),
 };
+
+// Two icon buttons that reveal their label on hover or keyboard focus. The pair
+// sits in a fixed-width slot and each button is absolutely placed, so the reveal
+// overlays its neighbour instead of reflowing the footer's status text. The
+// width change is a container size change, so it runs on `standard` /
+// `--ease-standard`; reduced motion shows the label with no transition. Touch has
+// no hover, so those buttons stay icon-only and keep their aria-label.
+const SELECTION_TOOLS = "relative h-[2.625rem] w-[5.625rem] flex-none";
+
+function RevealButton({
+  glyph,
+  label,
+  className,
+  ...props
+}: {
+  glyph: "done_all" | "close";
+  label: string;
+} & Omit<ComponentProps<typeof Button>, "children" | "variant" | "size">) {
+  return (
+    <Button
+      type="button"
+      variant="tonal-neutral"
+      aria-label={label}
+      className={`group/reveal absolute top-0 z-0 h-[2.625rem] gap-0 px-3 hover:z-10 focus-visible:z-10 ${className ?? ""}`}
+      {...props}
+    >
+      <MaterialSymbol name={glyph} size={18} className="flex-none" />
+      <span className="grid grid-cols-[0fr] transition-[grid-template-columns] duration-[var(--duration-standard)] ease-[var(--ease-standard)] group-hover/reveal:grid-cols-[1fr] group-focus-visible/reveal:grid-cols-[1fr] motion-reduce:transition-none">
+        <span className="overflow-hidden whitespace-nowrap pl-2 pr-0.5 text-xs font-semibold opacity-0 transition-opacity duration-[var(--duration-quick)] ease-out group-hover/reveal:opacity-100 group-focus-visible/reveal:opacity-100 motion-reduce:transition-none">
+          {label}
+        </span>
+      </span>
+    </Button>
+  );
+}
 
 export function BandGridCard({
   bandCategory,
@@ -394,29 +429,21 @@ export function BandGridCard({
         className={CARD_PAD}
         status={
           <>
-            <div className="flex flex-none items-center gap-1.5">
-              <Button
-                type="button"
-                variant="tonal-neutral"
-                size="icon"
+            <div className={SELECTION_TOOLS}>
+              <RevealButton
+                glyph="done_all"
+                label={t(`${K}.card_buttons.select_all`)}
                 onClick={() => setCheckedBands(new Set(supportedBands))}
                 disabled={isFrozen}
-                aria-label={t(`${K}.card_buttons.select_all`)}
-                title={t(`${K}.card_buttons.select_all`)}
-              >
-                <MaterialSymbol name="done_all" size={18} />
-              </Button>
-              <Button
-                type="button"
-                variant="tonal-neutral"
-                size="icon"
+                className="left-0"
+              />
+              <RevealButton
+                glyph="close"
+                label={t(`${K}.card_buttons.deselect_all`)}
                 onClick={() => setCheckedBands(new Set())}
                 disabled={isFrozen || noneSelected}
-                aria-label={t(`${K}.card_buttons.deselect_all`)}
-                title={t(`${K}.card_buttons.deselect_all`)}
-              >
-                <MaterialSymbol name="close" size={18} />
-              </Button>
+                className="left-12"
+              />
             </div>
             {footStatus}
           </>
