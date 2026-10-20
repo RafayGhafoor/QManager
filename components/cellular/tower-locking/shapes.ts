@@ -155,11 +155,29 @@ export const AUTO_GRID =
 export const AUTO_TILE = {
   ROOT: "flex min-w-0 flex-col gap-3 rounded-tile bg-surface-container px-5 py-4",
   HEAD: "flex flex-wrap items-center gap-x-2.5 gap-y-2",
-  DISC: "grid size-9 flex-none place-items-center rounded-pill bg-surface-container-high text-on-surface-variant",
+  DISC: "grid size-9 flex-none place-items-center rounded-pill transition-colors duration-[var(--duration-standard)] ease-standard",
+  DISC_NEUTRAL: "bg-surface-container-high text-on-surface-variant",
   TITLE: "text-sm font-semibold",
   BODY: "text-xs leading-relaxed text-pretty text-on-surface-variant",
   FOOT: "mt-auto",
 } as const;
+
+/**
+ * The tile disc carries the state itself: its fill is the same tonal pair the
+ * matching `Badge` variant uses, so the verdict reads without a chip beside it.
+ * The state's name rides on the disc as its accessible label.
+ */
+const DISC_TONE: Partial<Record<BadgeVariant, string>> = {
+  success: "bg-success-container text-on-success-container",
+  warning: "bg-warning-container text-on-warning-container",
+  destructive: "bg-destructive-container text-on-destructive-container",
+  info: "bg-primary-container text-on-primary-container",
+};
+
+/** Anything without a verdict tone (muted, unknown) stays the neutral disc. */
+export function discTone(variant: BadgeVariant): string {
+  return DISC_TONE[variant] ?? AUTO_TILE.DISC_NEUTRAL;
+}
 
 /** Threshold mark over the live-quality track: the threshold and the reading it gates, on one rule. */
 export const AUTO_METER = {

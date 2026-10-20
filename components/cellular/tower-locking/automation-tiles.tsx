@@ -4,13 +4,13 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 
-import { Badge } from "@/components/ui/badge";
 import { HintIcon } from "@/components/ui/hint-icon";
 import { Input } from "@/components/ui/input";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
 import { SegmentedField } from "@/components/ui/segmented-field";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
 import { staggerRowItem, staggerRows } from "@/lib/motion";
 import {
   rsrpToQualityPercent,
@@ -27,10 +27,10 @@ import {
   AUTO_GRID,
   AUTO_METER,
   AUTO_TILE,
-  BADGE_GLYPH_SIZE,
   FAILOVER_BADGE,
   FIELD_CONTROL,
   SKELETON_SHAPE,
+  discTone,
   failoverKey,
   lockPresence,
   type TowerFailoverKey,
@@ -141,6 +141,7 @@ export function TowerAutomationTiles({
     presence,
   );
   const failBadge = FAILOVER_BADGE[failState];
+  const failLabel = t(FAILOVER_STATE_LABEL[failState]);
 
   const qualityPct =
     activeRsrp === null ? null : rsrpToQualityPercent(activeRsrp);
@@ -167,8 +168,13 @@ export function TowerAutomationTiles({
       {/* --- Signal failover (whole modem, both radios) ------------------- */}
       <motion.div variants={staggerRowItem} className={AUTO_TILE.ROOT}>
         <div className={AUTO_TILE.HEAD}>
-          <span className={AUTO_TILE.DISC} aria-hidden="true">
-            <MaterialSymbol name="shield" size={20} />
+          <span
+            role="img"
+            aria-label={failLabel}
+            title={failLabel}
+            className={`${AUTO_TILE.DISC} ${discTone(failBadge.variant)}`}
+          >
+            <MaterialSymbol name="shield" size={20} aria-hidden="true" />
           </span>
           <span className={AUTO_TILE.TITLE}>
             {t(`${K}.automation.failover_label`)}
@@ -191,11 +197,6 @@ export function TowerAutomationTiles({
             />
           </div>
         </div>
-
-        <Badge variant={failBadge.variant} className="self-start">
-          <MaterialSymbol name={failBadge.glyph} size={BADGE_GLYPH_SIZE} />
-          {t(FAILOVER_STATE_LABEL[failState])}
-        </Badge>
 
         {/* Locking never turns failover on by itself. */}
         {presence === "present" && failState === "disabled" ? (
@@ -242,6 +243,16 @@ export function TowerAutomationTiles({
                 %
               </span>
             </div>
+            <Slider
+              aria-label={t(`${K}.automation.threshold_label`)}
+              min={0}
+              max={100}
+              step={1}
+              value={[thresholdValid ? parsedThreshold : 0]}
+              onValueChange={([v]) => setThresholdInput(String(v))}
+              disabled={controlsDisabled}
+              className="min-w-32 flex-1"
+            />
             {thresholdDirty || saved ? (
               <SaveButton
                 onClick={handleThresholdSave}

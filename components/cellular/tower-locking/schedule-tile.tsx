@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { SegmentedField } from "@/components/ui/segmented-field";
@@ -16,13 +15,13 @@ import type {
 
 import {
   AUTO_TILE,
-  BADGE_GLYPH_SIZE,
   DAY_CHIP,
   FIELD_CONTROL,
   FIELD_LABEL,
   NOTICE,
   NOTICE_TONE,
   dayChipFill,
+  discTone,
 } from "./shapes";
 
 // =============================================================================
@@ -168,12 +167,20 @@ export function ScheduleTile({ config, onScheduleChange }: ScheduleTileProps) {
   };
 
   const noDays = enabled && days.length === 0;
+  const scheduleLabel = enabled
+    ? t(`${K}.schedule.status_active`)
+    : t(`${K}.schedule.status_inactive`);
 
   return (
     <div className={`${AUTO_TILE.ROOT} h-full`}>
       <div className={AUTO_TILE.HEAD}>
-        <span className={AUTO_TILE.DISC} aria-hidden="true">
-          <MaterialSymbol name="schedule" size={20} />
+        <span
+          role="img"
+          aria-label={scheduleLabel}
+          title={scheduleLabel}
+          className={`${AUTO_TILE.DISC} ${discTone(enabled ? "success" : "muted")}`}
+        >
+          <MaterialSymbol name="schedule" size={20} aria-hidden="true" />
         </span>
         <span className={AUTO_TILE.TITLE}>{t(`${K}.schedule.title`)}</span>
         {isSaving ? (
@@ -183,15 +190,6 @@ export function ScheduleTile({ config, onScheduleChange }: ScheduleTileProps) {
             className="text-on-surface-variant motion-safe:animate-spin"
           />
         ) : null}
-        <Badge variant={enabled ? "success" : "muted"}>
-          <MaterialSymbol
-            name={enabled ? "check_circle" : "do_not_disturb_on"}
-            size={BADGE_GLYPH_SIZE}
-          />
-          {enabled
-            ? t(`${K}.schedule.status_active`)
-            : t(`${K}.schedule.status_inactive`)}
-        </Badge>
         <div
           className="ml-auto"
           role="group"
