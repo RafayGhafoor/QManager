@@ -447,7 +447,7 @@ const NetworkStatusComponent = ({
                 unreachable
                   ? networkLabel
                   : isAirplaneMode
-                    ? t("network.low_power")
+                    ? t("network.airplane_mode")
                     : networkLabel
               }
               subtitle={
