@@ -7,7 +7,8 @@ import { useMotionReduced } from "@/components/motion-preference";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import { PILL_GLYPH } from "./shapes";
+/** The lucide glyph inside an action pill. */
+const PILL_GLYPH = "size-4";
 
 /**
  * An action pill that is icon-only at rest; its label unfolds on hover or

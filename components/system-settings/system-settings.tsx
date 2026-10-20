@@ -9,7 +9,7 @@ import { useKnownSims } from "@/hooks/use-known-sims";
 import { useSystemSettings } from "@/hooks/use-system-settings";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 
-import { RevealLabelButton } from "@/components/system-settings/reveal-label-button";
+import { RevealLabelButton } from "@/components/ui/reveal-label-button";
 import ScheduledOperationsCard from "@/components/system-settings/scheduled-operations-card";
 import { StatusBand } from "@/components/system-settings/status-band";
 import SystemSettingsCard from "@/components/system-settings/system-settings-card";

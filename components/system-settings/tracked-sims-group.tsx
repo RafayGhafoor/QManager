@@ -22,7 +22,7 @@ import { staggerRowItem } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { UseKnownSimsReturn } from "@/hooks/use-known-sims";
 
-import { RevealLabelButton } from "./reveal-label-button";
+import { RevealLabelButton } from "@/components/ui/reveal-label-button";
 import {
   GROUP_LABEL,
   PILL_GLYPH,
