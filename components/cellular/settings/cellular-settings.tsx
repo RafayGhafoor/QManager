@@ -224,7 +224,6 @@ const CellularSettingsComponent = () => {
                     <RefreshButton
                       onClick={form.refresh}
                       disabled={form.isSaving}
-                      compact={form.changeCount > 0 || form.isSaving}
                     />
                   }
                   copy={{

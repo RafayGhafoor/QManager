@@ -1400,29 +1400,3 @@ export const SIM_STATUS_DISC: Record<
 
 /** Glyph size inside a dense chip. */
 export const BADGE_GLYPH_SIZE = 12;
-
-// -----------------------------------------------------------------------------
-// Refresh — the Network card foot's left-edge action
-// -----------------------------------------------------------------------------
-
-/**
- * The page-level "read the modem again" action, on the left edge of the apply
- * foot so it never competes with Discard and Save on the right.
- *
- * ICON AT REST, LABEL WHEN THERE IS ROOM. The label collapses to the glyph while
- * edits are pending or saving, because that is exactly when the foot's status
- * line (count, consequence) needs the width. The collapse animates
- * `grid-template-columns` on the standard clock, which `MotionConfig` cannot see,
- * so the consumer drops `LABEL_MOTION` under reduced motion via `useMotionReduced()`.
- * The accessible name is always the full label.
- */
-export const REFRESH_BUTTON = {
-  GLYPH: 18,
-  /** The label wrapper. `0fr` -> `1fr` is state, set at the call site. */
-  LABEL: "grid",
-  LABEL_MOTION:
-    "transition-[grid-template-columns] duration-[var(--duration-standard)] ease-[var(--ease-standard)]",
-  /** `min-w-0` lets the 0fr column actually collapse; the inner pad is clipped with it. */
-  LABEL_CLIP: "min-w-0 overflow-hidden",
-  LABEL_TEXT: "block pl-2",
-} as const;
