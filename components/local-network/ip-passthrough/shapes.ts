@@ -119,15 +119,6 @@ export const SETTING = {
   UNREAD: "text-on-surface-variant py-2.5 text-[0.8125rem]",
 } as const;
 
-/** The lockout note on Mode; promoted in place (Highlight-by-Container) while Mode is dirty. */
-export const MODE_NOTE = {
-  ROOT: "flex items-start gap-2 rounded-field text-[0.78125rem] leading-[1.5] text-pretty transition-[background-color,color] duration-[var(--duration-standard)] ease-[var(--ease-standard)] motion-reduce:transition-none",
-  REST: "text-on-surface-variant",
-  DIRTY: "bg-destructive-container text-on-destructive-container px-3.5 py-[0.5625rem] font-medium",
-  GLYPH: "mt-0.5 size-3.5 flex-none",
-  GLYPH_REST: "text-warning-on-surface",
-} as const;
-
 /** The manual MAC entry: 42px, machine voice, on `fieldVariants`. */
 export const MAC_FIELD = {
   WRAP: "flex w-60 max-w-full flex-col items-end gap-1.5",
@@ -188,6 +179,5 @@ export const SKELETON = {
   BLURB: `h-5 w-52 max-w-full rounded-inline`,
   ROW_KEY: `h-5 w-24 rounded-inline`,
   /** One line of the Mode note (12.5px at leading 1.5). */
-  NOTE_LINE: "h-[1.171875rem] rounded-inline",
   PILL: `${PILL_H} rounded-pill`,
 } as const;

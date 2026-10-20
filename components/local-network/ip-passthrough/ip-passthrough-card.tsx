@@ -12,12 +12,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import {
-  LockIcon,
-  RefreshCcwIcon,
-  RotateCcwIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
+import { LockIcon, RefreshCcwIcon } from "lucide-react";
 
 import {
   AlertDialog,
@@ -54,6 +49,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMotionReduced } from "@/components/motion-preference";
+import { ResultAlert } from "@/components/local-network/traffic-engine/result-alert";
 import { useActiveProfile } from "@/hooks/use-active-profile";
 import { useLanDevices } from "@/hooks/use-lan-devices";
 import { DUR, EASE_STANDARD, staggerRowItem, staggerRows } from "@/lib/motion";
@@ -81,7 +77,6 @@ import {
   FOOT,
   LOCK_NOTE,
   MAC_FIELD,
-  MODE_NOTE,
   SETTING,
   SKELETON,
 } from "./shapes";
@@ -177,23 +172,15 @@ function SettingRow({
   );
 }
 
-/** Mirrors one card's rows; `note` adds the Mode note's lines under the first row. */
-function SettingsSkeleton({ pills, note = false }: { pills: string[]; note?: boolean }) {
+/** Mirrors one card's rows. */
+function SettingsSkeleton({ pills }: { pills: string[] }) {
   return (
     <div className={SETTING.GROUP} aria-hidden>
       {pills.map((pill, i) => (
-        <React.Fragment key={i}>
-          <div className={SETTING.ROW}>
-            <Skeleton className={SKELETON.ROW_KEY} />
-            <Skeleton className={cn(SKELETON.PILL, "ml-auto", pill)} />
-          </div>
-          {note && i === 0 ? (
-            <div className="flex flex-col gap-1">
-              <Skeleton className={cn(SKELETON.NOTE_LINE, "w-full")} />
-              <Skeleton className={cn(SKELETON.NOTE_LINE, "w-3/4")} />
-            </div>
-          ) : null}
-        </React.Fragment>
+        <div key={i} className={SETTING.ROW}>
+          <Skeleton className={SKELETON.ROW_KEY} />
+          <Skeleton className={cn(SKELETON.PILL, "ml-auto", pill)} />
+        </div>
       ))}
     </div>
   );
@@ -538,7 +525,7 @@ export function IPPassthroughCard({
 
             {state === null ? (
               pending ? (
-                <SettingsSkeleton pills={["w-60", "w-72"]} note />
+                <SettingsSkeleton pills={["w-60", "w-72"]} />
               ) : (
                 unread
               )
@@ -561,30 +548,14 @@ export function IPPassthroughCard({
                   />
                 </SettingRow>
 
-                <motion.div
-                  variants={staggerRowItem}
-                  role="status"
-                  className={cn(
-                    MODE_NOTE.ROOT,
-                    modeDirty ? MODE_NOTE.DIRTY : MODE_NOTE.REST,
-                  )}
-                >
-                  {modeDirty ? (
-                    <RotateCcwIcon className={MODE_NOTE.GLYPH} aria-hidden />
-                  ) : (
-                    <TriangleAlertIcon
-                      className={cn(MODE_NOTE.GLYPH, MODE_NOTE.GLYPH_REST)}
-                      aria-hidden
-                    />
-                  )}
-                  <span>
-                    {!modeDirty
-                      ? t(`${K}.mode_note.rest`)
-                      : state.draft.mode === "disabled"
-                        ? t(`${K}.mode_note.to_router`)
-                        : t(`${K}.mode_note.to_passthrough`)}
-                  </span>
-                </motion.div>
+                {/* Router keeps the modem as the gateway, so the warning only applies to Ethernet / USB. */}
+                {state.draft.mode !== "disabled" ? (
+                  <ResultAlert tone="warning">
+                    {modeDirty
+                      ? t(`${K}.mode_note.to_passthrough`)
+                      : t(`${K}.mode_note.rest`)}
+                  </ResultAlert>
+                ) : null}
 
                 <SettingRow
                   label={t(`${K}.rows.target.label`)}

@@ -370,8 +370,7 @@
     },
     "mode_note": {
       "rest": "Ethernet atau USB menyerahkan IP WAN ke satu perangkat, dan modem berhenti menjawab di gateway LAN-nya. Siapkan Tailscale atau jalan masuk lain.",
-      "to_passthrough": "Menerapkan akan me-reboot modem dan tab ini kehilangan koneksinya. Setelah itu gateway LAN berhenti menjawab, jadi siapkan Tailscale atau jalan masuk lain.",
-      "to_router": "Menerapkan akan me-reboot modem dan tab ini kehilangan koneksinya. Gateway LAN kembali menjawab setelah reboot."
+      "to_passthrough": "Menerapkan akan me-reboot modem dan tab ini kehilangan koneksinya. Setelah itu gateway LAN berhenti menjawab, jadi siapkan Tailscale atau jalan masuk lain."
     },
     "dialog": {
       "title": "Terapkan dan reboot sekarang?",

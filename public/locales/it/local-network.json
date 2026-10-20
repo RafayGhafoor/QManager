@@ -370,8 +370,7 @@
     },
     "mode_note": {
       "rest": "Ethernet o USB assegnano l'IP WAN a un solo dispositivo, e il modem smette di rispondere al suo gateway LAN. Tieni pronto Tailscale o un altro modo per entrare.",
-      "to_passthrough": "Applicare riavvia il modem e questa scheda lo perde. Dopo, il gateway LAN smette di rispondere, quindi tieni pronto Tailscale o un altro modo per entrare.",
-      "to_router": "Applicare riavvia il modem e questa scheda lo perde. Il gateway LAN torna a rispondere dopo il riavvio."
+      "to_passthrough": "Applicare riavvia il modem e questa scheda lo perde. Dopo, il gateway LAN smette di rispondere, quindi tieni pronto Tailscale o un altro modo per entrare."
     },
     "dialog": {
       "title": "Applicare e riavviare adesso?",

@@ -370,8 +370,7 @@
     },
     "mode_note": {
       "rest": "Ethernet or USB hands the WAN IP to one device, and the modem stops answering at its LAN gateway. Keep Tailscale or another way in.",
-      "to_passthrough": "Applying reboots the modem and this tab loses it. Afterwards the LAN gateway stops answering, so keep Tailscale or another way in.",
-      "to_router": "Applying reboots the modem and this tab loses it. The LAN gateway answers again after the reboot."
+      "to_passthrough": "Applying reboots the modem and this tab loses it. Afterwards the LAN gateway stops answering, so keep Tailscale or another way in."
     },
     "dialog": {
       "title": "Apply and reboot now?",
