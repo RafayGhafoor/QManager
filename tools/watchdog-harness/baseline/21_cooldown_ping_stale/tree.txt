@@ -44,6 +44,3 @@
 {"timestamp":1790000112,"type":"watchcat_recovery","message":"Watchcat: toggling radio (Tier 2)","severity":"warning"}
 {"timestamp":1790000145,"type":"watchcat_recovery","message":"Watchcat: recovery succeeded (Tier 2) — internet connectivity restored","severity":"info"}
 
-=== tmp/qmanager_watchcat.json
-{"timestamp":1790000285,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":1790000115,"last_recovery_tier":2,"total_recoveries":2,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":null,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
-

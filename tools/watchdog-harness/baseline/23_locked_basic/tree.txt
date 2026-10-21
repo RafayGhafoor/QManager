@@ -27,6 +27,3 @@
 {"timestamp":1790000090,"type":"watchcat_recovery","message":"Watchcat: re-registering on network (Tier 1)","severity":"warning"}
 {"timestamp":1790000122,"type":"watchcat_recovery","message":"Watchcat: recovery succeeded (Tier 1) — internet connectivity restored","severity":"info"}
 
-=== tmp/qmanager_watchcat.json
-{"timestamp":1790000202,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":1790000092,"last_recovery_tier":1,"total_recoveries":1,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":null,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
-

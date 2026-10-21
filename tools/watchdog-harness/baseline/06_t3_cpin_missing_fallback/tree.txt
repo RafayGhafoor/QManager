@@ -70,6 +70,3 @@
 {"timestamp":1790000292,"type":"sim_failover","message":"Watchcat: switching to SIM slot 2 (Tier 3)","severity":"warning"}
 {"timestamp":1790000299,"type":"sim_failover","message":"Watchcat: backup SIM failed, reverting to slot 1","severity":"warning"}
 
-=== tmp/qmanager_watchcat.json
-{"timestamp":1790000313,"enabled":true,"state":"cooldown","current_tier":3,"failure_count":22,"last_recovery_time":1790000303,"last_recovery_tier":3,"total_recoveries":3,"cooldown_remaining":80,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
-

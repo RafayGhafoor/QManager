@@ -10,10 +10,10 @@
 --- pass 10 ---
 --- pass 11 ---
 --- pass 12 ---
-tower_failover stop
 --- pass 13 ---
 --- pass 14 ---
 --- pass 15 ---
+tower_failover stop
 --- pass 16 ---
 --- pass 17 ---
 --- pass 18 ---
@@ -30,7 +30,10 @@ tower_failover stop
 --- pass 29 ---
 --- pass 30 ---
 --- pass 31 ---
-tower_failover stop
 --- pass 32 ---
 --- pass 33 ---
 --- pass 34 ---
+tower_failover stop
+--- pass 35 ---
+--- pass 36 ---
+--- pass 37 ---

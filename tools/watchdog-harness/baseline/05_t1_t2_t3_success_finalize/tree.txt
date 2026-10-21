@@ -60,6 +60,3 @@
 === tmp/qmanager_sim_failover
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000209,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002"}
 
-=== tmp/qmanager_watchcat.json
-{"timestamp":1790000369,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":1790000119,"last_recovery_tier":3,"total_recoveries":3,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
-

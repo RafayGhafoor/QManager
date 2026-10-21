@@ -1,6 +1,6 @@
 === pass 1 (t+30) ===
 -- state
-{"timestamp":1790000030,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000030,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5030,"stale_after":90}
 -- files
 etc/qmanager:
 
@@ -14,7 +14,7 @@ qmanager
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 2 (t+40) ===
 -- state
-{"timestamp":1790000040,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000040,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5040,"stale_after":90}
 -- files
 etc/qmanager:
 
@@ -28,7 +28,7 @@ qmanager
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 3 (t+50) ===
 -- state
-{"timestamp":1790000050,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000050,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5050,"stale_after":90}
 -- files
 etc/qmanager:
 
@@ -40,14 +40,13 @@ var/run:
 qmanager
 -- failover
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
-=== pass 4 (t+64) ===
+=== pass 4 (t+60) ===
 -- state
-{"timestamp":1790000064,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":90,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000060,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5060,"stale_after":90}
 -- files
 etc/qmanager:
 
 tmp:
-qmanager_recovery_active
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -55,14 +54,13 @@ var/run:
 qmanager
 -- failover
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
-=== pass 5 (t+74) ===
+=== pass 5 (t+70) ===
 -- state
-{"timestamp":1790000074,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":80,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000070,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5070,"stale_after":90}
 -- files
 etc/qmanager:
 
 tmp:
-qmanager_recovery_active
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -70,15 +68,14 @@ var/run:
 qmanager
 -- failover
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
-=== pass 6 (t+84) ===
+=== pass 6 (t+80) ===
 -- state
-{"timestamp":1790000084,"enabled":true,"state":"locked","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":80,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000080,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5080,"stale_after":90}
 -- files
 etc/qmanager:
 
 tmp:
 qmanager_sim_failover
-qmanager_watchcat.lock
 qmanager_watchcat.pid
 
 var/run:
@@ -87,13 +84,13 @@ qmanager
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 7 (t+94) ===
 -- state
-{"timestamp":1790000094,"enabled":true,"state":"locked","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":80,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000094,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":90,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5094,"stale_after":90}
 -- files
 etc/qmanager:
 
 tmp:
+qmanager_recovery_active
 qmanager_sim_failover
-qmanager_watchcat.lock
 qmanager_watchcat.pid
 
 var/run:
@@ -102,7 +99,7 @@ qmanager
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 8 (t+104) ===
 -- state
-{"timestamp":1790000104,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":80,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000104,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":80,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5104,"stale_after":90}
 -- files
 etc/qmanager:
 
@@ -117,13 +114,13 @@ qmanager
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 9 (t+114) ===
 -- state
-{"timestamp":1790000114,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":70,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000114,"enabled":true,"state":"locked","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":80,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5114,"stale_after":90}
 -- files
 etc/qmanager:
 
 tmp:
-qmanager_recovery_active
 qmanager_sim_failover
+qmanager_watchcat.lock
 qmanager_watchcat.pid
 
 var/run:
@@ -132,13 +129,13 @@ qmanager
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 10 (t+124) ===
 -- state
-{"timestamp":1790000124,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":60,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000124,"enabled":true,"state":"locked","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":80,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5124,"stale_after":90}
 -- files
 etc/qmanager:
 
 tmp:
-qmanager_recovery_active
 qmanager_sim_failover
+qmanager_watchcat.lock
 qmanager_watchcat.pid
 
 var/run:
@@ -147,7 +144,7 @@ qmanager
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 11 (t+134) ===
 -- state
-{"timestamp":1790000134,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":50,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000134,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":80,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5134,"stale_after":90}
 -- files
 etc/qmanager:
 
@@ -162,7 +159,7 @@ qmanager
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 12 (t+144) ===
 -- state
-{"timestamp":1790000144,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":40,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000144,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":70,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5144,"stale_after":90}
 -- files
 etc/qmanager:
 
@@ -177,7 +174,7 @@ qmanager
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 13 (t+154) ===
 -- state
-{"timestamp":1790000154,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":30,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000154,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":60,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5154,"stale_after":90}
 -- files
 etc/qmanager:
 
@@ -192,7 +189,7 @@ qmanager
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 14 (t+164) ===
 -- state
-{"timestamp":1790000164,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":20,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000164,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":50,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5164,"stale_after":90}
 -- files
 etc/qmanager:
 
@@ -207,7 +204,7 @@ qmanager
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 15 (t+174) ===
 -- state
-{"timestamp":1790000174,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":10,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000174,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":40,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5174,"stale_after":90}
 -- files
 etc/qmanager:
 
@@ -222,49 +219,52 @@ qmanager
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 16 (t+184) ===
 -- state
-{"timestamp":1790000184,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000184,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":30,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5184,"stale_after":90}
 -- files
 etc/qmanager:
-known_iccids
 
 tmp:
+qmanager_recovery_active
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 17 (t+194) ===
 -- state
-{"timestamp":1790000194,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000194,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":20,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5194,"stale_after":90}
 -- files
 etc/qmanager:
-known_iccids
 
 tmp:
+qmanager_recovery_active
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 18 (t+204) ===
 -- state
-{"timestamp":1790000204,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000204,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":10,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5204,"stale_after":90}
 -- files
 etc/qmanager:
-known_iccids
 
 tmp:
+qmanager_recovery_active
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
 === pass 19 (t+214) ===
 -- state
-{"timestamp":1790000214,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000214,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5214,"stale_after":90}
 -- files
 etc/qmanager:
 known_iccids
@@ -278,7 +278,7 @@ qmanager
 (none)
 === pass 20 (t+224) ===
 -- state
-{"timestamp":1790000224,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000224,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5224,"stale_after":90}
 -- files
 etc/qmanager:
 known_iccids
@@ -292,7 +292,7 @@ qmanager
 (none)
 === pass 21 (t+234) ===
 -- state
-{"timestamp":1790000234,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000234,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5234,"stale_after":90}
 -- files
 etc/qmanager:
 known_iccids
@@ -306,7 +306,7 @@ qmanager
 (none)
 === pass 22 (t+244) ===
 -- state
-{"timestamp":1790000244,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000244,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5244,"stale_after":90}
 -- files
 etc/qmanager:
 known_iccids
@@ -320,7 +320,7 @@ qmanager
 (none)
 === pass 23 (t+254) ===
 -- state
-{"timestamp":1790000254,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000254,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5254,"stale_after":90}
 -- files
 etc/qmanager:
 known_iccids
@@ -334,7 +334,7 @@ qmanager
 (none)
 === pass 24 (t+264) ===
 -- state
-{"timestamp":1790000264,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000264,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5264,"stale_after":90}
 -- files
 etc/qmanager:
 known_iccids
@@ -348,7 +348,7 @@ qmanager
 (none)
 === pass 25 (t+274) ===
 -- state
-{"timestamp":1790000274,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000274,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5274,"stale_after":90}
 -- files
 etc/qmanager:
 known_iccids
@@ -362,7 +362,7 @@ qmanager
 (none)
 === pass 26 (t+284) ===
 -- state
-{"timestamp":1790000284,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000284,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5284,"stale_after":90}
 -- files
 etc/qmanager:
 known_iccids
@@ -376,7 +376,7 @@ qmanager
 (none)
 === pass 27 (t+294) ===
 -- state
-{"timestamp":1790000294,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000294,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5294,"stale_after":90}
 -- files
 etc/qmanager:
 known_iccids
@@ -390,7 +390,49 @@ qmanager
 (none)
 === pass 28 (t+304) ===
 -- state
-{"timestamp":1790000304,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+{"timestamp":1790000304,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5304,"stale_after":90}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 29 (t+314) ===
+-- state
+{"timestamp":1790000314,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5314,"stale_after":90}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 30 (t+324) ===
+-- state
+{"timestamp":1790000324,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5324,"stale_after":90}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 31 (t+334) ===
+-- state
+{"timestamp":1790000334,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5334,"stale_after":90}
 -- files
 etc/qmanager:
 known_iccids

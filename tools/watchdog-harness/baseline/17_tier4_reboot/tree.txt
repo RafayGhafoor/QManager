@@ -42,6 +42,3 @@
 {"timestamp":1790000050,"type":"watchcat_recovery","message":"Watchcat: starting recovery (Tier 4) — internet unreachable","severity":"warning"}
 {"timestamp":1790000050,"type":"watchcat_recovery","message":"Watchcat: rebooting system (Tier 4)","severity":"error"}
 
-=== tmp/qmanager_watchcat.json
-{"timestamp":1790000050,"enabled":true,"state":"recovery","current_tier":4,"failure_count":4,"last_recovery_time":1790000050,"last_recovery_tier":4,"total_recoveries":1,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":null,"reboots_this_hour":1,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
-

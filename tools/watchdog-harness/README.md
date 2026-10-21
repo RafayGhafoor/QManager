@@ -18,7 +18,8 @@ busybox sh "$H/run.sh" compare /tmp/wd-base /tmp/wd-split    # IDENTICAL / DIFFE
 
 Monolith for the baseline: `git show 125b3ce6:scripts/usr/bin/qmanager_watchcat > .cache/qmanager_watchcat.mono`
 (`125b3ce6` is "allow sourcing the daemon without running main", the last single-file commit).
-`baseline/` holds the recorded commit-0 output; `compare baseline <your-out>` is the parity gate.
+`baseline/` holds the recorded output of the latest reviewed daemon (Phase 1 commit-0 parity
+output until wave 1, see "Phase 2 additions"); `compare baseline <your-out>` is the regression gate.
 `WDH_KEEP=1` keeps the per-scenario work dirs (`/dev/shm/wdh.*`) for debugging.
 
 ## How isolation works
@@ -51,3 +52,28 @@ code becomes qcmd's exit code). Helpers: `mset`/`mget` (model: `reachable`, `lin
 failover init, profile apply, reboot), `passes.txt` (state file, file list and failover record
 after every pass), `tree.txt` (every file left in the fake root: events, crash.log, qlog lines,
 failover and known-SIM files), `console.log` (stdout/stderr), `exit.code`. PIDs are masked.
+
+## Phase 2 additions (wave 1: daemon core)
+
+New scenario hooks: `sc_post_source` (runs right after the daemon is sourced, before `main`),
+`sc_snap_extra PASS` (its output is appended to `passes.txt` under `-- extra` after each pass),
+`SC_REAL_SLEEP=1` (keep the daemon's real `wd_sleep`; the scenario drops the fake `sleep` itself,
+see `27_*` and `28_*`). Without it `inner.sh` maps `wd_sleep` to the fake clock's `sleep`. New
+helper `crash_log_epoch EPOCH REASON` appends a literal-epoch ledger row. `schedule_guard.sh` is
+staged with the other libs (the ledger's clock check). Scenarios 24-26 cover the reboot ledger
+(count, recent JSON), 27-28 the TERM cleanup (real time, exit code 143, no orphan sleep, state
+file gone) and 29 the heartbeat fields with malformed counters.
+
+`baseline/` was re-recorded from the wave-1 daemon. Every difference to the Phase 1 baseline
+(still in git history at `760e7d7d`) is one of these:
+
+- the state JSON gains `"mono":N,"stale_after":S` at the end (item 5);
+- the final state file is no longer left in `tree.txt`: the EXIT trap removes it (item 3);
+- scenarios that start with a failover record (02, 03, 12, 13, 14, 15): the resume `AT+QUIMSLOT?`
+  and its log line move from T+0 to T+30, after the boot settle (item 9). 13, 14 and 15 run 3
+  passes longer, and 15 moves its lock/unlock hooks by 3 passes, so the whole recheck timeline
+  shifts by 30 s and the AT and call sequences stay identical to the old ones;
+- scenarios 24-29 exist only in the new baseline.
+
+The per-minute ledger recount (item 1) and the `CFG_ENABLED` default (item 12) change no existing
+scenario output; the recount is visible only in 24 and 25.

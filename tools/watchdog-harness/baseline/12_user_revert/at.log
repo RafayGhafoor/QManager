@@ -1,4 +1,4 @@
-T+0 AT+QUIMSLOT?
+T+30 AT+QUIMSLOT?
 --- pass 1 ---
 --- pass 2 ---
 T+50 AT+CFUN=0

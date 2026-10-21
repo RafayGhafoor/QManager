@@ -8,12 +8,9 @@
 [2026-09-21 14:13:20] INFO  [watchcat:PID] QManager Watchcat starting (PID N)
 [2026-09-21 14:13:20] INFO  [watchcat:PID] ========================================
 [2026-09-21 14:13:20] INFO  [watchcat:PID] Reboots in last hour: 0
-[2026-09-21 14:13:20] INFO  [watchcat:PID] Resumed SIM failover state: slot 1 → 2 (verified)
 [2026-09-21 14:13:20] INFO  [watchcat:PID] Boot settle: waiting 30s
+[2026-09-21 14:13:50] INFO  [watchcat:PID] Resumed SIM failover state: slot 1 → 2 (verified)
 
 === tmp/qmanager_sim_failover
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
-
-=== tmp/qmanager_watchcat.json
-{"timestamp":1790000060,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
 

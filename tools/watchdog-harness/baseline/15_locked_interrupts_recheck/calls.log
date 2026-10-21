@@ -13,11 +13,11 @@
 --- pass 13 ---
 --- pass 14 ---
 --- pass 15 ---
-auto_apply_profile 89000000000000000001 watchdog_failback
-tower_failover start
 --- pass 16 ---
 --- pass 17 ---
 --- pass 18 ---
+auto_apply_profile 89000000000000000001 watchdog_failback
+tower_failover start
 --- pass 19 ---
 --- pass 20 ---
 --- pass 21 ---
@@ -28,3 +28,6 @@ tower_failover start
 --- pass 26 ---
 --- pass 27 ---
 --- pass 28 ---
+--- pass 29 ---
+--- pass 30 ---
+--- pass 31 ---
