@@ -6,7 +6,7 @@
 #
 # Owns (declared and initialised here, see docs/plans watchdog-modular-lean 2.1):
 #   every CFG_* global, STATUS_CACHE, STATUS_STALE_THRESHOLD, BOOT_SETTLE,
-#   MODEM_WAIT_TIMEOUT, SIM_SETTLE_SECS
+#   MODEM_WAIT_TIMEOUT, SIM_SETTLE_SECS, HOLDOFF_SECS
 # Functions: read_config, resolve_quality_thresholds
 #
 # Libraries hold function definitions and global initialisers only: no top-level
@@ -51,6 +51,9 @@ MODEM_WAIT_TIMEOUT=60
 # generic cooldown fires the success ping while the modem is still attaching and
 # false-fails a swap that was actually fine. FIXED floor by design (not UCI).
 SIM_SETTLE_SECS=90
+# Pause after every enabled tier has been tried without restoring connectivity
+# (fixed, not UCI): wd_decide_start returns "holdoff" until it elapses.
+HOLDOFF_SECS=900
 
 # =============================================================================
 # CONFIGURATION
