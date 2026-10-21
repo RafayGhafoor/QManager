@@ -590,6 +590,21 @@ fn hex_to_dec(h: &[u8]) -> (Vec<u8>, bool) {
     (n.to_string().into_bytes(), true)
 }
 
+/// `_lte_sinr_db_g`: AT+QENG LTE <SINR> raw X (0..25) -> dB as 2X - 20, CR
+/// stripped. Anything that is not 1-2 ASCII digits in 0..25 -> "". NR5G SINR
+/// is already dB and does not go through here.
+fn lte_sinr_db(raw: &[u8]) -> Vec<u8> {
+    let x = del_all(raw, b"\r");
+    if x.is_empty() || x.len() > 2 || !x.iter().all(|c| c.is_ascii_digit()) {
+        return Vec::new();
+    }
+    let n = x.iter().fold(0i32, |a, &c| a * 10 + i32::from(c - b'0'));
+    if n > 25 {
+        return Vec::new();
+    }
+    (n * 2 - 20).to_string().into_bytes()
+}
+
 /// `_compute_cell_parts`: (dec, enb, sec).
 fn cell_parts(h: &[u8], nr: bool) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
     if h.is_empty() {
@@ -800,7 +815,7 @@ fn parse_serving_cell(st: &mut State, qr: &[u8]) {
             st.put(LteRsrp, fld(&f, 12));
             st.put(LteRsrq, fld(&f, 13));
             st.put(LteRssi, fld(&f, 14));
-            st.put(LteSinr, fld(&f, 15));
+            st.put(LteSinr, lte_sinr_db(fld(&f, 15)));
         }
         if !nr_line.is_empty() {
             st.put(NrState, "connected");
@@ -852,7 +867,7 @@ fn parse_serving_cell(st: &mut State, qr: &[u8]) {
         st.put(LteRsrp, fld(&f, 14));
         st.put(LteRsrq, fld(&f, 15));
         st.put(LteRssi, fld(&f, 16));
-        st.put(LteSinr, fld(&f, 17));
+        st.put(LteSinr, lte_sinr_db(fld(&f, 17)));
     } else {
         st.put(LteState, "unknown");
         st.put(NrState, "unknown");

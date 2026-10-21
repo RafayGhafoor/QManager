@@ -568,3 +568,31 @@ fn fuzz_mutated_fixtures_never_panic() {
         exercise(&mut r, &[v]);
     }
 }
+
+#[test]
+fn lte_sinr_raw_to_db() {
+    // AT+QENG LTE <SINR>: dB = 2X - 20 for raw X in 0..25, else not reported.
+    let cases: &[(&[u8], &str)] = &[
+        (b"0", "-20"),
+        (b"8", "-4"),
+        (b"10", "0"),
+        (b"12", "4"),
+        (b"20", "20"),
+        (b"25", "30"),
+        (b"05", "-10"),
+        (b"00", "-20"),
+        (b"22\r", "24"),
+        (b"26", ""),
+        (b"100", ""),
+        (b"-32768", ""),
+        (b"-5", ""),
+        (b"-", ""),
+        (b"", ""),
+        (b"\r", ""),
+        (b" 22", ""),
+        (b"2a", ""),
+    ];
+    for &(raw, want) in cases {
+        assert_eq!(lte_sinr_db(raw), want.as_bytes(), "raw {:?}", raw);
+    }
+}

@@ -38,3 +38,11 @@ Format of `expected.txt`: `F <fixture> <bytes>`, `E <fixture> <sidecar>`,
 `C <case id>`, `V <name> <value>` (globals that left their `SENT_<name>`
 sentinel); bytes are printable ASCII verbatim, `\\` for a backslash, `\xHH`
 otherwise.
+
+**LTE SINR (2026-10-21).** `lte_sinr` values in `expected.txt` were converted on
+the host to dB (`2X-20` for a CR-stripped raw `0..25`, else empty) when
+`parse_at.sh` gained `_lte_sinr_db_g`. A device regeneration was not possible
+because the poller md5 above was an uncommitted staging build, and today's
+`rx_expect.sh` has no `_qc_read` stub for the current poller. The device gate
+(`PARITY_ALLOW_SINR=1 sh parity.sh old new fixtures`) showed that conversion is
+the only shell difference. Regenerate fully once `rx_expect.sh` stubs `_qc_read`.

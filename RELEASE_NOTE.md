@@ -1,6 +1,6 @@
 # 🚀 QManager BETA v0.1.33
 
-v0.1.33 is a small follow-up to v0.1.32, built from your feedback. The dashboard now shows your last outage, how long ago it ended and whether your WAN IP changed when you reconnected, and the signal colours are easier to tell apart. It adds one feature and one visual fix.
+v0.1.33 is a small follow-up to v0.1.32, built from your feedback. The dashboard now shows your last outage, how long ago it ended and whether your WAN IP changed when you reconnected, and the signal colours are easier to tell apart. It adds one feature, one visual fix and a corrected 4G SINR reading.
 
 ## ✨ New Features
 
@@ -9,6 +9,7 @@ v0.1.33 is a small follow-up to v0.1.32, built from your feedback. The dashboard
 ## ✅ Improvements
 
 - **Signal colours are easier to tell apart.** Signal readings such as RSRP, RSRQ and SINR, and their bars, now use plain green for good, yellow for fair and red for poor. The old olive and brown shades were hard to tell apart. The signal-bar icon beside each reading still shows excellent and good separately.
+- **The 4G SINR reading is now correct.** The modem reports LTE SINR on its own internal scale, not in dB, and the dashboard and login page were showing that raw number. On a weak signal it read up to 10 dB too high, for example 12 dB when the real value was about 4 dB. It now matches the per-antenna readings on the Antenna Statistics page. The 5G SINR was already correct. Thanks to [@RafayGhafoor](https://github.com/RafayGhafoor) for finding it ([#33](https://github.com/dr-dolomite/QManager/pull/33)).
 
 ## 📥 Installation
 

@@ -8,6 +8,11 @@
 # there are zero failures. Set PARITY_FILTER=<substring> to run a subset.
 # Set PARITY_NICE=0 to skip the low-priority wrapper.
 #
+# PARITY_ALLOW_SINR=1 (old = a parse_at.sh from before the LTE SINR dB
+# conversion): a serving_cell diff passes only if lte_sinr is the sole
+# difference and new == 2*old-20 for a CR-stripped old of 1-2 digits in 0..25,
+# else new is empty. Every other diff still fails.
+#
 # temperature__*.txt (content ignored): parse_temperature reads live sysfs, so
 # the two libraries are run back-to-back on the device (old, new, old). PASS if
 # new matches either old reading (sysfs jitter between calls is tolerated).
@@ -46,6 +51,8 @@ rm -f /tmp/pp_pwned
 pass=0
 fail=0
 skip=0
+sinr=0
+SINR_NOTE=""
 
 run_dump() { # lib parser fixture outfile -> exit code of dump_globals
     $NICE sh "$HERE/dump_globals.sh" "$1" "$2" "$3" > "$4" 2>"$4.err"
@@ -53,6 +60,22 @@ run_dump() { # lib parser fixture outfile -> exit code of dump_globals
 
 show_diff() { # old new
     pp_diff "$1" "$2" 2>&1 | sed 's/^/    /'
+}
+
+# 0 if the only diff is the expected LTE SINR dB conversion; sets SINR_NOTE.
+sinr_expected() { # old new
+    SINR_NOTE=""
+    grep -v '^lte_sinr=' "$1" > "$TMP/o.x"
+    grep -v '^lte_sinr=' "$2" > "$TMP/n.x"
+    cmp -s "$TMP/o.x" "$TMP/n.x" || return 1
+    _ov=$(grep '^lte_sinr=' "$1")
+    _nv=$(grep '^lte_sinr=' "$2")
+    [ -n "$_ov" ] && [ -n "$_nv" ] || return 1
+    _exp=$(printf '%s\n' "$_ov" | awk '{ v = $0; sub(/^lte_sinr=/, "", v); gsub(/\r/, "", v); gsub(/\047/, "", v)
+        if (v ~ /^[0-9][0-9]?$/ && v + 0 <= 25) print v * 2 - 20; else print "" }')
+    _got=$(printf '%s\n' "$_nv" | sed "s/^lte_sinr=//; s/'//g")
+    SINR_NOTE="lte_sinr $(printf '%s' "${_ov#lte_sinr=}" | tr '\r' '^') -> ${_got:-<empty>}"
+    [ "$_exp" = "$_got" ]
 }
 
 for f in "$FXD"/*__*.txt; do
@@ -105,8 +128,13 @@ for f in "$FXD"/*__*.txt; do
     elif cmp -s "$TMP/o" "$TMP/n"; then
         echo "PASS $name"
         pass=$((pass + 1))
+    elif [ "${PARITY_ALLOW_SINR:-0}" = "1" ] && [ "$parser" = "serving_cell" ]             && sinr_expected "$TMP/o" "$TMP/n"; then
+        echo "PASS $name (expected: $SINR_NOTE)"
+        pass=$((pass + 1))
+        sinr=$((sinr + 1))
     else
         echo "FAIL $name"
+        [ -n "$SINR_NOTE" ] && echo "    unexpected $SINR_NOTE"
         show_diff "$TMP/o" "$TMP/n"
         fail=$((fail + 1))
     fi
@@ -118,5 +146,5 @@ if [ -e /tmp/pp_pwned ]; then
     rm -f /tmp/pp_pwned
     fail=$((fail + 1))
 fi
-echo "parity: pass=$pass fail=$fail skipped=$skip"
+echo "parity: pass=$pass fail=$fail skipped=$skip sinr_converted=$sinr"
 [ "$fail" -eq 0 ] && [ "$pass" -gt 0 ]
