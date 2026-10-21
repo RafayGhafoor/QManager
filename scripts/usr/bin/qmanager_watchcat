@@ -169,7 +169,11 @@ main() {
     # Loop temporaries _pr_now / _pr_due belong to main.
 
     local _prev_streak
+    local _radio_streak_base
     _prev_streak=0
+    # Ping streak at the moment the radio came back on. The ping daemon kept
+    # counting failures while the radio was off; those are not an outage.
+    _radio_streak_base=0
 
     # Prevent duplicate instances
     if [ -f "$PID_FILE" ]; then
@@ -318,6 +322,14 @@ main() {
                 quality_breach_counter=0
                 _recovery_marker_emitted=""
                 wd_quality_mark
+                # Time the next outage from now: discount the streak so far.
+                _radio_streak_base=0
+                if read_ping; then
+                    case "$ping_streak_fail" in
+                        ''|*[!0-9]*) ;;
+                        *) _radio_streak_base="$ping_streak_fail" ;;
+                    esac
+                fi
                 # A swap-back deferred while the radio was off (wd_sim.sh).
                 wd_sim_on_radio_back
             fi
@@ -342,6 +354,15 @@ main() {
         # A stale/garbage value must never crash the loop arithmetic; treat a
         # non-numeric streak as 0 (no failures observed this cycle).
         case "$ping_streak_fail" in ''|*[!0-9]*) ping_streak_fail=0 ;; esac
+        # Failures carried over from radio_off do not count. A streak below the
+        # base means the ping daemon reset it (a success): the discount ends.
+        if [ "$_radio_streak_base" -gt 0 ]; then
+            if [ "$ping_streak_fail" -lt "$_radio_streak_base" ]; then
+                _radio_streak_base=0
+            else
+                ping_streak_fail=$((ping_streak_fail - _radio_streak_base))
+            fi
+        fi
         # Mirror the raw streak into failure_counter purely for the state-file
         # readout (quality_breach_count stays separate). The recovery DECISION no
         # longer uses an accumulator — it compares the raw streak directly.
