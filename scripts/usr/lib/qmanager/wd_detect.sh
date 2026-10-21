@@ -186,8 +186,9 @@ evaluate_quality() {
 # does not return (the genuine stuck / AP-hang case).
 
 # Best-effort read-only check of the kernel ring buffer for a RECENT MPSS crash.
-# Returns 0 (true) if a fatal-error line exists AND it is within CFG_SSR_GRACE
-# seconds of now; 1 (false) otherwise — including when dmesg yields nothing, the
+# Returns 0 (true) if a fatal-error line exists AND it is within the detection
+# window of now (CFG_SSR_GRACE + CFG_FAIL_THRESHOLD * ping interval + 2 check
+# intervals); 1 (false) otherwise — including when dmesg yields nothing, the
 # crash line was evicted, or the timestamp fails to parse (graceful degradation:
 # absence of evidence is NOT evidence of absence; we never block recovery on it).
 # dmesg timestamps are monotonic seconds-since-boot floats like "[ 12345.678901]"
@@ -214,9 +215,29 @@ ssr_in_progress() {
     now=$(cut -d. -f1 /proc/uptime 2>/dev/null)
     case "$now" in ''|*[!0-9]*) return 1 ;; esac
 
+    # The crash is only visible to the ladder once the ping daemon has counted
+    # CFG_FAIL_THRESHOLD failed probes (CQ_INTERVAL_SEC apart) and a check pass
+    # has seen them, so the look-back must cover that detection delay as well as
+    # the grace. A bare grace window always expired first on slow ping profiles
+    # (the hold never engaged and every SSR was amplified).
+    local iv
+    local ft
+    local ci
+    local gr
+    local win
+    gr="$CFG_SSR_GRACE"
+    case "$gr" in ''|*[!0-9]*) gr=45 ;; esac
+    iv="$CQ_INTERVAL_SEC"
+    case "$iv" in ''|*[!0-9]*) iv=5 ;; esac
+    ft="$CFG_FAIL_THRESHOLD"
+    case "$ft" in ''|*[!0-9]*) ft=5 ;; esac
+    ci="$CFG_CHECK_INTERVAL"
+    case "$ci" in ''|*[!0-9]*) ci=10 ;; esac
+    win=$((gr + ft * iv + 2 * ci))
+
     local delta
     delta=$((now - crash_ts))
-    [ "$delta" -ge 0 ] && [ "$delta" -le "$CFG_SSR_GRACE" ] && return 0
+    [ "$delta" -ge 0 ] && [ "$delta" -le "$win" ] && return 0
     return 1
 }
 
