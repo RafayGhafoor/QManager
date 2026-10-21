@@ -20,6 +20,7 @@ cgi_handle_options
 # --- Configuration -----------------------------------------------------------
 PID_FILE="/tmp/qmanager_neighbour_scan.pid"
 RESULT_FILE="/tmp/qmanager_neighbour_scan_result.json"
+TS_FILE="/tmp/qmanager_neighbour_scan.ts"
 ERROR_FILE="/tmp/qmanager_neighbour_scan_error"
 SCANNER_BIN="/usr/bin/qmanager_neighbour_scanner"
 LONG_FLAG="/tmp/qmanager_long_running"
@@ -100,7 +101,13 @@ if [ -f "$LONG_FLAG" ]; then
 fi
 
 # --- Clean up previous results -----------------------------------------------
-rm -f "$RESULT_FILE" "$ERROR_FILE"
+# TS_FILE is the discriminator the status CGI uses to decide "live frame" vs
+# "one-shot result": it exists IF AND ONLY IF a live reader is publishing. A
+# one-shot scan after a live session would otherwise be reported as live with a
+# stale age (measured: `"live":true,"scanned_at":...,"age_ms":2200` on a scan
+# that had just run), so it is cleared here for both paths - a live reader
+# republishes its first frame within a second.
+rm -f "$RESULT_FILE" "$ERROR_FILE" "$TS_FILE"
 
 # --- Launch scanner in background --------------------------------------------
 # fd 7 (the lock) is inherited by the worker. The CGI writes the PID itself

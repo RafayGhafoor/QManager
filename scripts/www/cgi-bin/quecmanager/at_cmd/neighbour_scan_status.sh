@@ -27,6 +27,34 @@ qlog_init "cgi_neighbour_scan_status"
 cgi_headers
 cgi_handle_options
 
+# --- Live mode: serve the current frame WHILE the reader runs -----------------
+# A resident 1 Hz reader is alive for as long as somebody watches, so the
+# "process running -> running" check below would hide its data for the entire
+# session: the page would spin forever on a live view that is already updating
+# the file once a second (change 27). A frame timestamp is the discriminator -
+# only the live reader writes $TS_FILE, so a one-shot scan keeps the exact old
+# running -> complete sequence.
+LIVE_TS=$(cat "$TS_FILE" 2>/dev/null)
+case "$LIVE_TS" in
+''|*[!0-9]*) : ;;
+*)
+    if [ -f "$RESULT_FILE" ]; then
+        FRAME=$(cat "$RESULT_FILE" 2>/dev/null)
+        case "$FRAME" in
+            '['*']')
+                [ -e "$READERS_FILE" ] && ( : >> "$READERS_FILE" ) 2>/dev/null
+                NOW=$(date +%s)
+                AGE=$(( (NOW - LIVE_TS) * 1000 ))
+                [ "$AGE" -lt 0 ] && AGE=0
+                printf '{"status":"complete","live":true,"scanned_at":%s,"age_ms":%s,"results":%s}\n' \
+                    "$LIVE_TS" "$AGE" "$FRAME"
+                exit 0
+                ;;
+        esac
+    fi
+    ;;
+esac
+
 # --- Check: scanner process running? -----------------------------------------
 if [ -f "$PID_FILE" ]; then
     SCAN_PID=$(cat "$PID_FILE" 2>/dev/null)

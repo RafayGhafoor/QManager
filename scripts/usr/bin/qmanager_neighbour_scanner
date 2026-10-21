@@ -45,13 +45,23 @@ NR_ERR_FILE="/tmp/qmanager_neighbour_scan_nr_err.tmp"
 
 # --- Cleanup on exit ---------------------------------------------------------
 cleanup() {
-    rm -f "$PID_FILE" "$PARSED_FILE" "$LTE_ERR_FILE" "$NR_ERR_FILE"
+    # Only remove the PID file if it is still OURS. Two live readers can overlap
+    # for a moment (a killed one leaves a stale file, the next start writes a new
+    # pid), and an unconditional rm let the dying reader delete the survivor's
+    # file, which then looked idle while a 1 Hz reader was still running.
+    if [ "$(cat "$PID_FILE" 2>/dev/null)" = "$$" ]; then
+        rm -f "$PID_FILE"
+    fi
+    rm -f "$PARSED_FILE" "$LTE_ERR_FILE" "$NR_ERR_FILE"
 }
 trap cleanup EXIT INT TERM
 
 # --- Write PID ---------------------------------------------------------------
 echo $$ > "$PID_FILE"
 rm -f "$ERROR_FILE"
+# Run directly (not through the CGI)? Keep the same invariant: the live
+# timestamp exists only while a live reader publishes frames.
+[ "$1" = "--live" ] || rm -f /tmp/qmanager_neighbour_scan.ts
 
 qlog_info "Neighbour scanner started (PID: $$)"
 
@@ -136,6 +146,20 @@ live_loop() {
 }
 
 if [ "$1" = "--live" ]; then
+    # Singleton via a dedicated lock. NOT /tmp/qmanager_scan.lock: a resident
+    # reader is not a scan and must not block manual scans or full sweeps. This
+    # lock is held for the reader's lifetime and dropped by the kernel when it
+    # exits, so there is no stale-lock cleanup to get wrong.
+    LIVE_LOCK="/tmp/qmanager_neighbour_live.lock"
+    [ -e "$LIVE_LOCK" ] || ( : > "$LIVE_LOCK" ) 2>/dev/null
+    if [ -r "$LIVE_LOCK" ]; then
+        exec 8<"$LIVE_LOCK"
+        if ! flock -x -n 8 2>/dev/null; then
+            # Somebody is already reading; they serve every client. Exit quietly
+            # so a second tab cannot double the AT traffic.
+            exit 0
+        fi
+    fi
     live_loop
     exit 0
 fi
