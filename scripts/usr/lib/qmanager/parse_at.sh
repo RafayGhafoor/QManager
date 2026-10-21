@@ -480,7 +480,7 @@ _parse_temperature_legacy() {
         [ -r "$zone/temp" ] || continue
         ztype=$(cat "$zone/type" 2>/dev/null)
         case "$ztype" in
-            mdmss-*|mdmq6-*|sdr[0-9]*|xo-therm*|sys-therm-*|cpuss-*)
+            mdmss-*|mdmq6-*|sdr[0-9]*|xo-therm*|sys-therm-*|cpuss-*|cpu-thermal*)
                 cat "$zone/temp" 2>/dev/null
                 ;;
         esac
@@ -523,7 +523,11 @@ parse_temperature() {
     # --- TUNING KNOB: thermal-zone type-name allowlist (case glob) -----------
     # Modem-relevant SoC sensors plus the AP CPU cores (cpuss-*), averaged into
     # the single overall temperature. Edit this glob to tune the zone set
-    # for temperature parity. sysfs temp is in millidegrees C; non-positive
+    # for temperature parity.
+    # cpu-thermal* is required for the ZX7981POEQ (Suncomm X75): that board
+    # registers exactly ONE zone (thermal_zone0, type=cpu-thermal) and no
+    # mdmss/mdmq6/sdr/xo-therm/sys-therm/cpuss zone at all, so without this arm
+    # the allowlist matches nothing and .device.temperature publishes null. sysfs temp is in millidegrees C; non-positive
     # values (e.g. -273000, -40960, empty) are unavailable sentinels and are
     # excluded below.
     # -------------------------------------------------------------------------
@@ -533,7 +537,7 @@ parse_temperature() {
         ztype=""
         read -r ztype < "$zone/type" 2>/dev/null
         case "$ztype" in
-            mdmss-*|mdmq6-*|sdr[0-9]*|xo-therm*|sys-therm-*|cpuss-*)
+            mdmss-*|mdmq6-*|sdr[0-9]*|xo-therm*|sys-therm-*|cpuss-*|cpu-thermal*)
                 t=""
                 extra=""
                 { read -r t ; read -r extra ; } < "$zone/temp" 2>/dev/null
