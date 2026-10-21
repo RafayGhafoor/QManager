@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { HintIcon } from "@/components/ui/hint-icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Empty,
@@ -425,6 +426,15 @@ const ConnectionQualityComponent = ({
   const hasOutageField = connectivity !== null && connectivity.last_outage_s !== undefined;
   const outageS = connectivity?.last_outage_s ?? null;
   const outageAgoS = connectivity?.last_outage_ago_s ?? null;
+  // Read from the routing table when the outage cleared; null when unknown.
+  const outageWanIp = connectivity?.last_outage_wan_ip ?? null;
+  const outageWanChanged = connectivity?.last_outage_wan_changed ?? null;
+  const outageWanKey =
+    outageWanChanged === true
+      ? "last_outage_ip_new"
+      : outageWanChanged === false
+        ? "last_outage_ip_same"
+        : "last_outage_ip_known";
 
   const spanMinutes = spanSec === null ? null : Math.floor(spanSec / 60);
   const axisReach =
@@ -467,8 +477,16 @@ const ConnectionQualityComponent = ({
       {hasOutageField ? (
         <div className="flex h-5 items-center gap-2">
           <MaterialSymbol name="history" size={16} className="shrink-0 text-on-surface-variant" />
-          <span className="min-w-0 grow truncate text-[13px] font-semibold text-on-surface-variant">
-            {t("connection_quality.last_outage")}
+          <span className="flex min-w-0 grow items-center gap-1">
+            <span className="min-w-0 truncate text-[13px] font-semibold text-on-surface-variant">
+              {t("connection_quality.last_outage")}
+            </span>
+            {outageS !== null && outageWanIp ? (
+              <HintIcon label={t("connection_quality.last_outage_ip_label")}>
+                {t(`connection_quality.${outageWanKey}`)}{" "}
+                <span className="font-mono">{outageWanIp}</span>
+              </HintIcon>
+            ) : null}
           </span>
           {outageS === null ? (
             <span className="shrink-0 text-sm font-semibold text-on-surface-variant">

@@ -543,6 +543,12 @@ export interface ConnectivityStatus {
   /** Seconds since that outage cleared, on the modem's monotonic clock (immune to
       wall-clock steps). null alongside last_outage_s. Absent on an older poller. */
   last_outage_ago_s?: number | null;
+  /** WAN address the bearer held when that outage cleared (IPv4 preferred), read
+      from the routing table. null when unknown. Absent on an older poller. */
+  last_outage_wan_ip?: string | null;
+  /** Whether that address differs from the one before the outage. null when either
+      side is unknown. Absent on an older poller. */
+  last_outage_wan_changed?: boolean | null;
 }
 
 // --- Connection Quality Settings ---------------------------------------------
