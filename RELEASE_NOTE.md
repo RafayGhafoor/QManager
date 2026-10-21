@@ -8,6 +8,7 @@ v0.1.33 is a small follow-up to v0.1.32, built from your feedback. The dashboard
 
 ## ✅ Improvements
 
+- **The watchdog's reboot count resets after an hour.** The Watchdog page's reboots figure could stay at 1 for days after a single watchdog restart, and that restart vanished from Recent Activity. The count is now a true rolling hour, and restarts the watchdog caused stay listed in Recent Activity after the modem comes back. Thanks to Outright0181 for reporting it.
 - **Signal colours are easier to tell apart.** Signal readings such as RSRP, RSRQ and SINR, and their bars, now use plain green for good, yellow for fair and red for poor. The old olive and brown shades were hard to tell apart. The signal-bar icon beside each reading still shows excellent and good separately.
 
 ## 📥 Installation
