@@ -550,6 +550,11 @@ remove_runtime_state() {
           /tmp/qmanager_reboot_storm_hour \
           /tmp/qmanager_last_outage \
           /tmp/qmanager_recovery_active \
+          /tmp/qmanager_watchcat_reload \
+          /tmp/qmanager_watchcat_disabled \
+          /tmp/qmanager_watchcat_revert_sim \
+          /tmp/qmanager_sim_failover \
+          /tmp/qmanager_sim_swap_detected \
           /tmp/qmanager_pending_reboot_verizon \
           /tmp/qm_spin_out \
           /tmp/qm_tmo_out.* \

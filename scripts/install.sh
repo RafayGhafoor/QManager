@@ -1167,11 +1167,13 @@ seed_uci_defaults() {
         info "Dropped /tmp/qmanager_ping_reload — running ping daemon will pick up ICMP targets"
     fi
 
-    # Connection Watchdog (watchcat) — connection-quality trigger keys. The
-    # full watchcat section is otherwise seeded lazily by the watchdog.sh CGI
-    # (ensure_watchcat_config) on first read; seed only the quality keys here
-    # so fresh installs match that contract. Idempotent + preserve-user-choice,
-    # same shape as the blocks above. Defaults: quality off, consecutive 5.
+    # Connection Watchdog (watchcat) — every key is seeded here, so a fresh
+    # install has the full section before the watchdog.sh CGI is ever opened
+    # (ensure_watchcat_config there only covers a section that is missing
+    # entirely). Idempotent + preserve-user-choice, same shape as the blocks
+    # above. fail_threshold is seeded/migrated in the block further down.
+    # Defaults match wd_config.sh and the CGI: off, 10s check, 60s cooldown,
+    # tiers 1/2/4 on and Tier 3 off, 3 reboots/hour, quality off, consecutive 5.
     # NOTE: latency_ceiling_ms / loss_ceiling_pct are RETIRED — the watchdog now
     # reads the SHARED quecmanager.quality_thresholds.* (resolved with a `custom`
     # option). The migration block below moves any existing watchcat ceilings
@@ -1179,6 +1181,16 @@ seed_uci_defaults() {
     if ! uci -q get quecmanager.watchcat >/dev/null 2>&1; then
         uci set quecmanager.watchcat=watchcat
     fi
+    for _wc_kv in enabled=0 check_interval=10 cooldown=60 \
+                  tier1_enabled=1 tier2_enabled=1 tier3_enabled=0 tier4_enabled=1 \
+                  max_reboots_per_hour=3; do
+        _wc_k="${_wc_kv%%=*}"
+        _wc_v="${_wc_kv#*=}"
+        if ! uci -q get "quecmanager.watchcat.$_wc_k" >/dev/null 2>&1; then
+            uci set "quecmanager.watchcat.$_wc_k=$_wc_v"
+            info "Seeded quecmanager.watchcat.$_wc_k=$_wc_v"
+        fi
+    done
     if ! uci -q get quecmanager.watchcat.quality_enabled >/dev/null 2>&1; then
         uci set quecmanager.watchcat.quality_enabled=0
         info "Seeded quecmanager.watchcat.quality_enabled=0 (off by default)"
