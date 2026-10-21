@@ -477,29 +477,30 @@ const ConnectionQualityComponent = ({
       {hasOutageField ? (
         <div className="flex h-5 items-center gap-2">
           <MaterialSymbol name="history" size={16} className="shrink-0 text-on-surface-variant" />
-          <span className="flex min-w-0 grow items-center gap-1">
-            <span className="min-w-0 truncate text-[13px] font-semibold text-on-surface-variant">
-              {t("connection_quality.last_outage")}
-            </span>
-            {outageS !== null && outageWanIp ? (
-              <HintIcon label={t("connection_quality.last_outage_ip_label")}>
-                {t(`connection_quality.${outageWanKey}`)}{" "}
-                <span className="font-mono">{outageWanIp}</span>
-              </HintIcon>
-            ) : null}
+          <span className="min-w-0 grow truncate text-[13px] font-semibold text-on-surface-variant">
+            {t("connection_quality.last_outage")}
           </span>
           {outageS === null ? (
             <span className="shrink-0 text-sm font-semibold text-on-surface-variant">
               {t("connection_quality.last_outage_none")}
             </span>
           ) : (
-            <span className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-on-surface">
-              {formatOutage(outageS, t)}
-              {outageAgoS !== null ? (
-                <em className="font-semibold text-on-surface-variant not-italic">
-                  {` ${t("connection_quality.last_outage_ago", { ago: formatAgo(outageAgoS, t) })}`}
-                </em>
+            <span className="flex shrink-0 items-center gap-1">
+              {/* The tip qualifies the reading, so it leads the value it describes. */}
+              {outageWanIp ? (
+                <HintIcon label={t("connection_quality.last_outage_ip_label")}>
+                  {t(`connection_quality.${outageWanKey}`)}{" "}
+                  <span className="font-mono">{outageWanIp}</span>
+                </HintIcon>
               ) : null}
+              <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-on-surface">
+                {formatOutage(outageS, t)}
+                {outageAgoS !== null ? (
+                  <em className="font-semibold text-on-surface-variant not-italic">
+                    {` ${t("connection_quality.last_outage_ago", { ago: formatAgo(outageAgoS, t) })}`}
+                  </em>
+                ) : null}
+              </span>
             </span>
           )}
         </div>
