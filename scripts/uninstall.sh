@@ -548,6 +548,7 @@ remove_runtime_state() {
           /tmp/qmanager_low_power_active \
           /tmp/qmanager_reboot_pending.json \
           /tmp/qmanager_reboot_storm_hour \
+          /tmp/qmanager_last_outage \
           /tmp/qmanager_recovery_active \
           /tmp/qmanager_pending_reboot_verizon \
           /tmp/qm_spin_out \

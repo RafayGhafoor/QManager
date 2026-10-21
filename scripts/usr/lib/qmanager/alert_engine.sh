@@ -99,6 +99,32 @@ _ae_email_armed="0"
 _ae_sms_lost_sent="0"
 _ae_email_lost_sent="0"
 
+# --- Last cleared outage (published as connectivity.last_outage_*) -----------
+# _ae_last_outage_s        : total seconds of the most recently CLEARED outage
+#                            ("" until one clears this boot)
+# _ae_last_outage_end_mono : mono_now when it cleared; the poller publishes the
+#                            age as mono delta, so clock steps cannot skew it
+# Kept in tmpfs on purpose: a poller respawn reloads it (same boot, same mono
+# base), a reboot clears it along with the mono clock it is anchored to.
+_AE_LAST_OUTAGE_FILE="/tmp/qmanager_last_outage"
+_ae_last_outage_s=""
+_ae_last_outage_end_mono=""
+
+# _ae_last_outage_load — restore the last cleared outage after a poller
+# respawn. Garbage (or an end stamp ahead of the current uptime) is ignored.
+_ae_last_outage_load() {
+    local _ae_d
+    local _ae_e
+    local _ae_rest
+    [ -f "$_AE_LAST_OUTAGE_FILE" ] || return 0
+    { read -r _ae_d _ae_e _ae_rest < "$_AE_LAST_OUTAGE_FILE"; } 2>/dev/null
+    case "$_ae_d" in ''|*[!0-9]*) return 0 ;; esac
+    case "$_ae_e" in ''|*[!0-9]*) return 0 ;; esac
+    [ "$_ae_e" -le "$(mono_now)" ] || return 0
+    _ae_last_outage_s="$_ae_d"
+    _ae_last_outage_end_mono="$_ae_e"
+}
+
 # =============================================================================
 # alert_engine_init — reset state to idle + prime routing cache
 # =============================================================================
@@ -109,6 +135,7 @@ alert_engine_init() {
     _ae_email_armed="0"
     _ae_sms_lost_sent="0"
     _ae_email_lost_sent="0"
+    _ae_last_outage_load
     alert_routing_load
     _ae_resolve_wait
     qlog_info "Alert engine initialized (wait=${CQ_ALERT_AFTER_MIN:-5}m)"
@@ -287,6 +314,15 @@ _ae_handle_up() {
         alert_route_enabled connection_restored "$_ae_ch" || continue
         _ae_channel_emit "$_ae_ch" connection_restored "$_ae_total"
     done
+
+    # Publish the cleared outage before the reset discards _ae_total.
+    _ae_last_outage_s="$_ae_total"
+    _ae_last_outage_end_mono="$_ae_now"
+    if command -v qm_atomic_write >/dev/null 2>&1; then
+        printf '%s %s\n' "$_ae_total" "$_ae_now" | qm_atomic_write "$_AE_LAST_OUTAGE_FILE" 2>/dev/null
+    else
+        printf '%s %s\n' "$_ae_total" "$_ae_now" > "$_AE_LAST_OUTAGE_FILE" 2>/dev/null
+    fi
 
     # Reset all outage state.
     _ae_outage_active="0"
