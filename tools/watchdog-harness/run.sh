@@ -126,6 +126,11 @@ run_one() { # scenario name
 echo "tower_failover \$*" >> "$out/calls.log"
 STUB
     chmod 755 "$stage/initd/qmanager_tower_failover"
+    cat > "$stage/initd/qmanager_watchcat" <<STUB
+#!/bin/sh
+echo "watchcat_init \$*" >> "$out/calls.log"
+STUB
+    chmod 755 "$stage/initd/qmanager_watchcat"
     cat > "$stage/lib/profile_mgr.sh" <<STUB
 auto_apply_profile() { echo "auto_apply_profile \$1 \$2" >> "$out/calls.log"; }
 STUB

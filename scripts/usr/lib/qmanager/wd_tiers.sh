@@ -9,7 +9,7 @@
 #       _recovery_marker_emitted, holdoff_until, holdoff_reason
 # Functions: tower_lock_active, wait_for_modem, execute_tier1, execute_tier2,
 #            _wd_confirm_radio_on, wd_enter_radio_off, _wd_start_holdoff,
-#            wd_holdoff_clear, execute_tier4, find_next_tier, do_recovery,
+#            wd_holdoff_clear, wd_retire_service, execute_tier4, find_next_tier, do_recovery,
 #            _cooldown_handle_failure, wd_cooldown_verdict, finish_cooldown
 #
 # Tier 3 (execute_tier3) and every SIM-slot swap live in wd_sim.sh;
@@ -163,6 +163,17 @@ wd_enter_radio_off() {
     ssr_hold_clear
 }
 
+# Ends the service the way the UI's "off" does (disable, then stop). procd
+# respawns any exit, whatever the code, and start_service's UCI gate is not
+# consulted on respawn, so a bare exit would be re-run up to 5 times. `stop`
+# deletes the procd instance and TERMs this daemon; the TERM trap runs once the
+# init script returns. Without procd (manual run) `stop` is a no-op and the
+# caller's exit follows.
+wd_retire_service() {
+    /etc/init.d/qmanager_watchcat disable >/dev/null 2>&1
+    /etc/init.d/qmanager_watchcat stop >/dev/null 2>&1
+}
+
 execute_tier4() {
     # Token bucket check
     count_recent_reboots
@@ -181,7 +192,7 @@ execute_tier4() {
         write_state
         rm -f "$RECOVERY_FLAG"
 
-        # Exit — procd won't respawn since UCI disabled
+        wd_retire_service
         exit 0
     fi
 
