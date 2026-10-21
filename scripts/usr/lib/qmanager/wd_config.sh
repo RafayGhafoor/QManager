@@ -5,7 +5,7 @@
 # Sourced by qmanager_watchcat (never executed). BusyBox ash safe.
 #
 # Owns (declared and initialised here, see docs/plans watchdog-modular-lean 2.1):
-#   every CFG_* global, STATUS_CACHE, STATUS_STALE_THRESHOLD, BOOT_SETTLE,
+#   every CFG_* global, BOOT_SETTLE,
 #   MODEM_WAIT_TIMEOUT, SIM_SETTLE_SECS, HOLDOFF_SECS
 # Functions: read_config, resolve_quality_thresholds
 #
@@ -40,8 +40,6 @@ CFG_SSR_GRACE=45
 # OPT-IN, default OFF. Interval is in MINUTES (a seconds cadence would be ruinous).
 CFG_PRIMARY_RECHECK_ENABLED=0
 CFG_PRIMARY_RECHECK_INTERVAL=30
-STATUS_CACHE="/tmp/qmanager_status.json"
-STATUS_STALE_THRESHOLD=30
 BOOT_SETTLE=30
 # Ping-cache staleness is conn_state_read's rule: max(3 * interval_sec, 15) s.
 MODEM_WAIT_TIMEOUT=60
