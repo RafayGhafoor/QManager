@@ -1712,4 +1712,4 @@ main() {
     done
 }
 
-main "$@"
+[ "${WATCHCAT_NO_MAIN:-0}" = "1" ] || main "$@"
