@@ -263,7 +263,7 @@
       },
       "not_running": {
         "label": "未上报",
-        "blurb": "已启用，但服务自启动以来尚未上报。"
+        "blurb": "已启用，但看门狗已停止上报。"
       },
       "auto_disabled": {
         "label": "已自动关闭",

@@ -644,6 +644,13 @@ export interface WatchcatStatus {
   total_recoveries: number;
   cooldown_remaining: number;
   reboots_this_hour: number;
+  /**
+   * Seconds since the daemon last wrote its state. Absent (or null) on older
+   * backends and while unknown: treated as live, never as stale.
+   */
+  age_sec?: number | null;
+  /** Age in seconds beyond which `age_sec` means the daemon stopped reporting. */
+  stale_after?: number | null;
 }
 
 export interface SimFailoverStatus {

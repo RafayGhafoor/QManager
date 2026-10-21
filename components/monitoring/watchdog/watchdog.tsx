@@ -227,7 +227,11 @@ function WatchdogSurface({
           <LadderCard
             form={form}
             runningTier={
-              phase === "unknown" || phase === "off"
+              phase === "unknown" ||
+              phase === "off" ||
+              phase === "starting" ||
+              phase === "not_running" ||
+              phase === "auto_disabled"
                 ? 0
                 : (watchcat?.current_tier ?? 0)
             }

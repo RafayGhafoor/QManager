@@ -263,7 +263,7 @@
       },
       "not_running": {
         "label": "Tidak dilaporkan",
-        "blurb": "Diaktifkan, tetapi layanan belum melapor sejak boot."
+        "blurb": "Diaktifkan, tetapi watchdog berhenti melapor."
       },
       "auto_disabled": {
         "label": "Mati otomatis",

@@ -263,7 +263,7 @@
       },
       "not_running": {
         "label": "Not reporting",
-        "blurb": "Enabled, but the service has not reported since boot."
+        "blurb": "Enabled, but the watchdog has stopped reporting."
       },
       "auto_disabled": {
         "label": "Turned itself off",

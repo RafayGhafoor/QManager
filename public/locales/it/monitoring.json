@@ -263,7 +263,7 @@
       },
       "not_running": {
         "label": "Non segnalato",
-        "blurb": "Abilitato, ma il servizio non ha inviato rapporti dall'avvio."
+        "blurb": "Abilitato, ma il watchdog ha smesso di inviare rapporti."
       },
       "auto_disabled": {
         "label": "Disattivato automaticamente",

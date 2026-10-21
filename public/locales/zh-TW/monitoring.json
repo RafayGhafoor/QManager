@@ -263,7 +263,7 @@
       },
       "not_running": {
         "label": "未回報",
-        "blurb": "已啟用，但服務自開機以來尚未回報。"
+        "blurb": "已啟用，但看門狗已停止回報。"
       },
       "auto_disabled": {
         "label": "已自動關閉",

@@ -127,9 +127,32 @@ export function derivePhase({
     snapshotAt !== null && snapshotAt > CLOCK_PLAUSIBLE_AFTER;
   if (unreachable || (clockUsable && stale) || !watchcat) return "unknown";
 
-  if (watchcat.enabled) return watchcat.state;
+  if (isWatchcatLive(watchcat)) return watchcat.state;
+  // Enabled but its own state has gone quiet: no grace, it WAS reporting.
+  if (watchcat.enabled) return "not_running";
   return pastGrace ? "not_running" : "starting";
 }
+
+/**
+ * The daemon is enabled AND still reporting. A block with no age fields (an
+ * older backend) counts as live: absence of evidence is not staleness.
+ */
+export function isWatchcatLive(watchcat: WatchcatStatus | null): boolean {
+  if (!watchcat?.enabled) return false;
+  const { age_sec: age, stale_after: limit } = watchcat;
+  return !(age != null && limit != null && age > limit);
+}
+
+/** Phases that are the daemon's own report; every other phase has no figures. */
+const REPORTING_PHASES: ReadonlySet<WatchdogPhase> = new Set([
+  "monitor",
+  "suspect",
+  "recovery",
+  "cooldown",
+  "locked",
+  "disabled",
+  "ssr_hold",
+]);
 
 /** The disc is the only coloured thing in the status card's phase block. */
 export const PHASE_DISC = {
@@ -247,7 +270,9 @@ export function deriveBand({
   watchcat,
   lastAgo,
 }: BandInput): BandView {
-  const known = phase !== "unknown" && watchcat !== null;
+  // Figures belong to a daemon that is reporting. A stopped, starting, off or
+  // unreachable one keeps its last numbers on disk; showing them would lie.
+  const known = REPORTING_PHASES.has(phase) && watchcat !== null;
   const cooling = known && watchcat.cooldown_remaining > 0;
   const failures = known ? watchcat.failure_count : null;
   const reboots = known ? watchcat.reboots_this_hour : null;
