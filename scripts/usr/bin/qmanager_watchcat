@@ -196,13 +196,14 @@ main() {
     count_recent_reboots
     qlog_info "Reboots in last hour: $reboots_this_hour"
 
-    # Resume a Tier-3 failover recorded before this start (wd_sim.sh).
-    wd_sim_resume_at_start
-
     # Boot settle — let modem and other daemons stabilize
     qlog_info "Boot settle: waiting ${BOOT_SETTLE}s"
     write_state
     wd_sleep "$BOOT_SETTLE"
+
+    # Resume a Tier-3 failover recorded before this start (wd_sim.sh). After the
+    # settle, so the modem answers when the live SIM slot is read.
+    wd_sim_resume_at_start
 
     # --- Main monitoring loop ---
     while true; do
