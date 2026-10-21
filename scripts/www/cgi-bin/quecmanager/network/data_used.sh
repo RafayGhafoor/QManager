@@ -33,7 +33,9 @@ if [ ! -f "$MIRROR" ]; then
     exit 0
 fi
 
-mtime=$(stat -c %Y "$MIRROR" 2>/dev/null)
+# `date -r` rather than `stat -c %Y`: this board's BusyBox has no stat(1), and
+# the old line's "" became mtime=0, which marked the mirror stale on every read.
+mtime=$(date -r "$MIRROR" +%s 2>/dev/null)
 now=$(date +%s)
 case "$mtime" in ''|*[!0-9]*) mtime=0 ;; esac
 stale=false

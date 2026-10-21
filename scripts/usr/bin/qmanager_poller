@@ -2708,7 +2708,10 @@ poll_cycle() {
     local _ssf_mtime
     _sim_switch_active=0
     if [ -f "$SIM_SWITCH_FLAG" ]; then
-        _ssf_mtime=$(stat -c %Y "$SIM_SWITCH_FLAG" 2>/dev/null)
+        # `date -r`, not `stat -c %Y`: this board's BusyBox has no stat(1), where
+        # the old line yielded "" -> mtime 0 -> the flag was ALWAYS judged stale
+        # and deleted, so the SIM-switch guard never held AT reads back.
+        _ssf_mtime=$(date -r "$SIM_SWITCH_FLAG" +%s 2>/dev/null)
         case "$_ssf_mtime" in ''|*[!0-9]*) _ssf_mtime=0 ;; esac
         if [ "$((_NOW - _ssf_mtime))" -lt "$SIM_SWITCH_MAX_AGE" ]; then
             _sim_switch_active=1

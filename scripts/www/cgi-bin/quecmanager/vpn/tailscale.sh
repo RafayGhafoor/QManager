@@ -477,7 +477,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         # the lock), is turned into an error and written back.
         st_status=$(printf '%s' "$status_json" | jq -r '.status // ""' 2>/dev/null)
         if [ "$st_status" = "running" ] && [ -f "$TS_INSTALL_RESULT" ] && ! ts_lock_holder >/dev/null; then
-            st_mtime=$(_ts_num "$(stat -c %Y "$TS_INSTALL_RESULT" 2>/dev/null)")
+            st_mtime=$(_ts_num "$(date -r "$TS_INSTALL_RESULT" +%s 2>/dev/null)")
             st_age=$(( $(_ts_now) - st_mtime ))
             if [ "$st_mtime" -gt 0 ] && [ "$st_age" -ge 10 ]; then
                 st_op=$(printf '%s' "$status_json" | jq -r '.op // "install"' 2>/dev/null)

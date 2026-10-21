@@ -391,7 +391,9 @@ t_perm_smd11() {
         echo "fail|/dev/smd11 missing"
         return
     fi
-    info=$(stat -c '%a %U:%G' /dev/smd11 2>/dev/null)
+    # `ls`, not `stat`: this board's BusyBox has no stat applet, so `info` used
+    # to be empty in the verdict text.
+    info=$(ls -ld /dev/smd11 2>/dev/null | awk '{print $1, $3":"$4}')
     ls -l /dev/smd11 >> "$OUT" 2>&1
     if [ -c /dev/smd11 ]; then echo "pass|char device, mode $info"
     else echo "fail|not a character device ($info)"; fi
@@ -406,16 +408,20 @@ t_perm_atd_socket() {
         echo "fail|socket missing (broker not listening)"
         return
     fi
-    mode=$(stat -c '%a' "$s" 2>/dev/null)
-    owner=$(stat -c '%U' "$s" 2>/dev/null)
+    # `ls`, not `stat` (no stat applet here). mode is the permission STRING, so
+    # the verdict below tests it as one; an empty mode used to fall through to
+    # "broader than 600" and warn about a correctly-secured socket.
+    mode=$(ls -ld "$s" 2>/dev/null | awk '{print $1}')
+    owner=$(ls -ld "$s" 2>/dev/null | awk '{print $3}')
     ls -l "$s" >> "$OUT" 2>&1
     if [ "$owner" != "root" ]; then
         echo "warn|owned by $owner, expected root"
         return
     fi
     case "$mode" in
-        600|400|700) echo "pass|mode $mode root" ;;
-        *) echo "warn|mode $mode is broader than 600" ;;
+        -rw-------|-r--------|-rwx------) echo "pass|mode $mode root" ;;
+        '') echo "warn|cannot read the socket's mode" ;;
+        *) echo "warn|mode $mode is broader than owner-only" ;;
     esac
 }
 
@@ -569,7 +575,9 @@ t_at_long_flag() {
         return
     fi
     ls -l "$f" >> "$OUT" 2>&1
-    age=$(( $(date +%s) - $(stat -c %Y "$f" 2>/dev/null || date +%s) ))
+    # `date -r`, not `stat -c %Y` (no stat applet here): the stat form fell
+    # through to `date +%s`, so every age read 0s.
+    age=$(( $(date +%s) - $(date -r "$f" +%s 2>/dev/null || date +%s) ))
     [ "$age" -lt 0 ] && age=0
     echo "age=${age}s" >> "$OUT"
     if [ "$age" -lt 600 ]; then echo "warn|scan in progress (${age}s)"
@@ -890,10 +898,10 @@ _cache_age() {
     now=$(_uptime_s)
     case "$m" in
         ''|0|*[!0-9]*)
-            echo $(( $(date +%s) - $(stat -c %Y "$f" 2>/dev/null || date +%s) )) ;;
+            echo $(( $(date +%s) - $(date -r "$f" +%s 2>/dev/null || date +%s) )) ;;
         *)
             if [ "$m" -le "$now" ]; then echo $(( now - m ))
-            else echo $(( $(date +%s) - $(stat -c %Y "$f" 2>/dev/null || date +%s) )); fi ;;
+            else echo $(( $(date +%s) - $(date -r "$f" +%s 2>/dev/null || date +%s) )); fi ;;
     esac
 }
 

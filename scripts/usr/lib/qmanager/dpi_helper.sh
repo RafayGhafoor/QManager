@@ -68,7 +68,9 @@ dpi_get_uptime() {
 
     local now pid_mtime elapsed
     now=$(date +%s)
-    pid_mtime=$(stat -c %Y "$NFQWS_PID" 2>/dev/null) || { echo "0s"; return; }
+    # `date -r` rather than `stat -c %Y`: this board's BusyBox has no stat(1),
+    # where the old line yielded "" and every caller saw "0s".
+    pid_mtime=$(date -r "$NFQWS_PID" +%s 2>/dev/null) || { echo "0s"; return; }
     elapsed=$((now - pid_mtime))
 
     if [ "$elapsed" -ge 86400 ]; then
