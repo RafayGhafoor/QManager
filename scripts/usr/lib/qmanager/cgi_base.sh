@@ -163,8 +163,16 @@ cgi_reboot_response() {
 #   serve_ndjson_as_array "/tmp/myfile.json"
 # ---------------------------------------------------------------------------
 serve_ndjson_as_array() {
+    # NDJSON -> JSON array. Every line is already a JSON object, so this needs no
+    # parser: `sed` adds a comma to each non-final line, `tr` joins them, and the
+    # brackets are printed around the whole thing. `jq -s` cost ~500 ms per call
+    # on this board (change 26) and this helper is on three polled endpoints -
+    # events, signal history and ping history. Blank lines are dropped: a
+    # trailing empty line would otherwise become a stray comma.
     if [ -f "$1" ] && [ -s "$1" ]; then
-        jq -s '.' "$1"
+        printf '['
+        sed '/^[[:space:]]*$/d' "$1" | sed -e '$!s/$/,/' | tr -d '\n'
+        printf ']\n'
     else
         echo "[]"
     fi
