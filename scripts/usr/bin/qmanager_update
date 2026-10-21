@@ -47,8 +47,8 @@ INSTALL_LOG="/tmp/qmanager_install.log"
 [ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 
 # URL prefix used for SSRF protection on all downloads
-GITHUB_REPO_PREFIX="https://github.com/dr-dolomite/QManager/releases/download/"
-GITHUB_RAW_PREFIX="https://github.com/dr-dolomite/QManager/raw/"
+GITHUB_REPO_PREFIX="https://github.com/RafayGhafoor/QManager/releases/download/"
+GITHUB_RAW_PREFIX="https://github.com/RafayGhafoor/QManager/raw/"
 
 # Curl defaults
 CURL_TIMEOUT=300
