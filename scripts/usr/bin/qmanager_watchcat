@@ -110,6 +110,12 @@ done
 [ "$WD_CONFIG_LOADED$WD_STATE_LOADED$WD_DETECT_LOADED$WD_LEDGER_LOADED$WD_TIERS_LOADED$WD_SIM_LOADED" = "111111" ] || {
     qlog_error "watchcat: library set incomplete, refusing to start"; exit 1; }
 
+# Hold-off after the recovery ladder is exhausted: mono_now at which recovery may
+# start again. wd_tiers.sh owns every write (sets it to now + HOLDOFF_SECS when
+# the ladder runs out, 0 on recovery); it is initialised here only so the loop's
+# arithmetic never reads an unset value.
+holdoff_until=0
+
 # =============================================================================
 # EXIT CLEANUP
 # =============================================================================
