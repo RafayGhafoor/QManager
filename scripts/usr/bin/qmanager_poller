@@ -1699,6 +1699,8 @@ wc_last_recovery_tier="null"
 wc_total_recoveries=0
 wc_cooldown_remaining=0
 wc_reboots_this_hour=0
+wc_mono=0
+wc_stale_after=0
 WATCHCAT_CACHE="/tmp/qmanager_watchcat.json"
 
 # SIM failover state variables
@@ -1746,7 +1748,13 @@ _state_reload() {
 
 read_watchcat_state() {
     if [ ! -f "$WATCHCAT_CACHE" ]; then
+        # No daemon, no numbers: a stopped watchdog must not leave its last
+        # tier, counters or heartbeat behind in status.json.
         wc_enabled="false"; wc_state="disabled"
+        wc_current_tier=0; wc_failure_count=0
+        wc_last_recovery_time="null"; wc_last_recovery_tier="null"
+        wc_total_recoveries=0; wc_cooldown_remaining=0
+        wc_reboots_this_hour=0; wc_mono=0; wc_stale_after=0
         _wc_rd_n="$STATE_FORCE_EVERY"
         return
     fi
@@ -1766,7 +1774,9 @@ read_watchcat_state() {
         ((.last_recovery_tier) | if . == null then "null" else tostring end),
         ((.total_recoveries) | if . == null then "0" else tostring end),
         ((.cooldown_remaining) | if . == null then "0" else tostring end),
-        ((.reboots_this_hour) | if . == null then "0" else tostring end)
+        ((.reboots_this_hour) | if . == null then "0" else tostring end),
+        ((.mono) | if . == null then "0" else tostring end),
+        ((.stale_after) | if . == null then "0" else tostring end)
     ] | join("\u001f")' "$WATCHCAT_CACHE" 2>/dev/null)
 
     if [ -z "$_wdata" ]; then
@@ -1776,7 +1786,7 @@ read_watchcat_state() {
 
     IFS="$_US" read -r wc_enabled wc_state wc_current_tier wc_failure_count \
         wc_last_recovery_time wc_last_recovery_tier wc_total_recoveries \
-        wc_cooldown_remaining wc_reboots_this_hour <<EOF
+        wc_cooldown_remaining wc_reboots_this_hour wc_mono wc_stale_after <<EOF
 $_wdata
 EOF
 }
@@ -2135,6 +2145,8 @@ _wc_compose_pf() {
     _kN total_recoveries "$wc_total_recoveries" 0
     _kN cooldown_remaining "$wc_cooldown_remaining" 0
     _kN reboots_this_hour "$wc_reboots_this_hour" 0
+    _kN age_sec "$_WC_HB_AGE" null
+    _kN stale_after "$_WC_HB_STALE" null
     _kE
     _kO sim_failover
     _kB active "$sim_fo_active" false
@@ -2283,6 +2295,8 @@ write_cache_jq() {
         --argjson wc_total "${wc_total_recoveries:-0}" \
         --argjson wc_cooldown "${wc_cooldown_remaining:-0}" \
         --argjson wc_reboots "${wc_reboots_this_hour:-0}" \
+        --argjson wc_age "${_WC_HB_AGE:-null}" \
+        --argjson wc_stale "${_WC_HB_STALE:-null}" \
         --argjson sf_active "${sim_fo_active:-false}" \
         --argjson sf_orig "${sim_fo_original_slot:-null}" \
         --argjson sf_curr "${sim_fo_current_slot:-null}" \
@@ -2389,7 +2403,8 @@ write_cache_jq() {
                 last_recovery_tier: $wc_last_tier,
                 total_recoveries: $wc_total,
                 cooldown_remaining: $wc_cooldown,
-                reboots_this_hour: $wc_reboots
+                reboots_this_hour: $wc_reboots,
+                age_sec: $wc_age, stale_after: $wc_stale
             },
             sim_failover: {
                 active: $sf_active,
@@ -2434,6 +2449,8 @@ _WC_LO_S=null
 _WC_LO_AGO=null
 _WC_LO_IP=""
 _WC_LO_CHG=null
+_WC_HB_AGE=null
+_WC_HB_STALE=null
 
 # _wc_prepare: the cycle's inputs shared by both composers: _WC_TS, _WC_MONO,
 # _WC_ERRJ, plus the refreshed on-demand values.
@@ -2467,6 +2484,29 @@ _wc_prepare() {
         _jstr "$errors"
         _WC_ERRJ="[${_JV}]"
     fi
+
+    # Watchdog heartbeat: seconds since the daemon last wrote its state file,
+    # as a mono delta (a NITZ step cannot fake it), and the daemon's own
+    # staleness limit. Null while the daemon has never reported (or this
+    # poller's uptime read failed); never negative.
+    _WC_HB_AGE=null
+    _WC_HB_STALE=null
+    case "${wc_mono:-0}" in
+        ''|0|0*|*[!0-9]*) ;;
+        *)
+            if [ "${_WC_MONO:-0}" -gt 0 ] 2>/dev/null; then
+                if [ "$_WC_MONO" -ge "$wc_mono" ]; then
+                    _WC_HB_AGE=$((_WC_MONO - wc_mono))
+                else
+                    _WC_HB_AGE=0
+                fi
+            fi
+            ;;
+    esac
+    case "${wc_stale_after:-0}" in
+        ''|0|0*|*[!0-9]*) ;;
+        *) _WC_HB_STALE="$wc_stale_after" ;;
+    esac
 
     # Last cleared outage (alert_engine.sh). The age is a mono delta so a NITZ
     # step or a browser clock never skews it; both stay null until one clears.
