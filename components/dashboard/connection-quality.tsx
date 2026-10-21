@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 import {
   Card,
@@ -214,6 +215,26 @@ function reachState(connectivity: ConnectivityStatus | null): {
   }
 }
 
+/** An outage length, coarsest two units: "45s", "1m 46s", "2h 5m", "3d 4h". */
+function formatOutage(sec: number, t: TFunction): string {
+  const s = Math.max(0, Math.round(sec));
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d > 0) return t("connection_quality.dur_dh", { d, h });
+  if (h > 0) return t("connection_quality.dur_hm", { h, m });
+  if (m > 0) return t("connection_quality.dur_ms", { m, s: s % 60 });
+  return t("connection_quality.dur_s", { s });
+}
+
+/** How long ago, from a modem-side age in seconds (never the browser clock). */
+function formatAgo(sec: number, t: TFunction): string {
+  if (sec < 60) return t("activities.time.just_now");
+  if (sec < 3600) return t("activities.time.minutes", { count: Math.floor(sec / 60) });
+  if (sec < 86400) return t("activities.time.hours", { count: Math.floor(sec / 3600) });
+  return t("activities.time.days", { count: Math.floor(sec / 86400) });
+}
+
 // --- Latency row -------------------------------------------------------------
 
 /** A null value reaches MetricBar untouched, so "no reading" is an empty track.
@@ -267,8 +288,8 @@ function QualitySkeleton() {
   return (
     <div className="flex flex-1 flex-col gap-3">
       <div className={QUALITY.TILE}>
-        {/* Internet, DNS and Probing rows. */}
-        {[0, 1, 2].map((i) => (
+        {/* Internet, DNS, Probing and Last outage rows. */}
+        {[0, 1, 2, 3].map((i) => (
           <div key={i} className="flex h-5 items-center gap-2">
             <Skeleton className="size-4 rounded-inline" />
             <Skeleton className="h-3.5 w-24" />
@@ -400,6 +421,10 @@ const ConnectionQualityComponent = ({
   const jitterMs = latencyMs === null ? null : (connectivity?.jitter_ms ?? null);
   const reach = reachState(connectivity);
   const probeTarget = connectivity?.ping_target;
+  // Absent field = older poller (omit the row); null = no outage has cleared this boot.
+  const hasOutageField = connectivity !== null && connectivity.last_outage_s !== undefined;
+  const outageS = connectivity?.last_outage_s ?? null;
+  const outageAgoS = connectivity?.last_outage_ago_s ?? null;
 
   const spanMinutes = spanSec === null ? null : Math.floor(spanSec / 60);
   const axisReach =
@@ -437,6 +462,28 @@ const ConnectionQualityComponent = ({
           <span className="min-w-0 truncate font-mono text-sm font-semibold text-on-surface">
             {probeTarget}
           </span>
+        </div>
+      ) : null}
+      {hasOutageField ? (
+        <div className="flex h-5 items-center gap-2">
+          <MaterialSymbol name="history" size={16} className="shrink-0 text-on-surface-variant" />
+          <span className="min-w-0 grow truncate text-[13px] font-semibold text-on-surface-variant">
+            {t("connection_quality.last_outage")}
+          </span>
+          {outageS === null ? (
+            <span className="shrink-0 text-sm font-semibold text-on-surface-variant">
+              {t("connection_quality.last_outage_none")}
+            </span>
+          ) : (
+            <span className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-on-surface">
+              {formatOutage(outageS, t)}
+              {outageAgoS !== null ? (
+                <em className="font-semibold text-on-surface-variant not-italic">
+                  {` ${t("connection_quality.last_outage_ago", { ago: formatAgo(outageAgoS, t) })}`}
+                </em>
+              ) : null}
+            </span>
+          )}
         </div>
       ) : null}
     </div>

@@ -537,6 +537,12 @@ export interface ConnectivityStatus {
   /** The configured Connection Quality cuts the poller grades against: `status`
       is "degraded" at loss_pct or above. Absent on an older poller. */
   thresholds?: { latency_ms: number; loss_pct: number };
+  /** Length in seconds of the most recently cleared outage this boot. null when
+      none has cleared yet. Absent on an older poller. */
+  last_outage_s?: number | null;
+  /** Seconds since that outage cleared, on the modem's monotonic clock (immune to
+      wall-clock steps). null alongside last_outage_s. Absent on an older poller. */
+  last_outage_ago_s?: number | null;
 }
 
 // --- Connection Quality Settings ---------------------------------------------

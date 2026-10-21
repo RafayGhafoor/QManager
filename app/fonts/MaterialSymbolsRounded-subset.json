@@ -44,6 +44,7 @@
     "forward",
     "graphic_eq",
     "help",
+    "history",
     "home",
     "hub",
     "info",
@@ -125,6 +126,6 @@
     "wifi_tethering_off",
     "work"
   ],
-  "bytes": 45472,
-  "sha256": "b98eae7a40d012e67f0cefc74d3d3cc2f713954a1042f58df47fde5b2032a13f"
+  "bytes": 45576,
+  "sha256": "ff098afd5121c951e754b7caf5d8de53d6c56c783927157528c74f8cae2f2742"
 }

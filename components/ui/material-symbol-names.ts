@@ -89,6 +89,9 @@ export const MATERIAL_SYMBOL_NAMES = [
   "forward",
   "graphic_eq",
   "help",
+  // Connection Quality's "Last outage" row. link_off and schedule already
+  // answer other questions on the dashboard (bearer down, uptime).
+  "history",
   "home",
   // NetBird's sidebar row. Tailscale already wears vpn_lock; a mesh of nodes
   // is what NetBird is.
