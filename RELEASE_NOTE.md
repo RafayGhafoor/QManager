@@ -4,7 +4,7 @@ v0.1.33 is a small follow-up to v0.1.32, built from your feedback. The dashboard
 
 ## ✨ New Features
 
-- **See your last outage on the dashboard.** The Connection Quality card has a new **Last outage** row showing how long your most recent drop lasted and how long ago it ended, for example "40s (2m ago)". Every drop counts, however short, even with alerts turned off. Tap the hint next to it to see the WAN IP you reconnected with and whether it changed. The row resets when the modem restarts.
+- **See your last outage on the dashboard.** The Connection Quality card has a new **Last outage** row showing how long your most recent drop lasted and how long ago it ended, for example "40s (2m ago)". Every drop counts, however short, even with alerts turned off. Tap the hint next to it to see the WAN IP you reconnected with and whether it changed. The row resets when the modem restarts. Thanks to [@giorez](https://github.com/giorez) for proposing it ([#27](https://github.com/dr-dolomite/QManager/issues/27)).
 
 ## ✅ Improvements
 
