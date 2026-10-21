@@ -77,8 +77,10 @@ fi
 # Reads the same 12 fields ondemand_radio_fetch persists, with explicit null
 # handling so absent keys render as empty strings (never JSON null), matching
 # the documented contract.
-emit_details() {
-    _stale_flag="$1"   # "true" or "false"
+# _od_emit_jq STALE - the original composer, kept as the fallback for any value
+# the printf path cannot prove JSON-safe. Semantically identical output.
+_od_emit_jq() {
+    _stale_flag="$1"
     if [ -s "$ONDEMAND_CACHE_FILE" ]; then
         jq --argjson stale "$_stale_flag" '{
             success: true,
@@ -100,8 +102,6 @@ emit_details() {
             }
         }' "$ONDEMAND_CACHE_FILE" 2>/dev/null && return 0
     fi
-    # No cache file yet (never fetched and modem unreachable on first call):
-    # emit an all-empty, never-updated payload so the UI binds cleanly.
     jq -n --argjson stale "$_stale_flag" '{
         success: true,
         stale: $stale,
@@ -114,6 +114,37 @@ emit_details() {
             updated_at: 0
         }
     }'
+}
+
+# emit_details STALE - the HTTP body.
+#
+# Composed with printf from the shell variables that load_ondemand_cache /
+# ondemand_radio_fetch already populated, NOT by running jq over the cache file.
+# Measured on this board (change 25): the jq form cost 500-600 ms per request and
+# this endpoint is polled every 7 s while its page is open. `updated_at` is the
+# one field not in the variables, so it comes from jsonfilter (1.85 ms).
+#
+# The quote/backslash guard mirrors _ondemand_write_cache: anything JSON cannot
+# carry unescaped falls back to _od_emit_jq.
+emit_details() {
+    _stale_flag="$1"   # "true" or "false"
+    load_ondemand_cache   # fast (sidecar); guarantees the vars match the cache
+    case "${t2_mimo}${lte_ta}${nr_ta}${t2_apn}${t2_wan_ipv4}${t2_wan_ipv6}${t2_primary_dns}${t2_secondary_dns}${t2_primary_dns_v4}${t2_primary_dns_v6}${t2_secondary_dns_v4}${t2_secondary_dns_v6}" in
+        *[\"\\]*) _od_emit_jq "$_stale_flag"; return $? ;;
+    esac
+    _od_ts=0
+    if [ -s "$ONDEMAND_CACHE_FILE" ]; then
+        _od_ts=$(jsonfilter -i "$ONDEMAND_CACHE_FILE" -e '@.updated_at' 2>/dev/null)
+        case "$_od_ts" in ''|*[!0-9]*) _od_ts=0 ;; esac
+    fi
+    printf '{"success":true,"stale":%s,"details":{"mimo":"%s","lte_ta":"%s","nr_ta":"%s","apn":"%s","wan_ipv4":"%s","wan_ipv6":"%s","primary_dns":"%s","secondary_dns":"%s","primary_dns_v4":"%s","primary_dns_v6":"%s","secondary_dns_v4":"%s","secondary_dns_v6":"%s","updated_at":%s}}\n' \
+        "$_stale_flag" \
+        "${t2_mimo}" "${lte_ta}" "${nr_ta}" "${t2_apn}" \
+        "${t2_wan_ipv4}" "${t2_wan_ipv6}" \
+        "${t2_primary_dns}" "${t2_secondary_dns}" \
+        "${t2_primary_dns_v4}" "${t2_primary_dns_v6}" \
+        "${t2_secondary_dns_v4}" "${t2_secondary_dns_v6}" \
+        "$_od_ts"
 }
 
 # --- Run the on-demand fetch, or serve a fresh cache -------------------------
