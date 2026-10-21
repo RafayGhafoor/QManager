@@ -1,6 +1,6 @@
 # Connection Watchdog (`qmanager_watchcat`)
 
-`qmanager_watchcat` is QManager's connection health daemon. It monitors internet reachability via the ping daemon's output and, when connectivity fails or degrades, executes a tiered recovery ladder: network re-registration → radio toggle → SIM failover → system reboot. The daemon is opt-in and disabled by default on fresh installs.
+`qmanager_watchcat` is QManager's connection health daemon. It watches internet reachability (and, opt-in, link quality) through the ping daemon's output and, when the connection fails or degrades, runs a tiered recovery ladder: network re-registration, radio toggle, SIM failover, system reboot. It is opt-in (`enabled=0` on a fresh install). Since v0.1.33 the daemon is a thin main script plus six sourced `wd_*.sh` libraries, it publishes a heartbeat so the UI can tell when it has stopped, and it keeps its reboot count and SIM-failover record honest across restarts and reboots.
 
 ---
 
@@ -8,604 +8,444 @@
 
 | Item | Value |
 |---|---|
-| Daemon | `scripts/usr/bin/qmanager_watchcat` → `/usr/bin/qmanager_watchcat` |
+| Daemon | `scripts/usr/bin/qmanager_watchcat` -> `/usr/bin/qmanager_watchcat` (main loop, loader, exit cleanup) |
+| Libraries | `scripts/usr/lib/qmanager/wd_{config,state,detect,ledger,tiers,sim}.sh` -> `/usr/lib/qmanager/` (see [Module layout](#module-layout)) |
+| Init script | `scripts/etc/init.d/qmanager_watchcat` (procd, `respawn 3600 5 5`, `term_timeout 15`) |
 | CGI endpoint | `GET/POST /cgi-bin/quecmanager/monitoring/watchdog.sh` |
-| CGI script | `scripts/www/cgi-bin/quecmanager/monitoring/watchdog.sh` |
-| UCI section | `quecmanager.watchcat` |
-| Daemon state file | `/tmp/qmanager_watchcat.json` |
-| Reachability input | `/tmp/qmanager_ping.json` `.streak_fail` (raw probe count; written by `qmanager_ping`), read through `conn_state_read` in `scripts/usr/lib/qmanager/conn_state.sh` (see [connection-quality.md](connection-quality.md#shared-ping-cache-reader-conn_statesh)) |
-| Quality input | `/tmp/qmanager_status.json` `.connectivity.avg_latency_ms` + `.packet_loss_pct` (windowed averages; written by `qmanager_poller`) |
+| UCI section | `quecmanager.watchcat` (plus the shared `quecmanager.quality_thresholds`, `quecmanager.ping_profile`) |
+| State file (heartbeat) | `/tmp/qmanager_watchcat.json`, rewritten every pass; removed on exit |
+| PID file | `/tmp/qmanager_watchcat.pid` |
+| Reachability input | `/tmp/qmanager_ping.json` `.streak_fail`, read through `conn_state_read` ([connection-quality.md](connection-quality.md#shared-ping-cache-reader-conn_statesh)) |
+| Quality input | `/tmp/qmanager_ping_history` (one RTT in ms or the word `null` per line, newest last; written by `qmanager_ping`) |
 | Quality thresholds | `quecmanager.quality_thresholds.*` (shared with Connection Quality Network Events) |
-| Ping reload flag | `/tmp/qmanager_ping_reload` (touched by watchdog save when interval changes) |
 | Recovery active flag | `/tmp/qmanager_recovery_active` |
-| Maintenance lock | `/tmp/qmanager_watchcat.lock` |
+| Maintenance lock | `/tmp/qmanager_watchcat.lock` (also `/tmp/qmanager_long_running` and a live `/tmp/qmanager_profile_apply.pid`) |
 | Config reload flag | `/tmp/qmanager_watchcat_reload` |
-| SIM revert flag | `/tmp/qmanager_watchcat_revert_sim` (written by CGI `revert_sim` POST; consumed by daemon in `check_revert_request`) |
-| SIM failover state | `/tmp/qmanager_sim_failover` (written when failover is finalized in cooldown) |
-| Reboot log | `/etc/qmanager/crash.log` — shared with [Alerts](alerts.md#reboot-alerts)' reboot detector; watchdog writes `tier4_escalation` rows, `record_planned_reboot` writes `user`/`unplanned` rows |
-| Tier-3 settle floor | `SIM_SETTLE_SECS=90` s (hard-coded constant — not a UCI key); applies to both forward Tier-3 swap and user-requested revert |
-| Reboot? | Tier 4 only (deferred via `sleep 1 && reboot` after state write) |
+| Ping reload flag | `/tmp/qmanager_ping_reload` (touched by a save that changes the probe interval) |
+| SIM revert flag | `/tmp/qmanager_watchcat_revert_sim` (written by CGI `revert_sim`; consumed by `check_revert_request`) |
+| SIM-switch flag | `/tmp/qmanager_sim_switch_active` (held by `wd_swap_slot`; the poller pauses AT traffic while it exists) |
+| Auto-disabled flag | `/tmp/qmanager_watchcat_disabled` |
+| SIM failover record | two copies: `/tmp/qmanager_sim_failover` and `/etc/qmanager/sim_failover.json` |
+| Reboot ledger | `/etc/qmanager/crash.log`, rows `<epoch>\|reboot\|<reason>`; watchdog writes `tier4_escalation`, shared with [Alerts](alerts.md#reboot-alerts) |
+| Constants | `BOOT_SETTLE=30`, `MODEM_WAIT_TIMEOUT=60`, `SIM_SETTLE_SECS=90`, `HOLDOFF_SECS=900` (all in `wd_config.sh`, none is a UCI key) |
+| Reboot? | Tier 4 only: state written, then `( sleep 1; sync; reboot ) &` and `exit 0` |
 | Frontend hook | `hooks/use-watchdog-settings.ts` |
-| Frontend cards | `components/monitoring/watchdog/` bento: `status-band.tsx`, `ladder-card.tsx`, `detection-card.tsx`, `recovery-activity-card.tsx` (per-card saves through `watchdog-foot.tsx`) |
+| Frontend cards | `components/monitoring/watchdog/` (see [Frontend files](#frontend-files)) |
+| Dev harness | `tools/watchdog-harness/` (see [Test harness](#test-harness)) |
 
 ---
 
-## How It Works (End-to-End)
+## Module layout
 
-The watchdog has **two independent ways to decide "the connection is bad," and both pull the same recovery lever.** They are not two features — they are two *triggers* feeding one engine. This is why the settings UI merges them into one tabbed card with a single save.
+The daemon was one 1715-line script. It is now a main file plus six libraries, split by responsibility without a behaviour change (proved by the harness, see below) and then fixed library by library.
+
+| File | Responsibility | Public functions |
+|---|---|---|
+| `qmanager_watchcat` (main) | Dependency sourcing, path constants, library loader, `_wd_exit_cleanup`, `main()` (PID guard, traps, startup, the loop and its state edges) | `main`, `_wd_exit_cleanup` |
+| `wd_config.sh` | UCI read, `CFG_*` defaults, fixed constants | `read_config`, `resolve_quality_thresholds` |
+| `wd_state.sh` | State file writer, maintenance-lock check, interruptible sleep, radio markers | `write_state`, `write_state_busy`, `check_locked`, `wd_sleep`, `wd_mark_radio_down`, `wd_mark_radio_up`, `wd_cfun_now` |
+| `wd_detect.sh` | Inputs that start or hold recovery: ping read, quality window, start gate, SSR gate | `read_ping`, `read_quality`, `wd_quality_mark`, `quality_breached`, `evaluate_quality`, `wd_decide_start`, `wd_holdoff_left`, `wd_radio_reconcile`, `wd_start_gate`, `ssr_in_progress`, `ssr_hold_gate`, `ssr_hold_clear` |
+| `wd_tiers.sh` | Tiers 1, 2, 4, escalation, hold-off, cooldown verdict | `tower_lock_active`, `wait_for_modem`, `execute_tier1`, `execute_tier2`, `execute_tier4`, `find_next_tier`, `do_recovery`, `_cooldown_handle_failure`, `wd_cooldown_verdict`, `finish_cooldown`, `wd_enter_radio_off`, `wd_holdoff_clear` |
+| `wd_sim.sh` | Tier 3, every slot swap, fallback, revert, auto-failback, failover record | `wd_read_slot`, `wd_swap_slot`, `wd_failover_save`, `wd_failover_clear`, `execute_tier3`, `sim_failover_fallback`, `finalize_sim_failover`, `initiate_primary_recheck`, `check_revert_request`, `wd_sim_finish_recheck`, `wd_sim_adopt_live_slot`, `wd_sim_defer_revert`, `wd_sim_on_radio_back`, `wd_sim_resume_at_start`, `wd_sim_resume_retry`, `wd_sim_on_unlock` |
+| `wd_ledger.sh` | Reboot count from `crash.log`, reboot history for the CGI | `count_recent_reboots`, `wd_ledger_tick`, `wd_ledger_recent_json` |
+
+### Ownership
+
+Each global is declared and initialised by one library (top level, function definitions and initialisers only). Any library may read any global. Phase-2 code writes a new global only through its owner's function; the cross-library reset writes that predate the split (LOCKED entry and exit, natural recovery, the exhausted paths) are listed in the comment block at the top of `main()`.
+
+| Owner | Globals |
+|---|---|
+| main | path constants (`STATE_FILE`, `PID_FILE`, `RELOAD_FLAG`, `REVERT_FLAG`, `SIM_FAILOVER_FILE`, `CRASH_LOG`, ...), loop temporaries `_pr_now`, `_pr_due` |
+| `wd_config.sh` | every `CFG_*`, `BOOT_SETTLE`, `MODEM_WAIT_TIMEOUT`, `SIM_SETTLE_SECS`, `HOLDOFF_SECS` |
+| `wd_state.sh` | `state`, `prev_state`, `failure_counter`, `wd_radio_down`, `_wd_sleep_pid` |
+| `wd_detect.sh` | `ping_streak_fail`, `ping_reachable`, `ping_during_recovery`, `q_avg_latency`, `q_packet_loss`, `quality_breach_counter`, `quality_since`, `ssr_hold`, `last_ssr_detected`, `ssr_hold_started` |
+| `wd_tiers.sh` | `current_tier`, `last_recovery_time`, `last_recovery_tier`, `total_recoveries`, `cooldown_remaining`, `cooldown_stale_retries`, `recovery_reason`, `_recovery_marker_emitted`, `holdoff_until`, `holdoff_reason` |
+| `wd_sim.sh` | `sim_failover_active`, `original_sim_slot`, `original_sim_iccid`, `current_sim_slot`, `revert_settle_active`, `primary_recheck_active`, `recheck_return_slot`, `recheck_interrupted`, `last_recheck_time`, `wd_sim_revert_pending`, `WD_SWAP_NOOP`, `WD_SWAP_FLAG_OWNED`, `WD_ADOPT_SLOT`, `_wd_resume_next` |
+| `wd_ledger.sh` | `reboots_this_hour`, `_rb_next` |
+
+### Loader guard
+
+`main` sources its dependencies (`qlog.sh`, `safe_tmp.sh`, `events.sh`, `sim_db.sh`, `schedule_guard.sh`, `conn_state.sh`), defines the path constants, then loads the libraries in the fixed order `wd_config wd_state wd_detect wd_ledger wd_tiers wd_sim`:
+
+- Every `.` is guarded with `[ -f ... ]`. **Why:** BusyBox ash aborts the whole shell when `.` cannot find its file, even inside an `if`.
+- Each library ends with `WD_<NAME>_LOADED=1`. The loader checks all six flags equal `111111`, so a truncated library (a partial deploy, a zero-byte file) is caught as well as a missing one.
+- On any failure the daemon logs `refusing to start` and `exit 1` **before** the PID file, the traps or any AT command. It never runs half-loaded. procd retries (`respawn 3600 5 5`), every attempt is logged, and from the heartbeat on the Watchdog page shows "Not reporting".
+- Libraries must stay definitions and initialisers only: no top-level commands, no sourcing of each other. Load order matters only for initialisers and none reads another library's globals.
+- `WATCHCAT_NO_MAIN=1` makes the last line of the script skip `main`, so the harness can source the daemon. `WD_LIB_DIR` overrides the library directory (harness only).
+
+> ⚠️ WARNING: Deploy order on a device is libraries first, then `qmanager_watchcat`, then `sync`, then compare md5 against the repo. A main script without its libraries refuses to start, which is safe but leaves the watchdog off. An unsynced copy followed by a power-off has zeroed core files before.
+
+---
+
+## How It Works
+
+The watchdog has **two ways to decide "the connection is bad", and both pull the same recovery lever.** They are two *triggers* feeding one engine, which is why the settings UI shows them together.
 
 ```
-        ┌─────────────────────────────────────────────────┐
-        │         CONNECTION WATCHDOG (enabled = 0/1)       │
-        └─────────────────────────────────────────────────┘
-                              │
-              master OFF → daemon exits at the enable gate.
-              Nothing below runs (neither trigger evaluates).
-                              │ master ON
-                              ▼
-   ┌──────────────────────────────────────────────────────────┐
-   │            qmanager_watchcat  (single while-loop)         │
-   │                                                            │
-   │   TRIGGER A: Reachability        TRIGGER B: Quality        │
-   │   (always on)                    (opt-in — green tab dot)  │
-   │   reads qmanager_ping.json       reads status.json         │
-   │   "can I reach anything?"        ".connectivity"           │
-   │   ping_streak_fail >= fail_threshold "is it good enough?"  │
-   │        │                         latency OR loss breach    │
-   │        │                         × quality_consecutive     │
-   │        │                              │                    │
-   │        └──────────────┬───────────────┘                    │
-   │     recovery_reason=          recovery_reason=             │
-   │       "unreachable"             "quality"                  │
-   │                       ▼                                    │
-   │            find_next_tier 1 → do_recovery                  │
-   │                                                            │
-   │   THE SHARED LADDER (climbs on repeat failure):           │
-   │     Tier 1 ─ Network re-registration (AT+COPS)            │
-   │     Tier 2 ─ Radio toggle (AT+CFUN)                       │
-   │     Tier 3 ─ SIM failover (off by default)               │
-   │     Tier 4 ─ System reboot ◄── BOTH triggers can reach    │
-   │                                this, gated only by the     │
-   │                                Tier 4 enable flag + the    │
-   │                                reboot-per-hour token bucket│
-   │   After acting → COOLDOWN (reason-aware success test) →    │
-   │   restored? back to MONITOR : escalate to next tier.      │
-   └──────────────────────────────────────────────────────────┘
+   master OFF -> daemon exits at the enable gate; nothing below runs.
+   master ON  ->
+
+   TRIGGER A: Reachability (always on)     TRIGGER B: Quality (opt-in)
+   ping_streak_fail >= fail_threshold       window of recent RTT/loss breaches
+   recovery_reason = "unreachable"          x quality_consecutive passes
+                                            recovery_reason = "quality"
+                  \                         /
+                   v                       v
+                 start gate (wd_start_gate):  none | holdoff | radio_off | go
+                   v go
+                 ssr_hold_gate -> hold, or find_next_tier 1 -> do_recovery
+                   v
+   THE SHARED LADDER: Tier 1 COPS, Tier 2 CFUN, Tier 3 SIM failover, Tier 4 reboot
+                   v
+   COOLDOWN (reason-aware verdict) -> restored? back to MONITOR : escalate
+                   v ladder exhausted
+   15 min hold-off, back to MONITOR
 ```
 
-**Both triggers share the ladder all the way to the top.** The trigger source (`recovery_reason`) does **not** cap the ladder height — `find_next_tier` and `do_recovery` never inspect it. A sustained Connection Quality breach that Tier 1 (re-register) and Tier 2 (radio toggle) fail to fix **will escalate to Tier 4 (reboot)**, exactly as a full outage would, provided Tier 4 is enabled (the default). This is deliberate: a degraded link is often a stuck RF/attach condition that only a radio cycle or reboot clears, so capping quality at the gentle tiers would let the watchdog watch the link rot without applying the fix that works.
+**Both triggers share the ladder all the way to the top.** `recovery_reason` never caps the ladder height: a sustained quality breach that Tier 1 and Tier 2 fail to fix escalates to Tier 4 exactly like an outage, provided Tier 4 is enabled (the default). **Why:** a degraded link is often a stuck RF or attach condition that only a radio cycle or reboot clears. The only things that stop a quality breach from rebooting are the Tier 4 enable flag and the `max_reboots_per_hour` token bucket (which auto-disables the daemon when exhausted).
 
-The only thing that stops a quality breach from rebooting is therefore **not** the trigger — it is (1) the Tier 4 **enable flag** (uncheck it and *neither* trigger can reboot) and (2) the **`max_reboots_per_hour` token bucket**, which auto-disables the daemon when exhausted (§8). "Can quality reboot?" reduces to "is Tier 4 enabled and is the token bucket unexhausted?", never to which sensor fired.
-
-The thresholds that the quality trigger compares against come from the **shared `quecmanager.quality_thresholds.*` UCI section** — the same keys read by the Connection Quality Network Events. The watchdog resolves them via a local `resolve_quality_thresholds()` that handles the `custom` preset arm identical to the poller's resolver. There are no watchdog-private ceiling keys.
-
-The trigger source changes only two things, both at cooldown time, never the ladder:
+The trigger source changes only the cooldown success test and the hold-off clearing rule:
 
 | Aspect | Reachability (`"unreachable"`) | Quality (`"quality"`) |
 |---|---|---|
-| Ladder range | Tier 1 → 4 | **Tier 1 → 4 (identical)** |
-| Cooldown success test | fresh ping `reachable = true` | fresh `read_quality` not breaching ceilings |
-| Tier 3 SIM-failover finalization | runs (via `finalize_sim_failover`) | **runs identically** (shared `finalize_sim_failover` call) |
-| Tier 4 token bucket | applies | **applies identically** |
+| Ladder range | Tier 1 to 4 | Tier 1 to 4 (identical) |
+| Cooldown success test | fresh ping `reachable = true` | fresh `read_quality` window not breaching the ceilings |
+| Tier 3 failover finalization | `finalize_sim_failover` | identical (shared call) |
+| Tier 4 token bucket | applies | applies identically |
+| Hold-off after an exhausted ladder | cleared as soon as the link is healthy | **not** cleared by a healthy link (see [Hold-off](#hold-off-after-an-exhausted-ladder)) |
 
-See §5 (Reason-aware cooldown) for *why* the success test must differ: a degraded link reports `reachable = true` the whole time, so judging a quality recovery by reachability would always declare false success and the daemon would burn through every tier in seconds.
+### Reachability trigger
 
----
+The daemon reads the RAW `ping_streak_fail` integer from `qmanager_ping.json`, not the debounced `.reachable` boolean. Recovery starts when the streak reaches `fail_threshold` (`>=`) consecutive failed probes.
 
-## Dual-Trigger Model
+**Why raw streak:** the ping daemon already debounces `.reachable`. Counting it again in a watchdog accumulator double-counted one failed probe under slow profiles (the `quiet` profile at 10 s). Reading the streak gives `fail_threshold` one meaning: N consecutive failed probes, independent of the profile interval. `failure_counter` in the state file is only a display mirror of the streak.
 
-The watchdog has two independent paths into the recovery ladder.
+**Staleness and unknown state.** `read_ping` is a thin wrapper over `conn_state_read`. The cache is stale when its age exceeds `max(3 * interval_sec, 15)` s on the monotonic clock. A missing, stale or unreadable cache makes `read_ping` return non-zero and the pass is skipped (previous values kept, state file still written). A missing or corrupt `reachable` reads as `"null"` and is never treated as up. If `conn_state.sh` is missing the daemon stubs `conn_state_read` to stale, so it never decides on unknown data. The down rule is still the probe count; an elapsed-time rule (the RM520N fork's `fail_elapsed_sec`) was deliberately not ported (user decision 2026-10-16).
 
-**Reachability trigger (always active when watchdog is enabled):** The daemon reads `qmanager_ping.json` every cycle and inspects the RAW `ping_streak_fail` integer — NOT the debounced `.reachable` boolean. If `ping_streak_fail` rises above `fail_threshold` consecutive failed probes, the reachability path fires, sets `recovery_reason="unreachable"`, and runs `do_recovery`.
+### Quality trigger
 
-**Staleness and unknown state:** `read_ping` in the daemon is a thin wrapper over `conn_state_read`. The ping cache is stale when `age > max(3 * interval_sec, 15)` seconds on the monotonic clock (the old fixed 15 s window ignored the profile, so `quiet` at a 10 s interval had almost no margin). A missing, stale or unreadable cache makes `read_ping` return non-zero and every caller skips the cycle, keeping its previous values. A missing or corrupt `reachable` reads as `"null"` and is never treated as up (it used to default to `true`). If `conn_state.sh` itself is missing, the daemon stubs `conn_state_read` to stale, so it never makes a recovery decision on unknown data.
+Opt-in (`quality_enabled=0`). On every pass in `monitor` or `suspect`, after `read_ping` succeeded, `evaluate_quality` calls `read_quality` and compares the window figures against the shared thresholds. A breach increments `quality_breach_counter`; `quality_consecutive` consecutive breaches start recovery with `recovery_reason="quality"`. A good window resets the counter; "no signal" leaves it unchanged. The counter is separate from the reachability streak.
 
-**Down decision is unchanged:** it is still the probe-count `ping_streak_fail` against `fail_threshold`, not an elapsed-time rule. An elapsed-time rule (the RM520N fork's `fail_elapsed_sec`) was deliberately not ported with B2.1; it is a separate follow-up (user decision 2026-10-16). The SSR-aware hold is untouched.
-
-**Why raw streak, not debounced reachable:** Before this change the watchdog read the debounced `.reachable` boolean and maintained its own `failure_counter` on top. Under a slow profile (e.g. `quiet` at 10 s interval), a single probe failure that already caused the ping daemon to flip `.reachable=false` was then counted AGAIN by the watchdog's counter — a double-debounce / re-count bug. Reading `ping_streak_fail` directly means the watchdog counts individual failed probes regardless of profile interval, and `fail_threshold` has a single canonical meaning: N consecutive failed probes, not N poller-cycle runs where `.reachable=false` happened to be sampled.
-
-**Quality trigger (opt-in, `quality_enabled=0` by default):** On every cycle while in `monitor` or `suspect` state, the daemon also calls `evaluate_quality`. It compares `avg_latency_ms` and `packet_loss_pct` from `status.json` against the shared `quecmanager.quality_thresholds.*` UCI thresholds (the same thresholds that drive the Connection Quality Network Events). If either metric exceeds its resolved threshold for `quality_consecutive` consecutive cycles, the quality path fires, sets `recovery_reason="quality"`, and runs the same `do_recovery` engine. `avg_latency_ms` is the windowed average TCP-connect RTT (ICMP-comparable, not HTTP transaction time) — see the [probe mechanics note in connection-quality.md](connection-quality.md#probe-mechanics).
-
-> ℹ️ NOTE: `packet_loss_pct` is maturity-gated by the poller. The poller suppresses loss% to 0 until the ping history ring buffer holds at least `PING_MIN_SAMPLES=10` samples (~20–100 s post-reboot depending on profile). A freshly-rebooted or freshly-restarted ping daemon cannot produce an inflated `packet_loss_pct` that trips this trigger. See the [Packet-loss maturity guard section in connection-quality.md](connection-quality.md#packet-loss-maturity-guard-ping_min_samples) for the full invariant and the root-cause history.
-
-**Why shared thresholds:** The watchdog previously kept its own `latency_ceiling_ms` and `loss_ceiling_pct` keys in the watchcat UCI section. This meant two separate threshold stores that could silently diverge — the quality event would fire at one level and the watchdog would trigger at a different level on the same link. Unifying them onto `quecmanager.quality_thresholds.*` means one save in the Connection Quality UI adjusts both the event log and the recovery trigger simultaneously. Each side still maintains its own separate debounce counter (`quality_consecutive` for the watchdog; the poller's per-events consecutive gate for Network Events), so they can respond at different cadences without interfering.
-
-The two paths are independent. Each has its own counter. A quality breach does not advance the reachability `failure_counter`, and vice versa.
+**Why shared thresholds:** the watchdog used to keep private `latency_ceiling_ms` / `loss_ceiling_pct` keys that could diverge from the Network Events thresholds. One save in Connection Quality now moves both. Each side keeps its own debounce counter.
 
 ---
 
-## State Machine
+## State machine
 
 ```
-MONITOR ──── streak_fail > 0 ─────────────────→ SUSPECT
-   ↑                                                │
-   │           quality breach × consecutive         │ ping_streak_fail >= fail_threshold
-   │         ↗ (evaluate_quality)                   │   (or quality threshold)
-   │ (restored)                                     ▼
-   │                                         SSR_HOLD ── grace expired? ──→ RECOVERY
-   │                                             │                              │
-   │                                    connectivity                            │
-   │                                     returned                               │
-   │ ←──────────────────────────────────────────┘                              │
-   │ (restored)                              RECOVERY → do_recovery() → COOLDOWN
-   │                                                                        │
-   └──────────────── connectivity/quality restored ────────────────────────┘
-   └──────────────── escalate: find_next_tier ─────→ SUSPECT (re-enter)
+MONITOR --- streak_fail > 0 ---> SUSPECT --- streak >= fail_threshold ---> start gate
+   ^                                |                                          |
+   |  reachable and streak 0        |  none/holdoff: stay in SUSPECT           | go
+   +--------- (natural recovery) ---+  radio_off: -> RADIO_OFF                 v
+   |                                                                  SSR_HOLD? -> RECOVERY
+   |                                                                          |
+   |  cooldown verdict success                                                v
+   +<------------------------------------------------------------------- COOLDOWN
+                  fail: escalate directly (do_recovery), or exhausted -> hold-off, MONITOR
 
-LOCKED  ← any maintenance condition (lock file / long-running AT / profile apply)
-DISABLED ← Tier 4 auto-disabled after max_reboots_per_hour exhausted
+LOCKED     any maintenance condition (lock file, long-running AT, live profile apply)
+RADIO_OFF  the user turned the radio off (AT+CFUN 0 or 4); shown in the UI as "Paused"
+DISABLED   written on a reload-disable exit and on Tier 4 auto-disable
 ```
 
-`evaluate_quality` runs only in `monitor` and `suspect` states, never during `cooldown`, `locked`, or `ssr_hold`.
+States written to the state file: `monitor`, `suspect`, `recovery`, `cooldown`, `locked`, `disabled`, `ssr_hold`, `radio_off`. `recovery` is visible: `do_recovery` publishes the long heartbeat (`write_state_busy`) after the caller set `state="recovery"` and before the tier runs, so a long Tier 3 shows as `recovery`, not as a dead daemon.
 
----
+Escalation goes **directly** from `_cooldown_handle_failure` into `do_recovery` at the next enabled tier; it does not bounce through `suspect`. **Why:** on the quality path the link is reachable throughout, so a `suspect` bounce would fall through to natural recovery and abandon the ladder.
 
-## Recovery Tier Ladder
+`evaluate_quality` runs only in `monitor` and `suspect`; never in `cooldown`, `locked`, `radio_off`, `recovery` or `ssr_hold`. **Why:** quality evaluation during an SSR self-heal would re-trigger the quality path and defeat the hold.
 
-| Tier | Action | AT commands | Skip condition |
+### Start gate
+
+Both start sites (the reachability threshold in `main` and the `evaluate_quality` trigger) and the escalation inside `_cooldown_handle_failure` call `wd_radio_reconcile` and then `wd_start_gate`, which gathers three inputs and feeds the pure function `wd_decide_start <tiers_any 0|1> <cfun> <holdoff_left>`:
+
+| Order | Verdict | Condition | Effect |
 |---|---|---|---|
-| 1 | Network re-registration | `AT+COPS=2` → 2 s → `AT+COPS=0` | None — always runs if enabled |
-| 2 | Radio toggle | `AT+CFUN=0` → 3 s → `AT+CFUN=1` | Tower lock active; long-running AT flag |
-| 3 | SIM failover | `AT+CFUN=0` → `AT+QUIMSLOT=N` → `AT+CFUN=1` (Golden Rule); enforces ≥90 s cooldown settle floor | No backup slot; already on backup slot |
-| 4 | System reboot | `sleep 1 && reboot` | Token bucket: `max_reboots_per_hour`; auto-disables on breach |
+| 1 | `none` | no tier enabled | nothing runs; state, counters and events are left alone (reachability stays in `suspect`; quality resets only its breach counter) |
+| 2 | `holdoff` | `holdoff_until` not yet reached | same as `none`, until the pause ends |
+| 3 | `radio_off` | `AT+CFUN?` reads 0 or 4 | `wd_enter_radio_off` |
+| 4 | `go` | otherwise | `ssr_hold_gate`, then `do_recovery` |
 
-**Why Tier 1 uses AT+COPS, not ifdown/ifup:** `ifdown wan; ifup wan` bounces only the host-side network interface. It has no effect on a stalled modem attach — the modem's radio connection to the cell tower is independent of the host interface state. `AT+COPS=2` (forced manual mode, deregisters) followed by `AT+COPS=0` (auto mode, re-registers) tells the modem to drop and re-initiate the network registration procedure, which is the correct action for a stalled attach.
+An unreadable `AT+CFUN?` counts as on, so recovery is never blocked by a failed read. `wd_start_gate` reads `AT+CFUN?` only when it matters: some tier enabled, no hold-off running, and `wd_radio_down != 1`. While our own Tier 2 marker is set, a radio that is off is ours, not the user's, so it is reported as on and the ladder keeps escalating. `wd_radio_reconcile` runs first: with the marker set it reads `AT+CFUN?` and clears the marker when the radio reads 1.
 
-**Why Tier 2 is skipped under tower lock:** `AT+CFUN=0/1` power-cycles the radio subsystem and clears all tower lock state. Doing that while the user has a tower lock configured would silently undo their lock.
+### radio_off (shown as "Paused")
 
-**Why Tier 3 is off by default (`tier3_enabled=0`):** SIM failover requires a backup SIM to be configured and present. Enabling it without a backup slot results in the tier being skipped silently every cycle. The frontend requires a backup slot to be selected before Tier 3 can be saved as enabled.
+**Why:** airplane mode or a deliberate `AT+CFUN=0/4` kills the link by design. Treating that as an outage made the watchdog fight the user (and Tier 2 could leave the radio off).
 
-**Tier-3 settle floor (`SIM_SETTLE_SECS=90`):** A physical SIM swap on the RM551E takes ~90 seconds to reach stable connectivity. After any Tier-3 recovery action, the effective cooldown before the first success ping is `max(CFG_COOLDOWN, 90)`. This prevents `finish_cooldown` from firing the reachability check while the modem is still mid-attach — which would declare a false failure and escalate toward Tier 4 (reboot) on a swap that was actually fine. `cooldown_remaining` in the state file reflects the longer value so the UI countdown is honest. The 90 s is a hard-coded constant (`SIM_SETTLE_SECS=90` in the daemon) — it is NOT a UCI key and cannot be changed from the settings page.
+`wd_enter_radio_off` sets `state="radio_off"`, resets the tier, counters, cooldown and SSR hold, removes the recovery flag and appends the event "Watchcat: radio is off, recovery paused until it is turned back on". Each pass in `radio_off` the main loop sends `AT+CFUN?`: a positive `1` returns to `monitor` (counters reset, `wd_quality_mark`, then `wd_sim_on_radio_back` to finish a deferred SIM swap-back); an unreadable reply keeps waiting. Quality evaluation and auto-failback are skipped (the arm ends in `continue`). The asymmetry is deliberate: the start gate never blocks recovery on an unreadable read, but the exit needs positive evidence.
+
+The UI maps `radio_off` onto the existing Paused phase (locked disc, glyph and label) with its own blurb `watchdog.phase.radio_off.blurb` ("The radio is off, so the watchdog is holding off.").
+
+### SSR hold
+
+`ssr_hold` is a state in the table above: the gate holds the ladder while a recoverable baseband restart self-heals. See [SSR-aware hold](#ssr-aware-hold).
+
+### LOCKED
+
+`check_locked` is true for the maintenance lock, the long-running AT flag, or a live profile-apply PID. Entering LOCKED abandons any recovery in progress (the lock holder owns the modem): flags, counters, `revert_settle_active`, SSR hold are reset and `primary_recheck_active` is remembered as `recheck_interrupted`. Exiting resets again, calls `wd_quality_mark` and `wd_sim_on_unlock` (see [SIM failover](#sim-failover)). `install.sh` touches the lock for the whole install window.
 
 ---
 
-## UCI Configuration Schema
+## Heartbeat contract
+
+The Watchdog page used to show a frozen last state when the daemon had died. The daemon now proves it is alive.
+
+| Piece | Contract |
+|---|---|
+| State file | `write_state` adds `mono` (integer `/proc/uptime` seconds via `mono_now`) and `stale_after` (`3 * CFG_CHECK_INTERVAL + 60` s). `write_state_busy` writes the same file with `stale_after = 600`; it is called at the top of `do_recovery` and around each swap attempt in `wd_swap_slot`, so a minutes-long Tier 3 is not reported dead. |
+| Poller | `read_watchcat_state` (Tier 1.5, every 10 s) reads `.mono` and `.stale_after` as fields 10-11. When the state file is **absent** it resets **all** `wc_*` variables to defaults (enabled false, state `disabled`). The composers emit `watchcat.age_sec` = poller `mono` minus `wc_mono` (clamped at 0, `null` when either is missing or zero) and `watchcat.stale_after` (`null` when missing). |
+| UI | `isWatchcatLive(w)` (`derive.ts`): enabled and not (`age_sec > stale_after`). A block with no age fields (older backend) counts as live. `derivePhase` returns `not_running` ("Not reporting") when enabled but not live, `deriveBand` shows figures only for reporting phases, and `use-watchdog-indicator.ts` hides the sidebar pill when not live. |
+
+**Why mono, not timestamps:** the NITZ `time_daemon` and `ntpd` step the wall clock about 90 s forward after an SSR, which made wall-clock ages look stale. The age is a monotonic delta on both sides.
+
+**Exit cleanup removes the state file.** A stopped daemon therefore reads as "daemon gone" at once (absent file, poller defaults), not as a frozen last state; the UI shows "Starting" inside the 60 s `useGraceGate` after a save and "Not reporting" after it. `stale_after` also covers a hung daemon (`kill -STOP`): the file stays but ages out.
+
+`write_state` coerces every numeric and boolean input first (`_wd_num` accepts plain non-negative integers without a leading zero, else the default), builds the JSON into a variable and writes it atomically (`qm_atomic_write`) only when non-empty. One corrupted global can no longer leave the state file empty or stale.
+
+---
+
+## Stop, TERM and exit cleanup
+
+A foreground `sleep N` delays the shell's TERM trap until it returns, so `procd` stop used to wait out the whole interval and then SIGKILL. Now:
+
+- `wd_sleep N` runs `sleep` in the background and `wait`s on it, so TERM interrupts the wait at once. It replaces `sleep` for the boot settle and every main-loop pass.
+- `main` installs `trap '_wd_exit_cleanup' EXIT`, `trap 'exit 143' TERM`, `trap 'exit 130' INT`. TERM and INT only `exit`; cleanup runs exactly once from the EXIT trap (ash runs the EXIT trap after `exit` inside a signal trap).
+- `_wd_exit_cleanup` kills the orphaned background sleep, restores the radio if `wd_radio_down=1` (`AT+CFUN=1`, **never** `1,1`), removes `/tmp/qmanager_sim_switch_active` when this daemon owns it (`WD_SWAP_FLAG_OWNED`), then removes the PID file, `STATE_TMP`, the recovery flag and the state file.
+- The init script sets `term_timeout 15` and its `stop_service` also removes the state file.
+
+**Why the radio marker:** `wd_mark_radio_down` is set before every `AT+CFUN=0` (Tier 2, `wd_swap_slot`) and cleared only once `AT+CFUN?` reads 1. A TERM landing between the two commands must not leave the modem's radio off.
+
+> ℹ️ NOTE: `install.sh` still does `killall -9 qmanager_watchcat` after the init stop, and SIGKILL bypasses the EXIT trap. A kill that lands between `CFUN=0` and `CFUN=1` is therefore not covered by the cleanup (see Known deferred, F-03).
+
+---
+
+## Quality window
+
+Quality is judged from the ping daemon's raw sample history, not from the poller's `status.json`. **Why:** `status.json` `.connectivity` is a ~60-sample average (about 10 minutes at the `quiet` profile), so a long-gone outage kept breaching the thresholds and a recovered link was escalated to a reboot.
+
+- `read_quality` (keeps its contract: sets `q_avg_latency` and `q_packet_loss`, returns 1 for "no signal") reads `/tmp/qmanager_ping_history`.
+- `quality_since` is the monotonic second the window starts at; `wd_quality_mark` sets it to now. The window size is `N = min(W, (now - quality_since) / CQ_INTERVAL_SEC)` with `W = clamp(120 / CQ_INTERVAL_SEC, 6, 60)` samples, so it covers roughly two minutes at any profile. `CQ_INTERVAL_SEC` comes from `conn_state_read` (fallback 5).
+- **N < 3 means no signal**: the counter is neither advanced nor reset, and a cooldown that needs the verdict extends.
+- Otherwise one `tail -n N | awk` computes the average of numeric lines (`%.1f`, or `null` when every sample is `null`) and the loss as `int(nulls * 100 / lines)`.
+- Freshness comes from `read_ping`, which already ran that pass; a stale ping cache stops the pass before `read_quality`. The cooldown quality arm calls `read_ping` first and takes the stale-retry path on failure.
+- Thresholds: `quality_breached` is OR logic (latency over the ceiling or loss at/over the ceiling; a ceiling of 0 ignores that metric). Latency is a decimal string: **compare it with awk, never `[ -gt ]`** (BusyBox `[ "1241.4" -gt 800 ]` exits 2).
+
+`wd_quality_mark` is called at: startup after `BOOT_SETTLE`; every pass with `ping_streak_fail > 0` and the pass that ends the outage (so the next decision only sees post-outage samples, the false-escalation fix); in `do_recovery` after an action; at the end of every `wd_swap_slot` that left the modem on a slot; on LOCKED exit; on `radio_off` exit.
+
+Detection latency: a breach must persist for `quality_consecutive` consecutive passes, and the window needs at least three samples since the last mark. A brief spike is absorbed by the window; expect roughly `quality_consecutive * check_interval` seconds of sustained degradation, not an instant reaction.
+
+### Reason-aware cooldown verdict
+
+`wd_cooldown_verdict <reason> <ping_ok 0|1> <reachable> <q_state 0|1|2> <stale_retries>` is pure (no I/O, no globals) and prints `success`, `extend` or `fail`. `finish_cooldown` calls it and then runs the same effects as before.
+
+| Condition | Verdict |
+|---|---|
+| ping not fresh | `extend` while `stale_retries < 3`, then `fail` |
+| `quality`, q_state 0 (good) | `success` |
+| `quality`, q_state 1 (breached) | `fail` |
+| `quality`, q_state 2 (no data / too few samples) | `extend` while `stale_retries < 3`, then `fail` |
+| other reason, `reachable = true` | `success` |
+| other reason, anything else | `fail` |
+
+**Why a different test for quality:** a degraded link reports `reachable = true` the whole time, so judging a quality recovery by reachability would always declare success and burn through the tiers. `finish_cooldown` arm order: primary-recheck arm, then revert-settle arm, then the reason-aware verdict. An extension keeps the recovery flag touched so events stay suppressed.
+
+---
+
+## Recovery ladder
+
+| Tier | Action | AT commands | Skipped when |
+|---|---|---|---|
+| 1 | Network re-registration | `AT+COPS=2` -> 2 s -> `AT+COPS=0` | never (when enabled) |
+| 2 | Radio toggle | `AT+CFUN=0` -> 3 s -> `AT+CFUN=1`, then confirm | tower lock active; long-running AT flag |
+| 3 | SIM failover | `wd_swap_slot` (`CFUN=0`, `QUIMSLOT=N`, `CFUN=1`, verified) | no backup slot; slot unreadable; backup equals the current slot; swap not verified |
+| 4 | System reboot | `( sleep 1; sync; reboot ) &` | token bucket: `max_reboots_per_hour`; auto-disables on breach |
+
+A skipped tier (return 1) moves to the next enabled tier. When none is left, the ladder is exhausted (hold-off below).
+
+**Why Tier 1 is `AT+COPS`, not `ifdown/ifup`:** bouncing the host interface does nothing for a stalled modem attach; forcing deregistration and re-registration does.
+
+**Why Tier 2 is skipped under a tower lock:** `AT+CFUN=0/1` power-cycles the radio and clears the lock state.
+
+**Tier 2 never leaves the radio off.** After `CFUN=1` and `wait_for_modem`, `_wd_confirm_radio_on` reads `AT+CFUN?`. Anything but `1` gets one more `AT+CFUN=1` and a second read. The marker is cleared only when the radio is confirmed on; if it still is not, the marker stays, the exit cleanup restores the radio, and the start gate keeps escalating instead of mistaking it for the user's airplane mode. A reachable link in `monitor` also clears a stale marker.
+
+**Why Tier 3 is off by default (`tier3_enabled=0`):** it needs a backup SIM; the UI requires a backup slot before it can be saved enabled (the CGI does not enforce it, the daemon skips the tier silently).
+
+**Tier 3 settle floor.** A physical swap on the RM551E takes about 90 s to be stable. After a Tier 3 action the cooldown is `max(CFG_COOLDOWN, 90)` and `cooldown_remaining` carries the longer value so the UI countdown is honest. The same floor applies to revert and recheck swaps. It is the constant `SIM_SETTLE_SECS`, not a UCI key.
+
+**Tier 4 and the token bucket.** `execute_tier4` recounts the ledger, then: at the cap it appends the event "Watchcat disabled: reboot limit exceeded", writes `quecmanager.watchcat.enabled=0` and the auto-disabled flag, sets state `disabled`, writes the state file and `exit 0`. Otherwise it appends the event "Watchcat: rebooting system (Tier 4)", appends `<epoch>|reboot|tier4_escalation` to `crash.log` (trimmed to the last 20 lines), writes the state file, removes the recovery flag and reboots in a detached subshell. Auto-disable persists across reboots (UCI) and the init script requires `enabled=1`, so procd does not respawn it.
+
+> ⚠️ WARNING: The event text `Watchcat: rebooting system (Tier 4)` is an invariant. The Recovery Activity card dedupes its ledger-backed restart row against the RAM event by looking for `Tier 4` plus `reboot` in a `watchcat_recovery` message within 120 s of the ledger epoch (`isRebootEvent`, `recovery-activity-card.tsx`). Change the wording and a restart shows twice.
+
+### Hold-off after an exhausted ladder
+
+**Why:** before this, an exhausted ladder returned to `monitor` and the next pass restarted it from Tier 1, so a dead link ran the whole ladder (including Tier 2 radio cycles) back to back forever.
+
+- Both exhausted sites (`do_recovery` when no tier is left, `_cooldown_handle_failure` when `find_next_tier` fails) call `_wd_start_holdoff`: `holdoff_until = mono_now + HOLDOFF_SECS` (900 s, fixed), `holdoff_reason = recovery_reason`, and the event "Watchcat: all recovery steps tried, pausing 15 minutes" (error severity). State returns to `monitor`.
+- During the pause `wd_start_gate` returns `holdoff` (gate order above): no AT commands, no counters, no events; reachability stays in `suspect`.
+- `wd_holdoff_clear` (the only other writer) clears `holdoff_until`/`holdoff_reason`. Without an argument it does nothing when `holdoff_reason` is `quality`; with `force` it always clears. Callers: natural recovery (`suspect -> monitor`) and the main-loop check "monitor, streak 0, reachable" (no argument); both cooldown success arms (`force`).
+- **Trade-off:** a hold-off that followed a **quality** ladder is not cleared by a healthy link, because the link was reachable the whole time and one lost probe would otherwise end the pause and restart the ladder every few minutes. It therefore runs its full 15 minutes, and **a real outage inside that window waits for it to lapse** (the gate still returns `holdoff`). A hold-off that followed a reachability ladder ends as soon as the link is healthy.
+- The pause lives in a shell variable: a daemon restart or reboot starts fresh. There is no UI for it.
+
+---
+
+## Reboot ledger
+
+`/etc/qmanager/crash.log` is shared: the watchdog writes `tier4_escalation` rows, `record_planned_reboot` (`qlog.sh`) writes `user`/`unplanned` rows for the reboot alert. The watchdog counts and lists **only** `tier4_escalation` rows. **Why:** the token bucket and the "Reboots" figure mean "watchdog-caused reboots this hour"; the Alerts feature counts every row. Do not merge the two counters (see [Alerts](alerts.md#reboot-alerts)).
+
+**The reported bug (figure stuck at 1 for days).** The count used to be taken once at start and again inside Tier 4, so a single watchdog restart left `reboots_this_hour` at 1 until the next restart or save, and the old Recent Activity feed (RAM events) lost the restart with the reboot. The fix:
+
+- `wd_ledger_tick` is the **first statement of every main-loop pass** (before the reload check, so it also runs while locked, in cooldown or on any early `continue`). It recounts when `mono_now >= _rb_next`, then sets `_rb_next = now + 60`. The figure decays within about a minute of a row aging out.
+- `count_recent_reboots` is clock-aware:
+  - **sane clock** (`_qm_clock_sane`, sourced from `schedule_guard.sh`, year >= 2025; fallback test `date +%Y` >= 2025): count `tier4_escalation` rows with epoch `>= now - 3600`;
+  - **insane clock** (the RM551E boots at 1970 until NITZ/ntp steps it): the rolling hour cannot be evaluated, so count every row with epoch `< 1735689600` (2025-01-01), the clock-less boot rows. This over-counts, which is the safe direction for the Tier 4 cap; the first recount on a sane clock drops them again.
+  - non-numeric epochs are ignored (`$1 ~ /^[0-9]+$/`).
+- `execute_tier4` also calls `count_recent_reboots` right before checking the cap.
+- `wd_ledger_recent_json <limit>` (default 5) prints the Tier-4 epochs as a JSON array, newest first, `[]` on any problem. It uses no daemon globals (`CRASH_LOG` falls back to `/etc/qmanager/crash.log`), so the CGI sources it behind an `-f` guard with a stub that returns `[]`. The device `jq` has no regex, so numeric epochs are matched in awk.
+
+UI wording is "Reboots" (eyebrow, value `count / cap`) with the caption "In the last hour"; the tone is `bad` only when `reboots >= cap`. The Recovery Activity card merges `recent_reboots` with the RAM events, drops epochs at or below `CLOCK_PLAUSIBLE_AFTER` (1_600_000_000, i.e. the 1970-era rows), dedupes as described above, sorts newest first and caps at five rows; the ledger row reads "The watchdog restarted the modem" (`watchdog.activity.tier4Reboot`).
+
+---
+
+## UCI configuration schema
 
 ### Full watchcat section
 
-Seeded by `ensure_watchcat_config()` in `watchdog.sh` on first CGI GET, and by `install.sh`'s `seed_uci_defaults()` for the quality and probe-interval keys specifically.
+`install.sh` seeds every missing main key without overwriting (`enabled`, `check_interval`, `cooldown`, `tier1..4_enabled`, `max_reboots_per_hour`, then the quality, SSR and `primary_recheck_*` keys and `fail_threshold`); `ensure_watchcat_config()` in the CGI creates the whole section only if it is missing entirely. `backup_sim_slot` is left absent until set. `wd_config.sh` supplies the same defaults when a key is absent, including `CFG_ENABLED=0`.
 
 | UCI Key | Range | Default | Meaning |
 |---|---|---|---|
 | `enabled` | 0/1 | 0 | Master on/off for the daemon |
-| `fail_threshold` | int 1–20 | 5 | Consecutive failed **probes** before reachability recovery fires. Counts raw `ping_streak_fail`, not poller cycles. Renamed from `max_failures` (migration in `install.sh`). |
-| `check_interval` | int 5–60 | 10 | Seconds between watchdog evaluation cycles |
-| `cooldown` | int 10–300 | 60 | Seconds to wait after a recovery action before evaluating success |
-| `tier1_enabled` | 0/1 | 1 | Enable Tier 1 (re-registration) |
-| `tier2_enabled` | 0/1 | 1 | Enable Tier 2 (radio toggle) |
-| `tier3_enabled` | 0/1 | 0 | Enable Tier 3 (SIM failover) |
-| `tier4_enabled` | 0/1 | 1 | Enable Tier 4 (reboot) |
-| `backup_sim_slot` | 1/2 | (empty) | SIM slot for Tier 3 failover |
-| `max_reboots_per_hour` | int 1–10 | 3 | Tier 4 token bucket; auto-disables at limit |
-| `primary_recheck_enabled` | 0/1 | **0 (OFF)** | Enable automatic blind recheck of the primary SIM while running on the backup. Opt-in because each recheck is a real (brief) outage — the inactive primary slot cannot be passively health-checked. |
-| `primary_recheck_interval` | int 5–1440 | 30 | Minutes between primary-SIM rechecks. Not seconds — a seconds cadence would cause a continuous outage loop. |
+| `fail_threshold` | int 1-20 | 5 | Consecutive failed **probes** before reachability recovery fires (raw `ping_streak_fail`, `>=`). Renamed from `max_failures` (migration in `install.sh`, CGI and backup restore). |
+| `check_interval` | int 5-60 | 10 | Seconds between watchdog passes |
+| `cooldown` | int 10-300 | 60 | Seconds to wait after a recovery action before judging it |
+| `tier1_enabled` | 0/1 | 1 | Tier 1 (re-registration) |
+| `tier2_enabled` | 0/1 | 1 | Tier 2 (radio toggle) |
+| `tier3_enabled` | 0/1 | 0 | Tier 3 (SIM failover) |
+| `tier4_enabled` | 0/1 | 1 | Tier 4 (reboot) |
+| `backup_sim_slot` | 1/2 | (empty) | SIM slot for Tier 3 |
+| `max_reboots_per_hour` | int 1-10 | 3 | Tier 4 token bucket; auto-disables at the limit |
+| `quality_enabled` | 0/1 | 0 | Master opt-in for the quality trigger |
+| `quality_consecutive` | int 1-60 | 5 | Consecutive breach passes before recovery fires |
+| `ssr_aware` | 0/1 | 1 | Hold the ladder while a recoverable baseband restart self-heals |
+| `ssr_grace` | int 10-120 | 45 | Seconds to hold before falling through to the ladder |
+| `primary_recheck_enabled` | 0/1 | 0 | Auto-failback: blind recheck of the primary SIM while on the backup. Opt-in because each recheck is a real, brief outage. |
+| `primary_recheck_interval` | int 5-1440 | 30 | **Minutes** between rechecks. |
 
-> ⚠️ WARNING: The RM551E uses a hard single-slot SIM mux (`AT+QUIMSLOT=?` → `(1,2)`). The inactive primary slot receives no radio signal and cannot be tested passively. Auto-failback is therefore a BLIND periodic swap-back-to-primary + retest. Every recheck attempt causes a brief connectivity interruption. This is why the feature is opt-in with a minutes-granularity interval, not seconds.
+> ⚠️ WARNING: The RM551E has a hard single-slot SIM mux (`AT+QUIMSLOT=?` -> `(1,2)`). The inactive slot gets no radio signal and cannot be tested passively, so auto-failback is a blind swap-back-and-retest. That is why it is opt-in with a minutes-granularity interval.
+
+The daemon does not clamp UCI ranges (only the CGI validates); `fail_threshold` and `primary_recheck_interval` fall back to their defaults when non-numeric, the rest are used as read (see Known deferred).
 
 ### Probe-interval ownership keys
 
-The watchdog is the **sole writer** of `ping_profile.interval_override`. When an override is active, the Connection Sensitivity card in Connection Quality shows an informational Alert explaining that the watchdog is enforcing a custom interval. The profile Tabs in that card are NOT disabled — the selection becomes the fallback once the override is cleared.
+The watchdog is the **sole writer** of `ping_profile.interval_override`. While an override is active the Connection Sensitivity card shows an informational Alert; its profile tabs stay enabled (the selection becomes the fallback once the override is cleared).
 
 | UCI Key | Section | Range | Default | Meaning |
 |---|---|---|---|---|
-| `probe_profile` | `watchcat` | `sensitive`/`regular`/`relaxed`/`quiet` | (unset) | Named profile the watchdog UI has selected; written to `ping_profile.profile` when saved |
-| `interval_override` | `ping_profile` | int 1–60, or unset | unset | When set, overrides the profile-derived interval for `qmanager_ping`. Cleared by writing JSON `null` via the watchdog POST (which tests `has("interval_override")` to distinguish null-clear from absent). |
+| `probe_profile` | `watchcat` | `sensitive`/`regular`/`relaxed`/`quiet` | (unset) | Legacy profile selector; the Watchdog page no longer writes it |
+| `interval_override` | `ping_profile` | int 1-60 or unset | unset | Overrides the profile-derived interval for `qmanager_ping`. Cleared by JSON `null` in the POST (the CGI tests `has("interval_override")` to tell clear from absent). |
 
-**Effective interval resolution** (`conn_state_resolve`, used by `qmanager_ping` and both CGIs): `interval_override` if set, else the profile→seconds map: `sensitive=1`, `regular=2`, `relaxed=5`, `quiet=10`. The GET response from `watchdog.sh` exposes `interval_override` (raw), `effective_interval` (resolved) and, since ledger B2.1, numeric `interval_sec` (same value as `effective_interval`), `fail_secs` and `recover_secs` from `conn_state_cadence` (UCI, correct while the daemon is down). The GET response from `ping_profile.sh` surfaces the same set. These are the fields the Watchdog bento (ledger U4.6) and Connection Quality (U4.7) consume.
+Effective interval (`conn_state_resolve`): `interval_override` if set, else `sensitive=1`, `regular=2`, `relaxed=5`, `quiet=10`. GET exposes `interval_override` (raw), `effective_interval`, `interval_sec` (same value), `fail_secs`, `recover_secs` from `conn_state_cadence` (UCI, correct while the daemon is down).
 
-**`probe_interval` POST (ledger U4.6, ports `rm520n` `3fb535ba` in intent).** The Detection card sends the effective cadence as `probe_interval` (int 1-60). The CGI compares it with `conn_state_cadence`'s `CQ_CFG_INTERVAL_SEC`: an unchanged value writes nothing (so a save never touches cadence by accident); a changed value sets `ping_profile.interval_override`, or deletes it when the value equals the profile's own interval (`CQ_CFG_PROFILE_INTERVAL_SEC`), and touches `/tmp/qmanager_ping_reload`. `probe_interval` is ignored when the same POST carries `interval_override`. The Watchdog page no longer writes `probe_profile`; choosing a profile is Connection Quality's job. Verified on the RM551E 2026-10-16 (unchanged, changed, back to the profile value, 0 rejected; UCI restored byte-identical).
+**`probe_interval` POST (ledger U4.6).** The Detection card sends the effective cadence as `probe_interval` (int 1-60). The CGI compares it with `CQ_CFG_INTERVAL_SEC`: unchanged writes nothing (a save never touches cadence by accident); changed sets `ping_profile.interval_override`, or deletes it when the value equals the profile's own interval (`CQ_CFG_PROFILE_INTERVAL_SEC`), and touches `/tmp/qmanager_ping_reload`. Ignored when the same POST carries `interval_override`.
 
-> ⚠️ WARNING: Only the watchdog writes `interval_override`. `ping_profile.sh` POST never touches this key — it writes only `profile`/targets and touches the ping reload flag. Hand-editing UCI or calling `ping_profile.sh` POST cannot override the interval; only a watchdog save can.
-
-### Quality trigger keys
-
-| UCI Key | Range | Default | Meaning |
-|---|---|---|---|
-| `quality_enabled` | 0/1 | 0 | Master opt-in for quality triggering |
-| `quality_consecutive` | int 1–60 | 5 | Consecutive breach cycles before recovery fires |
-
-> ℹ️ NOTE: The old `latency_ceiling_ms` and `loss_ceiling_pct` keys in the `watchcat` section are **retired**. Thresholds now come from the shared `quecmanager.quality_thresholds.*` section described below. The migration in `install.sh`'s `seed_uci_defaults()` seeds any old ceiling values into `quality_thresholds` as the `custom` preset (800 ms latency / 20 % loss) so that users who had non-default values don't silently lose them.
+> ⚠️ WARNING: Only the watchdog writes `interval_override`. `ping_profile.sh` POST never touches it.
 
 ### Shared quality threshold keys (owned by `quality_thresholds.sh`)
 
-These live in `quecmanager.quality_thresholds` and are shared by both the watchdog and the Connection Quality Network Events. The watchdog resolves them at runtime via `resolve_quality_thresholds()`.
-
 | UCI Key | Values | Default (absent) | Meaning |
 |---|---|---|---|
-| `latency_preset` | `standard`/`tolerant`/`very-tolerant`/`custom` | `tolerant` | Named latency threshold preset |
-| `latency_custom_ms` | int 1–10000 | — | Custom latency ceiling in ms; present only when `latency_preset=custom` |
-| `loss_preset` | `standard`/`tolerant`/`very-tolerant`/`custom` | `tolerant` | Named loss threshold preset |
-| `loss_custom_pct` | int 0–100 | — | Custom loss ceiling in %; present only when `loss_preset=custom` |
+| `latency_preset` | `standard`/`tolerant`/`very-tolerant`/`custom` | `tolerant` | 150 / 250 / 500 ms or the custom value |
+| `latency_custom_ms` | int 1-10000 | - | Only read when `latency_preset=custom` |
+| `loss_preset` | same set | `tolerant` | 15 / 30 / 50 % or the custom value |
+| `loss_custom_pct` | int 0-100 | - | Only read when `loss_preset=custom` |
 
-The `quecmanager.quality_thresholds` section is never seeded by the installer and never lazily created on GET. Its absence signals "factory default / unmodified" (`isDefault=true`). The `custom` preset is new — it was not present in the old schema; existing devices that stored ceiling overrides in the retired `watchcat` keys receive a seeded `custom` preset during migration.
-
-### SSR-aware hold keys
-
-| UCI Key | Range | Default | Meaning |
-|---|---|---|---|
-| `ssr_aware` | 0/1 | **1 (ON)** | Hold the recovery ladder while a recoverable baseband restart self-heals |
-| `ssr_grace` | int 10–120 | 45 | Seconds to hold before falling through to the normal ladder |
-
-Both SSR keys are seeded in `install.sh`'s `seed_uci_defaults()` (idempotent, preserves user choice on upgrade) **and** lazily seeded in `ensure_watchcat_config()` on the first CGI GET. Missing keys in `read_config()` in the daemon default to `CFG_SSR_AWARE=1` / `CFG_SSR_GRACE=45`, so existing installs that have not yet received the CGI GET benefit from the hold behaviour immediately after upgrade, even before any settings page visit.
-
-> ℹ️ NOTE: The installer seeds the quality keys, SSR keys, and `primary_recheck_*` keys via `seed_uci_defaults()` (idempotent, preserves existing values). The full watchcat section is seeded lazily on the first CGI GET by `ensure_watchcat_config()` (which also sets `primary_recheck_*`). This two-layer seeding ensures the new keys are available both on fresh installs and on upgrades where the settings page may not have been visited yet.
+`resolve_quality_thresholds()` (in `wd_config.sh`) mirrors the poller's resolver: an absent section means `tolerant`/`tolerant` (250 ms / 30 %), a non-numeric custom value falls back to the tolerant default. The section is never seeded; its absence means "factory default". The retired `latency_ceiling_ms` / `loss_ceiling_pct` watchcat keys are migrated by the installer into a `custom` preset and not read by the daemon. A `custom` value takes effect only with `latency_preset=custom` written together; always save via `quality_thresholds.sh`.
 
 ---
 
-## SSR-Aware Hold
+## SSR-aware hold
 
 ### What an MPSS SSR is
 
-The Qualcomm RM551E (and RM520N-class) modems run their radio firmware on a separate processor called the MPSS (Modem Processor SubSystem). Under certain radio conditions, the MPSS can encounter a fatal error and restart itself — logged in the kernel ring buffer as:
-
-```
-4080000.remoteproc-mss: fatal error received
-```
-
-This is a **recoverable** baseband subsystem restart (SSR). The remoteproc framework brings the MPSS back up automatically in ~3–4 seconds; the data path is restored in roughly 10–25 seconds. The modem self-heals. This is a firmware-level event that QManager does not cause and cannot prevent.
+The RM551E (and RM520N-class) radio firmware runs on the MPSS subsystem, which can hit a fatal error and restart itself. The kernel logs `4080000.remoteproc-mss: fatal error received`; remoteproc brings it back in about 3-4 s and the data path returns in roughly 10-25 s. It is a recoverable, firmware-level event QManager neither causes nor prevents.
 
 ### The amplification problem
 
-The watchdog's quality trigger (if enabled with an aggressive profile) or the reachability trigger both check connectivity on every cycle. During a self-healing SSR, the ~10–25 second data-path interruption looks identical to a stuck connection: reachability fails, the failure counter climbs, and the watchdog fires Tier 1 (`AT+COPS=2 → AT+COPS=0`) or Tier 2 (`AT+CFUN=0/1`) recovery actions. Each of those commands forces a network detach — ON TOP of a modem that is already mid-self-heal. The result: what should have been a 30–60 second self-correcting outage becomes a multi-minute thrash loop because QManager keeps deregistering the modem before it can re-attach.
+During the 10-25 s the link looks dead, the streak climbs, and the watchdog fires Tier 1/Tier 2 on top of a modem that is already healing. The forced detach turns a 30-60 s self-correcting outage into a multi-minute thrash.
 
-### The hold mechanism
+### The hold
 
-When `ssr_aware=1` (the default), the daemon intercepts at BOTH recovery initiation sites — the reachability threshold in the main loop's `suspect|ssr_hold` branch AND the quality threshold inside `evaluate_quality` — and calls `ssr_hold_gate()` before proceeding to `do_recovery`.
-
-**`ssr_in_progress()` — the dmesg evidence check:**
-
-The function runs `dmesg` once and greps for the shared crash prefix:
+With `ssr_aware=1` (default) both start sites call `ssr_hold_gate()` after the start gate returns `go` and before `do_recovery`. `ssr_in_progress()` runs `dmesg` once, takes the last `4080000.remoteproc-mss: fatal error received` line, parses the integer seconds with `sed 's/^\[[ ]*\([0-9]*\)\..*/\1/'` and compares to `/proc/uptime`. The look-back window is
 
 ```
-4080000.remoteproc-mss: fatal error received
+CFG_SSR_GRACE + CFG_FAIL_THRESHOLD * CQ_INTERVAL_SEC + 2 * CFG_CHECK_INTERVAL
 ```
 
-This prefix is chosen deliberately to be firmware-variant-agnostic — it does NOT match the per-build `.c:line` suffix that varies across RM520N/RM551E builds. It takes the last matching line (`tail -n 1`), extracts the leading integer seconds from the dmesg timestamp, and compares to `/proc/uptime` (integer seconds since boot). If the crash line exists and its timestamp is within `CFG_SSR_GRACE` seconds of now, the function returns true.
+**Why not the grace alone:** the crash only becomes visible to the ladder after the ping daemon has counted `fail_threshold` failed probes and a pass has seen them. On a slow profile (`quiet`, about 60-70 s to detection) a bare 45 s window always expired first and the hold never engaged, so every SSR was amplified. The hold length itself is still `ssr_grace`.
 
-Timestamp extraction uses `sed 's/^\[[ ]*\([0-9]*\)\..*/\1/'`, **not** `awk -F`. On this kernel (Linux 5.15, `CONFIG_PRINTK_CALLER`) real dmesg lines are *double-bracketed* — `[ 30585.353287][T23188] msg` — not the single-bracket `[ 12345.678901] msg` form. The `sed` expression matches the leading bracket and the seconds before the first dot, so it handles both layouts. An earlier `awk -F'[][. ]+'` implementation was replaced after on-device testing: **BusyBox awk 1.36.1 rejects a bracket-class field separator with `bad regex '[][. ]+': Unknown collating element`** (it parses the `[. ]` fragment as a POSIX collating-element reference it does not implement), so the awk form silently returned empty and the feature was inert. See Known Gotchas. The corrected `sed` form was verified live on an RM551E: a synthetic `/dev/kmsg` crash line was parsed to its integer seconds correctly.
+Graceful degradation: no dmesg output, an evicted line or an unparsable timestamp returns false and the daemon behaves as if the feature did not exist. The hold is a de-amplifier, never a correctness dependency (the token bucket is the backstop).
 
-Graceful-degradation rule: **if dmesg yields nothing, the crash line was evicted from the ring buffer, or the timestamp fails to parse, `ssr_in_progress()` returns false and the daemon behaves exactly as before this feature existed.** The hold is best-effort; it is never a correctness dependency.
+When holding: `state="ssr_hold"`, `ssr_hold_started` and `last_ssr_detected` record the monotonic uptime, `do_recovery` is skipped, `current_tier` is not advanced, no AT command runs. Each pass re-evaluates through the merged `suspect|ssr_hold` arm:
 
-**Hold posture:**
+- **Connectivity returns:** reachable and streak 0 -> `ssr_hold_clear`, back to `monitor`; no recovery ran.
+- **Grace expires:** `ssr_hold_gate` clears the hold and returns 1; the ladder runs from the tier found before the hold (no tier skip).
 
-When `ssr_hold_gate()` decides to hold (either starting a new hold or continuing an existing one):
-
-- State is set to `"ssr_hold"`.
-- `ssr_hold_started` records the monotonic uptime in integer seconds.
-- `last_ssr_detected` records the same value (written to the state file).
-- `do_recovery` is skipped for that cycle. `current_tier` is NOT advanced. No AT commands are issued. No cooldown is entered.
-
-While holding, each cycle re-evaluates. The merged `suspect|ssr_hold` case in the main loop checks reachability every cycle:
-
-- **Connectivity returns (modem self-healed):** The `ping_reachable=true && ping_streak_fail=0` branch runs, `ssr_hold_clear()` is called, and state returns to `monitor`. No recovery ladder ran; no forced detach occurred.
-- **Grace window expires (`held >= CFG_SSR_GRACE`):** `ssr_hold_gate()` resets `ssr_hold="false"` and returns 1 (do NOT hold). The normal ladder runs from `current_tier` (which was found by `find_next_tier` before the hold began, so there is no tier-skip on fall-through). This handles the genuine stuck/AP-hang case where the modem did NOT self-recover.
-
-`ssr_hold` is also cleared unconditionally on LOCKED-state entry and exit (via `ssr_hold_clear()`), so a maintenance window never carries stale hold state in or out.
-
-**Quality-path nuance:** When the quality trigger fires and `ssr_hold_gate()` returns hold, `evaluate_quality` returns 0 (triggering caller skips), leaving state as `"ssr_hold"` and returning to the main loop's `write_state + sleep`. On the next cycle, the merged `suspect|ssr_hold` case re-evaluates reachability. If the modem has self-healed and the link is both reachable AND the quality breach counter has already been reset (it was reset to 0 before `ssr_hold_gate` was called), the hold clears naturally. This is safe: the dominant amplification risk (forced COPS/CFUN detach on the reachability ladder) is fully held, and a quality-triggered hold that resolves via the reachability path is correct because the modem is healthy again.
-
-**Why this defaults ON:** Users affected by the amplification problem will not know to enable the feature. A user who has never seen an MPSS SSR pays no cost (the dmesg grep runs only at escalation decision time, not every cycle), while an affected user benefits immediately on upgrade.
+`ssr_hold` is also cleared on LOCKED entry/exit and when entering `radio_off`. A quality-triggered hold resolves through the reachability arm (the link is reachable again and the breach counter was already reset); a `suspect -> monitor` log line instead of `ssr_hold -> monitor` is expected. It defaults ON so affected users benefit on upgrade; the dmesg grep only runs at an escalation decision.
 
 ---
 
-## Quality Trigger Invariants
+## SIM failover
 
-### 1. Custom preset and threshold resolution
+Tier 3 and every other slot change (fallback, user revert, recheck, failback) go through one verified primitive.
 
-The quality trigger resolves thresholds via `resolve_quality_thresholds()`. For named presets (`standard`/`tolerant`/`very-tolerant`) the function returns the hard-coded preset value. For `custom` it reads `latency_custom_ms` / `loss_custom_pct`. If the `quality_thresholds` UCI section is absent the resolver returns the `tolerant` defaults (250 ms / 30 %).
+### Known-SIM tracking
 
-The old `latency_ceiling_ms=0`/`loss_ceiling_pct=0` "disable that metric" escape hatch is retired. Under the preset model, choosing `very-tolerant` (500 ms / 50 %) or a high custom value effectively disables triggering. The frontend requires at least one threshold to be actively configured when quality is enabled.
+Every SIM the watchdog lands on is recorded with `sim_db_add` (`sim_db.sh`) so the poller's boot-time swap detector does not raise "New SIM card detected". The backup SIM is learned right after the CPIN check during Tier 3, not only at finalize, so a reboot mid-cooldown is safe. ICCID reads retry 3 times, 1 s apart (`_wd_sim_iccid`); an unreadable ICCID never blocks a swap or a revert. `sim_db_add` replaced the retired `last_iccid` write.
 
-### 2. Data source and staleness guard
+### Verified swap (`wd_swap_slot <target>`)
 
-Latency and loss come from `status.json` `.connectivity.avg_latency_ms` and `.connectivity.packet_loss_pct`, which are written by the poller. `avg_latency_ms` is the **windowed average** TCP-connect RTT (milliseconds) — the poller computes a rolling average over approximately 60 samples, not the last single RTT. Values are ICMP-comparable (typically 35–65 ms on a healthy cellular link). The `tolerant` default threshold of 250 ms provides ~4–7× normal RTT headroom. The `.connectivity` object has no timestamp of its own, so freshness is judged from the root `.timestamp` field against `STATUS_STALE_THRESHOLD=30` seconds.
+**Why:** `AT+QUIMSLOT=N` can return `OK` and change nothing (a silent no-op, most often when the poller is also talking to the modem). The old code trusted the radio cycle and recorded a failover that never happened.
 
-A stale or missing `status.json` is treated as NO-SIGNAL: the `evaluate_quality` function returns early, and the breach counter is left unchanged. A stale poller is never treated as a healthy 0% loss reading.
+`wd_read_slot` prints the slot digit from `AT+QUIMSLOT?` (3 tries, 1 s apart) or nothing. `wd_swap_slot`:
 
-**Why:** The poller could have crashed or been restarted. Treating the absence of data as 0% loss would mean a dead poller looks like a perfect connection, causing the quality trigger to never fire even when the link is genuinely bad. The NO-SIGNAL policy is the conservative choice.
+1. Reads the live slot. If it already equals the target, returns 0 with `WD_SWAP_NOOP=true` and no radio cycle.
+2. Up to two attempts of: touch `/tmp/qmanager_sim_switch_active` (pauses the poller's AT traffic) and `write_state_busy`; `wd_mark_radio_down`; `AT+CFUN=0`; 2 s; `AT+QUIMSLOT=<target>`; 2 s; `AT+CFUN=1`; `wait_for_modem`; re-read the slot and `AT+CFUN?` (a CFUN other than 1 gets one more `AT+CFUN=1`); `wd_mark_radio_up` when CFUN reads 1. Success needs both the slot and CFUN=1.
+3. If no attempt verified, one last slot read decides between rc 2 and rc 3 (below).
+4. Removes the flag; for every rc except 1 it touches `/tmp/qmanager_force_tier2` and `/tmp/qmanager_refresh_policy_band` (the dashboard shows the new SIM, same as `cellular/settings.sh`) and calls `wd_quality_mark`.
 
-### 3. Float comparison must use awk
-
-`avg_latency_ms` in `status.json` is a decimal string (e.g. `"1241.4"`). BusyBox `[ "1241.4" -gt 800 ]` returns exit code 2 — it does not evaluate the comparison, it errors. Latency comparison therefore uses awk:
-
-```sh
-awk -v a="$q_avg_latency" -v c="$resolved_latency_threshold" \
-    'BEGIN{ exit !((a+0) > (c+0)) }'
-```
-
-The resolved threshold value comes from `resolve_quality_thresholds()` — a plain integer regardless of whether a preset or custom value was stored. `packet_loss_pct` is an integer in the source; it is safe to use `[ -ge ]` after null/empty → 0 sanitisation.
-
-> ⚠️ WARNING: This is a reusable BusyBox gotcha. Any shell script that compares a value sourced from the poller's `avg_latency_ms` with `[ -gt ]` will silently misbehave. Always use awk for float comparisons.
-
-### 4. Separate counter, shared ladder
-
-The quality path maintains `quality_breach_counter` independently of the reachability path's `failure_counter`. On reaching `quality_consecutive` breaches, `evaluate_quality` resets `quality_breach_counter` to 0, sets `recovery_reason="quality"`, and calls `do_recovery` — the same Tier 1→4 engine used by the reachability path. The reachability path sets `recovery_reason="unreachable"`.
-
-### 5. Reason-aware cooldown
-
-`finish_cooldown()` branches on `recovery_reason` to choose its success criterion.
-
-- **`recovery_reason="unreachable"`:** Success = `ping_reachable=true` from a fresh `qmanager_ping.json` read. If this was Tier 3, finalize SIM failover state.
-- **`recovery_reason="quality"`:** A degraded-but-reachable link reports `reachable=true` throughout, so the reachability check would always declare success. Instead, success is a fresh `read_quality` call that does NOT breach the resolved thresholds from `resolve_quality_thresholds()` (`!quality_breached`). On Tier-3 success, `finalize_sim_failover` is called — identical to the reachability arm. Without finalization, a quality-triggered swap strands the modem on the backup SIM with no failover state and no revert path.
-
-**Why:** Without this branch, a quality-triggered recovery on a link that is reachable but slow would always be declared "restored" at cooldown, even if the link is still slow. The daemon would cycle through all tiers in quick succession. The quality path previously skipped Tier-3 finalization; that was reversed — finalization now runs on both success arms via the shared `finalize_sim_failover()` function.
-
-### 6. States where evaluate_quality runs
-
-`evaluate_quality` is called at the bottom of the main loop only when `state = "monitor"` or `state = "suspect"`. It does not run during `cooldown`, `locked`, `recovery`, or `ssr_hold`. The `ssr_hold` exclusion is intentional — running quality evaluation while the modem is mid-SSR-self-heal would re-trigger the quality path and immediately re-enter the hold or the ladder, defeating the purpose. The quality breach counter is reset on:
-- Natural `suspect → monitor` recovery.
-- LOCKED state entry and exit.
-- Quality trigger firing (counter resets to 0 before `do_recovery`).
-- Quality cooldown success.
-
-### 7. Effective detection latency
-
-`avg_latency_ms` and `packet_loss_pct` in `status.json` are already computed as windowed averages over approximately 60 samples by the poller. Setting `quality_consecutive=5` with `check_interval=10` means the watchdog requires 50 seconds of consecutive breaches of an already-smoothed metric. Real detection time is roughly `quality_consecutive × check_interval` on top of the poller's averaging window. Do not expect instant reaction to a brief spike.
-
-### 8. Reboot-loop safety
-
-A persistently degraded link that escalates to Tier 4 is bounded by the existing `max_reboots_per_hour` token bucket. On reaching the limit, the daemon auto-disables by writing `quecmanager.watchcat.enabled=0` to UCI and exiting. `quality_enabled` being default-off is the first safety layer; the token bucket is the second.
-
----
-
-## Daemon State File (`/tmp/qmanager_watchcat.json`)
-
-Written atomically via `STATE_TMP` → `mv`. The CGI GET passes the full file contents through as the `status` field in the response, so the frontend settings page receives it automatically.
-
-| Field | Type | Meaning |
+| rc | Meaning | Callers treat it as |
 |---|---|---|
-| `timestamp` | int (epoch) | When state was last written |
-| `enabled` | bool | Whether daemon is enabled |
-| `state` | string | Current state: `monitor`/`suspect`/`recovery`/`cooldown`/`locked`/`disabled`/`ssr_hold` |
-| `current_tier` | int | Active recovery tier (0 = none) |
-| `failure_count` | int | Reachability failure counter |
-| `last_recovery_time` | int or null | Epoch of last recovery action |
-| `last_recovery_tier` | int or null | Tier of last recovery action |
-| `total_recoveries` | int | Total recovery actions since daemon start |
-| `cooldown_remaining` | int | Seconds remaining in cooldown |
-| `sim_failover_active` | bool | Whether modem is currently on the backup SIM. Written via `--arg sf_active "$sim_failover_active"` and compared `($sf_active == "true")` so the JSON output is a real boolean. |
-| `original_sim_slot` | int or null | SIM slot before Tier 3 |
-| `current_sim_slot` | int or null | Current SIM slot |
-| `reboots_this_hour` | int | **Watchdog (`tier4_escalation`) reboots only** from crash.log in the last 3600s — `count_recent_reboots()` filters on the reason field so the Alerts feature's `user`/`unplanned` rows (see [Alerts](alerts.md#reboot-alerts)) never inflate the tier-4 token bucket |
-| `quality_breach_count` | int | Current consecutive quality breach counter |
-| `quality_enabled` | bool | Reflects `CFG_QUALITY_ENABLED` at time of write |
-| `last_recovery_reason` | string | `"unreachable"` or `"quality"` |
-| `ssr_hold` | bool | Whether the daemon is currently holding the recovery ladder for an in-progress SSR self-heal |
-| `last_ssr_detected` | int or null | Monotonic seconds since boot when the most recent MPSS crash line was detected; null if no SSR has been seen this session |
+| 0 | Slot reads back as the target and the radio is on, or the modem was already there | success |
+| 1 | The final re-read shows the modem is not on the target | nothing happened; nothing to record |
+| 2 | Modem is on the target but the radio is not confirmed on (a last `AT+CFUN=1` was sent; the radio marker stays set if CFUN still does not read 1) | the swap happened; record it like rc 0 |
+| 3 | The final slot read failed too; outcome unknown | "not proven": callers that must know call `wd_sim_adopt_live_slot`, the rest treat it like 1 |
 
-> ℹ️ NOTE: `revert_settle_active` is an in-process shell variable only — it is NOT written to the state file. The UI sees the settle as a normal `cooldown` state with `cooldown_remaining` set to `SIM_SETTLE_SECS` (90 s); there is no separate field to distinguish a post-revert settle from a post-recovery cooldown in the state file.
+Call sites:
 
-> ℹ️ NOTE: The poller re-emits a `watchcat` object into `status.json`, but it does NOT yet carry `quality_breach_count`, `quality_enabled`, `last_recovery_reason`, `ssr_hold`, or `last_ssr_detected`. The status card (`status-band.tsx`) reads `state` from the poller's re-emit via `useModemStatus` (the poller passes `.state` verbatim, so `"ssr_hold"` flows from daemon to state file to poller to `modemStatus.watchcat.state` without any poller change). Since U4.6 nothing on the page reads `quality_breach_count`.
-
----
-
-## CGI Envelope
-
-### GET `/cgi-bin/quecmanager/monitoring/watchdog.sh`
-
-Returns current UCI settings, live daemon state, SIM failover state, SIM swap detection, and auto-disabled flag.
-
-**Response shape:**
-
-```json
-{
-  "success": true,
-  "settings": {
-    "enabled": false,
-    "fail_threshold": 5,
-    "check_interval": 10,
-    "cooldown": 60,
-    "tier1_enabled": true,
-    "tier2_enabled": true,
-    "tier3_enabled": false,
-    "tier4_enabled": true,
-    "backup_sim_slot": null,
-    "max_reboots_per_hour": 3,
-    "quality_enabled": false,
-    "quality_consecutive": 5,
-    "ssr_aware": true,
-    "ssr_grace": 45,
-    "primary_recheck_enabled": false,
-    "primary_recheck_interval": 30
-  },
-  "probe_profile": "relaxed",
-  "interval_override": null,
-  "effective_interval": 5,
-  "interval_sec": 5,
-  "fail_secs": 15,
-  "recover_secs": 10,
-  "quality_thresholds": {
-    "latency_ms": 250,
-    "loss_pct": 30,
-    "latency_preset": "tolerant",
-    "loss_preset": "tolerant"
-  },
-  "status": { ... },
-  "sim_failover": { "active": false },
-  "sim_swap": { "detected": false },
-  "auto_disabled": false
-}
-```
-
-`status` is the raw contents of `/tmp/qmanager_watchcat.json`; it is `{}` if the file is absent (daemon not yet started). `settings.backup_sim_slot` is `null` if the UCI value is empty. `interval_override` is `null` when not set. The probe-cadence keys (`probe_profile`, `interval_override`, `effective_interval`, `interval_sec`, `fail_secs`, `recover_secs`) and `quality_thresholds` are top-level siblings of `settings`, not nested in it. `quality_thresholds` is a read-only passthrough of the shared `quecmanager.quality_thresholds.*` keys — it is included for display purposes; changes to it must be saved via `quality_thresholds.sh`, not via the watchdog POST.
-
-### POST `/cgi-bin/quecmanager/monitoring/watchdog.sh`
-
-Three actions are supported.
-
-**`save_settings`** — validate and write the settings fields **present in the body** to UCI, touch the reload flag, and restart or stop the daemon as appropriate. Every key is optional: an absent key leaves its UCI value untouched, which is what lets each bento card send only its own fields (since U4.6 this includes `backup_sim_slot`, which used to be cleared whenever the key was missing). When the probe interval changed (`probe_profile`, `interval_override` or `probe_interval`), the CGI also touches `/tmp/qmanager_ping_reload` so the running ping daemon picks up the new interval within one probe cycle.
-
-The page sends one card at a time. Ladder card:
-
-```json
-{
-  "action": "save_settings",
-  "enabled": true,
-  "tier1_enabled": true,
-  "tier2_enabled": true,
-  "tier3_enabled": false,
-  "tier4_enabled": true,
-  "backup_sim_slot": null,
-  "primary_recheck_enabled": false,
-  "primary_recheck_interval": 30,
-  "max_reboots_per_hour": 3
-}
-```
-
-Detection card:
-
-```json
-{
-  "action": "save_settings",
-  "probe_interval": 10,
-  "fail_threshold": 5,
-  "cooldown": 60,
-  "quality_enabled": true,
-  "quality_consecutive": 5,
-  "ssr_aware": true,
-  "ssr_grace": 45
-}
-```
-
-The older full-body form (every key, plus `check_interval`, `probe_profile`, `interval_override`) is still accepted:
-
-```json
-{
-  "action": "save_settings",
-  "enabled": true,
-  "fail_threshold": 5,
-  "check_interval": 10,
-  "cooldown": 60,
-  "tier1_enabled": true,
-  "tier2_enabled": true,
-  "tier3_enabled": false,
-  "tier4_enabled": true,
-  "backup_sim_slot": null,
-  "max_reboots_per_hour": 3,
-  "quality_enabled": true,
-  "quality_consecutive": 5,
-  "ssr_aware": true,
-  "ssr_grace": 45,
-  "primary_recheck_enabled": false,
-  "primary_recheck_interval": 30,
-  "probe_profile": "relaxed",
-  "interval_override": null
-}
-```
-
-Send `"interval_override": null` to clear a custom override and revert to the profile-derived interval. The CGI uses `has("interval_override")` to distinguish an explicit null-clear from a missing field — always include the key when you intend to modify the override.
-
-**`dismiss_sim_swap`** — sets `.dismissed = true` in `/tmp/qmanager_sim_swap_detected`.
-
-**`revert_sim`** — writes `/tmp/qmanager_watchcat_revert_sim`; the running daemon picks it up within one cycle.
-
-**POST success:**
-
-```json
-{ "success": true }
-```
-
-**POST validation errors:**
-
-```json
-{ "success": false, "error": "invalid_field", "field": "fail_threshold", "reason": "must be integer 1-20" }
-```
-
-| Field | Validation |
+| Site | On rc 1 (and 3 where noted) |
 |---|---|
-| `fail_threshold` | int 1–20 |
-| `check_interval` | int 5–60 |
-| `cooldown` | int 10–300 |
-| `max_reboots_per_hour` | int 1–10 |
-| `backup_sim_slot` | 1 or 2 to set; JSON `null` to clear; absent leaves it untouched |
-| `probe_interval` | int 1–60; written only when it differs from the current cadence (see Probe-interval ownership keys) |
-| `quality_consecutive` | int 1–60 |
-| `ssr_grace` | int 10–120 |
-| `ssr_aware` | boolean |
-| `primary_recheck_enabled` | boolean |
-| `primary_recheck_interval` | int 5–1440 (minutes) |
-| `probe_profile` | one of: `sensitive`, `regular`, `relaxed`, `quiet` |
-| `interval_override` | int 1–60 to set; JSON `null` to clear; field must be present if intent is to change |
+| `execute_tier3` | restart tower failover, `original_sim_slot` stays `null`, return 1 (tier skipped). rc 3: read the slot again; unreadable -> assume swapped and record; still original -> skip; other -> adopt. |
+| `sim_failover_fallback` | return 1 with every failover variable intact and an error event; rc 0/2 count as a completed revert |
+| `initiate_primary_recheck` | stay on the backup, restart the recheck clock, no settle (rc 1 and 3) |
+| return leg in `wd_sim_finish_recheck` | read the slot: modem stayed on the primary -> treated as a failback with the benign settle; otherwise error event and `current_sim_slot` from the read |
 
-> ℹ️ NOTE: The CGI error envelope uses `reason` rather than `detail` for field validation errors (field-level errors need to name the field). The hook `useWatchdogSettings` passes `json.reason` as the `detail` argument to `resolveErrorMessage`.
+### Tier 3 sequence
 
----
+1. No backup slot configured, unreadable current slot, or backup equals current -> skip the tier.
+2. Capture the original SIM's ICCID, stop `qmanager_tower_failover` (its locks mean nothing on another SIM).
+3. `wd_swap_slot` (above). `original_sim_slot`, `original_sim_iccid`, `current_sim_slot` are set **after** a verified swap, so a swap that never happened leaves no record.
+4. Save the **unconfirmed** failover record (`confirmed:false`) immediately, so a reboot during the settle still knows the modem is on the backup.
+5. `AT+CPIN?` guard: up to 3 reads, 1 s apart; only `rc=0` with `+CPIN: READY` passes (right after `CFUN=1` the modem can answer `+CME ERROR: 14`, SIM busy). Otherwise `sim_failover_fallback`, then `wd_sim_adopt_live_slot` if that failed. Daemon AT checks judge `"$rc:$result"`: on this target `qcmd` prints a modem `ERROR` on stdout with rc 0, and a transport failure exits non-zero with empty stdout.
+6. Enter cooldown (`max(CFG_COOLDOWN, 90)`).
+7. On a successful cooldown, `finalize_sim_failover` (shared by both success arms, self-guarded: Tier 3, slot moved, original known) sets `sim_failover_active`, rewrites the record without `confirmed`, runs `sim_db_add`, auto-applies a matching custom profile (`auto_apply_profile ... "watchdog"`) and starts the auto-failback clock (`last_recheck_time`).
 
-## Apply / Reload Pipeline
+### Failover record (two copies)
 
-```
-POST save_settings
-  ↓
-Validate fields
-uci commit quecmanager
-touch /tmp/qmanager_watchcat_reload
-  ↓
-if probe interval changed (probe_profile or interval_override):
-    touch /tmp/qmanager_ping_reload   ← qmanager_ping picks this up within one probe cycle
-  ↓
-if enabled:
-    /etc/init.d/qmanager_watchcat enable
-    /etc/init.d/qmanager_watchcat restart (fire-and-forget)
-    rm -f /tmp/qmanager_watchcat_disabled
-else:
-    /etc/init.d/qmanager_watchcat stop
-    /etc/init.d/qmanager_watchcat disable
-  ↓
-Running daemon: checks RELOAD_FLAG at top of each loop iteration,
-calls read_config(), removes flag.
-```
-
-Config changes take effect within one `check_interval` cycle (5–60 s). No full daemon restart is needed for quality consecutive or probe-interval changes when the daemon is already running.
-
-> ⚠️ WARNING: **`quality_thresholds.sh` POST touches TWO reload flags.** Because the shared quality thresholds feed both the poller (Network Events) and the watchdog, `quality_thresholds.sh` must touch BOTH `/tmp/qmanager_quality_reload` AND `/tmp/qmanager_watchcat_reload` on every successful POST. Missing either flag means one of the two daemons continues running the old threshold until it is restarted. This is the dual reload-flag invariant — verify it is present in any future edit to `quality_thresholds.sh`.
-
----
-
-## Recovery-Lifecycle Network Events
-
-The watchdog writes events to the Network Events log for the full recovery lifecycle. These events use the **existing** event-type strings — no new types were introduced:
-
-| Lifecycle point | Event type | Notes |
+| Copy | Path | Role |
 |---|---|---|
-| Recovery started | `watchcat_recovery` | Written at the start of a recovery action; reason field carries `"unreachable"` or `"quality"` |
-| Step outcome (success/escalation) | `watchcat_recovery` | Written after each tier completes and cooldown evaluates |
-| SIM failover leg | `sim_failover` | Reuses the existing SIM failover event type for Tier 3 |
-| Recovery exhausted | `watchcat_recovery` | Written when the ladder reaches Tier 4 and auto-disables |
+| RAM | `/tmp/qmanager_sim_failover` | what the poller (`status.json` `sim_failover`: `active`, `original_slot`, `current_slot`, `switched_at` only) and the CGI GET read |
+| Flash | `/etc/qmanager/sim_failover.json` | survives a reboot; the modem keeps its slot across a reboot, so the failover must too |
 
-> ℹ️ NOTE: The decision to reuse existing event-type strings rather than introduce new ones is intentional — the event log consumer (Network Events UI + any alerting) already knows how to render `watchcat_recovery` and `sim_failover`. Adding new strings would require a UI update and i18n additions before the events displayed correctly.
-
----
-
-## SIM Failover Lifecycle
-
-Tier 3 handles both the forward swap (primary → backup SIM) and the user-requested revert (backup → primary). The two paths share the same Golden Rule AT sequence (`AT+CFUN=0` → `AT+QUIMSLOT=N` → `AT+CFUN=1`) and the same 90 s settle floor.
-
-### Known-SIM tracking (`sim_db_add`)
-
-Every SIM that the watchdog lands on — whether via a successful forward swap, an inline fallback, or a revert — is recorded in the known-SIM database via `sim_db_add` from `sim_db.sh`. This tells the poller's boot-time SIM-swap detector that the ICCID is expected, so it does not fire a spurious "New SIM card detected" alert after a revert or a reboot.
-
-> ℹ️ NOTE: The retired `last_iccid` write (from earlier versions) has been replaced by `sim_db_add`. The `known_iccids` persistent set is the canonical source of truth. If you see references to `last_iccid` in older notes, they are superseded.
-
-### ICCID read — 3×retry pattern
-
-After any SIM transition, reading the ICCID is attempted up to three times with 1 s sleeps between attempts (`for _try in 1 2 3`). A slow-to-respond modem may not expose the new SIM at `AT+QCCID` immediately after `AT+CFUN=1`. If all three attempts fail, the daemon logs a warning and continues — a missing ICCID never blocks recovery or a revert.
-
-### Forward swap (`execute_tier3` + cooldown finalization)
-
-1. Read current slot via `AT+QUIMSLOT?`.
-2. Capture the original slot's ICCID via 3×1s-retry `AT+QCCID` read (into `original_sim_iccid`) BEFORE detaching. Best-effort: if unreadable after 3 tries, `original_sim_iccid` remains `""` and the swap continues.
-3. Stop the tower-failover daemon (its lock state is meaningless on the backup SIM).
-4. Golden Rule sequence: `AT+CFUN=0` → 2 s → `AT+QUIMSLOT=N` → 2 s → `AT+CFUN=1`.
-5. `wait_for_modem` (up to 60 s). On failure, call `sim_failover_fallback` and enter cooldown.
-6. `AT+CPIN?` SIM-presence guard: up to 3 reads, 1 s apart. The check passes only on `rc=0` and a `+CPIN: READY` line. Right after `AT+CFUN=1`, the modem can answer `+CME ERROR: 14` (SIM busy) while SIM init is still running, so one failed read is routine and not proof the slot is empty. A `+CPIN:` reply other than READY (PIN/PUK) is logged as that state. Anything else after 3 tries is "could not confirm". Both cases call `sim_failover_fallback` and enter cooldown.
-
-> ℹ️ NOTE: On this target `qcmd` prints a modem `ERROR` on stdout with rc=0, and a transport failure (lock timeout, broker down) exits non-zero with empty stdout. A bare `*ERROR*` match therefore catches modem errors but reads a transport failure as success. Daemon AT checks judge `"$rc:$result"` instead (watchcat Tier 3, `qmanager_tower_failover`, `qmanager_tower_schedule`).
-7. Enter cooldown with `cooldown_remaining = max(CFG_COOLDOWN, SIM_SETTLE_SECS)`.
-8. **Finalization via `finalize_sim_failover()`** — called from the success arm of BOTH `recovery_reason="unreachable"` and `recovery_reason="quality"` paths in `finish_cooldown`. The function is self-guarded (no-op unless `current_tier==3` && slot moved && `original_sim_slot != "null"`), so both arms may call it unconditionally. It: sets `sim_failover_active="true"`, writes `/tmp/qmanager_sim_failover` (including `original_iccid` and `reason` field — `"connectivity_failure"` or `"quality_degradation"`), calls `sim_db_add` on the backup ICCID (3×retry), auto-applies a matching custom profile (`auto_apply_profile … "watchdog"`), and records `last_recheck_time` to start the auto-failback clock.
-
-The state is NOT finalized during `execute_tier3` itself — finalization waits for the cooldown success test so a false-positive connectivity return does not prematurely lock in the failover state.
-
-**`/tmp/qmanager_sim_failover` shape:**
+Only `wd_failover_save <json>` and `wd_failover_clear` touch them. `wd_failover_save` refuses an empty record (a failed `jq` must never blank a good file), writes `/tmp` with `qm_atomic_write` and flash with `qm_durable_write`. Flash writes happen only at save and clear (rare). `wd_failover_clear` removes both.
 
 ```json
 {
@@ -615,172 +455,328 @@ The state is NOT finalized during `execute_tier3` itself — finalization waits 
   "switched_at": 1718900000,
   "reason": "connectivity_failure",
   "original_iccid": "89014103211118510720",
-  "current_iccid": "89012303211118510720"
+  "current_iccid": "89012303211118510720",
+  "confirmed": false,
+  "revert_pending": true
 }
 ```
 
-`reason` is `"connectivity_failure"` for reachability-triggered swaps, `"quality_degradation"` for quality-triggered swaps. `original_iccid` is the ICCID of the primary SIM read before the swap; it is `""` only if the 3×retry `AT+QCCID` read failed entirely.
+| Key | Notes |
+|---|---|
+| `reason` | `connectivity_failure` or `quality_degradation` (mirrors `recovery_reason`) |
+| `original_iccid` | `""` only if the 3-try read failed entirely |
+| `confirmed` | present **only** as `false`: saved right after a Tier 3 swap, before the cooldown judges it. `finalize_sim_failover` and a resume drop it. |
+| `revert_pending` | present **only** as `true`: a swap-back deferred because the user turned the radio off, kept across a daemon restart (see below) |
 
-### Fallback (`sim_failover_fallback`)
+> ℹ️ NOTE: The poller publishes `active` from the /tmp record, so the dashboard failover banner can appear during the Tier 3 cooldown, before the swap is confirmed. If the cooldown fails, the fallback clears the record.
 
-Called when the backup SIM is unreachable or `wait_for_modem` times out during the forward swap. Performs the Golden Rule sequence back to the original slot, then:
+### Adopt-live-slot rule
 
-- **Normal modem path** (`wait_for_modem` succeeds): 3×retry ICCID read → `sim_db_add` → `auto_apply_profile … "watchdog_revert"` → restart tower-failover daemon.
-- **Slow-modem path** (`wait_for_modem` times out): 3×retry ICCID read → `sim_db_add` (best-effort) → log warning → continue. Auto-apply and tower-failover restart are skipped; the slot command was already sent. This path still calls `sim_db_add` so the next boot does not false-fire "New SIM detected".
+`wd_sim_adopt_live_slot` runs after any revert that was not proven (`sim_failover_fallback` returned 1). The modem is then most likely still on the backup with `sim_failover_active=false` and no record, so a user revert, auto-failback and a reboot would all be blind to it. It requires `original_sim_slot` to be known, reads the live slot, and: unreadable -> leave state alone; equal to the original -> clear a stale record; otherwise mark the failover active, save the record (with ICCID and reason), `sim_db_add` and start the recheck clock. It sets `WD_ADOPT_SLOT` for callers that must branch on the result. Callers: `_cooldown_handle_failure`, the Tier 3 CPIN failures, `_wd_sim_revert_run`, `wd_sim_on_unlock`, `wd_sim_defer_revert`, and Tier 3 rc 3.
 
-> ℹ️ NOTE: Without the slow-modem `sim_db_add`, the poller's boot-time swap detector would fire "New SIM card detected" after a reboot following a slow revert — a regression that was introduced by an earlier refactor and has been restored. The ICCID read on the slow path is best-effort: if genuinely unreadable after 3 retries, only a warning is logged; the revert never blocks.
+### Resume at start, and the 60 s retry
+
+`wd_sim_resume_at_start` runs in `main` after `BOOT_SETTLE` and `wd_quality_mark` (the modem answers by then), and again from `wd_sim_resume_retry`.
+
+- Candidates in order: the /tmp copy, then the flash copy. Each must be root-owned (`qm_trusted_file`); an untrusted copy is removed. The first copy that parses wins; `active` must be `true`.
+- The live slot comes from `wd_read_slot`. **Unreadable: keep both copies and activate nothing** (a blank read must never delete a valid record). **Match with `current_slot`: resume** (restore slots and `original_iccid`, copy the flash record into /tmp or vice versa so both exist, restart the recheck clock, drop `confirmed:false`). **Mismatch: `wd_failover_clear`.**
+- `wd_sim_resume_retry` retries a record that startup could not resume every `WD_RESUME_RETRY_SECS` (60 s) while idle in `monitor`, no failover is active and a copy exists. The first call only arms the timer.
 
 ### Revert semantics (`check_revert_request`)
 
-A user-requested revert (`POST action=revert_sim`) writes `/tmp/qmanager_watchcat_revert_sim`. The daemon checks this flag each loop iteration via `check_revert_request`, which has three branches:
+A user revert (`POST action=revert_sim`) writes the flag; the daemon calls `check_revert_request` every pass before the lock check. A flag that is not root-owned is dropped.
 
-| Branch | Condition | Action |
-|---|---|---|
-| Safe to revert now | `sim_failover_active="true"` AND state is NOT `recovery` or `cooldown` | Delete flag, call `sim_failover_fallback`, enter cooldown as `revert_settle_active=true` for `SIM_SETTLE_SECS` |
-| Defer | `sim_failover_active="true"` AND state is `recovery` or `cooldown` | Keep flag; logged as "deferring to next cycle" |
-| Swap mid-flight | `original_sim_slot != "null"` AND `current_sim_slot != original_sim_slot` (slot moved but cooldown hasn't finalized yet) | Keep flag pending — consumed after finalization |
-| Nothing to revert | Neither of the above | Delete flag silently |
+| Condition | Action |
+|---|---|
+| Failover active, state `recovery` or `cooldown` | keep the flag, defer |
+| Failover active, `check_locked`, or state `locked`, `radio_off`, `ssr_hold` | keep the flag, defer (a swap now would cycle the radio under the lock, airplane mode or hold) |
+| Failover active and idle | consume the flag, event, `_wd_sim_revert_run` |
+| No failover, but a Tier 3 swap is mid-flight (slot moved, not finalized) | keep the flag pending until finalization |
+| Nothing to revert | delete the flag |
 
-**Why defer instead of silently drop:** A `revert_sim` POST that arrives during the post-swap cooldown window was previously deleted unconditionally, and the user's request was silently lost. The current logic keeps the flag pending until the daemon is in a quiescent state. The defer guard (`state = "recovery"` or `"cooldown"`) prevents the revert from racing an in-flight AT sequence.
+`_wd_sim_revert_run` calls `sim_failover_fallback`. On failure (swap back not verified) it returns 1 with the failover still active and the record kept (plus the adopt rule); the request is consumed and the user can ask again. On success it clears the record; when `WD_SWAP_NOOP=true` (already on the original slot) there is no settle, otherwise the post-revert settle runs (`revert_settle_active=true`, `cooldown_remaining=90`, state `cooldown`). The settle is a benign hold: `finish_cooldown` returns to `monitor` without running the verdict or escalating.
 
-### Post-revert settle floor (`revert_settle_active`)
+**Why defer instead of drop:** a revert that arrived during the post-swap cooldown used to be deleted silently.
 
-After `sim_failover_fallback` completes during a user revert, the daemon enters the `cooldown` state with `cooldown_remaining=SIM_SETTLE_SECS` and `revert_settle_active="true"`. The `finish_cooldown` function has a top guard (arm 2, after the primary-recheck arm): when `revert_settle_active="true"`, it clears the flag, resets counters, and returns to `monitor` WITHOUT running the reason-aware success/escalation logic. This is correct — a revert has no tier to validate and must not escalate.
+### Revert pending (airplane mode during a failed Tier 3)
 
-`revert_settle_active` is also cleared on LOCKED-state entry (along with the rest of the recovery state) so a maintenance window cannot strand the daemon in a phantom settle.
+If a Tier 3 cooldown fails while the radio is off, the swap-back would cycle a radio the user turned off. `_cooldown_handle_failure` instead calls `wd_sim_defer_revert`: the modem stays on the backup as a recorded failover, `wd_sim_revert_pending="true"`, and the record gets `revert_pending:true`; the daemon parks in `radio_off`. The swap-back is completed through the same `_wd_sim_revert_run` path:
 
-### Unconfirmed swap on LOCKED exit
+- when the radio comes back (`wd_sim_on_radio_back`, from the `radio_off` arm);
+- at the next daemon start (`wd_sim_resume_at_start`): radio on -> run now; radio off -> `radio_off` and wait; under a maintenance lock it only stays pending;
+- after a lock ends (`wd_sim_on_unlock`), ahead of the unconfirmed-swap revert (radio on -> run; off -> `radio_off`).
 
-Entering LOCKED during a Tier-3 cooldown abandons the recovery before `finalize_sim_failover` runs. Without a guard, the modem stays on the backup SIM with `sim_failover_active="false"` and `original_sim_slot` still set. A revert request then sits in the "swap mid-flight" branch forever, and the next outage skips Tier 3 because the backup slot equals the current slot. So on LOCKED **exit**, an unconfirmed swap (`sim_failover_active != "true"`, `original_sim_slot != "null"`, slot moved) is reverted with `sim_failover_fallback`, then held for `SIM_SETTLE_SECS` as a revert settle. It is not reverted on entry, because the lock holder (cell scan, profile apply, maintenance lock) owns the modem until the lock clears.
+### Unconfirmed swap and interrupted recheck on LOCKED exit
 
-### Interrupted primary recheck on LOCKED exit (ledger B5.3)
+Entering LOCKED during a Tier 3 cooldown abandons it before `finalize_sim_failover`. On LOCKED **exit** (not entry: the lock holder owns the modem until then) an unconfirmed swap (`sim_failover_active != true`, slot moved from the original) is reverted with `sim_failover_fallback` and held as a revert settle. Entering LOCKED during a primary-recheck settle records `recheck_interrupted`; on exit, if the modem is still on the original slot with the failover active, the settle is re-armed so `finish_cooldown`'s recheck arm decides from a fresh read.
 
-Entering LOCKED during a primary-recheck settle used to drop `primary_recheck_active` and return to `monitor` on exit. That left the modem on the primary slot while `sim_failover_active="true"` and `/tmp/qmanager_sim_failover` still named the backup. The unconfirmed-swap guard above does not catch it, because the failover is active. So LOCKED entry records `recheck_interrupted="true"` when a recheck settle was running. On exit, if the device is still on the original slot with failover active and a `recheck_return_slot`, the settle is re-armed (`primary_recheck_active="true"`, `SIM_SETTLE_SECS`, `cooldown`). Then `finish_cooldown`'s recheck arm decides from a fresh health read: it fails back, or it returns to the backup and rewrites the record. Verified with a stubbed harness on both outcomes (ping reachable and unreachable). Before the fix, the same harness ended in `monitor` on slot 1 with the record naming slot 2.
+### Auto-failback: blind primary recheck
 
-A stale-ping cooldown (3 stale re-reads) does not need this guard. It is treated as a recovery failure, and `_cooldown_handle_failure` already reverts a Tier-3 swap before escalating. (The RM520N fork returned to monitor there and needed `ba4df3b3`.)
+With `primary_recheck_enabled=1`, `sim_failover_active`, state `monitor`, no recheck settle running and no pending revert flag, the loop compares `mono_now` with `last_recheck_time + interval * 60` (monotonic so a boot-time clock step cannot make a recheck due at once; see [scheduled-jobs.md](scheduled-jobs.md)). When due, `initiate_primary_recheck`: records `recheck_return_slot`, `wd_swap_slot` to the primary (rc 1/3 -> stay on backup, restart the clock, no settle), then a `SIM_SETTLE_SECS` cooldown with `primary_recheck_active=true`. `recovery_reason` is left alone so the test uses the quality criterion iff the failover was quality-driven.
 
-The `cooldown_remaining` value in the state file reflects `SIM_SETTLE_SECS` (90 s) during a revert settle, so the UI countdown is honest.
+`wd_sim_finish_recheck` (called first by `finish_cooldown`) decides from a fresh read: ping reachable (and, for a quality failover, `read_quality` not breaching; stale data = unhealthy). **Healthy** -> `_wd_sim_failback`, the shared failback body: clear the record, learn the ICCID, `auto_apply_profile "$iccid" "watchdog_failback"`, restart tower failover, append the event, reset the original slot, counters and recheck clock, return to `monitor`. **Unhealthy** -> `wd_swap_slot` back to the backup (rc 0/2 recorded; otherwise the live slot is read and, if still on the primary, it is a failback with the benign settle), rewrite the record, stop tower failover, restart the interval clock and run a benign settle.
 
-### Auto-failback: blind primary-SIM recheck
+`primary_recheck_active` and `revert_settle_active` are shell variables only; the UI sees a plain `cooldown` countdown.
 
-When `primary_recheck_enabled=1` and the daemon is in an active failover (`sim_failover_active="true"`), the main loop accrues time since `last_recheck_time` (`mono_now`, seconds since boot: a boot-time clock step must not make a recheck due at once; see [scheduled-jobs.md](scheduled-jobs.md)). On reaching `primary_recheck_interval` minutes, `initiate_primary_recheck()` fires — provided: state is `monitor`, no `primary_recheck_active` settle is already in progress, and no user-revert flag is pending (user revert takes precedence).
-
-**`initiate_primary_recheck()` sequence:**
-
-1. Record `recheck_return_slot = current_sim_slot` (backup slot to return to if primary fails).
-2. Golden Rule swap to the primary slot: `AT+CFUN=0` → 2 s → `AT+QUIMSLOT=$original_sim_slot` → 2 s → `AT+CFUN=1`.
-3. `wait_for_modem` (best-effort; failure continues to the settle rather than hard-aborting).
-4. Set `primary_recheck_active="true"`, `cooldown_remaining=SIM_SETTLE_SECS`, `state="cooldown"`.
-5. `recovery_reason` is left unchanged so the health test uses quality criteria if the failover was quality-driven.
-
-**`finish_cooldown` primary-recheck arm** (runs before the `revert_settle_active` and reason-aware arms):
-
-- Reads fresh ping data. If reachable AND (if quality failover: also `!quality_breached`; stale data = unhealthy):
-  - **Primary healthy:** clear failover state, `rm $SIM_FAILOVER_FILE`, 3×retry ICCID read → `sim_db_add`, `auto_apply_profile "$iccid" "watchdog_failback"`, restart tower-failover daemon, reset counters, return to `monitor`. Record `last_recheck_time` to start the next interval.
-  - **Primary still unhealthy:** Golden Rule swap BACK to `recheck_return_slot`, rewrite `$SIM_FAILOVER_FILE`, `sim_db_add`, stop tower-failover daemon, reset `last_recheck_time`, set `revert_settle_active="true"` for a benign 90 s settle.
-
-> ℹ️ NOTE: `primary_recheck_active` is an in-process shell variable only — it is NOT written to the state file (same pattern as `revert_settle_active`). The UI sees a recheck settle as a normal `cooldown` countdown. There is no separate state-file field to distinguish a primary-recheck settle from a post-recovery cooldown.
-
-**Why opt-in and minutes-only:** The inactive SIM slot is hard-muxed off — it receives no radio signal and cannot be tested without physically switching the modem's SIM selection. Every recheck is a real connectivity interruption. A seconds-granularity interval would loop the modem in and out of brief outages. The minimum 5-minute interval is enforced by both the UCI validation range (5–1440) and the daemon's fallback default (30 minutes).
+**Why opt-in and minutes-only:** every recheck is a real outage on a slot that cannot be probed passively; a seconds cadence would loop the modem in and out of outages.
 
 ---
 
-## Frontend Files
+## Daemon state file (`/tmp/qmanager_watchcat.json`)
 
-The page is the RM520N fork's **compact bento with per-card saves** (ledger U4.6, ported from `rm520n` `91a78420` + `cb0d701e` + `baa10530` on 2026-10-16; it replaced the July 2026 status-first page with its tabbed settings card and sticky save bar). Order: page header with a Refresh pill, then the SIM-failover banner (only while on the backup SIM), the **status card**, **Recovery ladder** (7fr) beside **Detection** (5fr) at equal height (stacking below `@4xl/main`), and **Recovery activity**. Every editable card commits its own draft from its own `CardFoot` (Card-Foot Apply Rule); there is no page-level save.
+Written by `write_state` / `write_state_busy` (atomic). The CGI GET passes it through as `status`.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `timestamp` | int (epoch) | Wall-clock time of the write |
+| `mono` | int | `/proc/uptime` seconds at the write (heartbeat) |
+| `stale_after` | int | Seconds after which the poller reports the daemon as not reporting (`3 * check_interval + 60`, or 600 during a long tier) |
+| `enabled` | bool | `CFG_ENABLED` |
+| `state` | string | `monitor`/`suspect`/`recovery`/`cooldown`/`locked`/`disabled`/`ssr_hold`/`radio_off` |
+| `current_tier` | int | Active recovery tier (0 = none) |
+| `failure_count` | int | Display mirror of the raw ping `streak_fail`, not an accumulator |
+| `last_recovery_time` | int or null | Epoch of the last recovery action |
+| `last_recovery_tier` | int or null | Tier of the last recovery action |
+| `total_recoveries` | int | Recovery actions since daemon start (a clean restart resets it; a settings save no longer restarts) |
+| `cooldown_remaining` | int | Seconds left in cooldown |
+| `sim_failover_active` | bool | On the backup SIM (written with `--arg` and compared `== "true"`) |
+| `original_sim_slot` / `current_sim_slot` | int or null | Slots around Tier 3 |
+| `reboots_this_hour` | int | Watchdog (`tier4_escalation`) reboots in the rolling hour; see [Reboot ledger](#reboot-ledger) |
+| `quality_breach_count` | int | Current consecutive quality breach counter |
+| `quality_enabled` | bool | `CFG_QUALITY_ENABLED` |
+| `last_recovery_reason` | string | `"unreachable"` or `"quality"` |
+| `ssr_hold` | bool | Holding for an SSR self-heal |
+| `last_ssr_detected` | int or null | Monotonic seconds of the last detected crash; null if none this session |
+
+The poller re-emits only `enabled`, `state`, `current_tier`, `failure_count`, `last_recovery_*`, `total_recoveries`, `cooldown_remaining`, `reboots_this_hour` and the two heartbeat fields into `status.json` `.watchcat`. The state and activity are RAM-only and are lost on reboot (the ledger and the flash failover record are not).
+
+---
+
+## CGI envelope
+
+### GET `/cgi-bin/quecmanager/monitoring/watchdog.sh`
+
+```json
+{
+  "success": true,
+  "settings": {
+    "enabled": false, "fail_threshold": 5, "check_interval": 10, "cooldown": 60,
+    "tier1_enabled": true, "tier2_enabled": true, "tier3_enabled": false, "tier4_enabled": true,
+    "backup_sim_slot": null, "max_reboots_per_hour": 3,
+    "quality_enabled": false, "quality_consecutive": 5,
+    "ssr_aware": true, "ssr_grace": 45,
+    "primary_recheck_enabled": false, "primary_recheck_interval": 30
+  },
+  "probe_profile": "relaxed",
+  "interval_override": null,
+  "effective_interval": 5, "interval_sec": 5, "fail_secs": 15, "recover_secs": 10,
+  "quality_thresholds": { "latency_ms": 250, "loss_pct": 30, "latency_preset": "tolerant", "loss_preset": "tolerant" },
+  "status": { "...": "raw /tmp/qmanager_watchcat.json, or {}" },
+  "sim_failover": { "active": false },
+  "sim_swap": { "detected": false },
+  "auto_disabled": false,
+  "recent_reboots": [1737158400, 1737150000]
+}
+```
+
+- `recent_reboots`: Tier-4 ledger epochs, newest first, at most 5, `[]` on any problem or an absent ledger.
+- `sim_failover` is the raw /tmp record, so it can carry `confirmed:false` and `revert_pending:true` in addition to the keys above.
+- Robustness: `status`, `sim_failover`, `sim_swap` and `recent_reboots` each go through `json_or_default` (exactly one value of the expected type, else the default), and every UCI numeric/boolean used with `--argjson` is coerced with `case` (`coerce_int`, `coerce_bool`). A 0-byte or half-written state file, a garbage failover file or `cooldown=abc` still returns `success:true`.
+- `settings.backup_sim_slot` is `null` when empty. The probe-cadence keys and `quality_thresholds` are top-level siblings of `settings`; `quality_thresholds` is a read-only passthrough (change it via `quality_thresholds.sh`).
+
+### POST
+
+**`save_settings`** validates and writes only the keys **present in the body** (an absent key leaves its UCI value untouched, `backup_sim_slot` included), commits, touches the reload flag and enables/starts or stops/disables the daemon. Each bento card sends only its own keys. Ladder card:
+
+```json
+{ "action": "save_settings", "enabled": true, "tier1_enabled": true, "tier2_enabled": true,
+  "tier3_enabled": false, "tier4_enabled": true, "backup_sim_slot": null,
+  "primary_recheck_enabled": false, "primary_recheck_interval": 30, "max_reboots_per_hour": 3 }
+```
+
+Detection card:
+
+```json
+{ "action": "save_settings", "probe_interval": 10, "fail_threshold": 5, "cooldown": 60,
+  "quality_enabled": true, "quality_consecutive": 5, "ssr_aware": true, "ssr_grace": 45 }
+```
+
+The older full-body form (every key plus `check_interval`, `probe_profile`, `interval_override`) is still accepted.
+
+**`dismiss_sim_swap`** sets `.dismissed = true` in `/tmp/qmanager_sim_swap_detected`. **`revert_sim`** writes `/tmp/qmanager_watchcat_revert_sim` (root-owned); the daemon picks it up within one pass. Both return `{ "success": true }` (`revert_sim` adds a `message`).
+
+**Validation errors** (HTTP 200, `success:false`):
+
+```json
+{ "success": false, "error": "invalid_field", "field": "fail_threshold", "reason": "must be integer 1-20" }
+```
+
+| Field | Validation |
+|---|---|
+| `fail_threshold` | int 1-20 |
+| `check_interval` | int 5-60 |
+| `cooldown` | int 10-300 |
+| `max_reboots_per_hour` | int 1-10 |
+| `backup_sim_slot` | 1 or 2 to set; JSON `null` to clear; absent leaves it |
+| `probe_interval` | int 1-60; written only when it differs from the current cadence |
+| `quality_consecutive` | int 1-60 |
+| `ssr_grace` | int 10-120 |
+| `primary_recheck_interval` | int 5-1440 (minutes) |
+| `probe_profile` | `sensitive`, `regular`, `relaxed`, `quiet` |
+| `interval_override` | int 1-60 to set; `null` to clear; the key must be present to change it |
+
+`ssr_aware`, `quality_enabled`, the tier flags, `enabled` and `primary_recheck_enabled` take booleans; any other value is silently ignored (deferred). `reject_field` runs `uci -q revert quecmanager` before printing, so a rejected save leaves nothing staged for a later `uci commit` to apply. **Why:** one rejected field could otherwise arm Tier 4 on someone else's commit.
+
+> ℹ️ NOTE: The error envelope uses `reason`, not `detail`. `useWatchdogSettings` passes `json.reason` to `resolveErrorMessage` as the detail.
+
+---
+
+## Apply / reload (no restart on save)
+
+```
+POST save_settings
+  validate -> uci set -> uci commit quecmanager
+  touch /tmp/qmanager_watchcat_reload
+  probe interval changed? -> touch /tmp/qmanager_ping_reload
+  enabled=1:
+      rm -f /tmp/qmanager_watchcat_disabled
+      /etc/init.d/qmanager_watchcat enable
+      daemon running?  yes -> nothing (it reloads from the flag)
+                       no  -> start it (backgrounded)
+  enabled=0:
+      /etc/init.d/qmanager_watchcat stop ; disable
+```
+
+The running daemon checks `RELOAD_FLAG` at the top of each pass (after `wd_ledger_tick`), removes it, logs "Config reload requested" and calls `read_config`; if the reload shows `enabled != 1` it writes `state="disabled"` and exits. Changes take effect within one `check_interval` (5-60 s).
+
+**Why no restart:** the old save restarted the daemon every time, which dropped the in-flight cooldown, the Tier 3 SIM state, hold-offs and the recovery counters mid-recovery. The same rule applies to the config-restore watchdog section (start only when down). The idiom is the same as `vpn/netbird.sh` (`running` check).
+
+> ⚠️ WARNING: **`quality_thresholds.sh` POST touches TWO reload flags.** Because the shared thresholds feed both the poller (Network Events) and the watchdog, it must touch BOTH `/tmp/qmanager_quality_reload` AND `/tmp/qmanager_watchcat_reload`. The watchdog deliberately does not consume the quality flag (the poller owns its deletion). Verify both on any edit to `quality_thresholds.sh`.
+
+---
+
+## Recovery-lifecycle network events
+
+The watchdog appends to the RAM event ring (`/tmp/qmanager_events.json`, max 50, lost on reboot) using the existing types `watchcat_recovery` and `sim_failover` (no new strings, so the Network Events UI and alerting render them). Events carry only `{timestamp, type, message, severity}`; the trigger reason is part of the message text.
+
+| Lifecycle point | Type | Message |
+|---|---|---|
+| Quality breach starts recovery | `watchcat_recovery` | "Watchcat: connection quality degraded (latency ... / loss ...) - starting recovery" |
+| Recovery marker (once per tier and reason) | `watchcat_recovery` | "Watchcat: starting recovery (Tier N) - internet unreachable" or "... - connection quality degraded" |
+| Tier actions | `watchcat_recovery` / `sim_failover` | "re-registering on network (Tier 1)", "toggling radio (Tier 2)", "switching to SIM slot N (Tier 3)", "rebooting system (Tier 4)" |
+| Escalation | `watchcat_recovery` | "recovery escalating to Tier N - previous tier did not restore the connection" |
+| Success | `watchcat_recovery` | "recovery succeeded (Tier N) - ..." |
+| SSR hold | `watchcat_recovery` | "recoverable baseband restart detected - holding recovery to let the modem self-heal" |
+| Radio off | `watchcat_recovery` | "radio is off, recovery paused until it is turned back on" |
+| Ladder exhausted | `watchcat_recovery` | "all recovery steps tried, pausing 15 minutes" |
+| Auto-disable | `watchcat_recovery` | "Watchcat disabled: reboot limit exceeded (N reboots/hour)" |
+| Failover, revert, recheck | `sim_failover` | confirmed, reverting, unverified swap, rechecking primary, failed back, and so on |
+
+---
+
+## Frontend files
+
+The page is the RM520N fork's compact bento with per-card saves (ledger U4.6). Order: page header with a Refresh pill, the SIM-failover banner (only while on the backup SIM), the status card, Recovery ladder (7fr) beside Detection (5fr), and Recovery activity. Every editable card commits its own draft from its own `CardFoot`; there is no page-level save.
 
 | File | Purpose |
 |---|---|
-| `hooks/use-watchdog-settings.ts` | Fetch (30 s poll) + save + SIM revert. `WatchdogSettings` folds the GET's `interval_sec` in as `probe_interval`. `saveSettings` RETURNS `WatchdogSaveResult { ok, message, field }` (the reason through `resolveErrorMessage`, CGI `reason` as detail), so toasts never read stale hook `error` state. Live state is not surfaced here. |
-| `hooks/use-modem-status.ts` | Poller snapshot (5 s on this page) for `watchcat`, `sim_failover` and `connectivity.latency_history`. Its `receivedAtMs` (browser clock at arrival) feeds the grace gate. |
-| `components/monitoring/watchdog/watchdog.tsx` | Page coordinator and the three data states: skeletons from `shapes.ts`, a destructive condition block with Retry when the settings read fails, the surface |
-| `components/monitoring/watchdog/derive.ts` | The one derived model: `derivePhase` (12 phases: the daemon's 7 states, including the target-only `ssr_hold`, plus `off` / `unknown` / `starting` / `not_running` / `auto_disabled`), `deriveBand`, `deriveStrip`, `deriveTimeline`, `useTimeAgo`, `useGraceGate` |
+| `hooks/use-watchdog-settings.ts` | Fetch (30 s poll) + save + SIM revert. `WatchdogSettings` folds `interval_sec` in as `probe_interval`. `recentReboots: number[]` from GET `recent_reboots` (absent = `[]`). `saveSettings` RETURNS `WatchdogSaveResult { ok, message, field }` (reason through `resolveErrorMessage`, CGI `reason` as detail). |
+| `hooks/use-modem-status.ts` | Poller snapshot (5 s on this page) for `watchcat`, `sim_failover`, `connectivity.latency_history`; `receivedAtMs` feeds the grace gate. |
+| `hooks/use-watchdog-indicator.ts` | Sidebar pill for `recovery`/`cooldown`; hidden when `!isWatchcatLive` or data is stale. |
+| `components/monitoring/watchdog/watchdog.tsx` | Page coordinator and the three data states (skeletons from `shapes.ts`, error block with Retry, the surface). |
+| `components/monitoring/watchdog/derive.ts` | The one derived model: `derivePhase` (13 phases: the daemon's 8 states incl. `ssr_hold` and `radio_off`, plus `off`/`unknown`/`starting`/`not_running`/`auto_disabled`), `isWatchcatLive`, `deriveBand`, `deriveStrip`, `deriveTimeline`, `useTimeAgo`, `useGraceGate`, `CLOCK_PLAUSIBLE_AFTER`. `radio_off` shares the locked disc, glyph and label ("Paused"). |
 | `components/monitoring/watchdog/shapes.ts` | Geometry and tone contract; skeletons import the same constants |
-| `components/monitoring/watchdog/use-watchdog-form.ts` | Two scoped drafts over saved truth (`ladder`, `detection`). Edits overlay settings, so one card's save keeps the other card's half-edit. A card POSTs **only its own keys** (see the CGI section). One save at a time; per-card `SaveButton` flash; `grantsRebootAuthority` |
-| `components/monitoring/watchdog/watchdog-foot.tsx` | One card's `CardFoot`: status on the left ("All changes saved" when clean, a blocked reason naming the fields, nothing while dirty), Discard + `SaveButton` on the right. The Ladder foot gates the save behind the reboot-authority `AlertDialog` (`baa10530`) |
-| `components/monitoring/watchdog/status-band.tsx` | Status card: phase disc, title and blurb, three figures (failed checks, recoveries, reboots), the 60-slot probe strip. Reports SAVED truth only; auto-disabled folds in as a phase |
-| `components/monitoring/watchdog/ladder-card.tsx` | Master On/Off in the header, four rungs as `SegmentedField`s (step 3 is one Slot 1 / Slot 2 / Off pill), step 3's companion row **Switch back to the primary SIM** (target-only auto-failback: minutes field + On/Off, inert unless step 3 is armed), step 4's reboot cap. The running tier promotes to `primary-container` |
-| `components/monitoring/watchdog/detection-card.tsx` | Receipt rows: Probe every (segmented, a Select below `lg`; a saved off-list cadence gets its own segment), Down after, Wait between steps, then the target-only **Quality trigger** (bad-check count + On/Off; the caption shows the shared thresholds and links to `/monitoring/connection-quality`) and **Baseband restart hold** (`ssr_aware` + `ssr_grace`). Below them, the derived outage timeline from both drafts |
-| `components/monitoring/watchdog/recovery-activity-card.tsx` | Newest five `watchcat_recovery` / `sim_failover` events from `useRecentActivities`, day-grouped 52px rows; "All events" goes to `/monitoring/events` |
-| `components/monitoring/watchdog/banners.tsx` | `FailoverBanner`: running on the backup SIM, with the Revert `AlertDialog` |
-| `components/monitoring/watchdog/sim-swap-banner.tsx` | SIM swap toast (rendered globally in `app-layout.tsx`); unchanged |
+| `components/monitoring/watchdog/use-watchdog-form.ts` | Two scoped drafts over saved truth (`ladder`, `detection`); a card POSTs only its own keys; `grantsRebootAuthority` |
+| `components/monitoring/watchdog/watchdog-foot.tsx` | One card's `CardFoot`; the Ladder foot gates the save behind the reboot-authority `AlertDialog` |
+| `components/monitoring/watchdog/status-band.tsx` | Status card: phase disc, title, blurb, three figures (failed checks, recoveries, reboots), 60-slot probe strip. Saved truth only. |
+| `components/monitoring/watchdog/ladder-card.tsx` | Master On/Off, four rungs, step 3's "Switch back to the primary SIM" row, step 4's reboot cap |
+| `components/monitoring/watchdog/detection-card.tsx` | Probe every, Down after, Wait between steps, Quality trigger, Baseband restart hold, derived outage timeline |
+| `components/monitoring/watchdog/recovery-activity-card.tsx` | Newest five rows: `watchcat_recovery`/`sim_failover` events from `useRecentActivities` merged with ledger-backed restarts (`recentReboots`), day-grouped; "All events" goes to `/monitoring/events` |
+| `components/monitoring/watchdog/banners.tsx` | `FailoverBanner` with the Revert `AlertDialog` |
+| `components/monitoring/watchdog/sim-swap-banner.tsx` | SIM swap toast (rendered globally in `app-layout.tsx`) |
 
-Deleted by U4.6: `watchdog-status-card.tsx`, `watchdog-settings-card.tsx`, `watchdog-recovery-activity-card.tsx`.
+`WatchcatState` and `WatchcatStatus` in `types/modem-status.ts` carry `radio_off` and the optional `age_sec` / `stale_after`. `monitoring:watchdog.*` lives in all five locale packs (`monitoring.json`): `band.reboots` = "Reboots", `band.rebootsCaption` = "In the last hour", `phase.not_running` ("Not reporting", "Enabled, but the watchdog has stopped reporting."), `phase.radio_off.blurb`, `activity.tier4Reboot`.
 
-### Saved-state honesty
+**Saved-state honesty.** The status card and the ladder's running-tier disc read saved settings plus poller truth, never the draft. `unknown` (poller unreachable, or stale with a plausible clock) outranks every live state. After a save enables the watchdog, `useGraceGate` holds `starting` for 60 s (measured on `receivedAtMs`) before `not_running`.
 
-The status card and the ladder's pulsing step disc reads saved settings plus poller truth, never the draft. Flipping the master pill is a draft edit until the Ladder card saves. `unknown` (poller unreachable, or stale with a plausible clock) outranks every live state. After a save enables the watchdog, `useGraceGate` holds `starting` for 60 s (measured on `receivedAtMs`, not a render-time `Date.now()`) before calling it `not_running`.
+**Per-card save rules.** A card sends only its own keys; a blocked save names the fields in the foot; toasts are `watchdog.save.toastOk` / `toastFail` + the returned reason; a failed save keeps the draft dirty; reboot authority is confirmed at save when the draft newly has master AND step 4 on.
 
-### Per-card save rules
-
-- A card sends only its own keys; the other card's saved values are never echoed, so a stale page cannot overwrite a cadence or slot changed elsewhere.
-- A blocked save names the fields in the foot (`Intl.ListFormat`), and a click on the blocked Save focuses the first one.
-- Toasts: `watchdog.save.toastOk` on success; `watchdog.save.toastFail` plus the returned reason as `description` on failure. A failed save keeps the draft dirty.
-- Reboot authority is confirmed at SAVE when the draft newly has master AND step 4 on (a stock device seeds step 4 armed under a master that is off).
-
-### Types and i18n
-
-`WatchcatState` in `types/modem-status.ts` has `"ssr_hold"` as a union member; the poller passes the daemon's `.state` verbatim. The poller's `watchcat` re-emit does not carry `quality_breach_count`, `ssr_hold` or `last_recovery_reason`, so the bento shows no quality-breach figure (the July 2026 page read it from the CGI passthrough; the fork's status card has three figures and the port keeps them).
-
-`monitoring:watchdog.*` was rewritten from the fork's `common:watchdog.*` subtree (all five packs taken from the fork, then the target-only keys `phase.ssr_hold`, `detection.quality`, `detection.ssr`, `ladder.failback` and their `errors.*` added in all five). The `sim_swap_*` keys used by `sim-swap-banner.tsx` are kept. On/Off labels come from `common:state.on` / `common:state.off`.
-
-**Connection Sensitivity alert:** `connectivity-sensitivity-card.tsx` shows an informational Alert when `interval_override` is set, explaining that the watchdog is enforcing a custom probe interval and that the profile choice becomes the fallback once the override is cleared.
+**Connection Sensitivity alert:** `connectivity-sensitivity-card.tsx` shows an informational Alert when `interval_override` is set.
 
 ---
 
-## Known Gotchas
+## Test harness
 
-- **`jq --argjson` parses shell `"true"`/`"false"` strings into JSON booleans; never compare them with `== "true"`.** The `sim_failover_active` state-file field was previously written via `--argjson sf_active "$sim_failover_active"` then tested with `($sf_active == "true")`. Because `--argjson` parses the value as JSON, `"true"` becomes the JSON boolean `true`, and `(true == "true")` is always false in jq — a type mismatch. The fix is `--arg sf_active "$sim_failover_active"` (emits a JSON string) so `($sf_active == "true")` works. The sibling fields `ssr_hold` and `last_ssr_detected` use `--argjson` correctly — they emit the value directly into the output without a string comparison: `ssr_hold: $ssr_hold`. `enabled` and `quality_enabled` compare against a numeric `== 1`, not a string, so they are also safe. Pattern rule: use `--arg` when you need to string-compare in jq; use `--argjson` only when you want the parsed JSON value emitted directly.
+`tools/watchdog-harness/` is a dev-only harness (never installed: `install.sh` does not copy `tools/`). It sources the daemon with `WATCHCAT_NO_MAIN=1 WD_LIB_DIR=<repo libs>` under **BusyBox ash in WSL**, against a fake clock and a scripted scenario tape, and records everything observable. **Why WSL and not the modem:** the daemon calls absolute paths (`/etc/init.d/qmanager_tower_failover`, `profile_mgr.sh`, `reboot`) that must never fire on a live unit; in the sandbox they are rewritten or stubbed and log to `calls.log`. Requirements: WSL Ubuntu with BusyBox v1.36.1 and `jq` on `PATH` (or `JQ=/path/to/jq`).
 
-- **Float comparison is a hard requirement.** `avg_latency_ms` is decimal. BusyBox `[ "1241.4" -gt 800 ]` exits 2 (error), not false. Any future code path that reads this field and compares it with `[ -gt ]` or `[ -ge ]` will silently fail to compare. Use awk as shown in the `quality_breached` function.
+```sh
+H="/mnt/d/Projects/QM PROJECT/QManager/tools/watchdog-harness"     # adjust to the checkout
+busybox sh "$H/run.sh" list                                         # scenario names
+busybox sh "$H/run.sh" run -o /tmp/wd-new                           # all scenarios against this checkout
+busybox sh "$H/run.sh" run -o /tmp/wd-x 12_user_revert              # one scenario
+busybox sh "$H/run.sh" compare "$H/baseline" /tmp/wd-new            # IDENTICAL / DIFFERS per scenario
+```
 
-- **`fail_threshold` counts raw probe failures, not poller cycles.** The watchdog reads `ping_streak_fail` directly from `qmanager_ping.json`. Under a slow profile (`quiet`, 10 s interval), a `fail_threshold=5` means the connection must fail 5 consecutive probes — approximately 50 seconds — before recovery fires. This is intentional: the threshold is independent of profile speed.
-
-- **Detection is not instantaneous.** The status.json `avg_latency_ms` and `packet_loss_pct` values are windowed averages over ~60 poller samples. A brief spike will be absorbed by the window. Only a sustained degradation lasting across `quality_consecutive × check_interval` seconds (on top of the poller's averaging window) will trigger quality recovery.
-
-- **`custom` preset requires explicit save to take effect.** If you change `latency_custom_ms` or `loss_custom_pct` in UCI directly without also writing `latency_preset=custom`, `resolve_quality_thresholds()` will use the named preset and ignore the custom value. Always save via `quality_thresholds.sh` POST to keep the preset and custom value in sync.
-
-- **Stale poller = NO-SIGNAL, not healthy.** If `qmanager_poller` is dead or crashed, `status.json` goes stale. The quality trigger treats this as no-signal and freezes the breach counter. This is correct behavior, but it means a dead poller silently disables quality triggering. Check `/tmp/qmanager_status.json` root `.timestamp` if the quality trigger appears to not be evaluating. Note: the poller's Adaptive Polling deep tier (see [`docs/features/adaptive-polling.md`](../adaptive-polling.md)) does not affect the watchdog — `write_cache` and `read_ping_data` run at the 2 s base cadence in all tiers regardless of AT-read gating, so `.timestamp` and `.connectivity` stay fresh even while the device is deep-idle.
-
-- **Wall-clock staleness checks are corrupted by NITZ/NTP clock steps.** When the modem's data path is restored after an MPSS SSR, the NITZ `time_daemon` and BusyBox `ntpd` both issue a STEP (abrupt jump) of the system wall clock — typically ~90 s forward. Any staleness check that computes `age = date+%s − cached_timestamp` across that step produces a corrupted age (it shows ~90 s of extra staleness). Before the monotonic fix this caused `read_ping_data` in the poller and `read_ping` / `read_quality` in the watchdog to log "Ping data stale (age=90s), marking unknown" or "skipping cycle" and reset connectivity state to unknown — on a connection that had just recovered cleanly.
-
-  The fix: `mono_now()` in `scripts/usr/lib/qmanager/qlog.sh` reads `/proc/uptime` (kernel monotonic counter, immune to NTP/NITZ steps) and returns the integer seconds since boot. Writers (`qmanager_ping` `write_cache`, `qmanager_poller` `write_cache`) emit an **additive integer `mono` field** in `/tmp/qmanager_ping.json` and `/tmp/qmanager_status.json` alongside the existing wall-clock `timestamp`. The ping-cache readers (`read_ping_data` in `qmanager_poller` and `read_ping` in `qmanager_watchcat`, both via `conn_state_read`) and `read_quality` compute age against `/proc/uptime` and the cached `.mono` instead. A wall-clock fallback runs whenever `.mono` is absent or zero (safe partial deploy — old writer, new reader); a `.mono` ahead of uptime is treated as stale. The ping-cache staleness window is no longer a per-reader constant (`PING_STALE_THRESHOLD` was removed from both the poller and the watchdog): `conn_state_read` applies `max(3 * interval_sec, 15)` for both. `STATUS_STALE_THRESHOLD=30` in the watchdog's `read_quality` is unchanged.
-
-  > ⚠️ WARNING: `read_ping` in `qmanager_watchcat` extracts the 4 core ping fields via a single batched `jq -r ... @tsv` call into `_pdata` (cuts off columns 1–4), then reads `.mono` with a **separate** `jq -r '.mono ...'` call. The separate call is intentional — inserting `.mono` into the `@tsv` batch would shift the `cut -f` column indices for `ping_ts`, `ping_streak_fail`, `ping_reachable`, and `ping_during_recovery`, breaking the parse. Any future edit to that `jq` block must keep the `.mono` read separate.
-
-- **Auto-disable persists across reboots (UCI).** When Tier 4 exhausts `max_reboots_per_hour`, it writes `quecmanager.watchcat.enabled=0` to UCI. This survives a reboot — the daemon won't restart even though procd is configured to do so (the init.d script checks `enabled` in UCI). Re-enabling via the settings page clears the disabled flag and restarts the daemon.
-
-- **SSR hold is best-effort: dmesg ring-buffer eviction.** The kernel ring buffer is fixed-size. On a busy modem (e.g. a QCMAP bringup storm filling dmesg with interface events), the `4080000.remoteproc-mss: fatal error received` line can be evicted before `ssr_in_progress()` reads it. In that case `ssr_in_progress()` returns false and the daemon behaves exactly as if the feature did not exist — it falls straight through to the ladder. The hold is a de-amplifier, not a correctness requirement. The existing `max_reboots_per_hour` token bucket is the backstop.
-
-- **BusyBox awk rejects a bracket-class field separator (reusable gotcha).** Parsing the dmesg timestamp with `awk -F'[][. ]+'` looks correct and is valid POSIX, but BusyBox awk 1.36.1 (on the RM551E) errors with `bad regex '[][. ]+': Unknown collating element` — it reads the `[. ]` fragment as a POSIX collating-element reference (`[.ch.]` syntax) it does not implement. The failure is to *stderr* with empty *stdout*, so the extraction silently yields nothing and the consuming feature goes inert with no error. `ssr_in_progress()` therefore uses `sed 's/^\[[ ]*\([0-9]*\)\..*/\1/'` instead, verified on-device. Avoid bracket-class `-F` separators in any BusyBox awk; prefer `sed`, `cut`, or a single-char `-F`. Also note dmesg lines here are double-bracketed (`[ secs.usec][ Tthread]`, `CONFIG_PRINTK_CALLER`), so a parser must anchor on the *first* bracket only.
-
-- **Quality-triggered hold clears via the reachability path.** When a quality breach triggers an SSR hold, the hold resolves via the `suspect|ssr_hold` reachability check on subsequent cycles. If the modem self-heals and `ping_reachable=true && ping_streak_fail=0`, the hold clears and state returns to `monitor` — even though the recovery was quality-triggered, not reachability-triggered. This is intentional: the dominant amplification risk is the forced detach that happens during SSR self-heal, and the modem returning to a reachable state means the SSR self-heal succeeded. Do not be surprised if a quality-path hold shows a `suspect→monitor` transition in the log instead of a `ssr_hold→monitor` state label.
+- Output per scenario: `at.log` (every AT command with fake time), `calls.log`, `passes.txt` (state file, file list and failover record after every pass), `tree.txt` (every file left in the fake root), `console.log`, `exit.code`. PIDs are masked, so two runs of behaviourally identical code are byte-identical. `WDH_KEEP=1` keeps the work dirs under `/dev/shm`.
+- `baseline/` is the recorded output of the latest reviewed daemon; `compare baseline <your-out>` is the regression gate. After an **intentional** behaviour change, review every DIFFERS, then re-record: `run.sh run -o tools/watchdog-harness/baseline`, and record the explained differences in the harness README (as the wave-2 and round-2/3 sections do).
+- Scenario numbering: **01-29 core** (startup, tiers, quality, SSR, lock, Tier 4, reload, reboot ledger 24-26, TERM cleanup 27-28, malformed state 29), **30-39 recovery** (quality window, pure tables 33, hold-off 34/38/52, radio-off 35, Tier 2 radio 36-37, SSR on slow profiles 39), **40-49 SIM** (verified swap 40-43, resume 44-46, recheck failures 47-48), **50+ review fixes** (waves and rounds 2 and 3: adopt-live-slot, unconfirmed record, persisted `revert_pending`, unreadable slot, deferred swap-back under a lock). Scenarios live in `scenarios/NN_name.sh`; each may define `SC_PASSES`, `sc_setup`, `sc_pass_N`, `sc_qcmd`. The set is 67 scenarios; `49` is unused.
+- The first baseline was recorded against the last single-file daemon (`git show 125b3ce6:scripts/usr/bin/qmanager_watchcat`, pass it with `-d`) and the split was proved byte-identical to it before any fix; later baselines were re-recorded per wave, with each difference explained in the README.
+- Static gates that go with it: `sh -n` on every file, `.claude/check-crlf.sh`, bashism grep (`[[`, `==`, `local a b`, arrays, `echo -e`), jq-regex grep (`test(`, `match(`, `sub(`, `gsub(`), numeric guards before arithmetic, and no `AT+CFUN=1,1`. Poller changes also run `tools/poller-parity/`.
 
 ---
 
-## On-Device Test Plan (Pending Live Modem)
+## Known gotchas
 
-The static audit passed. On-device verification was skipped for some scenarios in this round (Globe backup SIM returned `ERROR` on `AT+CPIN?` during testing). The following scenarios require a live environment with both SIM slots registered.
+- **`jq --argjson` parses `"true"`/`"false"` into JSON booleans; do not compare them with `== "true"`.** `sim_failover_active` is written with `--arg` and compared `($sf_active == "true")`. Use `--arg` to string-compare, `--argjson` to emit a parsed value. `ssr_hold` uses `--argjson` correctly (coerced to `true`/`false` first).
+- **Float comparison needs awk.** `avg_latency_ms` is decimal; BusyBox `[ "1241.4" -gt 800 ]` exits 2. See `quality_breached`.
+- **`fail_threshold` counts probes, not passes.** At `quiet` (10 s) `fail_threshold=5` is about 50 s of failed probes.
+- **Wall-clock staleness is corrupted by NITZ/NTP steps.** After an SSR the clock steps about 90 s forward. Every age check uses `mono_now()` (`/proc/uptime`) and the additive `mono` fields in `qmanager_ping.json`, `status.json` and the watchdog state file; wall-clock fallbacks run only when `.mono` is absent or zero, and a `.mono` ahead of uptime counts as stale.
+- **A stale ping cache is no-signal, not healthy.** A dead `qmanager_ping` freezes the breach counter and the pass is skipped; the Health Check covers a dead ping daemon. The poller's Adaptive Polling deep tier does not affect the watchdog (see [adaptive-polling.md](adaptive-polling.md)).
+- **The 1970 clock.** With no RTC the modem boots at 1970 until NITZ/ntp steps the clock. The ledger count uses the 2025 rule above; the UI ignores epochs at or below 1_600_000_000; the events ring and `crash.log` can hold 1970-era rows that sort before real ones.
+- **SSR hold is best-effort.** The kernel ring buffer can evict the crash line (a busy QCMAP bring-up fills it); then the hold never engages and the ladder runs.
+- **BusyBox awk rejects bracket-class `-F` separators** (`awk -F'[][. ]+'` errors with `Unknown collating element`, to stderr, so the feature silently goes inert). `ssr_in_progress` uses `sed`. dmesg lines on this kernel are double-bracketed (`[ secs.usec][ Tthread]`); anchor on the first bracket only.
+- **Device `jq` has no regex.** `test()`, `match()`, `sub()`, `gsub()` fail at runtime, silently under `2>/dev/null`. Use `case`, `awk` or `sed`.
+- **`jq // empty` drops `false`.** Use `if . == null then ... else tostring end`.
+- **CRLF in a daemon or lib breaks it silently.** Run `.claude/check-crlf.sh`.
+- **`qcmd` modem `ERROR` is rc 0.** Judge `"$rc:$result"`; a transport failure is non-zero with empty stdout.
+- **Libraries are not executable scripts.** Do not add top-level commands or `.` lines to a `wd_*.sh`; the loader's `...LOADED=1` check and the CGI's guarded `wd_ledger.sh` source depend on it.
+- **Quality-triggered hold clears via the reachability arm** (see SSR hold).
 
-**Scenario 1 — SSR detected, hold engaged:**
-Trigger a real MPSS SSR (or wait for one on an affected RM551E). Within one `check_interval` after the SSR log line appears, check `/tmp/qmanager_watchcat.json` for `"state":"ssr_hold"` and `"ssr_hold":true`. Confirm the watchdog log (`/tmp/qmanager.log`) shows "Recoverable baseband SSR detected; holding recovery ladder" and that NO `AT+COPS` or `AT+CFUN` commands appear in the `qcmd` log during the grace window.
+---
 
-**Scenario 2 — Natural recovery during the hold:**
-If the modem self-heals within the grace window, confirm `/tmp/qmanager_watchcat.json` transitions back to `"state":"monitor"` with `"ssr_hold":false`, and that the Live Status hero returns to the green "Monitoring" tile without passing through a recovery or cooldown state.
+## Known deferred
 
-**Scenario 3 — Grace window expiry, fallthrough to ladder:**
-Extend the outage artificially past `ssr_grace` seconds (e.g. set `ssr_grace=10` and use a test mode that keeps connectivity down). Confirm the log shows "SSR-hold grace expired without recovery; releasing to ladder" and that Tier 1 (`AT+COPS=2 → AT+COPS=0`) then runs normally.
+Real findings from the 2026-10-21 audits (`docs/plans/watchdog-audit/01-core.md`, `02-sim.md`, `03-surface.md`) that were not fixed in this change. Nothing here is a regression.
 
-**Scenario 4 — Hold clears correctly on LOCKED entry and exit:**
-While in `ssr_hold`, trigger a maintenance lock (create `/tmp/qmanager_watchcat.lock`). Confirm the log shows LOCKED state entered, `ssr_hold` cleared, and that removing the lock brings the daemon back to `monitor` with `ssr_hold=false` (no stale hold carried through).
+| Item | Why deferred |
+|---|---|
+| WD-07: `crash.log` append is unchecked (and the 20-row trim) | Needs a read-only or full `/etc`; rare. Next candidate: a 3-line follow-up in `wd_ledger.sh`/`execute_tier4`. |
+| WD-10 / F-06: the SIM-switch flag is ignored by `check_locked`; no manual slot reconcile | Needs a user SIM switch during an outage. `wd_swap_slot`'s already-on-target return covers the revert case. Next candidate. |
+| F-03: in-flight breadcrumb | The TERM cleanup restores `CFUN=1` and saves no longer restart the daemon; the remaining window is a SIGKILL during Tier 3 (`install.sh` does `killall -9`). |
+| F-07: settle-floor gaps; F-08: single 90 s verdict | Design work; partly eased by the quality window. |
+| F-10: `recovery_reason` overwritten | Only affects auto-failback after a quality failover. |
+| F-14: tower-failover restart paths; tower lock vs Tier 3 | Partly unproven. |
+| F-15 / WD-19: UCI range clamping in the daemon | Needs a hand edit or a bad backup; the CGI validates. |
+| F-17: negative cache; two-way Tier 3; backup-slot edit during a failover | Design. |
+| WD-14: frozen cooldown countdown; WD-15: stale tier after SSR | Cosmetic. |
+| WD-17 / F5 / F19: auto-disable reason lost on reboot; respawn budget | The page still shows Off, and Alerts lists the reboots. |
+| WD-18: Tier 1 overrides a manual operator | Unproven. |
+| WD-21: PID guard trusts `kill -0` | Less relevant now that TERM exits cleanly. |
+| WD-22: events ring unlocked | Rare; poller hot path. |
+| WD-04: blind when the ping daemon is dead | The System Health Check covers it. |
+| F11: non-boolean accepted by the CGI; F12: revert toast and no-op success; F15: Prometheus liveness; F16: GET writes (`ensure_watchcat_config`); F18: timeline | Low. |
+| F17: three `status.json` pollers; WD-23: float loss | Won't fix (the first is gone with the quality window; the second is replaced by an integer loss figure). |
+| Follow-ups: shared verify lib with `cellular/settings.sh`; dedupe the `alerts.sh` awk against `wd_ledger_recent_json`; "Test backup SIM" dry run; `unplanned` rows in the watchdog card | Not started. |
 
-**UI verification:** Save `ssr_aware=false` and confirm the CGI GET round-trips it correctly. Save `ssr_grace=30` and confirm it persists in UCI. Trigger the `ssr_hold` state (on a real SSR or by injecting state) and confirm the "Letting Modem Self-Recover" hero appears with the info tone and pulse.
+---
 
-**Scenario 5 — `sim_failover_active` state-field correctness (verified):**
-Trigger a Tier-3 forward swap and let it finalize. Read `/tmp/qmanager_watchcat.json` via `curl http://127.0.0.1/cgi-bin/quecmanager/monitoring/watchdog.sh`. Confirm `"sim_failover_active": true` (JSON boolean, not the string `"true"`). Also confirm `original_iccid` in `/tmp/qmanager_sim_failover` is populated (non-empty string) when the original SIM was readable before the swap. This scenario was live-validated on the RM551E (`--arg sf_active` fix confirmed).
+## Untested live
 
-**Scenario 6 — Quality-triggered Tier-3 finalization (PENDING live environment):**
-Configure quality thresholds to trigger on the current link, let a quality-path recovery escalate to Tier 3 and succeed, and confirm `/tmp/qmanager_sim_failover` is written with `"reason": "quality_degradation"` and `"active": true`. Confirm `"sim_failover_active": true` in the watchcat state file. This path was structurally validated but NOT live-exercised (backup SIM unresponsive during test session).
+Hardware limits, not code gaps: the RM551E test unit has no working second SIM. Everything below is covered by harness scenarios (`05`, `11`, `13`-`15`, `44`-`46`, `58`-`68`) but has **not** been exercised on hardware:
 
-**Scenario 7 — Auto-failback full loop (PENDING live environment):**
-Enable `primary_recheck_enabled=1` with `primary_recheck_interval=5` (minimum). After a verified Tier-3 failover, wait 5 minutes. Confirm the daemon initiates a primary recheck: the log should show "PRIMARY RECHECK: temporary swap-back" and a `cooldown` state for 90 s. If primary is healthy, confirm `sim_failover_active` clears, the failover file is deleted, and the daemon returns to `monitor`. If primary is still unhealthy, confirm the daemon swaps back to the backup and rewrites the failover file. This loop was NOT live-exercised this session.
+- **A successful Tier 3 failover and the reboot resume.** A verified swap to a working backup SIM, `finalize_sim_failover`, the two-copy record, and the record resuming after a real reboot (flash copy -> /tmp) with a matching live slot. A failed swap (empty backup slot) is the only live path available.
+- **Quality-triggered Tier 3 finalization** (`reason: "quality_degradation"`, `active: true`).
+- **Auto-failback full loop** (`primary_recheck_enabled=1`, `primary_recheck_interval=5`): the blind swap-back, a healthy primary failing back, and an unhealthy primary returning to the backup with the record rewritten.
+- A real MPSS SSR with `ssr_aware` on a slow ping profile (the harness feeds a dmesg fixture; the hold engaging on the real kernel line is verified only to the extent of earlier on-device checks).
+
+Results of the live runs that were possible (heartbeat, stop timing, no-restart save, radio-off, real Tier 4 and ledger decay) are in [`docs/plans/watchdog-audit/04-live-validation.md`](../plans/watchdog-audit/04-live-validation.md). Plan and rationale: [`docs/plans/2026-10-21-watchdog-modular-lean-plan.md`](../plans/2026-10-21-watchdog-modular-lean-plan.md). The superseded May plan [`docs/2026-05-12-watchdog-sim-failover-audit-fixes.md`](../2026-05-12-watchdog-sim-failover-audit-fixes.md) is historical.
