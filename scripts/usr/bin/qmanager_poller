@@ -59,6 +59,16 @@ SUPPORTED_BANDS_FILE="/tmp/qmanager_supported_bands.env"
 POLL_INTERVAL=2        # seconds between Tier 1 cycles
 TIER1_5_EVERY=5        # Tier 1.5 (watchcat state + ping history) runs every N Tier-1 cycles
 TIER2_EVERY=15         # Tier 2 runs every N Tier-1 cycles
+
+# cpu_usage window. The published figure is BUSY ticks over the ticks that
+# SHOULD have elapsed (cores x CONFIG_HZ x seconds), recomputed once per
+# window and held in between - a utilisation, not whatever burst landed in
+# one poll interval. CPU_HZ is this kernel's CONFIG_HZ (250, an assumption:
+# a different board would need it re-checked); CPU_CORES is counted from
+# /proc/stat. Values are % of the WHOLE BOX, as before.
+CPU_HZ=250
+CPU_WINDOW_SEC=30      # steady-state window
+CPU_FIRST_WINDOW=4     # first published value, this soon after a restart
 # Dev-only AT tap (B5.29 parse-parity corpus). Off unless the root-owned flag
 # exists; when off it costs one [ -f ] builtin per AT call. Records the raw qcmd
 # reply of each poller AT call plus the parser globals at the end of each AT
@@ -292,6 +302,10 @@ conn_start_time=0
 
 # System metrics
 cpu_usage=0
+_pm_win_up=0           # uptime (s) at the CPU window's start
+_pm_win_busy=0         # busy ticks at the CPU window's start
+_pm_win_cores=1        # cores counted at the CPU window's start
+_pm_first=1            # still on the short first window
 memory_used_mb=0
 memory_total_mb=0
 uptime_seconds=0
@@ -639,25 +653,66 @@ update_proc_metrics() {
     local _pm_steal
     local _pm_rest
     _pm_tag=""
-    { read -r _pm_tag _pm_user _pm_nice _pm_sys cur_idle _pm_iow _pm_irq _pm_sirq _pm_steal _pm_rest < /proc/stat; } 2>/dev/null
+    local _pm_cl
+    local _pm_cx
+    local _pm_cores=0
+    # One open, one subshell-free group: the aggregate line, then the per-core
+    # lines (to count cores). No forks, and both variables survive the read.
+    {
+        read -r _pm_tag _pm_user _pm_nice _pm_sys cur_idle _pm_iow _pm_irq _pm_sirq _pm_steal _pm_rest
+        while read -r _pm_cl _pm_cx; do
+            case "$_pm_cl" in
+                cpu[0-9]*) _pm_cores=$((_pm_cores + 1)) ;;
+                *) break ;;
+            esac
+        done
+    } < /proc/stat 2>/dev/null
     if [ -n "$_pm_tag" ]; then
-        local cur_total
-        cur_total=$((_pm_user + _pm_nice + _pm_sys + cur_idle + _pm_iow + _pm_irq + _pm_sirq + _pm_steal))
+        [ "$_pm_cores" -gt 0 ] 2>/dev/null || _pm_cores=1
 
-        if [ "$prev_cpu_total" -gt 0 ] 2>/dev/null; then
-            local diff_idle
-            local diff_total
-            diff_idle=$((cur_idle - prev_cpu_idle))
-            diff_total=$((cur_total - prev_cpu_total))
+        # BUSY is the work actually done. idle and iowait are deliberately NOT
+        # in the numerator: this kernel is CONFIG_NO_HZ (tickless), so idle
+        # time is not accrued and an idle-based ratio is biased upward.
+        local _pm_busy
+        _pm_busy=$((_pm_user + _pm_nice + _pm_sys + _pm_irq + _pm_sirq + _pm_steal))
 
-            if [ "$diff_total" -gt 0 ] 2>/dev/null; then
-                # Integer math: (diff_total - diff_idle) * 100 / diff_total
-                cpu_usage=$(( (diff_total - diff_idle) * 100 / diff_total ))
+        local _pm_up="" _pm_frac=""
+        { read -r _pm_up _pm_frac < /proc/uptime; } 2>/dev/null
+        _pm_up=${_pm_up%%.*}
+        case "$_pm_up" in ''|*[!0-9]*) _pm_up=0 ;; esac
+
+        if [ "$_pm_up" -le 0 ]; then
+            : # no clock: keep the last published value
+        elif [ "$_pm_win_up" -le 0 ]; then
+            # first sample after a (re)start: arm the window
+            _pm_win_up=$_pm_up
+            _pm_win_busy=$_pm_busy
+            _pm_win_cores=$_pm_cores
+        else
+            local _pm_el
+            local _pm_win
+            local _pm_dbusy
+            local _pm_den
+            _pm_el=$((_pm_up - _pm_win_up))
+            if [ "$_pm_first" = "1" ]; then
+                _pm_win=$CPU_FIRST_WINDOW
+            else
+                _pm_win=$CPU_WINDOW_SEC
+            fi
+            if [ "$_pm_el" -ge "$_pm_win" ]; then
+                _pm_dbusy=$((_pm_busy - _pm_win_busy))
+                [ "$_pm_dbusy" -lt 0 ] && _pm_dbusy=0
+                _pm_den=$((_pm_win_cores * CPU_HZ * _pm_el))
+                if [ "$_pm_den" -gt 0 ]; then
+                    cpu_usage=$(( _pm_dbusy * 100 / _pm_den ))
+                    [ "$cpu_usage" -gt 100 ] && cpu_usage=100
+                fi
+                _pm_win_up=$_pm_up
+                _pm_win_busy=$_pm_busy
+                _pm_win_cores=$_pm_cores
+                _pm_first=0
             fi
         fi
-
-        prev_cpu_idle=$cur_idle
-        prev_cpu_total=$cur_total
     fi
 
     # --- Memory ---
