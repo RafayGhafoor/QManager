@@ -15,7 +15,7 @@
 # =============================================================================
 
 # --- Configuration (defaults, overridden by UCI) -----------------------------
-CFG_ENABLED=1
+CFG_ENABLED=0
 CFG_CHECK_INTERVAL=10
 CFG_FAIL_THRESHOLD=5          # consecutive failed PROBES (raw ping streak_fail) before recovery
 CFG_COOLDOWN=60
@@ -58,7 +58,7 @@ SIM_SETTLE_SECS=90
 
 read_config() {
     CFG_ENABLED=$(uci -q get quecmanager.watchcat.enabled 2>/dev/null)
-    [ -z "$CFG_ENABLED" ] && CFG_ENABLED=1
+    [ -z "$CFG_ENABLED" ] && CFG_ENABLED=0
 
     local val
     val=$(uci -q get quecmanager.watchcat.check_interval 2>/dev/null)
