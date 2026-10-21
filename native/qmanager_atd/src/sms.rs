@@ -600,7 +600,10 @@ mod tests {
             if cmd == "AT+CMGL=4" {
                 let mut b = String::new();
                 for (i, p) in self.store().iter() {
-                    b.push_str(&format!("+CMGL: {i},1,,{}\r\n{p}\r\n", p.len() / 2 - 8));
+                    // saturating: a stub PDU shorter than the 8-byte SMSC
+                    // header must not panic the mock (debug overflow check).
+                    let len = (p.len() / 2).saturating_sub(8);
+                    b.push_str(&format!("+CMGL: {i},1,,{len}\r\n{p}\r\n"));
                 }
                 return ok(b + "\r\n");
             }

@@ -1,15 +1,20 @@
 # Rust poll-parser parity data (B5.29 Phase D)
 
 `expected.txt` holds the globals the **shell** produces on the device (BusyBox
-1.36.1 ash, RM551E) for 2074 cases, plus every fixture it uses, so the host
+1.36.1 ash, RM551E) for 2184 cases, plus every fixture it uses, so the host
 test `parse::tests::parity_with_device_shell` is self-contained.
 
-- Shell sources: `parse_at.sh` md5 `4c67766de14d0b07053d66da5f532d20`,
-  `qmanager_poller` md5 `c601b52c47a792bb0c5fa20645661e1e` (its
-  `poll_serving_cell`, `poll_per_antenna_signal`, `poll_tier2`,
-  `refresh_sim_identity`, `qcmd_exec_g` and the QCAINFO / CFUN blocks of
-  `poll_cycle` are extracted verbatim by `rx_expect.sh`).
-- Fixtures: `tools/poller-parity/fixtures/` (206, from `gen_fixtures.sh`) and
+- Shell sources (device-generated 2026-10-21 from commit b9c91aa0):
+  `parse_at.sh` md5 `657b5b9d70c6e1fac3c87f6605e039aa`, `qmanager_poller`
+  md5 `f8ce47a90f4d3f418322ca705d8b1bd3` (its `poll_serving_cell`,
+  `poll_per_antenna_signal`, `poll_tier2`, `refresh_sim_identity`,
+  `_qc_read`, `qcmd_exec_g` and the QCAINFO / CFUN blocks of `poll_cycle`
+  are extracted verbatim by `rx_expect.sh`); `expected.bin` md5
+  `78af5568f08d62e77af44be83393ce5f`.
+- Harness policy: `_AT_LATCH=0` (no busy latch) and `SC_FAIL_LIMIT=1` /
+  `SC_BUSY_LIMIT=1`, so a failed or busy serving-cell read takes the failure
+  branch at once; the keep-last-values streak is poller policy, not parsing.
+- Fixtures: `tools/poller-parity/fixtures/` (216, from `gen_fixtures.sh`) and
   `tools/poller-parity/fixtures_rust/` (69, from `gen_fixtures_rust.sh`),
   generated on the device and md5-compared with the repo copies.
 - Cases: every fixture through every step (rc 0), non-zero qcmd exits,
@@ -39,10 +44,15 @@ Format of `expected.txt`: `F <fixture> <bytes>`, `E <fixture> <sidecar>`,
 sentinel); bytes are printable ASCII verbatim, `\\` for a backslash, `\xHH`
 otherwise.
 
-**LTE SINR (2026-10-21).** `lte_sinr` values in `expected.txt` were converted on
-the host to dB (`2X-20` for a CR-stripped raw `0..25`, else empty) when
-`parse_at.sh` gained `_lte_sinr_db_g`. A device regeneration was not possible
-because the poller md5 above was an uncommitted staging build, and today's
-`rx_expect.sh` has no `_qc_read` stub for the current poller. The device gate
-(`PARITY_ALLOW_SINR=1 sh parity.sh old new fixtures`) showed that conversion is
-the only shell difference. Regenerate fully once `rx_expect.sh` stubs `_qc_read`.
+
+**Known drift (2026-10-21, open).** This corpus makes
+`parity_with_device_shell` fail on 15 single-step cases with a non-zero qcmd
+exit; every rc 0 case and every multi-step batch matches. The Rust port
+predates the poller's `_qc_read` (34c94bd4, busy latch), which changed two
+things the port does not model yet:
+- On rc != 0 `_qc_read` moves the reply out of `_QRAW`, so `sig`, `ident`,
+  `cfun` and `simid` see an empty reply and leave every global untouched
+  (sig 6, ident 6, cfun 1, simid 1 case). Rust still parses the output.
+- `ca` on rc 3 (busy) keeps the last CA values; Rust still resets them
+  (1 case).
+Fix the port (`step_*` in `src/parse.rs`), not the corpus.
