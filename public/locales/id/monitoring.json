@@ -385,6 +385,7 @@
     "activity": {
       "title": "Aktivitas pemulihan",
       "description": "Tindakan yang telah dilakukan watchdog, terbaru dulu.",
+      "tier4Reboot": "Watchdog me-restart modem",
       "type": {
         "recovery": "Pemulihan",
         "failover": "Failover SIM"
@@ -404,7 +405,7 @@
       },
       "empty": {
         "title": "Belum ada aktivitas pemulihan",
-        "description": "Langkah pemulihan dan failover SIM muncul di sini saat watchdog menangani gangguan. Aktivitas lama akan tergeser keluar dari log peristiwa modem."
+        "description": "Langkah pemulihan dan failover SIM muncul di sini saat watchdog menangani gangguan."
       },
       "error": {
         "title": "Tidak dapat memuat aktivitas pemulihan",

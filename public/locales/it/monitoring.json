@@ -385,6 +385,7 @@
     "activity": {
       "title": "Attività di ripristino",
       "description": "Le azioni svolte dal watchdog, dalla più recente.",
+      "tier4Reboot": "Il watchdog ha riavviato il modem",
       "type": {
         "recovery": "Ripristino",
         "failover": "Failover SIM"
@@ -404,7 +405,7 @@
       },
       "empty": {
         "title": "Nessuna attività di ripristino",
-        "description": "I passaggi di ripristino e i failover SIM compaiono qui quando il watchdog interviene su un'interruzione. Le attività più vecchie escono dal registro eventi del modem."
+        "description": "I passaggi di ripristino e i failover SIM compaiono qui quando il watchdog interviene su un'interruzione."
       },
       "error": {
         "title": "Impossibile caricare l'attività di ripristino",

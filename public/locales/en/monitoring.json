@@ -385,6 +385,7 @@
     "activity": {
       "title": "Recovery Activity",
       "description": "What the watchdog has done, newest first.",
+      "tier4Reboot": "The watchdog restarted the modem",
       "type": {
         "recovery": "Recovery",
         "failover": "SIM failover"
@@ -404,7 +405,7 @@
       },
       "empty": {
         "title": "No recovery activity yet",
-        "description": "Recovery steps and SIM failovers appear here when the watchdog acts on an outage. Older activity ages out of the modem event log."
+        "description": "Recovery steps and SIM failovers appear here when the watchdog acts on an outage."
       },
       "error": {
         "title": "Could not load recovery activity",

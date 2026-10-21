@@ -128,7 +128,10 @@ const WatchdogComponent = () => {
             </motion.div>
           </div>
           <motion.div variants={staggerItem}>
-            <RecoveryActivityCard activities={activities} />
+            <RecoveryActivityCard
+              activities={activities}
+              recentReboots={hook.recentReboots}
+            />
           </motion.div>
         </>
       ) : (
@@ -142,7 +145,10 @@ const WatchdogComponent = () => {
             />
           </motion.div>
           <motion.div variants={staggerItem}>
-            <RecoveryActivityCard activities={activities} />
+            <RecoveryActivityCard
+              activities={activities}
+              recentReboots={hook.recentReboots}
+            />
           </motion.div>
         </>
       )}
@@ -233,7 +239,10 @@ function WatchdogSurface({
       </div>
 
       <motion.div variants={staggerItem}>
-        <RecoveryActivityCard activities={activities} />
+        <RecoveryActivityCard
+          activities={activities}
+          recentReboots={hook.recentReboots}
+        />
       </motion.div>
     </>
   );

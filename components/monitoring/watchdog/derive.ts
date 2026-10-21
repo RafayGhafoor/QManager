@@ -92,7 +92,7 @@ export const GRACE_MS = 60_000;
  * registered SIM, which makes every clock-difference staleness check read
  * "stale" forever. Below this epoch the modem clock is not evidence.
  */
-const CLOCK_PLAUSIBLE_AFTER = 1_600_000_000;
+export const CLOCK_PLAUSIBLE_AFTER = 1_600_000_000;
 
 export interface PhaseInput {
   /** Saved truth, not the draft. The band never reports a half-edited form. */
