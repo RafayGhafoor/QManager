@@ -365,6 +365,10 @@ execute_tier3() {
     done
 
     [ "$cpin_rc" -eq 0 ] || cpin_result=""
+    # First non-empty reply line for the log ("no reply" on a transport failure).
+    local cpin_reply
+    cpin_reply=$(printf '%s\n' "$cpin_result" | tr -d '\r' | grep -v '^[[:space:]]*$' | head -1)
+    [ -n "$cpin_reply" ] || cpin_reply="no reply"
     case "$cpin_ready:$cpin_result" in
         1:*) ;;
         *'+CPIN:'*)
@@ -375,7 +379,7 @@ execute_tier3() {
             return 0
             ;;
         *)
-            qlog_error "TIER 3: Could not confirm a SIM in backup slot $CFG_BACKUP_SIM_SLOT after 3 attempts (rc=$cpin_rc), falling back"
+            qlog_error "TIER 3: Could not confirm a SIM in backup slot $CFG_BACKUP_SIM_SLOT after 3 attempts ($cpin_reply), falling back"
             sim_failover_fallback || wd_sim_adopt_live_slot
             return 0
             ;;

@@ -19,7 +19,7 @@
 [2026-09-21 14:14:10] INFO  [watchcat:PID] TIER 3: SIM failover from slot 1 to slot 2
 [2026-09-21 14:14:10] INFO  [watchcat:PID] EVENT [sim_failover] Watchcat: switching to SIM slot 2 (Tier 3)
 [2026-09-21 14:14:14] INFO  [watchcat:PID] Modem responsive after 0s
-[2026-09-21 14:14:17] ERROR [watchcat:PID] TIER 3: Could not confirm a SIM in backup slot 2 after 3 attempts (rc=0), falling back
+[2026-09-21 14:14:17] ERROR [watchcat:PID] TIER 3: Could not confirm a SIM in backup slot 2 after 3 attempts (+CME ERROR: 10), falling back
 [2026-09-21 14:14:17] WARN  [watchcat:PID] SIM failover fallback: reverting to slot 1
 [2026-09-21 14:14:17] INFO  [watchcat:PID] EVENT [sim_failover] Watchcat: backup SIM failed, reverting to slot 1
 [2026-09-21 14:14:21] INFO  [watchcat:PID] Modem responsive after 0s
