@@ -398,7 +398,8 @@ fn failure_env_and_parse_only() {
     let m: BTreeMap<String, Vec<u8>> = parse_env(&o).into_iter().collect();
     assert_eq!(m["t1_cfun"], b"1");
     assert_eq!(m["qm_step_cfun"], b"ok");
-    // Not-ok steps behave as a failed qcmd (exit 1, no output).
+    // Timeout behaves as a failed qcmd (exit 1, no output); skipped as one
+    // that never ran (exit 3).
     let mut o = Vec::new();
     render_steps(
         &[
@@ -415,8 +416,71 @@ fn failure_env_and_parse_only() {
     assert_eq!(m["qm_step_qeng"], b"timeout");
     assert_eq!(m["qm_step_qeng_rc"], b"1");
     assert_eq!(m["errors"], b"modem_timeout");
-    assert_eq!(m["t2_carrier_components"], b"[]");
+    // Skipped steps never ran (rc 3): CA keeps the poller's last values.
+    assert_eq!(m["qm_step_ca_rc"], b"3");
+    assert!(!m.contains_key("t2_carrier_components"));
+    assert_eq!(m["qm_step_sig_rc"], b"3");
     assert!(!m.contains_key("sig_lte_rsrp"));
+}
+
+/// Render one step and return its env as a map.
+fn render_one(step: Step, status: StepStatus) -> BTreeMap<String, Vec<u8>> {
+    let mut o = Vec::new();
+    render_steps(&[(step, status, Vec::new())], &PollMeta { rc: "ok", ms: 1 }, Prior::default(), &mut o)
+        .unwrap();
+    parse_env(&o).into_iter().collect()
+}
+
+const CA_VARS: [&str; 7] = [
+    "t2_ca_active",
+    "t2_ca_count",
+    "t2_nr_ca_active",
+    "t2_nr_ca_count",
+    "t2_total_bandwidth_mhz",
+    "t2_bandwidth_details",
+    "t2_carrier_components",
+];
+
+#[test]
+fn skipped_ca_keeps_last_values_failed_resets() {
+    // _qc_read rc 3 (not run) leaves the CA globals alone; rc 1 resets them.
+    let mut st = State::new(Prior::default());
+    st.put(Var::T2CaActive, "true");
+    st.put(Var::T2CaCount, "2");
+    assert_eq!(run_step(&mut st, Step::Ca, 3, b""), 3);
+    assert_eq!(st.get_set(Var::T2CaActive), Some(&b"true"[..]));
+    assert_eq!(st.get_set(Var::T2CaCount), Some(&b"2"[..]));
+
+    let m = render_one(Step::Ca, StepStatus::Skipped);
+    assert_eq!(m["qm_step_ca"], b"skipped");
+    assert_eq!(m["qm_step_ca_rc"], b"3");
+    for v in CA_VARS {
+        assert!(!m.contains_key(v), "{v} assigned on a skipped step");
+    }
+
+    for status in [StepStatus::Failed, StepStatus::Timeout, StepStatus::NotReady] {
+        let m = render_one(Step::Ca, status);
+        assert_eq!(m["qm_step_ca_rc"], b"1");
+        assert_eq!(m["t2_ca_active"], b"false");
+        assert_eq!(m["t2_ca_count"], b"0");
+        assert_eq!(m["t2_nr_ca_active"], b"false");
+        assert_eq!(m["t2_nr_ca_count"], b"0");
+        assert_eq!(m["t2_total_bandwidth_mhz"], b"0");
+        assert_eq!(m["t2_bandwidth_details"], b"");
+        assert_eq!(m["t2_carrier_components"], b"[]");
+    }
+}
+
+#[test]
+fn skipped_qeng_is_rc3_failed_is_rc1() {
+    // poll_serving_cell counts rc 3 toward sc_busy_streak, rc 1 toward
+    // sc_fail_streak; the poller reads the split from qm_step_qeng_rc.
+    let m = render_one(Step::Qeng, StepStatus::Skipped);
+    assert_eq!(m["qm_step_qeng"], b"skipped");
+    assert_eq!(m["qm_step_qeng_rc"], b"3");
+    let m = render_one(Step::Qeng, StepStatus::Failed);
+    assert_eq!(m["qm_step_qeng"], b"failed");
+    assert_eq!(m["qm_step_qeng_rc"], b"1");
 }
 
 #[test]

@@ -181,10 +181,13 @@ pub fn write_env(
 
 /// The batch path: parse every step the daemon returned, in order, over
 /// `prior` (the poller's current network_type / lte_state / nr_state), and
-/// write the env. A step whose status is not `ok` is handled exactly as a
-/// failed `qcmd` call (exit 1, empty output) is handled by the shell today.
-/// `raw` is the daemon's raw reply for the step (qcmd's raw-mode transform is
-/// applied here).
+/// write the env. A `skipped` step never reached the modem (batch deadline,
+/// peer gone, or after a step timeout or channel reset): it is the batch
+/// analogue of the shell's per-cycle busy latch, so it is handled as a `qcmd`
+/// that did not run (exit 3), and CA keeps its last values while qeng counts
+/// toward the busy streak. Any other non-`ok` status is a failed `qcmd`
+/// (exit 1, empty output). `raw` is the daemon's raw reply for the step
+/// (qcmd's raw-mode transform is applied here).
 pub fn render_steps(
     results: &[(Step, StepStatus, Vec<u8>)],
     meta: &PollMeta,
@@ -194,10 +197,10 @@ pub fn render_steps(
     let mut st = State::new(prior);
     let mut done: Vec<(Step, StepStatus, i32)> = Vec::with_capacity(results.len());
     for (step, status, raw) in results {
-        let (rc, cap) = if *status == StepStatus::Ok {
-            (0, qcmd_stdout_capture(raw))
-        } else {
-            (1, Vec::new())
+        let (rc, cap) = match status {
+            StepStatus::Ok => (0, qcmd_stdout_capture(raw)),
+            StepStatus::Skipped => (3, Vec::new()),
+            StepStatus::Timeout | StepStatus::NotReady | StepStatus::Failed => (1, Vec::new()),
         };
         let src = run_step(&mut st, *step, rc, &cap);
         done.push((*step, *status, src));

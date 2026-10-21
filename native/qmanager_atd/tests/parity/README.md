@@ -49,4 +49,7 @@ current poller showed the port predated `_qc_read` (34c94bd4). `run_step` now
 hands cfun / sig / ident / simid an empty reply when qcmd exits non-zero (the
 shell keeps the reply only on exit 0), `qcmd_exec` returns 3 (not run) for
 exit 3 and for modem_busy / scan_in_progress / invalid_command errors, and
-`step_ca` keeps the last CA values on 3 instead of resetting them.
+`step_ca` keeps the last CA values on 3 instead of resetting them. In the
+batch path, `render_steps` maps a `skipped` step (the batch analogue of the
+shell's per-cycle busy latch) to exit 3, so it keeps CA values and reports
+`qm_step_qeng_rc=3`; `timeout` / `not_ready` / `failed` stay exit 1.
