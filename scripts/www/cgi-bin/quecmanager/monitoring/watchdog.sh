@@ -85,6 +85,13 @@ uci_get() {
     fi
 }
 
+# Recent watchdog reboots (Tier-4 ledger rows) come from wd_ledger.sh. Guarded:
+# a missing lib must not abort the CGI; the stub reports no reboots.
+[ -f /usr/lib/qmanager/wd_ledger.sh ] && . /usr/lib/qmanager/wd_ledger.sh
+if ! command -v wd_ledger_recent_json >/dev/null 2>&1; then
+    wd_ledger_recent_json() { echo '[]'; }
+fi
+
 # Probe cadence comes from conn_state_cadence (the same table qmanager_ping
 # runs). Guarded: a missing lib must not abort the CGI; fall back to relaxed.
 [ -f /usr/lib/qmanager/conn_state.sh ] && . /usr/lib/qmanager/conn_state.sh
@@ -233,6 +240,12 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         sim_swap_json=$(cat "$SIM_SWAP_FLAG" 2>/dev/null)
     fi
 
+    # Recent watchdog reboots: epoch ints, newest first, at most 5.
+    recent_reboots_json=$(wd_ledger_recent_json 5 2>/dev/null)
+    if ! printf '%s' "$recent_reboots_json" | jq -e 'type == "array"' >/dev/null 2>&1; then
+        recent_reboots_json='[]'
+    fi
+
     # Check if watchcat was auto-disabled
     auto_disabled="false"
     [ -f "$DISABLED_FLAG" ] && auto_disabled="true"
@@ -275,6 +288,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         --argjson sim_failover "$sim_failover_json" \
         --argjson sim_swap "$sim_swap_json" \
         --argjson auto_disabled "$auto_disabled" \
+        --argjson recent_reboots "$recent_reboots_json" \
         '{
             success: true,
             settings: {
@@ -310,7 +324,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             status: $status,
             sim_failover: $sim_failover,
             sim_swap: $sim_swap,
-            auto_disabled: $auto_disabled
+            auto_disabled: $auto_disabled,
+            recent_reboots: $recent_reboots
         }'
     exit 0
 fi
