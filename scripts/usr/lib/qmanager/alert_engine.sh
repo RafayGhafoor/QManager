@@ -104,25 +104,108 @@ _ae_email_lost_sent="0"
 #                            ("" until one clears this boot)
 # _ae_last_outage_end_mono : mono_now when it cleared; the poller publishes the
 #                            age as mono delta, so clock steps cannot skew it
+# _ae_last_outage_wan4/6  : the bearer's WAN addresses read when it cleared
+# _ae_last_outage_wan_changed : "true" / "false" against the address seen just
+#                            before the outage, "" when either side is unknown
 # Kept in tmpfs on purpose: a poller respawn reloads it (same boot, same mono
 # base), a reboot clears it along with the mono clock it is anchored to.
+# File format: "<seconds> <end_mono> <changed|-> <wan4|-> <wan6|->".
 _AE_LAST_OUTAGE_FILE="/tmp/qmanager_last_outage"
 _ae_last_outage_s=""
 _ae_last_outage_end_mono=""
+_ae_last_outage_wan4=""
+_ae_last_outage_wan6=""
+_ae_last_outage_wan_changed=""
+
+# --- WAN address tracking (kernel routing table only, never AT) --------------
+# The poller's t2_wan_* only refresh when the on-demand radio details are read,
+# so they cannot tell whether a reconnect changed the IP. The default route's
+# source address can: once probes answer again, the bearer holds its new one.
+# _ae_wan_seen4/6 : last addresses seen while the link was up, refreshed at most
+#                   every _AE_WAN_SEEN_EVERY seconds (two `ip` forks)
+# _ae_pre_wan4/6  : the addresses the outage started from
+_AE_WAN_SEEN_EVERY=30
+_ae_wan_seen4=""
+_ae_wan_seen6=""
+_ae_wan_seen_mono=""
+_ae_pre_wan4=""
+_ae_pre_wan6=""
+
+# _ae_wan_read — the data bearer's current WAN addresses into _AE_WAN4 and
+# _AE_WAN6 (empty when there is none or the value is not address-shaped).
+_ae_wan_read() {
+    local _ae_l
+    local _ae_dev
+    _AE_WAN4=""
+    _AE_WAN6=""
+    _ae_l=$(ip -4 route show default 2>/dev/null | head -n 1)
+    case "$_ae_l" in
+        *" src "*)
+            _AE_WAN4="${_ae_l##* src }"
+            _AE_WAN4="${_AE_WAN4%% *}"
+            ;;
+    esac
+    case "$_AE_WAN4" in *[!0-9.]*|'') _AE_WAN4="" ;; esac
+    _ae_l=$(ip -6 route show default 2>/dev/null | head -n 1)
+    case "$_ae_l" in
+        *" dev "*)
+            _ae_dev="${_ae_l##* dev }"
+            _ae_dev="${_ae_dev%% *}"
+            _ae_l=$(ip -6 -o addr show dev "$_ae_dev" scope global 2>/dev/null | head -n 1)
+            case "$_ae_l" in
+                *" inet6 "*)
+                    _AE_WAN6="${_ae_l##* inet6 }"
+                    _AE_WAN6="${_AE_WAN6%%/*}"
+                    ;;
+            esac
+            ;;
+    esac
+    case "$_AE_WAN6" in *[!0-9a-fA-F:]*|'') _AE_WAN6="" ;; esac
+    return 0
+}
+
+# _ae_wan_seen_refresh [force] — refresh the last-seen addresses while the link
+# is up. An empty read never overwrites a known address.
+_ae_wan_seen_refresh() {
+    local _ae_m
+    _ae_m=$(mono_now)
+    if [ "$1" != "force" ] && [ -n "$_ae_wan_seen_mono" ] \
+        && [ $((_ae_m - _ae_wan_seen_mono)) -lt "$_AE_WAN_SEEN_EVERY" ]; then
+        return 0
+    fi
+    _ae_wan_seen_mono="$_ae_m"
+    _ae_wan_read
+    [ -n "$_AE_WAN4" ] && _ae_wan_seen4="$_AE_WAN4"
+    [ -n "$_AE_WAN6" ] && _ae_wan_seen6="$_AE_WAN6"
+    return 0
+}
+
+# _ae_wan_cmp OLD NEW — prints true/false, or nothing when either is empty.
+_ae_wan_cmp() {
+    [ -n "$1" ] && [ -n "$2" ] || return 0
+    if [ "$1" = "$2" ]; then echo false; else echo true; fi
+}
 
 # _ae_last_outage_load — restore the last cleared outage after a poller
-# respawn. Garbage (or an end stamp ahead of the current uptime) is ignored.
+# respawn. Garbage (or an end stamp ahead of the current uptime) is ignored;
+# the older two-field file still loads, without the WAN fields.
 _ae_last_outage_load() {
     local _ae_d
     local _ae_e
+    local _ae_c
+    local _ae_w4
+    local _ae_w6
     local _ae_rest
     [ -f "$_AE_LAST_OUTAGE_FILE" ] || return 0
-    { read -r _ae_d _ae_e _ae_rest < "$_AE_LAST_OUTAGE_FILE"; } 2>/dev/null
+    { read -r _ae_d _ae_e _ae_c _ae_w4 _ae_w6 _ae_rest < "$_AE_LAST_OUTAGE_FILE"; } 2>/dev/null
     case "$_ae_d" in ''|*[!0-9]*) return 0 ;; esac
     case "$_ae_e" in ''|*[!0-9]*) return 0 ;; esac
     [ "$_ae_e" -le "$(mono_now)" ] || return 0
     _ae_last_outage_s="$_ae_d"
     _ae_last_outage_end_mono="$_ae_e"
+    case "$_ae_c" in true|false) _ae_last_outage_wan_changed="$_ae_c" ;; esac
+    case "$_ae_w4" in -|''|*[!0-9.]*) ;; *) _ae_last_outage_wan4="$_ae_w4" ;; esac
+    case "$_ae_w6" in -|''|*[!0-9a-fA-F:]*) ;; *) _ae_last_outage_wan6="$_ae_w6" ;; esac
 }
 
 # =============================================================================
@@ -136,6 +219,7 @@ alert_engine_init() {
     _ae_sms_lost_sent="0"
     _ae_email_lost_sent="0"
     _ae_last_outage_load
+    _ae_wan_seen_refresh force
     alert_routing_load
     _ae_resolve_wait
     qlog_info "Alert engine initialized (wait=${CQ_ALERT_AFTER_MIN:-5}m)"
@@ -231,7 +315,10 @@ alert_engine_check() {
     # the engine, so an outage the watchdog fixes is still alerted.
     case "${ev_link_state:-}" in
         down) _ae_handle_down ;;
-        up)   _ae_handle_up ;;
+        up)
+            _ae_handle_up
+            _ae_wan_seen_refresh
+            ;;
     esac
     return 0
 }
@@ -250,6 +337,11 @@ _ae_handle_down() {
     if [ "$_ae_outage_active" != "1" ]; then
         _ae_outage_active="1"
         _ae_outage_start_mono=$(mono_now)
+        # The bearer may already have lost its address by the time the
+        # detector calls the outage; fall back to the last one seen up.
+        _ae_wan_read
+        _ae_pre_wan4="${_AE_WAN4:-$_ae_wan_seen4}"
+        _ae_pre_wan6="${_AE_WAN6:-$_ae_wan_seen6}"
         _ae_sms_armed="0"
         _ae_email_armed="0"
         _ae_sms_lost_sent="0"
@@ -315,13 +407,29 @@ _ae_handle_up() {
         _ae_channel_emit "$_ae_ch" connection_restored "$_ae_total"
     done
 
-    # Publish the cleared outage before the reset discards _ae_total.
+    # Publish the cleared outage before the reset discards _ae_total. Probes
+    # answer again, so the bearer holds the address it reconnected with.
+    _ae_wan_read
     _ae_last_outage_s="$_ae_total"
     _ae_last_outage_end_mono="$_ae_now"
+    _ae_last_outage_wan4="$_AE_WAN4"
+    _ae_last_outage_wan6="$_AE_WAN6"
+    _ae_last_outage_wan_changed=$(_ae_wan_cmp "$_ae_pre_wan4" "$_AE_WAN4")
+    [ -z "$_ae_last_outage_wan_changed" ] && \
+        _ae_last_outage_wan_changed=$(_ae_wan_cmp "$_ae_pre_wan6" "$_AE_WAN6")
+    [ -n "$_AE_WAN4" ] && _ae_wan_seen4="$_AE_WAN4"
+    [ -n "$_AE_WAN6" ] && _ae_wan_seen6="$_AE_WAN6"
+    _ae_wan_seen_mono="$_ae_now"
+    _ae_pre_wan4=""
+    _ae_pre_wan6=""
     if command -v qm_atomic_write >/dev/null 2>&1; then
-        printf '%s %s\n' "$_ae_total" "$_ae_now" | qm_atomic_write "$_AE_LAST_OUTAGE_FILE" 2>/dev/null
+        printf '%s %s %s %s %s\n' "$_ae_total" "$_ae_now" \
+            "${_ae_last_outage_wan_changed:--}" "${_AE_WAN4:--}" "${_AE_WAN6:--}" \
+            | qm_atomic_write "$_AE_LAST_OUTAGE_FILE" 2>/dev/null
     else
-        printf '%s %s\n' "$_ae_total" "$_ae_now" > "$_AE_LAST_OUTAGE_FILE" 2>/dev/null
+        printf '%s %s %s %s %s\n' "$_ae_total" "$_ae_now" \
+            "${_ae_last_outage_wan_changed:--}" "${_AE_WAN4:--}" "${_AE_WAN6:--}" \
+            > "$_AE_LAST_OUTAGE_FILE" 2>/dev/null
     fi
 
     # Reset all outage state.
