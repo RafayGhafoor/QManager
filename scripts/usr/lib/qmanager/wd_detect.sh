@@ -8,7 +8,8 @@
 #       q_packet_loss, quality_breach_counter, ssr_hold, last_ssr_detected,
 #       ssr_hold_started, quality_since
 # Functions: read_ping, read_quality, wd_quality_mark, quality_breached,
-#            wd_decide_start, wd_start_gate, evaluate_quality,
+#            wd_decide_start, wd_holdoff_left, wd_radio_reconcile,
+#            wd_start_gate, evaluate_quality,
 #            ssr_in_progress, ssr_hold_gate, ssr_hold_clear
 #
 # evaluate_quality starts the recovery ladder (find_next_tier / do_recovery from
@@ -162,6 +163,40 @@ wd_decide_start() {
     return 0
 }
 
+# Prints the seconds left of the pause after an exhausted ladder (0 = none).
+wd_holdoff_left() {
+    local now
+    case "$holdoff_until" in
+        ''|*[!0-9]*) printf '0'; return 0 ;;
+    esac
+    now=$(mono_now)
+    case "$now" in ''|*[!0-9]*) now=0 ;; esac
+    if [ "$holdoff_until" -gt "$now" ]; then
+        printf '%s' $((holdoff_until - now))
+    else
+        printf '0'
+    fi
+    return 0
+}
+
+# A Tier 2 or SIM-swap radio marker (wd_radio_down=1) is cleared only by a
+# confirmed AT+CFUN=1. If every confirming read failed, the marker sticks: the
+# start gate then ignores a later airplane mode and the exit cleanup would send
+# AT+CFUN=1 over the user's CFUN=0/4. Call this right before wd_start_gate (never
+# inside its command substitution: a subshell cannot clear the marker). It reads
+# AT+CFUN? only while the marker is set and clears it when the radio reads 1; a
+# 0, a 4 or an unreadable reply keeps the marker (ours or the user's, undecidable).
+# Nothing is read while the gate is paused by the hold-off: it decides without CFUN.
+wd_radio_reconcile() {
+    [ "$wd_radio_down" = "1" ] || return 0
+    [ "$(wd_holdoff_left)" = "0" ] || return 0
+    if [ "$(wd_cfun_now)" = "1" ]; then
+        qlog_info "Radio reads AT+CFUN=1: clearing the stale radio-down marker"
+        wd_mark_radio_up
+    fi
+    return 0
+}
+
 # Gathers the three inputs for wd_decide_start and prints its verdict. The one
 # AT read (AT+CFUN?) is skipped when an earlier gate already decides. While a
 # Tier 2 radio toggle is unresolved (wd_radio_down=1) a radio that is off is ours,
@@ -169,7 +204,6 @@ wd_decide_start() {
 wd_start_gate() {
     local any
     local hl
-    local now
     local cf
     any=0
     [ "$CFG_TIER1_ENABLED" = "1" ] && any=1
@@ -177,15 +211,7 @@ wd_start_gate() {
     [ "$CFG_TIER3_ENABLED" = "1" ] && any=1
     [ "$CFG_TIER4_ENABLED" = "1" ] && any=1
 
-    hl=0
-    case "$holdoff_until" in
-        ''|*[!0-9]*) ;;
-        *)
-            now=$(mono_now)
-            case "$now" in ''|*[!0-9]*) now=0 ;; esac
-            [ "$holdoff_until" -gt "$now" ] && hl=$((holdoff_until - now))
-            ;;
-    esac
+    hl=$(wd_holdoff_left)
 
     cf=""
     if [ "$any" = "1" ] && [ "$hl" -eq 0 ] && [ "$wd_radio_down" != "1" ]; then
@@ -209,6 +235,7 @@ evaluate_quality() {
         qlog_info "QUALITY: breach ${quality_breach_counter}/${CFG_QUALITY_CONSECUTIVE} (avg ${q_avg_latency}ms vs ${CFG_LATENCY_THRESHOLD_MS}ms, loss ${q_packet_loss}% vs ${CFG_LOSS_THRESHOLD_PCT}%)"
         if [ "$quality_breach_counter" -ge "$CFG_QUALITY_CONSECUTIVE" ]; then
             local gate
+            wd_radio_reconcile
             gate=$(wd_start_gate)
             case "$gate" in
                 none|holdoff)

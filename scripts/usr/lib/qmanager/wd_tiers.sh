@@ -9,8 +9,8 @@
 #       _recovery_marker_emitted, holdoff_until
 # Functions: tower_lock_active, wait_for_modem, execute_tier1, execute_tier2,
 #            _wd_confirm_radio_on, wd_enter_radio_off, _wd_start_holdoff,
-#            execute_tier4, find_next_tier, do_recovery, _cooldown_handle_failure,
-#            wd_cooldown_verdict, finish_cooldown
+#            wd_holdoff_clear, execute_tier4, find_next_tier, do_recovery,
+#            _cooldown_handle_failure, wd_cooldown_verdict, finish_cooldown
 #
 # Tier 3 (execute_tier3) and every SIM-slot swap live in wd_sim.sh;
 # finish_cooldown hands the primary-recheck verdict to wd_sim_finish_recheck.
@@ -29,6 +29,9 @@ cooldown_stale_retries=0
 recovery_reason="unreachable"   # "unreachable" | "quality" — why current/last recovery fired
 _recovery_marker_emitted=""     # "<tier>-<reason>" of the last emitted start marker; "" = none this episode
 holdoff_until=0                 # mono_now at which a new ladder may start; 0 = no pause (HOLDOFF_SECS after an exhausted ladder)
+
+# Ends the pause after an exhausted ladder. The only writer besides _wd_start_holdoff.
+wd_holdoff_clear() { holdoff_until=0; }
 
 # Check if tower lock is active (Tier 2 must be skipped)
 tower_lock_active() {
@@ -312,9 +315,28 @@ _wd_start_holdoff() {
 _cooldown_handle_failure() {
     qlog_warn "COOLDOWN failure path entered for Tier $current_tier"
 
+    # The radio gate was read for the swap-back below, so the escalation does not
+    # read it a second time.
+    local _ch_gated
+    _ch_gated=0
+
     # If Tier 3 failed to restore connectivity, fall back to original SIM
     if [ "$current_tier" -eq 3 ] && [ "$current_sim_slot" != "$original_sim_slot" ] && [ "$original_sim_slot" != "null" ]; then
-        sim_failover_fallback
+        # The swap-back cycles the radio (AT+CFUN=0/1): never over a radio the
+        # user turned off. Keep the modem on the backup as a recorded failover and
+        # park in radio_off; wd_sim_on_radio_back swaps back once it is on again.
+        wd_radio_reconcile
+        _ch_gated=1
+        if [ "$(wd_start_gate)" = "radio_off" ]; then
+            qlog_warn "COOLDOWN: radio is off, deferring the swap back to slot $original_sim_slot"
+            wd_sim_adopt_live_slot
+            wd_sim_revert_pending="true"
+            wd_enter_radio_off
+            return
+        fi
+        # A revert that cannot be verified leaves the modem on the backup slot:
+        # record that as the failover it is (wd_sim_adopt_live_slot).
+        sim_failover_fallback || wd_sim_adopt_live_slot
     fi
 
     # Escalate to the next enabled tier. Cooldown already verified the prior tier
@@ -328,9 +350,12 @@ _cooldown_handle_failure() {
     # is correct and reason-agnostic.
     if find_next_tier $((current_tier + 1)); then
         # Tier 2 confirms its own radio-on, so AT+CFUN 0/4 here is the user's.
-        if [ "$(wd_start_gate)" = "radio_off" ]; then
-            wd_enter_radio_off
-            return
+        if [ "$_ch_gated" -eq 0 ]; then
+            wd_radio_reconcile
+            if [ "$(wd_start_gate)" = "radio_off" ]; then
+                wd_enter_radio_off
+                return
+            fi
         fi
         qlog_info "Escalating to Tier $current_tier (reason=$recovery_reason)"
         append_event "watchcat_recovery" "Watchcat: recovery escalating to Tier $current_tier — previous tier did not restore the connection" "warning"
@@ -444,7 +469,7 @@ finish_cooldown() {
                 current_tier=0
                 failure_counter=0
                 quality_breach_counter=0
-                holdoff_until=0
+                wd_holdoff_clear
                 _recovery_marker_emitted=""
                 return
                 ;;
@@ -488,7 +513,7 @@ finish_cooldown() {
             current_tier=0
             failure_counter=0
             quality_breach_counter=0
-            holdoff_until=0
+            wd_holdoff_clear
             _recovery_marker_emitted=""
             return
             ;;
