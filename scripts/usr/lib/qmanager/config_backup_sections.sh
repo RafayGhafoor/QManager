@@ -496,12 +496,13 @@ apply_metrics() {
 # =============================================================================
 # Watchdog / Watchcat — UCI quecmanager.watchcat.*
 # =============================================================================
-_WATCHCAT_KEYS="enabled max_failures check_interval cooldown tier1_enabled tier2_enabled tier3_enabled tier4_enabled backup_sim_slot max_reboots_per_hour"
+_WATCHCAT_KEYS="enabled fail_threshold check_interval cooldown tier1_enabled tier2_enabled tier3_enabled tier4_enabled backup_sim_slot max_reboots_per_hour quality_enabled quality_consecutive ssr_aware ssr_grace primary_recheck_enabled primary_recheck_interval"
 
 collect_watchdog() {
     local out="{"
     local sep=""
-    local k v
+    local k
+    local v
     for k in $_WATCHCAT_KEYS; do
         v=$(uci -q get "quecmanager.watchcat.$k")
         # Encode as string (type handling happens on apply)
@@ -513,7 +514,9 @@ collect_watchdog() {
 }
 
 apply_watchdog() {
-    local input k v
+    local input
+    local k
+    local v
     input=$(cat)
     # Ensure section exists
     uci -q get quecmanager.watchcat >/dev/null 2>&1 || {
@@ -526,6 +529,13 @@ apply_watchdog() {
             uci set "quecmanager.watchcat.${k}=${v}"
         fi
     done
+    # Backups from before the rename carry max_failures; it is the same
+    # setting as fail_threshold, used only when the backup has no fail_threshold.
+    v=$(echo "$input" | jq -r '.fail_threshold // empty')
+    if [ -z "$v" ]; then
+        v=$(echo "$input" | jq -r '.max_failures // empty')
+        [ -n "$v" ] && uci set "quecmanager.watchcat.fail_threshold=${v}"
+    fi
     uci commit quecmanager || return 1
     touch /tmp/qmanager_watchcat_reload
 
