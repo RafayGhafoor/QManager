@@ -196,6 +196,39 @@ export function NeighbourScanner() {
           actions={
             // None on failed: the results card carries the retry.
             posture === "failed" ? null : (
+              <div className="flex flex-wrap items-center gap-2">
+              {/* Live sits here, next to Scan, because it must be reachable
+                  BEFORE the first scan: a live view is the point of the page for
+                  someone watching neighbours move, not a follow-up to a one-shot
+                  read. It used to live in the results toolbar, which only renders
+                  once results exist - a fresh page showed no way to start it. */}
+              <Button
+                type="button"
+                variant="tonal-neutral"
+                onClick={live.toggle}
+                aria-pressed={live.enabled}
+                aria-label={t("cell_scanner.neighbour.live.aria")}
+                size="action"
+                className="gap-1.5"
+              >
+                <MaterialSymbol
+                  name={live.enabled ? "refresh" : "radar"}
+                  size={18}
+                  className={live.enabled ? "motion-safe:animate-spin" : undefined}
+                />
+                {live.enabled
+                  ? t("cell_scanner.neighbour.live.stop")
+                  : t("cell_scanner.neighbour.live.start")}
+                {live.enabled ? (
+                  <span className="tabular-nums opacity-70">
+                    {live.stale || live.ageMs === null
+                      ? t("cell_scanner.neighbour.live.stale")
+                      : t("cell_scanner.neighbour.live.age", {
+                          seconds: Math.round(live.ageMs / 100) / 10,
+                        })}
+                  </span>
+                ) : null}
+              </Button>
               <Button
                 type="button"
                 onClick={startScan}
@@ -217,6 +250,7 @@ export function NeighbourScanner() {
                     ? t("cell_scanner.neighbour.run.rerun")
                     : t("cell_scanner.neighbour.run.start")}
               </Button>
+              </div>
             )
           }
         />
@@ -251,37 +285,6 @@ export function NeighbourScanner() {
                 data={shownResults}
                 onLockCell={handleLockCell}
                 toolbarActions={
-                  <>
-                  <Button
-                    type="button"
-                    variant="tonal-neutral"
-                    className={cn(PILL_QUIET, "gap-1.5")}
-                    onClick={live.toggle}
-                    aria-pressed={live.enabled}
-                    aria-label={t("cell_scanner.neighbour.live.aria")}
-                  >
-                    {/* Both glyphs already exist in the font subset; adding new
-                        names would change `material-symbol-names.ts` and the
-                        subset download. radar = start watching, refresh = live. */}
-                    <MaterialSymbol
-                      name={live.enabled ? "refresh" : "radar"}
-                      size={16}
-                    />
-                    <span className="hidden @sm/section:inline">
-                      {live.enabled
-                        ? t("cell_scanner.neighbour.live.stop")
-                        : t("cell_scanner.neighbour.live.start")}
-                    </span>
-                    {live.enabled ? (
-                      <span className="tabular-nums opacity-70">
-                        {live.stale || live.ageMs === null
-                          ? t("cell_scanner.neighbour.live.stale")
-                          : t("cell_scanner.neighbour.live.age", {
-                              seconds: Math.round(live.ageMs / 100) / 10,
-                            })}
-                      </span>
-                    ) : null}
-                  </Button>
                   <Button
                     type="button"
                     variant="tonal-neutral"
@@ -294,7 +297,6 @@ export function NeighbourScanner() {
                       {t("cell_scanner.run.download")}
                     </span>
                   </Button>
-                  </>
                 }
               />
             ) : (
