@@ -1,0 +1,44 @@
+=== etc/qmanager/crash.log
+1789994997|reboot|tier4_escalation
+1789994996|reboot|tier4_escalation
+1789994995|reboot|tier4_escalation
+1789994994|reboot|tier4_escalation
+1789994993|reboot|tier4_escalation
+1789994992|reboot|tier4_escalation
+1789994991|reboot|tier4_escalation
+1789994990|reboot|tier4_escalation
+1789994989|reboot|tier4_escalation
+1789994988|reboot|tier4_escalation
+1789994987|reboot|tier4_escalation
+1789994986|reboot|tier4_escalation
+1789994985|reboot|tier4_escalation
+1789994984|reboot|tier4_escalation
+1789994983|reboot|tier4_escalation
+1789994982|reboot|tier4_escalation
+1789994981|reboot|tier4_escalation
+1789994980|reboot|tier4_escalation
+1789999880|reboot|tier4_escalation
+1790000050|reboot|tier4_escalation
+
+=== tmp/qmanager.log
+[2026-09-21 14:13:20] INFO  [watchcat:PID] Config loaded: interval=10s fail_threshold=3 probes cooldown=30s
+[2026-09-21 14:13:20] INFO  [watchcat:PID]   Tiers: T1=0 T2=0 T3=0 T4=1 backup_sim=none
+[2026-09-21 14:13:20] INFO  [watchcat:PID]   Quality: enabled=0 latency=250ms loss=30% consecutive=3 (shared thresholds)
+[2026-09-21 14:13:20] INFO  [watchcat:PID]   SSR-aware: enabled=1 grace=45s
+[2026-09-21 14:13:20] INFO  [watchcat:PID]   Primary-recheck (auto-failback): enabled=0 interval=1min
+[2026-09-21 14:13:20] INFO  [watchcat:PID] ========================================
+[2026-09-21 14:13:20] INFO  [watchcat:PID] QManager Watchcat starting (PID N)
+[2026-09-21 14:13:20] INFO  [watchcat:PID] ========================================
+[2026-09-21 14:13:20] INFO  [watchcat:PID] Reboots in last hour: 1
+[2026-09-21 14:13:20] INFO  [watchcat:PID] Boot settle: waiting 30s
+[2026-09-21 14:14:00] INFO  [watchcat:PID] MONITOR → SUSPECT: streak_fail=2 (threshold=3)
+[2026-09-21 14:14:10] INFO  [watchcat:PID] SUSPECT → RECOVERY: streak_fail=4 >= 3
+[2026-09-21 14:14:10] INFO  [watchcat:PID] RECOVERY: Executing Tier 4 (reason=unreachable)
+[2026-09-21 14:14:10] INFO  [watchcat:PID] EVENT [watchcat_recovery] Watchcat: starting recovery (Tier 4) — internet unreachable
+[2026-09-21 14:14:10] ERROR [watchcat:PID] TIER 4: System reboot (recovery 1/3)
+[2026-09-21 14:14:10] INFO  [watchcat:PID] EVENT [watchcat_recovery] Watchcat: rebooting system (Tier 4)
+
+=== tmp/qmanager_events.json
+{"timestamp":1790000050,"type":"watchcat_recovery","message":"Watchcat: starting recovery (Tier 4) — internet unreachable","severity":"warning"}
+{"timestamp":1790000050,"type":"watchcat_recovery","message":"Watchcat: rebooting system (Tier 4)","severity":"error"}
+

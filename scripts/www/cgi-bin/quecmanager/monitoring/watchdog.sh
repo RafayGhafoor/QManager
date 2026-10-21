@@ -85,6 +85,45 @@ uci_get() {
     fi
 }
 
+# Coerce a value that is later passed to jq --argjson. A bad UCI value or a
+# half-written state file must degrade to the default, never kill the GET.
+# coerce_int: plain decimal digits (no leading zero), else the default.
+coerce_int() {
+    case "$1" in
+        ''|*[!0-9]*|0[0-9]*) echo "$2" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+# coerce_bool: 0 or 1, else the default.
+coerce_bool() {
+    case "$1" in
+        0|1) echo "$1" ;;
+        *) echo "$2" ;;
+    esac
+}
+
+# json_or_default <type> <raw> <default>: <raw> re-emitted as one compact JSON
+# document when it is exactly one value of <type> (object/array), else the
+# default. An empty or garbage file lands on the default.
+json_or_default() {
+    local out
+    out=$(printf '%s' "$2" | jq -c -s -e --arg t "$1" \
+        'if length == 1 and (.[0] | type) == $t then .[0] else empty end' 2>/dev/null) || out=""
+    if [ -n "$out" ]; then
+        printf '%s' "$out"
+    else
+        printf '%s' "$3"
+    fi
+}
+
+# Recent watchdog reboots (Tier-4 ledger rows) come from wd_ledger.sh. Guarded:
+# a missing lib must not abort the CGI; the stub reports no reboots.
+[ -f /usr/lib/qmanager/wd_ledger.sh ] && . /usr/lib/qmanager/wd_ledger.sh
+if ! command -v wd_ledger_recent_json >/dev/null 2>&1; then
+    wd_ledger_recent_json() { echo '[]'; }
+fi
+
 # Probe cadence comes from conn_state_cadence (the same table qmanager_ping
 # runs). Guarded: a missing lib must not abort the CGI; fall back to relaxed.
 [ -f /usr/lib/qmanager/conn_state.sh ] && . /usr/lib/qmanager/conn_state.sh
@@ -153,6 +192,9 @@ validate_int() {
 reject_field() {
     local field="$1"
     local reason="$2"
+    # Drop everything this request staged so a rejected save cannot be
+    # committed later by an unrelated uci commit.
+    uci -q revert quecmanager 2>/dev/null
     jq -n --arg field "$field" --arg reason "$reason" \
         '{success:false, error:"invalid_field", field:$field, reason:$reason}'
     exit 0
@@ -188,6 +230,27 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     primary_recheck_enabled=$(uci_get primary_recheck_enabled 0)
     primary_recheck_interval=$(uci_get primary_recheck_interval 30)
 
+    # Every value below goes through jq --argjson: coerce to the default.
+    enabled=$(coerce_bool "$enabled" 0)
+    fail_threshold=$(coerce_int "$fail_threshold" 5)
+    check_interval=$(coerce_int "$check_interval" 10)
+    cooldown=$(coerce_int "$cooldown" 60)
+    tier1=$(coerce_bool "$tier1" 1)
+    tier2=$(coerce_bool "$tier2" 1)
+    tier3=$(coerce_bool "$tier3" 0)
+    tier4=$(coerce_bool "$tier4" 1)
+    max_reboots=$(coerce_int "$max_reboots" 3)
+    quality_enabled=$(coerce_bool "$quality_enabled" 0)
+    quality_consecutive=$(coerce_int "$quality_consecutive" 5)
+    ssr_aware=$(coerce_bool "$ssr_aware" 1)
+    ssr_grace=$(coerce_int "$ssr_grace" 45)
+    primary_recheck_enabled=$(coerce_bool "$primary_recheck_enabled" 0)
+    primary_recheck_interval=$(coerce_int "$primary_recheck_interval" 30)
+    case "$backup_sim" in
+        1|2) ;;
+        *) backup_sim="" ;;
+    esac
+
     # --- Probe interval reflection (ping_profile section, read-only mirror) ---
     probe_profile=""
     interval_override=""
@@ -216,33 +279,39 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     qt_loss_pct=$(resolve_loss_pct "$qt_loss_preset" "$qt_loss_custom")
 
     # Read live status from watchcat daemon state file
+    # (a 0-byte or half-written file falls back to the default, never a 500)
     status_json='{}'
     if [ -f "$WATCHCAT_STATE" ]; then
-        status_json=$(cat "$WATCHCAT_STATE" 2>/dev/null)
+        status_json=$(json_or_default object "$(cat "$WATCHCAT_STATE" 2>/dev/null)" '{}')
     fi
 
     # Read SIM failover state
     sim_failover_json='{"active":false}'
     if [ -f "$SIM_FAILOVER_FILE" ]; then
-        sim_failover_json=$(cat "$SIM_FAILOVER_FILE" 2>/dev/null)
+        sim_failover_json=$(json_or_default object "$(cat "$SIM_FAILOVER_FILE" 2>/dev/null)" '{"active":false}')
     fi
 
     # Read SIM swap detection
     sim_swap_json='{"detected":false}'
     if [ -f "$SIM_SWAP_FLAG" ]; then
-        sim_swap_json=$(cat "$SIM_SWAP_FLAG" 2>/dev/null)
+        sim_swap_json=$(json_or_default object "$(cat "$SIM_SWAP_FLAG" 2>/dev/null)" '{"detected":false}')
     fi
+
+    # Recent watchdog reboots: epoch ints, newest first, at most 5.
+    recent_reboots_json=$(json_or_default array "$(wd_ledger_recent_json 5 2>/dev/null)" '[]')
 
     # Check if watchcat was auto-disabled
     auto_disabled="false"
     [ -f "$DISABLED_FLAG" ] && auto_disabled="true"
 
     # interval_override: emit JSON null when unset/non-numeric, else the int.
-    interval_override_json="null"
-    case "$interval_override" in
-        ''|*[!0-9]*) interval_override_json="null" ;;
-        *) interval_override_json="$interval_override" ;;
-    esac
+    interval_override_json=$(coerce_int "$interval_override" null)
+    effective_interval=$(coerce_int "$effective_interval" 5)
+    CQ_CFG_INTERVAL_SEC=$(coerce_int "$CQ_CFG_INTERVAL_SEC" 5)
+    CQ_CFG_FAIL_SECS=$(coerce_int "$CQ_CFG_FAIL_SECS" 15)
+    CQ_CFG_RECOVER_SECS=$(coerce_int "$CQ_CFG_RECOVER_SECS" 10)
+    qt_latency_ms=$(coerce_int "$qt_latency_ms" 250)
+    qt_loss_pct=$(coerce_int "$qt_loss_pct" 30)
 
     jq -n \
         --argjson enabled "$enabled" \
@@ -275,6 +344,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         --argjson sim_failover "$sim_failover_json" \
         --argjson sim_swap "$sim_swap_json" \
         --argjson auto_disabled "$auto_disabled" \
+        --argjson recent_reboots "$recent_reboots_json" \
         '{
             success: true,
             settings: {
@@ -310,7 +380,8 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             status: $status,
             sim_failover: $sim_failover,
             sim_swap: $sim_swap,
-            auto_disabled: $auto_disabled
+            auto_disabled: $auto_disabled,
+            recent_reboots: $recent_reboots
         }'
     exit 0
 fi
@@ -510,10 +581,16 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         new_enabled=$(uci -q get quecmanager.watchcat.enabled 2>/dev/null)
         if [ "$new_enabled" = "1" ]; then
             rm -f "$DISABLED_FLAG"
-            # Enable and start the watchcat init script
+            # Enable on boot. A running daemon picks the change up from the
+            # reload flag touched above, so only start it when it is down
+            # (a restart would drop the live recovery state mid-save).
             /etc/init.d/qmanager_watchcat enable 2>/dev/null
-            ( /etc/init.d/qmanager_watchcat restart >/dev/null 2>&1 & )
-            qlog_info "Watchdog settings saved, watchcat enabled and started"
+            if /etc/init.d/qmanager_watchcat running >/dev/null 2>&1; then
+                qlog_info "Watchdog settings saved, running watchcat will reload"
+            else
+                ( /etc/init.d/qmanager_watchcat start >/dev/null 2>&1 & )
+                qlog_info "Watchdog settings saved, watchcat enabled and started"
+            fi
         else
             # Stop and disable the watchcat init script
             /etc/init.d/qmanager_watchcat stop >/dev/null 2>&1

@@ -1,3 +1,5 @@
+> ⚠️ HISTORICAL: this May 2026 plan is superseded. The code it names (`CFG_MAX_FAILURES`, `last_iccid`, `watchdog-settings-card.tsx`, the single-file daemon) has since been replaced or split. The current behaviour is documented in [`features/connection-watchdog.md`](features/connection-watchdog.md); the October 2026 rework is in [`plans/2026-10-21-watchdog-modular-lean-plan.md`](plans/2026-10-21-watchdog-modular-lean-plan.md). Do not implement from this file.
+
 # Watchdog SIM Failover — Audit Fix Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

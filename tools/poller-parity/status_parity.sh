@@ -243,6 +243,8 @@ sc_base() {
     wc_total_recoveries=0
     wc_cooldown_remaining=0
     wc_reboots_this_hour=0
+    _WC_HB_AGE=7
+    _WC_HB_STALE=90
     sim_fo_active=false
     sim_fo_original_slot=null
     sim_fo_current_slot=null
@@ -343,7 +345,7 @@ sc_empties() {
     dns_lookup_ms=""
     wc_enabled=""; wc_state=""; wc_current_tier=""; wc_failure_count=""
     wc_last_recovery_time=""; wc_last_recovery_tier=""; wc_total_recoveries=""
-    wc_cooldown_remaining=""; wc_reboots_this_hour=""
+    wc_cooldown_remaining=""; wc_reboots_this_hour=""; _WC_HB_AGE=""; _WC_HB_STALE=""
     sim_fo_active=""; sim_fo_original_slot=""; sim_fo_current_slot=""; sim_fo_switched_at=""
     sim_swap_detected=""
     conn_internet_available=""
@@ -427,7 +429,7 @@ _pick_num() {
 
 PH_STR_VARS="t2_carrier t2_bandwidth_details t2_apn t2_wan_ipv4 t2_wan_ipv6 t2_primary_dns t2_secondary_dns t2_primary_dns_v4 t2_primary_dns_v6 t2_secondary_dns_v4 t2_secondary_dns_v6 lte_band nr_band boot_firmware boot_build_date boot_manufacturer boot_model boot_imei boot_imsi boot_iccid boot_phone_number boot_lte_category t2_mimo boot_supported_lte_bands boot_supported_nsa_nr5g_bands boot_supported_sa_nr5g_bands boot_supported_nrdc_nr5g_bands hw_lte_bands hw_nsa_nr5g_bands hw_sa_nr5g_bands boot_qmanager_version boot_ippt_mode boot_ippt_mac boot_ippt_nat boot_ippt_usbnet boot_ippt_dhcpv4dns conn_ping_target conn_profile conn_last_family dns_resolver sim_swap_profile_id sim_swap_profile_name service_status lte_state nr_state conn_status wc_state"
 # Numeric fields that have a default in BOTH composers (empty is allowed).
-PH_NUM_VARS="t1_cfun t2_sim_slot t2_total_bandwidth_mhz lte_earfcn lte_bandwidth lte_pci lte_cell_id lte_enodeb_id lte_sector_id lte_tac lte_rsrp lte_rsrq lte_sinr lte_rssi lte_ta nr_arfcn nr_pci nr_cell_id nr_enodeb_id nr_sector_id nr_tac nr_rsrp nr_rsrq nr_sinr nr_scs nr_ta t1_temperature cpu_usage memory_used_mb memory_total_mb uptime_seconds conn_uptime_seconds conn_latency conn_avg_latency conn_min_latency conn_max_latency conn_jitter conn_packet_loss conn_history_interval QUALITY_LAT_THRESHOLD QUALITY_LOSS_THRESHOLD dns_lookup_ms wc_current_tier wc_failure_count wc_last_recovery_time wc_last_recovery_tier wc_total_recoveries wc_cooldown_remaining wc_reboots_this_hour sim_fo_original_slot sim_fo_current_slot sim_fo_switched_at"
+PH_NUM_VARS="t1_cfun t2_sim_slot t2_total_bandwidth_mhz lte_earfcn lte_bandwidth lte_pci lte_cell_id lte_enodeb_id lte_sector_id lte_tac lte_rsrp lte_rsrq lte_sinr lte_rssi lte_ta nr_arfcn nr_pci nr_cell_id nr_enodeb_id nr_sector_id nr_tac nr_rsrp nr_rsrq nr_sinr nr_scs nr_ta t1_temperature cpu_usage memory_used_mb memory_total_mb uptime_seconds conn_uptime_seconds conn_latency conn_avg_latency conn_min_latency conn_max_latency conn_jitter conn_packet_loss conn_history_interval QUALITY_LAT_THRESHOLD QUALITY_LOSS_THRESHOLD dns_lookup_ms wc_current_tier wc_failure_count wc_last_recovery_time wc_last_recovery_tier wc_total_recoveries wc_cooldown_remaining wc_reboots_this_hour _WC_HB_AGE _WC_HB_STALE sim_fo_original_slot sim_fo_current_slot sim_fo_switched_at"
 
 run_random() {
     local _i=0

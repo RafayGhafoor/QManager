@@ -243,7 +243,7 @@
       "cooldownCaption": "{{seconds}} 秒後重新偵測",
       "recoveriesLast": "第 {{tier}} 步，{{ago}}",
       "recoveriesNone": "尚無記錄",
-      "rebootsCaption": "自看門狗啟動起",
+      "rebootsCaption": "最近一小時",
       "rebootsOff": "重啟步驟已關閉",
       "aria": "看門狗狀態",
       "cooldownStep": "第 {{tier}} 步已執行，{{seconds}} 秒後重新偵測。"
@@ -263,7 +263,7 @@
       },
       "not_running": {
         "label": "未回報",
-        "blurb": "已啟用，但服務自開機以來尚未回報。"
+        "blurb": "已啟用，但看門狗已停止回報。"
       },
       "auto_disabled": {
         "label": "已自動關閉",
@@ -288,6 +288,9 @@
       "locked": {
         "label": "已暫停",
         "blurb": "有維護作業正在進行，看門狗暫時不會採取行動。"
+      },
+      "radio_off": {
+        "blurb": "無線電已關閉，看門狗暫時不會採取行動。"
       },
       "disabled": {
         "label": "已停用",
@@ -385,6 +388,7 @@
     "activity": {
       "title": "恢復活動",
       "description": "看門狗執行過的操作，最新優先。",
+      "tier4Reboot": "看門狗重新啟動了數據機",
       "type": {
         "recovery": "恢復",
         "failover": "SIM 卡故障轉移"
@@ -404,7 +408,7 @@
       },
       "empty": {
         "title": "尚無恢復活動",
-        "description": "當看門狗處理斷線時，恢復步驟和 SIM 卡切換會顯示在這裡。較早的活動會從數據機事件記錄中滾出。"
+        "description": "當看門狗處理斷線時，恢復步驟和 SIM 卡切換會顯示在這裡。"
       },
       "error": {
         "title": "無法載入恢復活動",

@@ -243,7 +243,7 @@
       "cooldownCaption": "Rechecking in {{seconds}}s",
       "recoveriesLast": "Step {{tier}}, {{ago}}",
       "recoveriesNone": "None yet",
-      "rebootsCaption": "Since the watchdog started",
+      "rebootsCaption": "In the last hour",
       "rebootsOff": "Reboot step is off",
       "aria": "Watchdog status",
       "cooldownStep": "Step {{tier}} ran. Rechecking in {{seconds}}s."
@@ -263,7 +263,7 @@
       },
       "not_running": {
         "label": "Not reporting",
-        "blurb": "Enabled, but the service has not reported since boot."
+        "blurb": "Enabled, but the watchdog has stopped reporting."
       },
       "auto_disabled": {
         "label": "Turned itself off",
@@ -288,6 +288,9 @@
       "locked": {
         "label": "Paused",
         "blurb": "Maintenance is in progress, so the watchdog is holding off."
+      },
+      "radio_off": {
+        "blurb": "The radio is off, so the watchdog is holding off."
       },
       "disabled": {
         "label": "Disabled",
@@ -385,6 +388,7 @@
     "activity": {
       "title": "Recovery Activity",
       "description": "What the watchdog has done, newest first.",
+      "tier4Reboot": "The watchdog restarted the modem",
       "type": {
         "recovery": "Recovery",
         "failover": "SIM failover"
@@ -404,7 +408,7 @@
       },
       "empty": {
         "title": "No recovery activity yet",
-        "description": "Recovery steps and SIM failovers appear here when the watchdog acts on an outage. Older activity ages out of the modem event log."
+        "description": "Recovery steps and SIM failovers appear here when the watchdog acts on an outage."
       },
       "error": {
         "title": "Could not load recovery activity",

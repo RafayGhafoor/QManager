@@ -243,7 +243,7 @@
       "cooldownCaption": "Nuovo controllo tra {{seconds}} secondi",
       "recoveriesLast": "Passaggio {{tier}}, {{ago}}",
       "recoveriesNone": "Nessuno finora",
-      "rebootsCaption": "Da quando il watchdog è partito",
+      "rebootsCaption": "Nell'ultima ora",
       "rebootsOff": "Passaggio di riavvio disattivo",
       "aria": "Stato del watchdog",
       "cooldownStep": "Passaggio {{tier}} eseguito. Nuovo controllo tra {{seconds}} s."
@@ -263,7 +263,7 @@
       },
       "not_running": {
         "label": "Non segnalato",
-        "blurb": "Abilitato, ma il servizio non ha inviato rapporti dall'avvio."
+        "blurb": "Abilitato, ma il watchdog ha smesso di inviare rapporti."
       },
       "auto_disabled": {
         "label": "Disattivato automaticamente",
@@ -288,6 +288,9 @@
       "locked": {
         "label": "In pausa",
         "blurb": "È in corso un intervento di manutenzione, quindi il watchdog rimane in attesa."
+      },
+      "radio_off": {
+        "blurb": "La radio è spenta, quindi il watchdog rimane in attesa."
       },
       "disabled": {
         "label": "Disattivato",
@@ -385,6 +388,7 @@
     "activity": {
       "title": "Attività di ripristino",
       "description": "Le azioni svolte dal watchdog, dalla più recente.",
+      "tier4Reboot": "Il watchdog ha riavviato il modem",
       "type": {
         "recovery": "Ripristino",
         "failover": "Failover SIM"
@@ -404,7 +408,7 @@
       },
       "empty": {
         "title": "Nessuna attività di ripristino",
-        "description": "I passaggi di ripristino e i failover SIM compaiono qui quando il watchdog interviene su un'interruzione. Le attività più vecchie escono dal registro eventi del modem."
+        "description": "I passaggi di ripristino e i failover SIM compaiono qui quando il watchdog interviene su un'interruzione."
       },
       "error": {
         "title": "Impossibile caricare l'attività di ripristino",

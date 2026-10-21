@@ -1,0 +1,18 @@
+--- pass 1 ---
+--- pass 2 ---
+T+50 AT+CFUN?
+T+50 AT+CFUN=0
+T+53 AT+CFUN=1
+T+53 AT
+T+53 AT+CFUN?
+T+53 AT+CFUN=1
+T+53 AT+CFUN?
+--- pass 3 ---
+--- pass 4 ---
+--- pass 5 ---
+--- pass 6 ---
+--- pass 7 ---
+--- pass 8 ---
+--- pass 9 ---
+--- pass 10 ---
+T+123 AT+CFUN=1

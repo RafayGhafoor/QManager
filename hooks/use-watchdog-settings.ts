@@ -78,6 +78,8 @@ export interface UseWatchdogSettingsReturn {
   settings: WatchdogSettings | null;
   qualityThresholds: WatchdogQualityThresholds | null;
   autoDisabled: boolean;
+  /** Epoch seconds of the watchdog's own modem restarts, newest first. */
+  recentReboots: number[];
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
@@ -97,6 +99,7 @@ export function useWatchdogSettings(): UseWatchdogSettingsReturn {
   const [qualityThresholds, setQualityThresholds] =
     useState<WatchdogQualityThresholds | null>(null);
   const [autoDisabled, setAutoDisabled] = useState(false);
+  const [recentReboots, setRecentReboots] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -150,6 +153,15 @@ export function useWatchdogSettings(): UseWatchdogSettingsReturn {
         });
         setQualityThresholds(json.quality_thresholds ?? null);
         setAutoDisabled(json.auto_disabled === true);
+        // Absent on older backends: no history, not an error.
+        setRecentReboots(
+          Array.isArray(json.recent_reboots)
+            ? json.recent_reboots.filter(
+                (v: unknown): v is number =>
+                  typeof v === "number" && Number.isFinite(v),
+              )
+            : [],
+        );
       } catch (err) {
         if (!mountedRef.current) return;
         setError(
@@ -245,6 +257,7 @@ export function useWatchdogSettings(): UseWatchdogSettingsReturn {
     settings,
     qualityThresholds,
     autoDisabled,
+    recentReboots,
     isLoading,
     isSaving,
     error,

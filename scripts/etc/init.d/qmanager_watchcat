@@ -34,6 +34,7 @@ start_service() {
     procd_set_param stdout 1
     procd_set_param stderr 1
     procd_set_param respawn 3600 5 5
+    procd_set_param term_timeout 15
     procd_close_instance
 }
 
@@ -45,6 +46,7 @@ stop_service() {
     # procd-driven stop of this service. /tmp is tmpfs and clears on reboot
     # anyway, so there's nothing to clean up.
     rm -f /tmp/qmanager_watchcat.pid
+    rm -f /tmp/qmanager_watchcat.json
     rm -f /tmp/qmanager_recovery_active
 }
 

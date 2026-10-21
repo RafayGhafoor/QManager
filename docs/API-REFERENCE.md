@@ -275,7 +275,9 @@ Main polling endpoint. Returns the cached modem status JSON (built by `qmanager_
     "last_recovery_tier": null,
     "total_recoveries": 0,
     "cooldown_remaining": 0,
-    "reboots_this_hour": 0
+    "reboots_this_hour": 0,
+    "age_sec": 4,
+    "stale_after": 90
   },
   "sim_failover": {
     "active": false,
@@ -294,6 +296,8 @@ Main polling endpoint. Returns the cached modem status JSON (built by `qmanager_
 `lte.sinr` is in dB. `AT+QENG="servingcell"` reports LTE `<SINR>` as a raw value X from 0 to 25. The poller converts it with the RG520N/RM5xxN AT manual (§5.20) formula `Y = 2X - 20`, which gives -20 to +30 dB. Live checks on an RM551E against `AT+QCAINFO` RSSNR and `AT+QSINR` held from X=8 to X=24. Any raw value outside 0..25, or one that isn't a number (`-`, `-32768`, empty), is published as `null`. `nr.sinr` and the `signal_per_antenna` arrays are already in dB and are passed through unchanged.
 
 `device.serving_read_mono` and `device.ca_read_mono` are the uptime seconds (same clock as `mono`) of the last `AT+QENG` reply carrying `+QENG:` lines and the last `AT+QCAINFO` parse; `0` means never read since the poller started. Age them with `mono - value`; the deep poller tier freezes CA values, so `ca_read_mono` can be hours old. Backs `qmanager_serving_cell_age_seconds` / `qmanager_carrier_components_age_seconds` ([`features/prometheus-metrics.md`](features/prometheus-metrics.md)).
+
+`watchcat.age_sec` is the watchdog daemon's heartbeat age: seconds since it last wrote `/tmp/qmanager_watchcat.json`, as a monotonic delta (poller uptime minus the state file's `mono`, never negative). `watchcat.stale_after` is the daemon's own limit (`3 * check_interval + 60`, or 600 during a long recovery tier). `age_sec > stale_after` means the daemon stopped reporting, and the Watchdog page shows "Not reporting". Both are `null` while the daemon has never reported, and are absent on an older poller (consumers treat that as live). When the state file is gone (daemon stopped) the poller resets the whole block to defaults (`enabled: false`, `state: "disabled"`). `watchcat.state` also takes `"ssr_hold"` and `"radio_off"`. See [`docs/features/connection-watchdog.md`](features/connection-watchdog.md#heartbeat-contract).
 
 `connectivity.status` is `"recovery"` during a watchdog recovery, `"connected"` / `"degraded"` while the internet is reachable, `"disconnected"` when it is not, and `"unknown"` on stale data; `"degraded"` means packet loss is at or above `connectivity.thresholds.loss_pct` (the configured Connection Quality loss cut, default 30 %; it was a fixed 10 % before ledger B2.3). Latency alone never degrades the status. `connectivity.thresholds` is `{ latency_ms, loss_pct }` and is absent on an older poller.
 
@@ -1180,31 +1184,87 @@ Merges both channels' NDJSON logs, tags each entry with `channel: "sms"|"email"`
 
 ### GET/POST `/monitoring/watchdog.sh`
 
-> ℹ️ NOTE: The sample below predates the current shape. The live GET returns `settings`, then top-level `probe_profile`, `interval_override`, `effective_interval`, `interval_sec`, `fail_secs`, `recover_secs`, `quality_thresholds`, `status`, `sim_failover`, `sim_swap`, `auto_disabled`. POST `save_settings` writes only the keys present (an absent key, `backup_sim_slot` included, is left untouched) and accepts `probe_interval` (int 1-60, written to `ping_profile.interval_override` only when it changed; ledger U4.6). See [`docs/features/connection-watchdog.md`](features/connection-watchdog.md) for the authoritative envelope.
+Connection Watchdog settings and live state. Authoritative contract, invariants and the daemon behind it: [`docs/features/connection-watchdog.md`](features/connection-watchdog.md#cgi-envelope).
 
 **GET Response:**
 ```json
 {
   "success": true,
-  "enabled": true,
-  "state": "monitor",
-  "config": {
+  "settings": {
+    "enabled": true,
+    "fail_threshold": 5,
     "check_interval": 10,
-    "suspect_threshold": 3,
-    "recovery_timeout": 60,
-    "cooldown_period": 120,
-    "max_tier": 4,
-    "sim_failover_enabled": true,
-    "reboot_enabled": true
+    "cooldown": 60,
+    "tier1_enabled": true,
+    "tier2_enabled": true,
+    "tier3_enabled": false,
+    "tier4_enabled": true,
+    "backup_sim_slot": null,
+    "max_reboots_per_hour": 3,
+    "quality_enabled": false,
+    "quality_consecutive": 5,
+    "ssr_aware": true,
+    "ssr_grace": 45,
+    "primary_recheck_enabled": false,
+    "primary_recheck_interval": 30
   },
+  "probe_profile": "relaxed",
+  "interval_override": null,
+  "effective_interval": 5,
+  "interval_sec": 5,
+  "fail_secs": 15,
+  "recover_secs": 10,
+  "quality_thresholds": { "latency_ms": 250, "loss_pct": 30, "latency_preset": "tolerant", "loss_preset": "tolerant" },
   "status": {
-    "current_tier": 0,
-    "failure_count": 0,
-    "total_recoveries": 0,
-    "reboots_this_hour": 0
-  }
+    "timestamp": 1737158400, "mono": 5230, "stale_after": 90,
+    "enabled": true, "state": "monitor", "current_tier": 0, "failure_count": 0,
+    "last_recovery_time": null, "last_recovery_tier": null, "total_recoveries": 0,
+    "cooldown_remaining": 0, "sim_failover_active": false,
+    "original_sim_slot": null, "current_sim_slot": null,
+    "reboots_this_hour": 1, "quality_breach_count": 0, "quality_enabled": false,
+    "last_recovery_reason": "unreachable", "ssr_hold": false, "last_ssr_detected": null
+  },
+  "sim_failover": { "active": false },
+  "sim_swap": { "detected": false },
+  "auto_disabled": false,
+  "recent_reboots": [1737158400, 1737150000]
 }
 ```
+
+- `status` is the raw daemon state file, `{}` when the daemon is not running (the file is removed when it exits). `status.mono` and `status.stale_after` are the heartbeat. The page reads the liveness verdict from the poller's `status.json` `.watchcat.age_sec` / `.stale_after`, not from this payload.
+- `recent_reboots`: epoch seconds of the watchdog's own Tier 4 reboots from `/etc/qmanager/crash.log` (`tier4_escalation` rows only), newest first, at most 5, `[]` on any problem or when the ledger is absent. Epochs from a clockless (1970) boot can appear; consumers ignore values at or below 1600000000.
+- `sim_failover` is the raw `/tmp/qmanager_sim_failover` record, `{ "active": false }` when absent. Besides `active`, `original_slot`, `current_slot`, `switched_at`, `reason`, `original_iccid` and `current_iccid` it can carry `confirmed: false` (written right after a Tier 3 swap, before the cooldown judged it) and `revert_pending: true` (a swap-back deferred because the radio was off).
+- Bad input degrades instead of failing: a state file that is 0 bytes, half-written or not an object yields `"status": {}`; a garbage failover or swap file yields their defaults; a non-numeric UCI value (for example `cooldown=abc`) falls back to its default. The GET still returns `success: true`.
+
+**GET while the daemon is silent** (enabled, but it stopped writing, or was killed and left a stale file): `status` keeps the last write, so `status.mono` stops advancing. Liveness is judged from the poller (`watchcat.age_sec > watchcat.stale_after`), and the Watchdog page shows "Not reporting":
+```json
+{
+  "success": true,
+  "settings": { "enabled": true, "...": "..." },
+  "status": { "timestamp": 1737150000, "mono": 4100, "stale_after": 90, "enabled": true, "state": "monitor", "...": "..." },
+  "sim_failover": { "active": false },
+  "auto_disabled": false,
+  "recent_reboots": []
+}
+```
+
+**POST** `{ "action": "save_settings" | "dismiss_sim_swap" | "revert_sim", ... }`.
+
+`save_settings` writes only the keys present in the body (an absent key, `backup_sim_slot` included, is left untouched) and accepts `probe_interval` (int 1-60, written to `ping_profile.interval_override` only when it changed; ledger U4.6). The key set is `enabled`, `fail_threshold`, `check_interval`, `cooldown`, `tier1_enabled`..`tier4_enabled`, `backup_sim_slot`, `max_reboots_per_hour`, `quality_enabled`, `quality_consecutive`, `ssr_aware`, `ssr_grace`, `primary_recheck_enabled`, `primary_recheck_interval`, `probe_profile`, `interval_override`, `probe_interval`. A save commits UCI, touches the daemon's reload flag and starts the daemon only if it is not already running. **It no longer restarts a running daemon**: the daemon reloads the settings within one `check_interval`.
+
+```json
+{ "success": true }
+```
+
+`dismiss_sim_swap` and `revert_sim` also return `{ "success": true }` (`revert_sim` adds a `message`). `revert_sim` queues the user's request; the daemon acts on it when it is idle (not mid-recovery, locked, radio off or holding for an SSR).
+
+A rejected value returns HTTP 200 with the `invalid_field` envelope (`reason`, not `detail`) and discards everything the request had staged in UCI:
+
+```json
+{ "success": false, "error": "invalid_field", "field": "fail_threshold", "reason": "must be integer 1-20" }
+```
+
+Ranges: `fail_threshold` 1-20, `check_interval` 5-60, `cooldown` 10-300, `max_reboots_per_hour` 1-10, `backup_sim_slot` 1 or 2 (JSON `null` clears), `quality_consecutive` 1-60, `ssr_grace` 10-120, `primary_recheck_interval` 5-1440 minutes, `probe_interval` 1-60, `interval_override` 1-60 (`null` clears), `probe_profile` one of `sensitive`/`regular`/`relaxed`/`quiet`. Other errors use the standard `cgi_error` envelope (`missing_action`, `unknown_action`, `method_not_allowed`).
 
 ### GET/POST `/monitoring/sites.sh`
 

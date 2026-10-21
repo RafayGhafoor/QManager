@@ -243,7 +243,7 @@
       "cooldownCaption": "Memeriksa ulang dalam {{seconds}} detik",
       "recoveriesLast": "Langkah {{tier}}, {{ago}}",
       "recoveriesNone": "Belum pernah",
-      "rebootsCaption": "Sejak watchdog mulai berjalan",
+      "rebootsCaption": "Dalam satu jam terakhir",
       "rebootsOff": "Langkah reboot nonaktif",
       "aria": "Status watchdog",
       "cooldownStep": "Langkah {{tier}} dijalankan. Memeriksa ulang dalam {{seconds}} detik."
@@ -263,7 +263,7 @@
       },
       "not_running": {
         "label": "Tidak dilaporkan",
-        "blurb": "Diaktifkan, tetapi layanan belum melapor sejak boot."
+        "blurb": "Diaktifkan, tetapi watchdog berhenti melapor."
       },
       "auto_disabled": {
         "label": "Mati otomatis",
@@ -288,6 +288,9 @@
       "locked": {
         "label": "Dijeda",
         "blurb": "Pemeliharaan sedang berlangsung, sehingga watchdog menahan diri sementara."
+      },
+      "radio_off": {
+        "blurb": "Radio sedang mati, sehingga watchdog menahan diri sementara."
       },
       "disabled": {
         "label": "Nonaktif",
@@ -385,6 +388,7 @@
     "activity": {
       "title": "Aktivitas pemulihan",
       "description": "Tindakan yang telah dilakukan watchdog, terbaru dulu.",
+      "tier4Reboot": "Watchdog me-restart modem",
       "type": {
         "recovery": "Pemulihan",
         "failover": "Failover SIM"
@@ -404,7 +408,7 @@
       },
       "empty": {
         "title": "Belum ada aktivitas pemulihan",
-        "description": "Langkah pemulihan dan failover SIM muncul di sini saat watchdog menangani gangguan. Aktivitas lama akan tergeser keluar dari log peristiwa modem."
+        "description": "Langkah pemulihan dan failover SIM muncul di sini saat watchdog menangani gangguan."
       },
       "error": {
         "title": "Tidak dapat memuat aktivitas pemulihan",

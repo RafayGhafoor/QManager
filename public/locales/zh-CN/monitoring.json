@@ -243,7 +243,7 @@
       "cooldownCaption": "{{seconds}} 秒后重新检测",
       "recoveriesLast": "第 {{tier}} 步，{{ago}}",
       "recoveriesNone": "尚无记录",
-      "rebootsCaption": "自看门狗启动起",
+      "rebootsCaption": "最近一小时",
       "rebootsOff": "重启步骤已关闭",
       "aria": "看门狗状态",
       "cooldownStep": "第 {{tier}} 步已执行，{{seconds}} 秒后重新检测。"
@@ -263,7 +263,7 @@
       },
       "not_running": {
         "label": "未上报",
-        "blurb": "已启用，但服务自启动以来尚未上报。"
+        "blurb": "已启用，但看门狗已停止上报。"
       },
       "auto_disabled": {
         "label": "已自动关闭",
@@ -288,6 +288,9 @@
       "locked": {
         "label": "已暂停",
         "blurb": "有维护操作正在进行，看门狗暂时不会采取行动。"
+      },
+      "radio_off": {
+        "blurb": "无线电已关闭，看门狗暂时不会采取行动。"
       },
       "disabled": {
         "label": "已禁用",
@@ -385,6 +388,7 @@
     "activity": {
       "title": "恢复活动",
       "description": "看门狗执行过的操作，最新优先。",
+      "tier4Reboot": "看门狗重启了调制解调器",
       "type": {
         "recovery": "恢复",
         "failover": "SIM 卡故障转移"
@@ -404,7 +408,7 @@
       },
       "empty": {
         "title": "尚无恢复活动",
-        "description": "当看门狗处理断网时，恢复步骤和 SIM 卡切换会显示在这里。较早的活动会从调制解调器事件日志中滚出。"
+        "description": "当看门狗处理断网时，恢复步骤和 SIM 卡切换会显示在这里。"
       },
       "error": {
         "title": "无法加载恢复活动",

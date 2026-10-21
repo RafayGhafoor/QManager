@@ -1,0 +1,12 @@
+--- pass 1 ---
+--- pass 2 ---
+auto_apply_profile 89000000000000000001 watchdog_revert
+tower_failover start
+--- pass 3 ---
+--- pass 4 ---
+--- pass 5 ---
+--- pass 6 ---
+--- pass 7 ---
+--- pass 8 ---
+--- pass 9 ---
+--- pass 10 ---

@@ -632,7 +632,10 @@ export type WatchcatState =
   | "disabled"
   // Holding the recovery ladder while a recoverable baseband (MPSS) restart
   // self-heals. Passed through verbatim from the daemon by the poller.
-  | "ssr_hold";
+  | "ssr_hold"
+  // The radio is off (airplane mode / CFUN 0), so the daemon is holding off
+  // rather than treating the dead link as an outage.
+  | "radio_off";
 
 export interface WatchcatStatus {
   enabled: boolean;
@@ -644,6 +647,13 @@ export interface WatchcatStatus {
   total_recoveries: number;
   cooldown_remaining: number;
   reboots_this_hour: number;
+  /**
+   * Seconds since the daemon last wrote its state. Absent (or null) on older
+   * backends and while unknown: treated as live, never as stale.
+   */
+  age_sec?: number | null;
+  /** Age in seconds beyond which `age_sec` means the daemon stopped reporting. */
+  stale_after?: number | null;
 }
 
 export interface SimFailoverStatus {

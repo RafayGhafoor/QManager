@@ -1,0 +1,154 @@
+=== pass 1 (t+30) ===
+-- state
+{"timestamp":1790000030,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":null,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5030,"stale_after":90}
+-- files
+etc/qmanager:
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+-- extra
+== wd_decide_start: any cfun holdoff_left -> verdict
+any=0 cfun='' hold=0 -> none
+any=0 cfun='' hold=30 -> none
+any=0 cfun='' hold=abc -> none
+any=0 cfun='0' hold=0 -> none
+any=0 cfun='0' hold=30 -> none
+any=0 cfun='0' hold=abc -> none
+any=0 cfun='1' hold=0 -> none
+any=0 cfun='1' hold=30 -> none
+any=0 cfun='1' hold=abc -> none
+any=0 cfun='4' hold=0 -> none
+any=0 cfun='4' hold=30 -> none
+any=0 cfun='4' hold=abc -> none
+any=0 cfun='7' hold=0 -> none
+any=0 cfun='7' hold=30 -> none
+any=0 cfun='7' hold=abc -> none
+any=1 cfun='' hold=0 -> go
+any=1 cfun='' hold=30 -> holdoff
+any=1 cfun='' hold=abc -> go
+any=1 cfun='0' hold=0 -> radio_off
+any=1 cfun='0' hold=30 -> holdoff
+any=1 cfun='0' hold=abc -> radio_off
+any=1 cfun='1' hold=0 -> go
+any=1 cfun='1' hold=30 -> holdoff
+any=1 cfun='1' hold=abc -> go
+any=1 cfun='4' hold=0 -> radio_off
+any=1 cfun='4' hold=30 -> holdoff
+any=1 cfun='4' hold=abc -> radio_off
+any=1 cfun='7' hold=0 -> go
+any=1 cfun='7' hold=30 -> holdoff
+any=1 cfun='7' hold=abc -> go
+== wd_cooldown_verdict: reason ping_ok reachable q_state retries -> verdict
+quality ok=0 reach=true q=0 retries=0 -> extend
+quality ok=0 reach=true q=0 retries=2 -> extend
+quality ok=0 reach=true q=0 retries=3 -> fail
+quality ok=0 reach=true q=1 retries=0 -> extend
+quality ok=0 reach=true q=1 retries=2 -> extend
+quality ok=0 reach=true q=1 retries=3 -> fail
+quality ok=0 reach=true q=2 retries=0 -> extend
+quality ok=0 reach=true q=2 retries=2 -> extend
+quality ok=0 reach=true q=2 retries=3 -> fail
+quality ok=0 reach=false q=0 retries=0 -> extend
+quality ok=0 reach=false q=0 retries=2 -> extend
+quality ok=0 reach=false q=0 retries=3 -> fail
+quality ok=0 reach=false q=1 retries=0 -> extend
+quality ok=0 reach=false q=1 retries=2 -> extend
+quality ok=0 reach=false q=1 retries=3 -> fail
+quality ok=0 reach=false q=2 retries=0 -> extend
+quality ok=0 reach=false q=2 retries=2 -> extend
+quality ok=0 reach=false q=2 retries=3 -> fail
+quality ok=0 reach=null q=0 retries=0 -> extend
+quality ok=0 reach=null q=0 retries=2 -> extend
+quality ok=0 reach=null q=0 retries=3 -> fail
+quality ok=0 reach=null q=1 retries=0 -> extend
+quality ok=0 reach=null q=1 retries=2 -> extend
+quality ok=0 reach=null q=1 retries=3 -> fail
+quality ok=0 reach=null q=2 retries=0 -> extend
+quality ok=0 reach=null q=2 retries=2 -> extend
+quality ok=0 reach=null q=2 retries=3 -> fail
+quality ok=1 reach=true q=0 retries=0 -> success
+quality ok=1 reach=true q=0 retries=2 -> success
+quality ok=1 reach=true q=0 retries=3 -> success
+quality ok=1 reach=true q=1 retries=0 -> fail
+quality ok=1 reach=true q=1 retries=2 -> fail
+quality ok=1 reach=true q=1 retries=3 -> fail
+quality ok=1 reach=true q=2 retries=0 -> extend
+quality ok=1 reach=true q=2 retries=2 -> extend
+quality ok=1 reach=true q=2 retries=3 -> fail
+quality ok=1 reach=false q=0 retries=0 -> success
+quality ok=1 reach=false q=0 retries=2 -> success
+quality ok=1 reach=false q=0 retries=3 -> success
+quality ok=1 reach=false q=1 retries=0 -> fail
+quality ok=1 reach=false q=1 retries=2 -> fail
+quality ok=1 reach=false q=1 retries=3 -> fail
+quality ok=1 reach=false q=2 retries=0 -> extend
+quality ok=1 reach=false q=2 retries=2 -> extend
+quality ok=1 reach=false q=2 retries=3 -> fail
+quality ok=1 reach=null q=0 retries=0 -> success
+quality ok=1 reach=null q=0 retries=2 -> success
+quality ok=1 reach=null q=0 retries=3 -> success
+quality ok=1 reach=null q=1 retries=0 -> fail
+quality ok=1 reach=null q=1 retries=2 -> fail
+quality ok=1 reach=null q=1 retries=3 -> fail
+quality ok=1 reach=null q=2 retries=0 -> extend
+quality ok=1 reach=null q=2 retries=2 -> extend
+quality ok=1 reach=null q=2 retries=3 -> fail
+unreachable ok=0 reach=true q=0 retries=0 -> extend
+unreachable ok=0 reach=true q=0 retries=2 -> extend
+unreachable ok=0 reach=true q=0 retries=3 -> fail
+unreachable ok=0 reach=true q=1 retries=0 -> extend
+unreachable ok=0 reach=true q=1 retries=2 -> extend
+unreachable ok=0 reach=true q=1 retries=3 -> fail
+unreachable ok=0 reach=true q=2 retries=0 -> extend
+unreachable ok=0 reach=true q=2 retries=2 -> extend
+unreachable ok=0 reach=true q=2 retries=3 -> fail
+unreachable ok=0 reach=false q=0 retries=0 -> extend
+unreachable ok=0 reach=false q=0 retries=2 -> extend
+unreachable ok=0 reach=false q=0 retries=3 -> fail
+unreachable ok=0 reach=false q=1 retries=0 -> extend
+unreachable ok=0 reach=false q=1 retries=2 -> extend
+unreachable ok=0 reach=false q=1 retries=3 -> fail
+unreachable ok=0 reach=false q=2 retries=0 -> extend
+unreachable ok=0 reach=false q=2 retries=2 -> extend
+unreachable ok=0 reach=false q=2 retries=3 -> fail
+unreachable ok=0 reach=null q=0 retries=0 -> extend
+unreachable ok=0 reach=null q=0 retries=2 -> extend
+unreachable ok=0 reach=null q=0 retries=3 -> fail
+unreachable ok=0 reach=null q=1 retries=0 -> extend
+unreachable ok=0 reach=null q=1 retries=2 -> extend
+unreachable ok=0 reach=null q=1 retries=3 -> fail
+unreachable ok=0 reach=null q=2 retries=0 -> extend
+unreachable ok=0 reach=null q=2 retries=2 -> extend
+unreachable ok=0 reach=null q=2 retries=3 -> fail
+unreachable ok=1 reach=true q=0 retries=0 -> success
+unreachable ok=1 reach=true q=0 retries=2 -> success
+unreachable ok=1 reach=true q=0 retries=3 -> success
+unreachable ok=1 reach=true q=1 retries=0 -> success
+unreachable ok=1 reach=true q=1 retries=2 -> success
+unreachable ok=1 reach=true q=1 retries=3 -> success
+unreachable ok=1 reach=true q=2 retries=0 -> success
+unreachable ok=1 reach=true q=2 retries=2 -> success
+unreachable ok=1 reach=true q=2 retries=3 -> success
+unreachable ok=1 reach=false q=0 retries=0 -> fail
+unreachable ok=1 reach=false q=0 retries=2 -> fail
+unreachable ok=1 reach=false q=0 retries=3 -> fail
+unreachable ok=1 reach=false q=1 retries=0 -> fail
+unreachable ok=1 reach=false q=1 retries=2 -> fail
+unreachable ok=1 reach=false q=1 retries=3 -> fail
+unreachable ok=1 reach=false q=2 retries=0 -> fail
+unreachable ok=1 reach=false q=2 retries=2 -> fail
+unreachable ok=1 reach=false q=2 retries=3 -> fail
+unreachable ok=1 reach=null q=0 retries=0 -> fail
+unreachable ok=1 reach=null q=0 retries=2 -> fail
+unreachable ok=1 reach=null q=0 retries=3 -> fail
+unreachable ok=1 reach=null q=1 retries=0 -> fail
+unreachable ok=1 reach=null q=1 retries=2 -> fail
+unreachable ok=1 reach=null q=1 retries=3 -> fail
+unreachable ok=1 reach=null q=2 retries=0 -> fail
+unreachable ok=1 reach=null q=2 retries=2 -> fail
+unreachable ok=1 reach=null q=2 retries=3 -> fail

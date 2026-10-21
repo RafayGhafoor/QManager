@@ -92,7 +92,7 @@ export const GRACE_MS = 60_000;
  * registered SIM, which makes every clock-difference staleness check read
  * "stale" forever. Below this epoch the modem clock is not evidence.
  */
-const CLOCK_PLAUSIBLE_AFTER = 1_600_000_000;
+export const CLOCK_PLAUSIBLE_AFTER = 1_600_000_000;
 
 export interface PhaseInput {
   /** Saved truth, not the draft. The band never reports a half-edited form. */
@@ -127,9 +127,33 @@ export function derivePhase({
     snapshotAt !== null && snapshotAt > CLOCK_PLAUSIBLE_AFTER;
   if (unreachable || (clockUsable && stale) || !watchcat) return "unknown";
 
-  if (watchcat.enabled) return watchcat.state;
+  if (isWatchcatLive(watchcat)) return watchcat.state;
+  // Enabled but its own state has gone quiet: no grace, it WAS reporting.
+  if (watchcat.enabled) return "not_running";
   return pastGrace ? "not_running" : "starting";
 }
+
+/**
+ * The daemon is enabled AND still reporting. A block with no age fields (an
+ * older backend) counts as live: absence of evidence is not staleness.
+ */
+export function isWatchcatLive(watchcat: WatchcatStatus | null): boolean {
+  if (!watchcat?.enabled) return false;
+  const { age_sec: age, stale_after: limit } = watchcat;
+  return !(age != null && limit != null && age > limit);
+}
+
+/** Phases that are the daemon's own report; every other phase has no figures. */
+const REPORTING_PHASES: ReadonlySet<WatchdogPhase> = new Set([
+  "monitor",
+  "suspect",
+  "recovery",
+  "cooldown",
+  "locked",
+  "disabled",
+  "ssr_hold",
+  "radio_off",
+]);
 
 /** The disc is the only coloured thing in the status card's phase block. */
 export const PHASE_DISC = {
@@ -145,9 +169,14 @@ export const PHASE_DISC = {
   locked: "neutral",
   disabled: "neutral",
   ssr_hold: "info",
+  radio_off: "neutral",
 } satisfies Record<WatchdogPhase, DiscTone>;
 
-/** Twelve phases, twelve distinct glyphs — the containers are 1.03:1 apart. */
+/**
+ * Twelve phases, twelve distinct glyphs — the containers are 1.03:1 apart.
+ * `radio_off` is the one deliberate share: it IS the Paused phase (same glyph,
+ * same label), with its own sentence for why.
+ */
 export const PHASE_GLYPH = {
   off: PowerOffIcon,
   unknown: HelpCircleIcon,
@@ -161,6 +190,7 @@ export const PHASE_GLYPH = {
   locked: LockIcon,
   disabled: MinusCircleIcon,
   ssr_hold: PauseCircleIcon,
+  radio_off: LockIcon,
 } satisfies Record<WatchdogPhase, LucideIcon>;
 
 export const PHASE_LABEL_KEY: Record<WatchdogPhase, string> = {
@@ -176,6 +206,7 @@ export const PHASE_LABEL_KEY: Record<WatchdogPhase, string> = {
   locked: "watchdog.phase.locked.label",
   disabled: "watchdog.phase.disabled.label",
   ssr_hold: "watchdog.phase.ssr_hold.label",
+  radio_off: "watchdog.phase.locked.label",
 };
 
 export const PHASE_BLURB_KEY: Record<WatchdogPhase, string> = {
@@ -191,6 +222,7 @@ export const PHASE_BLURB_KEY: Record<WatchdogPhase, string> = {
   locked: "watchdog.phase.locked.blurb",
   disabled: "watchdog.phase.disabled.blurb",
   ssr_hold: "watchdog.phase.ssr_hold.blurb",
+  radio_off: "watchdog.phase.radio_off.blurb",
 };
 
 /** Only `recovery` is genuinely acting, so it is the surface's one loop. */
@@ -247,7 +279,9 @@ export function deriveBand({
   watchcat,
   lastAgo,
 }: BandInput): BandView {
-  const known = phase !== "unknown" && watchcat !== null;
+  // Figures belong to a daemon that is reporting. A stopped, starting, off or
+  // unreachable one keeps its last numbers on disk; showing them would lie.
+  const known = REPORTING_PHASES.has(phase) && watchcat !== null;
   const cooling = known && watchcat.cooldown_remaining > 0;
   const failures = known ? watchcat.failure_count : null;
   const reboots = known ? watchcat.reboots_this_hour : null;
@@ -294,8 +328,8 @@ export function deriveBand({
         key: "reboots",
         eyebrowKey: "watchdog.band.reboots",
         value: reboots === null ? null : `${reboots} / ${cap}`,
-        // `count_recent_reboots` runs at daemon start and inside tier 4 only, so
-        // this is a running total since start, never a rolling hour.
+        // The daemon reports the watchdog's own restarts within the last hour,
+        // counted against the same cap that auto-disables it.
         captionKey: settings.tier4_enabled
           ? "watchdog.band.rebootsCaption"
           : "watchdog.band.rebootsOff",
