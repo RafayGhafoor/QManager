@@ -77,3 +77,22 @@ file gone) and 29 the heartbeat fields with malformed counters.
 
 The per-minute ledger recount (item 1) and the `CFG_ENABLED` default (item 12) change no existing
 scenario output; the recount is visible only in 24 and 25.
+
+## Wave-2 review fixes (scenarios 50-55)
+
+`baseline/` was re-recorded after the wave-2 review fixes (H1-H2, M3-M6, L8). New scenarios:
+50 (failed SIM fallback adopts the real failover state), 51 (swap done, radio unconfirmed),
+52 (hold-off cleared from monitor), 53 (stale radio-down marker cleared before the gate),
+54 (unresumed failover record retried), 55 (Tier 3 failure while the radio is off defers the
+swap back). Every difference to the previous baseline in an existing scenario is one of these:
+
+- 30, 35: `quality_since` moves one pass later (L8: the pass that ends an outage re-marks the
+  quality window too); in 30 the window has `no signal` for one more pass at 9, then the same
+  figures;
+- 40, 47, 48: one extra `AT+QUIMSLOT?` right after a swap that could not be verified (H2: the
+  slot is re-read before the swap is reported as failed; the answer is still "not on target", so
+  nothing else changes);
+- scenarios 50-55 exist only in the new baseline.
+
+The M4 reconcile (`AT+CFUN?` while the radio-down marker is set) is skipped during the hold-off,
+so 37 is unchanged.

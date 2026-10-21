@@ -1,0 +1,75 @@
+--- pass 1 ---
+--- pass 2 ---
+T+90 AT+CFUN?
+T+90 AT+COPS=2
+T+92 AT+COPS=0
+--- pass 3 ---
+T+122 AT+CFUN?
+T+122 AT+CFUN=0
+T+125 AT+CFUN=1
+T+125 AT
+T+125 AT+CFUN?
+T+125 AT+CFUN=1
+T+125 AT+CFUN?
+--- pass 4 ---
+--- pass 5 ---
+--- pass 6 ---
+--- pass 7 ---
+--- pass 8 ---
+--- pass 9 ---
+--- pass 10 ---
+--- pass 11 ---
+--- pass 12 ---
+--- pass 13 ---
+--- pass 14 ---
+--- pass 15 ---
+--- pass 16 ---
+--- pass 17 ---
+--- pass 18 ---
+--- pass 19 ---
+--- pass 20 ---
+--- pass 21 ---
+--- pass 22 ---
+--- pass 23 ---
+--- pass 24 ---
+--- pass 25 ---
+--- pass 26 ---
+--- pass 27 ---
+--- pass 28 ---
+--- pass 29 ---
+--- pass 30 ---
+--- pass 31 ---
+--- pass 32 ---
+--- pass 33 ---
+--- pass 34 ---
+T+1055 AT+CFUN?
+T+1055 AT+CFUN?
+T+1055 AT+COPS=2
+T+1057 AT+COPS=0
+--- pass 35 ---
+T+1087 AT+CFUN?
+--- pass 36 ---
+T+1117 AT+CFUN?
+--- pass 37 ---
+T+1147 AT+CFUN?
+--- pass 38 ---
+T+1177 AT+CFUN?
+--- pass 39 ---
+T+1207 AT+CFUN?
+--- pass 40 ---
+T+1237 AT+CFUN?
+--- pass 41 ---
+T+1267 AT+CFUN?
+--- pass 42 ---
+T+1297 AT+CFUN?
+--- pass 43 ---
+T+1327 AT+CFUN?
+--- pass 44 ---
+T+1357 AT+CFUN?
+--- pass 45 ---
+T+1387 AT+CFUN?
+--- pass 46 ---
+T+1417 AT+CFUN?
+--- pass 47 ---
+T+1447 AT+CFUN?
+--- pass 48 ---

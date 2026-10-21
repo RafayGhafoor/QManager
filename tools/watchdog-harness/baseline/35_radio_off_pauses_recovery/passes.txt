@@ -162,7 +162,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5120 radio_down=0
+quality_since=5130 radio_down=0
 === pass 12 (t+140) ===
 -- state
 {"timestamp":1790000140,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":null,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":true,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5140,"stale_after":90}
@@ -177,7 +177,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5120 radio_down=0
+quality_since=5130 radio_down=0
 === pass 13 (t+150) ===
 -- state
 {"timestamp":1790000150,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":null,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":true,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5150,"stale_after":90}
@@ -192,7 +192,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5120 radio_down=0
+quality_since=5130 radio_down=0
 === pass 14 (t+160) ===
 -- state
 {"timestamp":1790000160,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":null,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":true,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5160,"stale_after":90}
@@ -207,4 +207,4 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5120 radio_down=0
+quality_since=5130 radio_down=0

@@ -18,6 +18,7 @@ T+98 AT+CFUN=1
 T+98 AT
 T+98 AT+QUIMSLOT?
 T+98 AT+CFUN?
+T+98 AT+QUIMSLOT?
 --- pass 7 ---
 --- pass 8 ---
 --- pass 9 ---
@@ -37,6 +38,7 @@ T+166 AT+CFUN=1
 T+166 AT
 T+166 AT+QUIMSLOT?
 T+166 AT+CFUN?
+T+166 AT+QUIMSLOT?
 --- pass 13 ---
 --- pass 14 ---
 --- pass 15 ---
@@ -56,5 +58,6 @@ T+234 AT+CFUN=1
 T+234 AT
 T+234 AT+QUIMSLOT?
 T+234 AT+CFUN?
+T+234 AT+QUIMSLOT?
 --- pass 19 ---
 --- pass 20 ---

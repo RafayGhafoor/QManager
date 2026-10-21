@@ -124,7 +124,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: no signal
 === pass 9 (t+110) ===
 -- state
@@ -140,8 +140,8 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
-window: loss=0 avg=24.5
+quality_since=5100 breach=0
+window: no signal
 === pass 10 (t+120) ===
 -- state
 {"timestamp":1790000120,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":null,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":true,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5120,"stale_after":90}
@@ -156,7 +156,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: loss=0 avg=24.5
 === pass 11 (t+130) ===
 -- state
@@ -172,7 +172,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: loss=0 avg=24.5
 === pass 12 (t+140) ===
 -- state
@@ -188,7 +188,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: loss=0 avg=24.5
 === pass 13 (t+150) ===
 -- state
@@ -204,7 +204,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: loss=0 avg=24.5
 === pass 14 (t+160) ===
 -- state
@@ -220,7 +220,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: loss=0 avg=24.5
 === pass 15 (t+170) ===
 -- state
@@ -236,7 +236,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: loss=0 avg=24.5
 === pass 16 (t+180) ===
 -- state
@@ -252,7 +252,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: loss=0 avg=24.5
 === pass 17 (t+190) ===
 -- state
@@ -268,7 +268,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: loss=0 avg=24.5
 === pass 18 (t+200) ===
 -- state
@@ -284,7 +284,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: loss=0 avg=24.5
 === pass 19 (t+210) ===
 -- state
@@ -300,7 +300,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: loss=0 avg=24.5
 === pass 20 (t+220) ===
 -- state
@@ -316,7 +316,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: loss=0 avg=24.5
 === pass 21 (t+230) ===
 -- state
@@ -332,7 +332,7 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: loss=0 avg=24.5
 === pass 22 (t+240) ===
 -- state
@@ -348,5 +348,5 @@ qmanager
 -- failover
 (none)
 -- extra
-quality_since=5090 breach=0
+quality_since=5100 breach=0
 window: loss=0 avg=24.5
