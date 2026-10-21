@@ -1,0 +1,22 @@
+--- pass 1 ---
+--- pass 2 ---
+--- pass 3 ---
+--- pass 4 ---
+T+70 AT+CFUN?
+--- pass 5 ---
+T+80 AT+CFUN?
+--- pass 6 ---
+T+90 AT+CFUN?
+--- pass 7 ---
+T+100 AT+CFUN?
+--- pass 8 ---
+T+110 AT+CFUN?
+--- pass 9 ---
+T+120 AT+CFUN?
+--- pass 10 ---
+--- pass 11 ---
+--- pass 12 ---
+--- pass 13 ---
+--- pass 14 ---
+--- pass 15 ---
+--- pass 16 ---
