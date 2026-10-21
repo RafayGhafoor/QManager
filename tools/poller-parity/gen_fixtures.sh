@@ -158,6 +158,31 @@ single serving_cell__nsa_lte_bad_hex "$QE" '+QENG: "servingcell","NOCONN"' \
  '+QENG: "LTE","FDD",515,03,QQQ,271,1300,3,5,5,ZZ,-92,-9,-63,9,0,240,-' "$NSA_NR"
 single serving_cell__nsa_lte_cellid_lower_hex "$QE" '+QENG: "servingcell","NOCONN"' \
  '+QENG: "LTE","FDD",515,03,2d1ab04,271,1300,3,5,5,a1b2,-92,-9,-63,9,0,240,-' "$NSA_NR"
+
+# LTE <SINR> is raw X, dB = 2X-20 (0..25 only). Live RM551E lines, 2026-10-21:
+# no antennas, B1 FDD raw 12 (QCAINFO 4 dB) and B40 TDD raw 8 at CQI 0.
+single serving_cell__lte_sinr_live_noant "$QE" \
+ '+QENG: "servingcell","NOCONN","LTE","FDD",515,03,22B5066,295,150,1,5,5,BF82,-119,-9,-90,12,6,240,-'
+single serving_cell__lte_sinr_tdd_cqi0 "$QE" \
+ '+QENG: "servingcell","NOCONN","LTE","TDD",515,03,22B507D,295,39125,40,5,5,BF82,-127,-16,-90,8,0,-,0'
+single serving_cell__lte_sinr_zero "$QE" \
+ '+QENG: "servingcell","NOCONN","LTE","FDD",515,03,2D1AB04,271,1300,3,5,5,A1B2,-92,-9,-63,0,0,240,-'
+single serving_cell__lte_sinr_max25 "$QE" \
+ '+QENG: "servingcell","NOCONN","LTE","FDD",515,03,2D1AB04,271,1300,3,5,5,A1B2,-92,-9,-63,25,0,240,-'
+single serving_cell__lte_sinr_over26 "$QE" \
+ '+QENG: "servingcell","NOCONN","LTE","FDD",515,03,2D1AB04,271,1300,3,5,5,A1B2,-92,-9,-63,26,0,240,-'
+single serving_cell__lte_sinr_leading_zero "$QE" \
+ '+QENG: "servingcell","NOCONN","LTE","FDD",515,03,2D1AB04,271,1300,3,5,5,A1B2,-92,-9,-63,05,0,240,-'
+single serving_cell__lte_sinr_3digits "$QE" \
+ '+QENG: "servingcell","NOCONN","LTE","FDD",515,03,2D1AB04,271,1300,3,5,5,A1B2,-92,-9,-63,100,0,240,-'
+single serving_cell__lte_sinr_sentinel "$QE" \
+ '+QENG: "servingcell","NOCONN","LTE","FDD",515,03,2D1AB04,271,1300,3,5,5,A1B2,-92,-9,-63,-32768,0,240,-'
+# EN-DC: LTE raw 11 -> 2 dB while the NR5G-NSA SINR 32 stays verbatim (already dB)
+single serving_cell__nsa_lte_sinr_scaled "$QE" '+QENG: "servingcell","NOCONN"' \
+ '+QENG: "LTE","FDD",515,03,22B5066,295,150,1,5,5,BF82,-89,-10,-59,11,15,180,-' \
+ '+QENG: "NR5G-NSA",515,03,271,-95,32,-11,504990,78,1,1'
+single serving_cell__nsa_lte_sinr_dash "$QE" '+QENG: "servingcell","NOCONN"' \
+ '+QENG: "LTE","FDD",515,03,22B5066,295,150,1,5,5,BF82,-89,-10,-59,-' "$NSA_NR"
 single serving_cell__nsa_hostile "$QE" '+QENG: "servingcell","NOCONN"' "$NSA_LTE" \
  '+QENG: "NR5G-NSA",515,03,2$(id),-9;5,12,`id`,50'"'"'4990,78",1,1'
 lfonly serving_cell__nsa_lf_only "$QE" '+QENG: "servingcell","NOCONN"' "$NSA_LTE" "$NSA_NR"

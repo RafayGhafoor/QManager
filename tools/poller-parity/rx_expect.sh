@@ -75,7 +75,7 @@ rx_run() {
     _QR=""
     RX_DEFS=/tmp/rpx/rx_defs_$$.sh
     {
-        for _fn in _rm_chars _first_line_with qcmd_exec_g poll_serving_cell poll_per_antenna_signal poll_tier2 refresh_sim_identity; do
+        for _fn in _rm_chars _first_line_with _qc_read qcmd_exec_g poll_serving_cell poll_per_antenna_signal poll_tier2 refresh_sim_identity; do
             rx_extract_fn "$RX_POLLER" "$_fn"
         done
         echo 'rx_ca() {'
@@ -90,8 +90,25 @@ rx_run() {
     _tap_at() { :; }
     log_warn() { :; }
     log_info() { :; }
+    qlog_debug() { :; }
+    qlog_info() { :; }
+    qlog_warn() { :; }
+    qlog_error() { :; }
     append_signal_history() { :; }
+    # _qc_read (extracted) calls `QCMD_WAIT_MS=... qcmd <cmd> 2>&1`; with the
+    # latch off it reduces to the stub below, as the boot one-shots see it.
     qcmd() { cat "$RX_FIX"; return "$RX_RC"; }
+    QC_WAIT_MS=2500
+    _AT_LATCH=0
+    _AT_BUSY=0
+    # poll_serving_cell keeps last values until SC_FAIL_LIMIT failed / SC_BUSY_LIMIT
+    # busy reads in a row. That streak is poller policy (qm_step_qeng_rc), not
+    # parsing: limit 1 makes every case take the failure branch the Rust
+    # step_qeng ports.
+    sc_fail_streak=0
+    sc_busy_streak=0
+    SC_FAIL_LIMIT=1
+    SC_BUSY_LIMIT=1
     ap_tier=active
 
     while IFS= read -r RX_CASE || [ -n "$RX_CASE" ]; do

@@ -291,6 +291,8 @@ Main polling endpoint. Returns the cached modem status JSON (built by `qmanager_
 }
 ```
 
+`lte.sinr` is in dB. `AT+QENG="servingcell"` reports LTE `<SINR>` as a raw value X from 0 to 25. The poller converts it with the RG520N/RM5xxN AT manual (§5.20) formula `Y = 2X - 20`, which gives -20 to +30 dB. Live checks on an RM551E against `AT+QCAINFO` RSSNR and `AT+QSINR` held from X=8 to X=24. Any raw value outside 0..25, or one that isn't a number (`-`, `-32768`, empty), is published as `null`. `nr.sinr` and the `signal_per_antenna` arrays are already in dB and are passed through unchanged.
+
 `device.serving_read_mono` and `device.ca_read_mono` are the uptime seconds (same clock as `mono`) of the last `AT+QENG` reply carrying `+QENG:` lines and the last `AT+QCAINFO` parse; `0` means never read since the poller started. Age them with `mono - value`; the deep poller tier freezes CA values, so `ca_read_mono` can be hours old. Backs `qmanager_serving_cell_age_seconds` / `qmanager_carrier_components_age_seconds` ([`features/prometheus-metrics.md`](features/prometheus-metrics.md)).
 
 `connectivity.status` is `"recovery"` during a watchdog recovery, `"connected"` / `"degraded"` while the internet is reachable, `"disconnected"` when it is not, and `"unknown"` on stale data; `"degraded"` means packet loss is at or above `connectivity.thresholds.loss_pct` (the configured Connection Quality loss cut, default 30 %; it was a fixed 10 % before ledger B2.3). Latency alone never degrades the status. `connectivity.thresholds` is `{ latency_ms, loss_pct }` and is absent on an older poller.

@@ -183,6 +183,29 @@ _hex_to_dec_g() {
     return 0
 }
 
+# AT+QENG LTE <SINR> is not dB: per the RG520N/RM5xxN AT manual (5.20) the
+# actual value is Y = 2X - 20 dB for a raw X of 0..25 (-20..+30 dB). Confirmed
+# live on an RM551E against QCAINFO RSSNR and QSINR from X=8 to X=24. NR5G
+# <SINR> is already dB and must not go through here. Strips a trailing CR (the
+# field is the last one on the EN-DC LTE line). Anything that is not 1-2
+# digits in 0..25 ("-", -32768, empty, garbage) sets _R="" so the status
+# composer publishes null. Clobbers _S.
+_lte_sinr_db_g() {
+    local x
+    _S=$1 ; _pat_del "$_PA_CR"
+    x=$_S
+    _R=""
+    case $x in
+        [0-9]|[0-9][0-9]) ;;
+        *) return 0 ;;
+    esac
+    x=${x#0}
+    [ -z "$x" ] && x=0
+    [ "$x" -gt 25 ] && return 0
+    _R=$((x * 2 - 20))
+    return 0
+}
+
 # Converts a hex cell ID to decimal and computes eNodeB/gNodeB ID + Sector ID.
 # LTE (28-bit ECI): eNodeB ID = cell_id >> 8,  Sector ID = cell_id & 0xFF
 # NR  (36-bit NCI): gNodeB ID = cell_id >> 14, Sector ID = cell_id & 0x3FFF
@@ -358,7 +381,7 @@ parse_serving_cell() {
             lte_rsrp=$_F12
             lte_rsrq=$_F13
             lte_rssi=$_F14
-            lte_sinr=$_F15
+            _lte_sinr_db_g "$_F15" ; lte_sinr=$_R
         fi
 
         # NR5G-NSA line
@@ -435,7 +458,7 @@ parse_serving_cell() {
         lte_rsrp=$_F14
         lte_rsrq=$_F15
         lte_rssi=$_F16
-        lte_sinr=$_F17
+        _lte_sinr_db_g "$_F17" ; lte_sinr=$_R
 
     else
         lte_state="unknown"

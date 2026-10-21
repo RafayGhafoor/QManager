@@ -590,6 +590,21 @@ fn hex_to_dec(h: &[u8]) -> (Vec<u8>, bool) {
     (n.to_string().into_bytes(), true)
 }
 
+/// `_lte_sinr_db_g`: AT+QENG LTE <SINR> raw X (0..25) -> dB as 2X - 20, CR
+/// stripped. Anything that is not 1-2 ASCII digits in 0..25 -> "". NR5G SINR
+/// is already dB and does not go through here.
+fn lte_sinr_db(raw: &[u8]) -> Vec<u8> {
+    let x = del_all(raw, b"\r");
+    if x.is_empty() || x.len() > 2 || !x.iter().all(|c| c.is_ascii_digit()) {
+        return Vec::new();
+    }
+    let n = x.iter().fold(0i32, |a, &c| a * 10 + i32::from(c - b'0'));
+    if n > 25 {
+        return Vec::new();
+    }
+    (n * 2 - 20).to_string().into_bytes()
+}
+
 /// `_compute_cell_parts`: (dec, enb, sec).
 fn cell_parts(h: &[u8], nr: bool) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
     if h.is_empty() {
@@ -687,10 +702,21 @@ fn antenna_lines<'a>(raw: &'a [u8], tag: &[u8]) -> (&'a [u8], &'a [u8]) {
     (l, n)
 }
 
-/// `qcmd_exec_g`: (rc, stripped reply). rc 0 ok, 1 failed/empty, 2 ERROR.
+/// `qcmd_exec_g`: (rc, stripped reply). rc 0 ok, 1 failed/empty, 2 ERROR,
+/// 3 not run (qcmd exit 3, or a modem_busy / scan_in_progress /
+/// invalid_command error).
 fn qcmd_exec(rc: i32, out: &[u8]) -> (i32, Vec<u8>) {
+    if rc == 3 {
+        return (3, Vec::new());
+    }
     if rc != 0 || out.is_empty() {
-        return (1, Vec::new());
+        let busy: [&[u8]; 3] = [
+            b"ERROR: modem_busy",
+            b"ERROR: scan_in_progress",
+            b"ERROR: invalid_command",
+        ];
+        let rc = if busy.iter().any(|e| contains(out, e)) { 3 } else { 1 };
+        return (rc, Vec::new());
     }
     let mut qr: Vec<u8> = Vec::new();
     for l in nl_fields(out) {
@@ -800,7 +826,7 @@ fn parse_serving_cell(st: &mut State, qr: &[u8]) {
             st.put(LteRsrp, fld(&f, 12));
             st.put(LteRsrq, fld(&f, 13));
             st.put(LteRssi, fld(&f, 14));
-            st.put(LteSinr, fld(&f, 15));
+            st.put(LteSinr, lte_sinr_db(fld(&f, 15)));
         }
         if !nr_line.is_empty() {
             st.put(NrState, "connected");
@@ -852,7 +878,7 @@ fn parse_serving_cell(st: &mut State, qr: &[u8]) {
         st.put(LteRsrp, fld(&f, 14));
         st.put(LteRsrq, fld(&f, 15));
         st.put(LteRssi, fld(&f, 16));
-        st.put(LteSinr, fld(&f, 17));
+        st.put(LteSinr, lte_sinr_db(fld(&f, 17)));
     } else {
         st.put(LteState, "unknown");
         st.put(NrState, "unknown");
@@ -888,7 +914,8 @@ fn step_ca(st: &mut State, rc: i32, out: &[u8]) -> i32 {
     let (rc, qr) = qcmd_exec(rc, out);
     if rc == 0 && !qr.is_empty() {
         ca::parse_ca_info(st, &qr);
-    } else {
+    } else if rc != 3 {
+        // Busy (rc 3) keeps the last CA values, like the deep tier.
         ca_reset(st);
     }
     rc
@@ -1034,18 +1061,20 @@ fn step_simid(st: &mut State, out: &[u8]) {
 
 /// Runs one step over `out` (the `$(qcmd ...)` capture) and its exit code.
 /// Returns the qcmd_exec-style rc the poller logic needs: 0 ok, 1 failed or
-/// empty, 2 the reply contains ERROR (steps that ignore rc report the same
-/// classification for information only).
+/// empty, 2 the reply contains ERROR, 3 not run (steps that ignore rc report
+/// the same classification for information only). Cfun / sig / ident / simid
+/// read through the poller's `_qc_read`, which keeps the reply only on exit 0.
 pub fn run_step(st: &mut State, step: Step, rc: i32, out: &[u8]) -> i32 {
     match step {
         Step::Qeng => step_qeng(st, rc, out),
         Step::Ca => step_ca(st, rc, out),
         other => {
+            let reply: &[u8] = if rc == 0 { out } else { &[] };
             match other {
-                Step::Cfun => step_cfun(st, out),
-                Step::Sig => step_sig(st, out),
-                Step::Ident => step_ident(st, out),
-                _ => step_simid(st, out),
+                Step::Cfun => step_cfun(st, reply),
+                Step::Sig => step_sig(st, reply),
+                Step::Ident => step_ident(st, reply),
+                _ => step_simid(st, reply),
             }
             qcmd_exec(rc, out).0
         }
