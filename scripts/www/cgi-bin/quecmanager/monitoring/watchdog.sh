@@ -525,10 +525,16 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
         new_enabled=$(uci -q get quecmanager.watchcat.enabled 2>/dev/null)
         if [ "$new_enabled" = "1" ]; then
             rm -f "$DISABLED_FLAG"
-            # Enable and start the watchcat init script
+            # Enable on boot. A running daemon picks the change up from the
+            # reload flag touched above, so only start it when it is down
+            # (a restart would drop the live recovery state mid-save).
             /etc/init.d/qmanager_watchcat enable 2>/dev/null
-            ( /etc/init.d/qmanager_watchcat restart >/dev/null 2>&1 & )
-            qlog_info "Watchdog settings saved, watchcat enabled and started"
+            if /etc/init.d/qmanager_watchcat running >/dev/null 2>&1; then
+                qlog_info "Watchdog settings saved, running watchcat will reload"
+            else
+                ( /etc/init.d/qmanager_watchcat start >/dev/null 2>&1 & )
+                qlog_info "Watchdog settings saved, watchcat enabled and started"
+            fi
         else
             # Stop and disable the watchcat init script
             /etc/init.d/qmanager_watchcat stop >/dev/null 2>&1

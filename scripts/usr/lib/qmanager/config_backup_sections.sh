@@ -534,7 +534,9 @@ apply_watchdog() {
     if [ "$enabled" = "1" ]; then
         rm -f /tmp/qmanager_watchcat_disabled
         /etc/init.d/qmanager_watchcat enable >/dev/null 2>&1
-        ( /etc/init.d/qmanager_watchcat restart >/dev/null 2>&1 & )
+        # A running daemon reloads from the flag above; start only when down.
+        /etc/init.d/qmanager_watchcat running >/dev/null 2>&1 || \
+            ( /etc/init.d/qmanager_watchcat start >/dev/null 2>&1 & )
     else
         ( /etc/init.d/qmanager_watchcat stop >/dev/null 2>&1 & )
         /etc/init.d/qmanager_watchcat disable >/dev/null 2>&1
