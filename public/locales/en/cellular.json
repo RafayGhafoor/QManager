@@ -1700,6 +1700,13 @@
         "start_unreachable": "Could not reach the scanner. Check that the modem is responding.",
         "other_scan_running": "A full band sweep is using the modem right now. It can take up to three minutes — read the neighbours again once it finishes.",
         "scan_vanished": "The read ended without returning a result. Run it again to retry."
+      },
+      "live": {
+        "start": "Live",
+        "stop": "Stop",
+        "aria": "Live neighbour monitoring",
+        "stale": "stale",
+        "age": "{{seconds}}s ago"
       }
     },
     "calculator": {

@@ -54,7 +54,13 @@ cleanup() {
     fi
     rm -f "$PARSED_FILE" "$LTE_ERR_FILE" "$NR_ERR_FILE"
 }
-trap cleanup EXIT INT TERM
+# EXIT runs the handler; INT/TERM must run it AND LEAVE. The original
+# `trap cleanup EXIT INT TERM` ran cleanup and then resumed the loop, so a live
+# reader ignored SIGTERM entirely and `neighbour_live_stop.sh` reported
+# still_running (measured). 143 = 128 + SIGTERM, 130 = 128 + SIGINT.
+trap cleanup EXIT
+trap 'cleanup; exit 143' TERM
+trap 'cleanup; exit 130' INT
 
 # --- Write PID ---------------------------------------------------------------
 echo $$ > "$PID_FILE"
@@ -85,7 +91,11 @@ qlog_info "Neighbour scanner started (PID: $$)"
 # keeps working, plus $TS_FILE with the read's epoch so the status CGI can report
 # freshness without parsing anything.
 LIVE_INTERVAL=1
-LIVE_IDLE_STOP=30
+# Backstop only: the page calls neighbour_live_stop.sh when it is removed, so this
+# catches a tab that was killed, a suspended laptop or a dropped network - a lost
+# stop must not leave a 1 Hz AT reader running. 10 s is long enough that a slow
+# poll still counts as "watching", short enough that an orphan is gone quickly.
+LIVE_IDLE_STOP=10
 TS_FILE="/tmp/qmanager_neighbour_scan.ts"
 READERS_FILE="/tmp/qmanager_neighbour_scan.readers"
 

@@ -1700,6 +1700,13 @@
         "start_unreachable": "无法访问扫描器。请检查调制解调器是否响应。",
         "other_scan_running": "全频段扫描正在占用调制解调器。它最长需要三分钟——等它结束后再读取邻区。",
         "scan_vanished": "读取结束了，但没有返回任何结果。请重新读取。"
+      },
+      "live": {
+        "start": "实时",
+        "stop": "停止",
+        "aria": "实时邻区监视",
+        "stale": "已过期",
+        "age": "{{seconds}} 秒前"
       }
     },
     "calculator": {

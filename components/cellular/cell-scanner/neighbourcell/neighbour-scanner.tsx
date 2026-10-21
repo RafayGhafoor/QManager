@@ -14,6 +14,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
+import { useNeighbourLive } from "@/hooks/use-neighbour-live";
 import { useNeighbourScanner } from "@/hooks/use-neighbour-scanner";
 import { downloadCSV } from "@/lib/download-csv";
 import { staggerItem } from "@/lib/motion";
@@ -91,6 +92,7 @@ function formatDbm(value: number | null): string | null {
 export function NeighbourScanner() {
   const { t } = useTranslation("cellular");
   const { status, results, error, startScan } = useNeighbourScanner();
+  const live = useNeighbourLive();
   const [lockTarget, setLockTarget] = React.useState<LockCellTarget | null>(
     null,
   );
@@ -98,6 +100,10 @@ export function NeighbourScanner() {
   const posture = runPosture(status);
   const isScanning = posture === "scanning";
   const hasResults = posture === "complete" && results.length > 0;
+  // Live mode supersedes the one-shot result while it is running: the reader
+  // rewrites the same array once a second, and `shownResults` is what the table
+  // renders either way.
+  const shownResults = live.enabled ? live.cells : results;
 
   const handleLockCell = React.useCallback((cell: NeighbourCellResult) => {
     // Always the LTE payload: a neighbour report carries no band or SCS for NR.
@@ -240,11 +246,42 @@ export function NeighbourScanner() {
                 retryLabel={t("cell_scanner.neighbour.results.error_retry")}
                 onRetry={startScan}
               />
-            ) : results.length > 0 ? (
+            ) : shownResults.length > 0 ? (
               <NeighbourScanResultView
-                data={results}
+                data={shownResults}
                 onLockCell={handleLockCell}
                 toolbarActions={
+                  <>
+                  <Button
+                    type="button"
+                    variant="tonal-neutral"
+                    className={cn(PILL_QUIET, "gap-1.5")}
+                    onClick={live.toggle}
+                    aria-pressed={live.enabled}
+                    aria-label={t("cell_scanner.neighbour.live.aria")}
+                  >
+                    {/* Both glyphs already exist in the font subset; adding new
+                        names would change `material-symbol-names.ts` and the
+                        subset download. radar = start watching, refresh = live. */}
+                    <MaterialSymbol
+                      name={live.enabled ? "refresh" : "radar"}
+                      size={16}
+                    />
+                    <span className="hidden @sm/section:inline">
+                      {live.enabled
+                        ? t("cell_scanner.neighbour.live.stop")
+                        : t("cell_scanner.neighbour.live.start")}
+                    </span>
+                    {live.enabled ? (
+                      <span className="tabular-nums opacity-70">
+                        {live.stale || live.ageMs === null
+                          ? t("cell_scanner.neighbour.live.stale")
+                          : t("cell_scanner.neighbour.live.age", {
+                              seconds: Math.round(live.ageMs / 100) / 10,
+                            })}
+                      </span>
+                    ) : null}
+                  </Button>
                   <Button
                     type="button"
                     variant="tonal-neutral"
@@ -257,6 +294,7 @@ export function NeighbourScanner() {
                       {t("cell_scanner.run.download")}
                     </span>
                   </Button>
+                  </>
                 }
               />
             ) : (

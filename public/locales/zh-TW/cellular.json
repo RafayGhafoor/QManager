@@ -1700,6 +1700,13 @@
         "start_unreachable": "無法存取掃描器。請檢查數據機是否回應。",
         "other_scan_running": "全頻段掃描正在佔用數據機。它最長需時三分鐘——等它結束後再讀取鄰區。",
         "scan_vanished": "讀取結束了，但沒有回傳任何結果。請重新讀取。"
+      },
+      "live": {
+        "start": "即時",
+        "stop": "停止",
+        "aria": "即時鄰區監視",
+        "stale": "已過期",
+        "age": "{{seconds}} 秒前"
       }
     },
     "calculator": {
