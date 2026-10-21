@@ -36,6 +36,7 @@ T+192 AT+QUIMSLOT?
 T+192 AT+CFUN?
 T+192 AT+QUIMSLOT?
 T+192 AT+QUIMSLOT?
+T+192 AT+QCCID
 --- pass 16 ---
 --- pass 17 ---
 --- pass 18 ---

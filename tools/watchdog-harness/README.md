@@ -117,3 +117,16 @@ is one of these:
 - 48: the failed return to the backup leaves the modem on the primary, so it is treated as a
   failback: no failover record, no `AT+QCCID`/known-SIM write, `tower_failover start`, and the
   benign settle (`Entering post-recheck settle`) replaces the old backup settle.
+
+Round 3 (scenarios 65-68) re-recorded the baseline again. New scenarios: 65 (48 with an unreadable
+ICCID), 66 and 67 (a maintenance lock over a deferred swap-back, radio still off / back on at the
+unlock), 68 (startup with a pending swap-back under a lock). Differences to the round-2 baseline:
+
+- 05, 11, 41, 50, 51, 55, 61, 64: the Tier 3 backup SIM's ICCID is learned right after the CPIN
+  check (zero AT), so `known_iccids` exists during the cooldown (new file-list entry in
+  `passes.txt`, and its contents in `tree.txt` for 11 and 64, where the lock / radio-off path
+  never reaches finalize). Nothing else changes in these;
+- 48: the failback now runs the shared failback body: `AT+QCCID`, the primary ICCID in
+  `known_iccids`, `auto_apply_profile … watchdog_failback`, and the info event
+  `primary SIM kept — the modem stayed on slot 1` replaces the `could not return to backup SIM —
+  manual check needed` error event and the earlier error line.
