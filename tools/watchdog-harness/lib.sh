@@ -179,6 +179,12 @@ crash_log_add() {
     printf '%s|reboot|%s\n' "$(( $(h_now) - $1 ))" "$2" >> "$H_ROOT/etc/qmanager/crash.log"
 }
 
+# crash_log_epoch EPOCH REASON: append a ledger row with a literal epoch
+# (1970-era rows, non-numeric epochs)
+crash_log_epoch() {
+    printf '%s|reboot|%s\n' "$1" "$2" >> "$H_ROOT/etc/qmanager/crash.log"
+}
+
 h_touch() { : > "$H_ROOT/tmp/$1"; }
 h_rm() { rm -f "$H_ROOT/tmp/$1"; }
 

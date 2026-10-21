@@ -64,6 +64,10 @@ else
     sim_db_add() { :; }
 fi
 
+# --- Clock sanity (_qm_clock_sane, for the reboot ledger) --------------------
+# Optional: wd_ledger.sh falls back to its own year >= 2025 test when absent.
+[ -f /usr/lib/qmanager/schedule_guard.sh ] && . /usr/lib/qmanager/schedule_guard.sh
+
 # --- Ping-cache reader (conn_state_read) -------------------------------------
 # Without it every read is "stale" and the state machine skips cycles —
 # fail-closed, never a recovery decision on unknown data.
@@ -180,6 +184,10 @@ main() {
 
     # --- Main monitoring loop ---
     while true; do
+        # Rolling-hour reboot count: first statement of every pass so it also
+        # runs while locked, in cooldown or on any early `continue` below.
+        wd_ledger_tick
+
         # Check for config reload request. read_config re-resolves the SHARED
         # quality thresholds (quecmanager.quality_thresholds.*) too, so a change
         # to the shared degraded thresholds reaches the watchdog when the CGI

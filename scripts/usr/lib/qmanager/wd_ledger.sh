@@ -4,8 +4,8 @@
 # =============================================================================
 # Sourced by qmanager_watchcat (never executed). BusyBox ash safe.
 #
-# Owns: reboots_this_hour
-# Functions: count_recent_reboots
+# Owns: reboots_this_hour, _rb_next
+# Functions: count_recent_reboots, wd_ledger_tick
 #
 # Reads CRASH_LOG (defined by the daemon). Function definitions and global
 # initialisers only. The last line sets WD_LEDGER_LOADED.
@@ -13,6 +13,22 @@
 
 # --- State Variables (owned here) --------------------------------------------
 reboots_this_hour=0
+_rb_next=0                # mono_now at/after which wd_ledger_tick recounts
+
+# 0 iff the wall clock is plausible. Prefers schedule_guard.sh's _qm_clock_sane
+# (sourced by the daemon); the fallback applies the same rule (year >= 2025).
+_wd_clock_sane() {
+    if command -v _qm_clock_sane >/dev/null 2>&1; then
+        _qm_clock_sane
+        return
+    fi
+    local y
+    y=$(date +%Y)
+    case "$y" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+    [ "$y" -ge 2025 ]
+}
 
 # Count WATCHDOG reboots in the last hour from crash.log.
 # crash.log is now a shared reboot ledger: watchcat writes tier4_escalation rows,
@@ -20,18 +36,54 @@ reboots_this_hour=0
 # alert feature. The tier-4 token bucket + the dashboard's reboots_this_hour must
 # keep their original meaning ("watchdog-caused reboots this hour"), so we count
 # ONLY tier4_escalation rows here. Field layout: <epoch>|reboot|<reason>.
+#
+# The window is a rolling hour on the wall clock. The RM551E boots at 1970 until
+# NITZ/ntp steps the clock, so with an insane clock the window cannot be
+# evaluated: count every row older than 2025-01-01 (the clock-less boot rows).
+# That over-counts, which is the safe direction for the Tier-4 cap; the first
+# recount on a sane clock drops them again.
 count_recent_reboots() {
     if [ ! -f "$CRASH_LOG" ]; then
         reboots_this_hour=0
         return
     fi
     local now
-    local cutoff
+    local sane
     local count
     now=$(date +%s)
-    cutoff=$((now - 3600))
-    count=$(awk -v cutoff="$cutoff" -F'|' '$1 >= cutoff && $3 == "tier4_escalation" { n++ } END { print n+0 }' "$CRASH_LOG" 2>/dev/null)
-    reboots_this_hour="${count:-0}"
+    case "$now" in
+        ''|*[!0-9]*) now=0 ;;
+    esac
+    if _wd_clock_sane; then
+        sane=1
+    else
+        sane=0
+    fi
+    count=$(awk -v now="$now" -v sane="$sane" -F'|' '
+        $2 == "reboot" && $3 == "tier4_escalation" && $1 ~ /^[0-9]+$/ {
+            if (sane == 1) { if ($1 + 0 >= now - 3600) n++ }
+            else if ($1 + 0 < 1735689600) n++
+        }
+        END { print n + 0 }' "$CRASH_LOG" 2>/dev/null)
+    case "$count" in
+        ''|*[!0-9]*) count=0 ;;
+    esac
+    reboots_this_hour="$count"
+}
+
+# Recount at most once a minute so the figure decays when a row ages out of the
+# hour. Called as the first statement of every main-loop pass (before the reload
+# check), so it also runs while locked, in cooldown or on any early `continue`.
+wd_ledger_tick() {
+    local now
+    now=$(mono_now)
+    case "$now" in
+        ''|*[!0-9]*) return 0 ;;
+    esac
+    if [ "$now" -ge "$_rb_next" ]; then
+        count_recent_reboots
+        _rb_next=$((now + 60))
+    fi
 }
 
 WD_LEDGER_LOADED=1
