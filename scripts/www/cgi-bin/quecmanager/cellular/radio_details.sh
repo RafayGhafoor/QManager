@@ -116,10 +116,40 @@ emit_details() {
     }'
 }
 
-# --- Run the on-demand fetch -------------------------------------------------
+# --- Run the on-demand fetch, or serve a fresh cache -------------------------
 # ondemand_radio_fetch loads last-known first, issues the RAT-gated reads, then
 # rewrites ONDEMAND_CACHE_FILE. On total modem unreachability it returns 1 and
 # leaves the prior cache intact — we then serve that with stale=true.
+#
+# TTL (change 24): the UI polls this endpoint every 7 s while its page is open,
+# and the values it carries - MIMO layers, timing advance, APN, DNS, WAN IP -
+# change on the order of minutes. Re-reading the modem on every poll was 4 AT
+# reads plus a parse each time, for a value that had not changed. Serve the
+# cache while it is younger than ONDEMAND_TTL_SEC (default 30) and fetch
+# otherwise.
+#
+#   ?force=1             always fetch - a manual refresh cannot be defeated here
+#   ONDEMAND_TTL_SEC=0   restore the old always-fetch behaviour
+#
+# This is a deliberate staleness contract: `stale` keeps its meaning, "the modem
+# did not answer". A cached value younger than the TTL is served as fresh, which
+# is what the UI already assumes at a 7 s poll.
+_od_ttl="${ONDEMAND_TTL_SEC:-30}"
+case "$_od_ttl" in ''|*[!0-9]*) _od_ttl=30 ;; esac
+_od_force=0
+case "$QUERY_STRING" in *force=1*) _od_force=1 ;; esac
+_od_age=""
+if [ "$_od_ttl" -gt 0 ] && [ -s "$ONDEMAND_CACHE_FILE" ]; then
+    _od_ts=$(jsonfilter -i "$ONDEMAND_CACHE_FILE" -e '@.updated_at' 2>/dev/null)
+    case "$_od_ts" in ''|*[!0-9]*) _od_ts=0 ;; esac
+    [ "$_od_ts" -gt 0 ] && _od_age=$(( $(date +%s) - _od_ts ))
+fi
+if [ "$_od_force" = "0" ] && [ -n "$_od_age" ] && [ "$_od_age" -lt "$_od_ttl" ]; then
+    qlog_debug "radio_details: cache age ${_od_age}s < ${_od_ttl}s - serving without a modem read"
+    emit_details "false"
+    exit 0
+fi
+
 if ondemand_radio_fetch; then
     emit_details "false"
 else
