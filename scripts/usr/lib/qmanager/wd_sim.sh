@@ -7,10 +7,15 @@
 # Owns: sim_failover_active, original_sim_slot, original_sim_iccid,
 #       current_sim_slot, revert_settle_active, primary_recheck_active,
 #       recheck_return_slot, recheck_interrupted, last_recheck_time
-# Functions: wd_read_slot, wd_swap_slot, execute_tier3, sim_failover_fallback,
+# Functions: wd_read_slot, wd_swap_slot, wd_failover_save, wd_failover_clear,
+#            execute_tier3, sim_failover_fallback,
 #            finalize_sim_failover, initiate_primary_recheck,
 #            check_revert_request, wd_sim_finish_recheck,
 #            wd_sim_resume_at_start, wd_sim_on_unlock
+#
+# The failover record lives in two places: /tmp (fast, what the poller reads)
+# and /etc/qmanager (flash, survives a reboot). Only wd_failover_save and
+# wd_failover_clear write or remove them.
 #
 # Every SIM slot change goes through wd_swap_slot, which proves the swap by
 # reading the slot back: AT+QUIMSLOT= can return OK and change nothing.
@@ -40,6 +45,29 @@ WD_SIM_SWITCH_FLAG="/tmp/qmanager_sim_switch_active"       # poller pauses AT wh
 WD_FORCE_TIER2_FLAG="/tmp/qmanager_force_tier2"
 WD_REFRESH_POLICY_FLAG="/tmp/qmanager_refresh_policy_band"
 WD_SWAP_NOOP="false"            # "true" when the last wd_swap_slot found the target already live
+SIM_FAILOVER_DURABLE="/etc/qmanager/sim_failover.json"   # flash copy of $SIM_FAILOVER_FILE
+
+# Persist the failover record (one JSON line) to /tmp and to flash. Flash is
+# written only here, at finalize and at a recheck return (rare). Refuses an
+# empty record: a failed jq must never blank a good file.
+wd_failover_save() {
+    if [ -z "$1" ]; then
+        qlog_error "SIM failover: refusing to save an empty record"
+        return 1
+    fi
+    local _fs_rc
+    _fs_rc=0
+    printf '%s\n' "$1" | qm_atomic_write "$SIM_FAILOVER_FILE" || _fs_rc=1
+    [ -d "${SIM_FAILOVER_DURABLE%/*}" ] || mkdir -p "${SIM_FAILOVER_DURABLE%/*}" 2>/dev/null
+    printf '%s\n' "$1" | qm_durable_write "$SIM_FAILOVER_DURABLE" || _fs_rc=1
+    [ "$_fs_rc" -eq 0 ] || qlog_warn "SIM failover: could not write the record to /tmp or flash"
+    return "$_fs_rc"
+}
+
+# Remove the failover record from /tmp and from flash.
+wd_failover_clear() {
+    rm -f "$SIM_FAILOVER_FILE" "$SIM_FAILOVER_DURABLE"
+}
 
 # Prints the live SIM slot digit (up to 3 tries, 1 s apart), or nothing when it
 # cannot be read. Callers treat empty as "unknown", never as a slot.
@@ -328,16 +356,17 @@ finalize_sim_failover() {
     done
 
     local ts
+    local _fo_json
     ts=$(date +%s)
-    jq -n -c \
+    _fo_json=$(jq -n -c \
         --argjson orig "$original_sim_slot" \
         --argjson curr "$current_sim_slot" \
         --argjson ts "$ts" \
         --arg reason "$_fail_reason" \
         --arg orig_iccid "$original_sim_iccid" \
         --arg iccid "$curr_iccid" \
-        '{active:true, original_slot:$orig, current_slot:$curr, switched_at:$ts, reason:$reason, original_iccid:$orig_iccid, current_iccid:$iccid}' \
-        | qm_atomic_write "$SIM_FAILOVER_FILE"
+        '{active:true, original_slot:$orig, current_slot:$curr, switched_at:$ts, reason:$reason, original_iccid:$orig_iccid, current_iccid:$iccid}' 2>/dev/null)
+    wd_failover_save "$_fo_json"
 
     # Mark this failover SIM as known so the poller's boot-time SIM swap detector
     # treats it as expected (not a physical user swap).
@@ -423,7 +452,7 @@ wd_sim_finish_recheck() {
     if [ "$_primary_healthy" = "yes" ]; then
         qlog_info "PRIMARY RECHECK: primary SIM healthy — failing back to slot $current_sim_slot"
         sim_failover_active="false"
-        rm -f "$SIM_FAILOVER_FILE"
+        wd_failover_clear
 
         _ph_iccid=""
         for _ph_try in 1 2 3; do
@@ -490,16 +519,17 @@ wd_sim_finish_recheck() {
     fi
 
     local _rc_ts
+    local _rc_json
     _rc_ts=$(date +%s)
-    jq -n -c \
+    _rc_json=$(jq -n -c \
         --argjson orig "$original_sim_slot" \
         --argjson curr "$current_sim_slot" \
         --argjson ts "$_rc_ts" \
         --arg reason "$_rc_reason" \
         --arg orig_iccid "$original_sim_iccid" \
         --arg iccid "$_bk_iccid" \
-        '{active:true, original_slot:$orig, current_slot:$curr, switched_at:$ts, reason:$reason, original_iccid:$orig_iccid, current_iccid:$iccid}' \
-        | qm_atomic_write "$SIM_FAILOVER_FILE"
+        '{active:true, original_slot:$orig, current_slot:$curr, switched_at:$ts, reason:$reason, original_iccid:$orig_iccid, current_iccid:$iccid}' 2>/dev/null)
+    wd_failover_save "$_rc_json"
     if [ -n "$_bk_iccid" ]; then
         sim_db_add "$_bk_iccid"
     fi
@@ -569,7 +599,8 @@ check_revert_request() {
             rm -f "$RECOVERY_FLAG"
             return 1
         fi
-        rm -f "$RECOVERY_FLAG" "$SIM_FAILOVER_FILE"
+        rm -f "$RECOVERY_FLAG"
+        wd_failover_clear
 
         sim_failover_active="false"
         failure_counter=0
@@ -609,47 +640,66 @@ check_revert_request() {
 }
 
 # Resume a Tier-3 failover recorded before this daemon start, called by main()
-# before the boot settle. The locals were main() locals.
+# after the boot settle (the modem answers by then). The record is read from
+# /tmp, or from the flash copy after a reboot, and trusted only when the live
+# slot matches it: a mismatch clears both copies, an UNREADABLE slot keeps both
+# and activates nothing (a blank read must never delete a valid record).
 wd_sim_resume_at_start() {
-    # Check for stale SIM failover state from before reboot, verifying the
-    # live slot matches what the file records. If the modem is on a
-    # different slot than recorded, clear the file rather than carry stale
-    # state forward.
-    # B4.1: trust the failover state only when root-owned; otherwise drop it
-    if command -v qm_trusted_file >/dev/null 2>&1 \
-            && { [ -e "$SIM_FAILOVER_FILE" ] || [ -L "$SIM_FAILOVER_FILE" ]; }; then
-        if ! qm_trusted_file "$SIM_FAILOVER_FILE"; then
-            qlog_warn "Ignoring untrusted SIM failover file (not root-owned) - removing"
-            rm -f "$SIM_FAILOVER_FILE"
-        fi
-    fi
-    if [ -f "$SIM_FAILOVER_FILE" ]; then
-        local sf_active_val
-        sf_active_val=$(jq -r '(.active) | if . == null then "false" else tostring end' "$SIM_FAILOVER_FILE" 2>/dev/null)
-        if [ "$sf_active_val" = "true" ]; then
-            local _sf_orig
-            local _sf_curr
-            local _live_slot
-            _sf_orig=$(jq -r '(.original_slot) | if . == null then "null" else tostring end' "$SIM_FAILOVER_FILE" 2>/dev/null)
-            _sf_curr=$(jq -r '(.current_slot) | if . == null then "null" else tostring end' "$SIM_FAILOVER_FILE" 2>/dev/null)
-            _live_slot=$(qcmd 'AT+QUIMSLOT?' 2>/dev/null | grep '+QUIMSLOT:' | sed 's/.*: *//' | tr -d '\r ')
+    local _rs_src
+    local _rs_cand
+    local sf_active_val
+    local _sf_orig
+    local _sf_curr
+    local _live_slot
 
-            if [ -n "$_live_slot" ] && [ "$_live_slot" = "$_sf_curr" ]; then
-                sim_failover_active="true"
-                original_sim_slot="$_sf_orig"
-                current_sim_slot="$_sf_curr"
-                # Restore the original ICCID so a later recheck/return-to-backup
-                # rewrites the failover file honestly.
-                original_sim_iccid=$(jq -r '(.original_iccid) | if . == null then "" else tostring end' "$SIM_FAILOVER_FILE" 2>/dev/null)
-                # Start the auto-failback clock from boot-resume so a recheck is at
-                # most one interval away (not immediately on boot).
-                last_recheck_time=$(mono_now)
-                qlog_info "Resumed SIM failover state: slot $original_sim_slot → $current_sim_slot (verified)"
-            else
-                qlog_warn "SIM failover file recorded slot $_sf_curr but modem is on slot ${_live_slot:-unknown} — clearing stale state"
-                rm -f "$SIM_FAILOVER_FILE"
-            fi
+    # B4.1: trust a record only when root-owned; otherwise drop that copy.
+    _rs_src=""
+    for _rs_cand in "$SIM_FAILOVER_FILE" "$SIM_FAILOVER_DURABLE"; do
+        [ -e "$_rs_cand" ] || [ -L "$_rs_cand" ] || continue
+        if ! qm_trusted_file "$_rs_cand"; then
+            qlog_warn "Ignoring untrusted SIM failover file $_rs_cand (not root-owned) - removing"
+            rm -f "$_rs_cand"
+            continue
         fi
+        # First copy that parses wins; /tmp is newer than flash when both exist.
+        sf_active_val=$(jq -r '(.active) | if . == null then "false" else tostring end' "$_rs_cand" 2>/dev/null)
+        if [ -n "$sf_active_val" ]; then
+            _rs_src="$_rs_cand"
+            break
+        fi
+    done
+    [ -n "$_rs_src" ] || return 0
+    [ "$sf_active_val" = "true" ] || return 0
+
+    _sf_orig=$(jq -r '(.original_slot) | if . == null then "null" else tostring end' "$_rs_src" 2>/dev/null)
+    _sf_curr=$(jq -r '(.current_slot) | if . == null then "null" else tostring end' "$_rs_src" 2>/dev/null)
+    _live_slot=$(wd_read_slot)
+
+    if [ -z "$_live_slot" ]; then
+        qlog_warn "SIM failover record found but the live slot is unreadable - keeping it, not resuming"
+        return 0
+    fi
+
+    if [ "$_live_slot" = "$_sf_curr" ]; then
+        sim_failover_active="true"
+        original_sim_slot="$_sf_orig"
+        current_sim_slot="$_sf_curr"
+        # Restore the original ICCID so a later recheck/return-to-backup
+        # rewrites the failover record honestly.
+        original_sim_iccid=$(jq -r '(.original_iccid) | if . == null then "" else tostring end' "$_rs_src" 2>/dev/null)
+        # Keep both copies in step: the poller reads /tmp, a reboot reads flash.
+        if [ "$_rs_src" = "$SIM_FAILOVER_DURABLE" ]; then
+            qm_atomic_write "$SIM_FAILOVER_FILE" < "$_rs_src"
+        elif [ ! -f "$SIM_FAILOVER_DURABLE" ]; then
+            qm_durable_write "$SIM_FAILOVER_DURABLE" < "$_rs_src"
+        fi
+        # Start the auto-failback clock from boot-resume so a recheck is at
+        # most one interval away (not immediately on boot).
+        last_recheck_time=$(mono_now)
+        qlog_info "Resumed SIM failover state: slot $original_sim_slot → $current_sim_slot (verified)"
+    else
+        qlog_warn "SIM failover file recorded slot $_sf_curr but modem is on slot $_live_slot — clearing stale state"
+        wd_failover_clear
     fi
 }
 
