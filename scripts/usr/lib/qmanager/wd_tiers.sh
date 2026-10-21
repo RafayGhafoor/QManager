@@ -8,7 +8,7 @@
 #       cooldown_remaining, cooldown_stale_retries, recovery_reason,
 #       _recovery_marker_emitted, holdoff_until
 # Functions: tower_lock_active, wait_for_modem, execute_tier1, execute_tier2,
-#            _wd_confirm_radio_on, wd_enter_radio_off,
+#            _wd_confirm_radio_on, wd_enter_radio_off, _wd_start_holdoff,
 #            execute_tier4, find_next_tier, do_recovery, _cooldown_handle_failure,
 #            wd_cooldown_verdict, finish_cooldown
 #
@@ -263,6 +263,7 @@ do_recovery() {
         else
             qlog_error "No more enabled tiers — all recovery options exhausted"
             rm -f "$RECOVERY_FLAG"
+            _wd_start_holdoff
             state="monitor"
             current_tier=0
             failure_counter=0
@@ -296,6 +297,17 @@ do_recovery() {
 # COOLDOWN COMPLETION
 # =============================================================================
 
+# Every enabled tier has been tried without restoring the connection: pause for
+# HOLDOFF_SECS before a new ladder may start (wd_start_gate returns "holdoff").
+# Natural recovery and any cooldown success reset it to 0.
+_wd_start_holdoff() {
+    local now
+    now=$(mono_now)
+    case "$now" in ''|*[!0-9]*) now=0 ;; esac
+    holdoff_until=$((now + HOLDOFF_SECS))
+    append_event "watchcat_recovery" "Watchcat: all recovery steps tried, pausing 15 minutes" "error"
+}
+
 # Shared failure path for cooldown — fallback if Tier 3, then escalate.
 _cooldown_handle_failure() {
     qlog_warn "COOLDOWN failure path entered for Tier $current_tier"
@@ -326,7 +338,7 @@ _cooldown_handle_failure() {
         do_recovery
     else
         qlog_error "All recovery tiers exhausted — returning to monitor"
-        append_event "watchcat_recovery" "Watchcat: recovery exhausted — all enabled tiers tried, connection not restored" "error"
+        _wd_start_holdoff
         state="monitor"
         current_tier=0
         failure_counter=0
