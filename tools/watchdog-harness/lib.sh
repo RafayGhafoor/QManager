@@ -108,6 +108,9 @@ h_qcmd_default() {
             _h_s=$(mget slot 1)
             printf '+QCCID: %s\r\nOK\r\n' "$(mget "iccid_slot$_h_s" "8900000000000000000$_h_s")"
             ;;
+        "AT+CFUN?")
+            printf '+CFUN: %s\r\nOK\r\n' "$(mget cfun 1)"
+            ;;
         "AT+CPIN?")
             _h_v=$(mget "cpin_slot$(mget slot 1)" "+CPIN: READY")
             case "$_h_v" in
@@ -123,6 +126,30 @@ h_qcmd_default() {
 }
 
 # --- inputs the real daemons would produce -----------------------------------
+
+# Ping-history ring (/tmp/qmanager_ping_history, one RTT or "null" per line,
+# newest last, 60 lines): one sample per 5 fake seconds since the last refresh.
+# Unreachable -> null; otherwise q_latency, with q_loss percent of the samples
+# null (evenly spread: sample k is null when floor((k+1)*P/100) > floor(k*P/100)).
+h_hist_append() { # dt reachable
+    _h_ns=$(( $1 / 5 ))
+    _h_hf="$H_ROOT/tmp/qmanager_ping_history"
+    [ -f "$_h_hf" ] || : > "$_h_hf"
+    _h_k=$(mget hist_cnt 0)
+    _h_p=$(mget q_loss 0)
+    _h_lat=$(mget q_latency 24.5)
+    while [ "$_h_ns" -gt 0 ]; do
+        if [ "$2" = "false" ] || [ $(( (_h_k + 1) * _h_p / 100 )) -gt $(( _h_k * _h_p / 100 )) ]; then
+            echo null >> "$_h_hf"
+        else
+            echo "$_h_lat" >> "$_h_hf"
+        fi
+        _h_k=$(( _h_k + 1 ))
+        _h_ns=$(( _h_ns - 1 ))
+    done
+    mset hist_cnt "$_h_k"
+    tail -n 60 "$_h_hf" > "$_h_hf.tmp" && mv "$_h_hf.tmp" "$_h_hf"
+}
 
 # Rewrites ping.json and status.json from the model at the current fake time.
 # Called after every clock advance, so cached data is always as fresh as the
@@ -151,8 +178,9 @@ h_refresh() {
     if [ "$(mget ping_stale 0)" != "1" ]; then
         _h_dr=false
         [ -f "$H_ROOT/tmp/qmanager_recovery_active" ] && _h_dr=true
-        printf '{"timestamp":%s,"mono":%s,"reachable":%s,"last_rtt_ms":24.5,"streak_success":%s,"streak_fail":%s,"during_recovery":%s,"interval_sec":5,"fail_secs":15,"recover_secs":10,"profile":"relaxed","last_family":"v4","targets":["192.0.2.1"]}\n' \
-            "$_h_now" "$_h_up" "$_h_reach" "$_h_ss" "$_h_sf" "$_h_dr" > "$H_ROOT/tmp/qmanager_ping.json"
+        printf '{"timestamp":%s,"mono":%s,"reachable":%s,"last_rtt_ms":24.5,"streak_success":%s,"streak_fail":%s,"during_recovery":%s,"interval_sec":%s,"fail_secs":15,"recover_secs":10,"profile":"relaxed","last_family":"v4","targets":["192.0.2.1"]}\n' \
+            "$_h_now" "$_h_up" "$_h_reach" "$_h_ss" "$_h_sf" "$_h_dr" "$(mget ping_interval 5)" > "$H_ROOT/tmp/qmanager_ping.json"
+        h_hist_append "$_h_dt" "$_h_reach"
     fi
     if [ "$(mget status_stale 0)" != "1" ]; then
         printf '{"timestamp":%s,"mono":%s,"connectivity":{"avg_latency_ms":%s,"packet_loss_pct":%s}}\n' \
@@ -203,7 +231,7 @@ h_snap() { # pass number
         cat "$H_ROOT/tmp/qmanager_watchcat.json" 2>/dev/null || echo "(absent)"
         echo "-- files"
         ( cd "$H_ROOT" && ls -1 tmp etc/qmanager var/run 2>/dev/null \
-            | grep -v -E '^(qmanager\.log|qmanager_events\.json|qmanager_ping\.json|qmanager_status\.json|qmanager_watchcat\.json)$' )
+            | grep -v -E '^(qmanager\.log|qmanager_events\.json|qmanager_ping\.json|qmanager_ping_history|qmanager_ping_history\.tmp|qmanager_status\.json|qmanager_watchcat\.json)$' )
         echo "-- failover"
         cat "$H_ROOT/tmp/qmanager_sim_failover" 2>/dev/null || echo "(none)"
         if command -v sc_snap_extra >/dev/null 2>&1; then

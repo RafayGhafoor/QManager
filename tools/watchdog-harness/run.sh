@@ -148,7 +148,7 @@ STUB
         cd "$root" || exit 1
         find tmp etc var -type f 2>/dev/null | sort | while IFS= read -r f; do
             case "$f" in
-                tmp/qmanager_ping.json|tmp/qmanager_status.json) continue ;;
+                tmp/qmanager_ping.json|tmp/qmanager_status.json|tmp/qmanager_ping_history) continue ;;
             esac
             echo "=== $f"
             case "$f" in

@@ -6,8 +6,8 @@
 #
 # Owns: ping_streak_fail, ping_reachable, ping_during_recovery, q_avg_latency,
 #       q_packet_loss, quality_breach_counter, ssr_hold, last_ssr_detected,
-#       ssr_hold_started
-# Functions: read_ping, read_quality, quality_breached, evaluate_quality,
+#       ssr_hold_started, quality_since
+# Functions: read_ping, read_quality, wd_quality_mark, quality_breached, evaluate_quality,
 #            ssr_in_progress, ssr_hold_gate, ssr_hold_clear
 #
 # evaluate_quality starts the recovery ladder (find_next_tier / do_recovery from
@@ -49,51 +49,66 @@ read_ping() {
     return 0
 }
 
-# Read poller status.json for connection-quality metrics, with a staleness
-# guard. The .connectivity object has no timestamp of its own, so freshness
-# is judged from the ROOT .timestamp. Returns 0 if FRESH+valid, 1 if
-# stale/missing/unparseable (= NO-SIGNAL).
-# Sets: q_avg_latency (may be "null"), q_packet_loss (sanitized int)
+# Quality window. Quality is judged from the ping daemon's raw sample history
+# (one RTT in ms or the word "null" per line, newest last), not from the poller's
+# status.json, so a long-gone outage cannot leak into a fresh decision.
+# quality_since is the monotonic second the window starts at: wd_quality_mark
+# resets it after every event that makes older samples meaningless (startup, an
+# outage, a recovery action, a SIM swap, a LOCKED or radio-off exit). The window
+# holds at most W samples, W = clamp(120 / ping interval, 6, 60), and at least 3
+# samples must have accrued since the mark or there is no signal.
+quality_since=0
+WD_PING_HISTORY="/tmp/qmanager_ping_history"
+
+wd_quality_mark() {
+    quality_since=$(mono_now)
+    case "$quality_since" in ''|*[!0-9]*) quality_since=0 ;; esac
+}
+
+# Returns 0 with the window's figures, 1 for no signal (too few samples since the
+# mark, or no history). Freshness is the caller's job: read_ping has already run
+# this pass and a stale ping cache stops the pass before this is reached.
+# Sets: q_avg_latency (may be "null"), q_packet_loss (integer 0-100)
 q_avg_latency="null"
 q_packet_loss="0"
 read_quality() {
-    [ -f "$STATUS_CACHE" ] || return 1
-    local _qdata
-    _qdata=$(jq -r '[
-        (.timestamp | if . == null then "0" else tostring end),
-        (.connectivity.avg_latency_ms | if . == null then "null" else tostring end),
-        (.connectivity.packet_loss_pct | if . == null then "0" else tostring end)
-    ] | @tsv' "$STATUS_CACHE" 2>/dev/null)
-    [ -z "$_qdata" ] && return 1
-    local _ts
-    _ts=$(printf '%s' "$_qdata" | cut -f1)
-    q_avg_latency=$(printf '%s' "$_qdata" | cut -f2)
-    q_packet_loss=$(printf '%s' "$_qdata" | cut -f3)
-    # sanitize loss to a clean integer (avg_latency may legitimately be "null")
+    local iv
+    local w
+    local n
+    local now
+    local since
+    local out
+
+    iv="$CQ_INTERVAL_SEC"
+    case "$iv" in ''|*[!0-9]*) iv=5 ;; esac
+    [ "$iv" -ge 1 ] || iv=5
+    w=$((120 / iv))
+    [ "$w" -lt 6 ] && w=6
+    [ "$w" -gt 60 ] && w=60
+
+    now=$(mono_now)
+    case "$now" in ''|*[!0-9]*) return 1 ;; esac
+    since="$quality_since"
+    case "$since" in ''|*[!0-9]*) since=0 ;; esac
+    [ "$now" -ge "$since" ] || return 1
+    n=$(( (now - since) / iv ))
+    [ "$n" -gt "$w" ] && n=$w
+    [ "$n" -ge 3 ] || return 1
+
+    [ -f "$WD_PING_HISTORY" ] || return 1
+    out=$(tail -n "$n" "$WD_PING_HISTORY" 2>/dev/null | awk '
+        { c++ }
+        $0 ~ /^[0-9]+(\.[0-9]+)?$/ { s += $0; k++; next }
+        { nl++ }
+        END {
+            if (c < 3) exit 1
+            if (k > 0) avg = sprintf("%.1f", s / k); else avg = "null"
+            printf "%s %d\n", avg, int(nl * 100 / c)
+        }')
+    [ -n "$out" ] || return 1
+    q_avg_latency="${out% *}"
+    q_packet_loss="${out#* }"
     case "$q_packet_loss" in ''|*[!0-9]*) q_packet_loss=0 ;; esac
-    # Staleness check — prefer monotonic /proc/uptime; wall-clock fallback when .mono absent
-    local _mono
-    _mono=$(jq -r '.mono | if . == null then "" else tostring end' "$STATUS_CACHE" 2>/dev/null)
-    case "$_mono" in
-        ''|0|*[!0-9]*)
-            local _now
-            local _age
-            _now=$(date +%s)
-            _age=$((_now - _ts))
-            if [ "$_ts" -le 0 ] 2>/dev/null || [ "$_age" -gt "$STATUS_STALE_THRESHOLD" ]; then
-                qlog_warn "Quality data stale/wc (age=${_age}s) — treating as no-signal"
-                return 1
-            fi
-            ;;
-        *)
-            local _age_mono
-            _age_mono=$(( $(mono_now) - _mono ))
-            if [ "$_ts" -le 0 ] 2>/dev/null || [ "$_age_mono" -gt "$STATUS_STALE_THRESHOLD" ]; then
-                qlog_warn "Quality data stale (age_mono=${_age_mono}s) — treating as no-signal"
-                return 1
-            fi
-            ;;
-    esac
     return 0
 }
 

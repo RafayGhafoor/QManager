@@ -9,7 +9,7 @@
 #       _recovery_marker_emitted
 # Functions: tower_lock_active, wait_for_modem, execute_tier1, execute_tier2,
 #            execute_tier4, find_next_tier, do_recovery, _cooldown_handle_failure,
-#            finish_cooldown
+#            wd_cooldown_verdict, finish_cooldown
 #
 # Tier 3 (execute_tier3) and every SIM-slot swap live in wd_sim.sh;
 # finish_cooldown hands the primary-recheck verdict to wd_sim_finish_recheck.
@@ -221,7 +221,9 @@ do_recovery() {
         return
     fi
 
-    # Recovery action executed — enter cooldown
+    # Recovery action executed — enter cooldown. Quality samples taken before the
+    # action describe the old link, so the quality window restarts here.
+    wd_quality_mark
     local ts
     ts=$(date +%s)
     last_recovery_time="$ts"
@@ -277,6 +279,35 @@ _cooldown_handle_failure() {
     fi
 }
 
+# Pure verdict for a finished cooldown (no I/O, no globals):
+#   wd_cooldown_verdict <reason> <ping_ok 0|1> <reachable> <q_state 0|1|2> <stale_retries>
+#   reason         "quality" or anything else (= reachability)
+#   ping_ok        1 when read_ping returned fresh data this pass
+#   reachable      true | false | null (only read when ping_ok = 1)
+#   q_state        0 quality good, 1 breached, 2 no data (only read for "quality")
+#   stale_retries  extensions already spent (cap 3)
+# Prints success | extend | fail. "no data" (stale ping or too few samples) is
+# extended up to 3 times, then counts as a failed recovery.
+wd_cooldown_verdict() {
+    local retries
+    retries="$5"
+    case "$retries" in ''|*[!0-9]*) retries=3 ;; esac
+    if [ "$2" != "1" ]; then
+        if [ "$retries" -lt 3 ]; then printf 'extend'; else printf 'fail'; fi
+        return 0
+    fi
+    if [ "$1" = "quality" ]; then
+        case "$4" in
+            0) printf 'success' ;;
+            1) printf 'fail' ;;
+            *) if [ "$retries" -lt 3 ]; then printf 'extend'; else printf 'fail'; fi ;;
+        esac
+        return 0
+    fi
+    if [ "$3" = "true" ]; then printf 'success'; else printf 'fail'; fi
+    return 0
+}
+
 finish_cooldown() {
     rm -f "$RECOVERY_FLAG"
 
@@ -311,76 +342,100 @@ finish_cooldown() {
     # so it would ALWAYS look "restored". Judge success from a FRESH quality
     # read against the configured ceilings instead.
     if [ "$recovery_reason" = "quality" ]; then
-        if ! read_quality; then
-            if [ "$cooldown_stale_retries" -lt 3 ]; then
+        # Fresh ping data is the freshness gate for the quality window; the
+        # window figures then come from the ping history (read_quality).
+        local pok=0
+        local qs=2
+        if read_ping; then
+            pok=1
+            if read_quality; then
+                if quality_breached; then
+                    qs=1
+                else
+                    qs=0
+                fi
+            fi
+        fi
+
+        case "$(wd_cooldown_verdict quality "$pok" "$ping_reachable" "$qs" "$cooldown_stale_retries")" in
+            extend)
                 cooldown_stale_retries=$((cooldown_stale_retries + 1))
-                qlog_warn "COOLDOWN(quality): status data stale (retry $cooldown_stale_retries/3) — extending by ${CFG_CHECK_INTERVAL}s"
+                qlog_warn "COOLDOWN(quality): quality data not ready (retry $cooldown_stale_retries/3) — extending by ${CFG_CHECK_INTERVAL}s"
                 cooldown_remaining="$CFG_CHECK_INTERVAL"
                 touch "$RECOVERY_FLAG"   # keep events suppressed during extension
                 return
-            fi
-            qlog_error "COOLDOWN(quality): status data still stale after 3 retries — treating as recovery failure"
-            cooldown_stale_retries=0
-            _cooldown_handle_failure
-            return
-        fi
-        cooldown_stale_retries=0
-
-        if ! quality_breached; then
-            qlog_info "COOLDOWN(quality) complete: quality RESTORED after Tier $current_tier"
-            append_event "watchcat_recovery" "Watchcat: recovery succeeded (Tier $current_tier) — connection quality restored" "info"
-            # A quality-triggered Tier-3 swap finalizes exactly like reachability —
-            # otherwise the modem strands on backup with no failover state / revert
-            # path. No-op for non-Tier-3 quality recoveries.
-            finalize_sim_failover
-            state="monitor"
-            current_tier=0
-            failure_counter=0
-            quality_breach_counter=0
-            _recovery_marker_emitted=""
-            return
-        fi
-
-        qlog_warn "COOLDOWN(quality) complete: quality STILL degraded after Tier $current_tier"
-        _cooldown_handle_failure
-        return
+                ;;
+            success)
+                cooldown_stale_retries=0
+                qlog_info "COOLDOWN(quality) complete: quality RESTORED after Tier $current_tier"
+                append_event "watchcat_recovery" "Watchcat: recovery succeeded (Tier $current_tier) — connection quality restored" "info"
+                # A quality-triggered Tier-3 swap finalizes exactly like reachability —
+                # otherwise the modem strands on backup with no failover state / revert
+                # path. No-op for non-Tier-3 quality recoveries.
+                finalize_sim_failover
+                state="monitor"
+                current_tier=0
+                failure_counter=0
+                quality_breach_counter=0
+                holdoff_until=0
+                _recovery_marker_emitted=""
+                return
+                ;;
+            *)
+                cooldown_stale_retries=0
+                if [ "$qs" -eq 2 ]; then
+                    qlog_error "COOLDOWN(quality): quality data still not ready after 3 retries — treating as recovery failure"
+                else
+                    qlog_warn "COOLDOWN(quality) complete: quality STILL degraded after Tier $current_tier"
+                fi
+                _cooldown_handle_failure
+                return
+                ;;
+        esac
     fi
 
-    # --- Reachability path (recovery_reason="unreachable") — unchanged ---
+    # --- Reachability path (recovery_reason="unreachable") ---
     # Try to read fresh ping data
-    if ! read_ping; then
-        if [ "$cooldown_stale_retries" -lt 3 ]; then
+    local rok=0
+    read_ping && rok=1
+
+    case "$(wd_cooldown_verdict unreachable "$rok" "$ping_reachable" 2 "$cooldown_stale_retries")" in
+        extend)
             cooldown_stale_retries=$((cooldown_stale_retries + 1))
             qlog_warn "COOLDOWN: ping data stale (retry $cooldown_stale_retries/3) — extending by ${CFG_CHECK_INTERVAL}s"
             cooldown_remaining="$CFG_CHECK_INTERVAL"
             touch "$RECOVERY_FLAG"   # keep events suppressed during extension
             return
-        fi
-        qlog_error "COOLDOWN: ping data still stale after 3 retries — treating as recovery failure"
-        cooldown_stale_retries=0
-        _cooldown_handle_failure
-        return
-    fi
-    cooldown_stale_retries=0
+            ;;
+        success)
+            cooldown_stale_retries=0
+            qlog_info "COOLDOWN complete: connectivity RESTORED after Tier $current_tier"
+            append_event "watchcat_recovery" "Watchcat: recovery succeeded (Tier $current_tier) — internet connectivity restored" "info"
 
-    if [ "$ping_reachable" = "true" ]; then
-        qlog_info "COOLDOWN complete: connectivity RESTORED after Tier $current_tier"
-        append_event "watchcat_recovery" "Watchcat: recovery succeeded (Tier $current_tier) — internet connectivity restored" "info"
+            # If this was Tier 3 SIM failover, finalize the failover state (no-op
+            # otherwise). Shared with the quality success arm.
+            finalize_sim_failover
 
-        # If this was Tier 3 SIM failover, finalize the failover state (no-op
-        # otherwise). Shared with the quality success arm.
-        finalize_sim_failover
-
-        # Reset — connectivity recovered
-        state="monitor"
-        current_tier=0
-        failure_counter=0
-        _recovery_marker_emitted=""
-        return
-    fi
-
-    qlog_warn "COOLDOWN complete: connectivity NOT restored after Tier $current_tier"
-    _cooldown_handle_failure
+            # Reset — connectivity recovered
+            state="monitor"
+            current_tier=0
+            failure_counter=0
+            quality_breach_counter=0
+            holdoff_until=0
+            _recovery_marker_emitted=""
+            return
+            ;;
+        *)
+            cooldown_stale_retries=0
+            if [ "$rok" -eq 0 ]; then
+                qlog_error "COOLDOWN: ping data still stale after 3 retries — treating as recovery failure"
+            else
+                qlog_warn "COOLDOWN complete: connectivity NOT restored after Tier $current_tier"
+            fi
+            _cooldown_handle_failure
+            return
+            ;;
+    esac
 }
 
 WD_TIERS_LOADED=1

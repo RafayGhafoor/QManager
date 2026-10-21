@@ -207,6 +207,9 @@ main() {
     write_state
     wd_sleep "$BOOT_SETTLE"
 
+    # The quality window starts once the settle is over (wd_detect.sh).
+    wd_quality_mark
+
     # Resume a Tier-3 failover recorded before this start (wd_sim.sh). After the
     # settle, so the modem answers when the live SIM slot is read.
     wd_sim_resume_at_start
@@ -277,6 +280,7 @@ main() {
             primary_recheck_active="false"
             _recovery_marker_emitted=""
             ssr_hold_clear
+            wd_quality_mark
 
             # Revert an unconfirmed Tier-3 swap / re-arm an interrupted primary
             # recheck (wd_sim.sh). Not on LOCKED entry: the lock holder owns the
@@ -312,6 +316,10 @@ main() {
         # readout (quality_breach_count stays separate). The recovery DECISION no
         # longer uses an accumulator — it compares the raw streak directly.
         failure_counter="$ping_streak_fail"
+
+        # An outage in progress: restart the quality window each pass, so the
+        # first quality decision after it sees only post-outage samples.
+        [ "$ping_streak_fail" -gt 0 ] && wd_quality_mark
 
         # --- State machine ---
         case "$state" in
