@@ -20,6 +20,8 @@
 PID_FILE="/tmp/qmanager_neighbour_scan.pid"
 RESULT_FILE="/tmp/qmanager_neighbour_scan_result.json"
 ERROR_FILE="/tmp/qmanager_neighbour_scan_error"
+TS_FILE="/tmp/qmanager_neighbour_scan.ts"
+READERS_FILE="/tmp/qmanager_neighbour_scan.readers"
 
 qlog_init "cgi_neighbour_scan_status"
 cgi_headers
@@ -29,7 +31,9 @@ cgi_handle_options
 if [ -f "$PID_FILE" ]; then
     SCAN_PID=$(cat "$PID_FILE" 2>/dev/null)
     if [ -n "$SCAN_PID" ] && kill -0 "$SCAN_PID" 2>/dev/null; then
-        jq -n '{"status":"running"}'
+        # A live reader also writes this PID file, so "running" is what the page
+        # attaches to in live mode too. Its results are already on disk.
+        printf '{"status":"running"}\n'
         exit 0
     fi
     # Process died — clean up stale PID
@@ -38,7 +42,30 @@ fi
 
 # --- Check: result file present? ---------------------------------------------
 if [ -f "$RESULT_FILE" ]; then
-    jq -n --slurpfile results "$RESULT_FILE" '{"status":"complete","results":$results[0]}'
+    # The file IS a JSON array; embed it verbatim. jq -n --slurpfile cost a
+    # fixed ~440 ms per poll (AGENTS.md) and a 1 Hz live view would pay it every
+    # second, for a value it could have `cat`ed.
+    #
+    # Age is reported only when the live reader wrote a timestamp, so a one-shot
+    # scan keeps its exact previous response shape.
+    RESULTS=$(cat "$RESULT_FILE" 2>/dev/null)
+    case "$RESULTS" in
+        '['*']') : ;;
+        *) printf '{"status":"error","message":"Result file is not a JSON array"}\n'; exit 0 ;;
+    esac
+    # Touch the readers file so a running live reader knows somebody is watching.
+    [ -e "$READERS_FILE" ] && ( : >> "$READERS_FILE" ) 2>/dev/null
+    TS=$(cat "$TS_FILE" 2>/dev/null)
+    case "$TS" in
+        ''|*[!0-9]*) printf '{"status":"complete","results":%s}\n' "$RESULTS" ;;
+        *)
+            NOW=$(date +%s)
+            AGE=$(( (NOW - TS) * 1000 ))
+            [ "$AGE" -lt 0 ] && AGE=0
+            printf '{"status":"complete","scanned_at":%s,"age_ms":%s,"results":%s}\n' \
+                "$TS" "$AGE" "$RESULTS"
+            ;;
+    esac
     exit 0
 fi
 
@@ -48,10 +75,17 @@ fi
 # Checked AFTER the result: if a stray older error and a newer result both
 # exist, the result wins (a real failure always removes the result first).
 if [ -f "$ERROR_FILE" ]; then
-    ERR_MSG=$(cat "$ERROR_FILE" 2>/dev/null | head -1)
-    jq -n --arg msg "$ERR_MSG" '{"status":"error","message":$msg}'
+    ERR_MSG=$(head -1 "$ERROR_FILE" 2>/dev/null)
+    # Narrow guard: anything JSON cannot carry unescaped falls back to jq, which
+    # is the previous behaviour verbatim.
+    case "$ERR_MSG" in
+        *[\"\\]*)
+            jq -n --arg msg "$ERR_MSG" '{"status":"error","message":$msg}' ;;
+        *)
+            printf '{"status":"error","message":"%s"}\n' "$ERR_MSG" ;;
+    esac
     exit 0
 fi
 
 # --- Default: idle (no scan has been run yet) ---------------------------------
-jq -n '{"status":"idle"}'
+printf '{"status":"idle"}\n'

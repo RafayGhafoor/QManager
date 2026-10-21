@@ -56,124 +56,207 @@ rm -f "$ERROR_FILE"
 qlog_info "Neighbour scanner started (PID: $$)"
 
 # =============================================================================
-# STEP 1: Query LTE neighbour cells via AT+QENG="neighbourcell"
+# LIVE MODE (--live): resident 1 Hz reader for the Live Neighbours view
 # =============================================================================
-# Response format (each line):
-#   +QENG: "neighbourcell intra","LTE",<earfcn>,<pcid>,<rsrq>,<rsrp>,<rssi>,<sinr>,<srxlev>,<cell_resel_priority>,<s_non_intra_search>,<thresh_serving_low>,<s_intra_search>
-#   +QENG: "neighbourcell inter","LTE",<earfcn>,<pcid>,<rsrq>,<rsrp>,<rssi>,<sinr>,<srxlev>,<cell_resel_priority>,<threshX_low>,<threshX_high>
+# Why this lives in the real worker rather than a second daemon: one scanner,
+# one parse path, one output file and one status CGI. A parallel implementation
+# is how two parsers drift apart.
+#
+# Measured: AT+QENG="neighbourcell" costs ~7 ms here (10 samples, 0-10 ms), so
+# 1 Hz is ~1% of one core and ~1% AT duty. The one-shot path above takes 3.2 s
+# only because it runs three AT commands and sleeps 1 s between legs.
+#
+# LIVE MODE DELIBERATELY DOES NOT INHERIT FD 7. The shared scan lock marks "a
+# scan is running"; a resident reader is not one, and holding that lock for its
+# whole life would block manual neighbour scans and full band sweeps. The start
+# CGI closes fd 7 when it spawns this mode.
+#
+# Output: the SAME $RESULT_FILE (a plain JSON array), so every existing consumer
+# keeps working, plus $TS_FILE with the read's epoch so the status CGI can report
+# freshness without parsing anything.
+LIVE_INTERVAL=1
+LIVE_IDLE_STOP=30
+TS_FILE="/tmp/qmanager_neighbour_scan.ts"
+READERS_FILE="/tmp/qmanager_neighbour_scan.readers"
 
-lte_output=$(qcmd 'AT+QENG="neighbourcell"' 2>"$LTE_ERR_FILE")
-lte_rc=$?
+parse_lte_json() {
+    awk '
+        function num(v) { return (v == "" || v == "-") ? "null" : v }
+        BEGIN { printf "["; n = 0 }
+        /^\+QENG: "neighbourcell/ {
+            line = $0
+            sub(/^\+QENG: /, "", line)
+            if (split(line, f, ",") < 8) next
+            kind = f[1]
+            gsub(/"/, "", kind)
+            if      (kind ~ /intra/) ct = "intra"
+            else if (kind ~ /inter/) ct = "inter"
+            else next
+            n++
+            if (n > 1) printf ","
+            printf "{\"id\":\"%d\",\"networkType\":\"LTE\",\"cellType\":\"%s\"," \
+                   "\"frequency\":%s,\"pci\":%s,\"signalStrength\":%s," \
+                   "\"rsrq\":%s,\"rssi\":%s,\"sinr\":%s}", \
+                   n, ct, num(f[3]), num(f[4]), num(f[6]), num(f[5]), num(f[7]), num(f[8])
+        }
+        END { printf "]" }
+    '
+}
 
-: > "$PARSED_FILE"
-
-if [ $lte_rc -ne 0 ]; then
-    qlog_warn "AT+QENG neighbourcell failed (exit=$lte_rc) — skipping LTE neighbours"
-else
-    lte_lines=$(printf '%s\n' "$lte_output" | grep '^+QENG:')
-
-    if [ -n "$lte_lines" ]; then
-        qlog_info "LTE neighbour data received, parsing..."
-
-        printf '%s\n' "$lte_lines" | while IFS= read -r line; do
-            # Determine cell type from the line
-            cell_type=""
-            case "$line" in
-                *"neighbourcell intra"*) cell_type="intra" ;;
-                *"neighbourcell inter"*) cell_type="inter" ;;
-                *) continue ;;
+live_loop() {
+    : > "$READERS_FILE"
+    rm -f "$ERROR_FILE"
+    qlog_info "Live neighbour reader started at ${LIVE_INTERVAL}s (PID $$)"
+    while :; do
+        raw=$(qcmd 'AT+QENG="neighbourcell"' 2>/dev/null)
+        if [ -n "$raw" ]; then
+            cells=$(printf '%s\n' "$raw" | parse_lte_json)
+            case "$cells" in
+                '['*']')
+                    printf '%s\n' "$cells" > "${RESULT_FILE}.tmp" 2>/dev/null \
+                      && mv "${RESULT_FILE}.tmp" "$RESULT_FILE" 2>/dev/null
+                    date +%s > "${TS_FILE}.tmp" 2>/dev/null \
+                      && mv "${TS_FILE}.tmp" "$TS_FILE" 2>/dev/null
+                    ;;
             esac
+        fi
 
-            # Strip prefix up to "LTE", then extract CSV fields after it
-            # Format: +QENG: "neighbourcell intra","LTE",<earfcn>,<pcid>,<rsrq>,<rsrp>,<rssi>,<sinr>,...
-            csv=$(printf '%s' "$line" | sed 's/.*"LTE",//' | tr -d ' ' | tr -d '\r')
+        # Idle stop: the status CGI touches $READERS_FILE on every poll, so an
+        # old mtime means no browser is watching. A live reader must never
+        # outlive its audience on a production router.
+        last=$(date -r "$READERS_FILE" +%s 2>/dev/null)
+        now=$(date +%s)
+        case "$last" in ''|*[!0-9]*) last=$now ;; esac
+        if [ $((now - last)) -ge "$LIVE_IDLE_STOP" ]; then
+            qlog_info "No readers for ${LIVE_IDLE_STOP}s - stopping live reader"
+            break
+        fi
+        sleep "$LIVE_INTERVAL"
+    done
+}
 
-            earfcn=$(printf '%s' "$csv" | cut -d',' -f1)
-            pcid=$(printf '%s' "$csv" | cut -d',' -f2)
-            rsrq=$(printf '%s' "$csv" | cut -d',' -f3)
-            rsrp=$(printf '%s' "$csv" | cut -d',' -f4)
-            rssi=$(printf '%s' "$csv" | cut -d',' -f5)
-            sinr=$(printf '%s' "$csv" | cut -d',' -f6)
-
-            # Sanitize dash/empty values
-            case "$earfcn" in '-'|'') earfcn="" ;; esac
-            case "$pcid"   in '-'|'') pcid=""   ;; esac
-            case "$rsrq"   in '-'|'') rsrq=""   ;; esac
-            case "$rsrp"   in '-'|'') rsrp=""   ;; esac
-            case "$rssi"   in '-'|'') rssi=""   ;; esac
-            case "$sinr"   in '-'|'') sinr=""   ;; esac
-
-            # Output TSV: networkType cellType earfcn pci rsrp rsrq rssi sinr
-            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-                "LTE" "$cell_type" "$earfcn" "$pcid" "$rsrp" "$rsrq" "$rssi" "$sinr" >> "$PARSED_FILE"
-        done
-    else
-        qlog_info "No LTE neighbour cells found"
-    fi
+if [ "$1" = "--live" ]; then
+    live_loop
+    exit 0
 fi
 
+
 # =============================================================================
-# STEP 2: Query NR5G neighbour cells via AT+QNWCFG="nr5g_meas_info"
+# STEP 1: Read both legs
 # =============================================================================
-# First enable measurement reporting, then read results.
+# Fork budget, because on this board a fork costs ~1.5-1.8 ms (measured: 112
+# forks = 140-200 ms) and this scan used to spend 1000 ms on a blind `sleep 1`
+# as well. Before change 27 the parse forked ~14 times PER LINE (sed + tr + six
+# cut + six case); the whole job below is:
 #
-# Response format:
-#   +QNWCFG: "nr5g_meas_info",<nr_arfcn>,<pci>,<rsrp>,<rsrq>,<sinr>
+#   qcmd  x3    the AT reads (7-10 ms each, the actual modem cost)
+#   awk   x1    both legs parsed AND emitted as JSON in one process
+#   mv/rm/read  shell builtins
+#
+# Nothing else. No TSV intermediate, no jq, no per-field cut.
 
+# --- LTE: AT+QENG="neighbourcell" ---------------------------------------------
+#   +QENG: "neighbourcell intra","LTE",<earfcn>,<pcid>,<rsrq>,<rsrp>,<rssi>,<sinr>,...
+lte_output=$(qcmd 'AT+QENG="neighbourcell"' 2>"$LTE_ERR_FILE")
+lte_rc=$?
+if [ $lte_rc -ne 0 ]; then
+    qlog_warn "AT+QENG neighbourcell failed (exit=$lte_rc) - skipping LTE neighbours"
+fi
+
+# --- NR5G: enable reporting, then read ---------------------------------------
+#   +QNWCFG: "nr5g_meas_info",<enabled>,<arfcn>,<pci>,<rsrp>,<rsrq>,<sinr>
 qcmd 'AT+QNWCFG="nr5g_meas_info",1' >/dev/null 2>&1
-# Brief pause to allow measurement data to populate
-sleep 1
-
 nr_output=$(qcmd 'AT+QNWCFG="nr5g_meas_info"' 2>"$NR_ERR_FILE")
 nr_rc=$?
 
-if [ $nr_rc -ne 0 ]; then
-    qlog_warn "AT+QNWCFG nr5g_meas_info failed (exit=$nr_rc) — skipping NR5G neighbours"
-else
-    nr_lines=$(printf '%s\n' "$nr_output" | grep '^+QNWCFG: "nr5g_meas_info"')
+# Retry only when the answer was EMPTY. A literal `ERROR` means this modem does
+# not report NR neighbours in this state - on this unit it answers ERROR in every
+# state (0 lines after 0 s, 0.2 s and 1 s), so waiting is pure dead time: the old
+# `sleep 1` was 1000 ms of a 1220 ms scan, and the first version of this fix still
+# paid ~200 ms retrying a command that can never succeed.
+case "$nr_output" in
+    *'+QNWCFG: "nr5g_meas_info"'*) : ;;
+    *ERROR*|*'+CME ERROR'*)        : ;;
+    *) sleep 0.2
+       nr_output=$(qcmd 'AT+QNWCFG="nr5g_meas_info"' 2>"$NR_ERR_FILE")
+       nr_rc=$? ;;
+esac
 
-    if [ -n "$nr_lines" ]; then
-        qlog_info "NR5G neighbour data received, parsing..."
+# =============================================================================
+# STEP 2: Parse both legs straight to JSON - one awk process
+# =============================================================================
+# Field maps, unchanged from the original (so the JSON shape the front-end and
+# the CSV export consume is identical):
+#   LTE  : f3 earfcn, f4 pcid, f5 rsrq, f6 rsrp, f7 rssi, f8 sinr
+#   NR5G : f1 enabled flag, f2 arfcn, f3 pci, f4 rsrp, f5 rsrq, f6 sinr (no rssi)
+# `-` means "not measured" -> null for the optional fields, 0 for the required
+# numeric ones, which is what the jq program this replaced did.
+COUNT_FILE="/tmp/qmanager_neighbour_scan.count"
+{
+    printf '%s\n' "$lte_output"
+    printf '%s\n' "$nr_output"
+} | awk -F',' -v count_file="$COUNT_FILE" '
+    function n_or(v, dflt) { return (v == "" || v == "-") ? dflt : v }
+    function emit(nt, ct, freq, pci, rsrp, rsrq, rssi, sinr) {
+        c++
+        if (c > 1) printf ","
+        printf "{\"id\":\"%d\",\"networkType\":\"%s\",\"cellType\":\"%s\","   \
+               "\"frequency\":%d,\"pci\":%d,\"signalStrength\":%d,"           \
+               "\"rsrq\":%s,\"rssi\":%s,\"sinr\":%s}",                        \
+               c, nt, ct, n_or(freq, 0), n_or(pci, 0), n_or(rsrp, 0),          \
+               n_or(rsrq, "null"), n_or(rssi, "null"), n_or(sinr, "null")
+    }
+    BEGIN { printf "[" }
+    /^\+QENG: "neighbourcell/ {
+        line = $0
+        sub(/\r$/, "", line)
+        sub(/^\+QENG: /, "", line)
+        if (split(line, f, ",") < 8) next
+        kind = f[1]; gsub(/"/, "", kind)
+        if      (kind ~ /intra/) emit("LTE", "intra", f[3], f[4], f[6], f[5], f[7], f[8])
+        else if (kind ~ /inter/) emit("LTE", "inter", f[3], f[4], f[6], f[5], f[7], f[8])
+        next
+    }
+    /^\+QNWCFG: "nr5g_meas_info"/ {
+        line = $0
+        sub(/\r$/, "", line)
+        sub(/^\+QNWCFG: "nr5g_meas_info",/, "", line)
+        if (split(line, f, ",") < 6) next
+        emit("NR5G", "nr5g", f[2], f[3], f[4], f[5], "", f[6])
+        next
+    }
+    END {
+        printf "]\n"
+        # The cell count for the log line, written by the awk that already knows
+        # it - the old form was a second `jq length` (a fixed ~440 ms).
+        printf "%d\n", c > count_file
+        close(count_file)
+    }
+' > "${RESULT_FILE}.tmp" 2>/dev/null
 
-        printf '%s\n' "$nr_lines" | while IFS= read -r line; do
-            # Strip prefix: +QNWCFG: "nr5g_meas_info",<enabled>,<arfcn>,<pci>,<rsrp>,<rsrq>,<sinr>
-            # Field 1 is the enabled flag (always 1 when reporting is on) — skip it.
-            csv=$(printf '%s' "$line" | sed 's/.*"nr5g_meas_info",//' | tr -d ' ' | tr -d '\r')
-
-            arfcn=$(printf '%s' "$csv" | cut -d',' -f2)
-            pci=$(printf '%s' "$csv" | cut -d',' -f3)
-            rsrp=$(printf '%s' "$csv" | cut -d',' -f4)
-            rsrq=$(printf '%s' "$csv" | cut -d',' -f5)
-            sinr=$(printf '%s' "$csv" | cut -d',' -f6)
-
-            # Sanitize
-            case "$arfcn" in '-'|'') arfcn="" ;; esac
-            case "$pci"   in '-'|'') pci=""   ;; esac
-            case "$rsrp"  in '-'|'') rsrp=""  ;; esac
-            case "$rsrq"  in '-'|'') rsrq=""  ;; esac
-            case "$sinr"  in '-'|'') sinr=""  ;; esac
-
-            # Output TSV: networkType cellType earfcn pci rsrp rsrq rssi sinr
-            # NR5G doesn't report RSSI, leave empty
-            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-                "NR5G" "nr5g" "$arfcn" "$pci" "$rsrp" "$rsrq" "" "$sinr" >> "$PARSED_FILE"
-        done
-    else
-        qlog_info "No NR5G neighbour cells found"
-    fi
+if [ ! -s "${RESULT_FILE}.tmp" ]; then
+    qlog_error "Neighbour JSON build produced nothing"
+    rm -f "${RESULT_FILE}.tmp"
+    echo "JSON assembly failed" > "$ERROR_FILE"
+    exit 1
 fi
+mv "${RESULT_FILE}.tmp" "$RESULT_FILE"
+
+cell_count=""
+[ -f "$COUNT_FILE" ] && read -r cell_count < "$COUNT_FILE"   # builtin: no fork
+rm -f "$COUNT_FILE"
+case "$cell_count" in ''|*[!0-9]*) cell_count=0 ;; esac
 
 # =============================================================================
-# STEP 3: Check if any data was parsed
+# STEP 3: Report a partial read as an error rather than as "0 cells"
 # =============================================================================
-# leg_busy <rc> <err_file>: the leg failed because another AT user held the
-# modem, not because the command errored.
+# Unchanged semantics from the original worker: "complete, 0 cells" would look
+# authoritative while half the read never ran.
 leg_busy() {
     [ "$1" -ne 0 ] && grep -q -e 'modem_busy' -e 'scan_in_progress' "$2" 2>/dev/null
 }
 
-if [ ! -s "$PARSED_FILE" ]; then
-    # Check if both commands failed entirely
+if [ "$cell_count" -eq 0 ]; then
     if [ $lte_rc -ne 0 ] && [ $nr_rc -ne 0 ]; then
         if leg_busy "$lte_rc" "$LTE_ERR_FILE" || leg_busy "$nr_rc" "$NR_ERR_FILE"; then
             qlog_error "Neighbour scan: modem busy on both legs"
@@ -184,9 +267,6 @@ if [ ! -s "$PARSED_FILE" ]; then
         fi
         exit 1
     fi
-
-    # One leg failed and the other found nothing: "complete, 0 cells" would
-    # look authoritative while half the read never ran. Report an error.
     if [ $lte_rc -ne 0 ] || [ $nr_rc -ne 0 ]; then
         if [ $lte_rc -ne 0 ]; then
             failed_leg="LTE"; failed_rc="$lte_rc"; failed_err="$LTE_ERR_FILE"
@@ -202,48 +282,8 @@ if [ ! -s "$PARSED_FILE" ]; then
         fi
         exit 1
     fi
-
-    qlog_info "No neighbour cells found"
-    echo "[]" > "${RESULT_FILE}.tmp"
-    mv "${RESULT_FILE}.tmp" "$RESULT_FILE"
-    qlog_info "Neighbour scanner complete — 0 cells"
+    qlog_info "Neighbour scan complete - 0 cells"
     exit 0
 fi
 
-# =============================================================================
-# STEP 4: Build JSON via jq
-# =============================================================================
-# TSV columns: networkType(0) cellType(1) frequency(2) pci(3) rsrp(4) rsrq(5) rssi(6) sinr(7)
-
-jq -Rs '
-    split("\n") | map(select(length > 0) | split("\t")) |
-    to_entries | map(
-        .key as $idx |
-        .value as $row |
-        {
-            id: ($idx + 1 | tostring),
-            networkType: ($row[0] // ""),
-            cellType: ($row[1] // ""),
-            frequency: ($row[2] // "" | if . == "" then 0 else tonumber end),
-            pci: ($row[3] // "" | if . == "" then 0 else tonumber end),
-            signalStrength: ($row[4] // "" | if . == "" then 0 else tonumber end),
-            rsrq: ($row[5] // "" | if . == "" then null else tonumber end),
-            rssi: ($row[6] // "" | if . == "" then null else tonumber end),
-            sinr: ($row[7] // "" | if . == "" then null else tonumber end)
-        }
-    )
-' "$PARSED_FILE" > "${RESULT_FILE}.tmp"
-
-jq_rc=$?
-
-if [ $jq_rc -ne 0 ]; then
-    qlog_error "jq JSON build failed (exit=$jq_rc)"
-    echo "JSON assembly failed" > "$ERROR_FILE"
-    exit 1
-fi
-
-# Atomic rename
-mv "${RESULT_FILE}.tmp" "$RESULT_FILE"
-
-cell_count=$(jq 'length' "$RESULT_FILE" 2>/dev/null || echo "?")
-qlog_info "Neighbour scanner complete — $cell_count cells found"
+qlog_info "Neighbour scanner complete - $cell_count cells found"

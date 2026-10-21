@@ -71,6 +71,23 @@ if ! flock -x -n 7 2>/dev/null; then
     exit 0
 fi
 
+# --- Live mode? --------------------------------------------------------------
+# A live reader is spawned WITHOUT the scan lock (see the spawn below), so its
+# own PID file is the only singleton it needs. If one is already alive, attach
+# to it: a second tab must not start a second 1 Hz AT reader.
+LIVE=0
+case "$QUERY_STRING" in
+    *live=1*) LIVE=1 ;;
+esac
+if [ "$LIVE" = "1" ]; then
+    OLD_PID=$(cat "$PID_FILE" 2>/dev/null)
+    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+        qlog_info "Live neighbour reader already running (PID: $OLD_PID), attaching"
+        printf '{"success":true,"pid":%s,"live":true,"attached":true}\n' "$OLD_PID"
+        exit 0
+    fi
+fi
+
 # Lock held: any PID file left now is stale.
 rm -f "$PID_FILE"
 
@@ -89,7 +106,14 @@ rm -f "$RESULT_FILE" "$ERROR_FILE"
 # fd 7 (the lock) is inherited by the worker. The CGI writes the PID itself
 # from $! so the first status poll never sees "no pid, no result" (idle) for a
 # scan that is starting; the worker writes the same value as $$.
-( "$SCANNER_BIN" </dev/null >/dev/null 2>&1 & echo $! > "$PID_FILE" )
+# live=1 runs the same worker in its resident 1 Hz mode. It must NOT inherit the
+# scan lock (fd 7): a live reader is not a scan, and holding that lock for its
+# whole life would block manual scans and full sweeps. Closing fd 7 releases it
+# when this CGI exits.
+case "$LIVE" in
+    1) ( "$SCANNER_BIN" --live </dev/null >/dev/null 2>&1 7>&- & echo $! > "$PID_FILE" ) ;;
+    *) ( "$SCANNER_BIN" </dev/null >/dev/null 2>&1 & echo $! > "$PID_FILE" ) ;;
+esac
 
 # A missing or non-executable worker dies at once; a healthy one holds the
 # modem for seconds to minutes, so a short look is unambiguous.
@@ -103,5 +127,8 @@ if [ -z "$NEW_PID" ] || ! kill -0 "$NEW_PID" 2>/dev/null; then
     exit 0
 fi
 
-qlog_info "Neighbour scan started (PID: $NEW_PID)"
-jq -n --argjson pid "$NEW_PID" '{"success": true, "pid": $pid}'
+qlog_info "Neighbour scan started (PID: $NEW_PID, live=$LIVE)"
+case "$LIVE" in
+    1) printf '{"success":true,"pid":%s,"live":true}\n' "$NEW_PID" ;;
+    *) printf '{"success":true,"pid":%s}\n' "$NEW_PID" ;;
+esac
