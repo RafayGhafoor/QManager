@@ -28,7 +28,7 @@ output until wave 1, see "Phase 2 additions"); `compare baseline <your-out>` is 
   `wd_*`) are copied into a stage dir with a `sed` rewrite of the absolute device paths
   (`/usr/lib/qmanager/`, `/etc/init.d/`, `/etc/qmanager/`, `/tmp/`, `/var/run/`,
   `/proc/uptime`). The same rewrite is applied to the monolith and to the split files, and the
-  repo files are never modified. `/etc/init.d/qmanager_tower_failover` and `profile_mgr.sh`
+  repo files are never modified. `/etc/init.d/qmanager_tower_failover`, `/etc/init.d/qmanager_watchcat` and `profile_mgr.sh`
   become stubs that only log to `calls.log`.
 - PATH holds only BusyBox applets and jq (like the device). `qcmd`, `uci`, `date`, `sleep`,
   `dmesg`, `reboot`, `sync`, `logger` are shell functions (`lib.sh`); `qm_trusted_file` is

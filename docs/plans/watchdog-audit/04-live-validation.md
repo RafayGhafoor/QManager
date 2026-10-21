@@ -91,6 +91,7 @@ Decay: the daemon was restarted with all tiers off (`reboots_this_hour` 1) and t
 Info:
 - After auto-disable, procd respawned the daemon 5 times in 25 s, and each instance logged "Watchcat disabled in config, exiting" until the respawn budget ran out. The init stays `enabled` in rc.d until the user saves. This is harmless noise; the code comment "procd won't respawn" is inaccurate.
 - After auto-disable, `status.json` shows `reboots_this_hour: 0`, because the exit cleanup removes the state file. The CGI `recent_reboots` still carries the row.
+- Follow-up 2026-10-21 (`docs/plans/2026-10-21-watchcat-auto-disable-respawn.md`): the respawn loop is fixed by `wd_retire_service`. In the L6 re-run there was one auto-disable at 16:15:02, zero "disabled in config" lines, no procd instance and no rc.d link, `auto_disabled: true` and one `recent_reboots` row. The `reboots_this_hour: 0` reading was audited: no consumer shows it in that phase, so it is documented, not changed. The L7b "(rc=0)" line now logs the modem's reply (`+CME ERROR: 10`).
 - The Tier-4 trim kept the last 20 crash.log rows, so the oldest pre-test row was dropped. The pre-test crash.log was restored byte-for-byte (md5 96b6e212…).
 
 ## L7b backup slot 2 empty (PASS)

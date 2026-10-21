@@ -148,6 +148,10 @@ RADIO_OFF  the user turned the radio off (AT+CFUN 0 or 4); shown in the UI as "P
 DISABLED   written on a reload-disable exit and on Tier 4 auto-disable
 ```
 
+**Every "off" exit retires the service.** procd respawns any exit, whatever the code, and `start_service`'s UCI gate runs only on start or restart, never on respawn. So the Tier 4 auto-disable, the reload-disable exit and the startup `Watchcat disabled in config` exit all call `wd_retire_service` (`wd_tiers.sh`) before `exit 0`. It runs `/etc/init.d/qmanager_watchcat disable` and then `stop`, the same steps as the UI's off switch. `stop` deletes the procd instance and TERMs the daemon, and the TERM trap runs once the init script returns. Without procd (a manual run or the harness), `stop` does nothing and the `exit 0` follows. Live-validated 2026-10-21: one auto-disable, no respawn, no procd instance and no `rc.d` link left. Before this, procd re-ran the daemon 5 times in 25 s.
+
+After an auto-disable the exit cleanup removes the state file, so `status.json` `.watchcat.reboots_this_hour` reads 0. That is harmless: the only consumer, the Watchdog band (`deriveBand`), hides figures outside `REPORTING_PHASES`, and the CGI's `recent_reboots` still lists the ledger rows.
+
 States written to the state file: `monitor`, `suspect`, `recovery`, `cooldown`, `locked`, `disabled`, `ssr_hold`, `radio_off`. `recovery` is visible: `do_recovery` publishes the long heartbeat (`write_state_busy`) after the caller set `state="recovery"` and before the tier runs, so a long Tier 3 shows as `recovery`, not as a dead daemon.
 
 Escalation goes **directly** from `_cooldown_handle_failure` into `do_recovery` at the next enabled tier; it does not bounce through `suspect`. **Why:** on the quality path the link is reachable throughout, so a `suspect` bounce would fall through to natural recovery and abandon the ladder.
@@ -436,7 +440,7 @@ Call sites:
 2. Capture the original SIM's ICCID, stop `qmanager_tower_failover` (its locks mean nothing on another SIM).
 3. `wd_swap_slot` (above). `original_sim_slot`, `original_sim_iccid`, `current_sim_slot` are set **after** a verified swap, so a swap that never happened leaves no record.
 4. Save the **unconfirmed** failover record (`confirmed:false`) immediately, so a reboot during the settle still knows the modem is on the backup.
-5. `AT+CPIN?` guard: up to 3 reads, 1 s apart; only `rc=0` with `+CPIN: READY` passes (right after `CFUN=1` the modem can answer `+CME ERROR: 14`, SIM busy). Otherwise `sim_failover_fallback`, then `wd_sim_adopt_live_slot` if that failed. Daemon AT checks judge `"$rc:$result"`: on this target `qcmd` prints a modem `ERROR` on stdout with rc 0, and a transport failure exits non-zero with empty stdout.
+5. `AT+CPIN?` guard: up to 3 reads, 1 s apart; only `rc=0` with `+CPIN: READY` passes (right after `CFUN=1` the modem can answer `+CME ERROR: 14`, SIM busy). Otherwise `sim_failover_fallback`, then `wd_sim_adopt_live_slot` if that failed. Daemon AT checks judge `"$rc:$result"`: on this target `qcmd` prints a modem `ERROR` on stdout with rc 0, and a transport failure exits non-zero with empty stdout. The "could not confirm" log line carries the first reply line (e.g. `+CME ERROR: 10` for an empty slot), or `no reply` on a transport failure.
 6. Enter cooldown (`max(CFG_COOLDOWN, 90)`).
 7. On a successful cooldown, `finalize_sim_failover` (shared by both success arms, self-guarded: Tier 3, slot moved, original known) sets `sim_failover_active`, rewrites the record without `confirmed`, runs `sim_db_add`, auto-applies a matching custom profile (`auto_apply_profile ... "watchdog"`) and starts the auto-failback clock (`last_recheck_time`).
 
@@ -761,7 +765,7 @@ Real findings from the 2026-10-21 audits (`docs/plans/watchdog-audit/01-core.md`
 | F-15 / WD-19: UCI range clamping in the daemon | Needs a hand edit or a bad backup; the CGI validates. |
 | F-17: negative cache; two-way Tier 3; backup-slot edit during a failover | Design. |
 | WD-14: frozen cooldown countdown; WD-15: stale tier after SSR | Cosmetic. |
-| WD-17 / F5 / F19: auto-disable reason lost on reboot; respawn budget | The page still shows Off, and Alerts lists the reboots. |
+| WD-17 / F5 / F19: auto-disable reason lost on reboot | The page still shows Off, and Alerts lists the reboots. (The respawn-budget part is fixed: `wd_retire_service`.) |
 | WD-18: Tier 1 overrides a manual operator | Unproven. |
 | WD-21: PID guard trusts `kill -0` | Less relevant now that TERM exits cleanly. |
 | WD-22: events ring unlocked | Rare; poller hot path. |
