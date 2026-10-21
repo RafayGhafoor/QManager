@@ -30,7 +30,14 @@ QM_RUN_DIR="/var/run/qmanager"
 qm_owned_by_root() {
     [ -L "$1" ] && return 1
     [ -e "$1" ] || return 1
-    [ "$(stat -c %u "$1" 2>/dev/null)" = "0" ]
+    # `stat` is NOT guaranteed: this board's BusyBox ships no stat applet, so
+    # `stat -c %u` printed nothing and this test was FALSE for every path. That
+    # made qm_root_dir() fail, which made qm_create_session() fail, which made
+    # every login answer "Could not create a session" (the UI reports that as a
+    # connection failure). `ls -ldn` prints the numeric uid portably; one fork.
+    _qobr_ls=$(ls -ldn "$1" 2>/dev/null) || return 1
+    set -- $_qobr_ls
+    [ "${3:-}" = "0" ]
 }
 
 # qm_trusted_file PATH — a regular, root-owned, non-symlink file.
