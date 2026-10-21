@@ -1,0 +1,4 @@
+--- pass 1 ---
+--- pass 2 ---
+uci set quecmanager.watchcat.enabled=0
+uci commit quecmanager

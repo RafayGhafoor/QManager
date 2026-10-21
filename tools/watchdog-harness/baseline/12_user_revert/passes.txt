@@ -1,0 +1,252 @@
+=== pass 1 (t+30) ===
+-- state
+{"timestamp":1790000030,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+
+tmp:
+qmanager_sim_failover
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
+=== pass 2 (t+40) ===
+-- state
+{"timestamp":1790000040,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+
+tmp:
+qmanager_sim_failover
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000000,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":""}
+=== pass 3 (t+54) ===
+-- state
+{"timestamp":1790000054,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":80,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 4 (t+64) ===
+-- state
+{"timestamp":1790000064,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":70,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 5 (t+74) ===
+-- state
+{"timestamp":1790000074,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":60,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 6 (t+84) ===
+-- state
+{"timestamp":1790000084,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":50,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 7 (t+94) ===
+-- state
+{"timestamp":1790000094,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":40,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 8 (t+104) ===
+-- state
+{"timestamp":1790000104,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":30,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 9 (t+114) ===
+-- state
+{"timestamp":1790000114,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":20,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 10 (t+124) ===
+-- state
+{"timestamp":1790000124,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":10,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 11 (t+134) ===
+-- state
+{"timestamp":1790000134,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 12 (t+144) ===
+-- state
+{"timestamp":1790000144,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 13 (t+154) ===
+-- state
+{"timestamp":1790000154,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 14 (t+164) ===
+-- state
+{"timestamp":1790000164,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 15 (t+174) ===
+-- state
+{"timestamp":1790000174,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 16 (t+184) ===
+-- state
+{"timestamp":1790000184,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 17 (t+194) ===
+-- state
+{"timestamp":1790000194,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)
+=== pass 18 (t+204) ===
+-- state
+{"timestamp":1790000204,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+-- files
+etc/qmanager:
+known_iccids
+
+tmp:
+qmanager_watchcat.pid
+
+var/run:
+qmanager
+-- failover
+(none)

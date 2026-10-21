@@ -1,0 +1,16 @@
+=== tmp/qmanager.log
+[2026-09-21 14:13:20] INFO  [watchcat:PID] Config loaded: interval=10s fail_threshold=3 probes cooldown=30s
+[2026-09-21 14:13:20] INFO  [watchcat:PID]   Tiers: T1=1 T2=1 T3=0 T4=1 backup_sim=none
+[2026-09-21 14:13:20] INFO  [watchcat:PID]   Quality: enabled=0 latency=250ms loss=30% consecutive=3 (shared thresholds)
+[2026-09-21 14:13:20] INFO  [watchcat:PID]   SSR-aware: enabled=1 grace=45s
+[2026-09-21 14:13:20] INFO  [watchcat:PID]   Primary-recheck (auto-failback): enabled=0 interval=1min
+[2026-09-21 14:13:20] INFO  [watchcat:PID] ========================================
+[2026-09-21 14:13:20] INFO  [watchcat:PID] QManager Watchcat starting (PID N)
+[2026-09-21 14:13:20] INFO  [watchcat:PID] ========================================
+[2026-09-21 14:13:20] INFO  [watchcat:PID] Reboots in last hour: 0
+[2026-09-21 14:13:20] WARN  [watchcat:PID] SIM failover file recorded slot 2 but modem is on slot 1 — clearing stale state
+[2026-09-21 14:13:20] INFO  [watchcat:PID] Boot settle: waiting 30s
+
+=== tmp/qmanager_watchcat.json
+{"timestamp":1790000060,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":null,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null}
+

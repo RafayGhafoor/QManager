@@ -1,0 +1,68 @@
+--- pass 1 ---
+--- pass 2 ---
+T+50 AT+QUIMSLOT?
+T+50 AT+QCCID
+T+50 AT+CFUN=0
+T+52 AT+QUIMSLOT=2
+T+54 AT+CFUN=1
+T+54 AT
+T+54 AT+CPIN?
+T+55 AT+CPIN?
+T+56 AT+CPIN?
+T+57 AT+CFUN=0
+T+59 AT+QUIMSLOT=1
+T+61 AT+CFUN=1
+T+61 AT
+T+61 AT+QCCID
+--- pass 3 ---
+--- pass 4 ---
+--- pass 5 ---
+--- pass 6 ---
+--- pass 7 ---
+--- pass 8 ---
+--- pass 9 ---
+--- pass 10 ---
+--- pass 11 ---
+--- pass 12 ---
+--- pass 13 ---
+T+171 AT+QUIMSLOT?
+T+171 AT+QCCID
+T+171 AT+CFUN=0
+T+173 AT+QUIMSLOT=2
+T+175 AT+CFUN=1
+T+175 AT
+T+175 AT+CPIN?
+T+176 AT+CPIN?
+T+177 AT+CPIN?
+T+178 AT+CFUN=0
+T+180 AT+QUIMSLOT=1
+T+182 AT+CFUN=1
+T+182 AT
+T+182 AT+QCCID
+--- pass 14 ---
+--- pass 15 ---
+--- pass 16 ---
+--- pass 17 ---
+--- pass 18 ---
+--- pass 19 ---
+--- pass 20 ---
+--- pass 21 ---
+--- pass 22 ---
+--- pass 23 ---
+--- pass 24 ---
+T+292 AT+QUIMSLOT?
+T+292 AT+QCCID
+T+292 AT+CFUN=0
+T+294 AT+QUIMSLOT=2
+T+296 AT+CFUN=1
+T+296 AT
+T+296 AT+CPIN?
+T+297 AT+CPIN?
+T+298 AT+CPIN?
+T+299 AT+CFUN=0
+T+301 AT+QUIMSLOT=1
+T+303 AT+CFUN=1
+T+303 AT
+T+303 AT+QCCID
+--- pass 25 ---
+--- pass 26 ---
