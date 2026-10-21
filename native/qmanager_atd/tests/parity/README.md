@@ -44,15 +44,9 @@ Format of `expected.txt`: `F <fixture> <bytes>`, `E <fixture> <sidecar>`,
 sentinel); bytes are printable ASCII verbatim, `\\` for a backslash, `\xHH`
 otherwise.
 
-
-**Known drift (2026-10-21, open).** This corpus makes
-`parity_with_device_shell` fail on 15 single-step cases with a non-zero qcmd
-exit; every rc 0 case and every multi-step batch matches. The Rust port
-predates the poller's `_qc_read` (34c94bd4, busy latch), which changed two
-things the port does not model yet:
-- On rc != 0 `_qc_read` moves the reply out of `_QRAW`, so `sig`, `ident`,
-  `cfun` and `simid` see an empty reply and leave every global untouched
-  (sig 6, ident 6, cfun 1, simid 1 case). Rust still parses the output.
-- `ca` on rc 3 (busy) keeps the last CA values; Rust still resets them
-  (1 case).
-Fix the port (`step_*` in `src/parse.rs`), not the corpus.
+**Aligned with `_qc_read` (2026-10-21).** Regenerating this corpus against the
+current poller showed the port predated `_qc_read` (34c94bd4). `run_step` now
+hands cfun / sig / ident / simid an empty reply when qcmd exits non-zero (the
+shell keeps the reply only on exit 0), `qcmd_exec` returns 3 (not run) for
+exit 3 and for modem_busy / scan_in_progress / invalid_command errors, and
+`step_ca` keeps the last CA values on 3 instead of resetting them.
