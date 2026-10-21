@@ -289,6 +289,9 @@
         "label": "Dijeda",
         "blurb": "Pemeliharaan sedang berlangsung, sehingga watchdog menahan diri sementara."
       },
+      "radio_off": {
+        "blurb": "Radio sedang mati, sehingga watchdog menahan diri sementara."
+      },
       "disabled": {
         "label": "Nonaktif",
         "blurb": "Layanan berjalan, tetapi dimatikan."

@@ -152,6 +152,7 @@ const REPORTING_PHASES: ReadonlySet<WatchdogPhase> = new Set([
   "locked",
   "disabled",
   "ssr_hold",
+  "radio_off",
 ]);
 
 /** The disc is the only coloured thing in the status card's phase block. */
@@ -168,9 +169,14 @@ export const PHASE_DISC = {
   locked: "neutral",
   disabled: "neutral",
   ssr_hold: "info",
+  radio_off: "neutral",
 } satisfies Record<WatchdogPhase, DiscTone>;
 
-/** Twelve phases, twelve distinct glyphs — the containers are 1.03:1 apart. */
+/**
+ * Twelve phases, twelve distinct glyphs — the containers are 1.03:1 apart.
+ * `radio_off` is the one deliberate share: it IS the Paused phase (same glyph,
+ * same label), with its own sentence for why.
+ */
 export const PHASE_GLYPH = {
   off: PowerOffIcon,
   unknown: HelpCircleIcon,
@@ -184,6 +190,7 @@ export const PHASE_GLYPH = {
   locked: LockIcon,
   disabled: MinusCircleIcon,
   ssr_hold: PauseCircleIcon,
+  radio_off: LockIcon,
 } satisfies Record<WatchdogPhase, LucideIcon>;
 
 export const PHASE_LABEL_KEY: Record<WatchdogPhase, string> = {
@@ -199,6 +206,7 @@ export const PHASE_LABEL_KEY: Record<WatchdogPhase, string> = {
   locked: "watchdog.phase.locked.label",
   disabled: "watchdog.phase.disabled.label",
   ssr_hold: "watchdog.phase.ssr_hold.label",
+  radio_off: "watchdog.phase.locked.label",
 };
 
 export const PHASE_BLURB_KEY: Record<WatchdogPhase, string> = {
@@ -214,6 +222,7 @@ export const PHASE_BLURB_KEY: Record<WatchdogPhase, string> = {
   locked: "watchdog.phase.locked.blurb",
   disabled: "watchdog.phase.disabled.blurb",
   ssr_hold: "watchdog.phase.ssr_hold.blurb",
+  radio_off: "watchdog.phase.radio_off.blurb",
 };
 
 /** Only `recovery` is genuinely acting, so it is the surface's one loop. */

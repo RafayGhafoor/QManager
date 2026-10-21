@@ -289,6 +289,9 @@
         "label": "In pausa",
         "blurb": "È in corso un intervento di manutenzione, quindi il watchdog rimane in attesa."
       },
+      "radio_off": {
+        "blurb": "La radio è spenta, quindi il watchdog rimane in attesa."
+      },
       "disabled": {
         "label": "Disattivato",
         "blurb": "Il servizio è in esecuzione ma disattivato."

@@ -632,7 +632,10 @@ export type WatchcatState =
   | "disabled"
   // Holding the recovery ladder while a recoverable baseband (MPSS) restart
   // self-heals. Passed through verbatim from the daemon by the poller.
-  | "ssr_hold";
+  | "ssr_hold"
+  // The radio is off (airplane mode / CFUN 0), so the daemon is holding off
+  // rather than treating the dead link as an outage.
+  | "radio_off";
 
 export interface WatchcatStatus {
   enabled: boolean;

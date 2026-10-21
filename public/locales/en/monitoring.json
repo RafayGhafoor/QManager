@@ -289,6 +289,9 @@
         "label": "Paused",
         "blurb": "Maintenance is in progress, so the watchdog is holding off."
       },
+      "radio_off": {
+        "blurb": "The radio is off, so the watchdog is holding off."
+      },
       "disabled": {
         "label": "Disabled",
         "blurb": "The service is running but switched off."
