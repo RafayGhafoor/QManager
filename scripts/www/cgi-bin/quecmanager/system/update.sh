@@ -65,9 +65,15 @@ ensure_updater_executable() {
     return 0
 }
 
+# NOTE: `tr -d '[:space:]'` is NOT portable here - this device's BusyBox tr does
+# not expand the POSIX class, so it deletes the literal characters
+# [ : s p a c e ] instead. Measured: 'v0.1.33-suncomm1' came back as
+# 'v0.1.33-unomm1', which then made semver_compare() rank the installed
+# version ABOVE the newer release (pre-release comparison is lexical, and
+# 'u' > 's'), so the UI stopped offering updates. Spell the characters out.
 get_current_version() {
     if [ -f "$VERSION_FILE" ]; then
-        tr -d '[:space:]' < "$VERSION_FILE"
+        tr -d ' \t\r\n' < "$VERSION_FILE"
     else
         echo "0.0.0"
     fi
@@ -197,7 +203,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     # so only a marker with no updater behind it counts as a failure.
     pending_version=""
     if [ -f "$VERSION_PENDING" ] && [ -z "$(qm_read_pid "$PID_FILE" qmanager_update 2>/dev/null)" ]; then
-        pending_version=$(tr -d '[:space:]' < "$VERSION_PENDING" 2>/dev/null)
+        pending_version=$(tr -d ' \t\r\n' < "$VERSION_PENDING" 2>/dev/null)
     fi
     if [ -n "$pending_version" ]; then
         previous_install_failed="true"
@@ -442,7 +448,7 @@ if [ "$REQUEST_METHOD" = "POST" ]; then
                 "$filtered_cron" "$sched_min" "$sched_hour" "$AUTO_UPDATE_SCRIPT" "$CRON_MARKER")
             printf '%s\n' "$new_cron" | crontab -
         else
-            if [ -z "$(printf '%s' "$filtered_cron" | tr -d '[:space:]')" ]; then
+            if [ -z "$(printf '%s' "$filtered_cron" | tr -d ' \t\r\n')" ]; then
                 echo "" | crontab -
             else
                 printf '%s\n' "$filtered_cron" | crontab -
