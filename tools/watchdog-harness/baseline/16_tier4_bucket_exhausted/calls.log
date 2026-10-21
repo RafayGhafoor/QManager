@@ -2,3 +2,5 @@
 --- pass 2 ---
 uci set quecmanager.watchcat.enabled=0
 uci commit quecmanager
+watchcat_init disable
+watchcat_init stop

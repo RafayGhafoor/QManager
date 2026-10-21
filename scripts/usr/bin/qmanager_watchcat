@@ -198,6 +198,7 @@ main() {
 
     if [ "$CFG_ENABLED" != "1" ]; then
         qlog_info "Watchcat disabled in config, exiting"
+        wd_retire_service
         exit 0
     fi
 
@@ -243,6 +244,7 @@ main() {
                 qlog_info "Watchcat disabled via config reload, exiting"
                 state="disabled"
                 write_state
+                wd_retire_service
                 exit 0
             fi
         fi
