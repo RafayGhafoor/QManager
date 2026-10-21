@@ -115,13 +115,12 @@ export function qualityMeterTone(quality: SignalQuality): MetricBarTone | null {
  * rows: "A value that carries quality takes its ramp ink here").
  *
  * `--quality-N` rather than `--quality-N-bar`: this is the text weight of the
- * stop, and in light mode stops 1–3 resolve to deep reds and browns because
- * 4.5:1 against a near-white ground caps those hues at L ≈ 0.50. That is a
- * gamut ceiling — do not "fix" it by brightening. Where the figure is large
- * enough to fall under the 3:1 threshold instead, use the `-bar` value as ink.
+ * stop. The ramp is three plain hues (green / yellow / red), and in light mode
+ * the yellow ink is a darker gold so a numeral stays legible on a near-white
+ * ground — do not swap in the `-bar` yellow as ink.
  *
  * Ink and bar are a PAIR. Colour alone is not an accessible channel and
- * adjacent ramp stops sit below the separation floor by design, so a tinted
+ * stops that share a hue are told apart only by glyph and bar, so a tinted
  * numeral without a bar beside it — and without an `sr-only` quality word —
  * is a bug, not a shortcut.
  */

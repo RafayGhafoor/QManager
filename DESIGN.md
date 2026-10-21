@@ -131,27 +131,27 @@ colors:
   on-success-container-light: "oklch(0.360 0.100 149)"
   on-success-container-dark: "oklch(0.900 0.110 149)"
 
-  # --- Signal quality ramp: a LIGHTNESS staircase, not a hue wheel ---
-  quality-1-light: "oklch(0.385 0.154 27)"
-  quality-1-dark: "oklch(0.640 0.200 27)"
-  quality-2-light: "oklch(0.415 0.116 45)"
-  quality-2-dark: "oklch(0.665 0.187 45)"
-  quality-3-light: "oklch(0.445 0.093 72)"
-  quality-3-dark: "oklch(0.710 0.149 72)"
-  quality-4-light: "oklch(0.475 0.106 115)"
-  quality-4-dark: "oklch(0.755 0.168 115)"
+  # --- Signal quality ramp: three plain hues (green / yellow / red) ---
+  quality-1-light: "oklch(0.500 0.190 27)"
+  quality-1-dark: "oklch(0.680 0.200 27)"
+  quality-2-light: "oklch(0.500 0.190 27)"
+  quality-2-dark: "oklch(0.680 0.200 27)"
+  quality-3-light: "oklch(0.580 0.125 80)"
+  quality-3-dark: "oklch(0.860 0.160 90)"
+  quality-4-light: "oklch(0.505 0.140 149)"
+  quality-4-dark: "oklch(0.800 0.200 149)"
   quality-5-light: "oklch(0.505 0.140 149)"
   quality-5-dark: "oklch(0.800 0.200 149)"
-  quality-1-bar-light: "oklch(0.480 0.192 27)"
-  quality-1-bar-dark: "oklch(0.600 0.220 27)"
-  quality-2-bar-light: "oklch(0.510 0.143 45)"
-  quality-2-bar-dark: "oklch(0.645 0.181 45)"
-  quality-3-bar-light: "oklch(0.540 0.113 72)"
-  quality-3-bar-dark: "oklch(0.690 0.145 72)"
-  quality-4-bar-light: "oklch(0.570 0.127 115)"
-  quality-4-bar-dark: "oklch(0.735 0.164 115)"
-  quality-5-bar-light: "oklch(0.600 0.166 149)"
-  quality-5-bar-dark: "oklch(0.780 0.216 149)"
+  quality-1-bar-light: "oklch(0.580 0.210 27)"
+  quality-1-bar-dark: "oklch(0.640 0.220 27)"
+  quality-2-bar-light: "oklch(0.580 0.210 27)"
+  quality-2-bar-dark: "oklch(0.640 0.220 27)"
+  quality-3-bar-light: "oklch(0.820 0.165 88)"
+  quality-3-bar-dark: "oklch(0.840 0.170 90)"
+  quality-4-bar-light: "oklch(0.620 0.170 149)"
+  quality-4-bar-dark: "oklch(0.760 0.210 149)"
+  quality-5-bar-light: "oklch(0.620 0.170 149)"
+  quality-5-bar-dark: "oklch(0.760 0.210 149)"
 
   # --- Outline tags: identity and metadata, border + text, no fill ---
   tag-nr-text-light: "oklch(0.535 0.220 262)"
@@ -340,11 +340,11 @@ A **five-stop continuous scale** for measured signal quality — RSRP, RSRQ, SIN
 
 | Stop | Hue | Level | Replaces |
 | --- | --- | --- | --- |
-| `--quality-1` | 27 | **bad** | *new — see below* |
-| `--quality-2` | 45 | poor | `destructive` |
-| `--quality-3` | 72 | fair | `warning` |
-| `--quality-4` | 115 | good | **`primary`** — the defect this fixes |
-| `--quality-5` | 149 | excellent | `success` |
+| `--quality-1` | 27 (red) | **bad** | *new — see below* |
+| `--quality-2` | 27 (red) | poor | `destructive` |
+| `--quality-3` | 80–90 (yellow) | fair | `warning` |
+| `--quality-4` | 149 (green) | good | **`primary`** — the defect this fixes |
+| `--quality-5` | 149 (green) | excellent | `success` |
 
 Two things changed and both are substantive.
 
@@ -354,9 +354,9 @@ Two things changed and both are substantive.
 
 **The ramp contains no identity hue.** Removing brand blue from the middle of a health scale is the whole reason the ramp is worth minting.
 
-**The ramp is a lightness staircase, not a hue wheel.** Under deuteranopia, hues 27 / 45 / 72 / 115 / 149 flatten onto a single yellow axis — the ramp cannot separate by hue *at all* for those users. So each ramp is monotone in lightness (light 0.385 → 0.505 in 0.030 steps; dark 0.620 → 0.800 in 0.045 steps) and the staircase is what carries it. Adjacent stops sit deliberately below the 0.05 floor because **they are never the only channel**: the bar carries magnitude and `QUALITY_GLYPH` carries the stop itself. Every non-adjacent pair clears the floor (worst: 0.055 light, 0.077 dark).
+**The ramp is three plain hues: green, yellow, red.** Stops 4–5 are green, stop 3 is yellow, stops 1–2 are red. An earlier five-hue lightness staircase (27 / 45 / 72 / 115 / 149) was retired after v0.1.32, when users reported that good and fair read as "dark green and muddy brown" and could not be told apart; three hues everyone already knows beat a finely-graded scale nobody can read. Stops that share a hue are separated by `QUALITY_GLYPH`'s wedge ladder and by bar length, never by colour, so the glyph and bar remain mandatory channels (under deuteranopia red and green still converge, which is the same reason).
 
-`--quality-N` is the **numeral** ink; `--quality-N-bar` is the **bar fill**, one lightness step bolder. In light mode stops 1–3 resolve to deep reds and browns rather than vivid red-orange: 4.5:1 against a near-white ground caps those hues at L ≈ 0.50, and the non-adjacent floor then forces the span downward from that cap. This is a gamut ceiling, not a conservative choice. Where the numeral is large enough for the 3:1 threshold, use the `-bar` value as the ink instead.
+`--quality-N` is the **numeral** ink; `--quality-N-bar` is the **bar fill**. The light-mode yellow ink is a darker gold (L 0.58) so a numeral stays legible on a near-white ground, while its bar stays a true yellow; red and green ink sit at their functional-role weights.
 
 ### Outline tags
 
