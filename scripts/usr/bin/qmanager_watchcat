@@ -358,10 +358,15 @@ main() {
 
         # The pause after an exhausted ladder ends once the link is healthy: the
         # ladder left the state at monitor, so the suspect arm below never sees it.
-        # Not after a quality ladder: the link was reachable all along, so this
-        # would end that pause at once and the breach would restart the ladder.
-        if [ "$state" = "monitor" ] && [ "$recovery_reason" != "quality" ] && [ "$ping_streak_fail" -eq 0 ] && [ "$ping_reachable" = "true" ]; then
+        # A pause that followed a quality ladder is kept (wd_holdoff_clear, wd_tiers.sh).
+        # A reachable link also proves the radio is on (no AT cost), so a radio-down
+        # marker that a lost AT+CFUN=1 left behind is cleared here.
+        if [ "$state" = "monitor" ] && [ "$ping_streak_fail" -eq 0 ] && [ "$ping_reachable" = "true" ]; then
             wd_holdoff_clear
+            if [ "$wd_radio_down" = "1" ]; then
+                qlog_info "Link is reachable: clearing the stale radio-down marker"
+                wd_mark_radio_up
+            fi
         fi
 
         # --- State machine ---

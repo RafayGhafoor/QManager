@@ -9,8 +9,8 @@
 #       recheck_return_slot, recheck_interrupted, last_recheck_time,
 #       wd_sim_revert_pending
 # Functions: wd_read_slot, wd_swap_slot, wd_failover_save, wd_failover_clear,
-#            _wd_failover_json, wd_sim_adopt_live_slot,
-#            execute_tier3, sim_failover_fallback,
+#            _wd_failover_json, _wd_failover_del, wd_sim_adopt_live_slot,
+#            wd_sim_defer_revert, execute_tier3, sim_failover_fallback,
 #            finalize_sim_failover, initiate_primary_recheck,
 #            _wd_sim_revert_run, check_revert_request, wd_sim_on_radio_back,
 #            wd_sim_finish_recheck, wd_sim_resume_at_start,
@@ -53,6 +53,7 @@ wd_sim_revert_pending="false"   # "true": a Tier 3 swap-back was deferred becaus
 WD_RESUME_RETRY_SECS=60         # spacing of wd_sim_resume_retry attempts
 _wd_resume_next=0               # mono_now of the next resume retry; 0 = not armed yet
 SIM_FAILOVER_DURABLE="/etc/qmanager/sim_failover.json"   # flash copy of $SIM_FAILOVER_FILE
+WD_ADOPT_SLOT=""                # live slot digit the last wd_sim_adopt_live_slot read; "" = unreadable / not read
 
 # Persist the failover record (one JSON line) to /tmp and to flash. Flash is
 # written only here, at finalize and at a recheck return (rare). Refuses an
@@ -77,7 +78,11 @@ wd_failover_clear() {
 }
 
 # Prints the failover record for the current original_sim_slot / current_sim_slot:
-#   _wd_failover_json <reason> <current ICCID or "">
+#   _wd_failover_json <reason> <current ICCID or ""> [unconfirmed]
+# "unconfirmed" adds confirmed:false: the swap happened but the cooldown has not
+# judged the link yet (a restart resumes it like any failover and drops the flag).
+# revert_pending:true is added while wd_sim_revert_pending is set, so a restart
+# keeps a swap-back that was deferred for airplane mode.
 _wd_failover_json() {
     local _fj_ts
     _fj_ts=$(date +%s)
@@ -88,7 +93,22 @@ _wd_failover_json() {
         --arg reason "$1" \
         --arg orig_iccid "$original_sim_iccid" \
         --arg iccid "$2" \
-        '{active:true, original_slot:$orig, current_slot:$curr, switched_at:$ts, reason:$reason, original_iccid:$orig_iccid, current_iccid:$iccid}' 2>/dev/null
+        --arg unconf "$3" \
+        --arg pend "$wd_sim_revert_pending" \
+        '{active:true, original_slot:$orig, current_slot:$curr, switched_at:$ts, reason:$reason, original_iccid:$orig_iccid, current_iccid:$iccid}
+         | if $unconf == "unconfirmed" then . + {confirmed:false} else . end
+         | if $pend == "true" then . + {revert_pending:true} else . end' 2>/dev/null
+}
+
+# Removes one key from the saved record (and rewrites both copies) only when the
+# record has it, so a record without the key costs no flash write.
+#   _wd_failover_del <key>
+_wd_failover_del() {
+    local _fd_json
+    [ -f "$SIM_FAILOVER_FILE" ] || return 0
+    _fd_json=$(jq -c --arg k "$1" 'if has($k) then del(.[$k]) else empty end' "$SIM_FAILOVER_FILE" 2>/dev/null)
+    [ -n "$_fd_json" ] || return 0
+    wd_failover_save "$_fd_json"
 }
 
 # Prints the live SIM slot digit (up to 3 tries, 1 s apart), or nothing when it
@@ -114,12 +134,15 @@ wd_read_slot() {
 # off AT by the SIM-switch flag for the duration. Return codes:
 #   0  the slot reads back as <target> AND the radio is on (CFUN=1), or the
 #      modem was already on <target> (WD_SWAP_NOOP=true)
-#   1  the modem is not on <target>, or its slot cannot be read: nothing to record
+#   1  the final re-read shows the modem is not on <target>: nothing to record
 #   2  the modem IS on <target> but the radio is not confirmed on (the modem was
 #      unresponsive or AT+CFUN? unreadable). A last AT+CFUN=1 was sent; if CFUN
 #      still does not read 1 the radio-down marker stays set, so the exit cleanup
 #      and wd_radio_reconcile restore it. Callers record <target> as the real
 #      slot, exactly as for 0.
+#   3  the final re-read of the slot failed too: the swap may or may not have
+#      happened. A caller that must know calls wd_sim_adopt_live_slot (it reads the
+#      slot again); one that only needs "not proven" treats this like 1.
 wd_swap_slot() {
     local _sw_target
     local _sw_live
@@ -191,6 +214,9 @@ wd_swap_slot() {
             _sw_cfun=$(wd_cfun_now)
             [ "$_sw_cfun" = "1" ] && wd_mark_radio_up
             _sw_ok=2
+        elif [ -z "$_sw_live" ]; then
+            qlog_warn "SIM swap: slot unreadable after the swap to slot $_sw_target, outcome unknown"
+            _sw_ok=3
         fi
     fi
 
@@ -270,6 +296,44 @@ execute_tier3() {
     original_sim_iccid="$_orig_iccid"
     current_sim_slot="$CFG_BACKUP_SIM_SLOT"
 
+    # The swap is not proven to have happened or not (the slot read failed): ask
+    # the modem again. Still on the original = no swap, skip the tier. On another
+    # slot = adopt it (wd_sim_adopt_live_slot saved the record). Still unreadable =
+    # assume it swapped and record it below; tower failover stays stopped until the
+    # CPIN check or the fallback settles it.
+    local _t3_save
+    _t3_save=1
+    if [ "$_t3_swap_rc" -eq 3 ]; then
+        WD_ADOPT_SLOT=""
+        wd_sim_adopt_live_slot
+        case "$WD_ADOPT_SLOT" in
+            '')
+                qlog_warn "TIER 3: slot still unreadable after the swap, assuming the modem is on slot $CFG_BACKUP_SIM_SLOT"
+                ;;
+            "$current_slot")
+                qlog_error "TIER 3: modem is still on slot $current_slot, skipping tier"
+                append_event "sim_failover" "Watchcat: SIM swap to slot $CFG_BACKUP_SIM_SLOT did not take effect — skipped" "error"
+                original_sim_slot="null"
+                original_sim_iccid=""
+                current_sim_slot="null"
+                /etc/init.d/qmanager_tower_failover start 2>/dev/null
+                return 1
+                ;;
+            *)
+                _t3_save=0
+                ;;
+        esac
+    fi
+    if [ "$_t3_save" -eq 1 ]; then
+        local _t3_reason
+        if [ "$recovery_reason" = "quality" ]; then
+            _t3_reason="quality_degradation"
+        else
+            _t3_reason="connectivity_failure"
+        fi
+        wd_failover_save "$(_wd_failover_json "$_t3_reason" "" unconfirmed)"
+    fi
+
     # Verify SIM presence. AT+CPIN? right after AT+CFUN=1 can answer
     # "+CME ERROR: 14" (SIM busy) while SIM init is still running, because
     # wait_for_modem only waits for a bare AT. One failed read is routine, not
@@ -339,7 +403,7 @@ sim_failover_fallback() {
     # verified. A caller that does not already hold a failover record follows up
     # with wd_sim_adopt_live_slot: the modem is then still on the backup slot and
     # must not stay unrecorded. wd_swap_slot rc 2 (on the original slot, radio
-    # unconfirmed) counts as a completed revert.
+    # unconfirmed) counts as a completed revert; rc 1 and rc 3 (slot unreadable) do not.
     wd_swap_slot "$original_sim_slot"
     _rv_swap_rc=$?
     case "$_rv_swap_rc" in
@@ -398,19 +462,25 @@ wd_sim_adopt_live_slot() {
     local _ad_reason
     local _ad_json
 
+    WD_ADOPT_SLOT=""
     [ "$sim_failover_active" != "true" ] || return 0
     [ "$original_sim_slot" != "null" ] || return 1
 
     _ad_slot=$(wd_read_slot)
     case "$_ad_slot" in
         ''|*[!0-9]*)
-            qlog_warn "SIM failover: live slot unreadable after a failed revert, state left as it was"
+            qlog_warn "SIM failover: live slot unreadable, state left as it was"
             return 1
             ;;
     esac
+    WD_ADOPT_SLOT="$_ad_slot"
     current_sim_slot="$_ad_slot"
-    # Back on the original after all (the read-back raced the swap): no failover.
-    [ "$_ad_slot" != "$original_sim_slot" ] || return 0
+    # Back on the original after all (the read-back raced the swap): no failover,
+    # and an unconfirmed record left by a Tier 3 swap is stale.
+    if [ "$_ad_slot" = "$original_sim_slot" ]; then
+        wd_failover_clear
+        return 0
+    fi
 
     _ad_iccid=""
     for _ad_try in 1 2 3; do
@@ -431,6 +501,24 @@ wd_sim_adopt_live_slot() {
     [ -n "$_ad_iccid" ] && sim_db_add "$_ad_iccid"
     last_recheck_time=$(mono_now)
     qlog_warn "SIM failover: revert not confirmed, modem is on slot $current_sim_slot - failover kept active (original slot $original_sim_slot)"
+}
+
+# The swap back to the original slot is deferred because the user turned the radio
+# off (_cooldown_handle_failure). The modem stays on the backup as a recorded
+# failover and the deferral is saved in the record (revert_pending), so a daemon
+# restart during airplane mode still completes the swap-back (wd_sim_resume_at_start).
+wd_sim_defer_revert() {
+    local _dr_pend
+    local _dr_json
+    wd_sim_revert_pending="true"
+    # When it adopts, the record it saves already carries revert_pending.
+    wd_sim_adopt_live_slot
+    [ -f "$SIM_FAILOVER_FILE" ] || return 0
+    _dr_pend=$(jq -r '(.revert_pending) | if . == null then "false" else tostring end' "$SIM_FAILOVER_FILE" 2>/dev/null)
+    [ "$_dr_pend" = "true" ] && return 0
+    _dr_json=$(jq -c '. + {revert_pending:true}' "$SIM_FAILOVER_FILE" 2>/dev/null)
+    [ -n "$_dr_json" ] && wd_failover_save "$_dr_json"
+    return 0
 }
 
 # Finalize a Tier-3 SIM failover after a successful recovery cooldown. Shared by
@@ -510,7 +598,7 @@ initiate_primary_recheck() {
     local _pr_swap_rc
     wd_swap_slot "$original_sim_slot"
     _pr_swap_rc=$?
-    if [ "$_pr_swap_rc" -eq 1 ]; then
+    if [ "$_pr_swap_rc" -eq 1 ] || [ "$_pr_swap_rc" -eq 3 ]; then
         qlog_error "PRIMARY RECHECK: swap to slot $original_sim_slot not verified, staying on backup"
         append_event "sim_failover" "Watchcat: primary SIM recheck failed (slot swap not verified) — staying on slot $recheck_return_slot" "error"
         last_recheck_time=$(mono_now)
@@ -607,6 +695,24 @@ wd_sim_finish_recheck() {
             ''|*[!0-9]*) current_sim_slot="$recheck_return_slot" ;;
             *) current_sim_slot="$_rt_slot" ;;
         esac
+        # The modem stayed on the primary: that is a failback in effect. Record
+        # nothing, give the tower locks back and hold a benign settle.
+        if [ "$_rt_slot" = "$original_sim_slot" ]; then
+            qlog_warn "PRIMARY RECHECK: modem stayed on primary slot $original_sim_slot, treating it as a failback"
+            sim_failover_active="false"
+            wd_failover_clear
+            /etc/init.d/qmanager_tower_failover start 2>/dev/null
+            original_sim_slot="null"
+            original_sim_iccid=""
+            last_recheck_time=$(mono_now)
+            revert_settle_active="true"
+            recovery_reason="unreachable"
+            cooldown_remaining="$SIM_SETTLE_SECS"
+            state="cooldown"
+            touch "$RECOVERY_FLAG"
+            qlog_info "Entering post-recheck settle for ${SIM_SETTLE_SECS}s"
+            return
+        fi
     fi
     sim_failover_active="true"
 
@@ -672,6 +778,10 @@ _wd_sim_revert_run() {
     touch "$RECOVERY_FLAG"
     if ! sim_failover_fallback; then
         rm -f "$RECOVERY_FLAG"
+        # A deferred swap-back can arrive with the failover not yet active (the
+        # slot was unreadable at deferral): record what the modem really runs.
+        wd_sim_adopt_live_slot
+        _wd_failover_del revert_pending
         return 1
     fi
     rm -f "$RECOVERY_FLAG"
@@ -755,9 +865,12 @@ check_revert_request() {
 wd_sim_on_radio_back() {
     [ "$wd_sim_revert_pending" = "true" ] || return 0
     wd_sim_revert_pending="false"
-    [ "$sim_failover_active" = "true" ] || return 0
-    [ "$original_sim_slot" != "null" ] || return 0
-    [ "$current_sim_slot" != "$original_sim_slot" ] || return 0
+    # sim_failover_active is not required: the deferral may have left the slot
+    # unreadable, so the failover was assumed and only the record names it.
+    if [ "$original_sim_slot" = "null" ] || [ "$current_sim_slot" = "$original_sim_slot" ]; then
+        _wd_failover_del revert_pending
+        return 0
+    fi
     qlog_info "Radio is back on: completing the SIM swap-back to slot $original_sim_slot deferred during airplane mode"
     _wd_sim_revert_run
 }
@@ -773,6 +886,8 @@ wd_sim_resume_at_start() {
     local sf_active_val
     local _sf_orig
     local _sf_curr
+    local _sf_conf
+    local _sf_pend
     local _live_slot
 
     # B4.1: trust a record only when root-owned; otherwise drop that copy.
@@ -796,6 +911,8 @@ wd_sim_resume_at_start() {
 
     _sf_orig=$(jq -r '(.original_slot) | if . == null then "null" else tostring end' "$_rs_src" 2>/dev/null)
     _sf_curr=$(jq -r '(.current_slot) | if . == null then "null" else tostring end' "$_rs_src" 2>/dev/null)
+    _sf_conf=$(jq -r '(.confirmed) | if . == null then "true" else tostring end' "$_rs_src" 2>/dev/null)
+    _sf_pend=$(jq -r '(.revert_pending) | if . == null then "false" else tostring end' "$_rs_src" 2>/dev/null)
     _live_slot=$(wd_read_slot)
 
     if [ -z "$_live_slot" ]; then
@@ -820,6 +937,20 @@ wd_sim_resume_at_start() {
         # most one interval away (not immediately on boot).
         last_recheck_time=$(mono_now)
         qlog_info "Resumed SIM failover state: slot $original_sim_slot → $current_sim_slot (verified)"
+        # A record saved by a Tier 3 swap the cooldown never judged: the modem is
+        # on the backup slot, so it is a failover now.
+        [ "$_sf_conf" = "false" ] && _wd_failover_del confirmed
+        # A swap-back deferred for airplane mode before the restart: run it when
+        # the radio is on, else wait for it in radio_off.
+        if [ "$_sf_pend" = "true" ]; then
+            if [ "$(wd_cfun_now)" = "1" ]; then
+                qlog_info "Completing the SIM swap-back to slot $original_sim_slot deferred before the restart"
+                _wd_sim_revert_run
+            else
+                wd_sim_revert_pending="true"
+                wd_enter_radio_off
+            fi
+        fi
     else
         qlog_warn "SIM failover file recorded slot $_sf_curr but modem is on slot $_live_slot — clearing stale state"
         wd_failover_clear
@@ -852,6 +983,7 @@ wd_sim_resume_retry() {
 wd_sim_on_unlock() {
     # A swap-back deferred for airplane mode is not carried across a lock.
     wd_sim_revert_pending="false"
+    _wd_failover_del revert_pending
 
     # Entering LOCKED mid-cooldown abandons a Tier-3 swap the cooldown never
     # confirmed: the modem stays on the backup SIM with no failover record,

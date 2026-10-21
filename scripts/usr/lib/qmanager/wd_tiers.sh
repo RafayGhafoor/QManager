@@ -6,7 +6,7 @@
 #
 # Owns: current_tier, last_recovery_time, last_recovery_tier, total_recoveries,
 #       cooldown_remaining, cooldown_stale_retries, recovery_reason,
-#       _recovery_marker_emitted, holdoff_until
+#       _recovery_marker_emitted, holdoff_until, holdoff_reason
 # Functions: tower_lock_active, wait_for_modem, execute_tier1, execute_tier2,
 #            _wd_confirm_radio_on, wd_enter_radio_off, _wd_start_holdoff,
 #            wd_holdoff_clear, execute_tier4, find_next_tier, do_recovery,
@@ -29,9 +29,19 @@ cooldown_stale_retries=0
 recovery_reason="unreachable"   # "unreachable" | "quality" — why current/last recovery fired
 _recovery_marker_emitted=""     # "<tier>-<reason>" of the last emitted start marker; "" = none this episode
 holdoff_until=0                 # mono_now at which a new ladder may start; 0 = no pause (HOLDOFF_SECS after an exhausted ladder)
+holdoff_reason=""               # recovery_reason the pause was started under
 
 # Ends the pause after an exhausted ladder. The only writer besides _wd_start_holdoff.
-wd_holdoff_clear() { holdoff_until=0; }
+# A pause that followed a quality ladder is not ended by a healthy-looking pass
+# (the link was reachable all along, so one lost probe would end it and the ladder
+# would restart every few minutes): only "force" (a cooldown success) clears it.
+wd_holdoff_clear() {
+    if [ "$1" != "force" ] && [ "$holdoff_reason" = "quality" ]; then
+        return 0
+    fi
+    holdoff_until=0
+    holdoff_reason=""
+}
 
 # Check if tower lock is active (Tier 2 must be skipped)
 tower_lock_active() {
@@ -308,6 +318,7 @@ _wd_start_holdoff() {
     now=$(mono_now)
     case "$now" in ''|*[!0-9]*) now=0 ;; esac
     holdoff_until=$((now + HOLDOFF_SECS))
+    holdoff_reason="$recovery_reason"
     append_event "watchcat_recovery" "Watchcat: all recovery steps tried, pausing 15 minutes" "error"
 }
 
@@ -329,8 +340,7 @@ _cooldown_handle_failure() {
         _ch_gated=1
         if [ "$(wd_start_gate)" = "radio_off" ]; then
             qlog_warn "COOLDOWN: radio is off, deferring the swap back to slot $original_sim_slot"
-            wd_sim_adopt_live_slot
-            wd_sim_revert_pending="true"
+            wd_sim_defer_revert
             wd_enter_radio_off
             return
         fi
@@ -469,7 +479,7 @@ finish_cooldown() {
                 current_tier=0
                 failure_counter=0
                 quality_breach_counter=0
-                wd_holdoff_clear
+                wd_holdoff_clear force
                 _recovery_marker_emitted=""
                 return
                 ;;
@@ -513,7 +523,7 @@ finish_cooldown() {
             current_tier=0
             failure_counter=0
             quality_breach_counter=0
-            wd_holdoff_clear
+            wd_holdoff_clear force
             _recovery_marker_emitted=""
             return
             ;;
