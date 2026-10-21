@@ -25,7 +25,7 @@
 # Libraries (sourced from /usr/lib/qmanager; function definitions and global
 # initialisers only):
 #   wd_config.sh  UCI read, CFG_* defaults, timing constants
-#   wd_state.sh   state file writer, maintenance-lock check
+#   wd_state.sh   state file writer, maintenance-lock check, wd_sleep, radio markers
 #   wd_detect.sh  ping read, quality window, SSR gate
 #   wd_ledger.sh  reboot count from crash.log
 #   wd_tiers.sh   Tiers 1/2/4, escalation, cooldown verdict
@@ -111,6 +111,25 @@ done
     qlog_error "watchcat: library set incomplete, refusing to start"; exit 1; }
 
 # =============================================================================
+# EXIT CLEANUP
+# =============================================================================
+
+# Runs on every exit after the PID file is written (normal exit, TERM, INT).
+# Removing STATE_FILE makes "daemon gone" visible to the poller at once instead
+# of leaving a frozen last state behind.
+_wd_exit_cleanup() {
+    trap '' TERM INT
+    [ -n "$_wd_sleep_pid" ] && kill "$_wd_sleep_pid" 2>/dev/null
+    # A TERM between AT+CFUN=0 and AT+CFUN=1 must not leave the radio off.
+    if [ "$wd_radio_down" = "1" ]; then
+        qlog_warn "Exit with radio marked down, restoring AT+CFUN=1"
+        qcmd 'AT+CFUN=1' >/dev/null 2>&1
+        wd_radio_down=0
+    fi
+    rm -f "$PID_FILE" "$STATE_TMP" "$RECOVERY_FLAG" "$STATE_FILE"
+}
+
+# =============================================================================
 # MAIN LOOP
 # =============================================================================
 
@@ -155,8 +174,11 @@ main() {
     fi
     echo $$ > "$PID_FILE"
 
-    # Cleanup on exit
-    trap 'rm -f "$PID_FILE" "$STATE_TMP" "$RECOVERY_FLAG"; write_state' EXIT INT TERM
+    # Cleanup runs from the EXIT trap only; TERM/INT just exit so the cleanup
+    # runs exactly once (ash runs the EXIT trap after `exit` in a signal trap).
+    trap '_wd_exit_cleanup' EXIT
+    trap 'exit 143' TERM
+    trap 'exit 130' INT
 
     # Read configuration
     read_config
@@ -180,7 +202,7 @@ main() {
     # Boot settle — let modem and other daemons stabilize
     qlog_info "Boot settle: waiting ${BOOT_SETTLE}s"
     write_state
-    sleep "$BOOT_SETTLE"
+    wd_sleep "$BOOT_SETTLE"
 
     # --- Main monitoring loop ---
     while true; do
@@ -233,7 +255,7 @@ main() {
                 ssr_hold_clear
             fi
             write_state
-            sleep "$CFG_CHECK_INTERVAL"
+            wd_sleep "$CFG_CHECK_INTERVAL"
             continue
         fi
 
@@ -263,7 +285,7 @@ main() {
                 finish_cooldown
             fi
             write_state
-            sleep "$CFG_CHECK_INTERVAL"
+            wd_sleep "$CFG_CHECK_INTERVAL"
             continue
         fi
 
@@ -271,7 +293,7 @@ main() {
         if ! read_ping; then
             # Stale or missing data — don't make recovery decisions
             write_state
-            sleep "$CFG_CHECK_INTERVAL"
+            wd_sleep "$CFG_CHECK_INTERVAL"
             continue
         fi
 
@@ -328,7 +350,7 @@ main() {
                         if ssr_hold_gate; then
                             state="ssr_hold"
                             write_state
-                            sleep "$CFG_CHECK_INTERVAL"
+                            wd_sleep "$CFG_CHECK_INTERVAL"
                             continue
                         fi
 
@@ -372,7 +394,7 @@ main() {
         fi
 
         write_state
-        sleep "$CFG_CHECK_INTERVAL"
+        wd_sleep "$CFG_CHECK_INTERVAL"
     done
 }
 

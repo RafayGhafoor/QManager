@@ -49,4 +49,12 @@ export WD_LIB_DIR
 # root, so the root-ownership gate is stubbed open (plan 3.2).
 qm_trusted_file() { return 0; }
 
+# wd_sleep backgrounds a real sleep, which the fake clock cannot see: map it to
+# the synchronous fake `sleep` unless the scenario sets SC_REAL_SLEEP=1 (then it
+# also drops the fake `sleep` in sc_post_source, see 27_term_*.sh).
+if [ "${SC_REAL_SLEEP:-0}" != "1" ]; then
+    wd_sleep() { sleep "$1"; }
+fi
+command -v sc_post_source >/dev/null 2>&1 && sc_post_source
+
 main
