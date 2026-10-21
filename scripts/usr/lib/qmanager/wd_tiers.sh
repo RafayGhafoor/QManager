@@ -243,6 +243,11 @@ do_recovery() {
         fi
     fi
 
+    # A tier can block for minutes (a Tier 3 swap) with no loop pass writing the
+    # state file: publish the long heartbeat window first so the poller does not
+    # report the daemon as dead meanwhile.
+    write_state_busy
+
     case "$current_tier" in
         1) execute_tier1; action_result=$? ;;
         2) execute_tier2; action_result=$? ;;
