@@ -2906,10 +2906,10 @@ poll_cycle() {
             poll_per_antenna_signal
         fi
 
-        # Tier 1.5 (watchcat state + SoC temperature via sysfs — every 10s in
-        # Active; on every full-refresh touch when idle/deep).
+        # Tier 1.5 (SoC temperature via sysfs — every 10s in Active; on every
+        # full-refresh touch when idle/deep). The watchcat state is read below,
+        # outside the AT gate.
         if [ "$_full_refresh" = "1" ] || [ $((cycle_count % TIER1_5_EVERY)) -eq 0 ]; then
-            read_watchcat_state
             parse_temperature
         fi
 
@@ -2931,9 +2931,12 @@ poll_cycle() {
     unset _refresh_policy
 
     # --- ALWAYS: connectivity housekeeping + cache write --------------------
-    # Ping history (every Tier 1.5 interval — 10s)
+    # Ping history + watchcat state (every Tier 1.5 interval — 10s). The
+    # watchcat read is a file read, so it stays outside the AT gate: an idle or
+    # deep tier must not age a healthy heartbeat past stale_after.
     if [ $((cycle_count % TIER1_5_EVERY)) -eq 0 ]; then
         append_ping_history
+        read_watchcat_state
     fi
     update_conn_uptime
     du_tick
