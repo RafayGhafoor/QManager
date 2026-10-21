@@ -6,8 +6,9 @@
 #
 # Owns: current_tier, last_recovery_time, last_recovery_tier, total_recoveries,
 #       cooldown_remaining, cooldown_stale_retries, recovery_reason,
-#       _recovery_marker_emitted
+#       _recovery_marker_emitted, holdoff_until
 # Functions: tower_lock_active, wait_for_modem, execute_tier1, execute_tier2,
+#            _wd_confirm_radio_on, wd_enter_radio_off,
 #            execute_tier4, find_next_tier, do_recovery, _cooldown_handle_failure,
 #            wd_cooldown_verdict, finish_cooldown
 #
@@ -27,6 +28,7 @@ cooldown_remaining=0
 cooldown_stale_retries=0
 recovery_reason="unreachable"   # "unreachable" | "quality" — why current/last recovery fired
 _recovery_marker_emitted=""     # "<tier>-<reason>" of the last emitted start marker; "" = none this episode
+holdoff_until=0                 # mono_now at which a new ladder may start; 0 = no pause (HOLDOFF_SECS after an exhausted ladder)
 
 # Check if tower lock is active (Tier 2 must be skipped)
 tower_lock_active() {
@@ -92,9 +94,11 @@ execute_tier2() {
     touch "$RECOVERY_FLAG"
 
     local result
+    wd_mark_radio_down
     result=$(qcmd 'AT+CFUN=0' 2>/dev/null)
     if [ $? -ne 0 ]; then
         qlog_error "TIER 2: AT+CFUN=0 failed"
+        _wd_confirm_radio_on
         return 0  # action attempted, enter cooldown
     fi
 
@@ -102,7 +106,48 @@ execute_tier2() {
 
     qcmd 'AT+CFUN=1' >/dev/null 2>&1
     wait_for_modem
+    _wd_confirm_radio_on
     return 0
+}
+
+# Tier 2 must never leave the radio off. Reads AT+CFUN?; anything but 1 gets one
+# more AT+CFUN=1 and a second read. Clears the exit marker only once the radio
+# is confirmed on; if it still is not, the marker stays (the exit cleanup then
+# restores the radio, and wd_start_gate keeps escalating instead of mistaking it
+# for the user's airplane mode).
+_wd_confirm_radio_on() {
+    local cf
+    cf=$(wd_cfun_now)
+    if [ "$cf" = "1" ]; then
+        wd_mark_radio_up
+        return 0
+    fi
+    qlog_warn "TIER 2: radio functionality is '${cf:-unknown}' after AT+CFUN=1, sending it again"
+    qcmd 'AT+CFUN=1' >/dev/null 2>&1
+    cf=$(wd_cfun_now)
+    if [ "$cf" = "1" ]; then
+        wd_mark_radio_up
+        return 0
+    fi
+    qlog_error "TIER 2: radio still not on after a second AT+CFUN=1 (CFUN=${cf:-unknown})"
+    return 1
+}
+
+# The radio was turned off by the user (AT+CFUN 0 or 4 seen when recovery was
+# about to start): park in radio_off, run nothing, and let the main loop's
+# radio_off arm resume monitoring when AT+CFUN? reads 1 again.
+wd_enter_radio_off() {
+    qlog_warn "Radio is off (AT+CFUN 0 or 4): holding recovery until it is back on"
+    rm -f "$RECOVERY_FLAG"
+    append_event "watchcat_recovery" "Watchcat: radio is off, recovery paused until it is turned back on" "info"
+    state="radio_off"
+    current_tier=0
+    failure_counter=0
+    cooldown_remaining=0
+    cooldown_stale_retries=0
+    quality_breach_counter=0
+    _recovery_marker_emitted=""
+    ssr_hold_clear
 }
 
 execute_tier4() {
@@ -265,6 +310,11 @@ _cooldown_handle_failure() {
     # recovery (link is reachable during quality degradation). Direct do_recovery
     # is correct and reason-agnostic.
     if find_next_tier $((current_tier + 1)); then
+        # Tier 2 confirms its own radio-on, so AT+CFUN 0/4 here is the user's.
+        if [ "$(wd_start_gate)" = "radio_off" ]; then
+            wd_enter_radio_off
+            return
+        fi
         qlog_info "Escalating to Tier $current_tier (reason=$recovery_reason)"
         append_event "watchcat_recovery" "Watchcat: recovery escalating to Tier $current_tier — previous tier did not restore the connection" "warning"
         state="recovery"

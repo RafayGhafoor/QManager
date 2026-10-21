@@ -7,7 +7,8 @@
 # Owns: ping_streak_fail, ping_reachable, ping_during_recovery, q_avg_latency,
 #       q_packet_loss, quality_breach_counter, ssr_hold, last_ssr_detected,
 #       ssr_hold_started, quality_since
-# Functions: read_ping, read_quality, wd_quality_mark, quality_breached, evaluate_quality,
+# Functions: read_ping, read_quality, wd_quality_mark, quality_breached,
+#            wd_decide_start, wd_start_gate, evaluate_quality,
 #            ssr_in_progress, ssr_hold_gate, ssr_hold_clear
 #
 # evaluate_quality starts the recovery ladder (find_next_tier / do_recovery from
@@ -134,6 +135,65 @@ quality_breached() {
     return 1
 }
 
+# Pure start gate (no I/O, no globals), in this order:
+#   wd_decide_start <tiers_any 0|1> <cfun> <holdoff_left_secs>
+#   none       no tier is enabled: there is nothing to run, stay as we are
+#   holdoff    the ladder ran out recently: wait out the pause
+#   radio_off  AT+CFUN is 0 or 4: the radio was turned off on purpose
+#   go         start the ladder
+# cfun is the digit wd_cfun_now printed; empty (unreadable) counts as on, so a
+# failed read never blocks recovery.
+wd_decide_start() {
+    local hl
+    hl="$3"
+    case "$hl" in ''|*[!0-9]*) hl=0 ;; esac
+    if [ "$1" != "1" ]; then
+        printf 'none'
+        return 0
+    fi
+    if [ "$hl" -gt 0 ]; then
+        printf 'holdoff'
+        return 0
+    fi
+    case "$2" in
+        0|4) printf 'radio_off' ;;
+        *) printf 'go' ;;
+    esac
+    return 0
+}
+
+# Gathers the three inputs for wd_decide_start and prints its verdict. The one
+# AT read (AT+CFUN?) is skipped when an earlier gate already decides. While a
+# Tier 2 radio toggle is unresolved (wd_radio_down=1) a radio that is off is ours,
+# not the user's, so it is reported as on and the ladder keeps escalating.
+wd_start_gate() {
+    local any
+    local hl
+    local now
+    local cf
+    any=0
+    [ "$CFG_TIER1_ENABLED" = "1" ] && any=1
+    [ "$CFG_TIER2_ENABLED" = "1" ] && any=1
+    [ "$CFG_TIER3_ENABLED" = "1" ] && any=1
+    [ "$CFG_TIER4_ENABLED" = "1" ] && any=1
+
+    hl=0
+    case "$holdoff_until" in
+        ''|*[!0-9]*) ;;
+        *)
+            now=$(mono_now)
+            case "$now" in ''|*[!0-9]*) now=0 ;; esac
+            [ "$holdoff_until" -gt "$now" ] && hl=$((holdoff_until - now))
+            ;;
+    esac
+
+    cf=""
+    if [ "$any" = "1" ] && [ "$hl" -eq 0 ] && [ "$wd_radio_down" != "1" ]; then
+        cf=$(wd_cfun_now)
+    fi
+    wd_decide_start "$any" "$cf" "$hl"
+}
+
 # Accrue the consecutive-breach counter and, on reaching the threshold, kick
 # off the SAME Tier 1->4 recovery ladder used by the reachability path.
 # Returns 0 if it TRIGGERED recovery this cycle (caller skips rest of cycle),
@@ -148,6 +208,21 @@ evaluate_quality() {
         quality_breach_counter=$((quality_breach_counter + 1))
         qlog_info "QUALITY: breach ${quality_breach_counter}/${CFG_QUALITY_CONSECUTIVE} (avg ${q_avg_latency}ms vs ${CFG_LATENCY_THRESHOLD_MS}ms, loss ${q_packet_loss}% vs ${CFG_LOSS_THRESHOLD_PCT}%)"
         if [ "$quality_breach_counter" -ge "$CFG_QUALITY_CONSECUTIVE" ]; then
+            local gate
+            gate=$(wd_start_gate)
+            case "$gate" in
+                none|holdoff)
+                    # Nothing to run, or paused after an exhausted ladder: no
+                    # recovery, no event; the breach count restarts.
+                    qlog_debug "QUALITY: recovery not started ($gate)"
+                    quality_breach_counter=0
+                    return 1
+                    ;;
+                radio_off)
+                    wd_enter_radio_off
+                    return 0
+                    ;;
+            esac
             qlog_warn "QUALITY → RECOVERY: ${CFG_QUALITY_CONSECUTIVE} consecutive breaches (avg ${q_avg_latency}ms / loss ${q_packet_loss}% vs ${CFG_LATENCY_THRESHOLD_MS}ms / ${CFG_LOSS_THRESHOLD_PCT}%)"
             append_event "watchcat_recovery" "Watchcat: connection quality degraded (latency ${q_avg_latency}ms / loss ${q_packet_loss}%) — starting recovery" "warning"
             quality_breach_counter=0
