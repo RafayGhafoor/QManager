@@ -406,6 +406,20 @@ Per-site latency (TCP handshake to a list of websites, with history) is a separa
 
 ---
 
+## Last Outage
+
+The poller publishes the most recently cleared outage as `connectivity.last_outage_s` (its length) and `connectivity.last_outage_ago_s` (seconds since it cleared). Both are `null` until one clears this boot, and absent on an older poller. Issue #27.
+
+- **Source.** The alert engine's outage machine (`alert_engine.sh::_ae_handle_up`), which follows the one detector's `ev_link_state` and runs whether or not any alert channel is enabled. Every outage counts, however short; the `alert_after_min` wait gates only messages.
+- **Clock.** The end stamp is `mono_now`, and `_wc_prepare` publishes the age as `_WC_MONO - end_mono`. A NITZ/ntpd step or a skewed browser clock cannot distort "ago"; never switch this to a wall-clock epoch compared with `Date.now()`.
+- **Lifetime.** `"<seconds> <end_mono>"` is written to `/tmp/qmanager_last_outage` (`qm_atomic_write`) and reloaded by `alert_engine_init`, so a poller respawn keeps it. A reboot clears it, which is correct: the mono base resets, and a reboot is its own event (Recent Reboots). The loader drops garbage and an end stamp ahead of the current uptime.
+- **Both composers.** The printf composer (`_kN`) and `write_cache_jq` both emit the pair; keep them in step (the `wc_parity` dump compares them).
+- **Uninstall** removes `/tmp/qmanager_last_outage`; install and update need nothing (tmpfs).
+
+The dashboard card shows it as the tile's fourth row (`history` glyph): "40s (2m ago)", or "None" in the quiet variant ink. It is a fact, not a verdict, so it has no chip or tone; the reachability verdict above it already carries any live outage, and the row keeps showing the last cleared one meanwhile. The proposal's WAN-IP snapshot was left out: the IP refreshes on its own tier and can be stale at the moment the outage clears.
+
+---
+
 ## Poller sidecars (`ping.env` and `dns.env`)
 
 Since B5.29 Phase C `qmanager_ping` also writes two shell-assignment files in `/var/run/qmanager` (root 0700, created on demand), so the poller can read ping and DNS data with builtins instead of forking `jq` every 2 s cycle. They are **additive**: `ping.json` and `dns.json` keep their paths and shapes, and every other reader (the CGIs, the watchcat) still reads the JSON.
@@ -453,7 +467,7 @@ Re-authored by ledger U4.7 from `rm520n` `cebb8185` (page) and `9d156cbe` `e029d
 | `components/monitoring/connection-quality/probe-targets-card.tsx` | Probe Targets: Sensitivity `SegmentedField` (4 profiles), Probe interval row, numbered IPv4 leg and IPv6 fallback leg (mono fields, one `HintIcon`), verdict chip, `CardFoot` with Restore defaults + Save |
 | `components/monitoring/connection-quality/quality-thresholds-card.tsx` | Quality Thresholds: per metric a `SegmentedField` (Standard / Tolerant / Very tolerant / Custom), a Limit field when Custom, "Flags after" and "Right now" pill rows, `CardFoot` with Save |
 | `components/monitoring/connection-quality/{shapes.ts,condition-block.tsx}` | Family-local geometry and the error state block (never imported across families) |
-| `components/dashboard/connection-quality.tsx` (shapes from the dashboard `shapes.ts` since U4.10) | Dashboard card that replaced Live Latency: Internet / DNS lookup / Probing rows, 30-minute reachability and jitter strips from `fetch_ping_history.sh`, Typical / Worst / Loss (the speed test moved to Device & Speed, `device-metrics.tsx`) |
+| `components/dashboard/connection-quality.tsx` (shapes from the dashboard `shapes.ts` since U4.10) | Dashboard card that replaced Live Latency: Internet / DNS lookup / Probing / Last outage rows, 30-minute reachability and jitter strips from `fetch_ping_history.sh`, Typical / Worst / Loss (the speed test moved to Device & Speed, `device-metrics.tsx`) |
 | `hooks/use-ping-profile.ts` | Fetch + save ping profile |
 | `hooks/use-quality-thresholds.ts` | Fetch + save quality thresholds |
 

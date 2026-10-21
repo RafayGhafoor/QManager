@@ -98,7 +98,9 @@ qlog.sh (mono_now, qlog_*) → events.sh → email_alerts.sh → sms_alerts.sh
   → alert_routing.sh → alert_engine.sh
 ```
 
-`alert_engine_init` runs once at poller startup (`main()`, after `email_alerts_init`/`sms_alerts_init` so the engine's channel-enabled reads see already-loaded channel config), resets state to idle and resolves the single wait.
+`alert_engine_init` runs once at poller startup (`main()`, after `email_alerts_init`/`sms_alerts_init` so the engine's channel-enabled reads see already-loaded channel config), resets state to idle, reloads the last cleared outage and resolves the single wait.
+
+**Last cleared outage.** `_ae_handle_up` keeps the outage's length and mono end stamp (`_ae_last_outage_s`, `_ae_last_outage_end_mono`) before the reset, and persists them to `/tmp/qmanager_last_outage` so a poller respawn keeps them. The poller publishes them as `connectivity.last_outage_*` for the dashboard; see [Connection Quality](connection-quality.md#last-outage).
 
 ### One alert wait for every channel
 
