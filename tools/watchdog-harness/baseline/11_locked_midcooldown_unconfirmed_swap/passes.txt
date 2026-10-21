@@ -29,81 +29,91 @@ qmanager
 {"timestamp":1790000054,"enabled":true,"state":"cooldown","current_tier":3,"failure_count":4,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":90,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5054,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_recovery_active
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 === pass 4 (t+64) ===
 -- state
 {"timestamp":1790000064,"enabled":true,"state":"cooldown","current_tier":3,"failure_count":4,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":80,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5064,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_recovery_active
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 === pass 5 (t+74) ===
 -- state
 {"timestamp":1790000074,"enabled":true,"state":"locked","current_tier":0,"failure_count":0,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":80,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5074,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.lock
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 === pass 6 (t+84) ===
 -- state
 {"timestamp":1790000084,"enabled":true,"state":"locked","current_tier":0,"failure_count":0,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":80,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5084,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.lock
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 === pass 7 (t+94) ===
 -- state
 {"timestamp":1790000094,"enabled":true,"state":"locked","current_tier":0,"failure_count":0,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":80,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5094,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.lock
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 === pass 8 (t+108) ===
 -- state
 {"timestamp":1790000108,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":80,"sim_failover_active":false,"original_sim_slot":null,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5108,"stale_after":90}

@@ -96,3 +96,24 @@ swap back). Every difference to the previous baseline in an existing scenario is
 
 The M4 reconcile (`AT+CFUN?` while the radio-down marker is set) is skipped during the hold-off,
 so 37 is unchanged.
+
+## Wave-2 review fixes, round 2 (scenarios 56-64)
+
+`baseline/` was re-recorded after the round-2 fixes (hold-off reason, radio marker cleared by a
+reachable link, unconfirmed Tier 3 record, persisted revert-pending, unreadable slot read-back).
+New scenarios: 56 (a quality hold-off survives one lost probe), 57 (stale radio-down marker
+cleared by a reachable link), 58 (startup with an unconfirmed record), 59 and 60 (startup with a
+persisted revert-pending, radio on / off), 61-63 (Tier 3 swap whose slot read-back fails: assumed
+swapped / adopted on the backup / still on the original), 64 (scenario 55 with the slot
+unreadable at the deferral). Every difference to the previous baseline in an existing scenario
+is one of these:
+
+- 05, 11, 41, 50, 51, 55: during the Tier 3 cooldown `passes.txt` shows the unconfirmed record
+  (`confirmed:false`) and the file lists gain the failover record, where the old baseline showed
+  `(none)`. Nothing else changes in 05, 11, 41 and 50;
+- 51: the reachable link after the finalize clears the radio-down marker (`radio_down=0` from
+  pass 13, a `Link is reachable` log line) and the exit cleanup no longer sends `AT+CFUN=1`;
+- 55: the record carries `revert_pending:true` while the daemon waits in radio_off;
+- 48: the failed return to the backup leaves the modem on the primary, so it is treated as a
+  failback: no failover record, no `AT+QCCID`/known-SIM write, `tower_failover start`, and the
+  benign settle (`Entering post-recheck settle`) replaces the old backup settle.

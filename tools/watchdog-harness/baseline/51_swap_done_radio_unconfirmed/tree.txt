@@ -35,7 +35,7 @@
 [2026-09-21 14:15:54] INFO  [watchcat:PID] EVENT [watchcat_recovery] Watchcat: recovery succeeded (Tier 3) — internet connectivity restored
 [2026-09-21 14:15:54] INFO  [watchcat:PID] SIM failover state saved: slot 1 → 2 (reason=connectivity_failure)
 [2026-09-21 14:15:54] INFO  [watchcat:PID] EVENT [sim_failover] Watchcat: SIM failover confirmed — running on slot 2
-[2026-09-21 14:16:34] WARN  [watchcat:PID] Exit with radio marked down, restoring AT+CFUN=1
+[2026-09-21 14:16:04] INFO  [watchcat:PID] Link is reachable: clearing the stale radio-down marker
 
 === tmp/qmanager_events.json
 {"timestamp":1790000050,"type":"watchcat_recovery","message":"Watchcat: starting recovery (Tier 3) — internet unreachable","severity":"warning"}

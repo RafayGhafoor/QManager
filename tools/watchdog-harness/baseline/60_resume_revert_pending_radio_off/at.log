@@ -1,0 +1,38 @@
+T+30 AT+QUIMSLOT?
+T+30 AT+CFUN?
+T+30 AT+CFUN?
+--- pass 1 ---
+T+40 AT+CFUN?
+--- pass 2 ---
+T+50 AT+CFUN?
+--- pass 3 ---
+T+60 AT+CFUN?
+--- pass 4 ---
+T+70 AT+CFUN?
+--- pass 5 ---
+T+80 AT+CFUN?
+T+80 AT+QUIMSLOT?
+T+80 AT+CFUN=0
+T+82 AT+QUIMSLOT=1
+T+84 AT+CFUN=1
+T+84 AT
+T+84 AT+QUIMSLOT?
+T+84 AT+CFUN?
+T+84 AT+QCCID
+--- pass 6 ---
+--- pass 7 ---
+--- pass 8 ---
+--- pass 9 ---
+--- pass 10 ---
+--- pass 11 ---
+--- pass 12 ---
+--- pass 13 ---
+--- pass 14 ---
+--- pass 15 ---
+--- pass 16 ---
+--- pass 17 ---
+--- pass 18 ---
+--- pass 19 ---
+--- pass 20 ---
+--- pass 21 ---
+--- pass 22 ---

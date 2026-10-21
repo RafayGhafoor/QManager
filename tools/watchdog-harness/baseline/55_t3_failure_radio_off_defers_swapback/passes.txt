@@ -33,17 +33,19 @@ slot=1 cfun=1 sim_failover_active=false pending=false
 {"timestamp":1790000054,"enabled":true,"state":"cooldown","current_tier":3,"failure_count":4,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":90,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5054,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_recovery_active
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 -- extra
 slot=2 cfun=1 sim_failover_active=false pending=false
 === pass 4 (t+64) ===
@@ -51,17 +53,19 @@ slot=2 cfun=1 sim_failover_active=false pending=false
 {"timestamp":1790000064,"enabled":true,"state":"cooldown","current_tier":3,"failure_count":4,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":80,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5064,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_recovery_active
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 -- extra
 slot=2 cfun=1 sim_failover_active=false pending=false
 === pass 5 (t+74) ===
@@ -69,17 +73,19 @@ slot=2 cfun=1 sim_failover_active=false pending=false
 {"timestamp":1790000074,"enabled":true,"state":"cooldown","current_tier":3,"failure_count":4,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":70,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5074,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_recovery_active
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 -- extra
 slot=2 cfun=1 sim_failover_active=false pending=false
 === pass 6 (t+84) ===
@@ -87,17 +93,19 @@ slot=2 cfun=1 sim_failover_active=false pending=false
 {"timestamp":1790000084,"enabled":true,"state":"cooldown","current_tier":3,"failure_count":4,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":60,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5084,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_recovery_active
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 -- extra
 slot=2 cfun=1 sim_failover_active=false pending=false
 === pass 7 (t+94) ===
@@ -105,17 +113,19 @@ slot=2 cfun=1 sim_failover_active=false pending=false
 {"timestamp":1790000094,"enabled":true,"state":"cooldown","current_tier":3,"failure_count":4,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":50,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5094,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_recovery_active
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 -- extra
 slot=2 cfun=4 sim_failover_active=false pending=false
 === pass 8 (t+104) ===
@@ -123,17 +133,19 @@ slot=2 cfun=4 sim_failover_active=false pending=false
 {"timestamp":1790000104,"enabled":true,"state":"cooldown","current_tier":3,"failure_count":4,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":40,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5104,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_recovery_active
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 -- extra
 slot=2 cfun=4 sim_failover_active=false pending=false
 === pass 9 (t+114) ===
@@ -141,17 +153,19 @@ slot=2 cfun=4 sim_failover_active=false pending=false
 {"timestamp":1790000114,"enabled":true,"state":"cooldown","current_tier":3,"failure_count":4,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":30,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5114,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_recovery_active
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 -- extra
 slot=2 cfun=4 sim_failover_active=false pending=false
 === pass 10 (t+124) ===
@@ -159,17 +173,19 @@ slot=2 cfun=4 sim_failover_active=false pending=false
 {"timestamp":1790000124,"enabled":true,"state":"cooldown","current_tier":3,"failure_count":4,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":20,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5124,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_recovery_active
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 -- extra
 slot=2 cfun=4 sim_failover_active=false pending=false
 === pass 11 (t+134) ===
@@ -177,17 +193,19 @@ slot=2 cfun=4 sim_failover_active=false pending=false
 {"timestamp":1790000134,"enabled":true,"state":"cooldown","current_tier":3,"failure_count":4,"last_recovery_time":1790000054,"last_recovery_tier":3,"total_recoveries":1,"cooldown_remaining":10,"sim_failover_active":false,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5134,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_force_tier2
 qmanager_recovery_active
 qmanager_refresh_policy_band
+qmanager_sim_failover
 qmanager_watchcat.pid
 
 var/run:
 qmanager
 -- failover
-(none)
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000054,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"","confirmed":false}
 -- extra
 slot=2 cfun=4 sim_failover_active=false pending=false
 === pass 12 (t+144) ===
@@ -207,7 +225,7 @@ qmanager_watchcat.pid
 var/run:
 qmanager
 -- failover
-{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002"}
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002","revert_pending":true}
 -- extra
 slot=2 cfun=4 sim_failover_active=true pending=true
 === pass 13 (t+154) ===
@@ -227,7 +245,7 @@ qmanager_watchcat.pid
 var/run:
 qmanager
 -- failover
-{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002"}
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002","revert_pending":true}
 -- extra
 slot=2 cfun=4 sim_failover_active=true pending=true
 === pass 14 (t+164) ===
@@ -247,7 +265,7 @@ qmanager_watchcat.pid
 var/run:
 qmanager
 -- failover
-{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002"}
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002","revert_pending":true}
 -- extra
 slot=2 cfun=4 sim_failover_active=true pending=true
 === pass 15 (t+174) ===
@@ -267,7 +285,7 @@ qmanager_watchcat.pid
 var/run:
 qmanager
 -- failover
-{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002"}
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002","revert_pending":true}
 -- extra
 slot=2 cfun=4 sim_failover_active=true pending=true
 === pass 16 (t+184) ===
@@ -287,7 +305,7 @@ qmanager_watchcat.pid
 var/run:
 qmanager
 -- failover
-{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002"}
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002","revert_pending":true}
 -- extra
 slot=2 cfun=4 sim_failover_active=true pending=true
 === pass 17 (t+194) ===
@@ -307,7 +325,7 @@ qmanager_watchcat.pid
 var/run:
 qmanager
 -- failover
-{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002"}
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002","revert_pending":true}
 -- extra
 slot=2 cfun=4 sim_failover_active=true pending=true
 === pass 18 (t+204) ===
@@ -327,7 +345,7 @@ qmanager_watchcat.pid
 var/run:
 qmanager
 -- failover
-{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002"}
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002","revert_pending":true}
 -- extra
 slot=2 cfun=4 sim_failover_active=true pending=true
 === pass 19 (t+214) ===
@@ -347,7 +365,7 @@ qmanager_watchcat.pid
 var/run:
 qmanager
 -- failover
-{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002"}
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002","revert_pending":true}
 -- extra
 slot=2 cfun=4 sim_failover_active=true pending=true
 === pass 20 (t+224) ===
@@ -367,7 +385,7 @@ qmanager_watchcat.pid
 var/run:
 qmanager
 -- failover
-{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002"}
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002","revert_pending":true}
 -- extra
 slot=2 cfun=4 sim_failover_active=true pending=true
 === pass 21 (t+234) ===
@@ -387,7 +405,7 @@ qmanager_watchcat.pid
 var/run:
 qmanager
 -- failover
-{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002"}
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000144,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002","revert_pending":true}
 -- extra
 slot=2 cfun=4 sim_failover_active=true pending=true
 === pass 22 (t+248) ===

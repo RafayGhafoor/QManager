@@ -1,9 +1,3 @@
-=== etc/qmanager/known_iccids
-89000000000000000001
-
-=== etc/qmanager/sim_failover.json
-{"active":true,"original_slot":1,"current_slot":1,"switched_at":1790000192,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000001"}
-
 === tmp/qmanager.log
 [2026-09-21 14:13:20] INFO  [watchcat:PID] Config loaded: interval=10s fail_threshold=3 probes cooldown=30s
 [2026-09-21 14:13:20] INFO  [watchcat:PID]   Tiers: T1=1 T2=1 T3=0 T4=1 backup_sim=none
@@ -27,7 +21,8 @@
 [2026-09-21 14:16:32] WARN  [watchcat:PID] SIM swap attempt 2/2 to slot 2 not verified (slot '1', CFUN '1')
 [2026-09-21 14:16:32] ERROR [watchcat:PID] PRIMARY RECHECK: return to backup slot 2 not verified
 [2026-09-21 14:16:32] INFO  [watchcat:PID] EVENT [sim_failover] Watchcat: could not return to backup SIM slot 2 — manual check needed
-[2026-09-21 14:16:32] INFO  [watchcat:PID] Entering post-recheck backup settle for 90s
+[2026-09-21 14:16:32] WARN  [watchcat:PID] PRIMARY RECHECK: modem stayed on primary slot 1, treating it as a failback
+[2026-09-21 14:16:32] INFO  [watchcat:PID] Entering post-recheck settle for 90s
 
 === tmp/qmanager_events.json
 {"timestamp":1790000090,"type":"sim_failover","message":"Watchcat: rechecking primary SIM (slot 1) — temporary swap-back","severity":"info"}
@@ -36,7 +31,4 @@
 === tmp/qmanager_force_tier2
 
 === tmp/qmanager_refresh_policy_band
-
-=== tmp/qmanager_sim_failover
-{"active":true,"original_slot":1,"current_slot":1,"switched_at":1790000192,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000001"}
 
