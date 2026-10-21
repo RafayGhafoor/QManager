@@ -3,6 +3,7 @@
 {"timestamp":1790000030,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5030,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_sim_failover
@@ -17,6 +18,7 @@ qmanager
 {"timestamp":1790000040,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5040,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_sim_failover
@@ -31,6 +33,7 @@ qmanager
 {"timestamp":1790000050,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5050,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_sim_failover
@@ -45,6 +48,7 @@ qmanager
 {"timestamp":1790000060,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5060,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_sim_failover
@@ -59,6 +63,7 @@ qmanager
 {"timestamp":1790000070,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5070,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_sim_failover
@@ -73,6 +78,7 @@ qmanager
 {"timestamp":1790000080,"enabled":true,"state":"monitor","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":0,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":2,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5080,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
 qmanager_sim_failover
@@ -87,9 +93,12 @@ qmanager
 {"timestamp":1790000094,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":90,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5094,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -102,9 +111,12 @@ qmanager
 {"timestamp":1790000104,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":80,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5104,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -117,8 +129,11 @@ qmanager
 {"timestamp":1790000114,"enabled":true,"state":"locked","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":80,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5114,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.lock
 qmanager_watchcat.pid
@@ -132,8 +147,11 @@ qmanager
 {"timestamp":1790000124,"enabled":true,"state":"locked","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":80,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5124,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.lock
 qmanager_watchcat.pid
@@ -147,9 +165,12 @@ qmanager
 {"timestamp":1790000134,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":80,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5134,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -162,9 +183,12 @@ qmanager
 {"timestamp":1790000144,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":70,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5144,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -177,9 +201,12 @@ qmanager
 {"timestamp":1790000154,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":60,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5154,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -192,9 +219,12 @@ qmanager
 {"timestamp":1790000164,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":50,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5164,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -207,9 +237,12 @@ qmanager
 {"timestamp":1790000174,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":40,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5174,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -222,9 +255,12 @@ qmanager
 {"timestamp":1790000184,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":30,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5184,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -237,9 +273,12 @@ qmanager
 {"timestamp":1790000194,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":20,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5194,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -252,9 +291,12 @@ qmanager
 {"timestamp":1790000204,"enabled":true,"state":"cooldown","current_tier":0,"failure_count":0,"last_recovery_time":null,"last_recovery_tier":null,"total_recoveries":0,"cooldown_remaining":10,"sim_failover_active":true,"original_sim_slot":1,"current_sim_slot":1,"reboots_this_hour":0,"quality_breach_count":0,"quality_enabled":false,"last_recovery_reason":"unreachable","ssr_hold":false,"last_ssr_detected":null,"mono":5204,"stale_after":90}
 -- files
 etc/qmanager:
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -270,6 +312,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -284,6 +328,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -298,6 +344,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -312,6 +360,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -326,6 +376,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -340,6 +392,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -354,6 +408,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -368,6 +424,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -382,6 +440,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -396,6 +456,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -410,6 +472,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -424,6 +488,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -438,6 +504,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:

@@ -33,3 +33,7 @@
 {"timestamp":1790000057,"type":"sim_failover","message":"Watchcat: backup SIM failed, reverting to slot 1","severity":"warning"}
 {"timestamp":1790000151,"type":"watchcat_recovery","message":"Watchcat: recovery succeeded (Tier 3) — internet connectivity restored","severity":"info"}
 
+=== tmp/qmanager_force_tier2
+
+=== tmp/qmanager_refresh_policy_band
+

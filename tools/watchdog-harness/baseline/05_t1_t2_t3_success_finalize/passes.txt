@@ -115,7 +115,9 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -129,7 +131,9 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -143,7 +147,9 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -157,7 +163,9 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -171,7 +179,9 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -185,7 +195,9 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -199,7 +211,9 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -213,7 +227,9 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -227,7 +243,9 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -240,8 +258,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -255,8 +276,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -270,8 +294,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -285,8 +312,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -300,8 +330,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -315,8 +348,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -330,8 +366,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -345,8 +384,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -360,8 +402,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -375,8 +420,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -390,8 +438,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -405,8 +456,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -420,8 +474,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -435,8 +492,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -450,8 +510,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -465,8 +528,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 
@@ -480,8 +546,11 @@ qmanager
 -- files
 etc/qmanager:
 known_iccids
+sim_failover.json
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_sim_failover
 qmanager_watchcat.pid
 

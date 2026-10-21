@@ -1,10 +1,13 @@
 T+30 AT+QUIMSLOT?
 --- pass 1 ---
 --- pass 2 ---
+T+50 AT+QUIMSLOT?
 T+50 AT+CFUN=0
 T+52 AT+QUIMSLOT=1
 T+54 AT+CFUN=1
 T+54 AT
+T+54 AT+QUIMSLOT?
+T+54 AT+CFUN?
 T+54 AT+QCCID
 --- pass 3 ---
 --- pass 4 ---

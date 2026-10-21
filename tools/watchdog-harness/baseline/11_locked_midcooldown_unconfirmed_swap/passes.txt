@@ -31,7 +31,9 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -45,7 +47,9 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -59,6 +63,8 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.lock
 qmanager_watchcat.pid
 
@@ -73,6 +79,8 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.lock
 qmanager_watchcat.pid
 
@@ -87,6 +95,8 @@ qmanager
 etc/qmanager:
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.lock
 qmanager_watchcat.pid
 
@@ -102,7 +112,9 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -117,7 +129,9 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -132,7 +146,9 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -147,7 +163,9 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -162,7 +180,9 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -177,7 +197,9 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -192,7 +214,9 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -207,7 +231,9 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
 qmanager_recovery_active
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -222,6 +248,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -236,6 +264,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -250,6 +280,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -264,6 +296,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -278,6 +312,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -292,6 +328,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -306,6 +344,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -320,6 +360,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:
@@ -334,6 +376,8 @@ etc/qmanager:
 known_iccids
 
 tmp:
+qmanager_force_tier2
+qmanager_refresh_policy_band
 qmanager_watchcat.pid
 
 var/run:

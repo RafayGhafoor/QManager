@@ -25,3 +25,7 @@
 {"timestamp":1790000050,"type":"sim_failover","message":"Watchcat: reverting to original SIM slot 1 (user request)","severity":"info"}
 {"timestamp":1790000050,"type":"sim_failover","message":"Watchcat: backup SIM failed, reverting to slot 1","severity":"warning"}
 
+=== tmp/qmanager_force_tier2
+
+=== tmp/qmanager_refresh_policy_band
+

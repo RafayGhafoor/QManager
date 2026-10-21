@@ -1,11 +1,15 @@
 --- pass 1 ---
 --- pass 2 ---
+T+50 AT+CFUN?
 T+50 AT+QUIMSLOT?
 T+50 AT+QCCID
+T+50 AT+QUIMSLOT?
 T+50 AT+CFUN=0
 T+52 AT+QUIMSLOT=2
 T+54 AT+CFUN=1
 T+54 AT
+T+54 AT+QUIMSLOT?
+T+54 AT+CFUN?
 T+54 AT+CPIN?
 T+54 AT+QCCID
 --- pass 3 ---
@@ -13,10 +17,13 @@ T+54 AT+QCCID
 --- pass 5 ---
 --- pass 6 ---
 --- pass 7 ---
+T+104 AT+QUIMSLOT?
 T+104 AT+CFUN=0
 T+106 AT+QUIMSLOT=1
 T+108 AT+CFUN=1
 T+108 AT
+T+108 AT+QUIMSLOT?
+T+108 AT+CFUN?
 T+108 AT+QCCID
 --- pass 8 ---
 --- pass 9 ---

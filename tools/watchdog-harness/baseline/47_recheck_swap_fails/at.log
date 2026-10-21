@@ -1,0 +1,60 @@
+T+30 AT+QUIMSLOT?
+--- pass 1 ---
+--- pass 2 ---
+--- pass 3 ---
+--- pass 4 ---
+--- pass 5 ---
+--- pass 6 ---
+T+90 AT+QUIMSLOT?
+T+90 AT+CFUN=0
+T+92 AT+QUIMSLOT=1
+T+94 AT+CFUN=1
+T+94 AT
+T+94 AT+QUIMSLOT?
+T+94 AT+CFUN?
+T+94 AT+CFUN=0
+T+96 AT+QUIMSLOT=1
+T+98 AT+CFUN=1
+T+98 AT
+T+98 AT+QUIMSLOT?
+T+98 AT+CFUN?
+--- pass 7 ---
+--- pass 8 ---
+--- pass 9 ---
+--- pass 10 ---
+--- pass 11 ---
+--- pass 12 ---
+T+158 AT+QUIMSLOT?
+T+158 AT+CFUN=0
+T+160 AT+QUIMSLOT=1
+T+162 AT+CFUN=1
+T+162 AT
+T+162 AT+QUIMSLOT?
+T+162 AT+CFUN?
+T+162 AT+CFUN=0
+T+164 AT+QUIMSLOT=1
+T+166 AT+CFUN=1
+T+166 AT
+T+166 AT+QUIMSLOT?
+T+166 AT+CFUN?
+--- pass 13 ---
+--- pass 14 ---
+--- pass 15 ---
+--- pass 16 ---
+--- pass 17 ---
+--- pass 18 ---
+T+226 AT+QUIMSLOT?
+T+226 AT+CFUN=0
+T+228 AT+QUIMSLOT=1
+T+230 AT+CFUN=1
+T+230 AT
+T+230 AT+QUIMSLOT?
+T+230 AT+CFUN?
+T+230 AT+CFUN=0
+T+232 AT+QUIMSLOT=1
+T+234 AT+CFUN=1
+T+234 AT
+T+234 AT+QUIMSLOT?
+T+234 AT+CFUN?
+--- pass 19 ---
+--- pass 20 ---

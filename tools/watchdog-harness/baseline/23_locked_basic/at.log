@@ -4,6 +4,7 @@
 --- pass 4 ---
 --- pass 5 ---
 --- pass 6 ---
+T+90 AT+CFUN?
 T+90 AT+COPS=2
 T+92 AT+COPS=0
 --- pass 7 ---

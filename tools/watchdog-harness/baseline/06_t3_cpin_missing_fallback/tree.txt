@@ -27,46 +27,16 @@
 [2026-09-21 14:15:51] WARN  [watchcat:PID] COOLDOWN complete: connectivity NOT restored after Tier 3
 [2026-09-21 14:15:51] WARN  [watchcat:PID] COOLDOWN failure path entered for Tier 3
 [2026-09-21 14:15:51] ERROR [watchcat:PID] All recovery tiers exhausted — returning to monitor
-[2026-09-21 14:15:51] INFO  [watchcat:PID] EVENT [watchcat_recovery] Watchcat: recovery exhausted — all enabled tiers tried, connection not restored
+[2026-09-21 14:15:51] INFO  [watchcat:PID] EVENT [watchcat_recovery] Watchcat: all recovery steps tried, pausing 15 minutes
 [2026-09-21 14:16:01] INFO  [watchcat:PID] MONITOR → SUSPECT: streak_fail=20 (threshold=3)
-[2026-09-21 14:16:11] INFO  [watchcat:PID] SUSPECT → RECOVERY: streak_fail=22 >= 3
-[2026-09-21 14:16:11] INFO  [watchcat:PID] RECOVERY: Executing Tier 3 (reason=unreachable)
-[2026-09-21 14:16:11] INFO  [watchcat:PID] EVENT [watchcat_recovery] Watchcat: starting recovery (Tier 3) — internet unreachable
-[2026-09-21 14:16:11] INFO  [watchcat:PID] TIER 3: SIM failover from slot 1 to slot 2
-[2026-09-21 14:16:11] INFO  [watchcat:PID] EVENT [sim_failover] Watchcat: switching to SIM slot 2 (Tier 3)
-[2026-09-21 14:16:15] INFO  [watchcat:PID] Modem responsive after 0s
-[2026-09-21 14:16:18] ERROR [watchcat:PID] TIER 3: Could not confirm a SIM in backup slot 2 after 3 attempts (rc=0), falling back
-[2026-09-21 14:16:18] WARN  [watchcat:PID] SIM failover fallback: reverting to slot 1
-[2026-09-21 14:16:18] INFO  [watchcat:PID] EVENT [sim_failover] Watchcat: backup SIM failed, reverting to slot 1
-[2026-09-21 14:16:22] INFO  [watchcat:PID] Modem responsive after 0s
-[2026-09-21 14:16:22] INFO  [watchcat:PID] Entering COOLDOWN for 90s (after Tier 3)
-[2026-09-21 14:17:52] WARN  [watchcat:PID] COOLDOWN complete: connectivity NOT restored after Tier 3
-[2026-09-21 14:17:52] WARN  [watchcat:PID] COOLDOWN failure path entered for Tier 3
-[2026-09-21 14:17:52] ERROR [watchcat:PID] All recovery tiers exhausted — returning to monitor
-[2026-09-21 14:17:52] INFO  [watchcat:PID] EVENT [watchcat_recovery] Watchcat: recovery exhausted — all enabled tiers tried, connection not restored
-[2026-09-21 14:18:02] INFO  [watchcat:PID] MONITOR → SUSPECT: streak_fail=20 (threshold=3)
-[2026-09-21 14:18:12] INFO  [watchcat:PID] SUSPECT → RECOVERY: streak_fail=22 >= 3
-[2026-09-21 14:18:12] INFO  [watchcat:PID] RECOVERY: Executing Tier 3 (reason=unreachable)
-[2026-09-21 14:18:12] INFO  [watchcat:PID] EVENT [watchcat_recovery] Watchcat: starting recovery (Tier 3) — internet unreachable
-[2026-09-21 14:18:12] INFO  [watchcat:PID] TIER 3: SIM failover from slot 1 to slot 2
-[2026-09-21 14:18:12] INFO  [watchcat:PID] EVENT [sim_failover] Watchcat: switching to SIM slot 2 (Tier 3)
-[2026-09-21 14:18:16] INFO  [watchcat:PID] Modem responsive after 0s
-[2026-09-21 14:18:19] ERROR [watchcat:PID] TIER 3: Could not confirm a SIM in backup slot 2 after 3 attempts (rc=0), falling back
-[2026-09-21 14:18:19] WARN  [watchcat:PID] SIM failover fallback: reverting to slot 1
-[2026-09-21 14:18:19] INFO  [watchcat:PID] EVENT [sim_failover] Watchcat: backup SIM failed, reverting to slot 1
-[2026-09-21 14:18:23] INFO  [watchcat:PID] Modem responsive after 0s
-[2026-09-21 14:18:23] INFO  [watchcat:PID] Entering COOLDOWN for 90s (after Tier 3)
 
 === tmp/qmanager_events.json
 {"timestamp":1790000050,"type":"watchcat_recovery","message":"Watchcat: starting recovery (Tier 3) — internet unreachable","severity":"warning"}
 {"timestamp":1790000050,"type":"sim_failover","message":"Watchcat: switching to SIM slot 2 (Tier 3)","severity":"warning"}
 {"timestamp":1790000057,"type":"sim_failover","message":"Watchcat: backup SIM failed, reverting to slot 1","severity":"warning"}
-{"timestamp":1790000151,"type":"watchcat_recovery","message":"Watchcat: recovery exhausted — all enabled tiers tried, connection not restored","severity":"error"}
-{"timestamp":1790000171,"type":"watchcat_recovery","message":"Watchcat: starting recovery (Tier 3) — internet unreachable","severity":"warning"}
-{"timestamp":1790000171,"type":"sim_failover","message":"Watchcat: switching to SIM slot 2 (Tier 3)","severity":"warning"}
-{"timestamp":1790000178,"type":"sim_failover","message":"Watchcat: backup SIM failed, reverting to slot 1","severity":"warning"}
-{"timestamp":1790000272,"type":"watchcat_recovery","message":"Watchcat: recovery exhausted — all enabled tiers tried, connection not restored","severity":"error"}
-{"timestamp":1790000292,"type":"watchcat_recovery","message":"Watchcat: starting recovery (Tier 3) — internet unreachable","severity":"warning"}
-{"timestamp":1790000292,"type":"sim_failover","message":"Watchcat: switching to SIM slot 2 (Tier 3)","severity":"warning"}
-{"timestamp":1790000299,"type":"sim_failover","message":"Watchcat: backup SIM failed, reverting to slot 1","severity":"warning"}
+{"timestamp":1790000151,"type":"watchcat_recovery","message":"Watchcat: all recovery steps tried, pausing 15 minutes","severity":"error"}
+
+=== tmp/qmanager_force_tier2
+
+=== tmp/qmanager_refresh_policy_band
 

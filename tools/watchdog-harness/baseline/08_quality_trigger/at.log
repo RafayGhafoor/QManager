@@ -1,9 +1,10 @@
 --- pass 1 ---
 --- pass 2 ---
 --- pass 3 ---
-T+60 AT+COPS=2
-T+62 AT+COPS=0
 --- pass 4 ---
+T+70 AT+CFUN?
+T+70 AT+COPS=2
+T+72 AT+COPS=0
 --- pass 5 ---
 --- pass 6 ---
 --- pass 7 ---

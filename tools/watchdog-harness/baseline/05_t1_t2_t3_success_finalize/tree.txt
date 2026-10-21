@@ -1,6 +1,9 @@
 === etc/qmanager/known_iccids
 89000000000000000002
 
+=== etc/qmanager/sim_failover.json
+{"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000209,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002"}
+
 === tmp/qmanager.log
 [2026-09-21 14:13:20] INFO  [watchcat:PID] Config loaded: interval=10s fail_threshold=3 probes cooldown=30s
 [2026-09-21 14:13:20] INFO  [watchcat:PID]   Tiers: T1=1 T2=1 T3=1 T4=0 backup_sim=2
@@ -56,6 +59,10 @@
 {"timestamp":1790000115,"type":"sim_failover","message":"Watchcat: switching to SIM slot 2 (Tier 3)","severity":"warning"}
 {"timestamp":1790000209,"type":"watchcat_recovery","message":"Watchcat: recovery succeeded (Tier 3) — internet connectivity restored","severity":"info"}
 {"timestamp":1790000209,"type":"sim_failover","message":"Watchcat: SIM failover confirmed — running on slot 2","severity":"info"}
+
+=== tmp/qmanager_force_tier2
+
+=== tmp/qmanager_refresh_policy_band
 
 === tmp/qmanager_sim_failover
 {"active":true,"original_slot":1,"current_slot":2,"switched_at":1790000209,"reason":"connectivity_failure","original_iccid":"89000000000000000001","current_iccid":"89000000000000000002"}

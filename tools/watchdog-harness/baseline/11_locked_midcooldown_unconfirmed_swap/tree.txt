@@ -35,3 +35,7 @@
 {"timestamp":1790000050,"type":"sim_failover","message":"Watchcat: switching to SIM slot 2 (Tier 3)","severity":"warning"}
 {"timestamp":1790000104,"type":"sim_failover","message":"Watchcat: backup SIM failed, reverting to slot 1","severity":"warning"}
 
+=== tmp/qmanager_force_tier2
+
+=== tmp/qmanager_refresh_policy_band
+
