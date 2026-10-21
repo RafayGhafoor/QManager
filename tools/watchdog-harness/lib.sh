@@ -206,6 +206,10 @@ h_snap() { # pass number
             | grep -v -E '^(qmanager\.log|qmanager_events\.json|qmanager_ping\.json|qmanager_status\.json|qmanager_watchcat\.json)$' )
         echo "-- failover"
         cat "$H_ROOT/tmp/qmanager_sim_failover" 2>/dev/null || echo "(none)"
+        if command -v sc_snap_extra >/dev/null 2>&1; then
+            echo "-- extra"
+            sc_snap_extra "$1"
+        fi
     } >> "$H_OUT/passes.txt"
     echo "--- pass $1 ---" >> "$H_OUT/at.log"
     echo "--- pass $1 ---" >> "$H_OUT/calls.log"

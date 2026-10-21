@@ -5,10 +5,11 @@
 # Sourced by qmanager_watchcat (never executed). BusyBox ash safe.
 #
 # Owns: reboots_this_hour, _rb_next
-# Functions: count_recent_reboots, wd_ledger_tick
+# Functions: count_recent_reboots, wd_ledger_tick, wd_ledger_recent_json
 #
 # Reads CRASH_LOG (defined by the daemon). Function definitions and global
-# initialisers only. The last line sets WD_LEDGER_LOADED.
+# initialisers only, so a CGI may source it for wd_ledger_recent_json. The last
+# line sets WD_LEDGER_LOADED.
 # =============================================================================
 
 # --- State Variables (owned here) --------------------------------------------
@@ -84,6 +85,42 @@ wd_ledger_tick() {
         count_recent_reboots
         _rb_next=$((now + 60))
     fi
+}
+
+# Watchdog (Tier-4) reboots for the Watchdog page's Recent Activity: a JSON
+# array of epoch ints, newest first, at most <limit> (default 5), "[]" on any
+# problem. Uses no daemon globals (CRASH_LOG falls back to the device path) and
+# is safe to source from a CGI. Same awk approach as monitoring/alerts.sh; the
+# device jq has no regex, so numeric epochs are matched in awk.
+wd_ledger_recent_json() {
+    local limit
+    local file
+    local rows
+    local out
+    limit="$1"
+    case "$limit" in
+        ''|*[!0-9]*) limit=5 ;;
+    esac
+    file="${CRASH_LOG:-/etc/qmanager/crash.log}"
+    if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+        printf '[]'
+        return 0
+    fi
+    rows=$(awk -F'|' '
+        $2 == "reboot" && $3 == "tier4_escalation" && $1 ~ /^[0-9]+$/ {
+            printf "%s%s", sep, $1 + 0
+            sep = ","
+        }' "$file" 2>/dev/null)
+    if [ -z "$rows" ]; then
+        printf '[]'
+        return 0
+    fi
+    out=$(printf '[%s]' "$rows" | jq -c --argjson n "$limit" 'sort | reverse | .[0:$n]' 2>/dev/null)
+    if [ -z "$out" ]; then
+        printf '[]'
+        return 0
+    fi
+    printf '%s' "$out"
 }
 
 WD_LEDGER_LOADED=1
