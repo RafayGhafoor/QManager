@@ -14,6 +14,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
+import { useNeighbourLive } from "@/hooks/use-neighbour-live";
 import { useNeighbourScanner } from "@/hooks/use-neighbour-scanner";
 import { downloadCSV } from "@/lib/download-csv";
 import { staggerItem } from "@/lib/motion";
@@ -91,6 +92,7 @@ function formatDbm(value: number | null): string | null {
 export function NeighbourScanner() {
   const { t } = useTranslation("cellular");
   const { status, results, error, startScan } = useNeighbourScanner();
+  const live = useNeighbourLive();
   const [lockTarget, setLockTarget] = React.useState<LockCellTarget | null>(
     null,
   );
@@ -98,6 +100,10 @@ export function NeighbourScanner() {
   const posture = runPosture(status);
   const isScanning = posture === "scanning";
   const hasResults = posture === "complete" && results.length > 0;
+  // Live mode supersedes the one-shot result while it is running: the reader
+  // rewrites the same array once a second, and `shownResults` is what the table
+  // renders either way.
+  const shownResults = live.enabled ? live.cells : results;
 
   const handleLockCell = React.useCallback((cell: NeighbourCellResult) => {
     // Always the LTE payload: a neighbour report carries no band or SCS for NR.
@@ -189,6 +195,39 @@ export function NeighbourScanner() {
           actions={
             // None on failed: the results card carries the retry.
             posture === "failed" ? null : (
+              <div className="flex flex-wrap items-center gap-2">
+              {/* Live sits here, next to Scan, because it must be reachable
+                  BEFORE the first scan: a live view is the point of the page for
+                  someone watching neighbours move, not a follow-up to a one-shot
+                  read. It used to live in the results toolbar, which only renders
+                  once results exist - a fresh page showed no way to start it. */}
+              <Button
+                type="button"
+                variant="tonal-neutral"
+                onClick={live.toggle}
+                aria-pressed={live.enabled}
+                aria-label={t("cell_scanner.neighbour.live.aria")}
+                size="action"
+                className="gap-1.5"
+              >
+                <MaterialSymbol
+                  name={live.enabled ? "refresh" : "radar"}
+                  size={18}
+                  className={live.enabled ? "motion-safe:animate-spin" : undefined}
+                />
+                {live.enabled
+                  ? t("cell_scanner.neighbour.live.stop")
+                  : t("cell_scanner.neighbour.live.start")}
+                {live.enabled ? (
+                  <span className="tabular-nums opacity-70">
+                    {live.stale || live.ageMs === null
+                      ? t("cell_scanner.neighbour.live.stale")
+                      : t("cell_scanner.neighbour.live.age", {
+                          seconds: Math.round(live.ageMs / 100) / 10,
+                        })}
+                  </span>
+                ) : null}
+              </Button>
               <Button
                 type="button"
                 onClick={startScan}
@@ -210,6 +249,7 @@ export function NeighbourScanner() {
                     ? t("cell_scanner.neighbour.run.rerun")
                     : t("cell_scanner.neighbour.run.start")}
               </Button>
+              </div>
             )
           }
         />
@@ -239,9 +279,9 @@ export function NeighbourScanner() {
                 retryLabel={t("cell_scanner.neighbour.results.error_retry")}
                 onRetry={startScan}
               />
-            ) : results.length > 0 ? (
+            ) : shownResults.length > 0 ? (
               <NeighbourScanResultView
-                data={results}
+                data={shownResults}
                 onLockCell={handleLockCell}
                 toolbarActions={
                   <Button
