@@ -289,31 +289,24 @@ probe_cycle() {
 # last_rtt_ms, reachable,
 # streak_success, streak_fail, during_recovery, last_family. Stats (avg/min/max/
 # jitter/loss) and the history array are computed by the poller, not here.
-write_cache() {
-    local rtt="$1"      # "34.2" or "null"
-
-    local timestamp
-    timestamp=$(date +%s)
-    local mono
-    mono=$(mono_now)
-
-    local during_recovery="false"
-    [ -f "$RECOVERY_FLAG" ] && during_recovery="true"
-
+# _wc_jq TIMESTAMP MONO RTT DURING_RECOVERY — the original composer, kept as the
+# fallback for any value the fork-free emitter cannot prove JSON-safe (a target
+# containing a quote or backslash, say). It produces byte-identical JSON.
+_wc_jq() {
     jq -n \
-        --argjson timestamp "$timestamp" \
-        --argjson mono "$mono" \
+        --argjson timestamp "$1" \
+        --argjson mono "$2" \
         --arg profile "$PING_PROFILE" \
         --arg target4 "$PING_TARGET_IPV4" \
         --arg target6 "$PING_TARGET_IPV6" \
         --argjson interval "$PING_INTERVAL" \
         --argjson fail_secs "$PING_FAIL_SECS" \
         --argjson recover_secs "$PING_RECOVER_SECS" \
-        --argjson last_rtt "$rtt" \
+        --argjson last_rtt "$3" \
         --argjson reachable "$reachable" \
         --argjson streak_s "$streak_success" \
         --argjson streak_f "$streak_fail" \
-        --argjson during_rec "$during_recovery" \
+        --argjson during_rec "$4" \
         --arg last_family "$last_family" \
         '{
             timestamp: $timestamp,
@@ -330,6 +323,66 @@ write_cache() {
             during_recovery: $during_rec,
             last_family: $last_family
         }' > "$CACHE_TMP"
+}
+
+# write_cache RTT — publish /tmp/qmanager_ping.json.
+#
+# This runs once per PING_INTERVAL for the life of the device (5 s under the
+# `relaxed` profile: 12 times a minute, forever). It used to launch `jq -n` every
+# time; on the X75 that measured ~9% of one core for this daemon in the idle tier,
+# with the jq launches the bulk of it (in-situ cost 0.15-0.20 s per call). Same
+# files, same JSON, one printf.
+#
+# The four string fields are what need escaping, so they are whitelisted rather
+# than escaped (ash has no ${var//} to do it fork-free). Anything outside the
+# whitelist falls back to _wc_jq, which is always correct.
+write_cache() {
+    local rtt="$1"      # "34.2" or "null"
+
+    local timestamp
+    timestamp=$(date +%s)
+    local mono
+    mono=$(mono_now)
+
+    local during_recovery="false"
+    [ -f "$RECOVERY_FLAG" ] && during_recovery="true"
+
+    # Numeric/boolean fields are printed raw, so they must be exactly that.
+    case "$timestamp" in ''|*[!0-9]*) timestamp=0 ;; esac
+    case "$mono" in ''|*[!0-9]*) mono=0 ;; esac
+    case "$PING_INTERVAL" in ''|*[!0-9]*) PING_INTERVAL=0 ;; esac
+    case "$PING_FAIL_SECS" in ''|*[!0-9]*) PING_FAIL_SECS=0 ;; esac
+    case "$PING_RECOVER_SECS" in ''|*[!0-9]*) PING_RECOVER_SECS=0 ;; esac
+    case "$streak_success" in ''|*[!0-9]*) streak_success=0 ;; esac
+    case "$streak_fail" in ''|*[!0-9]*) streak_fail=0 ;; esac
+    case "$reachable" in true|false) ;; *) reachable=false ;; esac
+    case "$during_recovery" in true|false) ;; *) during_recovery=false ;; esac
+    # rtt is a datapath value ("34.2" or the literal "null"), so anything else
+    # is routed to the jq composer rather than coerced - that keeps the failure
+    # mode identical to the old code instead of inventing a "null" reading.
+    case "$rtt" in
+        null) ;;
+        ''|*[!0-9.]*) _wc_bad=1 ;;    # empty or garbage -> the jq composer
+    esac
+
+    _wc_use_jq=""
+    [ "${_wc_bad:-}" = "1" ] && _wc_use_jq=1
+    case "$PING_PROFILE$PING_TARGET_IPV4$PING_TARGET_IPV6$last_family" in
+        *[!A-Za-z0-9.:_/-]*) _wc_use_jq=1 ;;
+    esac
+    if [ -n "$_wc_use_jq" ]; then
+        _wc_jq "$timestamp" "$mono" "$rtt" "$during_recovery"
+        _wc_rc=$?
+        mv "$CACHE_TMP" "$CACHE_FILE" && [ "$_wc_rc" -eq 0 ] \
+            && write_ping_env "$timestamp" "$mono" "$rtt" "$during_recovery"
+        return 0
+    fi
+
+    printf '{"timestamp":%s,"mono":%s,"profile":"%s","targets":["%s","%s"],"interval_sec":%s,"fail_secs":%s,"recover_secs":%s,"last_rtt_ms":%s,"reachable":%s,"streak_success":%s,"streak_fail":%s,"during_recovery":%s,"last_family":"%s"}' \
+        "$timestamp" "$mono" "$PING_PROFILE" "$PING_TARGET_IPV4" "$PING_TARGET_IPV6" \
+        "$PING_INTERVAL" "$PING_FAIL_SECS" "$PING_RECOVER_SECS" "$rtt" \
+        "$reachable" "$streak_success" "$streak_fail" "$during_recovery" "$last_family" \
+        > "$CACHE_TMP"
     local _wc_rc=$?
 
     mv "$CACHE_TMP" "$CACHE_FILE" && [ "$_wc_rc" -eq 0 ] \
@@ -337,25 +390,6 @@ write_cache() {
     return 0
 }
 
-# --- Sidecar helpers ---------------------------------------------------------
-# _sc_sq <value>: _SCQ = value single-quoted for sh ('  ->  '\''). Empty -> '-'
-# (the poller's "no value" token, same as conn_state_read's jq mapping).
-_sc_sq() {
-    _scq_in="${1:--}"
-    _SCQ=""
-    while :; do
-        case "$_scq_in" in
-            *\'*)
-                _SCQ="${_SCQ}${_scq_in%%\'*}'\\''"
-                _scq_in="${_scq_in#*\'}"
-                ;;
-            *)
-                _SCQ="'${_SCQ}${_scq_in}'"
-                break
-                ;;
-        esac
-    done
-}
 
 # _sc_dir_ok: SC_DIR exists as a root-owned dir (re-created if /var/run was cleared).
 _sc_dir_ok() {

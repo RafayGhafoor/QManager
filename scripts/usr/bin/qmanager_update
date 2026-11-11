@@ -47,8 +47,8 @@ INSTALL_LOG="/tmp/qmanager_install.log"
 [ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
 
 # URL prefix used for SSRF protection on all downloads
-GITHUB_REPO_PREFIX="https://github.com/dr-dolomite/QManager/releases/download/"
-GITHUB_RAW_PREFIX="https://github.com/dr-dolomite/QManager/raw/"
+GITHUB_REPO_PREFIX="https://github.com/RafayGhafoor/QManager/releases/download/"
+GITHUB_RAW_PREFIX="https://github.com/RafayGhafoor/QManager/raw/"
 
 # Curl defaults
 CURL_TIMEOUT=300
@@ -116,9 +116,15 @@ die() {
     exit 1
 }
 
+# NOTE: `tr -d '[:space:]'` is NOT portable here - this device's BusyBox tr does
+# not expand the POSIX class, so it deletes the literal characters
+# [ : s p a c e ] instead. Measured: 'v0.1.33-suncomm1' came back as
+# 'v0.1.33-unomm1', which then made semver_compare() rank the installed
+# version ABOVE the newer release (pre-release comparison is lexical, and
+# 'u' > 's'), so the UI stopped offering updates. Spell the characters out.
 get_current_version() {
     if [ -f "$VERSION_FILE" ]; then
-        tr -d '[:space:]' < "$VERSION_FILE"
+        tr -d ' \t\r\n' < "$VERSION_FILE"
     else
         echo "0.0.0"
     fi
@@ -302,7 +308,7 @@ post_install_check() {
     # presence indicates all install steps succeeded.
     if [ -f "$VERSION_FILE" ]; then
         local stamped
-        stamped=$(tr -d '[:space:]' < "$VERSION_FILE")
+        stamped=$(tr -d ' \t\r\n' < "$VERSION_FILE")
         if [ "$stamped" = "$version" ]; then
             log_info "VERSION file correctly stamped: $stamped"
             return 0

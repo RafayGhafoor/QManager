@@ -25,7 +25,7 @@ qlog_init "auto_update"
 
 # --- Configuration -----------------------------------------------------------
 
-REPO="dr-dolomite/QManager"
+REPO="RafayGhafoor/QManager"
 VERSION_FILE="/etc/qmanager/VERSION"
 PID_FILE="/tmp/qmanager_update.pid"
 UPDATER="/usr/bin/qmanager_update"
@@ -70,7 +70,7 @@ fi
 
 # --- Read current state ------------------------------------------------------
 
-current_version=$(tr -d '[:space:]' < "$VERSION_FILE" 2>/dev/null)
+current_version=$(tr -d ' \t\r\n' < "$VERSION_FILE" 2>/dev/null)
 [ -z "$current_version" ] && current_version="0.0.0"
 
 include_prerelease=$(uci -q get quecmanager.update.include_prerelease 2>/dev/null)

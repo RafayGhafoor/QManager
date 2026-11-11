@@ -50,42 +50,9 @@ strip_leading_zero() {
 # =============================================================================
 # GET — Fetch all system settings
 # =============================================================================
-if [ "$REQUEST_METHOD" = "GET" ]; then
-    qlog_info "Fetching system settings"
-    ensure_settings_config
-
-    # --- Unit preferences ---
-    temp_unit=$(uci_get temp_unit "celsius")
-    distance_unit=$(uci_get distance_unit "km")
-
-    # --- Hostname (display name) ---
-    hostname=$(uci -q get system.@system[0].hostname 2>/dev/null)
-    [ -z "$hostname" ] && hostname="OpenWrt"
-
-    # --- Timezone ---
-    timezone=$(uci -q get system.@system[0].timezone 2>/dev/null)
-    [ -z "$timezone" ] && timezone="UTC0"
-    zonename=$(uci -q get system.@system[0].zonename 2>/dev/null)
-    [ -z "$zonename" ] && zonename="UTC"
-
-    # --- Scheduled reboot ---
-    sched_enabled=$(uci_get sched_reboot_enabled "0")
-    sched_time=$(uci_get sched_reboot_time "04:00")
-    sched_days_raw=$(uci_get sched_reboot_days "0,1,2,3,4,5,6")
-    sched_days_json=$(printf '%s' "$sched_days_raw" | jq -Rc 'split(",") | map(tonumber)' 2>/dev/null)
-    [ -z "$sched_days_json" ] && sched_days_json="[0,1,2,3,4,5,6]"
-
-    # --- Device clock ---
-    # One `date` call so the epoch and the wall time come from the same second.
-    # The wall time is the modem's own (its TZ), shown as-is: on a box whose
-    # clock has not been set yet it reads 1970, and the UI says so.
-    clock_now=$(date '+%s %Y-%m-%dT%H:%M:%S' 2>/dev/null)
-    clock_epoch=${clock_now%% *}
-    clock_local=${clock_now#* }
-    case "$clock_epoch" in
-        ''|*[!0-9]*) clock_epoch=0; clock_local="" ;;
-    esac
-
+# _settings_get_jq - the original GET composer, kept as the fallback for any
+# value the printf writer cannot prove JSON-safe.
+_settings_get_jq() {
     jq -n \
         --arg hostname "$hostname" \
         --arg temp_unit "$temp_unit" \
@@ -116,6 +83,61 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
                 local: $clock_local
             }
         }'
+}
+
+if [ "$REQUEST_METHOD" = "GET" ]; then
+    qlog_info "Fetching system settings"
+    ensure_settings_config
+
+    # --- Unit preferences ---
+    temp_unit=$(uci_get temp_unit "celsius")
+    distance_unit=$(uci_get distance_unit "km")
+
+    # --- Hostname (display name) ---
+    hostname=$(uci -q get system.@system[0].hostname 2>/dev/null)
+    [ -z "$hostname" ] && hostname="OpenWrt"
+
+    # --- Timezone ---
+    timezone=$(uci -q get system.@system[0].timezone 2>/dev/null)
+    [ -z "$timezone" ] && timezone="UTC0"
+    zonename=$(uci -q get system.@system[0].zonename 2>/dev/null)
+    [ -z "$zonename" ] && zonename="UTC"
+
+    # --- Scheduled reboot ---
+    sched_enabled=$(uci_get sched_reboot_enabled "0")
+    sched_time=$(uci_get sched_reboot_time "04:00")
+    sched_days_raw=$(uci_get sched_reboot_days "0,1,2,3,4,5,6")
+    # The days field is a plain CSV of small integers ("0,1,2,..."). Compose the
+    # array directly; the jq form is kept for anything unexpected (change 26).
+    case "$sched_days_raw" in
+        '') sched_days_json='[]' ;;
+        *[!0-9,]*) sched_days_json=$(printf '%s' "$sched_days_raw" | jq -Rc 'split(",") | map(tonumber)' 2>/dev/null) ;;
+        *) sched_days_json="[$sched_days_raw]" ;;
+    esac
+    [ -z "$sched_days_json" ] && sched_days_json="[0,1,2,3,4,5,6]"
+
+    # --- Device clock ---
+    # One `date` call so the epoch and the wall time come from the same second.
+    # The wall time is the modem's own (its TZ), shown as-is: on a box whose
+    # clock has not been set yet it reads 1970, and the UI says so.
+    clock_now=$(date '+%s %Y-%m-%dT%H:%M:%S' 2>/dev/null)
+    clock_epoch=${clock_now%% *}
+    clock_local=${clock_now#* }
+    case "$clock_epoch" in
+        ''|*[!0-9]*) clock_epoch=0; clock_local="" ;;
+    esac
+
+    # Composed with printf: this is the settings page's GET body, and `jq -n`
+    # here cost ~500 ms per page load on this board (change 26). The strings are
+    # display values; anything JSON cannot carry unescaped falls back to
+    # _settings_get_jq(), which is the original composer verbatim.
+    case "$hostname$temp_unit$distance_unit$timezone$zonename$clock_local" in
+        *[\"\\]*) _settings_get_jq ; exit 0 ;;
+    esac
+    case "$sched_enabled" in 1) _sr_on=true ;; *) _sr_on=false ;; esac
+    printf '{"success":true,"settings":{"hostname":"%s","temp_unit":"%s","distance_unit":"%s","timezone":"%s","zonename":"%s"},"scheduled_reboot":{"enabled":%s,"time":"%s","days":%s},"device_clock":{"epoch":%s,"local":"%s"}}\n' \
+        "$hostname" "$temp_unit" "$distance_unit" "$timezone" "$zonename" \
+        "$_sr_on" "$sched_time" "$sched_days_json" "$clock_epoch" "$clock_local"
     exit 0
 fi
 

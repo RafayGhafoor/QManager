@@ -64,7 +64,7 @@ qm_kernel_wan_facts() {
 qm_parse_data_cid() {
     _qd_out=$(printf '%s\n' "$1" | awk -v route="$2" -v loc4="$3" -v loc6="$4" '
         # 16 dotted octets or colon-hex -> 8 normalised hex groups, or "".
-        function full6(s,   n, o, i, k, g, h, t, hh, tt, nh, nt, miss, p, out, v) {
+        function full6(s,   n, o, i, k, g, h, t, hh, tt, nh, nt, miss, p, out, v, sep) {
             s = tolower(s)
             if (s !~ /:/) {
                 n = split(s, o, ".")
@@ -73,7 +73,11 @@ qm_parse_data_cid() {
                 for (i = 1; i <= 16; i += 2) {
                     if (o[i] !~ /^[0-9]+$/ || o[i + 1] !~ /^[0-9]+$/) return ""
                     v = sprintf("%x", o[i] * 256 + o[i + 1])
-                    out = out (i > 1 ? ":" : "") v
+                    # BusyBox awk reads `out (` as a call to a function named
+                    # `out` ("Call to undefined function"), where gawk/onetrue
+                    # accept it as concatenation. Keep a temp instead.
+                    sep = (i > 1) ? ":" : ""
+                    out = out sep v
                 }
                 return out
             }
@@ -97,7 +101,8 @@ qm_parse_data_cid() {
             for (i = 1; i <= 8; i++) {
                 v = g[i]; sub(/^0+/, "", v); if (v == "") v = "0"
                 if (length(v) > 4) return ""
-                out = out (i > 1 ? ":" : "") v
+                sep = (i > 1) ? ":" : ""
+        out = out sep v
             }
             return out
         }

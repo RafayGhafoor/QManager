@@ -6,14 +6,20 @@ _SKIP_AUTH=1
 qlog_init "cgi_auth_check"
 cgi_headers
 
+# Responses are printed, not composed with `jq -n`: this endpoint is on the
+# critical path of every pre-auth page load, and here `jq` only ever turned
+# three known scalars into JSON. Everything below is a literal or a number that
+# has already been range-checked, so nothing needs escaping - the ONE thing a
+# composer would buy us. (Measured on the target box: one `jq` startup is
+# 0.15-0.20 s of user CPU in situ.)
 if is_setup_required; then
-    jq -n '{"authenticated":false,"setup_required":true}'
+    printf '{"authenticated":false,"setup_required":true}\n'
     exit 0
 fi
 
 _token=$(qm_get_cookie "$COOKIE_SESSION")
 if [ -n "$_token" ] && qm_validate_session "$_token"; then
-    jq -n '{"authenticated":true}'
+    printf '{"authenticated":true}\n'
     exit 0
 fi
 
@@ -27,7 +33,16 @@ else
     _rate_limited="true"
 fi
 
-jq -n --argjson limited "$_rate_limited" \
-    --argjson retry "${RATE_LIMIT_RETRY_AFTER:-0}" \
-    --argjson remaining "${RATE_LIMIT_ATTEMPTS_REMAINING:-0}" \
-    '{"authenticated":false,"rate_limited":$limited,"retry_after":$retry,"attempts_remaining":$remaining}'
+# The two counters go straight into JSON, so they must be plain integers: an
+# empty or non-numeric value from the rate-limit helpers would emit invalid
+# JSON, which no `--argjson` would have allowed. Guard, then print.
+case "$RATE_LIMIT_RETRY_AFTER" in
+    ''|*[!0-9]*) _retry=0 ;;
+    *) _retry=$RATE_LIMIT_RETRY_AFTER ;;
+esac
+case "$RATE_LIMIT_ATTEMPTS_REMAINING" in
+    ''|*[!0-9]*) _remaining=0 ;;
+    *) _remaining=$RATE_LIMIT_ATTEMPTS_REMAINING ;;
+esac
+printf '{"authenticated":false,"rate_limited":%s,"retry_after":%s,"attempts_remaining":%s}\n' \
+    "$_rate_limited" "$_retry" "$_remaining"

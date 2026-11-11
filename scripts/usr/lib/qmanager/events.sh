@@ -407,50 +407,50 @@ _ev_scc_sig() {
 # Compares current t2_carrier_components against saved state in PCI_STATE_FILE.
 # Only called when t2_carrier_components string has changed (Tier 2 refresh).
 detect_scc_pci_changes() {
-    local prev_sccs curr_sccs
+    # ONE `jq` turns the carrier components into TSV; everything after that is
+    # shell. The previous version paid 5 `jq` plus one per SCC on every Tier-2
+    # cycle, and on this box one `jq` startup is 0.15-0.20 s of user CPU in situ.
+    # The state file holds the same TSV, so the comparison needs no parser.
+    #
+    # TSV columns: tech <TAB> band <TAB> pci   (SCC entries only; an absent PCI
+    # is an empty field, which is why the compare skips empty values.)
+    local curr_lines
+    curr_lines=$(printf '%s' "$t2_carrier_components" | \
+        jq -r '.[] | select(.type == "SCC") | [.technology, .band, .pci] | @tsv' 2>/dev/null)
 
-    # Build current SCC list: tech+band+pci for SCC entries only
-    curr_sccs=$(printf '%s' "$t2_carrier_components" | \
-        jq -c '[.[] | select(.type == "SCC") | {tech: .technology, band: .band, pci: .pci}]' 2>/dev/null)
-    [ -z "$curr_sccs" ] && curr_sccs="[]"
-
-    # Read previous state from file
-    if [ -f "$PCI_STATE_FILE" ]; then
-        prev_sccs=$(cat "$PCI_STATE_FILE" 2>/dev/null)
-        [ -z "$prev_sccs" ] && prev_sccs="[]"
-    else
-        # First run — save current state, no events
-        printf '%s\n' "$curr_sccs" > "$PCI_STATE_FILE"
+    # No state yet, or a state file written by a pre-TSV release: seed it and
+    # emit nothing. Adopting a legacy JSON file as if it were TSV would report a
+    # handoff for every carrier on the first cycle after an update.
+    if [ ! -f "$PCI_STATE_FILE" ]; then
+        printf '%s\n' "$curr_lines" > "$PCI_STATE_FILE"
         return
     fi
+    local prev_first=""
+    IFS= read -r prev_first < "$PCI_STATE_FILE" 2>/dev/null
+    case "$prev_first" in
+        \[*) printf '%s\n' "$curr_lines" > "$PCI_STATE_FILE" ; return ;;
+    esac
 
-    # Compare each current SCC against previous (matched by tech+band)
-    local i=0
-    local curr_count
-    curr_count=$(printf '%s' "$curr_sccs" | jq 'length')
-
-    while [ "$i" -lt "$curr_count" ]; do
-        local c_tech c_band c_pci p_pci
-        c_tech=$(printf '%s' "$curr_sccs" | jq -r ".[$i].tech")
-        c_band=$(printf '%s' "$curr_sccs" | jq -r ".[$i].band")
-        c_pci=$(printf '%s' "$curr_sccs" | jq -r ".[$i].pci")
-
-        # Find matching entry in previous state
-        p_pci=$(printf '%s' "$prev_sccs" | \
-            jq -r --arg t "$c_tech" --arg b "$c_band" \
-            '[.[] | select(.tech == $t and .band == $b)] | .[0].pci | if . == null then empty else tostring end')
-
-        # If previous PCI exists and differs, emit event
-        if [ -n "$p_pci" ] && [ "$p_pci" != "null" ] && [ "$p_pci" != "$c_pci" ]; then
+    # Compare each current SCC against the previous entry with the same
+    # tech+band. The pipe puts the loop in a subshell, which is harmless here:
+    # it only appends events and never writes back to this shell.
+    local c_tech c_band c_pci p_tech p_band p_pci
+    printf '%s\n' "$curr_lines" | while IFS='	' read -r c_tech c_band c_pci; do
+        [ -n "$c_tech" ] || continue
+        p_pci=""
+        while IFS='	' read -r p_tech p_band p_pci_prev; do
+            if [ "$p_tech" = "$c_tech" ] && [ "$p_band" = "$c_band" ]; then
+                p_pci=$p_pci_prev
+                break
+            fi
+        done < "$PCI_STATE_FILE"
+        if [ -n "$p_pci" ] && [ -n "$c_pci" ] && [ "$p_pci" != "$c_pci" ]; then
             append_event "scc_pci_change" \
                 "$c_tech $c_band SCC cell handoff (PCI: $p_pci -> $c_pci)" "info"
         fi
-
-        i=$((i + 1))
     done
 
-    # Save current state for next comparison
-    printf '%s\n' "$curr_sccs" > "$PCI_STATE_FILE"
+    printf '%s\n' "$curr_lines" > "$PCI_STATE_FILE"
 }
 
 # ---------------------------------------------------------------------------
