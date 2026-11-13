@@ -2507,5 +2507,100 @@
         "all_day": "全天生效"
       }
     }
+  },
+  "history": {
+    "page": {
+      "title": "小区历史",
+      "description": "曾服务的小区、频段，以及 5G 不在的时间。"
+    },
+    "range_aria": "历史时间范围",
+    "refresh": "刷新",
+    "refreshing": "正在刷新",
+    "range": {
+      "h1": "1 小时",
+      "h3": "3 小时",
+      "h6": "6 小时",
+      "h12": "12 小时",
+      "h24": "24 小时"
+    },
+    "window": {
+      "samples_one": "{{count}} 条记录",
+      "samples_other": "{{count}} 条记录",
+      "span": "{{first}} – {{last}}",
+      "short": "记录少于 {{range}}：安装此版本后设备开机才开始记录。",
+      "identity_from": "小区标识自 {{time}} 起记录。"
+    },
+    "stale": {
+      "title": "这些数据未在更新",
+      "description": "上一次读取失败。当前显示的是设备能提供的最新记录。"
+    },
+    "error": {
+      "title": "无法读取历史",
+      "description": "记录无法打开。没有数据丢失——页面关闭时设备仍在记录。"
+    },
+    "clock": {
+      "title": "时钟尚未设置",
+      "description": "历史按设备时钟保存，连接建立并校准时间后才能读取。"
+    },
+    "empty": {
+      "title": "暂无历史",
+      "description": "设备运行此版本后每分钟记录一次。稍等片刻，最近一天的数据就会出现在这里。"
+    },
+    "verdict": {
+      "up": "有 5G",
+      "partial": "5G 时断时续",
+      "down": "无 5G",
+      "unknown": "未确定"
+    },
+    "availability": {
+      "title": "5G 可用性",
+      "description": "调制解调器报告 5G 小区的记录占比。",
+      "headline": "{{pct}} 的记录有 5G",
+      "headline_unknown": "没有记录能确定 5G 状态",
+      "awaiting": "此范围内没有任何记录能确定 5G 是否存在，因此没有可显示的占比——这与 5G 中断不同。",
+      "coverage": "{{samples}} 条记录中有 {{known}} 条可判定",
+      "downtime": "{{duration}} 无 5G",
+      "no_outage": "此范围内没有中断",
+      "bucket": "{{time}} — {{known}} 条记录中有 {{up}} 条有 5G",
+      "bucket_unknown": "{{time}} — 未确定",
+      "strip_aria": "所选范围内的 5G 可用性",
+      "tier": {
+        "up": "整个时段都有 5G",
+        "partial": "时段内部分有 5G",
+        "down": "时段内无 5G",
+        "unknown": "未确定"
+      }
+    },
+    "timeline": {
+      "title": "服务小区",
+      "description": "每个小区服务了多久，以及期间的 5G 情况。",
+      "strip_aria": "所选范围内的服务小区",
+      "run_tip": "小区 {{cell}} · {{band}} · 5G {{nr}} · {{from}} – {{to}} · 有 5G 占 {{pct}}",
+      "no_cell": "无小区",
+      "unknown": "未确定",
+      "col_cell": "小区",
+      "col_readings": "记录数",
+      "col_5g": "5G",
+      "col_rsrp": "RSRP",
+      "legend_up": "在该小区期间始终有 5G",
+      "legend_partial": "部分时间有 5G",
+      "legend_down": "该小区无 5G",
+      "legend_unknown": "5G 未确定"
+    },
+    "events": {
+      "title": "小区变化",
+      "description": "服务小区、频段或 5G 链路每次发生变化。",
+      "none": "此范围内服务小区没有变化。",
+      "more_one": "另有 {{count}} 条更早的变化未显示",
+      "more_other": "另有 {{count}} 条更早的变化未显示",
+      "field": {
+        "nr_avail": "5G",
+        "rat": "制式",
+        "lte_pci": "LTE 小区",
+        "lte_band": "LTE 频段",
+        "nr_pci": "5G 小区",
+        "nr_band": "5G 频段"
+      }
+    }
   }
 }

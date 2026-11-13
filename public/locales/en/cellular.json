@@ -2507,5 +2507,100 @@
         "all_day": "in force all day"
       }
     }
+  },
+  "history": {
+    "page": {
+      "title": "Cell History",
+      "description": "Which cell served, on which band, and when 5G was not there."
+    },
+    "range_aria": "History range",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing",
+    "range": {
+      "h1": "1 h",
+      "h3": "3 h",
+      "h6": "6 h",
+      "h12": "12 h",
+      "h24": "24 h"
+    },
+    "window": {
+      "samples_one": "{{count}} reading",
+      "samples_other": "{{count}} readings",
+      "span": "{{first}} – {{last}}",
+      "short": "Fewer readings than {{range}}: recording starts when the device boots with this build.",
+      "identity_from": "Cell identity was recorded from {{time}}."
+    },
+    "stale": {
+      "title": "These readings are not updating",
+      "description": "The last read failed. What is shown is the newest record the device could serve."
+    },
+    "error": {
+      "title": "Could not read the history",
+      "description": "The record could not be opened. Nothing was lost — the device keeps recording while the page is closed."
+    },
+    "clock": {
+      "title": "The clock is not set yet",
+      "description": "History is stored against the device clock, so nothing can be read until it is set after the connection comes up."
+    },
+    "empty": {
+      "title": "No history yet",
+      "description": "One reading a minute is kept from the moment this build runs on the device. Leave it a while and the last day appears here."
+    },
+    "verdict": {
+      "up": "5G present",
+      "partial": "5G intermittent",
+      "down": "5G absent",
+      "unknown": "Not determined"
+    },
+    "availability": {
+      "title": "5G availability",
+      "description": "Share of the readings where the modem reported a 5G cell.",
+      "headline": "{{pct}} of readings had 5G",
+      "headline_unknown": "No reading determined 5G",
+      "awaiting": "Nothing in this range settled whether 5G was up, so there is no share to show — that is not the same as 5G being down.",
+      "coverage": "{{known}} of {{samples}} readings determined",
+      "downtime": "{{duration}} without 5G",
+      "no_outage": "No outage in this range",
+      "bucket": "{{time}} — 5G in {{up}} of {{known}} readings",
+      "bucket_unknown": "{{time}} — nothing determined",
+      "strip_aria": "5G availability over the selected range",
+      "tier": {
+        "up": "5G the whole bucket",
+        "partial": "5G part of the bucket",
+        "down": "No 5G in the bucket",
+        "unknown": "Nothing determined"
+      }
+    },
+    "timeline": {
+      "title": "Serving cell",
+      "description": "How long each cell served, and what 5G did while it did.",
+      "strip_aria": "Serving cell over the selected range",
+      "run_tip": "Cell {{cell}} · {{band}} · 5G {{nr}} · {{from}} – {{to}} · {{pct}} with 5G",
+      "no_cell": "No cell",
+      "unknown": "not determined",
+      "col_cell": "Cell",
+      "col_readings": "Readings",
+      "col_5g": "5G",
+      "col_rsrp": "RSRP",
+      "legend_up": "5G the whole time on that cell",
+      "legend_partial": "5G part of the time",
+      "legend_down": "No 5G on that cell",
+      "legend_unknown": "5G not determined"
+    },
+    "events": {
+      "title": "Cell changes",
+      "description": "Every time the serving cell, its band or the 5G leg changed.",
+      "none": "The serving cell did not change in this range.",
+      "more_one": "{{count}} earlier change not listed",
+      "more_other": "{{count}} earlier changes not listed",
+      "field": {
+        "nr_avail": "5G",
+        "rat": "Radio",
+        "lte_pci": "LTE cell",
+        "lte_band": "LTE band",
+        "nr_pci": "5G cell",
+        "nr_band": "5G band"
+      }
+    }
   }
 }

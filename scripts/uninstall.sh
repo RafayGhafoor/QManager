@@ -678,6 +678,11 @@ remove_config() {
         rm -rf /usrdata/qmanager/sites
         info "Removed Sites monitor history"
     fi
+    # Cell history day files (poller-written; the CGI only reads them).
+    if [ -d /usrdata/qmanager/cell_history ]; then
+        rm -rf /usrdata/qmanager/cell_history
+        info "Removed cell history"
+    fi
     # SMS sent log (created lazily by cellular/sms.sh).
     if [ -f /usrdata/qmanager/sms_sent.json ]; then
         rm -f /usrdata/qmanager/sms_sent.json
