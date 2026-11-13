@@ -38,6 +38,11 @@
 #   /usr/lib/qmanager/data_used.sh    — Persistent Data Used counter (30 s sample)
 #   /usr/lib/qmanager/qmi_merge.sh    — QMI LTE signal gap-fill overlay (optional)
 #
+# Durable history (survives a reboot):
+#   /usrdata/qmanager/cell_history/YYYY-MM-DD.jsonl - serving cell, band and NR
+#       availability, one row a minute, 30-day retention (CELL_HISTORY_*).
+#       Read by at_cmd/fetch_signal_history.sh?view=cells for /cellular/history.
+#
 # Install location: /usr/bin/qmanager_poller
 # =============================================================================
 
@@ -131,6 +136,28 @@ lte_source="at"
 _QMI_READ_MONO=0
 _QMI_STATE=""
 _QMI_SSR=0
+
+# Cell history (durable day files for /cellular/history)
+# One row a minute: which cell served, on which band, and whether the NR leg was
+# up. Written here because these values are already in memory at the end of an
+# AT cycle — a separate recorder would have to re-read the modem for them.
+#
+# The budget, because /usrdata is the SAME 32 MB overlay as /www (measured: 15.1 MB
+# free) and a QManager install stages a ~12.6 MB copy of the web tree beside the
+# live one:
+#   ~253 B per row    (measured: mean of rows this composer produced)
+#   x 1440 rows/day   = ~356 KB/day at one row a minute (derived: rows x 1440)
+#   2048 KB cap       = ~5-6 days on disk, so the cap binds before the 14-day
+#                       retention does and the directory cannot creep
+#   8192 KB floor     = a day file is never started with less free than an
+#                       install needs. This floor protects an INSTALL, not this
+#                       page: a history page missing a week is recoverable, an
+#                       install that cannot stage its tree is not.
+CELL_HISTORY_DIR="/usrdata/qmanager/cell_history"
+CELL_HISTORY_INTERVAL=60      # seconds between rows; the page buckets at 60-900 s
+CELL_HISTORY_KEEP_DAYS=14
+CELL_HISTORY_CAP_KB=2048      # whole directory; see the budget above
+CELL_HISTORY_MIN_FREE_KB=8192 # do not start a day file below this
 
 # Signal history (NDJSON file for chart data)
 SIGNAL_HISTORY_FILE="/tmp/qmanager_signal_history.json"
@@ -1244,6 +1271,173 @@ append_signal_history() {
         mv "$tmp" "$SIGNAL_HISTORY_FILE"
         _sig_hist_n="$SIGNAL_HISTORY_MAX"
     fi
+}
+
+# -----------------------------------------------------------------------------
+# Cell history: one row a minute, append-only NDJSON, one file per UTC day.
+# -----------------------------------------------------------------------------
+# The row is the serving cell as the modem reported it, plus the three LTE
+# serving-signal readings. Three rules make it readable a month later:
+#
+#  * AN ABSENT READING IS `null`, never 0. A 0 dBm RSRP and a 0 PCI are readings
+#    the radio can report, so a missing value written as 0 is indistinguishable
+#    from a measured one. `_jnumv`/`_kSN` do that mapping.
+#  * `nr_avail` IS THREE-VALUED: 1 an NR cell was reported this sample, 0 the
+#    modem answered and reported no NR leg, null nobody determined. "We did not
+#    look" and "5G is gone" are opposite claims and only one is a fault.
+#  * BANDS ARRIVE DISPLAY-READY: `parse_serving_cell` already prefixes them
+#    ("B3", "N78"), so nothing downstream may add a prefix or "B" + band renders
+#    "BB3". An empty band is null, never a bare "B".
+#
+# A row is only written on a cycle whose AT+QENG read answered (_QENG_PARSED), so
+# a dead modem leaves a gap in the archive instead of a flat line of the last
+# values it held. Gaps are truthful; the reader breaks its spans on them.
+_ch_day=""        # UTC day the current file belongs to (YYYY-MM-DD)
+_ch_last_ts=0     # epoch of the last row written
+_ch_pruned_day="" # day the retention/size pass last ran
+_ch_refused_day="" # day whose day file was refused for want of free space
+_ch_warn_day=""   # day the last write failure was logged (one warning per day)
+_ch_dir_ok=0      # directory created in this poller life
+_cell_history_dir() {
+    [ "$_ch_dir_ok" = "1" ] && return 0
+    [ -d "$CELL_HISTORY_DIR" ] || mkdir -p "$CELL_HISTORY_DIR" 2>/dev/null
+    [ -d "$CELL_HISTORY_DIR" ] || return 1
+    chmod 0755 "$CELL_HISTORY_DIR" 2>/dev/null
+    _ch_dir_ok=1
+    return 0
+}
+
+# yyyymmdd from a day file's name, for numeric comparison (ash `[` has no `<`
+# for strings). Mirrors qmanager_sites.
+_ch_daynum() {
+    local y="${1%%-*}"
+    local r="${1#*-}"
+    printf '%s%s%s' "$y" "${r%%-*}" "${r#*-}"
+}
+
+# Whole-file expiry, then the size cap oldest-day-first, so the newest day is
+# always the last thing to go. One pass a day.
+_ch_prune() {
+    local cutoff
+    local cutnum
+    local f
+    local name
+    local num
+    local total
+    local oldest
+    local n
+    cutoff=$(date -u -d "@$(( ${1} - CELL_HISTORY_KEEP_DAYS * 86400 ))" +%Y-%m-%d 2>/dev/null)
+    case "$cutoff" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) return 0 ;; esac
+    cutnum=$(_ch_daynum "$cutoff")
+    for f in "$CELL_HISTORY_DIR"/*.jsonl; do
+        [ -f "$f" ] || continue
+        name="${f##*/}"; name="${name%.jsonl}"
+        case "$name" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) continue ;; esac
+        num=$(_ch_daynum "$name")
+        [ "$num" -lt "$cutnum" ] && rm -f "$f"
+    done
+    # Size cap: keep the newest day file whatever happens, and delete the oldest
+    # one first (the glob is lexical and YYYY-MM-DD sorts chronologically).
+    while :; do
+        total=$(cat "$CELL_HISTORY_DIR"/*.jsonl 2>/dev/null | wc -c)
+        [ "${total:-0}" -le $((CELL_HISTORY_CAP_KB * 1024)) ] && break
+        oldest=""
+        n=0
+        for f in "$CELL_HISTORY_DIR"/*.jsonl; do
+            [ -f "$f" ] || continue
+            n=$((n + 1))
+            [ -n "$oldest" ] || oldest="$f"
+        done
+        [ "$n" -ge 2 ] || break
+        rm -f "$oldest"
+    done
+    return 0
+}
+
+# append_cell_history: one row, at most once per CELL_HISTORY_INTERVAL.
+# Built with the printf composer (_kS/_kN/_kR), so no jq on this path: it runs
+# while a browser may be polling at 2 s and the AT work in the same cycle has
+# already cost the modem serial port.
+append_cell_history() {
+    local ts
+    local day
+    local free_kb
+    local nr_avail
+
+    [ "$_QENG_PARSED" = "1" ] || return 0
+    [ "$modem_reachable" = "true" ] || return 0
+    ts="$_NOW"
+    case "$ts" in ''|*[!0-9]*) return 0 ;; esac
+    [ $((ts - _ch_last_ts)) -ge "$CELL_HISTORY_INTERVAL" ] || return 0
+
+    # The NR leg, three-valued. `nr_state` is what parse_serving_cell decided
+    # from the reply itself: connected (a +QENG: NR5G-NSA/SA line was present),
+    # inactive (LTE-only reply), unknown (no parseable reply).
+    case "$nr_state" in
+        connected) nr_avail=1 ;;
+        inactive)  nr_avail=0 ;;
+        *)         nr_avail=null ;;
+    esac
+    [ "$nr_avail" = "1" ] && [ -z "$nr_band" ] && nr_avail=0
+
+    day=$(date -u -d "@$ts" +%Y-%m-%d 2>/dev/null)
+    case "$day" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) return 0 ;; esac
+
+    _cell_history_dir || return 0
+
+    # ROTATION AND BUDGET ARE DECIDED HERE, once per day file — never per row.
+    # `df` and the prune are both forks, and neither can change overnight by more
+    # than one day's rows. A refused day is remembered, so the floor costs one
+    # `df` a day rather than one a minute.
+    if [ "$day" != "$_ch_day" ]; then
+        [ "$day" = "$_ch_refused_day" ] && return 0
+        free_kb=$(df -k "$CELL_HISTORY_DIR" 2>/dev/null | awk 'NR > 1 { v = $4 } END { print v + 0 }')
+        case "$free_kb" in ''|*[!0-9]*) free_kb=0 ;; esac
+        if [ "$free_kb" -gt 0 ] && [ "$free_kb" -lt "$CELL_HISTORY_MIN_FREE_KB" ]; then
+            _ch_refused_day="$day"
+            log_warn "cell history: ${free_kb}KB free, ${day}.jsonl not started"
+            return 0
+        fi
+        # Retention runs before the new file is opened, so the cap can free the
+        # space this day is about to need. Oldest day file is deleted first.
+        if [ "$_ch_pruned_day" != "$day" ]; then
+            _ch_pruned_day="$day"
+            _ch_prune "$ts"
+        fi
+    fi
+
+    _jc_acc="{"
+    _jc_sep=""
+    _kN ts "$ts" 0
+    _kSN rat "$network_type"
+    _kN lte_pci "$lte_pci" null
+    _kSN lte_band "$lte_band"
+    _kN lte_earfcn "$lte_earfcn" null
+    _kN lte_bw "$lte_bandwidth" null
+    _kN lte_cell_id "$lte_cell_id" null
+    _kN lte_tac "$lte_tac" null
+    _kN nr_pci "$nr_pci" null
+    _kSN nr_band "$nr_band"
+    _kN nr_arfcn "$nr_arfcn" null
+    _kN nr_cell_id "$nr_cell_id" null
+    _kN nr_tac "$nr_tac" null
+    _kR nr_avail "$nr_avail"
+    _kN rsrp "$lte_rsrp" null
+    _kN rsrq "$lte_rsrq" null
+    _kN sinr "$lte_sinr" null
+
+    if printf '%s\n' "${_jc_acc}}" >> "$CELL_HISTORY_DIR/$day.jsonl" 2>/dev/null; then
+        _ch_day="$day"
+        _ch_last_ts="$ts"
+    else
+        # No retry loop: the failure this guards (a full or read-only volume) is
+        # not fixed by trying again a minute later.
+        if [ "$_ch_warn_day" != "$day" ]; then
+            _ch_warn_day="$day"
+            log_warn "cell history: could not append to $day.jsonl"
+        fi
+    fi
+    return 0
 }
 
 # Append current ping/connectivity stats as one NDJSON line to the ping history file.
@@ -3036,6 +3230,10 @@ poll_cycle() {
         read_watchcat_state
     fi
     update_conn_uptime
+    # One row a minute for /cellular/history, from the read above. Gated on a
+    # serving-cell read that answered this cycle (inside append_cell_history), so
+    # the scan / SIM-switch early return never records a stale sample.
+    append_cell_history
     du_tick
     # QMI gap-fill: an overlay around this write only (never the scan /
     # SIM-switch early return above), restored right after, so every AT

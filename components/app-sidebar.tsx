@@ -84,6 +84,13 @@ const navCellular: NavItem[] = [
       },
     ],
   },
+  // Cell History sits after the scanner: both answer "what is the radio doing",
+  // one right now and one over a range.
+  {
+    t_key: "history",
+    url: "/cellular/history",
+    icon: "timeline",
+  },
   {
     t_key: "settings",
     url: "/cellular/settings",

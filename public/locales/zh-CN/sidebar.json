@@ -27,6 +27,7 @@
     "tower_locking": "基站锁定",
     "frequency_locking": "频率锁定",
     "cell_scanner": "小区扫描",
+    "history": "小区历史",
     "neighboring_cells": "邻近小区",
     "frequency_calculator": "频率计算器",
     "settings": "设置",

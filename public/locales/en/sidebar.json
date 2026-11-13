@@ -27,6 +27,7 @@
     "tower_locking": "Tower Locking",
     "frequency_locking": "Frequency Locking",
     "cell_scanner": "Cell Scanner",
+    "history": "Cell History",
     "neighboring_cells": "Neighboring Cells",
     "frequency_calculator": "Frequency Calculator",
     "settings": "Settings",
