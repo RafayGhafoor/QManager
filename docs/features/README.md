@@ -46,7 +46,7 @@ Login rate limiting (the lockout ladder behind `auth/login.sh` and `auth/check.s
 
 | Doc | When to read |
 |---|---|
-| [DPI Settings](dpi-settings.md) | Traffic Engine (unified Video Optimizer + Masquerade at `/local-network/traffic-engine`), nfqws, NFQUEUE 200, persistent nft rules, mode takeover |
+| [DPI Settings](dpi-settings.md) | Traffic Engine (unified Video Optimizer + Masquerade at `/local-network/traffic-engine`), two engines (nfqws / NFQUEUE 200 + persistent nft rules, or tpws / `QMANAGER_DPI_TPWS` NAT chain), engine default by kernel probe, redirect-engine safety invariants, mode takeover |
 | [Custom SIM Profiles](custom-sim-profiles.md) | APN/TTL/IMEI/MPDN apply pipeline, lock layering, Verizon MPDN, ICCID auto-apply, verified QUIMSLOT read-back (`sim_slot_switch_unverified`), SIM-switch poller quiesce flag, `--auto` worker mode + stale-SIM guard + pending re-apply queue, `iccid_canonicalize` compare-time normalization, merged page (hero `active-profile-hero.tsx`, Today ribbon `schedule-ribbon.tsx`, list, scenarios card, wizard `profile-form-dialog.tsx`), no auto-reapply on save (`schedule_rearmed`, pending-network badge), pills require per-row get.sh, flat save body, mismatch derived client-side |
 | [Config Backup & Restore](config-backup-restore.md) | `.qmbackup` format, AES-GCM, async restore worker, deferred-reboot pattern |
 | [Language Packs](language-packs.md) | Hybrid bundled/downloaded i18n, install/remove pipeline, publishing workflow, manifest |

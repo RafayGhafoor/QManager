@@ -328,15 +328,21 @@ Video Optimizer helper functions. Guard-loaded (`_DPI_HELPER_LOADED`).
 
 | Function | Description |
 |----------|-------------|
-| `dpi_check_binary()` | Verify nfqws binary exists |
+| `dpi_check_binary()` / `dpi_check_tpws_binary()` | Verify the packet-queue / redirect engine binary |
+| `dpi_check_engine_binary(engine)` | Above, selected by engine |
 | `dpi_check_kmod()` | Check NFQUEUE support (built-in via `/proc/config.gz` or loadable module) |
-| `dpi_check_libs()` | Verify shared library dependencies |
-| `dpi_insert_rules(iface)` | Add nftables NFQUEUE rules (queue 200) |
-| `dpi_remove_rules()` | Remove nftables NFQUEUE rules by comment (`qmanager_dpi`) |
-| `dpi_get_status()` | Return running/stopped |
-| `dpi_get_uptime()` | Calculate from PID timestamp |
-| `dpi_get_packet_count()` | Read nftables counter |
+| `dpi_default_engine()` | `nfqws` where NFQUEUE exists, `tpws` where it does not |
+| `dpi_vo_engine()` | The Video Optimizer's effective engine (UCI choice, else the default) |
+| `dpi_engine_status(engine)` / `dpi_get_status()` | running/stopped — pidfile for `nfqws`, LISTEN socket for `tpws` (`dpi_get_status` is the `nfqws` form) |
+| `dpi_engine_pidfile(engine)` / `dpi_get_uptime([pidfile])` | PID file for that engine; uptime from its mtime |
+| `dpi_get_packet_count([engine])` | Read the engine's rule counters (nft chain / our NAT rule) |
 | `dpi_get_domain_count()` | Count hostlist entries |
+| `dpi_lan_device()` | LAN bridge the redirect rule is scoped to |
+| `dpi_tpws_listening()` | LISTEN socket on `DPI_TPWS_PORT` (12443) via `/proc/net/tcp` |
+| `dpi_tpws_rules_add()` / `dpi_tpws_rules_remove()` / `dpi_tpws_rules_present()` | The redirect engine's NAT chain `QMANAGER_DPI_TPWS` (add = chain, rule, jump; remove = jump, `-F`, `-X`) |
+| `dpi_tpws_args()` | The redirect engine's command line |
+
+The packet-queue engine's rules are a static `/etc/nftables.d/12-mangle-qmanager-dpi.nft` file (sourced by fw4); there is no runtime rule insertion for it. The redirect engine's rules are runtime iptables state and are owned entirely by `qmanager_dpi_tpws` (below).
 
 ### masq_helper.sh
 
@@ -489,18 +495,16 @@ Minimal script: logs via qlog, drops a `record_planned_reboot "user"` breadcrumb
 **State file:** `/tmp/qmanager_dpi_install.json`
 **PID file:** `/var/run/qmanager/dpi_install.pid` (root-only run dir, B5.11)
 
-Downloads and installs the nfqws binary from the [zapret](https://github.com/bol-van/zapret) GitHub releases. The binary is **not bundled** with QManager and is **not installed via opkg** — it is fetched on demand from upstream to avoid dependency issues on custom firmware (e.g., iamromulan's RM551E-GL build).
+Downloads and installs the engine binaries from the [zapret](https://github.com/bol-van/zapret) GitHub releases. The binaries are **not bundled** with QManager and are **not installed via opkg** — they are fetched on demand from upstream to avoid dependency issues on custom firmware (e.g., iamromulan's RM551E-GL build).
 
 **Flow:**
 
 1. Detect device architecture via `uname -m` (aarch64, armv7l, x86_64, mips, mipsel)
-2. Query GitHub API (`/repos/bol-van/zapret/releases/latest`) for the latest release
-3. Find the `openwrt-embedded.tar.gz` asset (smaller tarball with only binaries); falls back to the full release tarball
-4. Download the tarball to `/tmp/qmanager_dpi_download/`
-5. Extract only the architecture-specific `nfqws` binary (`binaries/<arch>/nfqws`)
-6. Install to `/usr/bin/nfqws` with `chmod 755`
-7. Verify the binary runs (`nfqws --help`)
-8. Write success/error result to `/tmp/qmanager_dpi_install.json`
+2. Download the `openwrt-embedded.tar.gz` asset of the **pinned** release (`ZAPRET_TAG` + `ZAPRET_SHA256`, no `latest`, no GitHub API) into `/var/run/qmanager/dpi_download/`
+3. Verify the sha256 before `tar` reads the archive — mismatch or a missing `sha256sum` fails closed
+4. `install_engine_binary` per binary: extract `binaries/<arch>/<name>`, prove it runs (`--version`), then temp + sync + rename into `/usr/bin/`
+5. `nfqws` is required (rc 1 → error). `tpws` is best-effort: a release without it still completes, and the GET then reports `tpws_installed:false` so the UI offers only the packet-queue engine
+6. Write success/error result to `/tmp/qmanager_dpi_install.json`
 
 **Singleton:** The CGI checks the PID file before spawning; if an install is already running, it returns `"status": "running"` without starting a second instance.
 
@@ -516,18 +520,27 @@ Status values: `running`, `complete`, `error`
 
 ### qmanager_dpi (DPI Evasion — Video Optimizer + Traffic Masquerade)
 
-**Type:** Procd service (multi-instance daemon pattern)
-**Binary:** `/usr/bin/nfqws` (from zapret project)
+**Type:** Procd service — ONE instance, one mode at a time
+**Binaries:** `/usr/bin/nfqws` (packet queue) and `/usr/bin/tpws` (redirect), both from zapret
 **Config:** UCI `quecmanager.video_optimizer` + `quecmanager.traffic_masquerade`
 
-Manages up to two nfqws instances for DPI evasion. Each instance runs on its own NFQUEUE number and is independently UCI-gated:
+One engine runs for one mode; the modes are mutually exclusive (the CGIs enforce it):
 
-- **Instance 1 (`nfqws`)**: Video Optimizer — SNI split on queue 200, filtered by hostname list. Enabled via `quecmanager.video_optimizer.enabled`.
-- **Instance 2 (`nfqws_masq`)**: Traffic Masquerade — fake TLS ClientHello with spoofed SNI on queue 201, applied to all HTTPS traffic. Enabled via `quecmanager.traffic_masquerade.enabled`.
+- **Video Optimizer** — hostlist desync. Engine = `video_optimizer.engine` (`nfqws` or `tpws`, defaulted by the kernel probe). Enabled via `quecmanager.video_optimizer.enabled`.
+- **Traffic Masquerade** — fake TLS ClientHello with spoofed SNI, all HTTPS traffic. Always `nfqws` (the redirect engine cannot inject packets). Enabled via `quecmanager.traffic_masquerade.enabled`.
 
-**Start:** Checks binary + kernel module (shared prerequisites) → for each enabled instance: inserts nftables rules → launches nfqws via procd → writes PID files by scanning `/proc/*/cmdline` for queue numbers
-**Stop:** Removes all nftables rules (both `qmanager_dpi` and `qmanager_masq` comments) → kills both instances → cleans up PID files
-**Respawn:** 3600s window, 5s delay, max 5 respawns (per instance)
+**Start:** resolve the engine (Masquerade → `nfqws`) → check that engine's binary, and NFQUEUE only for `nfqws` → open the procd instance named after the engine. `nfqws` gets the mode's arguments and `/var/run/nfqws.pid` (procd writes it — never `pidof` here, procd spawns after `start_service` returns); `tpws` gets `/usr/bin/qmanager_dpi_tpws` as its supervisor and `/var/run/tpws.pid`.
+**Stop:** `dpi_tpws_rules_remove` (rc.common runs `stop_service` BEFORE procd kills the instance, so the redirect rules always go before the engine) → `rm -f` both pidfiles.
+**Respawn:** 3600s window, 5s delay, max 5 respawns.
+
+The packet-queue engine's nft rules stay installed permanently and are inert without a bound queue (`bypass`); the redirect engine's rules exist only while its supervisor has proven the listener. Details and the safety invariants: [`docs/features/dpi-settings.md`](features/dpi-settings.md).
+
+### qmanager_dpi_tpws (redirect engine supervisor)
+
+**Type:** Long-running script, run by procd as the `tpws` instance
+**Location:** `scripts/usr/bin/qmanager_dpi_tpws`
+
+Owns the pair "listener + redirect rules" so neither can exist without the other: removes stale rules → starts `tpws` → waits (bounded 10 s) for a LISTEN socket on 12443 → adds the rules → supervises (2 s child check, ~30 s rule re-assert). Its `EXIT` trap removes the rules before killing `tpws`, which is what makes an engine crash safe. A dead child is noticed within 2 s and exits through the same trap.
 
 ### qcmd
 
@@ -550,7 +563,7 @@ result=$(qcmd 'AT+QENG="servingcell"')
 | `qmanager_mtu` | non-procd | 99 | `qmanager_mtu_apply` | MTU application daemon |
 | `qmanager_imei_check` | non-procd | 99 | `qmanager_imei_check` | Boot-time IMEI check (one-shot, double-fork) |
 | `qmanager_tower_failover` | non-procd | 99 | `qmanager_tower_failover` | Tower failover watchdog |
-| `qmanager_dpi` | procd | 99 | `nfqws` (x2) | DPI evasion: Video Optimizer (queue 200) + Traffic Masquerade (queue 201), each UCI-gated |
+| `qmanager_dpi` | procd | 99 | `nfqws` or `qmanager_dpi_tpws` | DPI evasion: Video Optimizer or Traffic Masquerade, one engine at a time, UCI-gated |
 | `qmanager_sites` | procd | 99 | `qmanager_sites` | Sites monitor (per-site latency); always enabled, on/off in `/etc/qmanager/sites.json` |
 
 Non-procd services use the double-fork pattern for daemonization:

@@ -72,7 +72,7 @@ Version heading, then a 2–3 sentence summary (theme, headline features, featur
 Each doc holds invariants the code doesn't show. CGI / hook / type / reboot table: `docs/features/README.md`. New feature with non-obvious invariants → new doc + a line here and in the README, not more text in this file.
 
 `docs/features/`:
-- `dpi-settings.md`: Traffic Engine (Video Optimizer + Masquerade, `/local-network/traffic-engine`), `nfqws`, NFQUEUE 200, `12-mangle-qmanager-dpi.nft`
+- `dpi-settings.md`: Traffic Engine (Video Optimizer + Masquerade, `/local-network/traffic-engine`), two engines — `nfqws` (NFQUEUE 200, `12-mangle-qmanager-dpi.nft`) and `tpws` (iptables `REDIRECT`, chain `QMANAGER_DPI_TPWS`, supervisor `qmanager_dpi_tpws`), engine default by kernel probe, redirect rules-must-follow-listener invariants
 - `custom-sim-profiles.md`: merged profiles+scenarios page (`custom-profile.tsx`, `active-profile-hero.tsx`, `schedule-ribbon.tsx`, `profile-form-dialog.tsx`), no auto-reapply on save (`schedule_rearmed`), deep links + scenarios-route redirect, `qmanager_profile_apply`, `profile_mgr.sh`, Verizon MPDN, ICCID auto-apply, profile locks
 - `config-backup-restore.md`: `.qmbackup`, `qmanager_config_restore`, `config_backup_sections.sh`, deferred-reboot banner
 - `language-packs.md`: i18n loading, `qmanager_language_install`, `language_packs.sh`, manifest, `bun run package:lang`

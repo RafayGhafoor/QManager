@@ -5,7 +5,7 @@ CGI: `network/video_optimizer.sh` · Hooks: `use-video-optimizer.ts`, `use-cdn-h
 - **Unified UI — "Traffic Engine".** Both modes share ONE page at `/local-network/traffic-engine` (a first-class Local Network sidebar entry, icon `MonitorPlay`). Since v2 the page is three cards with no tabs: the **Engine** card (mode switch, live packet chart, Bypass Hotspot) on top, then **Video Optimizer** and **Masquerade** side by side. `?mode=video|masquerade` scrolls to that card and highlights it for 1.6 s. Layout detail: "Frontend layout (v2)" below.
 - Routes: canonical `/local-network/traffic-engine`. Old `/local-network/video-optimizer` → `…/traffic-engine`, `/local-network/traffic-masquerade` → `…/traffic-engine?mode=masquerade`, `/local-network/dpi-masking` → `…/traffic-engine` (all redirects).
 - **Mutex is the mode switch.** The Engine card's 3-way `SegmentedField` (Off / Video Optimizer / Masquerade, a `Select` below the `sm` card width) expresses one-mode-at-a-time structurally; there is no takeover dialog. Picking a mode issues a single `saveSettings({enabled:true})` (the backend auto-disables the other mode on save, see below) and toasts. The composer holds a `pending` target until the polled status agrees, with an 8 s safety net, and after any save refreshes BOTH hooks (plus TTL and the hostlist). The packets/s figure and 60 s chart are derived client-side from per-poll `packets_processed` deltas; no new backend field.
-- Binary: `nfqws` from zapret, installed to `/usr/bin/nfqws` on demand by `qmanager_dpi_install` (arch-detect → fetch `openwrt-embedded.tar.gz`). State files: `/tmp/qmanager_dpi_install.{json,pid}`.
+- **Two engines, chosen per Video Optimizer** (see "Engines" below). `nfqws` (packet queue) and `tpws` (redirect) both come from zapret, installed to `/usr/bin/` on demand by `qmanager_dpi_install` (arch-detect → fetch `openwrt-embedded.tar.gz`). State files: `/tmp/qmanager_dpi_install.{json,pid}`.
 - **The zapret release is pinned** (`ZAPRET_TAG` + `ZAPRET_SHA256` at the top of `qmanager_dpi_install`, currently v72.13). It downloads HTTPS-only from the fixed release URL (no GitHub API, no "latest"), and the sha256 must match before `tar` reads the archive; a mismatch or missing `sha256sum` fails closed. nfqws runs as root, so never relax this. To bump: take the `-openwrt-embedded.tar.gz` asset's `digest` from `gh api repos/bol-van/zapret/releases/tags/<tag>`, re-hash a download to confirm, and update both constants together.
 - **Single shared nfqws on queue 200** — VO and masquerade are mutually exclusive modes of ONE process: single PID (`/var/run/nfqws.pid`). Backend enforces mutex in `save`/`save_masquerade`; init.d checks masquerade first, then VO.
 - **A save proves the daemon came up.** `save`/`save_masquerade` restart the service and then require `dpi_get_status` to read `running` (`dpi_service_restart_checked`, bounded at 5 s); the disable path requires `stopped` (`dpi_service_stop_checked`). A failed proof returns `{"success":false,"error":"engine_start_failed"|"engine_stop_failed","detail":"Daemon <state> after restart"}` instead of `cgi_success`, so the page's existing error path says the engine did not start rather than confirming a mode that is not running. The init script's exit status alone cannot gate this: rc.common's procd wrapper discards `start_service()`'s return value and procd registers the instance asynchronously, so both signals are used (non-zero status = failure outright, otherwise the bounded poll). The UCI flag is written before the restart and is not rolled back: the next GET reports `enabled` with `status:"stopped"`, and the switch reads the status. `save_hostlist`/`restore_hostlist` use the same check when they have to restart a running engine (the list is already written at that point, and the detail says so).
@@ -17,6 +17,60 @@ CGI: `network/video_optimizer.sh` · Hooks: `use-video-optimizer.ts`, `use-cdn-h
 - Boot persistence: enabling either mode → init.d `enable`; disabling → `disable` only if BOTH are off. Uninstall always `disable`s.
 - Deps: `libnetfilter-queue`, `libnfnetlink`, `libmnl`, full `curl`, NFQUEUE kernel support.
 - **Bypass Hotspot row** (`bypass-hotspot-row.tsx`) is a friendly alias over the **global TTL/HL** state — NOT part of nfqws/the engine. It reuses `useTtlSettings` + `network/ttl.sh` (no new backend). The row is **presentational**: the `useTtlSettings` instance lives in the composer (`traffic-engine.tsx`) and is passed down as the `ttl` prop to the Engine card, which renders the row once. Owned in the composer so a refresh after a mode save reaches it, and `ttl.isLoading` is folded into the page's skeleton gate so its first load is covered too. Ownership is **value-based** because the canonical file `/etc/firewall.user.ttl` is written by both `ttl.sh` AND `qmanager_profile_apply` (a SIM profile's TTL shows up in the same global read, with no provenance marker): `0/0` → OFF + interactive (toggle on ⇒ `saveTtlHl(64,64)`); `64/64` → ON + interactive (toggle off ⇒ `saveTtlHl(0,0)`); any other active value → ON + **disabled** (external owner — TTL page or SIM profile — manage it there). i18n keys: `traffic_engine.bypass_*`.
+
+## Engines
+
+The Video Optimizer runs on one of two engines; Masquerade runs only on `nfqws`.
+
+| | `nfqws` ("Packet queue") | `tpws` ("Local redirect") |
+|---|---|---|
+| Kernel need | NFQUEUE (`CONFIG_NETFILTER_NETLINK_QUEUE`) | none — only `iptables -t nat … -j REDIRECT` |
+| Packet path | static nft chain `mangle_postrouting_qmanager_dpi`, `queue num 200 bypass` | our own NAT chain `QMANAGER_DPI_TPWS`, jump from `PREROUTING`, port 12443 |
+| Hostlist | `--hostlist` | `--hostlist` (same file, same "Acts on" meaning) |
+| Masquerade | yes (fake SNI) | no (no fake-packet injection) |
+| Counter | nft chain counters | our NAT rule counters |
+| Liveness proof | pidfile `/var/run/nfqws.pid` via `qm_read_pid` | a LISTEN socket on 12443 (`/proc/net/tcp`) |
+
+- **Default is probed, not assumed.** `dpi_default_engine` (`dpi_helper.sh`) returns `tpws` when `dpi_check_kmod` fails and `nfqws` otherwise; `ensure_dpi_config` backfills UCI `quecmanager.video_optimizer.engine` from it, and the init script resolves the same way (`dpi_vo_engine`) when the key is absent. Installing the code changes no traffic behaviour: `enabled` stays `0` until the mode switch is used, which is when rules first appear.
+- **The UI offers an engine only when it can run**: `nfqws` needs `kernel_module_loaded` AND `nfqws_installed`, `tpws` needs `tpws_installed`. The GET reports `engine`, `nfqws_installed`, `tpws_installed`, and `binary_installed` is the SELECTED engine's binary (it gates onboarding). A save is refused server-side too: `invalid_engine`, `engine_not_installed`, `engine_unavailable` (saved to UCI only after those pass).
+- **Masquerade is not gated by the saved engine** — `save_masquerade` proves `nfqws` came up whatever `video_optimizer.engine` says, and the mode switch disables the Masquerade segment while the packet queue is missing.
+- **Desync Strength is packet-queue only.** `--dpi-desync-repeats` has no `tpws` equivalent, so with the redirect engine the stepper is disabled and the hint says so; `tpws` runs a fixed `--split-pos=1 --disorder`.
+- **While the redirect engine runs, LAN HTTPS passes through it.** The rule redirects every LAN TCP/443 connection to it (not only hostlisted ones) because the hostname is only visible after the ClientHello; `--hostlist` decides where desync is APPLIED, and everything else is relayed untouched. That is what makes the rules-without-listener case an all-HTTPS failure rather than a partial one, and why the invariants below are mandatory.
+- **UDP/QUIC is NOT touched by the redirect engine.** `tpws` desyncs TCP only and is a plain relay for every other connection redirected to it, so QUIC keeps working. Nothing blocks or drops QUIC; dropping it to force TCP would be the operator's call, not a default. The engine hint in the UI says this.
+
+### Redirect engine safety invariants (do not "simplify" these)
+
+A `REDIRECT` rule whose listener is gone refuses **all** matching HTTPS, so rules and listener are a single unit:
+
+1. **Rules are added only after the listener is proven.** `/usr/bin/qmanager_dpi_tpws` starts `tpws`, waits up to 10 s for a LISTEN socket on 12443, and only then calls `dpi_tpws_rules_add`. Not proven → it exits non-zero and adds nothing.
+2. **Rules are removed before the engine stops.** `dpi_tpws_rules_remove` deletes the `PREROUTING` jump FIRST, then `-F` and `-X` the chain. `/etc/init.d/qmanager_dpi` `stop_service` calls it, and rc.common runs `stop_service` BEFORE procd kills the instance.
+3. **A crash cannot leave the rules behind.** The supervisor's `EXIT` trap (TERM/INT/HUP exit into it) removes the rules, then kills `tpws`. It also notices a dead child within 2 s and exits through the same trap. This is a **shell supervisor, not a procd watchdog** — procd alone cannot hold the invariant, because it respawns a crashed instance only after a delay, and the rule would stay during it.
+4. **Nothing but our own chain is touched.** No rule is appended to a built-in chain: the chain is `QMANAGER_DPI_TPWS` and the only jump is `iptables -t nat -I PREROUTING 1 -j QMANAGER_DPI_TPWS`. Removal is one `-D` plus that chain's `-F`/`-X`.
+5. **A bad scope fails harmless.** The redirect rule matches `-i <LAN device>` (`uci get network.lan.device`, else `ifname`, else `br-lan`) and `-p tcp --dport 443`. A wrong LAN name matches nothing (feature does nothing, traffic fine) and WAN-inbound port forwards on 443 are never captured. **There is deliberately no `nat OUTPUT` rule**: redirecting the router's own traffic would loop `tpws`'s own outbound connections back into itself.
+6. **Runtime rules are re-asserted.** They are iptables state, not a shipped `.nft` file, so a firewall reload can drop them; the supervisor re-checks every ~30 s and re-adds them (the chain is ours alone). Losing them is safe — traffic goes direct, just unoptimised.
+
+Reversal, by hand (`sh`):
+
+```sh
+/etc/init.d/qmanager_dpi stop          # removes the rules, then kills the engine
+/etc/init.d/qmanager_dpi disable
+iptables -t nat -D PREROUTING -j QMANAGER_DPI_TPWS
+iptables -t nat -F QMANAGER_DPI_TPWS; iptables -t nat -X QMANAGER_DPI_TPWS
+rm -f /usr/bin/tpws /var/run/tpws.pid
+```
+
+`uninstall.sh` and the CGI's `uninstall` action do the same (rules first, then both binaries); `install.sh` drops a stale chain after stopping services, since a supervisor killed with `SIGKILL` cannot run its trap.
+
+**Not verified on hardware.** This work had no router access, so the rules were exercised only against a simulated `iptables` and a `/proc/net/tcp` fixture: never-listens adds nothing, listener-then-crash removes the rules, TERM tears down in ~0.2 s with exit 0, and an external flush is re-added within a window. What that leaves unproven, with the commands that prove it:
+
+| Unproven | Command |
+|---|---|
+| `tpws` accepts the argument set of the pinned release | `tpws --help`, then `/usr/bin/qmanager_dpi_tpws` and read `/tmp/qmanager.log` |
+| the listener really comes up on 12443 | `awk '$4=="0A"' /proc/net/tcp` (port `309B` = 12443) |
+| LAN HTTPS is really redirected and relayed | from a LAN client: `curl -sS -o /dev/null -w '%{http_code}\n' https://<hostlisted domain>/` (expect 200/3xx, not a connection refusal), and `iptables -t nat -L QMANAGER_DPI_TPWS -vnx` shows a rising counter |
+| the original destination survives the REDIRECT (tpws relays to the real host) | `logread`/`/tmp/qmanager.log` shows the connection completing, and the packet counter rises on both the redirect rule and `oifname rmnet*` |
+| disabling leaves no rules behind | `iptables -t nat -S \| grep QMANAGER_DPI_TPWS` prints nothing, `pgrep tpws` prints nothing |
+| survival across `fw4 reload` | `fw4 reload`, wait ~30 s, re-run the `-S \| grep` above; the supervisor's log says it re-added them |
 
 ## Frontend layout (v2)
 
