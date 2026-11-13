@@ -456,6 +456,7 @@ ts_stage_official() {
     local free_kb
     local mem_kb
     local tgz_kb
+    local need_kb
     local expected
     local actual
     local src
@@ -476,11 +477,20 @@ ts_stage_official() {
     ext="$dir/extract"
     rm -rf "$tgz" "$ext"
 
+    # Staged in RAM, so both limits are memory and the failure says which one
+    # fell short and by how much: the figures are the only actionable part of
+    # an insufficient_space message.
     ts_progress running "Checking disk space..."
     free_kb=$(_ts_df_free_kb "$dir")
+    if [ "$free_kb" -lt 102400 ]; then
+        _ts_fail insufficient_space "Not enough free memory to download Tailscale" \
+            "Need 100 MB free memory, $((free_kb / 1024)) MB free"
+        return 1
+    fi
     mem_kb=$(_ts_mem_avail_kb)
-    if [ "$free_kb" -lt 102400 ] || [ "$mem_kb" -lt 131072 ]; then
-        _ts_fail insufficient_space "Not enough free memory to download Tailscale" "Need about 100 MB free"
+    if [ "$mem_kb" -lt 131072 ]; then
+        _ts_fail insufficient_space "Not enough free memory to download Tailscale" \
+            "Need 128 MB memory available, $((mem_kb / 1024)) MB available"
         return 1
     fi
 
@@ -518,9 +528,11 @@ ts_stage_official() {
     # Extraction needs roughly 2.5x the tarball; check against the real size.
     tgz_kb=$(_ts_size_kb "$tgz")
     free_kb=$(_ts_df_free_kb "$dir")
-    if [ "$free_kb" -lt $((tgz_kb * 3)) ]; then
+    need_kb=$((tgz_kb * 3))
+    if [ "$free_kb" -lt "$need_kb" ]; then
         rm -f "$tgz"
-        _ts_fail insufficient_space "Not enough free memory to extract Tailscale"
+        _ts_fail insufficient_space "Not enough free memory to extract Tailscale" \
+            "Need $((need_kb / 1024)) MB free memory, $((free_kb / 1024)) MB free"
         return 1
     fi
 
@@ -1133,7 +1145,8 @@ _ts_install_body_tiny() {
         return 1
     fi
     if [ "$tmp_kb" -lt 32768 ]; then
-        _ts_fail insufficient_space "Not enough free memory to download Tailscale" "Need about 32 MB free"
+        _ts_fail insufficient_space "Not enough free memory to download Tailscale" \
+            "Need 32 MB free memory, $((tmp_kb / 1024)) MB free"
         return 1
     fi
 
