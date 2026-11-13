@@ -92,10 +92,16 @@ dpi_get_packet_count() {
     echo "${count:-0}"
 }
 
-# Count domains loaded from hostlist
+# Count domains loaded from hostlist. Prints exactly ONE integer, because the
+# caller feeds it to `jq --argjson`: `grep -c` prints `0` AND exits 1 when
+# nothing matches, so a trailing `|| echo 0` emitted a second line, jq then
+# rejected "0\n0" and printed nothing - the engine's whole GET came back empty
+# and the Traffic Engine page could only show its load-error card, with no way
+# back through the UI (the hostname editor is behind that same read).
 dpi_get_domain_count() {
     if [ -f "$DPI_HOSTLIST" ]; then
-        grep -v '^[[:space:]]*#' "$DPI_HOSTLIST" 2>/dev/null | grep -c -v '^[[:space:]]*$' || echo "0"
+        grep -v '^[[:space:]]*#' "$DPI_HOSTLIST" 2>/dev/null \
+            | grep -c -v '^[[:space:]]*$' || true
     else
         echo "0"
     fi
