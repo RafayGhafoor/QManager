@@ -1,10 +1,12 @@
 #!/bin/sh
 # qmanager_dpi_verify — Quick functional test for Video Optimizer
-# Checks if nfqws is intercepting traffic for hostlisted domains
-# by reading the nftables packet counter before and after a request.
+# Checks if the selected engine is intercepting traffic for hostlisted domains
+# by reading its rule counter before and after a request.
 #
 # This is the same approach as test_masquerade but targets a hostlisted
 # domain to confirm the Video Optimizer pipeline is working end-to-end.
+# Counter source: the nft chain for the packet-queue engine, our own NAT chain
+# for the redirect engine (dpi_get_packet_count in dpi_helper.sh).
 
 . /usr/lib/qmanager/qlog.sh
 . /usr/lib/qmanager/dpi_helper.sh
@@ -13,9 +15,12 @@ qlog_init "dpi_verify"
 
 RESULT_FILE="/tmp/qmanager_dpi_verify.json"
 
-# Must be running with VO enabled
+# Must be running with VO enabled, on whichever engine is selected: the packet
+# queue proves itself through its pidfile, the redirect engine through its
+# listener and its rule counter.
 vo_enabled=$(uci -q get quecmanager.video_optimizer.enabled)
-if [ "$vo_enabled" != "1" ] || [ "$(dpi_get_status)" != "running" ]; then
+vo_engine=$(dpi_vo_engine)
+if [ "$vo_enabled" != "1" ] || [ "$(dpi_engine_status "$vo_engine")" != "running" ]; then
     printf '{"success":false,"status":"error","error":"Video Optimizer is not running. Enable it first."}' > "$RESULT_FILE"
     exit 1
 fi
@@ -34,10 +39,10 @@ fi
 qlog_info "Verification test: using domain $test_domain"
 
 # Read counter, make HTTPS request to a hostlisted domain, read counter again
-count_before=$(dpi_get_packet_count)
+count_before=$(dpi_get_packet_count "$vo_engine")
 curl -4 -so /dev/null --max-time 5 --connect-to "${test_domain}:443:${test_domain}:443" "https://${test_domain}/" 2>/dev/null
 sleep 1
-count_after=$(dpi_get_packet_count)
+count_after=$(dpi_get_packet_count "$vo_engine")
 
 intercepted=$((count_after - count_before))
 
@@ -56,7 +61,7 @@ if [ "$intercepted" -gt 0 ]; then
             message: "DPI evasion active — \($intercepted) packets intercepted for \($test_domain)"
         }' > "$RESULT_FILE"
 else
-    qlog_warn "Verification failed: no packets intercepted for $test_domain"
+    qlog_warn "Verification failed: no packets intercepted for $test_domain ($vo_engine)"
     jq -n \
         --arg status "complete" \
         --arg test_domain "$test_domain" \
@@ -66,7 +71,7 @@ else
             passed: false,
             test_domain: $test_domain,
             packets: 0,
-            message: "No packets intercepted. The cellular interface may have changed — try restarting the service."
+            message: "No packets intercepted. Check that the engine is still running, then try again."
         }' > "$RESULT_FILE"
 fi
 

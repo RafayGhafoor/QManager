@@ -1,0 +1,130 @@
+#!/bin/sh
+# qmanager_dpi_tpws — supervisor for the redirect DPI engine (zapret tpws).
+#
+# WHY THIS FILE EXISTS. The redirect engine works by pointing an iptables NAT
+# REDIRECT rule at a local port. While that rule exists, EVERY matching HTTPS
+# connection depends on a live listener: a rule whose listener is dead refuses
+# all of that traffic. procd alone cannot hold that invariant — it respawns a
+# crashed instance after a delay, and the rule would still be there during the
+# delay. So the pairing lives here, in one process:
+#
+#   remove stale rules
+#     -> start tpws
+#     -> prove the listener (fail closed: exit, add nothing)
+#     -> add the rules
+#     -> supervise (re-assert rules, follow the child)
+#   and on ANY exit: remove the rules, then stop tpws (EXIT trap)
+#
+# The trap is the crash path: it runs when tpws exits by itself. /etc/init.d/
+# qmanager_dpi's stop_service is the normal stop path and removes the rules a
+# second time before procd kills this process (rc.common runs stop_service
+# BEFORE the kill), so a supervisor that is SIGKILLed — trap cannot run — is
+# still cleaned up on stop. Both removals are idempotent.
+#
+# Revert everything by hand:
+#   /etc/init.d/qmanager_dpi stop
+# which is equivalent to:
+#   iptables -t nat -D PREROUTING -j QMANAGER_DPI_TPWS
+#   iptables -t nat -F QMANAGER_DPI_TPWS
+#   iptables -t nat -X QMANAGER_DPI_TPWS
+#   kill "$(cat /var/run/tpws.pid)"; rm -f /var/run/tpws.pid
+# Nothing else on the device refers to that chain or port 12443.
+#
+# Not started directly: procd runs it from /etc/init.d/qmanager_dpi.
+
+. /usr/lib/qmanager/qlog.sh || exit 1
+. /usr/lib/qmanager/dpi_helper.sh || exit 1
+
+qlog_init "dpi_tpws"
+
+child=""
+cleaning="0"
+
+# cleanup — rules first, then the process. This order is the whole point of the
+# file: the redirect must never outlive its listener by even one pass.
+cleanup() {
+    [ "$cleaning" = "1" ] && return 0
+    cleaning="1"
+    dpi_tpws_rules_remove
+    if [ -n "$child" ]; then
+        kill "$child" 2>/dev/null
+        wait "$child" 2>/dev/null
+        child=""
+    fi
+}
+
+trap 'cleanup' EXIT
+# TERM/INT/HUP exit, which runs the EXIT trap. `exit` rather than calling
+# cleanup directly so there is exactly one teardown path.
+trap 'exit 0' INT TERM HUP
+
+if ! dpi_check_tpws_binary; then
+    qlog_error "tpws binary not found at $TPWS_BIN"
+    exit 1
+fi
+
+if [ ! -f "$DPI_HOSTLIST" ]; then
+    qlog_error "Hostname list not found at $DPI_HOSTLIST"
+    exit 1
+fi
+
+# A previous run may have died without its trap (SIGKILL, power cut). Start from
+# a known state: no rules at all.
+dpi_tpws_rules_remove
+
+qlog_info "Starting redirect engine on port $DPI_TPWS_PORT ($(dpi_tpws_args))"
+# shellcheck disable=SC2086  # dpi_tpws_args is a deliberate word list
+"$TPWS_BIN" $(dpi_tpws_args) &
+child=$!
+
+# Prove the listener before any rule exists. Bounded at 10 s in 0.1 s steps: the
+# trap can fire between steps, so a stop here is not delayed by the wait.
+i=0
+ready="0"
+while [ "$i" -lt 100 ]; do
+    if dpi_tpws_listening; then
+        ready="1"
+        break
+    fi
+    kill -0 "$child" 2>/dev/null || break
+    sleep 0.1
+    i=$((i + 1))
+done
+
+if [ "$ready" != "1" ]; then
+    qlog_error "tpws is not listening on port $DPI_TPWS_PORT; no redirect rules added"
+    exit 1
+fi
+
+if ! dpi_tpws_rules_add; then
+    qlog_error "could not add the redirect rules; taking them back out"
+    exit 1
+fi
+
+qlog_info "Redirect rules in place (tcp/443 -> $DPI_TPWS_PORT); tpws pid $child"
+
+# Supervise. Three constraints shape this loop:
+#   - a dead child must be noticed fast (2 s), because until the trap runs the
+#     redirect points at nothing and HTTPS is refused;
+#   - a TERM must not wait for the pause to end, so the pause is a backgrounded
+#     sleep we wait on rather than a foreground one — the trap interrupts it;
+#   - the rules are runtime iptables state, unlike the packet-queue engine's
+#     static nft file, so a firewall reload can drop them. Every ~30 s they are
+#     re-asserted. The chain is ours alone, so re-adding cannot fight anyone.
+n=0
+while kill -0 "$child" 2>/dev/null; do
+    sleep 2 &
+    wait $! 2>/dev/null
+    kill -0 "$child" 2>/dev/null || break
+    n=$((n + 1))
+    [ "$n" -lt 15 ] && continue
+    n=0
+    if ! dpi_tpws_rules_present; then
+        qlog_warn "redirect rules went missing (firewall reload?); re-adding"
+        dpi_tpws_rules_add
+    fi
+done
+
+# Exiting runs the trap, which removes the rules before this file's work is done.
+qlog_error "tpws exited; removing the redirect rules and leaving"
+exit 1

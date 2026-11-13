@@ -12,8 +12,9 @@
 #
 # What it removes:
 #   - All init.d qmanager* services (stops, disables, deletes)
-#   - All qmanager_* daemons (incl. the qmanager_atd AT broker) + the qcmd
-#     qsms and qmi symlinks to it + sms_tool + nfqws
+#   - All qmanager_* daemons (incl. the qmanager_atd AT broker and the DPI
+#     engine supervisor) + the qcmd qsms and qmi symlinks to it + sms_tool
+#     + the DPI engine binaries (nfqws, tpws)
 #     + legacy cleanup of the retired shell AT engine (qcmd.sh, atcli_smd11)
 #       and of the retired WebSocket bandwidth monitor
 #       (bridge_traffic_monitor_rm551 binary, websocat process) on older devices
@@ -23,7 +24,8 @@
 #   - Restores /www/index.html from index.html.old if present
 #   - UCI config (quecmanager.*)
 #   - Firewall rule files (/etc/firewall.user.ttl, /etc/firewall.user.mtu)
-#   - nftables DPI rules (/etc/nftables.d/12-mangle-qmanager-dpi.nft + live chain)
+#   - DPI rules: nftables (/etc/nftables.d/12-mangle-qmanager-dpi.nft + live
+#     chain) and the redirect engine's NAT chain (QMANAGER_DPI_TPWS)
 #   - Runtime state in /tmp (JSON cache, logs, PID files, sessions)
 #   - Cron jobs
 #   - Optionally: /etc/qmanager/ (password, profiles, backups)
@@ -247,8 +249,8 @@ stop_services() {
         done
     fi
 
-    # Non-qmanager-prefixed binaries
-    for p in bridge_traffic_monitor_rm551 websocat nfqws qcmd; do
+    # Non-qmanager-prefixed binaries (tpws is the redirect DPI engine)
+    for p in bridge_traffic_monitor_rm551 websocat nfqws tpws qcmd; do
         killall "$p" 2>/dev/null || true
     done
 
@@ -345,7 +347,7 @@ remove_backend() {
 
     # qcmd.sh + atcli_smd11: the retired shell AT engine, left on devices that
     # never ran a newer installer.
-    for extra in qcmd.sh atcli_smd11 sms_tool bridge_traffic_monitor_rm551 nfqws; do
+    for extra in qcmd.sh atcli_smd11 sms_tool bridge_traffic_monitor_rm551 nfqws tpws; do
         if [ -f "$BIN_DIR/$extra" ]; then
             rm -f "$BIN_DIR/$extra"
             bin_count=$(( bin_count + 1 ))
@@ -459,6 +461,23 @@ remove_backend() {
         if nft list chain inet fw4 mangle_postrouting_qmanager_dpi >/dev/null 2>&1; then
             nft delete chain inet fw4 mangle_postrouting_qmanager_dpi 2>/dev/null || true
             info "Removed live nftables DPI chain"
+        fi
+    fi
+
+    # --- redirect engine NAT chain (tpws) ---
+    # Jump first, then the chain: a leftover REDIRECT with no listener behind it
+    # refuses all HTTPS, so this must run even if nothing else here does.
+    if command -v iptables >/dev/null 2>&1; then
+        # Bounded: a duplicate jump would loop, and there is never more than one.
+        tr_i=0
+        while [ "$tr_i" -lt 8 ]; do
+            iptables -t nat -D PREROUTING -j QMANAGER_DPI_TPWS 2>/dev/null || break
+            tr_i=$((tr_i + 1))
+        done
+        iptables -t nat -F QMANAGER_DPI_TPWS 2>/dev/null || true
+        iptables -t nat -X QMANAGER_DPI_TPWS 2>/dev/null || true
+        if ! iptables -t nat -S QMANAGER_DPI_TPWS >/dev/null 2>&1; then
+            info "Removed redirect engine NAT chain (if present)"
         fi
     fi
 
