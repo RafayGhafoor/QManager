@@ -77,6 +77,23 @@
     "path_aria_open": "Komputer yang terhubung dan QManager sama-sama dapat mengirim perintah AT ke modem.",
     "path_aria_closed": "Hanya QManager yang dapat mengirim perintah AT ke modem; port komputer tertutup."
   },
+  "device_hardware": {
+    "card_title": "Perangkat keras",
+    "card_description": "Board dan port Ethernet pada modem ini.",
+    "board_label": "Board",
+    "port_label": "Port Ethernet",
+    "speed_label": "Kecepatan",
+    "duplex_label": "Duplex",
+    "link_up": "Terhubung",
+    "link_down": "Tidak ada tautan",
+    "link_unknown": "Tidak diketahui",
+    "duplex_full": "Full duplex",
+    "duplex_half": "Half duplex",
+    "unreported_title": "Tidak dilaporkan",
+    "unreported_description": "Modem ini tidak melaporkan board atau port Ethernet-nya.",
+    "error_title": "Tidak dapat membaca perangkat keras",
+    "error_description": "Perangkat tidak merespons. Coba lagi nanti."
+  },
   "config_backup": {
     "page_title": "Cadangan Konfigurasi",
     "page_description": "Simpan salinan terenkripsi pengaturan Anda, atau pulihkan satu salinan ke modem ini.",

@@ -212,13 +212,44 @@ origin (it used to land on `/system-settings/`).
 
 "How Ethernet traffic and a connected host reach the modem's hardware." Route
 `app/system-settings/hardware/page.tsx` ->
-`components/system-settings/hardware/hardware.tsx`. A symmetric 2-up of two cards, each with
-its own hook.
+`components/system-settings/hardware/hardware.tsx`. A full-width read-only card above a
+symmetric 2-up of two vendor cards, each with its own hook.
 
 | Card | Component | Data |
 | --- | --- | --- |
+| Device hardware | `hardware/device-hardware-card.tsx` | `useDeviceHardware()` ([API-REFERENCE](../API-REFERENCE.md), `network/ethernet.sh`) |
 | Hardware Offload | `ipa-offload/ipa-offload-card.tsx` | `useIpaOffload()` ([diagnostics.md](../features/diagnostics.md)) |
 | Host AT Ports | `at-engine/host-at-ports-card.tsx` | `useHostAtPorts()` ([at-broker.md](../features/at-broker.md)) |
+
+### Why the page has a third card (2026-11-13)
+
+The pair below only toggles two VENDOR services. On a SKU that ships neither — the Suncomm
+X75 (`ZX7981POEQ`) has no `/etc/init.d/r8125_ioss.init` and no `/etc/init.d/port-bridged`
+— both cards correctly collapse to "Not on this modem" and the page carried no hardware
+content at all: the operator saw a page header and two neutral panels.
+
+The fix is content, not copy: **Device hardware** shows the board and the `eth0` link the
+device actually has, so the page explains the SKU instead of hiding it. The two vendor
+cards are unchanged, "Not on this modem" included.
+
+### Device hardware (`device-hardware-card.tsx`)
+
+Read-only, so it has no draft and no `CardFoot`: four fact rows (board, Ethernet port,
+speed, duplex) in the card's one `ROW_GROUP`. The port is a filled `Badge` — `success`
+with a check when the link is up, `muted` with an unplug glyph when it is down, `muted`
+with a help glyph when the reading is unusable — so state never rides on colour alone.
+Speed and duplex are properties of one negotiated link, so both read as an em dash while
+the link is down; `2500` renders as `2.5 Gbps`, the spelling the Ethernet page uses.
+
+- **Data**: the Ethernet page's own GET (`network/ethernet.sh`), read-only. This page
+does not configure the port; that stays on `/local-network/ethernet`. The hook reads
+`link` and `board` and ignores the rest, so the two pages never disagree about a
+field they share.
+- **Degradation is mandatory**: a backend older than those fields (a rollback to
+`v0.1.33-suncomm2`, or a frontend installed ahead of the backend) answers successfully
+without them. That is not an error — the card renders a neutral "Not reported" block and
+the two vendor cards beside it are untouched. Tested in both shapes: fields present, and
+fields absent.
 
 ### Hardware Offload (`ipa-offload-card.tsx`)
 

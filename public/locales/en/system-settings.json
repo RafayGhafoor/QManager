@@ -77,6 +77,23 @@
     "path_aria_open": "A connected computer and QManager can both send AT commands to the modem.",
     "path_aria_closed": "Only QManager can send AT commands to the modem; the computer's port is closed."
   },
+  "device_hardware": {
+    "card_title": "Device hardware",
+    "card_description": "The board and Ethernet port on this modem.",
+    "board_label": "Board",
+    "port_label": "Ethernet port",
+    "speed_label": "Speed",
+    "duplex_label": "Duplex",
+    "link_up": "Connected",
+    "link_down": "No link",
+    "link_unknown": "Unknown",
+    "duplex_full": "Full",
+    "duplex_half": "Half",
+    "unreported_title": "Not reported",
+    "unreported_description": "This modem doesn't report its board or Ethernet port.",
+    "error_title": "Couldn't read device hardware",
+    "error_description": "The device didn't answer. Try again in a moment."
+  },
   "config_backup": {
     "page_title": "Configuration Backup",
     "page_description": "Save an encrypted copy of your settings, or restore one onto this modem.",

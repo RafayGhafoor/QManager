@@ -754,6 +754,26 @@ export const STATUS_ROW =
 /** The chip glyph inside a status row. */
 export const CHIP_GLYPH = "size-3";
 
+/**
+ * A read-only fact row on the Hardware page's Device hardware card: key left,
+ * value right, at every width. It wears `STATUS_ROW`'s geometry because a fact
+ * has no consequence line and no control to make room for — the facts ARE the
+ * content — and the fill comes from the `ROW_GROUP` it sits in, like every
+ * other row on this page.
+ */
+export const DEVICE_FACT = {
+  ROOT: STATUS_ROW,
+  KEY: "text-on-surface-variant text-[0.8125rem] font-semibold leading-5 whitespace-nowrap",
+  VALUE: "min-w-0 truncate text-right text-[0.8125rem] font-semibold leading-5 tabular-nums",
+  /** The board model verbatim — the Machine-Voice Rule sends identifiers to mono. */
+  VALUE_MONO: "font-mono text-[0.78125rem] font-medium",
+  /** A fact the device does not report: the quieter ink, on an em dash. */
+  VALUE_QUIET: "text-on-surface-variant",
+} as const;
+
+/** What a fact row shows when the device reports nothing. */
+export const FACT_NONE = "\u2014";
+
 /** The Hardware pair and Web Port: rows wearing `ROW.ROOT` and `STATUS_ROW`. */
 export const SKELETON_HARDWARE = {
   LABEL: LINE.LABEL,

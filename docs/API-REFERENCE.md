@@ -820,10 +820,14 @@ Scheduled tower lock changes (time-based).
   "supports_2500": true,
   "aspm_supported": true,
   "aspm_policy": "performance",
-  "aspm_configured": "performance"
+  "aspm_configured": "performance",
+  "link": { "operstate": "up", "speed": 1000, "duplex": "full" },
+  "board": "ZX7981POEQ"
 }
 ```
 `aspm_policy` is the kernel's live PCIe ASPM policy (the bracketed token in `/sys/module/pcie_aspm/parameters/policy`); `aspm_configured` is UCI `quecmanager.eth_link.aspm_policy`, applied at boot by `qmanager_eth_link` and seeded to `performance` by the installer when absent. Both are `""` when unsupported or unset. Without `eth0` the GET answers `{success:false, error:"interface_not_found"}`.
+
+`link` and `board` are additive and read-only (2026-11-13): the same three sysfs facts as `link_status`/`speed`/`duplex`, typed for surfaces that show the port as hardware rather than as an editable rate. `link.speed` is the negotiated rate in Mb/s as a NUMBER and `null` while the link is down (sysfs reports `-1`); the top-level `speed` keeps its display string and is unchanged. `duplex` is `null` until the link negotiates, `board` is `/tmp/sysinfo/board_name` (falling back to `/tmp/sysinfo/model`) or `null`. The Hardware page's Device hardware card consumes exactly these two fields, so a backend without them just reports "not reported" — see [`docs/reference/system-settings.md`](reference/system-settings.md).
 
 **POST Request** (at least one field):
 ```json

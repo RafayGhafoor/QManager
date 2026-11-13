@@ -77,6 +77,23 @@
     "path_aria_open": "已连接的计算机和 QManager 都可以向调制解调器发送 AT 命令。",
     "path_aria_closed": "只有 QManager 可以向调制解调器发送 AT 命令；计算机的端口已关闭。"
   },
+  "device_hardware": {
+    "card_title": "设备硬件",
+    "card_description": "此调制解调器的主板和 Ethernet 端口。",
+    "board_label": "主板",
+    "port_label": "Ethernet 端口",
+    "speed_label": "速率",
+    "duplex_label": "双工",
+    "link_up": "已连接",
+    "link_down": "未连接",
+    "link_unknown": "未知",
+    "duplex_full": "全双工",
+    "duplex_half": "半双工",
+    "unreported_title": "未报告",
+    "unreported_description": "此调制解调器未报告其主板或 Ethernet 端口。",
+    "error_title": "无法读取设备硬件",
+    "error_description": "设备未响应，请稍后重试。"
+  },
   "config_backup": {
     "page_title": "配置备份",
     "page_description": "保存设置的加密副本，或将备份恢复到此调制解调器。",
