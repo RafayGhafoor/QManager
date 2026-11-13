@@ -1980,16 +1980,22 @@ Read video optimizer settings and service status.
 {
   "success": true,
   "enabled": true,
+  "engine": "tpws",
   "status": "running",
   "uptime": "2h 34m",
   "packets_processed": 48291,
   "domains_loaded": 22,
+  "desync_repeats": 1,
   "binary_installed": true,
-  "kernel_module_loaded": true
+  "nfqws_installed": true,
+  "tpws_installed": true,
+  "kernel_module_loaded": false
 }
 ```
 
 Status values: `running`, `stopped`, `restarting`, `error`
+
+`engine` — `"nfqws"` (packet queue) or `"tpws"` (local redirect); the effective choice, so an unset UCI key reads as the probed default (`tpws` where the packet queue is missing). `binary_installed` is the **selected** engine's binary; `nfqws_installed` / `tpws_installed` are per-engine, so the UI can offer an engine whose binary exists and disable the other. `status` is proved per engine: pidfile for `nfqws`, a LISTEN socket for `tpws`. Engines: [`docs/features/dpi-settings.md`](features/dpi-settings.md).
 
 ### GET `/network/video_optimizer.sh?section=masquerade`
 
@@ -2048,7 +2054,7 @@ Poll nfqws installation progress/results.
 
 **Response (complete):**
 ```json
-{"success": true, "status": "complete", "message": "nfqws installed successfully", "detail": "v69"}
+{"success": true, "status": "complete", "message": "Engine installed successfully", "detail": "v72.13"}
 ```
 
 **Response (error):**
@@ -2060,8 +2066,11 @@ Poll nfqws installation progress/results.
 
 **Save video optimizer settings:**
 ```json
-{"action": "save", "enabled": true}
+{"action": "save", "enabled": true, "desync_repeats": 1, "engine": "tpws"}
 ```
+
+- `engine` (string, optional): `nfqws` or `tpws`. Absence keeps the stored choice. Checked before anything is written: an unknown value is `invalid_engine`, a missing binary is `engine_not_installed`, and `nfqws` without kernel packet-queue support is `engine_unavailable`. All three are in `errors.json` (en, zh-CN).
+- `desync_repeats` (integer, optional): 1-10, packet-queue engine only.
 
 **Save traffic masquerade settings:**
 ```json
@@ -2073,7 +2082,7 @@ Poll nfqws installation progress/results.
 
 Saving masquerade settings restarts the entire `qmanager_dpi` service (both instances) to apply changes.
 
-**Both save actions prove the daemon came up.** After the restart the handler waits (bounded at 5 s) for `dpi_get_status` to read `running`, and the disable path waits for `stopped`. Only then is `{"success":true}` returned:
+**Both save actions prove the daemon came up.** After the restart the handler waits (bounded at 5 s) for the selected engine to read `running` (`dpi_engine_status` — pidfile for `nfqws`, listener for `tpws`), and the disable path waits for `stopped`. For `tpws` this is also the safety gate: its supervisor adds the redirect rules only after the listener answers, so a save cannot confirm a redirect that would refuse HTTPS. Only then is `{"success":true}` returned:
 
 ```json
 {"success": false, "error": "engine_start_failed", "detail": "Daemon stopped after restart"}
@@ -2087,7 +2096,7 @@ Saving masquerade settings restarts the entire `qmanager_dpi` service (both inst
 {"action": "verify"}
 ```
 
-**Install nfqws binary** (downloads from zapret GitHub releases):
+**Install the engine binaries** (downloads the pinned zapret release; installs `nfqws` and, when the release carries it, `tpws`):
 ```json
 {"action": "install"}
 ```
