@@ -73,6 +73,17 @@ get_result_line() {
     grep '"type":"result"' "$OUTPUT_FILE" 2>/dev/null | tail -1
 }
 
+# save_result <result-json-line>
+# Cache the harvested result. tmp + rename, because RESULT_FILE is ALSO read
+# without the lock (Case 2 below, and by a poller that arrives after the
+# harvest): a plain `>` truncates and rewrites in place, so a concurrent reader
+# can see half a JSON object and throw the good result away as corrupt.
+save_result() {
+    printf '%s\n' "$1" > "$RESULT_FILE.tmp" 2>/dev/null \
+        && mv -f "$RESULT_FILE.tmp" "$RESULT_FILE" 2>/dev/null
+    return 0
+}
+
 # record_failure <fallback_detail>
 # Prints the error response and saves it as FAILED_FILE. The detail is Ookla's
 # own last error log line from stderr (e.g. "Cannot open socket") when there is
@@ -82,8 +93,12 @@ get_result_line() {
 record_failure() {
     _detail=$(grep '"level":"error"' "$ERROR_FILE" 2>/dev/null | tail -1 | jq -r '.message // empty' 2>/dev/null)
     [ -n "$_detail" ] || _detail="$1"
-    jq -cn --arg detail "$_detail" '{status: "error", error: "speedtest_failed", detail: $detail}' > "$FAILED_FILE"
-    cat "$FAILED_FILE"
+    _verdict=$(jq -cn --arg detail "$_detail" '{status: "error", error: "speedtest_failed", detail: $detail}')
+    # atomic for the same reason as save_result: Case 3 reads FAILED_FILE
+    # without the lock. Best effort — the caller still gets the verdict below.
+    printf '%s\n' "$_verdict" > "$FAILED_FILE.tmp" 2>/dev/null \
+        && mv -f "$FAILED_FILE.tmp" "$FAILED_FILE" 2>/dev/null
+    printf '%s\n' "$_verdict"
 }
 
 # =============================================================================
@@ -110,7 +125,16 @@ if [ -f "$PID_FILE" ]; then
                     ping)      PHASE="ping" ;;
                     download)  PHASE="download" ;;
                     upload)    PHASE="upload" ;;
-                    *)         PHASE="running" ;;
+                    *)
+                        # Not a phase: Ookla interleaves log events with the
+                        # progress lines, and a `result` line can be visible
+                        # while the process is still alive. The contract here is
+                        # "a test is in flight, but not in a step I can name",
+                        # and the frontend KEEPS the phase it already has rather
+                        # than adopting this string — see use-speedtest.ts
+                        # asRunningPhase().
+                        PHASE="running"
+                        ;;
                 esac
                 jq -n --arg phase "$PHASE" --argjson progress "$LAST_LINE" \
                     '{status: "running", phase: $phase, progress: $progress}'
@@ -137,7 +161,18 @@ if [ -f "$PID_FILE" ]; then
         # =================================================================
         (
             if speedtest_flock_wait 9 3; then
-                if [ ! -f "$PID_FILE" ]; then
+                # RE-READ the PID file under the lock. speedtest_start.sh holds
+                # this same lock while it clears a stale PID file and launches,
+                # so the run we came here to harvest may no longer be the one on
+                # disk. Harvesting it then would cache the PREVIOUS run's result
+                # line as this run's result and rm this run's OUTPUT_FILE and
+                # PID_FILE: an orphaned Ookla process whose progress goes to an
+                # unlinked file, and a "complete" answer full of old figures.
+                LOCKED_PID=$(cat "$PID_FILE" 2>/dev/null)
+                if [ -n "$LOCKED_PID" ] && [ "$LOCKED_PID" != "$SPEEDTEST_PID" ]; then
+                    # A new run replaced it. Its files are not ours to touch.
+                    echo '{"status":"running"}'
+                elif [ ! -f "$PID_FILE" ]; then
                     # Another poller finished the harvest while we waited for
                     # the lock. speedtest_start.sh clears RESULT_FILE and
                     # FAILED_FILE before every run, so either one is this run's.
@@ -159,7 +194,7 @@ if [ -f "$PID_FILE" ]; then
                     RESULT_LINE=$(get_result_line)
 
                     if [ -n "$RESULT_LINE" ]; then
-                        echo "$RESULT_LINE" > "$RESULT_FILE"
+                        save_result "$RESULT_LINE"
                         jq -n --argjson result "$RESULT_LINE" '{status: "complete", result: $result}'
                     else
                         # No result line — check if last JSON line gives us anything
@@ -167,7 +202,7 @@ if [ -f "$PID_FILE" ]; then
                         LINE_TYPE=$(get_type "$LAST_LINE")
 
                         if [ "$LINE_TYPE" = "result" ]; then
-                            echo "$LAST_LINE" > "$RESULT_FILE"
+                            save_result "$LAST_LINE"
                             jq -n --argjson result "$LAST_LINE" '{status: "complete", result: $result}'
                         else
                             record_failure "Process exited without producing results"

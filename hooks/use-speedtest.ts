@@ -316,8 +316,18 @@ export function useSpeedtest(
           // read its state this instant". Defaulting to "initializing" here
           // would snap a download back to "Connecting" every time the lock was
           // busy, so an absent phase preserves whatever we already had.
-          if (data.phase) {
-            applyPhase(data.phase as SpeedtestPhase);
+          //
+          // An UNRECOGNISED phase (the endpoint's own `*)` arm answers
+          // "running" whenever the last NDJSON line is not one of the four
+          // progress types — Ookla's log events interleave with them) is
+          // treated the same way, and that is what keeps the poll loop alive:
+          // assigning it would put a value outside `SpeedtestPhase` into
+          // `phase`, `isRunning` would go false, and a dialog (which only
+          // polls while running) would freeze mid-run with no progress and no
+          // result.
+          const next = asRunningPhase(data.phase);
+          if (next) {
+            applyPhase(next);
           } else if (!isRunningPhase(phaseRef.current)) {
             applyPhase("initializing");
           }
@@ -477,7 +487,12 @@ export function useSpeedtest(
       if (!mountedRef.current) return;
 
       if (data.status === "running") {
-        applyPhase((data.phase as SpeedtestPhase) || "initializing");
+        applyPhase(
+          asRunningPhase(data.phase) ??
+            (isRunningPhase(phaseRef.current)
+              ? phaseRef.current
+              : "initializing"),
+        );
         if (data.progress) setCurrentProgress(data.progress);
       } else if (data.status === "complete") {
         applyPhase("complete");
@@ -519,6 +534,31 @@ function isRunningPhase(p: SpeedtestPhase): boolean {
   return (
     p === "initializing" || p === "ping" || p === "download" || p === "upload"
   );
+}
+
+/**
+ * The status endpoint's `phase`, narrowed to one this hook can adopt.
+ *
+ * The CGI's contract there is deliberately looser than `SpeedtestPhase`: its
+ * `*)` arm answers `"running"` for any NDJSON type it does not model, which
+ * happens routinely because Ookla interleaves `{"type":"log",...}` events
+ * with the progress lines (and a `result` line is visible while the process is
+ * still alive). Returning null for those is the whole point: an unknown string
+ * in `phase` is not a running phase, so `isRunning` would go false and the poll
+ * loop would stop mid-run.
+ *
+ * Exported for its test — the poll loop it protects cannot be exercised here.
+ */
+export function asRunningPhase(p: unknown): SpeedtestPhase | null {
+  switch (p) {
+    case "initializing":
+    case "ping":
+    case "download":
+    case "upload":
+      return p;
+    default:
+      return null;
+  }
 }
 
 /** Narrow a phase to a step chip, or null when the phase is off-sequence. */
