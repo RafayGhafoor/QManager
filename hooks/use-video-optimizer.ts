@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { authFetch } from "@/lib/auth-fetch";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import type {
+  DpiEngine,
   VideoOptimizerResponse,
   VideoOptimizerSettings,
   VerifyResult,
@@ -66,12 +67,15 @@ export function useVideoOptimizer() {
       setSettings({
         enabled: data.enabled,
         other_enabled: data.other_enabled,
+        engine: data.engine === "tpws" ? "tpws" : "nfqws",
         status: data.status,
         uptime: data.uptime,
         packets_processed: data.packets_processed,
         domains_loaded: data.domains_loaded,
         desync_repeats: data.desync_repeats,
         binary_installed: data.binary_installed,
+        nfqws_installed: data.nfqws_installed,
+        tpws_installed: data.tpws_installed,
         kernel_module_loaded: data.kernel_module_loaded,
       });
     } catch {
@@ -84,18 +88,26 @@ export function useVideoOptimizer() {
 
   const saveSettings = useCallback(
     async (
-      input: { enabled: boolean; desync_repeats?: number },
+      input: { enabled: boolean; desync_repeats?: number; engine?: DpiEngine },
     ): Promise<MutationResult> => {
       setIsSaving(true);
       setError(null);
 
       try {
-        const body: { action: "save"; enabled: boolean; desync_repeats?: number } = {
+        const body: {
+          action: "save";
+          enabled: boolean;
+          desync_repeats?: number;
+          engine?: DpiEngine;
+        } = {
           action: "save",
           enabled: input.enabled,
         };
         if (typeof input.desync_repeats === "number") {
           body.desync_repeats = input.desync_repeats;
+        }
+        if (input.engine) {
+          body.engine = input.engine;
         }
 
         const response = await authFetch(API_URL, {

@@ -74,7 +74,6 @@
     "metric_packets": "已處理封包",
     "metric_package": "軟體包",
     "aria_open_package": "檢視引擎軟體包詳情",
-    "pkg_queue_missing": "缺少佇列",
     "live_legend": "已處理封包（最近 60 秒）",
     "strip_sni": "SNI：{{domain}}",
     "strip_fragment": "1 B",
