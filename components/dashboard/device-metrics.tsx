@@ -525,13 +525,18 @@ const DeviceMetricsComponent = ({
                 {t("metrics.cell_distance_short")}
               </span>
               <HintIcon label={t("metrics.cell_distance")}>
+                {/* Keyed on the same predicate as the figure beside it, so a
+                    tip that explains an approximation is only ever shown
+                    beside one: a reported 0 is a real timing advance (the cell
+                    is inside the first step), and a value the calculators
+                    refuse (an LTE index past 1282) reads as no reading. */}
                 <span className="block">
-                  {!unreachable && lteTa
+                  {!unreachable && lteKm !== null
                     ? t("metrics.lte_distance_tooltip", { ta: lteTa })
                     : t("metrics.ta_unavailable")}
                 </span>
                 <span className="mt-1 block">
-                  {!unreachable && nrTa
+                  {!unreachable && nrKm !== null
                     ? t("metrics.nr_distance_tooltip", { ta: nrTa })
                     : t("metrics.ta_unavailable")}
                 </span>

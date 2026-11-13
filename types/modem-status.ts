@@ -974,6 +974,17 @@ export function formatBytes(bytes: number): string {
 // --- Cell Distance Calculations (3GPP) --------------------------------------
 
 /**
+ * How far a NEGATIVE N_TA may sit from the timing reference (in N_TA units) and
+ * still count as "on the reference".
+ *
+ * 1024 units is 78 m of downlink distance — exactly one LTE timing-advance step,
+ * the coarsest quantum either radio reports in. A reading further out than that
+ * is not a near-reference report, so it is refused instead of being converted
+ * into a distance nobody measured.
+ */
+const NR_TA_REFERENCE_SPAN = 1024;
+
+/**
  * Calculates LTE cell distance from Timing Advance index.
  * Based on 3GPP TS 36.213: NTA = 16 × TA, TS = 1/(2048×15000).
  * Distance = (c × NTA × TS) / 2.
@@ -992,14 +1003,30 @@ export function calculateLteDistance(ta: number | null): number | null {
  * Calculates NR cell distance from NTA value.
  * Based on 3GPP TS 38.213: TC = 1/(480×10³×4096).
  * Distance = (c × NTA × TC) / 2.
- * @param nta - NR NTA value (already NTA, not TA index)
- * @returns distance in km, or null if NTA is unavailable/invalid
+ *
+ * A NEGATIVE N_TA IS A REAL READING, not an error. TS 38.211 puts the UE's
+ * transmit timing at (N_TA + N_TA,offset)·Tc, so a modem that has already
+ * subtracted its offset reports a small negative when the cell sits on the
+ * timing reference — the same statement LTE's index 0 makes. Dropping those
+ * left the NR distance row blank on a connected 5G leg while the LTE row, whose
+ * index is never negative, kept rendering. The reading is not exotic: measured
+ * on the sister build's Quectel 5G modem (2026-11-05), `AT+QNWCFG=
+ * "nr5g_time_advance"` answers `"nr5g_time_advance",1,-512,0`.
+ *
+ * The magnitude is what carries the distance (512 units ≈ 39 m), so it is what
+ * gets converted. A reading beyond {@link NR_TA_REFERENCE_SPAN} is not a
+ * reference reading any more and stays null rather than being clamped into a
+ * plausible-looking figure.
+ *
+ * @param nta - NR NTA value (already NTA, not TA index); may be negative
+ * @returns distance in km, or null if NTA is unavailable/implausible
  */
 export function calculateNrDistance(nta: number | null): number | null {
-  if (nta === null || nta === undefined || nta < 0) return null;
+  if (nta === null || nta === undefined || !Number.isFinite(nta)) return null;
+  if (nta < -NR_TA_REFERENCE_SPAN) return null;
   const TC = 1 / (480 * 1000 * 4096);
   const SPEED_OF_LIGHT = 3e8;
-  return (SPEED_OF_LIGHT * nta * TC) / 2 / 1000;
+  return (SPEED_OF_LIGHT * Math.abs(nta) * TC) / 2 / 1000;
 }
 
 /**

@@ -318,8 +318,9 @@ formatDistance(km, unit?)   → "156 m" or "1.23 km" (or "512 ft" / "1.23 mi" wh
 formatTemperature(c, unit?) → "45°C" (or "113°F" when unit="fahrenheit")
 
 // Cell distance calculations (3GPP)
-calculateLteDistance(ta)   → km (from LTE Timing Advance)
-calculateNrDistance(nta)   → km (from NR NTA value)
+calculateLteDistance(ta)   → km (from LTE Timing Advance index; null outside 0..1282)
+calculateNrDistance(nta)   → km (from NR N_TA; NEGATIVE values are real and use |N_TA|,
+                             null only beyond -1024, i.e. not a reference reading)
 
 // Progress bar mapping
 signalToProgress(value, thresholds) → 0-100

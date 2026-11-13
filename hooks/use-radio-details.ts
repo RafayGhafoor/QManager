@@ -64,13 +64,19 @@ export interface UseRadioDetailsReturn {
 }
 
 /**
- * Parses a numeric-string TA field ("" | "12") into a number or null.
- * Empty string, non-numeric, and negative values resolve to null.
+ * Parses a numeric-string TA field ("" | "12" | "-512") into a number or null.
+ *
+ * A negative value is kept: NR's N_TA is reported negative when the modem has
+ * already subtracted N_TA,offset, i.e. when the cell sits on the timing
+ * reference (see `calculateNrDistance`). Rejecting it here blanked the NR
+ * distance row even though the backend had published a usable reading. The
+ * per-leg range rules live in `calculateLteDistance` / `calculateNrDistance`,
+ * which is the only place that knows what a legal value is for its radio.
  */
 function parseTa(value: string | undefined): number | null {
   if (!value) return null;
   const n = Number(value);
-  return Number.isFinite(n) && n >= 0 ? n : null;
+  return Number.isFinite(n) ? n : null;
 }
 
 export function useRadioDetails(

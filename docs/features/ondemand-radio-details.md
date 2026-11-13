@@ -51,7 +51,7 @@ Each call to the endpoint triggers a full on-demand AT read via `ondemand_radio_
 
 **Field invariants:**
 - Every `details` string field is **always present** — never JSON null. Empty string `""` means unknown or not applicable.
-- `lte_ta` and `nr_ta` are numeric strings (`"0"`–`"1282"`) or `""`.
+- `lte_ta` and `nr_ta` are numeric strings or `""` — but they are **not the same quantity**: `lte_ta` is an LTE Timing Advance *index* (0–1282, one step = 78.125 m), while `nr_ta` is NR **N_TA** in `Tc` units (one unit = 76.29 mm). N_TA can be large (25600 ≈ 2 km) and **can be negative** — `AT+QNWCFG="nr5g_time_advance"` answers `"nr5g_time_advance",1,-512,0` when the modem has already subtracted its `N_TA,offset`, i.e. when the cell sits on the timing reference. Do not reject the sign: `calculateNrDistance()` converts `|N_TA|` and refuses only readings beyond −1024, which are no longer reference reports.
 - `mimo` is a human-readable display label (`"LTE 1x4 | NR 2x4"`, `"LTE 1x4"`, `""`, etc.) — not a raw AT value.
 - `updated_at` is a Unix epoch integer (seconds). `0` means the cache was never populated (first call and modem unreachable simultaneously).
 
