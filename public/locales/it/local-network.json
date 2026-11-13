@@ -74,7 +74,6 @@
     "metric_packets": "Pacchetti gestiti",
     "metric_package": "Pacchetto",
     "aria_open_package": "Mostra i dettagli del pacchetto",
-    "pkg_queue_missing": "Coda mancante",
     "live_legend": "Pacchetti gestiti (ultimi 60 s)",
     "strip_sni": "SNI: {{domain}}",
     "strip_fragment": "1 B",

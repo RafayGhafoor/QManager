@@ -74,7 +74,6 @@
     "metric_packets": "Paket ditangani",
     "metric_package": "Paket",
     "aria_open_package": "Tampilkan detail paket mesin",
-    "pkg_queue_missing": "Antrean tidak ada",
     "live_legend": "Paket ditangani (60 dtk terakhir)",
     "strip_sni": "SNI: {{domain}}",
     "strip_fragment": "1 B",

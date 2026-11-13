@@ -21,6 +21,7 @@ import { staggerContainer, staggerItem } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { validateDomainKey } from "@/lib/validate-domain";
 import type { MutationResult } from "@/types/mutation-result";
+import type { DpiEngine } from "@/types/video-optimizer";
 
 import {
   EngineCard,
@@ -204,12 +205,19 @@ export default function TrafficEngine() {
 
   // --- Saved values and their drafts. A load or save replaces the draft. ---
   const savedStrength = clampStrength(vo.settings?.desync_repeats);
+  const savedEngine: DpiEngine = vo.settings?.engine ?? "nfqws";
   const savedDomain = masq.settings?.sni_domain || DEFAULT_SNI_DOMAIN;
   const [strength, setStrength] = useState(savedStrength);
   const [prevStrength, setPrevStrength] = useState(savedStrength);
   if (savedStrength !== prevStrength) {
     setPrevStrength(savedStrength);
     setStrength(savedStrength);
+  }
+  const [engine, setEngine] = useState(savedEngine);
+  const [prevEngine, setPrevEngine] = useState(savedEngine);
+  if (savedEngine !== prevEngine) {
+    setPrevEngine(savedEngine);
+    setEngine(savedEngine);
   }
   const [domain, setDomain] = useState(savedDomain);
   const [prevDomain, setPrevDomain] = useState(savedDomain);
@@ -292,7 +300,9 @@ export default function TrafficEngine() {
       if (next === "off") {
         const stop: Pending = { kind: "stop", target: null };
         if (activeMode === "video") {
-          void run(stop, () => vo.saveSettings({ enabled: false, desync_repeats: savedStrength }),
+          // Turning off carries the SAVED values only: an off must not commit an
+          // unapplied strength or engine draft (that is what Apply is for).
+          void run(stop, () => vo.saveSettings({ enabled: false, desync_repeats: savedStrength, engine: savedEngine }),
             "traffic_engine.toast_video_disabled", "video_optimizer.toast_error_apply");
         } else if (activeMode === "masquerade") {
           void run(stop, () => masq.saveSettings(false, savedDomain),
@@ -304,14 +314,14 @@ export default function TrafficEngine() {
       // Switching to a mode carries its draft, so an edit made while the
       // other mode ran lands with the switch.
       if (next === "video") {
-        void run({ kind, target: "video" }, () => vo.saveSettings({ enabled: true, desync_repeats: strength }),
+        void run({ kind, target: "video" }, () => vo.saveSettings({ enabled: true, desync_repeats: strength, engine }),
           "traffic_engine.toast_video_enabled", "video_optimizer.toast_error_apply");
       } else {
         void run({ kind, target: "masquerade" }, () => masq.saveSettings(true, domainToSend),
           "traffic_engine.toast_masquerade_enabled", "masquerade.toast_error_apply");
       }
     },
-    [shownMode, pending, activeMode, run, vo, masq, savedStrength, savedDomain, strength, domainToSend],
+    [shownMode, pending, activeMode, run, vo, masq, savedStrength, savedEngine, savedDomain, strength, engine, domainToSend],
   );
 
   // Apply a draft. The owner restarts on it; an idle engine stores it (a save
@@ -320,9 +330,9 @@ export default function TrafficEngine() {
   const applyVideo = useCallback(() => {
     if (masqRunning) return Promise.resolve(false);
     return run(voRunning ? { kind: "apply", target: "video" } : null,
-      () => vo.saveSettings({ enabled: voRunning, desync_repeats: strength }),
+      () => vo.saveSettings({ enabled: voRunning, desync_repeats: strength, engine }),
       "traffic_engine.toast_applied", "video_optimizer.toast_error_apply");
-  }, [masqRunning, voRunning, run, vo, strength]);
+  }, [masqRunning, voRunning, run, vo, strength, engine]);
 
   const applyMasquerade = useCallback(() => {
     if (voRunning || domainError) return Promise.resolve(false);
@@ -429,6 +439,7 @@ export default function TrafficEngine() {
         <EngineCard
           shownMode={shownMode}
           activeMode={activeMode}
+          engine={vo.settings?.engine ?? "nfqws"}
           transition={pending?.kind ?? null}
           kernelOk={kernelOk}
           onModeChange={onModeChange}
@@ -454,6 +465,9 @@ export default function TrafficEngine() {
             savedStrength={savedStrength}
             draftStrength={strength}
             onDraftChange={setStrength}
+            savedEngine={savedEngine}
+            draftEngine={engine}
+            onEngineDraftChange={setEngine}
             onApply={applyVideo}
           />
           <MasqueradeCard

@@ -31,6 +31,7 @@ import type { UseTtlSettingsReturn } from "@/hooks/use-ttl-settings";
 import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import { cn } from "@/lib/utils";
 import type { MutationResult } from "@/types/mutation-result";
+import type { DpiEngine } from "@/types/video-optimizer";
 import { BypassHotspotRow } from "./bypass-hotspot-row";
 import { BackButton, ViewBody, ViewHeader } from "./card-view";
 import { DrillRow, MetricRow } from "./metric-row";
@@ -76,6 +77,8 @@ const MODE_FIELD =
 interface EngineCardProps {
   /** The mode the control shows: the target while a change is in flight. */
   shownMode: EngineChoice;
+  /** The engine Video Optimizer is set to (named in the Package view). */
+  engine: DpiEngine;
   /** The mode that owns the engine right now, or null when idle. */
   activeMode: EngineMode | null;
   transition: EngineTransition | null;
@@ -98,6 +101,7 @@ interface EngineCardProps {
  */
 export function EngineCard({
   shownMode,
+  engine,
   activeMode,
   transition,
   kernelOk,
@@ -146,10 +150,12 @@ export function EngineCard({
     }
   };
 
+  // A missing packet queue is a firmware fact, not a verdict: the redirect
+  // engine needs none, so it is reported muted rather than as a fault.
   const queueValue = kernelOk ? (
     t("traffic_engine.pkg_available")
   ) : (
-    <Badge variant="destructive">
+    <Badge variant="muted">
       <XCircleIcon className="size-3" aria-hidden="true" />
       {t("traffic_engine.pkg_missing")}
     </Badge>
@@ -184,7 +190,11 @@ export function EngineCard({
             />
             <MetricRow
               label={t("traffic_engine.pkg_engine")}
-              value={t("traffic_engine.pkg_installed")}
+              value={t(
+                engine === "tpws"
+                  ? "traffic_engine.engine_redirect"
+                  : "traffic_engine.engine_queue",
+              )}
               glyph={okGlyph}
               quiet
             />
@@ -242,7 +252,7 @@ export function EngineCard({
                 value={shownMode}
                 onValueChange={onModeChange}
                 ariaLabel={t("traffic_engine.aria_mode_selector")}
-                disabled={!kernelOk || transition !== null}
+                disabled={transition !== null}
                 breakpoint="sm"
                 glyph={renderCheckGlyph}
                 className={MODE_FIELD}
@@ -250,7 +260,14 @@ export function EngineCard({
                 options={[
                   { value: "off", label: t("traffic_engine.mode_off") },
                   { value: "video", label: t("traffic_engine.mode_video") },
-                  { value: "masquerade", label: t("traffic_engine.mode_masquerade") },
+                  // Fake-SNI injection exists only in the packet-queue engine, so
+                  // a firmware without the packet queue cannot offer this mode.
+                  // Video Optimizer is not gated: it has a second engine.
+                  {
+                    value: "masquerade",
+                    label: t("traffic_engine.mode_masquerade"),
+                    disabled: !kernelOk,
+                  },
                 ]}
               />
               {!kernelOk ? (
@@ -269,17 +286,8 @@ export function EngineCard({
                     label={t("traffic_engine.metric_package")}
                     ariaLabel={t("traffic_engine.aria_open_package")}
                     onOpen={() => open("package")}
-                    quiet={kernelOk}
-                    value={
-                      kernelOk ? (
-                        t("traffic_engine.pkg_installed")
-                      ) : (
-                        <Badge variant="destructive">
-                          <XCircleIcon className="size-3" aria-hidden="true" />
-                          {t("traffic_engine.pkg_queue_missing")}
-                        </Badge>
-                      )
-                    }
+                    quiet
+                    value={t("traffic_engine.pkg_installed")}
                   />
                 ) : null}
               </div>

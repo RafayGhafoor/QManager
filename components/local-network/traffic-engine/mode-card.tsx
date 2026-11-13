@@ -4,6 +4,7 @@ import { useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   CheckCircle2Icon,
+  CheckIcon,
   InfoIcon,
   MinusIcon,
   PlusIcon,
@@ -20,9 +21,11 @@ import { FieldError } from "@/components/ui/field";
 import { HintIcon } from "@/components/ui/hint-icon";
 import { Input } from "@/components/ui/input";
 import { SaveButton, useSaveFlash } from "@/components/ui/save-button";
+import { SEGMENTED, SegmentedField } from "@/components/ui/segmented-field";
 import type { useTrafficMasquerade } from "@/hooks/use-traffic-masquerade";
 import type { useVideoOptimizer } from "@/hooks/use-video-optimizer";
 import { cn } from "@/lib/utils";
+import type { DpiEngine } from "@/types/video-optimizer";
 import { BackButton, ViewBody, ViewHeader } from "./card-view";
 import { CheckRow } from "./check-row";
 import { HandshakeStrip } from "./handshake-strip";
@@ -40,6 +43,10 @@ import {
 
 export const STRENGTH_MIN = 1;
 export const STRENGTH_MAX = 10;
+
+const renderEngineGlyph = (className: string) => (
+  <CheckIcon size={SEGMENTED.GLYPH} className={className} aria-hidden="true" />
+);
 
 /** The highlight a `?mode=` deep link puts on its card for a moment. */
 const HIGHLIGHT =
@@ -176,6 +183,9 @@ interface VideoOptimizerCardProps extends EngineState {
   savedStrength: number;
   draftStrength: number;
   onDraftChange: (next: number) => void;
+  savedEngine: DpiEngine;
+  draftEngine: DpiEngine;
+  onEngineDraftChange: (next: DpiEngine) => void;
   onApply: () => Promise<boolean>;
 }
 
@@ -186,6 +196,9 @@ export function VideoOptimizerCard({
   savedStrength,
   draftStrength,
   onDraftChange,
+  savedEngine,
+  draftEngine,
+  onEngineDraftChange,
   onApply,
   ...engine
 }: VideoOptimizerCardProps) {
@@ -194,9 +207,20 @@ export function VideoOptimizerCard({
   const [direction, setDirection] = useState<1 | -1>(1);
   const draft = useHostlistDraft(hostlist);
   const strengthId = useId();
+  const engineId = useId();
   const isHosts = view === "hosts";
   const modeLabel = t("traffic_engine.mode_video");
-  const dirty = draftStrength !== savedStrength;
+  const dirty = draftStrength !== savedStrength || draftEngine !== savedEngine;
+  // An engine is offered only when it can actually run: the packet-queue engine
+  // needs the firmware's queue support AND its own binary, the redirect engine
+  // needs its binary (it needs nothing from the kernel).
+  const queueAvailable =
+    (vo.settings?.kernel_module_loaded ?? false) && (vo.settings?.nfqws_installed ?? false);
+  const redirectAvailable = vo.settings?.tpws_installed ?? false;
+  // Desync Strength multiplies the packet-queue engine's desync packets. The
+  // redirect engine has no repeat count, so the stepper names that and stays put
+  // (a control that moves and does nothing would be worse).
+  const strengthApplies = draftEngine === "nfqws";
 
   const open = (next: "main" | "hosts") => {
     setDirection(next === "hosts" ? 1 : -1);
@@ -282,6 +306,39 @@ export function VideoOptimizerCard({
             <div className={FIELD.ROW}>
               <div className={FIELD.TEXT}>
                 <div className={FIELD.LABEL_ROW}>
+                  <span id={engineId} className={FIELD.LABEL}>
+                    {t("traffic_engine.engine_label")}
+                  </span>
+                  <HintIcon label={t("traffic_engine.aria_engine_hint")}>
+                    {t("traffic_engine.engine_hint")}
+                  </HintIcon>
+                </div>
+                <p className={FIELD.HINT}>{t("traffic_engine.engine_helper")}</p>
+              </div>
+              <SegmentedField<DpiEngine>
+                value={draftEngine}
+                onValueChange={onEngineDraftChange}
+                ariaLabel={t("traffic_engine.aria_engine_selector")}
+                disabled={vo.isSaving}
+                breakpoint="never"
+                glyph={renderEngineGlyph}
+                options={[
+                  {
+                    value: "nfqws",
+                    label: t("traffic_engine.engine_queue"),
+                    disabled: !queueAvailable,
+                  },
+                  {
+                    value: "tpws",
+                    label: t("traffic_engine.engine_redirect"),
+                    disabled: !redirectAvailable,
+                  },
+                ]}
+              />
+            </div>
+            <div className={FIELD.ROW}>
+              <div className={FIELD.TEXT}>
+                <div className={FIELD.LABEL_ROW}>
                   <span id={strengthId} className={FIELD.LABEL}>
                     {t("video_optimizer.label_desync_repeats")}
                   </span>
@@ -289,7 +346,11 @@ export function VideoOptimizerCard({
                     {t("video_optimizer.help_desync_repeats")}
                   </HintIcon>
                 </div>
-                <p className={FIELD.HINT}>{t("video_optimizer.helper_desync_repeats")}</p>
+                <p className={FIELD.HINT}>
+                  {strengthApplies
+                    ? t("video_optimizer.helper_desync_repeats")
+                    : t("traffic_engine.strength_queue_only")}
+                </p>
               </div>
               <div role="group" aria-labelledby={strengthId} className={STEPPER.ROOT}>
                 <Button
@@ -298,7 +359,7 @@ export function VideoOptimizerCard({
                   size="icon"
                   className={STEPPER.BUTTON}
                   aria-label={t("traffic_engine.aria_strength_lower")}
-                  disabled={draftStrength <= STRENGTH_MIN || vo.isSaving}
+                  disabled={!strengthApplies || draftStrength <= STRENGTH_MIN || vo.isSaving}
                   onClick={() => onDraftChange(draftStrength - 1)}
                 >
                   <MinusIcon aria-hidden="true" />
@@ -312,7 +373,7 @@ export function VideoOptimizerCard({
                   size="icon"
                   className={STEPPER.BUTTON}
                   aria-label={t("traffic_engine.aria_strength_raise")}
-                  disabled={draftStrength >= STRENGTH_MAX || vo.isSaving}
+                  disabled={!strengthApplies || draftStrength >= STRENGTH_MAX || vo.isSaving}
                   onClick={() => onDraftChange(draftStrength + 1)}
                 >
                   <PlusIcon aria-hidden="true" />
