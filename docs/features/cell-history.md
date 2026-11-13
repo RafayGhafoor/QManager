@@ -89,13 +89,59 @@ cap deletes the **oldest** day file first and never the one being written.
 
 ## The page
 
-One range pill (`1h 3h 6h 12h 24h`, default `24h`), then three cards:
+One range pill (`1h 3h 6h 12h 24h`, default `24h`), a Panels picker, the page legend,
+then the availability hero and eight panels. Every panel is derived from the same row
+shape in `derive.ts`; **no panel has a field the recorder does not write.**
 
-| Card | Reads | Answers |
+| Panel | Derived from | Answers |
 |---|---|---|
-| 5G availability (hero) | `availability[]`, `outages[]` | was 5G up, and when was it not |
-| Serving cell | `servingRuns[]`, `cellStats[]` | which cell, for how long, with what 5G share |
-| Cell changes | `cellEvents[]` | which identity field moved, from what to what |
+| 5G availability (hero, always shown) | `availabilityBuckets`, `nrOutages` | was 5G up, and when was it not |
+| Nightly pattern | `patternRows` (`ts` + `nr_avail`) | does the dropout repeat at the same hour |
+| Serving cell (gantt + table) | `servingRuns`, `timelineSegments`, `cellStats` | which cell and band served, for how long, with what 5G share |
+| Radio readings | `metricSeries` (`rsrp`, `rsrq`, `sinr`) | how the reading moved either side of a dropout |
+| Bands and 5G leg | `bandRuns` (`lte_band` + `nr_band`), `bandCombos` | which band set served, and when the 5G leg left it |
+| Signal by band | `bandRsrpSeries` (`lte_band` + `rsrp`) | which band was the weaker one |
+| Cell changes | `cellEvents` | which identity field moved, from what to what |
+| 5G outages (opt-in) | `outageRows` (`nrOutages` + the serving runs) | every span 5G was absent, with the cell serving at its start |
+| Serving cell identity (opt-in) | `newestSample` | the newest sample's PCI, bands, channel numbers and TACs |
+
+Panel visibility is a **browser preference** (`panels.ts`, `localStorage`,
+`qmanager.cell_history.panels.v1`), merged onto the defaults — a panel added later appears
+at its own default rather than vanishing for a returning reader. The hero is not in the
+list: a page about 5G availability must not be able to hide its own answer. The defaults
+open the six panels the field complaint needs and leave the outage table and the identity
+grid one click away.
+
+### What is derived, and what is NOT recorded
+
+The row is 17 fields and the panels above use all of them. Nothing is invented to fill a
+panel out:
+
+- **Per-band RSRP is not per-carrier RSRP.** A row records ONE `rsrp` — the serving
+  carrier's. The Signal-by-band card therefore plots "the RSRP while on that band", which
+  is the honest reading the record can back; it is not per-component-carrier signal (that
+  would need `AT+QCAINFO` at every sample, i.e. extra modem traffic).
+- **There is no carrier-aggregation panel.** `lte_bw` is the serving carrier's downlink
+  bandwidth; the row has no aggregated-carrier count and no total bandwidth, so a "CA
+  carriers" or "total MHz" column would be a figure the record cannot support.
+- **`nr_band` going null IS the 5G-leg event.** The band-set strip cuts a run where
+  `lte_band + nr_band` changes, so a leg that left and returned is a visible boundary
+  without a second recorder field.
+- **`nr_cell_id` and `nr_tac` are null on this modem while `nr_avail` is 1.** The identity
+  grid prints them as a dash, and never backfills them from the LTE cell ID/TAC: a
+  true-looking number for a field the modem did not send is worse than a gap.
+- **The RF group has three charts, not eight.** RSSI, CQI, rank, MCS, TX power, temperature,
+  CPU, memory and throughput are not in a cell-history row, so there is no chart of a line
+  at zero for them. Adding them would mean the poller writing values it already holds —
+  a deliberate non-goal of this port, because the archive's 2 MB / 14-day budget is sized
+  for ~253 B rows and every added column spends it.
+- **The nightly pattern is two rows, at most.** A day is this endpoint's ceiling, so a 24 h
+  window covers two local days. The night hours still line up in the same columns on both
+  rows, which is what the panel is read for; the matrix is honest about being two rows.
+- **The chart stack is loaded lazily** (`next/dynamic`, `ssr: false`) so the card shells,
+  headings and empty states render from the payload alone. Same construction, and the same
+  stack (Next 16.0.7 / React 19.2.1 / recharts 2.15.4 / `output: "export"`), as the
+  reference build.
 
 - **The window ends at the newest archived row**, not the wall clock, so an archive that
   stopped updating shows its last span instead of an empty chart.
@@ -108,8 +154,10 @@ One range pill (`1h 3h 6h 12h 24h`, default `24h`), then three cards:
   it reads as "no 5G", the exact inversion of the truth.
 - **Colour is never the only channel.** Each availability tier also owns a bar height and
   a legend entry; a serving run's bottom rule is backed by the percentage in its tooltip
-  and by the table's numeric `5G` column; identity (PCI, band) is neutral ink plus a `Tag`,
-  never a large tinted block.
+  and by the table's numeric `5G` column; a band set's tone is backed by the combo string
+  printed inside the segment and by the table's swatch; a band's quality ramp is backed by
+  the median in dBm and its quality word in the legend; identity (PCI, band) is neutral ink
+  plus a `Tag`, never a large tinted block.
 - **Gaps are gaps.** Every run and outage span is cut at `GAP_THRESHOLD_SECONDS` (3 min),
   because the writer is not a metronome: no row lands during a scan, an unreachable modem
   or a poller restart.
@@ -132,6 +180,10 @@ old. The dashboard is the live surface; this page reads a range.
 ## Deliberately not included
 
 - **A longer range** (7 d / 30 d): the CGI serves raw rows; see above.
+- **Per-component-carrier history, CA counts and the deeper PHY/device panels** the
+  reference build plots (RSSI, CQI, rank, MCS, TX power, temperature, CPU, memory,
+  throughput): those columns are not in the row, and adding them is a poller-and-budget
+  change, not a UI one.
 - **A live/now band**, per `docs/reference/latency-monitor.md`.
 - **Neighbour-cell history**: this page tracks the **serving** cell only.
 - **Per-cell "good cell / bad cell" verdicts**: time-on-cell against availability is a
