@@ -13,11 +13,18 @@
 #   /sys/class/net/eth0/operstate       -> link status (up/down)
 #   /sys/class/net/eth0/speed           -> negotiated speed (Mbps)
 #   /sys/class/net/eth0/duplex          -> duplex mode (full/half)
+#   /tmp/sysinfo/board_name, model      -> board model (the `board` field)
 #   ethtool eth0                        -> auto-negotiation status
 #   UCI quecmanager.eth_link.speed_limit -> configured speed limit
 #   /sys/module/pcie_aspm/parameters/policy -> live ASPM policy (bracketed
 #                                              token is the active one)
 #   UCI quecmanager.eth_link.aspm_policy -> configured ASPM policy
+#
+# GET response is additive-only: `link_status`/`speed`/`duplex` keep their
+# display shapes ("2500Mb/s", "Unknown") for the Ethernet page, and the typed
+# `link` block carries the same three sysfs facts for surfaces that show the
+# port as hardware rather than as an editable rate. `link` is absent on a
+# backend older than this field, and `board` is null when sysinfo has no model.
 #
 # POST body (at least one field required):
 #   { "speed_limit": "auto"|"10"|"100"|"1000"|"2500",
@@ -149,6 +156,7 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
 
     # Read speed from sysfs (returns -1 or error if link is down)
     speed=""
+    raw_speed=""
     if [ -f "/sys/class/net/$ETH_INTERFACE/speed" ]; then
         raw_speed=$(cat "/sys/class/net/$ETH_INTERFACE/speed" 2>/dev/null)
         if [ -n "$raw_speed" ] && [ "$raw_speed" -gt 0 ] 2>/dev/null; then
@@ -196,6 +204,12 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
     [ -z "$duplex" ] && duplex="Unknown"
     [ -z "$auto_neg" ] && auto_neg="Unknown"
 
+    # Board model, for the typed `board` field. Two sysinfo paths because the
+    # vendor builds this tree runs on differ in which one they populate; absent
+    # both, the field is null rather than an empty string.
+    board=$(cat /tmp/sysinfo/board_name 2>/dev/null)
+    [ -z "$board" ] && board=$(cat /tmp/sysinfo/model 2>/dev/null)
+
     qlog_info "Status: link=$link_status speed=$speed duplex=$duplex autoneg=$auto_neg limit=$speed_limit"
 
     jq -n \
@@ -208,6 +222,10 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
         --argjson aspm_supported "$aspm_supported" \
         --arg aspm_policy "$aspm_policy" \
         --arg aspm_configured "$aspm_configured" \
+        --arg link_operstate "$link_status" \
+        --arg link_speed "$raw_speed" \
+        --arg link_duplex "$duplex" \
+        --arg board "$board" \
         '{
             success: true,
             link_status: $link_status,
@@ -218,7 +236,13 @@ if [ "$REQUEST_METHOD" = "GET" ]; then
             supports_2500: $supports_2500,
             aspm_supported: $aspm_supported,
             aspm_policy: $aspm_policy,
-            aspm_configured: $aspm_configured
+            aspm_configured: $aspm_configured,
+            link: {
+                operstate: $link_operstate,
+                speed: (if ($link_speed | tonumber? // 0) > 0 then ($link_speed | tonumber) else null end),
+                duplex: (if $link_duplex == "Unknown" then null else $link_duplex end)
+            },
+            board: (if $board == "" then null else $board end)
         }'
     exit 0
 fi

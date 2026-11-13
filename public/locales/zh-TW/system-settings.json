@@ -77,6 +77,23 @@
     "path_aria_open": "已連接的電腦和 QManager 都可以向數據機傳送 AT 命令。",
     "path_aria_closed": "只有 QManager 可以向數據機傳送 AT 命令；電腦的連接埠已關閉。"
   },
+  "device_hardware": {
+    "card_title": "裝置硬體",
+    "card_description": "此數據機的主機板與 Ethernet 連接埠。",
+    "board_label": "主機板",
+    "port_label": "Ethernet 連接埠",
+    "speed_label": "速率",
+    "duplex_label": "雙工",
+    "link_up": "已連線",
+    "link_down": "未連線",
+    "link_unknown": "未知",
+    "duplex_full": "全雙工",
+    "duplex_half": "半雙工",
+    "unreported_title": "未回報",
+    "unreported_description": "此數據機未回報其主機板或 Ethernet 連接埠。",
+    "error_title": "無法讀取裝置硬體",
+    "error_description": "裝置沒有回應，請稍後再試。"
+  },
   "config_backup": {
     "page_title": "設定備份",
     "page_description": "儲存設定的加密副本，或將備份恢復到此數據機。",

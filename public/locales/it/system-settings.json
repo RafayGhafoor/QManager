@@ -77,6 +77,23 @@
     "path_aria_open": "Sia un computer collegato sia QManager possono inviare comandi AT al modem.",
     "path_aria_closed": "Solo QManager può inviare comandi AT al modem; la porta del computer è chiusa."
   },
+  "device_hardware": {
+    "card_title": "Hardware del dispositivo",
+    "card_description": "La scheda e la porta Ethernet di questo modem.",
+    "board_label": "Scheda",
+    "port_label": "Porta Ethernet",
+    "speed_label": "Velocità",
+    "duplex_label": "Duplex",
+    "link_up": "Connessa",
+    "link_down": "Nessun collegamento",
+    "link_unknown": "Sconosciuto",
+    "duplex_full": "Full duplex",
+    "duplex_half": "Half duplex",
+    "unreported_title": "Non riportato",
+    "unreported_description": "Questo modem non riporta la scheda né la porta Ethernet.",
+    "error_title": "Impossibile leggere l'hardware del dispositivo",
+    "error_description": "Il dispositivo non ha risposto. Riprova tra poco."
+  },
   "config_backup": {
     "page_title": "Backup della configurazione",
     "page_description": "Salva una copia crittografata delle tue impostazioni o ripristinane una su questo modem.",
