@@ -26,6 +26,8 @@
   "disk_full": "磁盘空间不足",
   "egmr_failed": "写入 IMEI 失败",
   "empty_input": "未提供数据",
+  "engine_start_failed": "流量引擎未能启动",
+  "engine_stop_failed": "流量引擎未能停止",
   "ethtool_failed": "以太网配置失败",
   "ethtool_missing": "未安装 ethtool 软件包",
   "feed_unavailable": "无法连接 Tiny 版本的软件源",

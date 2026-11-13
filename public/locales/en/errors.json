@@ -26,6 +26,8 @@
   "disk_full": "Not enough disk space",
   "egmr_failed": "Failed to write IMEI to modem",
   "empty_input": "No data provided",
+  "engine_start_failed": "The traffic engine did not start",
+  "engine_stop_failed": "The traffic engine did not stop",
   "ethtool_failed": "Ethernet configuration failed",
   "ethtool_missing": "ethtool package is not installed",
   "feed_unavailable": "The Tiny build's package feed could not be reached",

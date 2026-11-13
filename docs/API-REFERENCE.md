@@ -2069,6 +2069,15 @@ Poll nfqws installation progress/results.
 
 Saving masquerade settings restarts the entire `qmanager_dpi` service (both instances) to apply changes.
 
+**Both save actions prove the daemon came up.** After the restart the handler waits (bounded at 5 s) for `dpi_get_status` to read `running`, and the disable path waits for `stopped`. Only then is `{"success":true}` returned:
+
+```json
+{"success": false, "error": "engine_start_failed", "detail": "Daemon stopped after restart"}
+{"success": false, "error": "engine_stop_failed", "detail": "Daemon running after stop"}
+```
+
+`detail` is diagnostic (backend English, logged) and names the daemon state; the frontend maps the code to its own translation. UCI is written before the restart and is **not** rolled back, so a failed enable leaves `enabled=1` with `status:"stopped"` and the engine retries at boot. `save_hostlist` and `restore_hostlist` reuse `engine_start_failed` when the restart they issue because the optimizer is running leaves the daemon down; their `detail` states that the list was already saved. Invariants: [`docs/features/dpi-settings.md`](features/dpi-settings.md).
+
 **Start verification:**
 ```json
 {"action": "verify"}
