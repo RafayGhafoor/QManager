@@ -10,20 +10,24 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tag } from "@/components/ui/tag";
-import type {
-  CellHistoryRange,
-  CellStat,
-  ServingRun,
-} from "@/types/cell-history";
 import { cn } from "@/lib/utils";
+import type { CellStat, ServingRun } from "@/types/cell-history";
 
 import {
+  bandVariant,
   formatClock,
   formatMoment,
   formatPct,
+  formatSpan,
+  hourTicks,
+  runBand,
+  timelineSegments,
   type CellHistoryWindow,
+  type TimelineSegment,
 } from "./derive";
+import { PanelEmpty } from "./empty-state";
 import {
+  BAND_TONE,
   CARD_DESC,
   CARD_SHELL,
   CARD_TITLE,
@@ -34,38 +38,50 @@ import {
 } from "./shapes";
 
 // =============================================================================
-// TimelineCard — which cell served, and for how long
+// TimelineCard — which cell and band served, over time
 // =============================================================================
-// Two readings of one fact. The strip is the SHAPE: a segment per serving run,
-// scaled by how long the run lasted, so a night of ping-pong is visibly many
-// narrow segments and a stable cell is one wide one. The table is the FACT: time
-// on each cell against 5G availability on it, which is the question a raw change
-// log cannot answer.
+// A gantt of the serving runs: one contiguous run of a single serving cell is one
+// segment, positioned by its start and end as a fraction of the window. TWO
+// LANES, because a run carries both radio legs and dropping one answers half the
+// question:
 //
-// A CELL IS IDENTITY, NOT HEALTH. Its segment is neutral ink on a neutral plate
-// (the Two-Form Rule: identity never renders as a large tinted block); the one
-// coloured thing on a segment is a 3 px rule along its bottom edge, carrying that
-// run's own 5G availability. Colour is never the only channel — the segment also
-// prints the run's percentage when it is wide enough, the table repeats it as a
-// number, and the legend names all four states.
+//   LTE   the band the device camped on — always present, and the thing that
+//         actually changes when the field complaint ("sometimes band 1") does.
+//   5G    the NR band, where the modem reported one. An empty 5G lane is the
+//         statement "no NR leg in this range" and it is drawn as such rather than
+//         as a silent void.
 //
-// A run too narrow for its label keeps a tick, so a ten-minute cell in a day does
-// not read as a gap in the strip.
+// COLOUR IS A PAIRING AID, NOT THE DATUM. A band's tone is a stable function of
+// the band string (`bandVariant`), so two runs of the same band look the same and
+// a change looks like a change. The band itself is printed inside every segment
+// wide enough to hold it, and in the tooltip of every segment that is not —
+// identity hues are deliberately clustered in lightness and cannot carry a
+// category on their own.
+//
+// THE TABLE IS THE FACT THE STRIP CANNOT STATE: time on each cell against 5G
+// availability on it. A segment says when; only the table says "this cell held 5G
+// a fifth of the time it served", which is the question a raw change log cannot
+// answer.
 // =============================================================================
 
 export interface TimelineCardProps {
   runs: ServingRun[];
   stats: CellStat[];
   window: CellHistoryWindow;
-  range: CellHistoryRange;
+  /** True past a few hours, where a bare `HH:MM` in a tooltip loses the date. */
+  longSpan: boolean;
 }
 
-const LEGEND: readonly { tier: keyof typeof RUN_TONE; labelKey: string }[] = [
-  { tier: "up", labelKey: "history.timeline.legend_up" },
-  { tier: "partial", labelKey: "history.timeline.legend_partial" },
-  { tier: "down", labelKey: "history.timeline.legend_down" },
-  { tier: "unknown", labelKey: "history.timeline.legend_unknown" },
-];
+/** Below this width a segment's label would be clipped mid-band, so it is hover only. */
+const LABEL_MIN_PCT = 12;
+const DASH = "—";
+
+interface LaneSegment {
+  segment: TimelineSegment;
+  band: string | null;
+  fill: string;
+  ink: string;
+}
 
 function BandTag({ band }: { band: string | null }) {
   if (band === null) return null;
@@ -77,10 +93,93 @@ function BandTag({ band }: { band: string | null }) {
   );
 }
 
-export function TimelineCard({ runs, stats, window, range }: TimelineCardProps) {
+export function TimelineCard({ runs, stats, window, longSpan }: TimelineCardProps) {
   const { t } = useTranslation("cellular");
-  const longSpan = range !== "1h" && range !== "3h";
+  const segments = timelineSegments(runs, window);
+  const ticks = hourTicks(window);
+
   const moment = (ts: number) => (longSpan ? formatMoment(ts) : formatClock(ts));
+
+  const lane = (leg: "lte" | "nr"): LaneSegment[] => {
+    const out: LaneSegment[] = [];
+    for (const segment of segments) {
+      const band = runBand(segment.run, leg);
+      // The NR lane has nothing to draw where the modem reported no NR band; the
+      // LTE lane keeps its run with the neutral "not reported" tone, because the
+      // run itself is a fact about the LTE leg either way.
+      if (leg === "nr" && band === null) continue;
+      const tone = band === null ? BAND_TONE.unknown : BAND_TONE[leg][bandVariant(band)];
+      out.push({ segment, band, fill: tone.fill, ink: tone.ink });
+    }
+    return out;
+  };
+
+  const runDetail = (entry: LaneSegment) => {
+    const { run } = entry.segment;
+    return t("history.timeline.run_tip", {
+      cell: run.lte_pci === null ? t("history.timeline.no_cell") : String(run.lte_pci),
+      band: entry.band ?? t("history.timeline.band_not_reported"),
+      nr: run.nr_band ?? t("history.timeline.band_not_reported"),
+      from: moment(run.start_ts),
+      to: moment(run.end_ts),
+      pct:
+        run.nr_avail_pct === null
+          ? t("history.timeline.unknown")
+          : formatPct(run.nr_avail_pct),
+    });
+  };
+
+  const renderLane = (leg: "lte" | "nr") => {
+    const entries = lane(leg);
+    return (
+      <div className={TIMELINE.LANE}>
+        <span className={TIMELINE.LANE_LABEL}>
+          {t(leg === "lte" ? "history.timeline.lte_row" : "history.timeline.nr_row")}
+        </span>
+        <div className={TIMELINE.TRACK}>
+          {entries.length === 0 ? (
+            <span className="text-on-surface-variant absolute inset-0 grid place-items-center text-[0.6875rem]">
+              {t("history.timeline.band_not_reported")}
+            </span>
+          ) : null}
+          {entries.map((entry) => {
+            const { segment } = entry;
+            const wide = segment.widthPct >= LABEL_MIN_PCT;
+            return (
+              <span
+                key={`${leg}-${segment.key}`}
+                className={cn(TIMELINE.SEGMENT, entry.fill, entry.ink)}
+                // A real gutter between segments, cut out of the fill rather than
+                // drawn as a border (The No-Hairline-On-Fill Rule), so a band
+                // change is visible even when both bands wear the same tone.
+                // `max()` keeps a one-minute run from rounding away to nothing.
+                style={{
+                  left: `${segment.leftPct}%`,
+                  width: `max(2px, calc(${segment.widthPct}% - 2px))`,
+                }}
+                title={runDetail(entry)}
+              >
+                {wide ? (
+                  <span className={TIMELINE.SEGMENT_LABEL}>
+                    {entry.band ?? t("history.timeline.band_not_reported")}
+                  </span>
+                ) : null}
+                {leg === "lte" ? (
+                  <span
+                    className={cn(
+                      TIMELINE.RUN_RULE,
+                      RUN_TONE[runTier(segment.run.nr_avail_pct)],
+                    )}
+                    aria-hidden="true"
+                  />
+                ) : null}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Card className={CARD_SHELL}>
@@ -92,130 +191,110 @@ export function TimelineCard({ runs, stats, window, range }: TimelineCardProps) 
       </CardHeader>
 
       <CardContent className="flex flex-col gap-4">
-        <div>
-          <div className={TIMELINE.STRIP}>
-            {runs.map((run) => {
-              // Width from duration, not sample count: rows are not a metronome,
-              // and a run is only as long as the time between its first and last.
-              const duration = Math.max(run.end_ts - run.start_ts, 60);
-              const tier = runTier(run.nr_avail_pct);
-              const label = run.lte_pci === null ? null : String(run.lte_pci);
-              return (
-                <div
-                  key={`${run.start_ts}-${run.lte_pci ?? "x"}-${run.nr_band ?? "x"}`}
-                  className={cn(TIMELINE.RUN, "bg-surface-container")}
-                  style={{ flexGrow: duration, flexBasis: 0 }}
-                  title={t("history.timeline.run_tip", {
-                    cell: label ?? t("history.timeline.no_cell"),
-                    band: run.lte_band ?? "—",
-                    nr: run.nr_band ?? "—",
-                    from: moment(run.start_ts),
-                    to: moment(run.end_ts),
-                    pct:
-                      run.nr_avail_pct === null
-                        ? t("history.timeline.unknown")
-                        : formatPct(run.nr_avail_pct),
-                  })}
-                >
-                  {label === null ? (
-                    <span className={TIMELINE.RUN_TICK} aria-hidden="true" />
-                  ) : (
-                    <>
-                      <span className={TIMELINE.RUN_LABEL}>{label}</span>
-                      <span className={TIMELINE.RUN_LABEL}>
-                        {run.nr_band ?? "—"}
-                      </span>
-                    </>
-                  )}
-                  <span
-                    className={cn(TIMELINE.RUN_RULE, RUN_TONE[tier])}
-                    aria-hidden="true"
-                  />
+        {runs.length === 0 ? (
+          <PanelEmpty icon="timeline" body={t("history.timeline.empty")} />
+        ) : (
+          <div>
+            <div className={TIMELINE.LANES}>{renderLane("lte")}</div>
+            <div className={cn(TIMELINE.LANES, "mt-2")}>{renderLane("nr")}</div>
+            {ticks.length > 0 ? (
+              <div className="ps-11">
+                <div className={TIMELINE.TICKS} aria-hidden="true">
+                  {ticks.map((tick) => (
+                    <span
+                      key={tick.ts}
+                      className={TIMELINE.TICK}
+                      style={{ left: `${tick.leftPct}%` }}
+                    >
+                      {moment(tick.ts)}
+                    </span>
+                  ))}
                 </div>
-              );
-            })}
+              </div>
+            ) : null}
           </div>
-          <div className={TIMELINE.TICKS} aria-hidden="true">
-            {[0, 0.5, 1].map((fraction) => (
-              <span
-                key={fraction}
-                className={TIMELINE.TICK}
-                style={{ left: `${fraction * 100}%` }}
-              >
-                {moment(window.start + (window.end - window.start) * fraction)}
-              </span>
-            ))}
-          </div>
+        )}
+
+        {stats.length > 0 ? (
+          <table className={TABLE.ROOT}>
+            <thead>
+              <tr>
+                <th scope="col" className={cn(TABLE.CELL_FIRST, TABLE.HEAD)}>
+                  {t("history.timeline.col_cell")}
+                </th>
+                <th scope="col" className={cn(TABLE.CELL, TABLE.HEAD, TABLE.FIGURE)}>
+                  {t("history.timeline.col_readings")}
+                </th>
+                <th scope="col" className={cn(TABLE.CELL, TABLE.HEAD, TABLE.FIGURE)}>
+                  {t("history.timeline.col_5g")}
+                </th>
+                <th scope="col" className={cn(TABLE.CELL, TABLE.HEAD, TABLE.FIGURE)}>
+                  {t("history.timeline.col_rsrp")}
+                </th>
+                <th scope="col" className={cn(TABLE.CELL, TABLE.HEAD, TABLE.FIGURE)}>
+                  {t("history.timeline.col_served")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.map((stat) => {
+                const pct =
+                  stat.nr_known > 0
+                    ? ((stat.nr_known - stat.nr_down) / stat.nr_known) * 100
+                    : null;
+                return (
+                  <tr key={stat.key} className={TABLE.ROW}>
+                    <td className={TABLE.CELL_FIRST}>
+                      <span className="flex items-center gap-2">
+                        <span className="font-semibold tabular-nums">
+                          {stat.lte_pci === null
+                            ? t("history.timeline.no_cell")
+                            : stat.lte_pci}
+                        </span>
+                        <BandTag band={stat.lte_band} />
+                      </span>
+                    </td>
+                    <td className={cn(TABLE.CELL, TABLE.FIGURE)}>{stat.samples}</td>
+                    <td className={cn(TABLE.CELL, TABLE.FIGURE)}>
+                      {pct === null ? (
+                        <span className={TABLE.QUIET}>
+                          {t("history.timeline.unknown")}
+                        </span>
+                      ) : (
+                        formatPct(pct)
+                      )}
+                    </td>
+                    <td className={cn(TABLE.CELL, TABLE.FIGURE)}>
+                      {stat.rsrp === null ? (
+                        <span className={TABLE.QUIET}>{DASH}</span>
+                      ) : (
+                        `${Math.round(stat.rsrp)} dBm`
+                      )}
+                    </td>
+                    <td className={cn(TABLE.CELL, TABLE.FIGURE, TABLE.QUIET)}>
+                      {formatSpan(stat.last_ts - stat.first_ts)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : null}
+
+        {runs.length > 0 ? (
           <ul className={TIMELINE.LEGEND}>
-            {LEGEND.map((entry) => (
-              <li key={entry.tier} className={TIMELINE.LEGEND_ITEM}>
+            <li className="font-medium">{t("history.timeline.legend_rule")}</li>
+            {(["up", "partial", "down", "unknown"] as const).map((tier) => (
+              <li key={tier} className={TIMELINE.LEGEND_ITEM}>
                 <span
-                  className={cn(TIMELINE.LEGEND_SWATCH, RUN_TONE[entry.tier])}
+                  className={cn(TIMELINE.LEGEND_SWATCH, RUN_TONE[tier])}
                   aria-hidden="true"
                 />
-                {t(entry.labelKey)}
+                {t(`history.timeline.legend_${tier}`)}
               </li>
             ))}
           </ul>
-        </div>
-
-        <table className={TABLE.ROOT}>
-          <thead>
-            <tr>
-              <th scope="col" className={cn(TABLE.CELL_FIRST, TABLE.HEAD)}>
-                {t("history.timeline.col_cell")}
-              </th>
-              <th scope="col" className={cn(TABLE.CELL, TABLE.HEAD, TABLE.FIGURE)}>
-                {t("history.timeline.col_readings")}
-              </th>
-              <th scope="col" className={cn(TABLE.CELL, TABLE.HEAD, TABLE.FIGURE)}>
-                {t("history.timeline.col_5g")}
-              </th>
-              <th scope="col" className={cn(TABLE.CELL, TABLE.HEAD, TABLE.FIGURE)}>
-                {t("history.timeline.col_rsrp")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {stats.map((stat) => {
-              const pct =
-                stat.nr_known > 0
-                  ? ((stat.nr_known - stat.nr_down) / stat.nr_known) * 100
-                  : null;
-              return (
-                <tr key={stat.key} className={TABLE.ROW}>
-                  <td className={TABLE.CELL_FIRST}>
-                    <span className="flex items-center gap-2">
-                      <span className="font-semibold tabular-nums">
-                        {stat.lte_pci === null
-                          ? t("history.timeline.no_cell")
-                          : stat.lte_pci}
-                      </span>
-                      <BandTag band={stat.lte_band} />
-                    </span>
-                  </td>
-                  <td className={cn(TABLE.CELL, TABLE.FIGURE)}>{stat.samples}</td>
-                  <td className={cn(TABLE.CELL, TABLE.FIGURE)}>
-                    {pct === null ? (
-                      <span className={TABLE.QUIET}>
-                        {t("history.timeline.unknown")}
-                      </span>
-                    ) : (
-                      formatPct(pct)
-                    )}
-                  </td>
-                  <td className={cn(TABLE.CELL, TABLE.FIGURE)}>
-                    {stat.rsrp === null ? (
-                      <span className={TABLE.QUIET}>—</span>
-                    ) : (
-                      `${Math.round(stat.rsrp)} dBm`
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        ) : null}
       </CardContent>
     </Card>
   );

@@ -187,6 +187,102 @@ describe("CellHistory page", () => {
     expect(html).not.toContain("history.availability.no_outage");
   });
 
+  test("the default panels are the ones that answer the field complaint", () => {
+    const rows = [
+      { ...row, ts: BASE },
+      { ...row, ts: BASE + 60 },
+      { ...row, ts: BASE + 120 },
+    ];
+    hookResult = {
+      data: payload(rows),
+      dataRange: "24h",
+      isLoading: false,
+      error: null,
+      refresh: () => {},
+    };
+    const html = render();
+    // The page legend, then the six default panels.
+    expect(html).toContain("history.legend.title");
+    expect(html).toContain("history.pattern.title");
+    expect(html).toContain("history.timeline.title");
+    expect(html).toContain("history.charts.rf_title");
+    expect(html).toContain("history.bands.title");
+    expect(html).toContain("history.band_signal.title");
+    expect(html).toContain("history.events.title");
+    // The two opt-in panels are absent until the picker says otherwise.
+    expect(html).not.toContain("history.outages.title");
+    expect(html).not.toContain("history.identity.title");
+  });
+
+  test("a real device row renders the whole page, nulls and all", () => {
+    // Captured verbatim from the running recorder on the device — the ONLY
+    // contract this page may assume. `nr_cell_id`/`nr_tac` are null while
+    // `nr_avail` is 1, which is the modem's normal state and must render as a
+    // dash rather than as an error or a zero.
+    const captured: CellHistorySuccess["rows"][number] = {
+      ts: 1_794_580_154,
+      rat: "5G-NSA",
+      lte_pci: 104,
+      lte_band: "B1",
+      lte_earfcn: 250,
+      lte_bw: 3,
+      lte_cell_id: 48_466_199,
+      lte_tac: 55_383,
+      nr_pci: 47,
+      nr_band: "N41",
+      nr_arfcn: 509_070,
+      nr_cell_id: null,
+      nr_tac: null,
+      nr_avail: 1,
+      rsrp: -75,
+      rsrq: -12,
+      sinr: 2,
+    };
+
+    // A day of that row, one a minute, with the NR leg gone between 02:00 and
+    // 03:00 local — the field complaint this page exists for.
+    const start = new Date(2026, 10, 11, 0, 0, 0).getTime() / 1000;
+    const rows = Array.from({ length: 1440 }, (_, minute) => {
+      const hour = new Date((start + minute * 60) * 1000).getHours();
+      const down = hour === 2;
+      return {
+        ...captured,
+        ts: start + minute * 60,
+        nr_avail: (down ? 0 : 1) as 0 | 1,
+        nr_pci: down ? null : captured.nr_pci,
+        nr_band: down ? null : captured.nr_band,
+        nr_arfcn: down ? null : captured.nr_arfcn,
+        rsrp: -75 - (minute % 7),
+      };
+    });
+
+    hookResult = {
+      data: {
+        ...payload(rows),
+        window_end: rows[rows.length - 1].ts,
+        generated_at: rows[rows.length - 1].ts + 30,
+      },
+      dataRange: "24h",
+      isLoading: false,
+      error: null,
+      refresh: () => {},
+    };
+
+    const html = render();
+    // Every default panel, and the legend above them.
+    expect(html).toContain("history.legend.title");
+    expect(html).toContain("history.availability.strip_aria");
+    expect(html).toContain("history.pattern.title");
+    expect(html).toContain("history.bands.title");
+    expect(html).toContain("history.band_signal.title");
+    // The band sets the day actually held: with the leg and without it.
+    expect(html).toContain("B1+N41");
+    expect(html).toContain(">B1<");
+    // One outage span, and therefore no "no outage" sentence.
+    expect(html).toContain("history.availability.outage_count");
+    expect(html).not.toContain("history.availability.no_outage");
+  });
+
   test("a stale read keeps the cards and says they are not updating", () => {
     hookResult = {
       data: payload([row]),

@@ -4,14 +4,16 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { MaterialSymbol } from "@/components/ui/material-symbol";
-import type {
-  AvailabilityBucket,
-  CellHistoryRange,
-  NrOutage,
-} from "@/types/cell-history";
 import { cn } from "@/lib/utils";
+import type { AvailabilityBucket, NrOutage } from "@/types/cell-history";
 
 import {
   availabilitySummary,
@@ -20,29 +22,43 @@ import {
   formatMoment,
   formatPct,
   formatSpan,
+  hourTicks,
   totalOutageSeconds,
   type CellHistoryWindow,
 } from "./derive";
-import { CARD_DESC, CARD_SHELL, CARD_TITLE, HERO, OUTAGES, TIER, VERDICT } from "./shapes";
+import {
+  CARD_DESC,
+  CARD_SHELL,
+  CARD_TITLE,
+  HERO,
+  OUTAGES,
+  STRIP,
+  TIER,
+  VERDICT,
+} from "./shapes";
 
 // =============================================================================
 // AvailabilityCard — the page's answer, and its one hero
 // =============================================================================
-// "Was 5G up, and when was it not" in one sentence and one strip. Three things
-// here are contractual:
+// "Was 5G up, and when was it not" in one sentence, one strip and one hour axis.
+// Three things here are contractual:
 //
-//  * NO MEANINGLESS 0 %. If no bucket in the range holds a determined sample
-//    there is no percentage to print — a 0 % would read as "5G was down the whole
+//  * NO MEANINGLESS 0 %. If no bucket in the range holds a determined sample there
+//    is no percentage to print — a 0 % would read as "5G was down the whole
 //    time", which is the opposite of "nobody recorded anything". That case states
 //    itself and draws no strip.
 //  * A BUCKET WITH `n: 0` IS EMPTY, NOT DOWN. It renders as the recessed track
 //    with nothing on it. That is the three-valued rule (`nr_avail: null`) the
 //    whole feature exists to honour.
-//  * QUALITY IS NEVER HUE-ONLY. The three fills differ in lightness, and each
-//    also owns a bar height inside the track; the legend draws those same
-//    heights, and every bucket has a readout in words on hover. A reader in
-//    greyscale or sunlight still gets the shape of the range before reading a
-//    single label.
+//  * QUALITY IS NEVER HUE-ONLY. The three fills differ in lightness, and each also
+//    owns a bar height inside the track; the legend draws those same heights, and
+//    every bucket has a readout in words on hover. A reader in greyscale or
+//    sunlight still gets the shape of the range before reading a single label.
+//
+// The hour axis under the strip is what turns it from a texture into a clock: the
+// field complaint is about a TIME ("at night"), so a strip with no hours on it
+// cannot be matched against the complaint. Ticks are local hour boundaries,
+// thinned to at most seven.
 //
 // The strip is `role="img"` with one accessible name: 96 individually announced
 // cells would be a worse experience than the sentence above them, which is where
@@ -53,7 +69,8 @@ export interface AvailabilityCardProps {
   buckets: AvailabilityBucket[];
   outages: NrOutage[];
   window: CellHistoryWindow;
-  range: CellHistoryRange;
+  /** True past a few hours, where a bare `HH:MM` in a readout loses the date. */
+  longSpan: boolean;
 }
 
 const ORDER = ["up", "partial", "down", "unknown"] as const;
@@ -62,7 +79,7 @@ export function AvailabilityCard({
   buckets,
   outages,
   window,
-  range,
+  longSpan,
 }: AvailabilityCardProps) {
   const { t } = useTranslation("cellular");
   const [hover, setHover] = useState<number | null>(null);
@@ -70,11 +87,12 @@ export function AvailabilityCard({
   const summary = availabilitySummary(buckets);
   const unknown = summary.pct === null;
   const downSeconds = totalOutageSeconds(outages);
-  const longSpan = range !== "1h" && range !== "3h";
+  const ticks = hourTicks(window);
+
   const moment = (ts: number) => (longSpan ? formatMoment(ts) : formatClock(ts));
 
-  // The verdict is the worst tier present, so the chip and the strip tell the
-  // same story: any known-absent sample is at least "partial".
+  // The verdict is the worst tier present, so the chip and the strip tell the same
+  // story: any known-absent sample is at least "partial".
   const verdict = unknown
     ? "unknown"
     : summary.up === summary.known
@@ -132,18 +150,25 @@ export function AvailabilityCard({
                 })}
               </span>
               {outages.length > 0 ? (
-                <span>
-                  {t("history.availability.downtime", {
-                    duration: formatSpan(downSeconds),
-                  })}
-                </span>
+                <>
+                  <span>
+                    {t("history.availability.downtime", {
+                      duration: formatSpan(downSeconds),
+                    })}
+                  </span>
+                  <span>
+                    {t("history.availability.outage_count", {
+                      count: outages.length,
+                    })}
+                  </span>
+                </>
               ) : (
                 <span>{t("history.availability.no_outage")}</span>
               )}
             </div>
 
-            <div className={HERO.STRIP.ROOT}>
-              <p className={HERO.STRIP.READOUT}>
+            <div className={STRIP.ROOT}>
+              <p className={STRIP.READOUT}>
                 {hovered === null
                   ? ""
                   : hovered.n > 0
@@ -158,8 +183,8 @@ export function AvailabilityCard({
               </p>
               <div
                 className={cn(
-                  HERO.STRIP.TRACK,
-                  buckets.length > 180 && HERO.STRIP.TRACK_DENSE,
+                  STRIP.TRACK,
+                  buckets.length > 180 && STRIP.TRACK_DENSE,
                 )}
                 role="img"
                 aria-label={t("history.availability.strip_aria")}
@@ -172,18 +197,31 @@ export function AvailabilityCard({
                   return (
                     <span
                       key={bucket.ts}
-                      className={cn(HERO.STRIP.CELL, tier.fill, tier.height)}
+                      className={cn(STRIP.CELL, tier.fill, tier.height)}
                     />
                   );
                 })}
               </div>
-              <ul className={HERO.STRIP.LEGEND}>
+              {ticks.length > 0 ? (
+                <div className={STRIP.TICKS} aria-hidden="true">
+                  {ticks.map((tick) => (
+                    <span
+                      key={tick.ts}
+                      className={STRIP.TICK}
+                      style={{ left: `${tick.leftPct}%` }}
+                    >
+                      {moment(tick.ts)}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              <ul className={STRIP.LEGEND}>
                 {ORDER.map((tier) => (
-                  <li key={tier} className={HERO.STRIP.LEGEND_ITEM}>
-                    <span className={HERO.STRIP.LEGEND_TRACK} aria-hidden="true">
+                  <li key={tier} className={STRIP.LEGEND_ITEM}>
+                    <span className={STRIP.LEGEND_TRACK} aria-hidden="true">
                       <span
                         className={cn(
-                          HERO.STRIP.LEGEND_SWATCH,
+                          STRIP.LEGEND_SWATCH,
                           TIER[tier].fill,
                           TIER[tier].height,
                         )}
