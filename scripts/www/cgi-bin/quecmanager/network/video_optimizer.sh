@@ -27,16 +27,21 @@ dpi_spawn_guard() {
     fi
 }
 
-# dpi_service_restart_checked — restart the DPI service and prove nfqws runs.
+# dpi_service_restart_checked ENGINE — restart the DPI service and prove that
+# engine runs.
 #
 # The init script's exit status is captured (it used to reach the CGI's own
 # stdout, where a stray byte corrupts the JSON body), but it cannot be the only
 # gate: rc.common's procd wrapper discards start_service()'s return value, and
 # procd registers the instance asynchronously, so a refused start and a slow one
 # look identical at return time. Both signals therefore: a non-zero status is a
-# failure outright, and otherwise wait, bounded, for the pidfile to name a live
-# nfqws. rc 0 only when the engine is running; the reason goes to the log.
+# failure outright, and otherwise wait, bounded, for the engine to prove itself
+# (pidfile for the packet queue, listener for the redirect engine). rc 0 only
+# when the engine is running; the reason goes to the log. For the redirect engine
+# this call IS the safety gate: its supervisor adds the iptables rules only after
+# the listener answers, so a redirect that would blackhole HTTPS is refused here.
 dpi_service_restart_checked() {
+    local engine="$1"
     local out
     local rc
     local i
@@ -48,40 +53,44 @@ dpi_service_restart_checked() {
     fi
     i=0
     while [ "$i" -lt 20 ]; do
-        [ "$(dpi_get_status)" = "running" ] && return 0
+        [ "$(dpi_engine_status "$engine")" = "running" ] && return 0
         sleep 0.25
         i=$((i + 1))
     done
-    qlog_error "qmanager_dpi restart did not bring nfqws up within 5 s: $out"
+    qlog_error "qmanager_dpi restart did not bring $engine up within 5 s: $out"
     return 1
 }
 
-# dpi_service_stop_checked — stop the DPI service and prove nfqws is gone.
-# Same bounded proof in the other direction: "disabled" must not be reported
-# while the queue is still being processed. rc 0 only when it stopped.
+# dpi_service_stop_checked ENGINE — stop the DPI service and prove the engine is
+# gone. Same bounded proof in the other direction: "disabled" must not be
+# reported while traffic is still being intercepted. rc 0 only when it stopped.
 dpi_service_stop_checked() {
+    local engine="$1"
     local out
     local i
     out=$(/etc/init.d/qmanager_dpi stop 2>&1)
     i=0
     while [ "$i" -lt 20 ]; do
-        [ "$(dpi_get_status)" = "stopped" ] && return 0
+        [ "$(dpi_engine_status "$engine")" = "stopped" ] && return 0
         sleep 0.25
         i=$((i + 1))
     done
-    qlog_error "qmanager_dpi stop left nfqws running: $out"
+    qlog_error "qmanager_dpi stop left $engine running: $out"
     return 1
 }
 
 # Ensure UCI section exists with defaults
 ensure_dpi_config() {
-    local section existing_repeats
+    local section
+    local existing_repeats
+    local existing_engine
     section=$(uci -q get quecmanager.video_optimizer)
     if [ -z "$section" ]; then
         uci set quecmanager.video_optimizer=video_optimizer
         uci set quecmanager.video_optimizer.enabled='0'
         uci set quecmanager.video_optimizer.quic_enabled='1'
         uci set quecmanager.video_optimizer.desync_repeats='1'
+        uci set quecmanager.video_optimizer.engine="$(dpi_default_engine)"
         uci commit quecmanager
         return
     fi
@@ -90,6 +99,17 @@ ensure_dpi_config() {
     existing_repeats=$(uci -q get quecmanager.video_optimizer.desync_repeats)
     if [ -z "$existing_repeats" ]; then
         uci set quecmanager.video_optimizer.desync_repeats='1'
+        uci commit quecmanager
+    fi
+
+    # Backfill the engine for installs created before this key existed. The
+    # default is probed from the kernel, so a device without the packet queue
+    # starts on the redirect engine without the operator choosing anything -
+    # installing the code changes no traffic behaviour either way, because
+    # `enabled` stays 0 until the mode switch is used.
+    existing_engine=$(uci -q get quecmanager.video_optimizer.engine)
+    if [ -z "$existing_engine" ]; then
+        uci set quecmanager.video_optimizer.engine="$(dpi_default_engine)"
         uci commit quecmanager
     fi
 }
@@ -198,6 +218,7 @@ GET)
     # Read UCI settings
     enabled=$(uci -q get quecmanager.video_optimizer.enabled)
     masq_enabled=$(uci -q get quecmanager.traffic_masquerade.enabled)
+    vo_engine=$(dpi_vo_engine)
     desync_repeats=$(uci -q get quecmanager.video_optimizer.desync_repeats)
     case "$desync_repeats" in
         ''|*[!0-9]*) desync_repeats=1 ;;
@@ -208,19 +229,23 @@ GET)
             ;;
     esac
 
-    # Only report live stats when video optimizer is the active mode —
-    # VO and masq share a single nfqws process/PID/counters
+    # Only report live stats when video optimizer is the active mode — the two
+    # modes are mutually exclusive, so exactly one engine owns the counters.
     if [ "$enabled" = "1" ]; then
-        status=$(dpi_get_status)
-        uptime=$(dpi_get_uptime)
-        packets=$(dpi_get_packet_count)
+        status=$(dpi_engine_status "$vo_engine")
+        uptime=$(dpi_get_uptime "$(dpi_engine_pidfile "$vo_engine")")
+        packets=$(dpi_get_packet_count "$vo_engine")
     else
         status="stopped"
         uptime="0s"
         packets=0
     fi
     domains=$(dpi_get_domain_count)
-    dpi_check_binary && binary_ok="true" || binary_ok="false"
+    # binary_installed is the SELECTED engine's binary: the page gates onboarding
+    # and the mode switch on it, so it must answer "will this engine run?".
+    dpi_check_engine_binary "$vo_engine" && binary_ok="true" || binary_ok="false"
+    dpi_check_binary && nfqws_ok="true" || nfqws_ok="false"
+    dpi_check_tpws_binary && tpws_ok="true" || tpws_ok="false"
     dpi_check_kmod && kmod_ok="true" || kmod_ok="false"
 
     # Build response
@@ -228,23 +253,29 @@ GET)
         --argjson success true \
         --arg enabled "${enabled:-0}" \
         --arg masq_enabled "${masq_enabled:-0}" \
+        --arg engine "$vo_engine" \
         --arg status "$status" \
         --arg uptime "$uptime" \
         --argjson packets_processed "${packets:-0}" \
         --argjson domains_loaded "${domains:-0}" \
         --argjson desync_repeats "$desync_repeats" \
         --argjson binary_installed "$binary_ok" \
+        --argjson nfqws_installed "$nfqws_ok" \
+        --argjson tpws_installed "$tpws_ok" \
         --argjson kernel_module_loaded "$kmod_ok" \
         '{
             success: $success,
             enabled: ($enabled == "1"),
             other_enabled: ($masq_enabled == "1"),
+            engine: $engine,
             status: $status,
             uptime: $uptime,
             packets_processed: $packets_processed,
             domains_loaded: $domains_loaded,
             desync_repeats: $desync_repeats,
             binary_installed: $binary_installed,
+            nfqws_installed: $nfqws_installed,
+            tpws_installed: $tpws_installed,
             kernel_module_loaded: $kernel_module_loaded
         }'
     ;;
@@ -281,6 +312,30 @@ POST)
             uci set quecmanager.video_optimizer.desync_repeats="$new_repeats"
         fi
 
+        # Optional: engine (nfqws | tpws). Absence = no change. A choice the
+        # device cannot honour is refused here, before anything is written, so
+        # the page never reports a mode that cannot run: the packet-queue engine
+        # needs NFQUEUE, and either engine needs its own binary.
+        new_engine=$(echo "$POST_DATA" | jq -r '(.engine) | if . == null then empty else tostring end')
+        if [ -n "$new_engine" ]; then
+            case "$new_engine" in
+                "$DPI_ENGINE_NFQWS"|"$DPI_ENGINE_TPWS") ;;
+                *)
+                    cgi_error "invalid_engine" "engine must be nfqws or tpws"
+                    exit 0
+                    ;;
+            esac
+            if ! dpi_check_engine_binary "$new_engine"; then
+                cgi_error "engine_not_installed" "The selected engine is not installed"
+                exit 0
+            fi
+            if [ "$new_engine" = "$DPI_ENGINE_NFQWS" ] && ! dpi_check_kmod; then
+                cgi_error "engine_unavailable" "The packet-queue engine needs kernel support this firmware lacks"
+                exit 0
+            fi
+            uci set quecmanager.video_optimizer.engine="$new_engine"
+        fi
+
         # Map to UCI value — enforce mutual exclusion with masquerade
         if [ "$new_enabled" = "true" ]; then
             uci set quecmanager.traffic_masquerade.enabled='0'
@@ -290,17 +345,21 @@ POST)
         fi
         uci commit quecmanager
 
+        # The engine the service will actually start, read back from UCI so the
+        # proof below and the GET that follows cannot disagree with it.
+        vo_engine=$(dpi_vo_engine)
+
         # Restart or stop service + manage boot persistence
         if [ "$new_enabled" = "true" ]; then
             /etc/init.d/qmanager_dpi enable 2>/dev/null
-            if ! dpi_service_restart_checked; then
-                cgi_error "engine_start_failed" "Daemon $(dpi_get_status) after restart"
+            if ! dpi_service_restart_checked "$vo_engine"; then
+                cgi_error "engine_start_failed" "Daemon $(dpi_engine_status "$vo_engine") after restart"
                 exit 0
             fi
-            qlog_info "Video Optimizer enabled (boot: on)"
+            qlog_info "Video Optimizer enabled on $vo_engine (boot: on)"
         else
-            if ! dpi_service_stop_checked; then
-                cgi_error "engine_stop_failed" "Daemon $(dpi_get_status) after stop"
+            if ! dpi_service_stop_checked "$vo_engine"; then
+                cgi_error "engine_stop_failed" "Daemon $(dpi_engine_status "$vo_engine") after stop"
                 exit 0
             fi
             # Disable boot if masquerade is also off
@@ -402,13 +461,15 @@ POST)
         # Restart or stop service + manage boot persistence
         if [ "$new_enabled" = "true" ]; then
             /etc/init.d/qmanager_dpi enable 2>/dev/null
-            if ! dpi_service_restart_checked; then
+            # Masquerade is fake-SNI injection, which only the packet-queue
+            # engine can do, so the saved Video Optimizer engine is irrelevant.
+            if ! dpi_service_restart_checked "$DPI_ENGINE_NFQWS"; then
                 cgi_error "engine_start_failed" "Daemon $(dpi_get_status) after restart"
                 exit 0
             fi
             qlog_info "Traffic Masquerade enabled (sni=$new_sni, boot: on)"
         else
-            if ! dpi_service_stop_checked; then
+            if ! dpi_service_stop_checked "$DPI_ENGINE_NFQWS"; then
                 cgi_error "engine_stop_failed" "Daemon $(dpi_get_status) after stop"
                 exit 0
             fi
@@ -449,9 +510,10 @@ POST)
 
         # Restart service if VO is currently running to pick up new list
         vo_enabled=$(uci -q get quecmanager.video_optimizer.enabled)
-        if [ "$vo_enabled" = "1" ] && [ "$(dpi_get_status)" = "running" ]; then
-            if ! dpi_service_restart_checked; then
-                cgi_error "engine_start_failed" "Hostname list saved; daemon $(dpi_get_status) after restart"
+        vo_engine=$(dpi_vo_engine)
+        if [ "$vo_enabled" = "1" ] && [ "$(dpi_engine_status "$vo_engine")" = "running" ]; then
+            if ! dpi_service_restart_checked "$vo_engine"; then
+                cgi_error "engine_start_failed" "Hostname list saved; daemon $(dpi_engine_status "$vo_engine") after restart"
                 exit 0
             fi
             qlog_info "Hostlist updated, service restarted"
@@ -472,9 +534,10 @@ POST)
         mv "${DPI_HOSTLIST}.tmp.$$" "$DPI_HOSTLIST"
 
         vo_enabled=$(uci -q get quecmanager.video_optimizer.enabled)
-        if [ "$vo_enabled" = "1" ] && [ "$(dpi_get_status)" = "running" ]; then
-            if ! dpi_service_restart_checked; then
-                cgi_error "engine_start_failed" "Default list restored; daemon $(dpi_get_status) after restart"
+        vo_engine=$(dpi_vo_engine)
+        if [ "$vo_enabled" = "1" ] && [ "$(dpi_engine_status "$vo_engine")" = "running" ]; then
+            if ! dpi_service_restart_checked "$vo_engine"; then
+                cgi_error "engine_start_failed" "Default list restored; daemon $(dpi_engine_status "$vo_engine") after restart"
                 exit 0
             fi
             qlog_info "Hostlist restored to default, service restarted"
@@ -486,36 +549,41 @@ POST)
         ;;
 
     uninstall)
-        # Safety: refuse if nfqws service is running
-        if [ "$(dpi_get_status)" = "running" ]; then
+        # Safety: refuse while EITHER engine is up — a running redirect engine is
+        # also a live iptables chain, and removing its binary under it would
+        # strand the rules.
+        if [ "$(dpi_get_status)" = "running" ] || [ "$(dpi_engine_status "$DPI_ENGINE_TPWS")" = "running" ]; then
             cgi_error "service_running" "Disable the service before uninstalling"
             exit 0
         fi
 
-        qlog_info "Uninstalling nfqws binary"
+        qlog_info "Uninstalling DPI engine binaries"
 
-        # Stop service, disable boot, and clean up nftables rules
+        # Stop service, disable boot, and clean up the redirect rules
         [ -x /etc/init.d/qmanager_dpi ] && {
             /etc/init.d/qmanager_dpi stop >/dev/null 2>&1
             /etc/init.d/qmanager_dpi disable 2>/dev/null
         }
+        # stop_service removes them, but a refused stop must not leave a chain
+        # pointing at a binary that is about to disappear.
+        dpi_tpws_rules_remove
 
         # Disable both features in UCI
         uci -q set quecmanager.video_optimizer.enabled='0'
         uci -q set quecmanager.traffic_masquerade.enabled='0'
         uci commit quecmanager 2>/dev/null
 
-        # Remove binary
-        rm -f /usr/bin/nfqws
+        # Remove both binaries
+        rm -f "$NFQWS_BIN" "$TPWS_BIN"
 
         # Verify removal
-        if [ -x /usr/bin/nfqws ]; then
-            qlog_error "nfqws binary still present after removal"
-            cgi_error "uninstall_failed" "Failed to remove nfqws binary"
+        if [ -x "$NFQWS_BIN" ] || [ -x "$TPWS_BIN" ]; then
+            qlog_error "engine binary still present after removal"
+            cgi_error "uninstall_failed" "Failed to remove the engine binaries"
             exit 0
         fi
 
-        qlog_info "nfqws uninstalled successfully"
+        qlog_info "DPI engine binaries uninstalled successfully"
         cgi_success
         ;;
 

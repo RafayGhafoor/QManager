@@ -211,6 +211,23 @@ _dpi_wanted() {
     [ "$(_uci video_optimizer.enabled)" = "1" ] || [ "$(_uci traffic_masquerade.enabled)" = "1" ]
 }
 
+# The engine the DPI service is expected to run: Masquerade only exists in the
+# packet-queue engine, Video Optimizer uses its saved choice (defaulted to the
+# packet-queue engine when the key has never been written). The checks below ask
+# about THIS engine, so a redirect-engine install is not reported as broken.
+_dpi_engine() {
+    local e
+    if [ "$(_uci traffic_masquerade.enabled)" = "1" ]; then
+        echo "nfqws"
+        return
+    fi
+    e=$(_uci video_optimizer.engine)
+    case "$e" in
+        tpws|nfqws) echo "$e" ;;
+        *) echo "nfqws" ;;
+    esac
+}
+
 _email_enabled() {
     [ -f "$CONF_DIR/email_alerts.json" ] || return 1
     [ "$(jq -r '.enabled | if . == null then "false" else tostring end' "$CONF_DIR/email_alerts.json" 2>/dev/null)" = "true" ]
@@ -372,9 +389,11 @@ t_bin_msmtp() {
 
 t_bin_nfqws() {
     local en="no"
+    local engine
+    engine=$(_dpi_engine)
     _dpi_wanted && en="yes"
-    echo "traffic engine enabled: $en" >> "$OUT"
-    if _bin_check /usr/bin/nfqws --version; then return 0; fi
+    echo "traffic engine enabled: $en engine: $engine" >> "$OUT"
+    if _bin_check "/usr/bin/$engine" --version; then return 0; fi
     if [ "$en" = "yes" ]; then echo "fail|missing but Traffic Engine is enabled"
     else echo "skip|Traffic Engine not enabled"; fi
 }
@@ -714,12 +733,14 @@ t_svc_tower_failover() {
 }
 
 t_svc_dpi() {
+    local engine
+    engine=$(_dpi_engine)
     if ! _dpi_wanted; then
         echo "video_optimizer.enabled=$(_uci video_optimizer.enabled) traffic_masquerade.enabled=$(_uci traffic_masquerade.enabled)" >> "$OUT"
         echo "skip|Traffic Engine not enabled"
         return
     fi
-    _svc_check qmanager_dpi nfqws
+    _svc_check qmanager_dpi "$engine"
 }
 
 t_svc_sms_forward() {
@@ -839,8 +860,20 @@ t_net_fw4() {
 }
 
 t_net_dpi_chain() {
+    local engine
+    engine=$(_dpi_engine)
     if ! _dpi_wanted; then
         echo "skip|Traffic Engine not enabled"
+        return
+    fi
+    # The packet-queue engine runs off a static nft chain; the redirect engine
+    # runs off its own NAT chain, which only exists while it is intercepting.
+    if [ "$engine" = "tpws" ]; then
+        if timeout 10 iptables -t nat -S QMANAGER_DPI_TPWS >> "$OUT" 2>&1; then
+            echo "pass|redirect chain present"
+        else
+            echo "fail|enabled but chain QMANAGER_DPI_TPWS missing"
+        fi
         return
     fi
     if timeout 10 nft list chain inet fw4 mangle_postrouting_qmanager_dpi >> "$OUT" 2>&1; then

@@ -1108,7 +1108,9 @@ stop_services() {
             killall "$pname" 2>/dev/null || true
         done
     fi
-    for p in bridge_traffic_monitor_rm551 websocat nfqws; do
+    # tpws is killed AFTER the supervisor loop above: its supervisor removes the
+    # redirect rules in its TERM trap, and the rules must never outlive tpws.
+    for p in bridge_traffic_monitor_rm551 websocat nfqws tpws; do
         killall "$p" 2>/dev/null || true
     done
 
@@ -1127,9 +1129,24 @@ stop_services() {
             killall -9 "$pname" 2>/dev/null || true
         done
     fi
-    for p in bridge_traffic_monitor_rm551 websocat nfqws; do
+    for p in bridge_traffic_monitor_rm551 websocat nfqws tpws; do
         killall -9 "$p" 2>/dev/null || true
     done
+
+    # The redirect engine's NAT chain is runtime state, not a shipped file. If
+    # its supervisor died without its trap (SIGKILL above), the chain would
+    # outlive the listener it points at and refuse every HTTPS connection. Drop
+    # it here; nothing jumps to it again until the service starts.
+    if command -v iptables >/dev/null 2>&1; then
+        # Bounded: a duplicate jump would loop, and there is never more than one.
+        tr_i=0
+        while [ "$tr_i" -lt 8 ]; do
+            iptables -t nat -D PREROUTING -j QMANAGER_DPI_TPWS 2>/dev/null || break
+            tr_i=$((tr_i + 1))
+        done
+        iptables -t nat -F QMANAGER_DPI_TPWS 2>/dev/null || true
+        iptables -t nat -X QMANAGER_DPI_TPWS 2>/dev/null || true
+    fi
 
     info "All services stopped"
 }

@@ -1,15 +1,20 @@
 #!/bin/sh
-# qmanager_dpi_install — Download and install nfqws binary from zapret releases
+# qmanager_dpi_install — Download and install the zapret engine binaries
 # Spawned by CGI, writes progress to /tmp/qmanager_dpi_install.json
 #
 # Approach: Download the upstream zapret release tarball (openwrt-embedded),
-# extract only the nfqws binary for the detected architecture, install to
-# /usr/bin/nfqws, and verify it works. Skips the full zapret package to avoid
+# extract only the engine binaries for the detected architecture, install them to
+# /usr/bin, and verify each one runs. Skips the full zapret package to avoid
 # opkg dependency issues on custom firmware.
 #
-# The release is pinned by tag AND sha256: nfqws runs as root, so a moved
+# Two binaries come out of the same release and the same checksum:
+#   nfqws — packet-queue engine (required; the only engine that can Masquerade)
+#   tpws  — redirect engine (installed when the release carries it)
+# See /usr/lib/qmanager/dpi_helper.sh for which engine is used when.
+#
+# The release is pinned by tag AND sha256: these binaries run as root, so a moved
 # "latest" or a tampered asset must never install. To bump, take the asset's
-# digest from the GitHub release (and re-hash the download to confirm it).
+# digest from the GitHub release (and re-hash the download to confirm).
 
 . /usr/lib/qmanager/qlog.sh
 [ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
@@ -20,7 +25,6 @@ RESULT_FILE="/tmp/qmanager_dpi_install.json"
 # B5.11: same root-only path the video_optimizer.sh CGI guards on
 PID_FILE="/var/run/qmanager/dpi_install.pid"
 INSTALL_DIR="/usr/bin"
-NFQWS_BIN="$INSTALL_DIR/nfqws"
 # B4.1: root-owned work dir under /var/run (the binary is extracted and installed as root)
 TMP_DIR="/var/run/qmanager/dpi_download"
 ZAPRET_TAG="v72.13"
@@ -49,6 +53,52 @@ write_result() {
         "$status" "$message" "$detail" > "$RESULT_FILE"
 }
 
+# install_engine_binary NAME ARCH — extract, prove and install one engine.
+#
+# rc 0 installed, 2 not in this archive, 1 failed. The binary is proven to run
+# BEFORE it replaces anything, so a bad download never costs the user a working
+# engine. The write is temp + sync + rename, which also works while a running
+# engine holds the old inode (where cp fails with ETXTBSY).
+install_engine_binary() {
+    local name="$1"
+    local arch="$2"
+    local path
+    local extracted
+    local version
+    path=$(tar tzf "$tarball" 2>/dev/null | grep "binaries/$arch/$name$" | head -1)
+
+    if [ -z "$path" ]; then
+        qlog_warn "$name is not in the $arch archive"
+        return 2
+    fi
+
+    if ! tar xzf "$tarball" -C "$TMP_DIR" "$path" 2>/dev/null; then
+        qlog_error "could not extract $path"
+        return 1
+    fi
+
+    extracted="$TMP_DIR/$path"
+    if [ ! -f "$extracted" ]; then
+        qlog_error "$name not found after extraction"
+        return 1
+    fi
+
+    chmod 755 "$extracted"
+    version=$("$extracted" --version 2>&1 | head -1)
+    if [ -z "$version" ]; then
+        qlog_error "$name does not run on this device"
+        return 1
+    fi
+
+    if ! qm_durable_write "$INSTALL_DIR/$name" 0755 < "$extracted"; then
+        qlog_error "could not write $INSTALL_DIR/$name"
+        return 1
+    fi
+
+    qlog_info "$name installed: $version"
+    return 0
+}
+
 # Detect device architecture
 detect_arch() {
     local machine
@@ -68,7 +118,7 @@ detect_arch() {
 
 # --- Main ---
 
-qlog_info "Starting nfqws installation"
+qlog_info "Starting engine installation"
 write_result "running" "Detecting architecture..." ""
 
 # Step 1: Detect architecture
@@ -108,7 +158,7 @@ qlog_info "Downloaded tarball ($(wc -c < "$tarball") bytes)"
 # Step 3: Verify the pinned sha256 before tar touches the archive (fail closed)
 write_result "running" "Verifying download..." ""
 if ! command -v sha256sum >/dev/null 2>&1; then
-    qlog_error "sha256sum not available, refusing to install unverified nfqws"
+    qlog_error "sha256sum not available, refusing to install an unverified engine"
     write_result "error" "Verification failed" "Cannot verify the download on this device"
     exit 1
 fi
@@ -120,48 +170,35 @@ if [ "$actual_sha" != "$ZAPRET_SHA256" ]; then
 fi
 qlog_info "SHA-256 verified (zapret $ZAPRET_TAG)"
 
-write_result "running" "Extracting nfqws binary..." ""
+write_result "running" "Extracting engine binaries..." ""
 
-# Step 4: Extract only the nfqws binary for our architecture
-# The tarball structure is: zapret-vXX/binaries/<arch>/nfqws
-nfqws_path=$(tar tzf "$tarball" 2>/dev/null | grep "binaries/$arch/nfqws$" | head -1)
+# Step 4: Extract the engine binaries for our architecture
+# The tarball structure is: zapret-vXX/binaries/<arch>/<name>
+install_engine_binary nfqws "$arch"
+case "$?" in
+    0) ;;
+    2)
+        write_result "error" "Binary not found in archive" "No nfqws for $arch in tarball"
+        exit 1
+        ;;
+    *)
+        write_result "error" "Binary verification failed" "nfqws does not run on this device"
+        exit 1
+        ;;
+esac
 
-if [ -z "$nfqws_path" ]; then
-    write_result "error" "Binary not found in archive" "No nfqws for $arch in tarball"
-    exit 1
-fi
+# The redirect engine rides along in the same verified archive. A release that
+# does not carry it for this architecture still leaves a usable install: the UI
+# reads tpws_installed and then offers only the packet-queue engine.
+tpws_note=""
+install_engine_binary tpws "$arch"
+case "$?" in
+    0) ;;
+    2) tpws_note=" (no redirect engine in this release)" ;;
+    *) tpws_note=" (redirect engine could not be installed)" ;;
+esac
 
-if ! tar xzf "$tarball" -C "$TMP_DIR" "$nfqws_path" 2>/dev/null; then
-    write_result "error" "Extraction failed" "Could not extract $nfqws_path"
-    exit 1
-fi
-
-extracted="$TMP_DIR/$nfqws_path"
-if [ ! -f "$extracted" ]; then
-    write_result "error" "Extraction failed" "File not found after extraction"
-    exit 1
-fi
-
-qlog_info "Extracted nfqws binary ($(wc -c < "$extracted") bytes)"
-write_result "running" "Installing nfqws..." ""
-
-# Step 5: Verify the extracted binary runs BEFORE it replaces anything, so a
-# bad download never costs the user a working nfqws.
-chmod 755 "$extracted"
-nfqws_version=$("$extracted" --version 2>&1 | head -1)
-if [ -z "$nfqws_version" ]; then
-    write_result "error" "Binary verification failed" "nfqws does not run on this device"
-    exit 1
-fi
-
-# Step 6: Install via temp + sync + rename (crash-safe, and works while a
-# running nfqws holds the old inode, where cp fails with ETXTBSY)
-if ! qm_durable_write "$NFQWS_BIN" 0755 < "$extracted"; then
-    write_result "error" "Install failed" "Could not save the binary"
-    exit 1
-fi
-
-qlog_info "nfqws installed successfully: $nfqws_version"
-write_result "complete" "nfqws installed successfully" "$ZAPRET_TAG"
+qlog_info "Engine install finished: nfqws ok$tpws_note"
+write_result "complete" "Engine installed successfully" "$ZAPRET_TAG$tpws_note"
 
 exit 0
