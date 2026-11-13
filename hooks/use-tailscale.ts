@@ -28,6 +28,23 @@ import type { InstallResult } from "@/types/video-optimizer";
 
 const CGI_ENDPOINT = "/cgi-bin/quecmanager/vpn/tailscale.sh";
 
+/**
+ * One line for a toast: the resolved message, then the backend's `detail`.
+ *
+ * `resolveErrorMessage` returns the translated code and DROPS the detail when
+ * the code is known - which is right for a surface that renders the detail
+ * itself (the install card's notice does). A toast has one line, and for
+ * `insufficient_space` the detail is the measured part of the message (free vs
+ * required), so discarding it leaves the user with "not enough space" and no
+ * way to judge it. Joined only when the message does not already carry it.
+ */
+export function withDetail(message: string | undefined, detail: string | undefined): string {
+  const base = message?.trim() ?? "";
+  const extra = detail?.trim() ?? "";
+  if (!extra || base.includes(extra)) return base;
+  return base ? `${base} — ${extra}` : extra;
+}
+
 const POLL_NORMAL_MS = 10_000;
 const POLL_AUTH_MS = 3_000;
 
@@ -317,7 +334,7 @@ export function useTailscale(): UseTailscaleReturn {
         if (!json.success) {
           return {
             ok: false,
-            reason: resolveErrorMessage(t, json.error, json.detail, ""),
+            reason: withDetail(resolveErrorMessage(t, json.error, json.detail, ""), json.detail),
           };
         }
         await fetchStatus(true);
@@ -450,7 +467,7 @@ export function useTailscale(): UseTailscaleReturn {
         setInstallResult({
           success: false,
           status: "error",
-          message: resolveErrorMessage(t, json.error, json.detail, ""),
+          message: withDetail(resolveErrorMessage(t, json.error, json.detail, ""), json.detail),
         });
         return;
       }
@@ -482,7 +499,7 @@ export function useTailscale(): UseTailscaleReturn {
         if (!json.success) {
           return {
             ok: false,
-            reason: resolveErrorMessage(t, json.error, json.detail, ""),
+            reason: withDetail(resolveErrorMessage(t, json.error, json.detail, ""), json.detail),
           };
         }
         if (mountedRef.current) {
@@ -546,7 +563,7 @@ export function useTailscale(): UseTailscaleReturn {
     try {
       const started = await postAction({ action: "update" });
       if (!started.success) {
-        return fail(resolveErrorMessage(t, started.error, started.detail, ""));
+        return fail(withDetail(resolveErrorMessage(t, started.error, started.detail, ""), started.detail));
       }
 
       const startedAt = Date.now();
@@ -566,7 +583,7 @@ export function useTailscale(): UseTailscaleReturn {
           }
           if (r.status === "error") {
             await fetchStatus(true);
-            return { ok: false, reason: r.message ?? "" };
+            return { ok: false, reason: withDetail(r.message, r.detail) };
           }
         } catch {
           failingSince ??= Date.now();

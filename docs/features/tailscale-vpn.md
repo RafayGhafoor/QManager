@@ -162,7 +162,7 @@ All POST bodies are JSON. Mutating actions call `check_migration_lock` first: a 
 | `legacy_build` | check_update, update | The variant is `opkg` |
 | `up_to_date` | update | The cached latest is not newer than the installed version (the worker re-checks and reports the same code through progress) |
 | `update_check_failed` | check_update, install, update | `pkgs.tailscale.com` (or the Tiny feed index) unreachable, or the response format changed |
-| `insufficient_space` | install, update | Not enough RAM for staging, or not enough flash for the swap |
+| `insufficient_space` | install, update | Not enough RAM for staging, or not enough flash for the swap. Every one of these messages puts the required and free figures in `detail` (`Need 28 MB, 11 MB free`), because the device's 32 MB overlay is routinely the binding constraint. |
 | `unsupported_arch` | install, update | `uname -m` is not `aarch64` |
 | `checksum_mismatch` | install, update | The `.sha256` file is missing, malformed or does not match |
 | `install_failed` / `update_failed` | install / update | Generic worker failure (`<op>_failed`) |
@@ -206,10 +206,10 @@ The official body runs, under the lock:
 Shared by install and update. Nothing under `/usr/bin` is touched until every step passes.
 
 1. Refuse non-`aarch64` (`unsupported_arch`).
-2. RAM guard: work dir free at least 100 MB and `MemAvailable` at least 128 MB (`insufficient_space`).
+2. RAM guard: work dir free at least 100 MB and `MemAvailable` at least 128 MB (`insufficient_space`). Each limit fails on its own and reports the measured figure against it (`Need 100 MB free memory, 29 MB free`) - the numbers are the whole message, so a space failure is never reported without them.
 3. `ts_latest_refresh`: reads `https://pkgs.tailscale.com/stable/?mode=json`. The version is `.TarballsVersion`, falling back to `.Version`; the tarball is `.Tarballs.arm64` and must equal `tailscale_<ver>_arm64.tgz`.
 4. `curl --proto =https` download of the tarball, then its `.sha256`. **Fail closed:** a missing, non-hex or wrong-length checksum, or a mismatch, is `checksum_mismatch`.
-5. Extraction needs free RAM of at least 3x the tarball. `tar -xzf`, falling back to `gzip -dc | tar -x` when the BusyBox `tar` lacks `-z`.
+5. Extraction needs free RAM of at least 3x the tarball (`insufficient_space`, with the required and free figures). `tar -xzf`, falling back to `gzip -dc | tar -x` when the BusyBox `tar` lacks `-z`.
 6. Smoke test in RAM: `tailscale version` and `tailscaled --version` must both report the resolved version.
 
 > ℹ️ NOTE: Tailscale's GitHub releases carry no binaries. The official static builds live on `pkgs.tailscale.com/stable`, which is the only source.

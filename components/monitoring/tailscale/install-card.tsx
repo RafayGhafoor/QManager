@@ -26,7 +26,7 @@ import { HintIcon } from "@/components/ui/hint-icon";
 import { SEGMENTED, SegmentedField } from "@/components/ui/segmented-field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tag } from "@/components/ui/tag";
-import type { TailscaleInstallSource } from "@/hooks/use-tailscale";
+import { withDetail, type TailscaleInstallSource } from "@/hooks/use-tailscale";
 import type { InstallResult } from "@/types/video-optimizer";
 import { cn } from "@/lib/utils";
 
@@ -119,11 +119,12 @@ export function InstallCard({
     if (installResult.status === "complete") {
       toast.success(t("tailscale.toast.installed"), { id: "tailscale-install" });
     } else if (installResult.status === "error") {
-      toast.error(installResult.message || t("tailscale.toast.installFailed"), {
+      const failure = withDetail(installResult.message, installResult.detail);
+      toast.error(failure || t("tailscale.toast.installFailed"), {
         id: "tailscale-install",
       });
     }
-  }, [installResult.status, installResult.message, t]);
+  }, [installResult.status, installResult.message, installResult.detail, t]);
 
   // The foot's left edge says what is true right now: the run, the finish, or
   // the one consequence that applies before and after a failed attempt.
