@@ -116,6 +116,39 @@ export interface NrOutage {
   samples: number;
 }
 
+/**
+ * One bucket of a plotted series. `v` is `null` for a bucket that held no
+ * reading — never `0`, because 0 dBm RSRP and 0 dB SINR are real readings.
+ */
+export interface CellHistoryPoint {
+  ts: number;
+  v: number | null;
+}
+
+/**
+ * One contiguous run of a serving BAND SET — `"B1+N41"` while the NR leg was
+ * reported, `"B1"` while it was not.
+ *
+ * Separate from `ServingRun` on purpose: the PCI can stay put while the NR leg
+ * comes and goes, and that transition is the one the field complaint is about
+ * ("sometimes band 1"), so it needs its own segment rather than a new cell.
+ */
+export interface BandRun {
+  start_ts: number;
+  end_ts: number;
+  samples: number;
+  /** `"+"`-joined band tokens ("B1+N41"), or `null` when neither leg was named. */
+  bands: string | null;
+}
+
+/** Time-share rollup of one band set across the window, most samples first. */
+export interface BandCombo {
+  bands: string | null;
+  samples: number;
+  first_ts: number;
+  last_ts: number;
+}
+
 /** One contiguous run of a single serving cell — a segment of the strip. */
 export interface ServingRun {
   start_ts: number;

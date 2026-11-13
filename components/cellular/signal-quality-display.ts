@@ -140,3 +140,32 @@ export function qualityInkClass(quality: SignalQuality): string {
       return "text-on-surface-variant";
   }
 }
+
+/**
+ * Quality as a CHART STROKE — the same ramp stop the meter beside it would take,
+ * as a CSS custom property rather than a Tailwind class.
+ *
+ * A chart needs a colour VALUE (recharts writes it into an SVG attribute), and
+ * the class-based pair above cannot be handed to it. `--quality-N-bar` is the
+ * same token `qualityMeterTone` resolves to, so a line and a bar describing the
+ * same reading are the same colour; the mapping lives here rather than in the
+ * chart, because a second copy is a second place for stop 3 to become yellow ink
+ * on a chart ground.
+ *
+ * `none` returns the neutral ink for the same reason `qualityInkClass` does: a
+ * missing reading is not the bottom of the scale.
+ */
+export function qualityStrokeVar(quality: SignalQuality): string {
+  switch (quality) {
+    case "excellent":
+      return "var(--quality-5-bar)";
+    case "good":
+      return "var(--quality-4-bar)";
+    case "fair":
+      return "var(--quality-3-bar)";
+    case "poor":
+      return "var(--quality-2-bar)";
+    case "none":
+      return "var(--on-surface-variant)";
+  }
+}

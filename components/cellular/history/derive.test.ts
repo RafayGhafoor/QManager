@@ -10,13 +10,22 @@ import {
   availabilityBuckets,
   availabilitySummary,
   availabilityTier,
+  bandCombos,
+  bandRsrpSeries,
+  bandRuns,
   cellEvents,
   cellStats,
   formatPct,
   formatSpan,
+  hourTicks,
   isWindowShort,
+  metricSeries,
+  newestSample,
   nrOutages,
+  outageRows,
+  patternRows,
   servingRuns,
+  timelineSegments,
   totalOutageSeconds,
   windowOf,
 } from "./derive";
@@ -335,5 +344,215 @@ describe("formatting", () => {
     expect(formatPct(75)).toBe("75%");
     expect(formatPct(99.66)).toBe("99.7%");
     expect(formatPct(0.4)).toBe("0.4%");
+  });
+});
+
+// --- The panels the parity port added ----------------------------------------
+
+/** A window of `span` seconds ending at `BASE`, built the way `windowOf` builds it. */
+function win(start: number, end: number) {
+  return { start, end, samples: 0, first_ts: null, last_ts: null };
+}
+
+describe("hourTicks", () => {
+  test("lands on local hour boundaries and thins to at most seven", () => {
+    // Local midnight, so the assertion does not depend on the test machine's zone.
+    const start = new Date(2025, 0, 5, 0, 0, 0).getTime() / 1000;
+    const ticks = hourTicks(win(start, start + 86_400));
+    expect(ticks.length).toBeGreaterThan(1);
+    expect(ticks.length).toBeLessThanOrEqual(7);
+    for (const tick of ticks) {
+      expect(new Date(tick.ts * 1000).getMinutes()).toBe(0);
+    }
+    // The first tick IS the window start (the left edge), and the last one is
+    // the closing hour boundary (the right edge).
+    expect(ticks[0].leftPct).toBe(0);
+    expect(ticks[ticks.length - 1].leftPct).toBe(100);
+  });
+
+  test("a window with no span has no ticks", () => {
+    expect(hourTicks(win(BASE, BASE))).toEqual([]);
+  });
+});
+
+describe("patternRows", () => {
+  const start = new Date(2025, 0, 5, 0, 0, 0).getTime() / 1000;
+  const window = win(start, start + 86_400);
+
+  test("one row per local day the window covers, 24 hours each", () => {
+    const rows = patternRows([], window);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].label).toBe("01-05");
+    expect(rows[0].cells).toHaveLength(24);
+    expect(rows[0].cells[0].n).toBe(0);
+  });
+
+  test("a bucket lands in its own local hour, not in UTC", () => {
+    const buckets = [
+      { ts: new Date(2025, 0, 5, 3, 20, 0).getTime() / 1000, n: 4, up: 1 },
+    ];
+    const rows = patternRows(buckets, window);
+    expect(rows[0].cells[3]).toMatchObject({ n: 4, up: 1 });
+    expect(rows[0].cells[0].n).toBe(0);
+  });
+
+  test("a day whose every hour is unknown still gets its row", () => {
+    const rows = patternRows([], window);
+    expect(rows.map((row) => row.key)).toHaveLength(2);
+  });
+});
+
+describe("bandRuns", () => {
+  test("the serving carrier and the NR leg read as one set", () => {
+    const runs = bandRuns([row(BASE), row(BASE + 60)]);
+    expect(runs).toHaveLength(1);
+    expect(runs[0].bands).toBe("B3+N78");
+    expect(runs[0].samples).toBe(2);
+  });
+
+  test("the NR leg dropping is its own run, with the LTE band alone", () => {
+    const runs = bandRuns([
+      row(BASE),
+      row(BASE + 60, { nr_band: null, nr_pci: null, nr_avail: 0 }),
+    ]);
+    expect(runs).toHaveLength(2);
+    expect(runs[1].bands).toBe("B3");
+  });
+
+  test("a gap cuts the set rather than holding it across the hole", () => {
+    const runs = bandRuns([row(BASE), row(BASE + GAP_THRESHOLD_SECONDS + 600)]);
+    expect(runs).toHaveLength(2);
+  });
+
+  test("a row with no band at all is a null set, not an invented letter", () => {
+    const runs = bandRuns([row(BASE, { lte_band: null, nr_band: null })]);
+    expect(runs[0].bands).toBeNull();
+  });
+
+  test("time share per set, most samples first", () => {
+    const rows = [
+      row(BASE),
+      row(BASE + 60),
+      row(BASE + 120, { nr_band: null, nr_pci: null, nr_avail: 0 }),
+    ];
+    const combos = bandCombos(bandRuns(rows));
+    expect(combos[0].bands).toBe("B3+N78");
+    expect(combos[0].samples).toBe(2);
+    expect(combos[1].bands).toBe("B3");
+    expect(combos[1].first_ts).toBe(BASE + 120);
+  });
+});
+
+describe("outageRows", () => {
+  test("the serving cell is read off the run that covers the outage", () => {
+    const rows = [
+      row(BASE, { lte_pci: 104 }),
+      row(BASE + 60, { lte_pci: 104, nr_avail: 0, nr_band: null, nr_pci: null }),
+      row(BASE + 120, { lte_pci: 104, nr_avail: 0, nr_band: null, nr_pci: null }),
+    ];
+    const shapes = outageRows(nrOutages(rows), servingRuns(rows));
+    expect(shapes).toHaveLength(1);
+    expect(shapes[0].ltePci).toBe(104);
+    expect(shapes[0].lteBand).toBe("B3");
+    expect(shapes[0].uncovered).toBe(false);
+    expect(shapes[0].seconds).toBe(60);
+  });
+
+  test("no run covering the span says so instead of naming a cell", () => {
+    const outages = [{ start_ts: BASE, end_ts: BASE + 60, samples: 2 }];
+    const [shape] = outageRows(outages, []);
+    expect(shape.uncovered).toBe(true);
+    expect(shape.ltePci).toBeNull();
+  });
+
+  test("newest first", () => {
+    const outages = [
+      { start_ts: BASE, end_ts: BASE + 60, samples: 2 },
+      { start_ts: BASE + 600, end_ts: BASE + 660, samples: 2 },
+    ];
+    expect(outageRows(outages, [])[0].startTs).toBe(BASE + 600);
+  });
+});
+
+describe("metricSeries", () => {
+  const window = win(BASE, BASE + 3600);
+
+  test("a bucket holds the mean of its readings", () => {
+    const series = metricSeries(
+      [row(BASE + 60, { rsrp: -90 }), row(BASE + 120, { rsrp: -80 })],
+      "rsrp",
+      window,
+      600,
+    );
+    expect(series[0].v).toBe(-85);
+  });
+
+  test("a bucket with no reading stays null, never 0", () => {
+    const series = metricSeries([row(BASE + 60, { rsrp: null })], "rsrp", window, 600);
+    expect(series[0].v).toBeNull();
+  });
+
+  test("the series covers the whole window, holes included", () => {
+    const series = metricSeries([row(BASE + 60)], "sinr", window, 600);
+    expect(series).toHaveLength(7);
+    expect(series.filter((point) => point.v !== null)).toHaveLength(1);
+  });
+});
+
+describe("bandRsrpSeries", () => {
+  const window = win(BASE, BASE + 3600);
+
+  test("one series per band the device served on", () => {
+    const rows = [
+      row(BASE + 60, { lte_band: "B3", rsrp: -90 }),
+      row(BASE + 120, { lte_band: "B1", rsrp: -110 }),
+    ];
+    const series = bandRsrpSeries(rows, window, 600);
+    expect(Object.keys(series).sort()).toEqual(["B1", "B3"]);
+    expect(series["B3"][0].v).toBe(-90);
+    expect(series["B1"][0].v).toBe(-110);
+  });
+
+  test("a row with no band is not plotted under an invented key", () => {
+    const series = bandRsrpSeries([row(BASE + 60, { lte_band: null })], window, 600);
+    expect(Object.keys(series)).toHaveLength(0);
+  });
+});
+
+describe("newestSample", () => {
+  test("the newest row wins even when the payload is out of order", () => {
+    const sample = newestSample([row(BASE + 120), row(BASE)]);
+    expect(sample?.as_of).toBe(BASE + 120);
+  });
+
+  test("an empty range has no sample", () => {
+    expect(newestSample([])).toBeNull();
+  });
+});
+
+describe("timelineSegments", () => {
+  const window = win(BASE, BASE + 3600);
+
+  test("a run becomes a positioned segment", () => {
+    const [segment] = timelineSegments(
+      servingRuns([row(BASE), row(BASE + 60)]),
+      window,
+    );
+    expect(segment.leftPct).toBe(0);
+    // One minute of an hour is a sixtieth of the track.
+    expect(Math.round(segment.widthPct)).toBe(2);
+  });
+
+  test("a one-minute run keeps a visible floor width", () => {
+    const [segment] = timelineSegments(
+      servingRuns([row(BASE + 600), row(BASE + 660)]),
+      win(BASE, BASE + 86_400),
+    );
+    expect(segment.widthPct).toBeGreaterThanOrEqual(0.5);
+  });
+
+  test("a run outside the window draws nothing", () => {
+    const runs = servingRuns([row(BASE - 7200)]);
+    expect(timelineSegments(runs, window)).toHaveLength(0);
   });
 });
