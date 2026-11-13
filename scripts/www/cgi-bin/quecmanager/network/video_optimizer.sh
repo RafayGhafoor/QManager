@@ -27,6 +27,52 @@ dpi_spawn_guard() {
     fi
 }
 
+# dpi_service_restart_checked — restart the DPI service and prove nfqws runs.
+#
+# The init script's exit status is captured (it used to reach the CGI's own
+# stdout, where a stray byte corrupts the JSON body), but it cannot be the only
+# gate: rc.common's procd wrapper discards start_service()'s return value, and
+# procd registers the instance asynchronously, so a refused start and a slow one
+# look identical at return time. Both signals therefore: a non-zero status is a
+# failure outright, and otherwise wait, bounded, for the pidfile to name a live
+# nfqws. rc 0 only when the engine is running; the reason goes to the log.
+dpi_service_restart_checked() {
+    local out
+    local rc
+    local i
+    out=$(/etc/init.d/qmanager_dpi restart 2>&1)
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+        qlog_error "qmanager_dpi restart exited $rc: $out"
+        return 1
+    fi
+    i=0
+    while [ "$i" -lt 20 ]; do
+        [ "$(dpi_get_status)" = "running" ] && return 0
+        sleep 0.25
+        i=$((i + 1))
+    done
+    qlog_error "qmanager_dpi restart did not bring nfqws up within 5 s: $out"
+    return 1
+}
+
+# dpi_service_stop_checked — stop the DPI service and prove nfqws is gone.
+# Same bounded proof in the other direction: "disabled" must not be reported
+# while the queue is still being processed. rc 0 only when it stopped.
+dpi_service_stop_checked() {
+    local out
+    local i
+    out=$(/etc/init.d/qmanager_dpi stop 2>&1)
+    i=0
+    while [ "$i" -lt 20 ]; do
+        [ "$(dpi_get_status)" = "stopped" ] && return 0
+        sleep 0.25
+        i=$((i + 1))
+    done
+    qlog_error "qmanager_dpi stop left nfqws running: $out"
+    return 1
+}
+
 # Ensure UCI section exists with defaults
 ensure_dpi_config() {
     local section existing_repeats
@@ -247,10 +293,16 @@ POST)
         # Restart or stop service + manage boot persistence
         if [ "$new_enabled" = "true" ]; then
             /etc/init.d/qmanager_dpi enable 2>/dev/null
-            /etc/init.d/qmanager_dpi restart
+            if ! dpi_service_restart_checked; then
+                cgi_error "engine_start_failed" "Daemon $(dpi_get_status) after restart"
+                exit 0
+            fi
             qlog_info "Video Optimizer enabled (boot: on)"
         else
-            /etc/init.d/qmanager_dpi stop
+            if ! dpi_service_stop_checked; then
+                cgi_error "engine_stop_failed" "Daemon $(dpi_get_status) after stop"
+                exit 0
+            fi
             # Disable boot if masquerade is also off
             masq_check=$(uci -q get quecmanager.traffic_masquerade.enabled)
             [ "$masq_check" != "1" ] && /etc/init.d/qmanager_dpi disable 2>/dev/null
@@ -350,10 +402,16 @@ POST)
         # Restart or stop service + manage boot persistence
         if [ "$new_enabled" = "true" ]; then
             /etc/init.d/qmanager_dpi enable 2>/dev/null
-            /etc/init.d/qmanager_dpi restart
+            if ! dpi_service_restart_checked; then
+                cgi_error "engine_start_failed" "Daemon $(dpi_get_status) after restart"
+                exit 0
+            fi
             qlog_info "Traffic Masquerade enabled (sni=$new_sni, boot: on)"
         else
-            /etc/init.d/qmanager_dpi stop
+            if ! dpi_service_stop_checked; then
+                cgi_error "engine_stop_failed" "Daemon $(dpi_get_status) after stop"
+                exit 0
+            fi
             # Disable boot if video optimizer is also off
             vo_check=$(uci -q get quecmanager.video_optimizer.enabled)
             [ "$vo_check" != "1" ] && /etc/init.d/qmanager_dpi disable 2>/dev/null
@@ -392,7 +450,10 @@ POST)
         # Restart service if VO is currently running to pick up new list
         vo_enabled=$(uci -q get quecmanager.video_optimizer.enabled)
         if [ "$vo_enabled" = "1" ] && [ "$(dpi_get_status)" = "running" ]; then
-            /etc/init.d/qmanager_dpi restart
+            if ! dpi_service_restart_checked; then
+                cgi_error "engine_start_failed" "Hostname list saved; daemon $(dpi_get_status) after restart"
+                exit 0
+            fi
             qlog_info "Hostlist updated, service restarted"
         else
             qlog_info "Hostlist updated"
@@ -412,7 +473,10 @@ POST)
 
         vo_enabled=$(uci -q get quecmanager.video_optimizer.enabled)
         if [ "$vo_enabled" = "1" ] && [ "$(dpi_get_status)" = "running" ]; then
-            /etc/init.d/qmanager_dpi restart
+            if ! dpi_service_restart_checked; then
+                cgi_error "engine_start_failed" "Default list restored; daemon $(dpi_get_status) after restart"
+                exit 0
+            fi
             qlog_info "Hostlist restored to default, service restarted"
         else
             qlog_info "Hostlist restored to default"
