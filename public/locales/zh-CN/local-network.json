@@ -583,5 +583,120 @@
       "hostlist_save_failed": "保存主机名列表失败",
       "hostlist_restore_failed": "恢复默认失败"
     }
+  },
+  "smartdns": {
+    "page_title": "智能 DNS",
+    "page_description": "在本路由器上缓存解析结果，并同时向多个上游服务器查询。解析更快，单个上游不可用也不会影响结果。",
+    "refresh": "刷新",
+    "blocked_no_upstreams": "至少选择一个上游解析服务器。",
+    "toast_saved": "解析器设置已应用",
+    "toast_saved_lan": "解析器设置已应用——本网络现在优先使用它",
+    "toast_save_failed": "无法应用解析器设置",
+    "toast_installed": "解析器已安装",
+    "toast_install_failed": "无法安装解析器",
+    "toast_removed": "解析器已移除",
+    "toast_remove_failed": "无法移除解析器",
+    "error_load_title": "无法读取解析器状态",
+    "error_load_body": "调制解调器未响应，请检查连接后重试。",
+    "units": {
+      "mb": "MB"
+    },
+    "duration": {
+      "day": " 天",
+      "hour": " 小时",
+      "minute": " 分",
+      "second": " 秒"
+    },
+    "install": {
+      "title": "解析器软件包",
+      "description": "智能 DNS 是可选软件包，当前调制解调器尚未安装。",
+      "lead_title": "尚未安装智能 DNS",
+      "lead_body": "安装只会把解析器装到调制解调器上。您的 DNS 设置以及网络中所有设备都保持不变。",
+      "progress_default": "正在安装解析器",
+      "progress_body": "大约需要一分钟。安装期间域名解析不受影响。",
+      "failed": "无法安装解析器",
+      "failed_detail": "原因：{{detail}}",
+      "fact_dns_untouched": "安装不会更改 DNS。",
+      "fact_package": "软件包下载到本机，重启后仍然保留。",
+      "fact_reversible": "随时可以再移除。",
+      "action": "安装智能 DNS",
+      "installing": "正在安装…"
+    },
+    "status": {
+      "title": "解析器",
+      "description": "在本路由器上响应解析请求。在把网络指向它之前，只有路由器自身会用到它。",
+      "state": {
+        "running": "运行中",
+        "enabled_stopped": "未运行",
+        "running_unbound": "未响应",
+        "stopped": "已关闭",
+        "wired_only": "网络仍指向它"
+      },
+      "readout": {
+        "port": "端口",
+        "upstreams": "上游数量",
+        "uptime": "运行时长",
+        "memory": "内存",
+        "cache": "缓存大小",
+        "fallback": "备用服务器",
+        "config": "设置已应用",
+        "log_lines": "日志行数"
+      },
+      "fallback": {
+        "label": "如果它没有响应",
+        "present": "解析请求会转而发送到 {{servers}}。",
+        "absent": "未找到备用服务器，因此未改动本网络的 DNS。"
+      },
+      "log": {
+        "title": "最近活动",
+        "empty": "自上次重启以来没有日志。"
+      },
+      "remove": {
+        "label": "移除",
+        "blocked": "请先关闭解析器",
+        "confirm_title": "移除智能 DNS？",
+        "confirm_body": "软件包将从调制解调器删除，解析器停止运行。本网络会回到运营商提供的 DNS 服务器。",
+        "confirm_action": "移除"
+      }
+    },
+    "settings": {
+      "title": "设置",
+      "description": "解析器是什么、向谁查询，以及本网络是否使用它。",
+      "rows": {
+        "enabled": {
+          "label": "解析器",
+          "on": "缓存解析结果，并同时向多个上游查询。",
+          "off": "未运行。网络中没有任何设备使用它。"
+        },
+        "lan_dns": {
+          "label": "让本网络使用它",
+          "on": "设备先查询解析器，再查询运营商服务器。",
+          "off": "设备直接查询运营商的服务器。"
+        },
+        "cache": {
+          "label": "缓存大小",
+          "hint": "路由器上保留多少条解析结果。"
+        },
+        "prefetch": {
+          "label": "保持常用域名预热",
+          "hint": "在常用域名过期前提前刷新。"
+        },
+        "upstreams": {
+          "label": "上游解析服务器",
+          "hint": "同时向所有服务器查询，最快的结果生效，因此某个服务器不可达也不影响使用。",
+          "count_one": "已选 {{count}} 个",
+          "count_other": "已选 {{count}} 个"
+        }
+      },
+      "foot": {
+        "pending": "应用时解析器会重启一次。"
+      }
+    },
+    "errors": {
+      "fetch_failed": "无法读取解析器状态",
+      "save_failed": "无法应用解析器设置",
+      "install_failed": "无法安装解析器",
+      "uninstall_failed": "无法移除解析器"
+    }
   }
 }

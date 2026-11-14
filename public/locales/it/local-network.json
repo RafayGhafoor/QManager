@@ -576,5 +576,120 @@
       "hostlist_save_failed": "Impossibile salvare l'elenco dei nomi host",
       "hostlist_restore_failed": "Impossibile ripristinare le impostazioni predefinite"
     }
+  },
+  "smartdns": {
+    "page_title": "SmartDNS",
+    "page_description": "Un resolver che tiene le risposte su questo router e interroga più resolver insieme: le ricerche restano rapide e un provider irraggiungibile non costa nulla.",
+    "refresh": "Aggiorna",
+    "blocked_no_upstreams": "Scegli almeno un resolver upstream.",
+    "toast_saved": "Impostazioni del resolver applicate",
+    "toast_saved_lan": "Impostazioni applicate — ora la rete lo interroga per primo",
+    "toast_save_failed": "Impossibile applicare le impostazioni del resolver",
+    "toast_installed": "Resolver installato",
+    "toast_install_failed": "Impossibile installare il resolver",
+    "toast_removed": "Resolver rimosso",
+    "toast_remove_failed": "Impossibile rimuovere il resolver",
+    "error_load_title": "Impossibile leggere il resolver",
+    "error_load_body": "Il modem non ha risposto. Controlla la connessione e riprova.",
+    "units": {
+      "mb": "MB"
+    },
+    "duration": {
+      "day": " g",
+      "hour": " h",
+      "minute": " min",
+      "second": " s"
+    },
+    "install": {
+      "title": "Pacchetto del resolver",
+      "description": "SmartDNS è un pacchetto opzionale e non è ancora presente su questo modem.",
+      "lead_title": "SmartDNS non è installato",
+      "lead_body": "L'installazione aggiunge il resolver al modem. Le impostazioni DNS e tutti i dispositivi della rete restano come sono.",
+      "progress_default": "Installazione del resolver",
+      "progress_body": "Richiede un minuto. La risoluzione dei nomi non è interessata.",
+      "failed": "Impossibile installare il resolver",
+      "failed_detail": "Motivo: {{detail}}",
+      "fact_dns_untouched": "L'installazione non modifica il DNS.",
+      "fact_package": "Il pacchetto viene scaricato sul modem e resta dopo un riavvio.",
+      "fact_reversible": "Può essere rimosso in qualsiasi momento.",
+      "action": "Installa SmartDNS",
+      "installing": "Installazione…"
+    },
+    "status": {
+      "title": "Resolver",
+      "description": "Risponde alle ricerche su questo router. Finché la rete non viene indirizzata qui, lo usa solo il router stesso.",
+      "state": {
+        "running": "Attivo",
+        "enabled_stopped": "Non attivo",
+        "running_unbound": "Non risponde",
+        "stopped": "Spento",
+        "wired_only": "La rete punta ancora qui"
+      },
+      "readout": {
+        "port": "Porta",
+        "upstreams": "Upstream",
+        "uptime": "Attivo da",
+        "memory": "Memoria",
+        "cache": "Dimensione cache",
+        "fallback": "Server di riserva",
+        "config": "Impostazioni applicate",
+        "log_lines": "Righe di log"
+      },
+      "fallback": {
+        "label": "Se non risponde",
+        "present": "Le ricerche passano a {{servers}}.",
+        "absent": "Nessun server di riserva trovato: la rete non è stata modificata."
+      },
+      "log": {
+        "title": "Attività recente",
+        "empty": "Nessun log dall'ultimo riavvio."
+      },
+      "remove": {
+        "label": "Rimuovi",
+        "blocked": "Spegni prima il resolver",
+        "confirm_title": "Rimuovere SmartDNS?",
+        "confirm_body": "Il pacchetto viene eliminato dal modem e il resolver si ferma. La rete torna ai server dell'operatore.",
+        "confirm_action": "Rimuovi"
+      }
+    },
+    "settings": {
+      "title": "Impostazioni",
+      "description": "Che cosa è il resolver, chi interroga e se la rete lo usa.",
+      "rows": {
+        "enabled": {
+          "label": "Resolver",
+          "on": "Mette in cache le risposte e interroga più resolver insieme.",
+          "off": "Non attivo. Nessun dispositivo della rete lo usa."
+        },
+        "lan_dns": {
+          "label": "Usalo per questa rete",
+          "on": "I dispositivi interrogano prima il resolver, poi i server dell'operatore.",
+          "off": "I dispositivi interrogano direttamente i server dell'operatore."
+        },
+        "cache": {
+          "label": "Dimensione cache",
+          "hint": "Quante risposte vengono tenute sul router."
+        },
+        "prefetch": {
+          "label": "Mantieni caldi i nomi frequenti",
+          "hint": "Aggiorna i nomi più cercati prima che scadano."
+        },
+        "upstreams": {
+          "label": "Resolver upstream",
+          "hint": "Vengono interrogati tutti insieme e vince la risposta più rapida: uno irraggiungibile non costa nulla.",
+          "count_one": "{{count}} selezionato",
+          "count_other": "{{count}} selezionati"
+        }
+      },
+      "foot": {
+        "pending": "L'applicazione riavvia il resolver per un istante."
+      }
+    },
+    "errors": {
+      "fetch_failed": "Impossibile leggere il resolver",
+      "save_failed": "Impossibile applicare le impostazioni del resolver",
+      "install_failed": "Impossibile installare il resolver",
+      "uninstall_failed": "Impossibile rimuovere il resolver"
+    }
   }
 }

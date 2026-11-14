@@ -1422,6 +1422,50 @@ seed_uci_defaults() {
         info "quecmanager.eth_link.aspm_policy already set — preserving user choice"
     fi
 
+    # SmartDNS resolver. The resolver itself is a separate opkg package that
+    # QManager installs only on an explicit request from the page, so everything
+    # seeded here is inert until an operator installs and enables it. Both
+    # switches are OFF, and the two of them mean different things:
+    #   enabled  — run the resolver on 127.0.0.1
+    #   lan_dns  — put it in front of the carrier in dnsmasq's upstream list
+    # `lan_dns` is the one that changes what every client on this LAN resolves
+    # through, so it must never be on because QManager was installed. Never
+    # overwrite an existing user choice.
+    if ! uci -q get quecmanager.smartdns >/dev/null 2>&1; then
+        uci set quecmanager.smartdns=smartdns
+    fi
+    if ! uci -q get quecmanager.smartdns.enabled >/dev/null 2>&1; then
+        uci set quecmanager.smartdns.enabled=0
+        info "Seeded quecmanager.smartdns.enabled=0 (resolver off)"
+    else
+        info "quecmanager.smartdns.enabled already set — preserving user choice"
+    fi
+    if ! uci -q get quecmanager.smartdns.lan_dns >/dev/null 2>&1; then
+        uci set quecmanager.smartdns.lan_dns=0
+        info "Seeded quecmanager.smartdns.lan_dns=0 (LAN DNS untouched)"
+    else
+        info "quecmanager.smartdns.lan_dns already set — preserving user choice"
+    fi
+    if ! uci -q get quecmanager.smartdns.port >/dev/null 2>&1; then
+        uci set quecmanager.smartdns.port=5353
+    fi
+    if ! uci -q get quecmanager.smartdns.cache_size >/dev/null 2>&1; then
+        uci set quecmanager.smartdns.cache_size=4096
+    fi
+    if ! uci -q get quecmanager.smartdns.prefetch >/dev/null 2>&1; then
+        uci set quecmanager.smartdns.prefetch=1
+    fi
+    if ! uci -q get quecmanager.smartdns.upstream >/dev/null 2>&1; then
+        for _sd_up in https://dns.google/dns-query https://cloudflare-dns.com/dns-query https://dns.quad9.net/dns-query; do
+            uci add_list "quecmanager.smartdns.upstream=$_sd_up"
+        done
+        info "Seeded the default upstream pool (3 resolvers)"
+    fi
+    if ! uci -q get quecmanager.smartdns.bootstrap >/dev/null 2>&1; then
+        uci add_list quecmanager.smartdns.bootstrap=1.1.1.1
+        uci add_list quecmanager.smartdns.bootstrap=8.8.8.8
+    fi
+
     uci commit quecmanager 2>/dev/null || warn "uci commit quecmanager failed"
 
     seed_web_port

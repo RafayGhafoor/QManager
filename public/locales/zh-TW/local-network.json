@@ -575,5 +575,120 @@
       "hostlist_save_failed": "儲存主機名列表失敗",
       "hostlist_restore_failed": "恢復預設失敗"
     }
+  },
+  "smartdns": {
+    "page_title": "智慧 DNS",
+    "page_description": "在本路由器上快取解析結果，並同時向多個上游伺服器查詢。解析更快，單一上游無法使用也不影響結果。",
+    "refresh": "重新整理",
+    "blocked_no_upstreams": "至少選擇一個上游解析伺服器。",
+    "toast_saved": "解析器設定已套用",
+    "toast_saved_lan": "解析器設定已套用——本網路現在優先使用它",
+    "toast_save_failed": "無法套用解析器設定",
+    "toast_installed": "解析器已安裝",
+    "toast_install_failed": "無法安裝解析器",
+    "toast_removed": "解析器已移除",
+    "toast_remove_failed": "無法移除解析器",
+    "error_load_title": "無法讀取解析器狀態",
+    "error_load_body": "數據機沒有回應，請檢查連線後再試一次。",
+    "units": {
+      "mb": "MB"
+    },
+    "duration": {
+      "day": " 天",
+      "hour": " 小時",
+      "minute": " 分",
+      "second": " 秒"
+    },
+    "install": {
+      "title": "解析器套件",
+      "description": "智慧 DNS 是選用套件，目前數據機尚未安裝。",
+      "lead_title": "尚未安裝智慧 DNS",
+      "lead_body": "安裝只會把解析器裝到數據機上。您的 DNS 設定以及網路上所有裝置都維持不變。",
+      "progress_default": "正在安裝解析器",
+      "progress_body": "大约需要一分鐘。安裝期間網域名稱解析不受影響。",
+      "failed": "無法安裝解析器",
+      "failed_detail": "原因：{{detail}}",
+      "fact_dns_untouched": "安裝不會變更 DNS。",
+      "fact_package": "套件會下載到本機，重新開機後仍會保留。",
+      "fact_reversible": "隨時可以再移除。",
+      "action": "安裝智慧 DNS",
+      "installing": "正在安裝…"
+    },
+    "status": {
+      "title": "解析器",
+      "description": "在本路由器上回應解析請求。在把網路指向它之前，只有路由器本身會用到它。",
+      "state": {
+        "running": "執行中",
+        "enabled_stopped": "未執行",
+        "running_unbound": "未回應",
+        "stopped": "已關閉",
+        "wired_only": "網路仍指向它"
+      },
+      "readout": {
+        "port": "連接埠",
+        "upstreams": "上游數量",
+        "uptime": "執行時間",
+        "memory": "記憶體",
+        "cache": "快取大小",
+        "fallback": "備援伺服器",
+        "config": "設定已套用",
+        "log_lines": "日誌行數"
+      },
+      "fallback": {
+        "label": "如果它沒有回應",
+        "present": "解析請求會改送到 {{servers}}。",
+        "absent": "找不到備援伺服器，因此未改動本網路的 DNS。"
+      },
+      "log": {
+        "title": "最近活動",
+        "empty": "自上次重新啟動以來沒有日誌。"
+      },
+      "remove": {
+        "label": "移除",
+        "blocked": "請先關閉解析器",
+        "confirm_title": "移除智慧 DNS？",
+        "confirm_body": "套件將從數據機刪除，解析器停止執行。本網路會回到電信業者提供的 DNS 伺服器。",
+        "confirm_action": "移除"
+      }
+    },
+    "settings": {
+      "title": "設定",
+      "description": "解析器是什麼、向誰查詢，以及本網路是否使用它。",
+      "rows": {
+        "enabled": {
+          "label": "解析器",
+          "on": "快取解析結果，並同時向多個上游查詢。",
+          "off": "未執行。網路上沒有任何裝置使用它。"
+        },
+        "lan_dns": {
+          "label": "讓本網路使用它",
+          "on": "裝置先查詢解析器，再查詢電信業者的伺服器。",
+          "off": "裝置直接查詢電信業者的伺服器。"
+        },
+        "cache": {
+          "label": "快取大小",
+          "hint": "路由器上保留多少筆解析結果。"
+        },
+        "prefetch": {
+          "label": "保持常用網域預熱",
+          "hint": "在常用網域過期前提前更新。"
+        },
+        "upstreams": {
+          "label": "上游解析伺服器",
+          "hint": "同時向所有伺服器查詢，最快的結果生效，因此某個伺服器無法連線也不影響使用。",
+          "count_one": "已選 {{count}} 個",
+          "count_other": "已選 {{count}} 個"
+        }
+      },
+      "foot": {
+        "pending": "套用時解析器會重新啟動一次。"
+      }
+    },
+    "errors": {
+      "fetch_failed": "無法讀取解析器狀態",
+      "save_failed": "無法套用解析器設定",
+      "install_failed": "無法安裝解析器",
+      "uninstall_failed": "無法移除解析器"
+    }
   }
 }

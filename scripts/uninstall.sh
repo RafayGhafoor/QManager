@@ -290,6 +290,29 @@ remove_services() {
 remove_backend() {
     step "Removing backend files"
 
+    # --- SmartDNS: hand dnsmasq its upstream list back ---
+    # Runs BEFORE the quecmanager UCI namespace and /usr/lib/qmanager are
+    # deleted below, because it needs both: the ledger lives under
+    # /etc/qmanager/smartdns and the removal logic lives in smartdns_lib.sh.
+    # Without this, uninstalling QManager would leave dnsmasq pointing at a
+    # resolver that no longer exists — names would still resolve (the carrier
+    # entries stay, `strictorder`) but every cold query would pay a dead hop
+    # first. `set +e` in the subshell because this script runs under `set -e`
+    # and a library that is merely absent must not abort the uninstall.
+    if [ -f "$LIB_DIR/smartdns_lib.sh" ] && [ "$(uci -q get quecmanager.smartdns.lan_dns 2>/dev/null)" = "1" ]; then
+        (
+            set +e
+            . "$LIB_DIR/smartdns_lib.sh"
+            command -v smartdns_unwire >/dev/null 2>&1 || exit 0
+            smartdns_unwire >/dev/null 2>&1
+            echo "unwired"
+        ) 2>>"$LOG_FILE" | grep -q unwired \
+            && info "Removed the SmartDNS resolver from dnsmasq's upstream list" || true
+    fi
+    # The ledger and generated config are QManager's; leave nothing behind that
+    # a reinstall would read as its own prior state.
+    rm -rf /etc/qmanager/smartdns 2>/dev/null || true
+
     # --- Host AT ports: hand the vendor port-bridge back as stock ---
     # Only when QManager turned it off (quecmanager.ports.host_at=0); a bridge
     # the user disabled outside QManager is left alone. Must run before the
