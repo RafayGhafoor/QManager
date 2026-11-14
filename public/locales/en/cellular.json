@@ -2510,234 +2510,254 @@
   },
   "history": {
     "page": {
-      "title": "Cell History",
-      "description": "Which cell served, on which band, and when 5G was not there."
+      "title": "History",
+      "description": "What the radio actually did over the selected range — when 5G was unavailable, which cell was serving, and how the signal moved. Recorded once a minute on the device, whether or not this page is open."
     },
-    "range_aria": "History range",
-    "refresh": "Refresh",
-    "refreshing": "Refreshing",
     "range": {
-      "h1": "1 h",
-      "h3": "3 h",
-      "h6": "6 h",
-      "h12": "12 h",
-      "h24": "24 h"
+      "h1": "1h",
+      "h3": "3h",
+      "h6": "6h",
+      "h12": "12h",
+      "h24": "24h",
+      "d7": "7d",
+      "d30": "30d"
     },
-    "window": {
-      "samples_one": "{{count}} reading",
-      "samples_other": "{{count}} readings",
-      "span": "{{first}} – {{last}}",
-      "short": "Fewer readings than {{range}}: recording starts when the device boots with this build.",
-      "identity_from": "Cell identity was recorded from {{time}}."
-    },
-    "stale": {
-      "title": "These readings are not updating",
-      "description": "The last read failed. What is shown is the newest record the device could serve."
-    },
-    "error": {
-      "title": "Could not read the history",
-      "description": "The record could not be opened. Nothing was lost — the device keeps recording while the page is closed."
-    },
-    "clock": {
-      "title": "The clock is not set yet",
-      "description": "History is stored against the device clock, so nothing can be read until it is set after the connection comes up."
-    },
-    "empty": {
-      "title": "No history yet",
-      "description": "One reading a minute is kept from the moment this build runs on the device. Leave it a while and the last day appears here."
-    },
-    "verdict": {
-      "up": "5G present",
-      "partial": "5G intermittent",
-      "down": "5G absent",
-      "unknown": "Not determined"
-    },
-    "availability": {
-      "title": "5G availability",
-      "description": "Share of the readings where the modem reported a 5G cell.",
-      "headline": "{{pct}} of readings had 5G",
-      "headline_unknown": "No reading determined 5G",
-      "awaiting": "Nothing in this range settled whether 5G was up, so there is no share to show — that is not the same as 5G being down.",
-      "coverage": "{{known}} of {{samples}} readings determined",
-      "downtime": "{{duration}} without 5G",
-      "no_outage": "No outage in this range",
-      "bucket": "{{time}} — 5G in {{up}} of {{known}} readings",
-      "bucket_unknown": "{{time}} — nothing determined",
-      "strip_aria": "5G availability over the selected range",
-      "tier": {
-        "up": "5G the whole bucket",
-        "partial": "5G part of the bucket",
-        "down": "No 5G in the bucket",
-        "unknown": "Nothing determined"
-      },
-      "outage_count_one": "{{count}} outage",
-      "outage_count_other": "{{count}} outages"
-    },
-    "timeline": {
-      "title": "Serving cell",
-      "description": "How long each cell served, and what 5G did while it did.",
-      "strip_aria": "Serving cell over the selected range",
-      "run_tip": "Cell {{cell}} · {{band}} · 5G {{nr}} · {{from}} – {{to}} · {{pct}} with 5G",
-      "no_cell": "No cell",
-      "unknown": "not determined",
-      "col_cell": "Cell",
-      "col_readings": "Readings",
-      "col_5g": "5G",
-      "col_rsrp": "RSRP",
-      "legend_up": "5G the whole time on that cell",
-      "legend_partial": "5G part of the time",
-      "legend_down": "No 5G on that cell",
-      "legend_unknown": "5G not determined",
-      "empty": "No serving cell was recorded in this range.",
-      "lte_row": "LTE",
-      "nr_row": "5G",
-      "band_not_reported": "band not reported",
-      "col_served": "Served for",
-      "legend_rule": "5G on that cell:"
-    },
-    "events": {
-      "title": "Cell changes",
-      "description": "Every time the serving cell, its band or the 5G leg changed.",
-      "none": "The serving cell did not change in this range.",
-      "more_one": "{{count}} earlier change not listed",
-      "more_other": "{{count}} earlier changes not listed",
-      "field": {
-        "nr_avail": "5G",
-        "rat": "Radio",
-        "lte_pci": "LTE cell",
-        "lte_band": "LTE band",
-        "nr_pci": "5G cell",
-        "nr_band": "5G band"
-      }
-    },
-    "charts": {
-      "rf_title": "Radio readings",
-      "gap_note": "The line breaks where nothing was recorded; a gap is not a zero.",
-      "no_data": "No reading in this range.",
-      "metric": {
-        "rsrp": "RSRP",
-        "rsrq": "RSRQ",
-        "sinr": "SINR"
-      },
-      "quality": {
-        "excellent": "Excellent",
-        "good": "Good",
-        "fair": "Fair",
-        "poor": "Poor",
-        "none": "No reading"
-      }
-    },
-    "band_signal": {
-      "title": "Signal by band",
-      "description": "LTE RSRP while the device was on each band, so a weaker band reads as its own line.",
-      "empty": "No band carried a signal reading in this range."
-    },
-    "bands": {
-      "title": "Bands and 5G leg",
-      "description": "Which band set served, and how long each stretch lasted.",
-      "empty": "No band was reported in this range.",
-      "strip_aria": "Band set over the selected range",
-      "run_tip": "{{bands}} · {{duration}}",
-      "unknown": "No band",
-      "col_combo": "Band set",
-      "col_share": "Share",
-      "col_samples": "Readings",
-      "col_last": "Last seen",
-      "foot": "A band set is the serving carrier plus the 5G leg, so a leg that came and went shows as a change here even when the cell did not move."
-    },
-    "pattern": {
-      "title": "Nightly pattern",
-      "description": "5G availability by hour of day, so a dropout that repeats at the same hour is visible at a glance.",
-      "needs_day": "The pattern needs a full day — pick 24 h.",
-      "strip_aria": "5G availability by day and hour",
-      "day_axis": "Day",
-      "pct_axis": "Share with 5G",
-      "cell": "{{day}} {{hour}} — 5G in {{pct}} of {{known}} readings",
-      "cell_unknown": "{{day}} {{hour}} — nothing determined"
-    },
-    "outages": {
-      "title": "5G outages",
-      "description": "Every stretch without a 5G leg, with the cell that was serving when it began.",
-      "empty": "5G did not drop in this range.",
-      "col_start": "Started",
-      "col_duration": "Duration",
-      "col_samples": "Readings",
-      "unknown_serving": "Cell not recorded",
-      "cell": "Cell",
-      "no_cell": "No cell",
-      "band_unknown": "band not reported",
-      "no_nr": "no 5G leg"
-    },
-    "identity": {
-      "title": "Serving cell at the newest reading",
-      "description": "The identity the modem reported last, taken from the newest reading in this range.",
-      "empty": "No reading in this range carried a cell identity.",
-      "as_of": "As of {{time}}",
-      "rat": "Radio",
-      "nr_avail": "5G leg",
-      "not_determined": "Not determined",
-      "nr_present": "Present",
-      "nr_absent": "Absent",
-      "lte_pci": "LTE PCI",
-      "lte_earfcn": "LTE EARFCN",
-      "lte_band": "LTE band",
-      "lte_bw": "LTE bandwidth",
-      "lte_cell_id": "LTE cell ID",
-      "lte_tac": "LTE TAC",
-      "nr_pci": "5G PCI",
-      "nr_arfcn": "5G ARFCN",
-      "nr_band": "5G band",
-      "nr_cell_id": "5G cell ID",
-      "nr_tac": "5G TAC"
-    },
-    "legend": {
-      "title": "How to read this page",
-      "legend_aria": "How to read this page",
-      "availability": "5G availability",
-      "series": "Readings",
-      "series_nr": "Radio reading — RSRP, RSRQ, SINR",
-      "bands": "Band sets",
-      "gap": "A break in a line, a gap in a strip or a missing hour means nothing was recorded — never that the value was zero.",
-      "cadence": "One reading every {{seconds}} s while the modem answers."
-    },
+    "range_aria": "Data range",
+    "refresh": "Refresh",
+    "refreshing": "Reading…",
+    "stale": "Stale",
     "panels": {
       "button": "Panels",
       "count": "{{shown}}/{{total}}",
-      "title": "Shown panels",
+      "title": "Show panels",
       "items": {
         "pattern": {
           "label": "Nightly pattern",
-          "hint": "5G by hour of day"
+          "hint": "5G availability by hour of day"
         },
         "timeline": {
           "label": "Serving cell",
-          "hint": "Which cell and band served, and for how long"
+          "hint": "Which cell and band served, over time"
         },
         "rf": {
-          "label": "Radio readings",
-          "hint": "RSRP, RSRQ and SINR over the range"
+          "label": "Radio signal",
+          "hint": "RSRP, SINR, RSRQ, RSSI — 4G vs 5G"
+        },
+        "agg": {
+          "label": "Signal by band",
+          "hint": "One RSRP line per carrier, coloured by quality"
         },
         "bands": {
-          "label": "Bands and 5G leg",
-          "hint": "Which band set served, and when it changed"
+          "label": "Bands & CA",
+          "hint": "Which bands and aggregation combos served"
         },
-        "band_signal": {
-          "label": "Signal by band",
-          "hint": "RSRP plotted per band"
+        "phy": {
+          "label": "PHY depth",
+          "hint": "CQI, rank, MCS, TX power"
         },
         "events": {
-          "label": "Cell changes",
-          "hint": "Every identity change, newest first"
+          "label": "Cell events",
+          "hint": "Every PCI, band and 5G change"
+        },
+        "identity": {
+          "label": "Current cell",
+          "hint": "Newest PCI, band and bandwidth"
+        },
+        "system": {
+          "label": "Device load",
+          "hint": "Temperature, CPU, memory, throughput"
         },
         "outages": {
           "label": "5G outages",
-          "hint": "Each outage with the cell that was serving"
-        },
-        "identity": {
-          "label": "Serving cell identity",
-          "hint": "The newest reading's PCI, bands and channel numbers"
+          "hint": "Each stretch 5G was down"
         }
       }
+    },
+    "window": {
+      "samples": "{{count}} archived samples",
+      "span": "{{first}} – {{last}}",
+      "short": "Shorter than the {{range}} requested — the archive only reaches back this far.",
+      "empty": "No archived samples in this range yet. The poller records one row a minute, so this fills in as it runs.",
+      "identity_from": "Cell identity is recorded from {{time}} onward. Earlier samples in this range predate it, so any cell change before then is not known."
+    },
+    "availability": {
+      "title": "5G availability",
+      "headline": "5G was available {{pct}} of the range",
+      "headline_unknown": "5G availability is not known for this range yet",
+      "coverage": "{{known}} of {{samples}} samples could tell",
+      "downtime": "Down for {{duration}}",
+      "uptime": "Up for {{duration}}",
+      "outage_count": "{{count}} separate outage",
+      "no_outage": "5G never dropped in this range",
+      "legend": {
+        "up": "5G up",
+        "partial": "Partly up",
+        "down": "5G down",
+        "unknown": "Nothing recorded"
+      },
+      "bucket": "{{time}} — 5G up in {{up}} of {{known}} samples",
+      "bucket_unknown": "{{time}} — nothing recorded",
+      "awaiting": "Not enough archived samples in this range to say yet.",
+      "strip_aria": "5G availability over the selected range"
+    },
+    "pattern": {
+      "title": "Nightly pattern",
+      "description": "5G availability by hour of day, one row per day. Dark cells are hours where 5G was down.",
+      "needs_day": "Needs a range of a day or more — pick 24h or longer to see the pattern.",
+      "hour_axis": "Hour of day",
+      "day_axis": "Day",
+      "pct_axis": "5G up",
+      "cell": "{{day}} {{hour}} — 5G up in {{pct}} of {{known}} samples",
+      "cell_unknown": "{{day}} {{hour}} — nothing recorded"
+    },
+    "timeline": {
+      "title": "Serving cell",
+      "description": "Each segment is one uninterrupted run on a cell. Hover a segment for its band, PCI and 5G availability.",
+      "empty": "No cell-identity samples in this range yet.",
+      "run": "{{cell}} · {{duration}}",
+      "run_detail": "PCI {{pci}} · band {{band}} · 5G up {{pct}}",
+      "band_not_reported": "band not reported",
+      "no_pci": "no PCI reported",
+      "lte_row": "LTE",
+      "nr_row": "5G"
+    },
+    "outages": {
+      "title": "5G outages",
+      "description": "Contiguous stretches where the modem reported no 5G leg, with the cell that was serving at the time.",
+      "empty": "No 5G outages in this range.",
+      "col_start": "Started",
+      "col_duration": "Duration",
+      "col_serving": "Serving cell",
+      "col_samples": "Samples",
+      "unknown_serving": "no cell reported"
+    },
+    "events": {
+      "title": "Cell events",
+      "description": "Every change of serving cell, band or 5G availability, measured against the last value that was known — so a 5G drop that came back on a different cell is recorded as both.",
+      "rollup_title": "Time on each cell",
+      "rollup_cell": "Serving cell",
+      "rollup_cellid": "Cell ID",
+      "rollup_time": "Time",
+      "rollup_availability": "5G available",
+      "rollup_last": "Last seen",
+      "show_all": "Show all {{count}} changes",
+      "hide_all": "Hide the change list",
+      "empty": "No cell changes in this range — same PCI, band and EARFCN throughout.",
+      "no_identity": "No cell-identity samples in this range yet.",
+      "problem": "{{cell}} had 5G down on {{pct}} of the {{count}} samples camped there.",
+      "field": {
+        "nr_avail": "5G",
+        "bands": "Band combo",
+        "lte_pci": "4G PCI",
+        "lte_band": "4G band",
+        "lte_earfcn": "4G EARFCN",
+        "lte_bw": "4G bandwidth",
+        "lte_cellid": "Cell ID",
+        "nr_pci": "5G PCI",
+        "nr_band": "5G band",
+        "nr_arfcn": "5G ARFCN",
+        "nr_bw": "5G bandwidth",
+        "nr_cellid": "5G cell ID",
+        "network_type": "Network type"
+      },
+      "value_up": "up",
+      "value_down": "down",
+      "value_unknown": "unknown"
+    },
+    "identity": {
+      "title": "Current cell",
+      "as_of": "As of {{time}} — the newest sample in this range.",
+      "lte_pci": "4G PCI",
+      "lte_earfcn": "4G EARFCN",
+      "lte_band": "4G band",
+      "lte_bw": "4G bandwidth",
+      "nr_pci": "5G PCI",
+      "nr_arfcn": "5G ARFCN",
+      "nr_band": "5G band",
+      "nr_bw": "5G bandwidth",
+      "cellid": "Cell ID",
+      "tac": "TAC",
+      "network_type": "Network type",
+      "registered": "Registered",
+      "nr_avail": "5G available",
+      "empty": "No cell-identity sample in this range yet."
+    },
+    "bands": {
+      "title": "Bands & carrier aggregation",
+      "description": "Which bands were in use over the range, and how often each aggregation combo appeared. A segment boundary is a band appearing or disappearing — including an aggregated carrier, which changes the combo without changing the serving cell.",
+      "empty": "No band data in this range yet. The band combo is recorded per sample; a window that predates it has none.",
+      "awaiting": "Waiting for the first sample that records a band combo.",
+      "run_tip": "{{bands}} · {{duration}}",
+      "run_meta": "{{ca}} carriers · {{bw}} MHz",
+      "run_meta_ca": "{{ca}} carriers",
+      "run_meta_bw": "{{bw}} MHz",
+      "unknown": "Not reported",
+      "strip_aria": "Bands and aggregation combos over the selected range",
+      "col_combo": "Combo",
+      "col_share": "Share",
+      "col_samples": "Samples",
+      "col_bw": "Bandwidth",
+      "col_last": "Last seen",
+      "foot": "Share is the proportion of the range's band samples in which that combo was in use.",
+      "ca_chart": "Aggregated carriers",
+      "bw_chart": "Aggregated bandwidth"
+    },
+    "legend": {
+      "title": "Reading this page",
+      "availability": "5G availability",
+      "series": "Chart series",
+      "bands": "Band colour",
+      "gap": "A break in a line is a sample that recorded no reading — never a value of zero.",
+      "cadence": "One archived sample per minute, written only while the poller is running.",
+      "legend_aria": "Legend explaining the colours and marks used on this page"
+    },
+    "charts": {
+      "rf_title": "Radio signal",
+      "phy_title": "PHY depth",
+      "system_title": "Device load",
+      "band_signal_title": "Signal by band",
+      "band_signal_note": "RSRP per carrier the radio reported — coloured by the quality ramp, weakest band first.",
+      "band_signal_none": "No per-band readings in this range yet — they start with the next archive row.",
+      "quality": {
+        "excellent": "excellent",
+        "good": "good",
+        "fair": "fair",
+        "poor": "poor",
+        "bad": "weak",
+        "none": "no reading"
+      },
+      "gap_note": "A break in a line is a bucket with no reading — not a value of zero.",
+      "no_data": "No archived samples for this panel in this range.",
+      "outage_band": "5G down",
+      "metric": {
+        "rsrp": "RSRP",
+        "sinr": "SINR",
+        "rsrq": "RSRQ",
+        "rssi": "RSSI",
+        "cqi": "CQI",
+        "rank": "Rank",
+        "mcs": "MCS",
+        "tx_power": "TX power",
+        "temp": "Temperature",
+        "cpu": "CPU",
+        "mem": "Memory",
+        "dl": "Download",
+        "ul": "Upload",
+        "total_cells": "Aggregated carriers",
+        "ca": "Aggregated carriers",
+        "bw": "Aggregated bandwidth",
+        "bw_unit": "MHz"
+      },
+      "series": {
+        "lte": "4G LTE",
+        "nr": "5G NR",
+        "soc": "SoC",
+        "modem": "Modem"
+      }
+    },
+    "error": {
+      "read": "Could not read the archive. Check that the poller is running, then refresh.",
+      "auth": "Your session has expired. Sign in again."
     }
   }
 }

@@ -1,178 +1,156 @@
-// Cell History: this family's geometry, tone and label contract, imported by
-// the loaded views AND their skeletons. Restated here, never imported across
-// families (the pattern `components/monitoring/latency-monitoring/shapes.ts`
-// established).
+// =============================================================================
+// Cell History — one module for the page's geometry and its tone maps
+// =============================================================================
+// Shapes only: no colour decision of its own (every value is a `DESIGN.md` step
+// or a token that already exists in `app/globals.css`), and no JSX. The card
+// shells are plain `div`s rather than `components/ui/card.tsx` because that
+// primitive carries a border and the Fill-Over-Stroke Rule bans a hairline on a
+// filled surface — the same call `detailed-metrics/shapes.ts` and
+// `cell-scanner/shapes.ts` made.
 //
-// The one map that is NOT restated is the availability tier: `TIER` is keyed onto
-// `AvailabilityTier` from ./derive, so the legend and the strip read the same
-// object and cannot drift.
+// Every shell is a CONTAINER (`@container/card`), not a viewport breakpoint:
+// these cards sit in a two-up grid whose column is far narrower than the
+// window, so a `md:` rule inside one would fire while the card is still 380px
+// wide (The Container-Query Rule).
+//
+// THE BAND STRINGS ARE DISPLAY-READY. `.lte.band` arrives as `"B3"` and
+// `.nr.band` as `"N78"` — `parse_serving_cell` in the backend adds the letters
+// itself. There is deliberately no helper here that prefixes a band, because a
+// second prefix would render "BB3"; a `null` band means the modem did not
+// report one and the call site prints `history.timeline.band_not_reported`.
+// =============================================================================
 
-import type { BadgeVariant } from "@/components/ui/badge";
-import type { MaterialSymbolName } from "@/components/ui/material-symbol";
+/** The page column. Matches the detailed-metrics family so the two read as peers. */
+export const PAGE_SHELL = "@container/main mx-auto flex w-full flex-col gap-5 p-2";
 
-import type { AvailabilityTier } from "./derive";
-
-// -----------------------------------------------------------------------------
-// Page shell
-// -----------------------------------------------------------------------------
-
-/** The route wrapper. Container queries key off `@container/main`. */
-export const PAGE_ROOT = "@container/main flex flex-col gap-5 px-4 pb-6 lg:px-6";
-
-/** The range pill, the refresh action and the coverage notes, above the cards. */
+/**
+ * The controls row under the page header: range pill, Refresh, Panels.
+ *
+ * It declares its own container so the seven-range pill can fall back to the
+ * house `Select` on a narrow row — `SegmentedField`'s steps key off
+ * `@…/card`, and the page column is named `main`, so without this wrapper the
+ * pill would render its Select branch at every width (a `@container card`
+ * query cannot match a container with no `card` name).
+ */
 export const CONTROLS = {
-  ROOT: "flex flex-col gap-3",
-  ROW: "flex flex-wrap items-center gap-2.5",
+  ROW: "@container/card flex flex-wrap items-center gap-2",
+  /** The state block under the controls: the figures, then any coverage note. */
   NOTES_BLOCK: "flex flex-col gap-1",
-  NOTES: "text-on-surface-variant flex flex-wrap items-center gap-x-4 gap-y-1 text-xs leading-5 tabular-nums",
-  NOTE: "text-on-surface-variant text-xs leading-5",
+  NOTES: "flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-on-surface-variant tabular-nums",
+  NOTE: "text-[0.6875rem] leading-relaxed text-on-surface-variant text-pretty",
 } as const;
 
-/** One card per band of the page; a strip, never a two-up tile. */
+/** A grid peer card. */
+export const CARD =
+  "@container/card flex min-w-0 flex-col gap-4 rounded-card border-0 bg-surface p-5 shadow-[var(--shadow-whisper)] sm:p-6";
+
+/** The availability hero — the one card that anchors the surface. */
+export const HERO =
+  "@container/card flex min-w-0 flex-col gap-5 rounded-hero border-0 bg-surface p-5 shadow-[var(--shadow-whisper)] sm:p-6";
+
+/** The hero's eyebrow + headline stack. */
+export const HERO_HEAD = {
+  ROOT: "flex flex-col gap-1",
+  EYEBROW: "text-xs font-semibold text-on-surface-variant",
+} as const;
+
+/** Card header: title and description stacked, nothing on the right. */
+export const HEAD = {
+  ROOT: "flex flex-col gap-1",
+  TITLE: "text-base font-semibold",
+  DESC: "max-w-[56ch] text-sm text-on-surface-variant text-pretty",
+} as const;
+
+/** The page's one grid. Peers two-up once the content column allows it. */
+export const GRID = "grid grid-cols-1 gap-5 @3xl/main:grid-cols-2";
+
+/** A single card on its own row, at the page's own gap. */
 export const STACK = "flex flex-col gap-5";
 
-/**
- * The page's one grid, for the two cards that are lists rather than strips.
- * `FULL` is how a card takes the whole row back at a narrow column.
- */
-export const GRID = "grid grid-cols-1 gap-5 @3xl/main:grid-cols-2";
+/** Anything that owns a whole row (the hero, and any card too wide to pair). */
 export const FULL = "@3xl/main:col-span-2";
 
-/** The important marker is required: twMerge reads an arbitrary shadow as a colour. */
-export const CARD_SHELL =
-  "@container/card gap-5 rounded-card border-0 bg-card py-6 shadow-[var(--shadow-whisper)]!";
-
-export const CARD_TITLE = "col-start-1 min-w-0 text-lg leading-tight";
-
-/** `CardDescription` hardcodes a retired ink token, so every call site re-inks it. */
-export const CARD_DESC = "text-on-surface-variant col-start-1 text-sm";
-
-export const EYEBROW =
-  "text-on-surface-variant text-[0.6875rem] leading-[0.875rem] font-semibold tracking-[0.06em] uppercase";
-
-// -----------------------------------------------------------------------------
-// Availability (the page's hero)
-// -----------------------------------------------------------------------------
-
 /**
- * The four tiers, keyed onto the derivation's own type so a tier without a tone
- * is a build failure. Colour never carries the verdict alone: each tier also
- * owns a BAR HEIGHT inside the track, and the legend draws those same heights,
- * so the shape of the strip survives greyscale, sunlight and deuteranopia.
+ * The four availability stops, as fill + height pairs.
+ *
+ * HEIGHT IS THE NON-HUE CHANNEL, and it is load-bearing rather than decorative.
+ * The four stops are a lightness staircase on one hue plus one negative tone,
+ * and `--primary` and `--destructive` measure only 0.035 apart in OKLab
+ * lightness in dark mode — a colour-blind reader would otherwise be reading the
+ * hero off hue alone, which The Glyph-Carries-The-State Rule forbids. So each
+ * stop also owns a bar height inside the strip's track, and the legend's
+ * swatches are drawn at the same heights: the ladder is legible in greyscale,
+ * and the per-bucket readout names the stop in words.
+ *
+ * `unknown` draws nothing at all: the recessed track showing through IS the
+ * statement "the bucket exists and nothing was recorded", which is a different
+ * claim from "5G was down" and must never look like one.
  */
 export const TIER = {
-  up: {
-    fill: "bg-success",
-    height: "h-full",
-    labelKey: "history.availability.tier.up",
-  },
-  partial: {
-    fill: "bg-warning",
-    height: "h-3/5",
-    labelKey: "history.availability.tier.partial",
-  },
-  down: {
-    fill: "bg-destructive",
-    height: "h-2/5",
-    labelKey: "history.availability.tier.down",
-  },
-  // The recessed track itself: a bucket nobody determined draws nothing on it.
-  unknown: {
-    fill: "bg-transparent",
-    height: "h-0",
-    labelKey: "history.availability.tier.unknown",
-  },
-} as const satisfies Record<
-  AvailabilityTier,
-  { fill: string; height: string; labelKey: string }
->;
-
-export const HERO = {
-  HEADLINE: "text-[1.75rem] leading-9 font-bold tracking-[-0.02em] tabular-nums",
-  SUB: "text-on-surface-variant flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.8125rem] leading-5 tabular-nums",
+  up: { fill: "bg-primary", height: "h-full" },
+  partial: { fill: "bg-primary/55", height: "h-2/3" },
+  down: { fill: "bg-destructive", height: "h-1/3" },
+  unknown: { fill: "bg-transparent", height: "h-full" },
 } as const;
 
-/** The availability strip, and every other percentage strip on the page. */
+/** The availability strip: one cell per bucket over a recessed track. */
 export const STRIP = {
-  ROOT: "flex flex-col gap-1.5",
-  /** The readout holds its line height so hovering never shifts the strip. */
-  READOUT: "text-on-surface-variant min-h-5 text-xs leading-5 tabular-nums",
-  TRACK:
-    "flex h-11 items-end gap-px overflow-hidden rounded-tile bg-surface-container-high",
-  /** Past ~180 cells the gutters are wider than the cells; drop them. */
+  ROOT: "flex flex-col gap-1",
+  TRACK: "flex h-10 w-full items-end gap-[2px] rounded-field bg-surface-container p-1",
+  /**
+   * Past a couple of hundred buckets a 2px gutter costs more width than the
+   * strip has: the cells shrink to nothing and the gutter eats the row. The
+   * pattern is the reading at that density, so the gutter goes and the strip
+   * becomes a continuous band.
+   */
   TRACK_DENSE: "gap-0",
-  CELL: "min-h-[2px] min-w-0 flex-1 self-end rounded-[1px]",
-  TICKS: "relative h-4",
-  TICK: "text-on-surface-variant absolute -translate-x-1/2 text-[0.6875rem] leading-4 tabular-nums whitespace-nowrap",
-  LEGEND: "flex flex-wrap items-center gap-4",
-  LEGEND_ITEM:
-    "text-on-surface-variant inline-flex items-center gap-1.5 text-xs leading-4 font-medium",
-  LEGEND_TRACK:
-    "bg-surface-container-high flex h-3.5 w-3.5 items-end overflow-hidden rounded-[2px]",
-  LEGEND_SWATCH: "w-full rounded-[1px]",
+  CELL: "min-w-0 flex-1 rounded-[2px]",
+  /** Hour-of-day ticks under the strip, positioned as a percentage of the window. */
+  TICKS: "relative h-4 w-full",
+  TICK: "absolute top-0 -translate-x-1/2 text-[0.6875rem] font-medium tabular-nums whitespace-nowrap text-on-surface-variant",
+  LEGEND: "flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-on-surface-variant",
+  LEGEND_ITEM: "flex items-center gap-1.5",
+  LEGEND_TRACK: "flex h-3 w-3 items-end",
+  LEGEND_SWATCH: "w-2 rounded-[1px]",
+  READOUT: "min-h-5 text-xs font-medium tabular-nums",
+  HEADLINE: "text-[1.75rem] leading-tight font-semibold tracking-[-0.01em] tabular-nums",
+  SUB: "flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-on-surface-variant tabular-nums",
 } as const;
 
-/** Outage spans, as receipt rows under the availability strip. */
-export const OUTAGES = {
-  LIST: "mt-1 flex flex-col",
-  ROW: "border-border flex items-center justify-between gap-4 border-t py-2 text-[0.8125rem] leading-5 first:border-t-0",
-  WHEN: "flex min-w-0 items-center gap-2 tabular-nums",
-  DURATION: "text-on-surface-variant tabular-nums",
-} as const;
-
-// -----------------------------------------------------------------------------
-// The night pattern (day × hour matrix)
-// -----------------------------------------------------------------------------
-
+/** The night-pattern matrix: a day label column, then 24 hour columns. */
 export const PATTERN = {
   SCROLL: "w-full overflow-x-auto",
   GRID: "grid min-w-[26rem] items-center gap-[3px]",
-  ROW_LABEL:
-    "text-on-surface-variant pe-2 text-[0.6875rem] leading-4 font-semibold tabular-nums whitespace-nowrap",
+  ROW_LABEL: "whitespace-nowrap pe-2 text-[0.6875rem] font-medium tabular-nums text-on-surface-variant",
   CELL: "aspect-square w-full rounded-[2px]",
-  /** An hour nothing was recorded in: the recessed track, no hue. */
+  /** An hour nothing was recorded in: one container step in, and no hue. */
   CELL_UNKNOWN: "aspect-square w-full rounded-[2px] bg-surface-container-high",
-  HOUR_LABEL:
-    "text-on-surface-variant text-center text-[0.625rem] leading-4 font-medium tabular-nums",
-  AXIS: "text-on-surface-variant text-[0.6875rem] leading-4 font-semibold",
+  HOUR_LABEL: "text-center text-[0.625rem] font-medium tabular-nums text-on-surface-variant",
+  AXIS: "text-[0.6875rem] text-on-surface-variant",
 } as const;
 
-// -----------------------------------------------------------------------------
-// The serving-cell gantt
-// -----------------------------------------------------------------------------
-
+/** The serving-cell gantt: one lane per radio leg, segments positioned by fraction. */
 export const TIMELINE = {
-  STRIP: "flex h-12 w-full overflow-hidden rounded-tile",
-  RUN: "relative flex min-w-0 flex-col justify-center overflow-hidden px-1.5",
-  RUN_LABEL: "truncate text-[0.6875rem] leading-4 font-semibold tabular-nums",
-  /** The availability rule under a run: the run's own verdict, not the cell's. */
-  RUN_RULE: "absolute inset-x-0 bottom-0 h-[3px]",
-  /** A run too narrow for a label still gets a tick, so it is visibly present. */
-  RUN_TICK: "mx-auto block h-1.5 w-1 rounded-pill",
   LANES: "flex flex-col gap-2",
   LANE: "flex items-center gap-3",
-  LANE_LABEL:
-    "text-on-surface-variant w-8 shrink-0 text-[0.6875rem] leading-4 font-semibold tracking-[0.06em] uppercase",
-  TRACK:
-    "relative h-9 w-full overflow-hidden rounded-tile bg-surface-container-high",
-  SEGMENT: "absolute inset-y-0 flex items-center overflow-hidden rounded-[2px] px-1.5",
-  SEGMENT_LABEL: "truncate text-[0.6875rem] leading-4 font-semibold tabular-nums",
-  TICKS: "relative mt-1 h-4",
-  TICK: "text-on-surface-variant absolute -translate-x-1/2 text-[0.6875rem] leading-4 tabular-nums whitespace-nowrap",
-  LEGEND: "mt-1 flex flex-wrap items-center gap-4",
-  LEGEND_ITEM:
-    "text-on-surface-variant inline-flex items-center gap-1.5 text-xs leading-4 font-medium",
-  LEGEND_SWATCH: "h-[3px] w-3.5 flex-none rounded-pill",
+  LANE_LABEL: "w-8 shrink-0 text-xs font-semibold tabular-nums",
+  TRACK: "relative h-8 w-full overflow-hidden rounded-field bg-surface-container",
+  SEGMENT:
+    "absolute inset-y-0 flex items-center overflow-hidden rounded-[2px] px-1.5",
+  SEGMENT_LABEL: "truncate text-[0.6875rem] font-semibold tabular-nums",
 } as const;
 
 /**
- * A band's tone inside a lane. Both variants of a leg are authored fill/ink
+ * A band's tone inside a lane. Both variants of a leg are AUTHORED fill/ink
  * pairs — never an alpha wash — because a wash over a light track loses the ink
  * that sits on top of it.
  *
  * The variant is chosen by the band string itself (see `bandVariant`), so the
  * same band always wears the same tone and two adjacent runs of different bands
- * are told apart before the label is read.
+ * are told apart before the label is read. The label, not the shade, carries
+ * the band: this system's identity hues are a lightness-clustered set on
+ * purpose (DESIGN.md > The three layers), so a shade is a pairing aid and must
+ * never be presented as a category key on its own.
  */
 export const BAND_TONE = {
   lte: [
@@ -187,197 +165,113 @@ export const BAND_TONE = {
   unknown: { fill: "bg-surface-container-high", ink: "text-on-surface-variant" },
 } as const;
 
-// -----------------------------------------------------------------------------
-// The band set (combos)
-// -----------------------------------------------------------------------------
-
+/**
+ * The band/CA strip: ONE lane, because a run's combo is a single fact.
+ *
+ * Deliberately the gantt's own track (`TIMELINE.TRACK`'s height, radius and
+ * recessed ground) with no lane label: the gantt has two legs to name, this
+ * strip has one line of combos and the card's heading above it already says
+ * what it is. A second, shorter track style here would read as a different
+ * kind of object on a page where every other bar is a gantt lane.
+ */
 export const BANDS = {
-  TRACK:
-    "relative h-9 w-full overflow-hidden rounded-tile bg-surface-container-high",
-  SEGMENT: "absolute inset-y-0 flex items-center overflow-hidden rounded-[2px] px-1.5",
-  SEGMENT_LABEL: "truncate text-[0.6875rem] leading-4 font-semibold tabular-nums",
+  TRACK: "relative h-8 w-full overflow-hidden rounded-field bg-surface-container",
+  SEGMENT:
+    "absolute inset-y-0 flex items-center overflow-hidden rounded-[2px] px-1.5",
+  SEGMENT_LABEL: "truncate text-[0.6875rem] font-semibold tabular-nums",
   /** A combo key in the table: its strip tone, then the combo string. */
-  COMBO: "flex items-center gap-2 text-[0.8125rem] font-semibold tabular-nums",
+  COMBO: "flex items-center gap-2 text-sm font-semibold tabular-nums",
   SWATCH: "h-3 w-3 shrink-0 rounded-[2px]",
 } as const;
 
 /**
- * The tone ramp a band combo is hashed into.
+ * The page legend: a strip, NOT a card.
  *
- * Four authored fill/ink pairs, and every one is a role this page already paints
- * with — never a raw hex, never a `--chart-*` stroke. A stroke token has no ink
- * of its own, and the combo's label sits ON the fill, so a stroke would need a
- * foreground invented for it. The order is fixed: it is the hash's modulo, so
- * reordering this array repaints every combo.
+ * It sits under the controls and above the panels, so it may not carry a
+ * surface of its own — a card there would read as the first panel and push the
+ * hero down. It declares its own container anyway, because its three swatch
+ * groups must reflow on the page column's width (one column, then two-up, then
+ * three across), not the window's.
  */
-export const COMBO_TONE = [
-  { fill: "bg-lte", ink: "text-lte-foreground" },
-  { fill: "bg-primary", ink: "text-primary-foreground" },
-  { fill: "bg-lte-container", ink: "text-on-lte-container" },
-  { fill: "bg-primary-container", ink: "text-on-primary-container" },
-] as const;
+export const LEGEND = {
+  ROOT: "@container/card flex flex-col gap-2 rounded-tile bg-surface-container px-4 py-3",
+  TITLE: "text-xs font-semibold text-on-surface-variant",
+  GROUPS: "grid grid-cols-1 gap-x-6 gap-y-2.5 @md/card:grid-cols-2 @4xl/card:grid-cols-3",
+  GROUP: "flex min-w-0 flex-col gap-1",
+  GROUP_LABEL: "text-[0.6875rem] font-semibold text-on-surface-variant",
+  ITEMS: "flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant",
+  ITEM: "flex items-center gap-1.5",
+  /** A series key drawn as the stroke itself: a 2px rule, `TrendChart`'s width. */
+  LINE: "h-0.5 w-4 shrink-0 rounded-full",
+  /** A combo key: one square of the combo's strip tone, in the table's size. */
+  BAND_SWATCH: "h-3 w-3 shrink-0 rounded-[2px]",
+  NOTES: "flex flex-col gap-0.5",
+  NOTE: "text-[0.6875rem] leading-relaxed text-on-surface-variant text-pretty",
+} as const;
 
-export type ComboTone = (typeof COMBO_TONE)[number];
+/** The two chart series tones, straight from the design system's stroke pair. */
+export const SERIES_TONE = {
+  nr: "var(--chart-nr)",
+  lte: "var(--chart-lte)",
+  down: "var(--downlink)",
+  up: "var(--uplink)",
+} as const;
 
-/**
- * A combo's tone, stable across renders, ranges and reloads.
- *
- * Exported because the legend keys the top combos with the SAME function: a
- * legend swatch that drifted from the strip would be worse than no legend (the
- * two would disagree about what violet means).
- *
- * A djb2 hash of the whole string, seeded with the length so two combos of
- * different widths are not separated by their last character alone. The modulo
- * is the ramp's length; nothing here is random, and nothing reads the clock.
- */
-export function comboTone(bands: string | null): ComboTone {
-  const text = bands ?? "";
-  let hash = 5381 + text.length * 131;
-  for (let i = 0; i < text.length; i++) {
-    hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
-  }
-  return COMBO_TONE[(hash >>> 0) % COMBO_TONE.length];
-}
-
-// -----------------------------------------------------------------------------
-// Charts
-// -----------------------------------------------------------------------------
-
-/** One chart box, ONE height in every state — loaded, loading, empty, error. */
+/** One chart box, ONE height in every state — loaded, loading, empty and error. */
 export const CHART_BOX = "h-[190px] w-full";
 
+/** A chart's own title above its box. */
 export const CHART = {
   ROOT: "flex min-w-0 flex-col gap-2",
-  TITLE:
-    "text-on-surface-variant flex flex-wrap items-baseline gap-x-2 text-xs leading-4 font-medium",
-  UNIT: "text-on-surface-variant text-[0.6875rem] leading-4",
+  TITLE: "flex flex-wrap items-baseline gap-x-2 text-xs font-medium text-on-surface-variant",
+  UNIT: "text-[0.6875rem] text-on-surface-variant",
   GRID: "grid grid-cols-1 gap-x-6 gap-y-5 @2xl/card:grid-cols-2",
   /** The "no readings" hole: the chart box's own height, so nothing jumps. */
   EMPTY:
-    "grid place-items-center rounded-tile bg-surface-container-high px-4 text-center text-xs leading-5",
-  TOOLTIP:
-    "border-border bg-card flex flex-col gap-1 rounded-tile border px-3 py-2 text-xs shadow-[var(--shadow-whisper)] tabular-nums",
-  TOOLTIP_MOMENT: "font-semibold",
-  TOOLTIP_ROW: "flex items-center justify-between gap-3",
-  TOOLTIP_KEY: "text-on-surface-variant",
+    "grid place-items-center rounded-tile bg-surface-container px-4 text-center text-xs text-on-surface-variant",
 } as const;
 
-// -----------------------------------------------------------------------------
-// Identity
-// -----------------------------------------------------------------------------
+/** The gantt / strip hour axis label. */
+export const AXIS_LABEL = "text-[0.6875rem] font-medium text-on-surface-variant";
 
+/**
+ * Tables. `tabular-nums` on every figure, the label column truncating rather
+ * than the figure, and no cell wrap: these are scanned, not read
+ * (The Two-Edge Rule).
+ */
+export const TABLE = {
+  HEAD: "text-xs font-medium whitespace-nowrap text-on-surface-variant",
+  CELL: "text-sm tabular-nums whitespace-nowrap",
+  CELL_MUTED: "text-sm tabular-nums whitespace-nowrap text-on-surface-variant",
+  PROSE: "text-xs leading-relaxed text-on-surface-variant text-pretty",
+  PROSE_BLOCK: "flex flex-col gap-1",
+  /** A problem row: no fill, just the reading's own ink (The Data-Ink Rule). */
+  PROBLEM_ROW: "bg-surface-container",
+} as const;
+
+/** The per-cell change list behind the disclosure: field · from → to. */
+export const CHANGE = {
+  LIST: "flex flex-col gap-2",
+  ROW: "flex flex-col gap-1 rounded-tile bg-surface-container px-3 py-2",
+  MOMENT: "text-xs font-medium tabular-nums text-on-surface-variant",
+  FIELDS: "flex flex-wrap items-center gap-x-3 gap-y-1",
+  FIELD: "flex items-center gap-1.5 text-xs",
+  LABEL: "font-medium text-on-surface-variant",
+  FROM: "tabular-nums text-on-surface-variant",
+  ARROW: "text-on-surface-variant",
+  TO: "font-semibold tabular-nums",
+  /** The disclosure's trigger holds the card's left edge, alone on its line. */
+  TRIGGER: "self-start",
+  /** Separates the revealed list from the trigger above it. */
+  BODY: "mt-2",
+} as const;
+
+/** The identity grid: label/value pairs, two or three columns on a wide card. */
 export const IDENTITY = {
   GRID: "grid grid-cols-2 gap-x-6 gap-y-3 @xl/card:grid-cols-3",
   ROW: "flex min-w-0 flex-col gap-0.5",
-  LABEL: "text-on-surface-variant truncate text-xs leading-4 font-medium",
-  VALUE: "text-sm leading-5 font-semibold tabular-nums",
-  ABSENT: "text-on-surface-variant text-sm leading-5 font-semibold",
-  AS_OF: "text-on-surface-variant col-start-1 text-xs leading-5 tabular-nums",
+  LABEL: "truncate text-xs font-medium text-on-surface-variant",
+  VALUE: "text-sm font-semibold tabular-nums",
+  ABSENT: "text-sm font-semibold text-on-surface-variant",
+  AS_OF: "text-xs text-on-surface-variant",
 } as const;
-
-/** The page legend: a strip, NOT a card — it may not read as the first panel. */
-export const LEGEND = {
-  ROOT: "bg-surface-container-high flex flex-col gap-2 rounded-tile px-4 py-3",
-  TITLE:
-    "text-on-surface-variant text-[0.6875rem] leading-4 font-semibold tracking-[0.06em] uppercase",
-  GROUPS: "grid grid-cols-1 gap-x-6 gap-y-2.5 @md/card:grid-cols-2 @4xl/card:grid-cols-3",
-  GROUP: "flex min-w-0 flex-col gap-1",
-  GROUP_LABEL: "text-on-surface-variant text-[0.6875rem] leading-4 font-semibold",
-  ITEMS:
-    "text-on-surface-variant flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-4",
-  ITEM: "inline-flex items-center gap-1.5",
-  /** A series key drawn as the stroke itself: a 2px rule, the line's own width. */
-  LINE: "h-0.5 w-4 shrink-0 rounded-pill",
-  BAND_SWATCH: "h-3 w-3 shrink-0 rounded-[2px]",
-  NOTES: "flex flex-col gap-0.5",
-  NOTE: "text-on-surface-variant text-[0.6875rem] leading-4",
-} as const;
-
-// -----------------------------------------------------------------------------
-// Tables and lists
-// -----------------------------------------------------------------------------
-
-/** The per-cell table: key left, values right, one row per cell. */
-export const TABLE = {
-  ROOT: "w-full border-collapse text-[0.8125rem] leading-5",
-  HEAD:
-    "text-on-surface-variant pb-2 text-[0.6875rem] leading-4 font-semibold tracking-[0.06em] uppercase",
-  ROW: "border-border border-t",
-  CELL: "py-2",
-  CELL_FIRST: "py-2 text-start",
-  FIGURE: "text-end tabular-nums",
-  QUIET: "text-on-surface-variant",
-  PROSE: "text-on-surface-variant pt-1 text-xs leading-5",
-} as const;
-
-// -----------------------------------------------------------------------------
-// Cell changes
-// -----------------------------------------------------------------------------
-
-export const EVENTS = {
-  LIST: "flex flex-col",
-  ROW: "border-border flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t py-2 first:border-t-0",
-  WHEN: "text-on-surface-variant w-24 shrink-0 text-xs leading-5 tabular-nums",
-  CHANGE: "flex flex-wrap items-center gap-1.5 text-[0.8125rem] leading-5",
-  QUIET: "text-on-surface-variant font-semibold",
-  EMPTY: "text-on-surface-variant text-sm",
-  FOOT: "text-on-surface-variant pt-2 text-xs leading-5 tabular-nums",
-} as const;
-
-// -----------------------------------------------------------------------------
-// States
-// -----------------------------------------------------------------------------
-
-export const SKELETON = {
-  HERO: "h-56 rounded-card",
-  CARD: "h-48 rounded-card",
-} as const;
-
-/**
- * The availability card's status chip: a verdict, so a filled `Badge` with a
- * glyph — never `variant="outline"`, and never a fill without the glyph, because
- * success/partial/down containers sit ~1.03:1 apart to a reader with
- * deuteranopia.
- */
-export const VERDICT = {
-  up: { variant: "success", glyph: "check_circle", labelKey: "history.verdict.up" },
-  partial: {
-    variant: "warning",
-    glyph: "warning",
-    labelKey: "history.verdict.partial",
-  },
-  down: {
-    variant: "destructive",
-    glyph: "error",
-    labelKey: "history.verdict.down",
-  },
-  unknown: {
-    variant: "muted",
-    glyph: "help",
-    labelKey: "history.verdict.unknown",
-  },
-} as const satisfies Record<
-  AvailabilityTier,
-  { variant: BadgeVariant; glyph: MaterialSymbolName; labelKey: string }
->;
-
-/**
- * A serving run's availability rule, keyed onto the same tier type as the strip:
- * a cell that held 5G the whole run reads success, one that held none reads
- * destructive, a mixed run reads warning, and a run nobody determined reads as
- * plain ink (not a verdict — nobody looked).
- */
-export const RUN_TONE = {
-  up: "bg-success",
-  partial: "bg-warning",
-  down: "bg-destructive",
-  unknown: "bg-on-surface-variant/40",
-} as const satisfies Record<AvailabilityTier, string>;
-
-/** A run's tier from its own percentage, so the rule and the table agree. */
-export function runTier(pct: number | null): AvailabilityTier {
-  if (pct === null) return "unknown";
-  if (pct >= 100) return "up";
-  if (pct <= 0) return "down";
-  return "partial";
-}

@@ -11,34 +11,38 @@ import {
 } from "@/types/cell-history";
 
 // =============================================================================
-// useCellHistory — one ranged read of the archived serving cell
+// useCellHistory — one ranged GET, one sequence
 // =============================================================================
-// Reads `fetch_signal_history.sh?view=cells&range=`. Three rules, each of which
-// has already broken a surface in this product:
+// Reads `fetch_signal_history.sh?view=cells&range=` and holds the newest
+// answer. The three rules are `hooks/use-detailed-metrics.ts`'s, and they are
+// rules because each one has already shipped broken somewhere:
 //
-//  1. ONLY THE NEWEST REQUEST MAY LAND. A 24 h read is many times the work of a
-//     1 h read, so a range switch can land them out of order and paint the old
-//     range's rows under the new range's pill. Every fetch takes a sequence
+//  1. RANGED READS ONLY. There is no `range=now` on this page and no live band
+//     (`docs/reference/latency-monitor.md:74` — a live strip above a range view
+//     disagrees with the cards under it the moment the range's last bucket is
+//     more than a minute old). Every read is therefore a file read on the CGI
+//     side, which is also why nothing here renews a live lease: this page never
+//     asks the CGI to hold anything open.
+//  2. ONLY THE NEWEST REQUEST MAY LAND. A 30d read is many times the work of a
+//     1h read, so a range switch can land them out of order and paint the old
+//     range's numbers under the new range's pill. Every fetch takes a sequence
 //     number and drops itself if a newer one started — it must not even clear
 //     the newer request's loading flag.
-//  2. A HIDDEN TAB READS NOTHING. The archive gains one row a minute, so 30 s is
-//     already eager; there is no reason for a backgrounded tab to spend the
-//     device's only core on a page nobody is looking at. Becoming visible reads
-//     once at once (the answer aged while the tab was hidden), then resumes.
-//  3. `dataRange` LAGS `range`. Anything that reads the payload's SHAPE keys on
-//     `dataRange`, never on `range`: the moment between selecting a range and
-//     its first answer would otherwise price a 24 h payload against the 1 h just
-//     selected.
+//  3. NOTHING IS WRITTEN AFTER UNMOUNT, and a hidden tab reads nothing. The
+//     archive gains one row a minute, so 30 s is already eager; there is no
+//     reason for a backgrounded tab to spend the device's only core on a page
+//     nobody is looking at. Becoming visible reads once at once — the answer
+//     aged while the tab was hidden — and then resumes the cadence.
 //
-// There is no `now` range and no live row here. The dashboard is the live
-// surface; this page reads a range, and a live strip above range cards
-// disagrees with them the moment the range's last row is a minute old
-// (`docs/reference/latency-monitor.md`).
+// `dataRange` exists because `range` changes before the answer does. Anything
+// that reads the payload's SHAPE ("does this response have a timeline") keys on
+// `dataRange`, never on `range`: the moment between selecting a range and its
+// first answer would otherwise render as "the archive recorded nothing".
 // =============================================================================
 
 const ENDPOINT = "/cgi-bin/quecmanager/at_cmd/fetch_signal_history.sh";
 
-/** One archived row a minute; 30 s is already eager. */
+/** The archive gains one row a minute; 30 s is already eager. */
 const RANGE_POLL_MS = 30_000;
 
 export interface UseCellHistoryReturn {
@@ -46,7 +50,7 @@ export interface UseCellHistoryReturn {
   /** The range `data` was read for; it lags `range` until the new read lands. */
   dataRange: CellHistoryRange | null;
   isLoading: boolean;
-  /** The failed read's own message — diagnostic, never rendered raw. */
+  /** The thrown/failed read's own message — diagnostic, never rendered raw. */
   error: string | null;
   refresh: () => void;
 }
@@ -69,14 +73,14 @@ export function useCellHistory(range: CellHistoryRange): UseCellHistoryReturn {
       const json = (await res.json()) as CellHistoryResponse;
       // A superseded request must not touch the state of the one in flight.
       if (!mountedRef.current || seq !== seqRef.current) return;
-      if (isCellHistoryFailure(json)) throw new Error(json.detail ?? json.error);
+      if (isCellHistoryFailure(json)) throw new Error(json.message ?? json.error);
 
       setData(json);
       setDataRange(next);
       setError(null);
     } catch (err) {
       if (!mountedRef.current || seq !== seqRef.current) return;
-      setError(err instanceof Error ? err.message : "history_read_failed");
+      setError(err instanceof Error ? err.message : "Failed to read the archive");
     } finally {
       if (mountedRef.current && seq === seqRef.current) setIsLoading(false);
     }

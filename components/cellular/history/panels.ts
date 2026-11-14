@@ -2,15 +2,15 @@
 // panels.ts — which panels a reader shows, as a per-viewer preference
 // =============================================================================
 // Whether a panel is on is a DISPLAY preference, not device state: no write
-// endpoint, no round-trip, and one browser's choice never reformats the page for
-// anyone else. So it lives in `localStorage`, exactly as greenpacket's History
-// page keeps its own panel picker.
+// endpoint, no round-trip, and one browser's choice never reformats the page
+// for anyone else. So it lives in `localStorage`, exactly as greenpacket's
+// History page keeps its own panel picker.
 //
-// THE MERGE IS THE LOAD-BEARING PART. A stored object is merged ONTO the defaults
-// rather than trusted wholesale: a panel added in a later build must appear at
-// its own default, not vanish because an older payload never mentioned it. That
-// is why `mergePanels` walks the CURRENT id list instead of `Object.assign`-ing
-// whatever was found.
+// THE MERGE IS THE LOAD-BEARING PART. A stored object is merged ONTO the
+// defaults rather than trusted wholesale: a panel added in a later build must
+// appear at its own default, not vanish because an older payload never
+// mentioned it. That is why `mergePanels` walks the current id list instead of
+// `Object.assign`-ing whatever was found.
 //
 // The availability hero is NOT in this list. It is the page's answer, not a
 // panel — hiding it would leave a page about 5G availability with no statement
@@ -21,11 +21,13 @@ export const PANEL_IDS = [
   "pattern",
   "timeline",
   "rf",
+  "agg",
   "bands",
-  "band_signal",
   "events",
   "outages",
+  "phy",
   "identity",
+  "system",
 ] as const;
 
 export type PanelId = (typeof PANEL_IDS)[number];
@@ -33,30 +35,33 @@ export type PanelId = (typeof PANEL_IDS)[number];
 export type PanelVisibility = Record<PanelId, boolean>;
 
 /**
- * The first impression. The five that answer the field complaint ("5G disappears
- * at night") are on — including the band strip, which is the one panel that names
- * the band that went missing; the deeper detail (the per-outage table and the
- * identity grid) is opt-in, because a page that opens with eight panels opens
- * with none of them read.
+ * The first impression. The six that answer the field complaint ("5G
+ * disappears at night") are on — including the band/CA strip, which is the one
+ * panel that names the band that went missing, and the aggregation charts that
+ * say when the carrier set moved; the deeper depth — per-outage
+ * table, PHY figures, the identity grid and device load — is opt-in, because a
+ * page that opens with nine panels opens with none of them read.
  */
 export const PANEL_DEFAULT: PanelVisibility = {
   pattern: true,
   timeline: true,
   rf: true,
+  agg: true,
   bands: true,
-  band_signal: true,
   events: true,
   outages: false,
+  phy: false,
   identity: false,
+  system: false,
 };
 
 /**
  * Versioned and app-scoped, like the other `qmanager.*` browser preferences.
  *
  * NOT bumped when a panel is added, and that is deliberate: `mergePanels` walks
- * the CURRENT id list, so a panel an older payload never mentioned arrives at its
- * own default. Only a change to the SHAPE of a stored value (or to what an id
- * means) would need a new key.
+ * the CURRENT id list, so a panel an older payload never mentioned arrives at
+ * its own default. Only a change to the SHAPE of a stored value (or to what an
+ * id means) would need a new key.
  */
 const STORAGE_KEY = "qmanager.cell_history.panels.v1";
 

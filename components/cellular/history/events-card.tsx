@@ -1,122 +1,244 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tag } from "@/components/ui/tag";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { MaterialSymbol } from "@/components/ui/material-symbol";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type {
-  CellChangeField,
   CellEventGroup,
-  CellHistoryRange,
+  CellHistoryCoverage,
+  CellStat,
 } from "@/types/cell-history";
+import { cn } from "@/lib/utils";
 
-import { formatClock, formatMoment } from "./derive";
-import { CARD_DESC, CARD_SHELL, CARD_TITLE, EVENTS } from "./shapes";
+import {
+  cellDownPct,
+  changeValue,
+  formatMoment,
+  formatPct,
+  formatSpan,
+  problemCells,
+} from "./derive";
+import { PanelEmpty } from "./empty-state";
+import { CARD, CHANGE, HEAD, TABLE } from "./shapes";
 
 // =============================================================================
-// EventsCard — the serving cell, as it changed
+// EventsCard — time on each cell, and every change the archive recorded
 // =============================================================================
-// The change log, newest first. It answers the one thing the timeline cannot:
-// WHICH identity field moved, and from what to what — a band change with the same
-// PCI looks like one stable cell on the strip.
+// Two halves, in the order a reader needs them:
 //
-// ONE GROUP PER INSTANT. A handover changes PCI and band at the same tick, so a
-// row per field would double the list for no added information.
+//   ROLLUP   one row per serving cell: how long it served, and how often 5G was
+//            available while it did. This is the measurement, not a verdict —
+//            the page never scores a cell.
+//   CHANGES  the chronological `cells.events` list behind a disclosure, with
+//            every field's before → after. Collapsed by default because a busy
+//            range produces dozens of groups and the rollup already answers
+//            "which cell".
 //
-// A CHANGE IS AGAINST THE LAST KNOWN VALUE, not the previous row (that is
-// `derive.ts`'s job, and `derive.test.ts` pins it): the NR columns go null while
-// the leg is detached, and a pairwise diff would miss the common "5G dropped and
-// came back on a different PCI" case entirely.
+// A PROBLEM CELL IS NAMED IN PROSE ABOVE, and the floor is greenpacket's:
+// at least three determined samples AND at least 80 % of them down. Without the
+// floor, a handover that brushed one unrecorded sample brands a cell as broken
+// on no evidence — the exact opinion the spec put out of scope.
 //
-// The list is capped because a bad night produces hundreds of these and the
-// count is the information — "34 more" is more useful than a page of scroll.
+// `5G available` is drawn from `nr_known`, never from `samples`: a cell camped
+// on while the modem was silent has no availability figure at all, and the em
+// dash says so where a 0 % would read as "5G was down there".
 // =============================================================================
 
 export interface EventsCardProps {
+  stats: CellStat[];
   events: CellEventGroup[];
-  range: CellHistoryRange;
+  coverage: CellHistoryCoverage;
 }
 
-const VISIBLE = 12;
+const DASH = "—";
 
-/** One field's value: a band keeps reading as a band, a figure as a figure. */
-function Value({ field, value }: { field: CellChangeField; value: string | null }) {
-  if (value === null) {
-    return <span className={EVENTS.QUIET}>—</span>;
-  }
-  if (field === "lte_band" || field === "nr_band") {
-    return (
-      <Tag variant={field === "nr_band" ? "nr" : "lte"} className="font-mono">
-        {value}
-      </Tag>
-    );
-  }
-  return (
-    <span className={field === "nr_avail" ? "tabular-nums" : "font-mono"}>
-      {value}
-    </span>
-  );
+/** `PCI 342 · B3` — the identity as an operator reads it, PCI first. */
+function cellLabel(stat: CellStat, fallbackPci: string): string {
+  const pci = stat.lte_pci ? `PCI ${stat.lte_pci}` : fallbackPci;
+  const band = stat.lte_band ?? "—";
+  return `${pci} · ${band}`;
 }
 
-export function EventsCard({ events, range }: EventsCardProps) {
+export function EventsCard({ stats, events, coverage }: EventsCardProps) {
   const { t } = useTranslation("cellular");
-  const longSpan = range !== "1h" && range !== "3h";
-  const moment = (ts: number) => (longSpan ? formatMoment(ts) : formatClock(ts));
-  const shown = events.slice(0, VISIBLE);
+  const [open, setOpen] = useState(false);
+
+  // Newest first on the wire; the list reads as a chronicle, so it is oldest
+  // first here.
+  const chronological = [...events].sort((a, b) => a.ts - b.ts);
+  const problems = problemCells(stats);
+  const noIdentity = coverage.cell_from === null && stats.length === 0;
+
+  const flagText = (flag: "up" | "down" | "unknown") =>
+    t(`history.events.value_${flag}`);
 
   return (
-    <Card className={CARD_SHELL}>
-      <CardHeader className="gap-1.5">
-        <CardTitle className={CARD_TITLE}>{t("history.events.title")}</CardTitle>
-        <CardDescription className={CARD_DESC}>
-          {t("history.events.description")}
-        </CardDescription>
-      </CardHeader>
+    <section className={CARD}>
+      <header className={HEAD.ROOT}>
+        <h2 className={HEAD.TITLE}>{t("history.events.title")}</h2>
+        <p className={HEAD.DESC}>{t("history.events.description")}</p>
+      </header>
 
-      <CardContent className="flex flex-col gap-3">
-        {events.length === 0 ? (
-          <p className={EVENTS.EMPTY}>{t("history.events.none")}</p>
-        ) : (
-          <>
-            <ul className={EVENTS.LIST}>
-              {shown.map((group) => (
-                <li key={group.ts} className={EVENTS.ROW}>
-                  <span className={EVENTS.WHEN}>{moment(group.ts)}</span>
-                  {group.changes.map((change) => (
-                    <span
-                      key={`${group.ts}-${change.field}`}
-                      className={EVENTS.CHANGE}
-                    >
-                      <span className="text-on-surface-variant">
-                        {t(`history.events.field.${change.field}`)}
-                      </span>
-                      <Value field={change.field} value={change.from} />
-                      <span className={EVENTS.QUIET} aria-hidden="true">
-                        →
-                      </span>
-                      <Value field={change.field} value={change.to} />
-                    </span>
-                  ))}
-                </li>
+      {noIdentity ? (
+        <PanelEmpty icon="info" body={t("history.events.no_identity")} />
+      ) : (
+        <>
+          {problems.length > 0 ? (
+            <div className={TABLE.PROSE_BLOCK}>
+              {problems.map((stat) => (
+                <p key={stat.key} className={TABLE.PROSE}>
+                  {t("history.events.problem", {
+                    cell: cellLabel(stat, t("history.timeline.no_pci")),
+                    pct: formatPct(cellDownPct(stat) ?? 0),
+                    count: stat.nr_known,
+                  })}
+                </p>
               ))}
-            </ul>
-            {events.length > shown.length ? (
-              <p className={EVENTS.FOOT}>
-                {t("history.events.more", {
-                  count: events.length - shown.length,
-                })}
-              </p>
-            ) : null}
-          </>
-        )}
-      </CardContent>
-    </Card>
+            </div>
+          ) : null}
+
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className={TABLE.HEAD}>
+                  {t("history.events.rollup_cell")}
+                </TableHead>
+                <TableHead className={TABLE.HEAD}>
+                  {t("history.events.rollup_cellid")}
+                </TableHead>
+                <TableHead className={`${TABLE.HEAD} text-right`}>
+                  {t("history.events.rollup_time")}
+                </TableHead>
+                <TableHead className={`${TABLE.HEAD} text-right`}>
+                  {t("history.events.rollup_availability")}
+                </TableHead>
+                <TableHead className={`${TABLE.HEAD} text-right`}>
+                  {t("history.events.rollup_last")}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {stats.map((stat) => {
+                const down = cellDownPct(stat);
+                const available = down === null ? null : 100 - down;
+                const isProblem = problems.some((p) => p.key === stat.key);
+                return (
+                  <TableRow
+                    key={stat.key}
+                    className={cn(isProblem && TABLE.PROBLEM_ROW)}
+                  >
+                    <TableCell className={TABLE.CELL}>
+                      {cellLabel(stat, t("history.timeline.no_pci"))}
+                    </TableCell>
+                    <TableCell className={TABLE.CELL_MUTED}>
+                      {stat.lte_cellid ?? DASH}
+                    </TableCell>
+                    {/* One archive row a minute, so the sample count IS the
+                        time on the cell. Stated here rather than hidden in a
+                        helper: it is the one assumption in this table. */}
+                    <TableCell className={`${TABLE.CELL} text-right`}>
+                      {formatSpan(stat.samples * 60)}
+                    </TableCell>
+                    <TableCell className={`${TABLE.CELL} text-right`}>
+                      {available === null ? DASH : formatPct(available)}
+                    </TableCell>
+                    <TableCell className={`${TABLE.CELL_MUTED} text-right`}>
+                      {formatMoment(stat.last_ts)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+
+          <Collapsible open={open} onOpenChange={setOpen}>
+            <CollapsibleTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={CHANGE.TRIGGER}
+              >
+                <MaterialSymbol
+                  name="expand_more"
+                  size={16}
+                  className={cn(
+                    "transition-transform duration-[var(--duration-quick)] ease-out motion-reduce:transition-none",
+                    open && "rotate-180",
+                  )}
+                />
+                {open
+                  ? t("history.events.hide_all")
+                  : t("history.events.show_all", { count: chronological.length })}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              {chronological.length === 0 ? (
+                <PanelEmpty
+                  icon="swap_horiz"
+                  body={t("history.events.empty")}
+                  className={CHANGE.BODY}
+                />
+              ) : (
+                <ul className={cn(CHANGE.LIST, CHANGE.BODY)}>
+                  {chronological.map((group) => (
+                    <li key={group.ts} className={CHANGE.ROW}>
+                      <span className={CHANGE.MOMENT}>
+                        {formatMoment(group.ts)}
+                      </span>
+                      <span className={CHANGE.FIELDS}>
+                        {group.changes.map((change) => {
+                          const from = changeValue(change.field, change.from);
+                          const to = changeValue(change.field, change.to);
+                          return (
+                            <span
+                              key={`${group.ts}-${change.field}`}
+                              className={CHANGE.FIELD}
+                            >
+                              <span className={CHANGE.LABEL}>
+                                {t(`history.events.field.${change.field}`)}
+                              </span>
+                              <span className={CHANGE.FROM}>
+                                {from.kind === "flag"
+                                  ? flagText(from.flag)
+                                  : from.text}
+                              </span>
+                              <MaterialSymbol
+                                name="chevron_right"
+                                size={12}
+                                className={CHANGE.ARROW}
+                              />
+                              <span className={CHANGE.TO}>
+                                {to.kind === "flag" ? flagText(to.flag) : to.text}
+                              </span>
+                            </span>
+                          );
+                        })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        </>
+      )}
+    </section>
   );
 }
 

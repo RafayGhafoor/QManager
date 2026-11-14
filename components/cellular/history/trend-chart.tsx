@@ -1,109 +1,53 @@
 "use client";
 
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-  type TooltipProps,
-} from "recharts";
-import type {
-  NameType,
-  ValueType,
-} from "recharts/types/component/DefaultTooltipContent";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import {
-  type ChartConfig,
   ChartContainer,
   ChartTooltip,
+  type ChartConfig,
 } from "@/components/ui/chart";
-import { cn } from "@/lib/utils";
-import type { CellHistoryPoint } from "@/types/cell-history";
+import { ChartTooltipTime } from "@/components/ui/chart-tooltip-time";
+import { axisTicks, formatAxisTick, toMs } from "@/lib/chart-time";
 
-import { formatClock, formatMoment, hourTicks, type CellHistoryWindow } from "./derive";
-import { CHART, CHART_BOX } from "./shapes";
+import { CHART_BOX } from "./shapes";
 
 // =============================================================================
-// TrendChart — one archived reading over the selected range
+// TrendChart — one archived metric over the selected range
 // =============================================================================
-// Used by the RF group and by the per-band RSRP card, so the two cannot drift
-// into two chart idioms (axis, gap handling, tooltip voice). It is imported
-// through `next/dynamic` by its callers, so the chart stack is not in this page's
-// first paint: the card shells, their headings and their empty states all render
-// from the payload alone.
+// Imported through `next/dynamic` by `chart-card.tsx`, so the chart stack is
+// not in this page's first paint: the card shells, their headings and their
+// empty states all render from the payload alone, and recharts arrives after
+// them (spec R10). This is the same construction
+// `detailed-metrics/distributions-card.tsx` uses.
 //
 // THREE RULES DECIDE EVERYTHING HERE:
 //
-//  * A GAP IS A GAP. `connectNulls={false}` and a `null` reading — a bucket in
+//  * A GAP IS A GAP. `connectNulls={false}` and a `null` `v` — a bucket in
 //    which the poller recorded nothing is a break in the line, never a line
 //    drawn through zero. `history.charts.gap_note` says the same thing on the
 //    card, because a reader who wonders why the line stops deserves the answer
-//    without a hover.
+//    without a hover (`docs/reference/latency-monitor.md:65`).
 //  * NO ENTRANCE ANIMATION. The series retargets on a 30 s poll, and a draw-in
 //    that replayed on every retarget would dim the one line being watched, once
-//    every half minute (`docs/reference/motion-preference.md`). `isAnimationActive`
-//    is therefore off rather than read from the motion preference: there is no
-//    entrance here to honour.
+//    every half minute (`docs/reference/motion-preference.md`; this page has no
+//    entrance to honour because it never animates data).
 //  * THE X AXIS IS LOCAL TIME, from epoch seconds. Under a day the ticks read
-//    `HH:MM`; past a day they carry the date too, because `HH:MM` alone stops
-//    locating anything on a range that crosses midnight.
-//
-// Ticks are handed to the axis EXPLICITLY, as milliseconds: left to itself the
-// library generates its own time ticks as `Date` objects and hands them to the
-// formatter, which is the path that printed "Invalid Date" across an axis
-// elsewhere in this product.
+//    `HH:MM`; past a day they read the date, because `HH:MM` repeats itself
+//    across a week's axis and stops locating anything.
 // =============================================================================
-
-const PLOT_MARGIN = { top: 8, right: 12, bottom: 4, left: 0 } as const;
 
 export interface TrendChartProps {
   /** Buckets in the plotted unit; `v: null` is a bucket with no reading. */
-  points: CellHistoryPoint[];
-  /** Already-translated reading label — the series name in the tooltip. */
+  points: { ts: number; v: number | null }[];
+  /** Already-translated metric label — the series name in the tooltip. */
   label: string;
   unit: string | null;
-  /** A role token (`var(--chart-nr)`), never a raw hex. */
+  /** A role token, never a raw hex. */
   color: string;
-  /** The metric's reporting bracket, widened by `yDomain` where a reading leaves it. */
-  domain: readonly [number, number];
-  window: CellHistoryWindow;
+  /** A fixed reporting bracket, or `null` where the metric has none. */
+  domain: readonly [number, number] | null;
   longSpan: boolean;
-}
-
-interface Reading {
-  ms: number;
-  v: number | null;
-}
-
-function Readout({
-  active,
-  payload,
-  label,
-  unit,
-  longSpan,
-}: TooltipProps<ValueType, NameType> & {
-  label: string;
-  unit: string | null;
-  longSpan: boolean;
-}) {
-  const point = payload?.[0]?.payload as Reading | undefined;
-  if (!active || point === undefined) return null;
-  return (
-    <div className={CHART.TOOLTIP}>
-      <span className={CHART.TOOLTIP_MOMENT}>
-        {longSpan
-          ? formatMoment(Math.floor(point.ms / 1000))
-          : formatClock(Math.floor(point.ms / 1000))}
-      </span>
-      <span className={CHART.TOOLTIP_ROW}>
-        <span className={CHART.TOOLTIP_KEY}>{label}</span>
-        {point.v === null
-          ? "—"
-          : `${Math.round(point.v * 10) / 10}${unit === null ? "" : ` ${unit}`}`}
-      </span>
-    </div>
-  );
 }
 
 export function TrendChart({
@@ -112,46 +56,58 @@ export function TrendChart({
   unit,
   color,
   domain,
-  window,
   longSpan,
 }: TrendChartProps) {
   const config = {
-    v: { label: unit === null ? label : `${label} · ${unit}`, color },
+    v: {
+      label: unit ? `${label} · ${unit}` : label,
+      color,
+    },
   } satisfies ChartConfig;
 
+  const tick = (ts: unknown) => formatAxisTick(ts, longSpan);
+
   // One extra field per point, not a second array: a time axis measures its
-  // domain in milliseconds while the payload — and everything else on the page —
-  // is in epoch seconds.
-  const data: Reading[] = points.map((point) => ({
-    ms: point.ts * 1000,
-    v: point.v === null ? null : Math.round(point.v * 10) / 10,
+  // domain in milliseconds while everything else on the page — and the payload
+  // contract — is epoch seconds.
+  const data = points.map((point) => ({
+    ...point,
+    ms: toMs(point.ts) ?? NaN,
   }));
 
-  const ticks = hourTicks(window).map((tick) => tick.ts * 1000);
-  const decimals = points.some(
-    (point) => point.v !== null && !Number.isInteger(point.v),
+  // EXPLICIT TICKS, in milliseconds. Left to itself the chart library generates
+  // its own time ticks as `Date` objects and hands them to `tickFormatter`; that
+  // path is what printed "Invalid Date" across this axis. Handing it the array
+  // fixes the formatter's input type here rather than inside the library.
+  const first = data.length > 0 ? data[0].ms : NaN;
+  const last = data.length > 0 ? data[data.length - 1].ms : NaN;
+  const ticks = axisTicks(
+    Number.isFinite(first) ? first : null,
+    Number.isFinite(last) ? last : null,
   );
+  const decimals =
+    points.some((point) => point.v !== null && !Number.isInteger(point.v));
 
   return (
     <ChartContainer
       config={config}
-      className={cn(CHART_BOX, "aspect-auto")}
+      className={CHART_BOX}
       role="img"
-      aria-label={unit === null ? label : `${label} · ${unit}`}
+      aria-label={unit ? `${label} · ${unit}` : label}
     >
-      <LineChart data={data} margin={PLOT_MARGIN}>
+      <LineChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
         <CartesianGrid vertical={false} stroke="var(--border)" />
         <XAxis
+          // MILLISECONDS, because `scale="time"` measures its domain in ms:
+          // fed epoch seconds it resolves 1970 and ticks the axis at the wrong
+          // century. `ms` is derived here rather than in the payload, which
+          // stays in the archive's own unit (seconds) everywhere else.
           dataKey="ms"
           type="number"
           scale="time"
           domain={["dataMin", "dataMax"]}
           ticks={ticks}
-          tickFormatter={(value: number) =>
-            longSpan
-              ? formatMoment(Math.floor(value / 1000))
-              : formatClock(Math.floor(value / 1000))
-          }
+          tickFormatter={tick}
           tickLine={false}
           axisLine={false}
           minTickGap={28}
@@ -161,16 +117,21 @@ export function TrendChart({
           tickLine={false}
           axisLine={false}
           allowDecimals={decimals}
-          domain={[domain[0], domain[1]]}
+          domain={domain === null ? ["auto", "auto"] : [domain[0], domain[1]]}
         />
         <ChartTooltip
-          cursor={{ stroke: "var(--border)" }}
-          content={<Readout label={label} unit={unit} longSpan={longSpan} />}
+          // The shared ChartTooltipContent is NOT used here: for a numeric
+          // x-axis its labelFormatter receives the series name, not the time.
+          // This one reads the timestamp out of the hovered datum.
+          content={<ChartTooltipTime unit={unit} />}
         />
         <Line
           dataKey="v"
-          // The hover card prints the series name, and recharts falls back to the
-          // dataKey when a Line has none — so every hover would read a bare "v".
+          // The hover card prints the SERIES NAME, and recharts falls back to the
+          // dataKey when a Line has none — so every hover read a bare "v".
+          // (The ChartConfig above already carried this label; nothing was
+          // reading it.) Named on the series, not in the tooltip, so a
+          // multi-series chart on the same tooltip still works.
           name={label}
           type="monotone"
           stroke="var(--color-v)"

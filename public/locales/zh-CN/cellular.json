@@ -2510,234 +2510,254 @@
   },
   "history": {
     "page": {
-      "title": "小区历史",
-      "description": "曾服务的小区、频段，以及 5G 不在的时间。"
+      "title": "历史记录",
+      "description": "射频在所选范围内实际做了什么 —— 5G 何时不可用、当时由哪个小区服务、信号如何变化。设备每分钟记录一次，无论此页面是否打开。"
     },
-    "range_aria": "历史时间范围",
-    "refresh": "刷新",
-    "refreshing": "正在刷新",
     "range": {
-      "h1": "1 小时",
-      "h3": "3 小时",
-      "h6": "6 小时",
-      "h12": "12 小时",
-      "h24": "24 小时"
+      "h1": "1小时",
+      "h3": "3小时",
+      "h6": "6小时",
+      "h12": "12小时",
+      "h24": "24小时",
+      "d7": "7天",
+      "d30": "30天"
     },
-    "window": {
-      "samples_one": "{{count}} 条记录",
-      "samples_other": "{{count}} 条记录",
-      "span": "{{first}} – {{last}}",
-      "short": "记录少于 {{range}}：安装此版本后设备开机才开始记录。",
-      "identity_from": "小区标识自 {{time}} 起记录。"
-    },
-    "stale": {
-      "title": "这些数据未在更新",
-      "description": "上一次读取失败。当前显示的是设备能提供的最新记录。"
-    },
-    "error": {
-      "title": "无法读取历史",
-      "description": "记录无法打开。没有数据丢失——页面关闭时设备仍在记录。"
-    },
-    "clock": {
-      "title": "时钟尚未设置",
-      "description": "历史按设备时钟保存，连接建立并校准时间后才能读取。"
-    },
-    "empty": {
-      "title": "暂无历史",
-      "description": "设备运行此版本后每分钟记录一次。稍等片刻，最近一天的数据就会出现在这里。"
-    },
-    "verdict": {
-      "up": "有 5G",
-      "partial": "5G 时断时续",
-      "down": "无 5G",
-      "unknown": "未确定"
-    },
-    "availability": {
-      "title": "5G 可用性",
-      "description": "调制解调器报告 5G 小区的记录占比。",
-      "headline": "{{pct}} 的记录有 5G",
-      "headline_unknown": "没有记录能确定 5G 状态",
-      "awaiting": "此范围内没有任何记录能确定 5G 是否存在，因此没有可显示的占比——这与 5G 中断不同。",
-      "coverage": "{{samples}} 条记录中有 {{known}} 条可判定",
-      "downtime": "{{duration}} 无 5G",
-      "no_outage": "此范围内没有中断",
-      "bucket": "{{time}} — {{known}} 条记录中有 {{up}} 条有 5G",
-      "bucket_unknown": "{{time}} — 未确定",
-      "strip_aria": "所选范围内的 5G 可用性",
-      "tier": {
-        "up": "整个时段都有 5G",
-        "partial": "时段内部分有 5G",
-        "down": "时段内无 5G",
-        "unknown": "未确定"
-      },
-      "outage_count_one": "{{count}} 次中断",
-      "outage_count_other": "{{count}} 次中断"
-    },
-    "timeline": {
-      "title": "服务小区",
-      "description": "每个小区服务了多久，以及期间的 5G 情况。",
-      "strip_aria": "所选范围内的服务小区",
-      "run_tip": "小区 {{cell}} · {{band}} · 5G {{nr}} · {{from}} – {{to}} · 有 5G 占 {{pct}}",
-      "no_cell": "无小区",
-      "unknown": "未确定",
-      "col_cell": "小区",
-      "col_readings": "记录数",
-      "col_5g": "5G",
-      "col_rsrp": "RSRP",
-      "legend_up": "在该小区期间始终有 5G",
-      "legend_partial": "部分时间有 5G",
-      "legend_down": "该小区无 5G",
-      "legend_unknown": "5G 未确定",
-      "empty": "此范围内没有服务小区记录。",
-      "lte_row": "LTE",
-      "nr_row": "5G",
-      "band_not_reported": "频段未报告",
-      "col_served": "持续时间",
-      "legend_rule": "该小区 5G 在线情况："
-    },
-    "events": {
-      "title": "小区变化",
-      "description": "服务小区、频段或 5G 链路每次发生变化。",
-      "none": "此范围内服务小区没有变化。",
-      "more_one": "另有 {{count}} 条更早的变化未显示",
-      "more_other": "另有 {{count}} 条更早的变化未显示",
-      "field": {
-        "nr_avail": "5G",
-        "rat": "制式",
-        "lte_pci": "LTE 小区",
-        "lte_band": "LTE 频段",
-        "nr_pci": "5G 小区",
-        "nr_band": "5G 频段"
-      }
-    },
-    "charts": {
-      "rf_title": "无线读数",
-      "gap_note": "没有记录的位置线条断开，缺口不代表零。",
-      "no_data": "此范围内没有读数。",
-      "metric": {
-        "rsrp": "RSRP",
-        "rsrq": "RSRQ",
-        "sinr": "SINR"
-      },
-      "quality": {
-        "excellent": "优秀",
-        "good": "良好",
-        "fair": "一般",
-        "poor": "较差",
-        "none": "无读数"
-      }
-    },
-    "band_signal": {
-      "title": "各频段信号",
-      "description": "设备驻留在各频段时的 LTE RSRP，较弱的频段单独成线。",
-      "empty": "此范围内没有频段带信号读数。"
-    },
-    "bands": {
-      "title": "频段与 5G 链路",
-      "description": "服务过哪些频段组合，以及每段持续多久。",
-      "empty": "此范围内没有报告频段。",
-      "strip_aria": "所选范围内的频段组合",
-      "run_tip": "{{bands}} · {{duration}}",
-      "unknown": "无频段",
-      "col_combo": "频段组合",
-      "col_share": "占比",
-      "col_samples": "读数",
-      "col_last": "最后出现",
-      "foot": "频段组合由服务载波与 5G 链路组成，因此即使小区未变，5G 链路消失也会在此显示为一次变化。"
-    },
-    "pattern": {
-      "title": "夜间规律",
-      "description": "按一天中的小时统计的 5G 可用性，同一小时反复出现的中断一眼可见。",
-      "needs_day": "规律图需要完整的一天，请选择 24 小时。",
-      "strip_aria": "按日期与小时统计的 5G 可用性",
-      "day_axis": "日期",
-      "pct_axis": "5G 在线比例",
-      "cell": "{{day}} {{hour}} — {{known}} 次读数中 5G 在线 {{pct}}",
-      "cell_unknown": "{{day}} {{hour}} — 未确定"
-    },
-    "outages": {
-      "title": "5G 中断",
-      "description": "每一段没有 5G 链路的时间，以及中断开始时正在服务的小区。",
-      "empty": "此范围内 5G 没有中断。",
-      "col_start": "开始时间",
-      "col_duration": "时长",
-      "col_samples": "读数",
-      "unknown_serving": "未记录小区",
-      "cell": "小区",
-      "no_cell": "无小区",
-      "band_unknown": "频段未报告",
-      "no_nr": "无 5G 链路"
-    },
-    "identity": {
-      "title": "最新读数时的服务小区",
-      "description": "调制解调器最后报告的标识，取自此范围内最新的一条读数。",
-      "empty": "此范围内的读数没有携带小区标识。",
-      "as_of": "截至 {{time}}",
-      "rat": "制式",
-      "nr_avail": "5G 链路",
-      "not_determined": "未确定",
-      "nr_present": "在线",
-      "nr_absent": "离线",
-      "lte_pci": "LTE PCI",
-      "lte_earfcn": "LTE EARFCN",
-      "lte_band": "LTE 频段",
-      "lte_bw": "LTE 带宽",
-      "lte_cell_id": "LTE 小区 ID",
-      "lte_tac": "LTE TAC",
-      "nr_pci": "5G PCI",
-      "nr_arfcn": "5G ARFCN",
-      "nr_band": "5G 频段",
-      "nr_cell_id": "5G 小区 ID",
-      "nr_tac": "5G TAC"
-    },
-    "legend": {
-      "title": "如何阅读此页",
-      "legend_aria": "如何阅读此页",
-      "availability": "5G 可用性",
-      "series": "读数",
-      "series_nr": "无线读数 — RSRP、RSRQ、SINR",
-      "bands": "频段组合",
-      "gap": "线条断开、色带空缺或整格缺失表示没有记录，并不表示该值为零。",
-      "cadence": "调制解调器有应答时每 {{seconds}} 秒一条读数。"
-    },
+    "range_aria": "数据范围",
+    "refresh": "刷新",
+    "refreshing": "读取中…",
+    "stale": "已过期",
     "panels": {
       "button": "面板",
       "count": "{{shown}}/{{total}}",
-      "title": "显示的面板",
+      "title": "显示面板",
       "items": {
         "pattern": {
           "label": "夜间规律",
-          "hint": "按小时统计的 5G"
+          "hint": "按一天中的小时统计的 5G 可用性"
         },
         "timeline": {
           "label": "服务小区",
-          "hint": "哪个小区与频段在服务，持续多久"
+          "hint": "各时段由哪个小区和频段提供服务"
         },
         "rf": {
-          "label": "无线读数",
-          "hint": "范围内的 RSRP、RSRQ 与 SINR"
+          "label": "射频信号",
+          "hint": "RSRP、SINR、RSRQ、RSSI —— 4G 与 5G 对比"
+        },
+        "agg": {
+          "label": "分频段信号",
+          "hint": "每个载波一条 RSRP 曲线，按质量着色"
         },
         "bands": {
-          "label": "频段与 5G 链路",
-          "hint": "服务过哪些频段组合，何时变化"
+          "label": "频段与载波聚合",
+          "hint": "使用了哪些频段与载波聚合组合"
         },
-        "band_signal": {
-          "label": "各频段信号",
-          "hint": "按频段绘制的 RSRP"
+        "phy": {
+          "label": "物理层深度",
+          "hint": "CQI、Rank、MCS、发射功率"
         },
         "events": {
-          "label": "小区变化",
-          "hint": "每次标识变化，最新在前"
+          "label": "小区事件",
+          "hint": "每一次 PCI、频段与 5G 变化"
+        },
+        "identity": {
+          "label": "当前小区",
+          "hint": "最新的 PCI、频段与带宽"
+        },
+        "system": {
+          "label": "设备负载",
+          "hint": "温度、CPU、内存、吞吐量"
         },
         "outages": {
           "label": "5G 中断",
-          "hint": "每次中断及当时服务的小区"
-        },
-        "identity": {
-          "label": "服务小区标识",
-          "hint": "最新读数的 PCI、频段与信道号"
+          "hint": "5G 每次掉线的时段"
         }
       }
+    },
+    "window": {
+      "samples": "{{count}} 条归档采样",
+      "span": "{{first}} – {{last}}",
+      "short": "短于所选的 {{range}} —— 归档只能回溯到这么久。",
+      "empty": "该范围内还没有归档采样。轮询服务每分钟记录一行，因此会随其运行逐步填入。",
+      "identity_from": "小区标识自 {{time}} 起开始记录。该范围内更早的采样在此之先，因此之前的小区变更无从得知。"
+    },
+    "availability": {
+      "title": "5G 可用性",
+      "headline": "5G 在整个范围内的可用比例为 {{pct}}",
+      "headline_unknown": "该范围内的 5G 可用性尚不可知",
+      "coverage": "{{samples}} 条采样中有 {{known}} 条可判断",
+      "downtime": "不可用累计 {{duration}}",
+      "uptime": "可用累计 {{duration}}",
+      "outage_count": "{{count}} 次独立中断",
+      "no_outage": "该范围内 5G 从未掉线",
+      "legend": {
+        "up": "5G 可用",
+        "partial": "部分可用",
+        "down": "5G 不可用",
+        "unknown": "无记录"
+      },
+      "bucket": "{{time}} —— {{known}} 条采样中有 {{up}} 条 5G 可用",
+      "bucket_unknown": "{{time}} —— 无记录",
+      "awaiting": "该范围内的归档采样还不足以给出结论。",
+      "strip_aria": "所选范围内的 5G 可用性"
+    },
+    "pattern": {
+      "title": "夜间规律",
+      "description": "按一天中的小时统计的 5G 可用性，每天一行。深色格子表示该小时 5G 不可用。",
+      "needs_day": "需要一天或更长的范围 —— 请选择 24 小时或更长以查看规律。",
+      "hour_axis": "一天中的小时",
+      "day_axis": "日期",
+      "pct_axis": "5G 可用",
+      "cell": "{{day}} {{hour}} —— {{known}} 条采样中 5G 可用的比例为 {{pct}}",
+      "cell_unknown": "{{day}} {{hour}} —— 无记录"
+    },
+    "timeline": {
+      "title": "服务小区",
+      "description": "每一段是在同一个小区上不间断的驻留。将鼠标悬停在某段上可查看其频段、PCI 与 5G 可用性。",
+      "empty": "该范围内还没有小区标识采样。",
+      "run": "{{cell}} · {{duration}}",
+      "run_detail": "PCI {{pci}} · 频段 {{band}} · 5G 可用 {{pct}}",
+      "band_not_reported": "未上报频段",
+      "no_pci": "未上报 PCI",
+      "lte_row": "LTE",
+      "nr_row": "5G"
+    },
+    "outages": {
+      "title": "5G 中断",
+      "description": "调制解调器未上报 5G 分支的连续时段，并列出当时正在服务的小区。",
+      "empty": "该范围内没有 5G 中断。",
+      "col_start": "开始时间",
+      "col_duration": "时长",
+      "col_serving": "服务小区",
+      "col_samples": "采样数",
+      "unknown_serving": "未上报小区"
+    },
+    "events": {
+      "title": "小区事件",
+      "description": "每一次服务小区、频段或 5G 可用性的变化，都与已知的上一个值对比记录 —— 因此 5G 掉线后在另一个小区恢复时，两条都会记录。",
+      "rollup_title": "各小区驻留时长",
+      "rollup_cell": "服务小区",
+      "rollup_cellid": "Cell ID",
+      "rollup_time": "时长",
+      "rollup_availability": "5G 可用",
+      "rollup_last": "最后出现",
+      "show_all": "显示全部 {{count}} 次变化",
+      "hide_all": "隐藏变化列表",
+      "empty": "该范围内没有小区变更 —— 全程 PCI、频段与 EARFCN 相同。",
+      "no_identity": "该范围内还没有小区标识采样。",
+      "problem": "{{cell}} 驻留期间的 {{count}} 条采样中有 {{pct}} 为 5G 不可用。",
+      "field": {
+        "nr_avail": "5G",
+        "bands": "频段组合",
+        "lte_pci": "4G PCI",
+        "lte_band": "4G 频段",
+        "lte_earfcn": "4G EARFCN",
+        "lte_bw": "4G 带宽",
+        "lte_cellid": "Cell ID",
+        "nr_pci": "5G PCI",
+        "nr_band": "5G 频段",
+        "nr_arfcn": "5G ARFCN",
+        "nr_bw": "5G 带宽",
+        "nr_cellid": "5G Cell ID",
+        "network_type": "网络类型"
+      },
+      "value_up": "可用",
+      "value_down": "不可用",
+      "value_unknown": "未知"
+    },
+    "identity": {
+      "title": "当前小区",
+      "as_of": "截至 {{time}} —— 该范围内最新的采样。",
+      "lte_pci": "4G PCI",
+      "lte_earfcn": "4G EARFCN",
+      "lte_band": "4G 频段",
+      "lte_bw": "4G 带宽",
+      "nr_pci": "5G PCI",
+      "nr_arfcn": "5G ARFCN",
+      "nr_band": "5G 频段",
+      "nr_bw": "5G 带宽",
+      "cellid": "Cell ID",
+      "tac": "TAC",
+      "network_type": "网络类型",
+      "registered": "已注册",
+      "nr_avail": "5G 可用",
+      "empty": "该范围内还没有小区标识采样。"
+    },
+    "bands": {
+      "title": "频段与载波聚合",
+      "description": "该范围内使用了哪些频段，以及每种聚合组合出现的频率。分段边界是频段的出现或消失 —— 包括聚合载波，它会在不更换服务小区的情况下改变组合。",
+      "empty": "该范围内还没有频段数据。频段组合按采样记录；早于此功能的范围没有数据。",
+      "awaiting": "等待第一条记录频段组合的采样。",
+      "run_tip": "{{bands}} · {{duration}}",
+      "run_meta": "{{ca}} 个载波 · {{bw}} MHz",
+      "run_meta_ca": "{{ca}} 个载波",
+      "run_meta_bw": "{{bw}} MHz",
+      "unknown": "未上报",
+      "strip_aria": "所选范围内的频段与聚合组合",
+      "col_combo": "组合",
+      "col_share": "占比",
+      "col_samples": "采样数",
+      "col_bw": "带宽",
+      "col_last": "最后出现",
+      "foot": "占比是指该范围内使用该组合的频段采样所占的比例。",
+      "ca_chart": "已聚合载波",
+      "bw_chart": "已聚合带宽"
+    },
+    "legend": {
+      "title": "如何阅读此页面",
+      "availability": "5G 可用性",
+      "series": "图表系列",
+      "bands": "频段配色",
+      "gap": "折线中的断开表示该采样没有读数 —— 绝不是一个零值。",
+      "cadence": "每分钟一条归档采样，仅在轮询服务运行时写入。",
+      "legend_aria": "说明本页面所用颜色与标记的图例"
+    },
+    "charts": {
+      "rf_title": "射频信号",
+      "phy_title": "物理层深度",
+      "system_title": "设备负载",
+      "band_signal_title": "分频段信号",
+      "band_signal_note": "无线电上报的每个载波的 RSRP —— 按质量色阶着色，最弱频段优先。",
+      "band_signal_none": "此范围内还没有分频段读数。",
+      "quality": {
+        "excellent": "极佳",
+        "good": "良好",
+        "fair": "一般",
+        "poor": "较差",
+        "bad": "弱",
+        "none": "无读数"
+      },
+      "gap_note": "折线中的断开表示该区间没有读数 —— 而不是数值为零。",
+      "no_data": "该范围内此面板没有归档采样。",
+      "outage_band": "5G 不可用",
+      "metric": {
+        "rsrp": "RSRP",
+        "sinr": "SINR",
+        "rsrq": "RSRQ",
+        "rssi": "RSSI",
+        "cqi": "CQI",
+        "rank": "Rank（层数）",
+        "mcs": "MCS",
+        "tx_power": "发射功率",
+        "temp": "温度",
+        "cpu": "CPU",
+        "mem": "内存",
+        "dl": "下载",
+        "ul": "上传",
+        "total_cells": "已聚合载波",
+        "ca": "已聚合载波",
+        "bw": "已聚合带宽",
+        "bw_unit": "MHz"
+      },
+      "series": {
+        "lte": "4G LTE",
+        "nr": "5G NR",
+        "soc": "SoC",
+        "modem": "调制解调器"
+      }
+    },
+    "error": {
+      "read": "无法读取归档。请检查轮询服务是否在运行，然后刷新。",
+      "auth": "会话已过期，请重新登录。"
     }
   }
 }

@@ -4,12 +4,21 @@ import * as React from "react"
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
 import { CheckIcon } from "lucide-react"
 
+import {
+  MaterialSymbol,
+  type MaterialSymbolName,
+} from "@/components/ui/material-symbol"
+
 import { cn } from "@/lib/utils"
 
 function Checkbox({
   className,
+  glyph,
   ...props
-}: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
+}: React.ComponentProps<typeof CheckboxPrimitive.Root> & {
+  /** Material glyph to render inside the indicator instead of the default tick. */
+  glyph?: MaterialSymbolName
+}) {
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"
@@ -23,7 +32,14 @@ function Checkbox({
         data-slot="checkbox-indicator"
         className="grid place-content-center text-current transition-none"
       >
-        <CheckIcon className="size-3.5" />
+        {/* MaterialSymbol sizes itself with an inline fontSize no utility can
+            override, so the box owns the size (14px = size-3.5) rather than the
+            call site, or a defaulted 20px glyph overflows the size-4 root. */}
+        {glyph ? (
+          <MaterialSymbol name={glyph} size={14} />
+        ) : (
+          <CheckIcon className="size-3.5" />
+        )}
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   )

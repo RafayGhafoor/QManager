@@ -3,68 +3,79 @@
 import dynamic from "next/dynamic";
 import { useTranslation } from "react-i18next";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import type { CellHistoryPoint } from "@/types/cell-history";
 import { Skeleton } from "@/components/ui/skeleton";
-import { qualityStrokeVar } from "@/components/cellular/signal-quality-display";
 import { cn } from "@/lib/utils";
 import {
   RSRP_THRESHOLDS,
   getSignalQuality,
   type SignalQuality,
 } from "@/types/modem-status";
-import type { CellHistoryPoint, CellHistoryRow } from "@/types/cell-history";
 
-import {
-  bandRsrpSeries,
-  yDomain,
-  type CellHistoryWindow,
-} from "./derive";
-import { PanelEmpty } from "./empty-state";
-import {
-  CARD_DESC,
-  CARD_SHELL,
-  CARD_TITLE,
-  CHART,
-  CHART_BOX,
-  LEGEND,
-} from "./shapes";
+import { yDomain } from "./derive";
+import { CARD, CHART, CHART_BOX, FULL, HEAD, LEGEND } from "./shapes";
 
 // =============================================================================
-// BandSignalCard — RSRP per serving band, not one aggregate RSRP
+// BandSignalCard — one RSRP line per band, not one per serving cell
 // =============================================================================
-// The owner asked for "multiple bars for each rsrp of bands". The RF card plots
-// the serving cell's RSRP as one line; this card splits that same reading by the
-// LTE band the device was camped on, so a range that handover'd between B1 and
-// B3 shows two lines and the weaker band is visible as its own series.
-//
-// WHAT IT IS NOT. The recorder writes ONE RSRP per row — the serving carrier's.
-// It does not write per-component-carrier signal, so this is "the RSRP while on
-// that band", not a per-carrier measurement, and the card's description says so.
-// Nothing here is interpolated to look like per-carrier data.
+// The owner asked for "multiple bars for each rsrp of bands": the Radio signal
+// charts plot the SERVING cell, so an aggregated carrier (an SCC on its own band)
+// is invisible there. This card plots every carrier the radio reported, one line
+// per band token, from the archive's `cc_sig` column (schema v4).
 //
 // WHY LINES AND NOT BARS. The x axis is time, so a "bar per band" would be a bar
-// per (time, band) pair — grouped bars over a 24 h axis is a smear. The bar idiom
-// belongs to a snapshot, and the Cellular Information page already draws that.
+// per (time, band) pair — grouped bars on a 24 h axis with 96 buckets and two
+// bands means 192 bars in a 300px box, which is a smear. A line per band carries
+// the same information and keeps the shape readable. The bar idiom belongs to a
+// *snapshot* (what is each band at right now), and the Cellular Information page
+// already draws that.
 //
-// COLOUR IS QUALITY, NOT IDENTITY, and it is the product's own five-stop ramp
-// (`getSignalQuality` + `qualityStrokeVar`), evaluated per band over the band's
-// OWN median — never the page's aggregate. The legend names each band with its
-// quality word, because colour alone is not an accessible channel.
+// COLOUR IS QUALITY, NOT IDENTITY, and it is the same five-stop ramp the rest of
+// the product uses (`getSignalQuality` + `qualityInkClass`), evaluated per band
+// over the band's OWN samples — never the page's aggregate. Two channels carry
+// it, per DESIGN.md: the stroke takes the ramp tone of the band's median, and
+// every point gets a dot in the ramp tone of ITS OWN value, so a band that
+// improved over the window is visibly two colours rather than one average. The
+// legend names each band with its quality word, because colour alone is not an
+// accessible channel.
 //
-// A band with no reading in a bucket keeps a `null`, so the line BREAKS rather
-// than being drawn through a hole — the same rule as every other chart here.
+// A band with no reading in a bucket keeps a `null`, so `connectNulls={false}`
+// breaks the line instead of drawing through a hole — the same rule as every
+// other chart on this page.
 // =============================================================================
 
 const TrendChart = dynamic(() => import("./trend-chart"), {
   ssr: false,
   loading: () => <Skeleton className={cn(CHART_BOX, "rounded-tile")} />,
 });
+
+/**
+ * The band quality keys. The reference page classifies on the FIVE-stop ramp
+ * (it adds `bad` below `poor`); this tree's `getSignalQuality()` still returns
+ * four stops, so `bad` is typed here and never produced. Kept rather than
+ * trimmed because the arms are what a five-stop classifier will need, and
+ * `--quality-1-bar` is already defined.
+ */
+type BandQuality = SignalQuality | "bad";
+
+/** The ramp's stroke tones, in quality order. Same tokens as the meters. */
+const QUALITY_TONE: Record<BandQuality, string> = {
+  excellent: "var(--quality-5-bar)",
+  good: "var(--quality-4-bar)",
+  fair: "var(--quality-3-bar)",
+  poor: "var(--quality-2-bar)",
+  bad: "var(--quality-1-bar)",
+  none: "var(--on-surface-variant)",
+};
+
+const QUALITY_LABEL: Record<BandQuality, string> = {
+  excellent: "excellent",
+  good: "good",
+  fair: "fair",
+  poor: "poor",
+  bad: "bad",
+  none: "none",
+};
 
 /** Median of the band's readings — the figure the stroke is tinted by. */
 function median(values: number[]): number | null {
@@ -73,62 +84,47 @@ function median(values: number[]): number | null {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
-const QUALITY_LABEL: Record<SignalQuality, string> = {
-  excellent: "excellent",
-  good: "good",
-  fair: "fair",
-  poor: "poor",
-  none: "none",
-};
-
-export interface BandSignalCardProps {
-  rows: CellHistoryRow[];
-  window: CellHistoryWindow;
-  bucketSec: number;
-  longSpan: boolean;
-}
-
 export function BandSignalCard({
-  rows,
-  window,
-  bucketSec,
+  bandSeries,
   longSpan,
-}: BandSignalCardProps) {
+}: {
+  bandSeries: Record<string, CellHistoryPoint[]>;
+  longSpan: boolean;
+}) {
   const { t } = useTranslation("cellular");
-  const series: Record<string, CellHistoryPoint[]> = bandRsrpSeries(
-    rows,
-    window,
-    bucketSec,
-  );
 
-  const bands = Object.entries(series)
+  const bands = Object.entries(bandSeries)
     .map(([band, points]) => {
       const values = points
         .map((point) => point.v)
-        .filter((value): value is number => value !== null);
+        .filter((v): v is number => v !== null);
       const mid = median(values);
-      return { band, points, mid, quality: getSignalQuality(mid, RSRP_THRESHOLDS) };
+      const quality = getSignalQuality(mid, RSRP_THRESHOLDS);
+      return { band, points, mid, quality, samples: values.length };
     })
-    .filter((entry) => entry.mid !== null)
+    .filter((entry) => entry.samples > 0)
     // Weakest band first: the band that needs aiming is the one to read first.
     .sort((a, b) => (a.mid ?? 0) - (b.mid ?? 0));
 
   return (
-    <Card className={CARD_SHELL}>
-      <CardHeader className="gap-1.5">
-        <CardTitle className={CARD_TITLE}>
-          {t("history.band_signal.title")}
-        </CardTitle>
-        <CardDescription className={CARD_DESC}>
-          {t("history.band_signal.description")}
-        </CardDescription>
-        {bands.length > 0 ? (
-          <ul className={cn(LEGEND.ITEMS, "col-start-1 pt-1")}>
+    <section className={cn(CARD, FULL)}>
+      <header className={HEAD.ROOT}>
+        <h2 className={HEAD.TITLE}>{t("history.charts.band_signal_title")}</h2>
+        <p className={HEAD.DESC}>{t("history.charts.band_signal_note")}</p>
+      </header>
+
+      {bands.length === 0 ? (
+        <p className={cn(CHART_BOX, CHART.EMPTY)}>
+          {t("history.charts.band_signal_none")}
+        </p>
+      ) : (
+        <>
+          <ul className={LEGEND.ITEMS} aria-label={t("history.legend.series")}>
             {bands.map((entry) => (
               <li key={entry.band} className={LEGEND.ITEM}>
                 <span
                   className={LEGEND.LINE}
-                  style={{ backgroundColor: qualityStrokeVar(entry.quality) }}
+                  style={{ backgroundColor: QUALITY_TONE[entry.quality] }}
                   aria-hidden="true"
                 />
                 {entry.band}
@@ -139,37 +135,28 @@ export function BandSignalCard({
               </li>
             ))}
           </ul>
-        ) : null}
-      </CardHeader>
 
-      <CardContent>
-        {bands.length === 0 ? (
-          <PanelEmpty icon="signal_cellular_alt" body={t("history.band_signal.empty")} />
-        ) : (
           <div className={CHART.GRID}>
             {bands.map((entry) => (
               <div key={entry.band} className={CHART.ROOT}>
                 <h3 className={CHART.TITLE}>
                   {entry.band}
-                  <span className={CHART.UNIT}>
-                    {t("history.charts.metric.rsrp")}
-                  </span>
+                  <span className={CHART.UNIT}>{t("history.charts.metric.rsrp")}</span>
                 </h3>
                 <TrendChart
                   points={entry.points}
                   label={entry.band}
                   unit="dBm"
-                  color={qualityStrokeVar(entry.quality)}
+                  color={QUALITY_TONE[entry.quality]}
                   domain={yDomain("rsrp", entry.points)}
-                  window={window}
                   longSpan={longSpan}
                 />
               </div>
             ))}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </>
+      )}
+    </section>
   );
 }
 
