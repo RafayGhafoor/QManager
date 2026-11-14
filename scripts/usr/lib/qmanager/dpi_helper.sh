@@ -39,8 +39,21 @@ DPI_QUEUE_NUM=200
 # (uhttpd listens on 80 and on the web port, never here).
 DPI_TPWS_PORT=12443
 # Our own NAT chain. Nothing else references it, so teardown is one jump plus
-# -F/-X on this chain and cannot disturb fw4's rules.
+# -F/-X on this chain and cannot disturb fw3's rules.
 DPI_TPWS_CHAIN="QMANAGER_DPI_TPWS"
+# Ports the engine covers. 80 as well as 443 is the reference build's scope
+# (greenpacket-o5a: `-m multiport --dports 80,443`): an ISP that throttles by SNI
+# inspects the plaintext Host header on port 80 just as readily as the SNI on 443,
+# and tpws's --filter-l7 handles both.
+DPI_TPWS_PORTS="80,443"
+# The recipe. Copied from the reference build, which runs it in production
+# (zapret v72.13, same binary build) - verified flag-by-flag against this
+# device's v72.13 binary, and started once on this box:
+#   --filter-l7=tls,http        only TLS/HTTP handshakes are touched
+#   --split-pos=1,midsld,sniext+1  split at the first byte, mid-second-level-label
+#                               and just past the SNI extension
+#   --disorder=tls              send the second fragment of a TLS record first
+DPI_TPWS_RECIPE="--filter-l7=tls,http --split-pos=1,midsld,sniext+1 --disorder=tls"
 # Auto-detect cellular interface from default route, fallback to rmnet_data0
 DPI_INTERFACE=$(ip route 2>/dev/null | awk '/^default/{print $5; exit}')
 DPI_INTERFACE="${DPI_INTERFACE:-rmnet_data0}"
@@ -154,34 +167,73 @@ dpi_lan_device() {
     printf '%s' "${d:-br-lan}"
 }
 
-# dpi_tpws_listening — is anything LISTENing on $DPI_TPWS_PORT?
+# dpi_lan_ipv4 — the LAN address tpws binds to, or empty when it has none yet.
+#
+# The address is a SECURITY BOUNDARY, not a preference (reference build's rule).
+# The engine port is matched by no INPUT/zone rule anywhere, so a wildcard bind
+# makes tpws an open transparent proxy reachable from the carrier side. Empty
+# means "cannot start", never "bind wildcard".
+dpi_lan_ipv4() {
+    ip -4 addr show "$(dpi_lan_device)" 2>/dev/null \
+        | sed -n 's/.*inet \([0-9.]*\)\/.*/\1/p' | head -n1
+}
+
+# Dotted quad -> the little-endian hex /proc/net/tcp renders (192.168.88.1 -> 0158A8C0).
+_dpi_hex_addr() {
+    local _a="$1" IFS=.
+    [ -n "$_a" ] || return 1
+    set -- $_a
+    [ $# -eq 4 ] || return 1
+    printf '%02X%02X%02X%02X' "$4" "$3" "$2" "$1"
+}
+
+# dpi_tpws_listener_state — TRI-STATE, the reference build's contract:
+#   0 listening, 1 absent, 2 UNKNOWN.
+# Unknown is deliberately not absent: a caller that read an unreadable procfs as
+# "dead" would drain a working rule and restart a healthy engine, which is a LAN
+# outage caused by a probe.
 #
 # /proc/net/tcp{,6} instead of netstat/ss: the local address column is ADDR:PORT
-# in hex and st is 0A for LISTEN.
-#
-# BOTH tables are read, and that is not belt-and-braces: MEASURED with zapret
-# v72.13's tpws on this box (2026-11-14), tpws with no --bind-addr binds `::`
-# and the only row is in /proc/net/tcp6:
-#
-#   /proc/net/tcp  : nothing on the port
-#   /proc/net/tcp6 : 00000000000000000000000000000000:309B ... 0A
-#
-# so a check of /proc/net/tcp alone reports "not listening" for a tpws that is
-# up and serving - the supervisor then refuses to add any rule (fail closed, so
-# no traffic is broken) and procd respawns it every 5 s forever: an engine that
-# can never work. `bindv6only=0` on this device, so the `::` socket does accept
-# IPv4 clients; passing `--bind-addr=0.0.0.0` would be the alternative fix, at
-# the cost of one more argument to get wrong.
-dpi_tpws_listening() {
-    local hexport f
-    hexport=$(printf '%04X' "$DPI_TPWS_PORT" 2>/dev/null)
-    [ -n "$hexport" ] || return 1
+# in hex, terminated by any of the 0A/8A LISTEN spellings. BOTH states are
+# accepted because tpws's transparent-mode socket is not reported as plain
+# TCP_LISTEN on every kernel (the reference build measured `8A` = 0x80|LISTEN on
+# its RM520N; this box reports `0A` for the same binary), and BOTH tables are
+# read because which one carries the row depends on the bind address: with no
+# --bind-addr tpws binds `::` and the row is in tcp6 only (measured here), with
+# --bind-addr=<LAN v4> it is in tcp only. A wildcard local address counts as
+# present - a pre-fix engine may still be running mid-upgrade.
+dpi_tpws_listener_state() {
+    local hexport want f verdict
+    hexport=$(printf '%04X' "$DPI_TPWS_PORT" 2>/dev/null) || return 2
+    [ -n "$hexport" ] || return 2
+    want=$(_dpi_hex_addr "$(dpi_lan_ipv4)") || want=""
+    verdict=""
     for f in /proc/net/tcp /proc/net/tcp6; do
         [ -r "$f" ] || continue
-        awk -v p="$hexport" '$4 == "0A" && $2 ~ (":" p "$") { found = 1 } END { exit(found ? 0 : 1) }' \
-            "$f" 2>/dev/null && return 0
+        verdict=$(awk -v p="$hexport" -v a="$want" '
+            { rows++ }
+            ($4 == "0A" || $4 == "8A") {
+                i = index($2, ":")
+                if (substr($2, i + 1) == p &&
+                    (a == "" || substr($2, 1, i - 1) == a ||
+                     substr($2, 1, i - 1) == "00000000" ||
+                     substr($2, 1, i - 1) == "00000000000000000000000000000000")) found++
+            }
+            END { print (rows ? (found ? "yes" : "no") : "unknown") }
+        ' "$f" 2>/dev/null)
+        case "$verdict" in yes) return 0 ;; unknown) ;; esac
     done
-    return 1
+    case "$verdict" in
+        yes) return 0 ;;
+        no) return 1 ;;
+        *) return 2 ;;
+    esac
+}
+
+# dpi_tpws_listening — boolean wrapper for callers that only need "serving now".
+dpi_tpws_listening() {
+    dpi_tpws_listener_state
+    [ $? -eq 0 ]
 }
 
 # dpi_tpws_rules_present — our jump is in place (so traffic IS being redirected)
@@ -197,17 +249,32 @@ dpi_tpws_rules_present() {
 # chain rather than a redirect to a port nobody is serving. The caller removes
 # the leftovers when this returns non-zero.
 dpi_tpws_rules_add() {
-    local lan
+    local lan lan_ip
     if ! command -v iptables >/dev/null 2>&1; then
         return 1
     fi
     lan=$(dpi_lan_device)
+    lan_ip=$(dpi_lan_ipv4)
     # A chain left behind by a hard kill is emptied, never appended to.
     if ! iptables -t nat -N "$DPI_TPWS_CHAIN" 2>/dev/null; then
         iptables -t nat -F "$DPI_TPWS_CHAIN" 2>/dev/null || return 1
     fi
-    iptables -t nat -A "$DPI_TPWS_CHAIN" -i "$lan" -p tcp --dport 443 \
-        -j REDIRECT --to-ports "$DPI_TPWS_PORT" || return 1
+    # The reference build's match spec, with one substitution it cannot make on
+    # this box: it excludes router-bound traffic with
+    # `-m addrtype ! --dst-type LOCAL`, and libxt_addrtype is ABSENT here
+    # (measured: `Couldn't load match addrtype: No such file or directory`), so
+    # the LAN ADDRESS is negated instead. Without that exclusion the rule also
+    # captures LAN clients' traffic to the router itself - including the page
+    # they would use to turn the engine off.
+    if [ -n "$lan_ip" ]; then
+        iptables -t nat -A "$DPI_TPWS_CHAIN" ! -d "$lan_ip" -i "$lan" -p tcp \
+            -m multiport --dports "$DPI_TPWS_PORTS" \
+            -j REDIRECT --to-ports "$DPI_TPWS_PORT" || return 1
+    else
+        iptables -t nat -A "$DPI_TPWS_CHAIN" -i "$lan" -p tcp \
+            -m multiport --dports "$DPI_TPWS_PORTS" \
+            -j REDIRECT --to-ports "$DPI_TPWS_PORT" || return 1
+    fi
     # A second identical jump would be accepted by iptables and would redirect
     # every matching packet twice, so the jump is only inserted when missing.
     if ! dpi_tpws_rules_present; then
@@ -244,7 +311,12 @@ dpi_tpws_rules_remove() {
 # the redirect rule can stay broad and UDP/QUIC is untouched (tpws handles TCP
 # only; nothing here drops or blocks QUIC — that is the operator's call).
 dpi_tpws_args() {
-    printf '%s' "--port=$DPI_TPWS_PORT --hostlist=$DPI_HOSTLIST --split-pos=1 --disorder"
+    local bind
+    bind=$(dpi_lan_ipv4)
+    # No address -> no argv -> the supervisor refuses to start. Never fall back
+    # to a wildcard bind: that would expose the proxy to the carrier side.
+    [ -n "$bind" ] || return 1
+    printf '%s' "--port=$DPI_TPWS_PORT --bind-addr=$bind --hostlist=$DPI_HOSTLIST $DPI_TPWS_RECIPE"
 }
 
 # dpi_engine_status ENGINE — running or stopped.

@@ -72,9 +72,18 @@ fi
 # a known state: no rules at all.
 dpi_tpws_rules_remove
 
-qlog_info "Starting redirect engine on port $DPI_TPWS_PORT ($(dpi_tpws_args))"
-# shellcheck disable=SC2086  # dpi_tpws_args is a deliberate word list
-"$TPWS_BIN" $(dpi_tpws_args) &
+# The argv carries the LAN BIND ADDRESS, and it is built once: no address means
+# the LAN is not up yet, and the engine must not start on a wildcard bind in the
+# meantime (that would expose the proxy to the carrier side). Refuse, add no
+# rule, and let procd retry.
+tpws_argv=$(dpi_tpws_args) || {
+    qlog_error "no IPv4 address on $(dpi_lan_device); refusing to start the engine"
+    exit 1
+}
+
+qlog_info "Starting redirect engine ($tpws_argv)"
+# shellcheck disable=SC2086  # tpws_argv is a deliberate word list
+"$TPWS_BIN" $tpws_argv &
 child=$!
 
 # Prove the listener before any rule exists. Bounded at 10 s in 0.1 s steps: the
