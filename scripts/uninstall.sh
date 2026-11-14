@@ -287,6 +287,9 @@ remove_services() {
         info "Removed /etc/init.d/smartdns-qm"
     fi
 
+    # hotplug.d entry shipped by QManager (change 55)
+    rm -f /etc/hotplug.d/iface/99-smartdns-carrier 2>/dev/null || true
+
     # Clean up orphaned rc.d symlinks
     for link in /etc/rc.d/*qmanager*; do
         [ -e "$link" ] && rm -f "$link" 2>/dev/null || true

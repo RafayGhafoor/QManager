@@ -1,6 +1,6 @@
 {
   "name": "qmanager",
-  "version": "v0.1.36-suncomm4",
+  "version": "v0.1.36-suncomm5",
   "private": true,
   "scripts": {
     "dev": "bun --bun next dev",

@@ -1758,6 +1758,24 @@ install_backend() {
         done
     fi
 
+    # hotplug.d (change 55): the SmartDNS SIM-swap re-render
+    # (iface/99-smartdns-carrier). It was placed on the device by hand in change
+    # 52 and this installer never copied hotplug.d, so a fresh install would have
+    # silently shipped without it. Per-subdirectory, 755, one file per event class.
+    if [ -d "$SRC_SCRIPTS/etc/hotplug.d" ]; then
+        for d in "$SRC_SCRIPTS/etc/hotplug.d"/*/; do
+            [ -d "$d" ] || continue
+            local hclass
+            hclass="$(basename "$d")"
+            mkdir -p "/etc/hotplug.d/$hclass"
+            for f in "$d"*; do
+                [ -f "$f" ] || continue
+                install_file "$f" "/etc/hotplug.d/$hclass/$(basename "$f")" 755 \
+                    && info "hotplug.d: $hclass/$(basename "$f")"
+            done
+        done
+    fi
+
     seed_runtime_files
 
     info "Backend installed"
