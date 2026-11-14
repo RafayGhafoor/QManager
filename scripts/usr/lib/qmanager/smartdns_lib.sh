@@ -574,15 +574,20 @@ smartdns_custom_directives() {
     local f="$1" bad="" line word
     [ -f "$f" ] || return 0
     _SCD_ALLOWED=" bind bind-tcp cache-size cache-file prefetch-domain serve-expired
-        serve-expired-ttl serve-expired-reply-ttl server server-tls server-https
+        serve-expired serve-expired-ttl serve-expired-reply-ttl server server-tls server-https
         nameserver conf-file log-level log-file log-size log-num audit-file
         audit-size audit-num speed-check-mode response-mode address ipset
         ipset-timeout ipset-no-speed domain-rules domain-set bogus-nxdomain
         ignore-ip whitelist-ip blacklist-ip force-AAAA-SOA force-qtype-SOA
-        dualstack-ip-selection dualstack-ip-selection-threshold tcp-idle-time
+        dualstack-ip-selection dualstack-ip-selection-threshold tcp-idle-time rr-ttl-min
         edns-client-subnet ttl max-reply-ip-num dns64 dns64-prefix ca-file ca-path
         client-rules group group-begin group-end keep-alive proxy-server socks5
         start-delay "
+    # One space-delimited, single-line form: the literal above is wrapped for
+    # readability, and a token at a line end would otherwise be followed by a
+    # newline instead of a space and never match (measured: rr-ttl-min and
+    # serve-expired were both refused by a list that contained them).
+    _SCD_ALLOWED=" $(printf '%s' "$_SCD_ALLOWED" | tr '\n' ' ' | tr -s ' ') "
     while IFS= read -r line || [ -n "$line" ]; do
         case "$line" in ''|[[:space:]]*'#'*|'#'*) continue ;; esac
         word=$(printf '%s' "$line" | awk '{print $1}')

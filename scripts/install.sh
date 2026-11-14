@@ -1466,6 +1466,19 @@ seed_uci_defaults() {
         uci add_list quecmanager.smartdns.bootstrap=8.8.8.8
     fi
 
+    # SmartDNS tuning (change 46), adapted from the reference build's config.
+    # Installed as a DEFAULT only: an operator's own file is never overwritten,
+    # because this file is theirs to edit on the page.
+    _sd_src="$SRC_SCRIPTS/etc/qmanager/smartdns.custom.conf"
+    _sd_dst="/etc/qmanager/smartdns/smartdns.custom.conf"
+    if [ -f "$_sd_src" ] && [ ! -f "$_sd_dst" ]; then
+        mkdir -p /etc/qmanager/smartdns 2>/dev/null
+        if cp "$_sd_src" "$_sd_dst" 2>/dev/null; then
+            chmod 0600 "$_sd_dst" 2>/dev/null
+            info "Seeded the SmartDNS tuning file (reference build's settings)"
+        fi
+    fi
+
     uci commit quecmanager 2>/dev/null || warn "uci commit quecmanager failed"
 
     seed_web_port
