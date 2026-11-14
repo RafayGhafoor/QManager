@@ -697,6 +697,24 @@
       "save_failed": "无法应用解析器设置",
       "install_failed": "无法安装解析器",
       "uninstall_failed": "无法移除解析器"
+    },
+    "benchmark": {
+      "title": "DNS 延迟",
+      "helper": "通过每个解析器解析真实域名的耗时。第一行是本设备当前的解析路径。",
+      "run": "开始测试",
+      "running": "测量中…",
+      "empty": "尚无测量结果。运行测试以比较本设备当前解析器与 DoH 提供商的延迟。",
+      "system_row": "当前路径（dnsmasq）",
+      "failed": "无应答",
+      "method": "方法：curl 域名解析耗时，每个域名 {{samples}} 次采样，域名：{{domains}}。包含 DoH TLS 握手，因此首次采样最慢——最小值与中位数分别列出。"
+    },
+    "custom": {
+      "title": "配置文件",
+      "helper": "附加在自动生成的配置之后。保存前会在临时端口上验证——无法绑定的配置将被拒绝。",
+      "aria": "SmartDNS 自定义配置",
+      "save": "验证并保存",
+      "saving": "验证中…",
+      "reset": "撤销"
     }
   }
 }

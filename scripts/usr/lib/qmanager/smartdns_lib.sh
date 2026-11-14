@@ -38,6 +38,12 @@ _SMARTDNS_LIB_LOADED=1
 SMARTDNS_DIR="/etc/qmanager/smartdns"
 SMARTDNS_CONF="$SMARTDNS_DIR/smartdns.conf"
 SMARTDNS_BACKUP="$SMARTDNS_DIR/smartdns.conf.pre-qmanager"
+# Free-text config the operator owns, INCLUDED by the generated config rather
+# than replacing it (change 45). The generated half stays UCI-driven; this half is
+# a real smartdns config file, validated on a throwaway port before it can ever
+# become live. Kept separate because handing a root daemon an arbitrary directive
+# string is only acceptable with a proof step in front of it.
+SMARTDNS_CUSTOM_CONF="$SMARTDNS_DIR/smartdns.custom.conf"
 # Ledger of the dnsmasq upstream entries THIS feature added, one per line. Unwire
 # deletes exactly these and nothing else, so an operator's own `server` entries
 # survive both a save and an uninstall.
@@ -237,6 +243,7 @@ smartdns_render_body() {
 # explicit `bind` directive outranks it, so the test instance would fight the
 # live one for the real port and always fail.
 smartdns_render_conf() {
+    local _inc
     _src_port="${1:-$(smartdns_port)}"
     smartdns_render_body \
         "$_src_port" \
@@ -244,6 +251,12 @@ smartdns_render_conf() {
         "$(smartdns_uci prefetch '1')" \
         "$(uci -q get "$SMARTDNS_UCI.upstream" 2>/dev/null)" \
         "$(uci -q get "$SMARTDNS_UCI.bootstrap" 2>/dev/null)"
+    # The operator's own file, when there is one. A candidate path lets the save
+    # path validate exactly what it is about to install.
+    _inc="${SMARTDNS_INCLUDE_OVERRIDE:-$SMARTDNS_CUSTOM_CONF}"
+    if [ -f "$_inc" ] && grep -qv '^[[:space:]]*\(#\|$\)' "$_inc" 2>/dev/null; then
+        printf 'conf-file %s\n' "$_inc"
+    fi
 }
 
 # smartdns_write_conf — render and install the config durably, keeping the
@@ -545,6 +558,46 @@ smartdns_unwire() {
 # is why wiring keeps the carrier as an ordered fallback.
 #
 # Returns 1 and prints the daemon's own first error lines on failure.
+# smartdns_custom_directives <file> — every directive must be one this build knows.
+#
+# MEASURED 2026-11-14: the bind-proof below ACCEPTS GARBAGE. `smartdns -c ... -f`
+# with `totally-bogus-directive yes` starts, binds the port and exits 0 with only
+# a log line - so "it bound" does not mean "the config is valid", and an editor
+# relying on that alone would silently swallow a typo (the reference build
+# measured the same about `test -c`). Directives are therefore checked against a
+# list and an unknown one is refused BY NAME, with its line, before the daemon
+# starts. A false rejection is safe; a false acceptance is not.
+#
+# Not checked: a known directive given a nonsense ARGUMENT. The bind proof is the
+# second gate and catches the ones that break startup.
+smartdns_custom_directives() {
+    local f="$1" bad="" line word
+    [ -f "$f" ] || return 0
+    _SCD_ALLOWED=" bind bind-tcp cache-size cache-file prefetch-domain serve-expired
+        serve-expired-ttl serve-expired-reply-ttl server server-tls server-https
+        nameserver conf-file log-level log-file log-size log-num audit-file
+        audit-size audit-num speed-check-mode response-mode address ipset
+        ipset-timeout ipset-no-speed domain-rules domain-set bogus-nxdomain
+        ignore-ip whitelist-ip blacklist-ip force-AAAA-SOA force-qtype-SOA
+        dualstack-ip-selection dualstack-ip-selection-threshold tcp-idle-time
+        edns-client-subnet ttl max-reply-ip-num dns64 dns64-prefix ca-file ca-path
+        client-rules group group-begin group-end keep-alive proxy-server socks5
+        start-delay "
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in ''|[[:space:]]*'#'*|'#'*) continue ;; esac
+        word=$(printf '%s' "$line" | awk '{print $1}')
+        case "$word" in ''|[[:space:]]*'#'*) continue ;; esac
+        case "$_SCD_ALLOWED" in
+            *" $word "*) ;;
+            *) bad="$bad
+$line" ;;
+        esac
+    done < "$f"
+    [ -z "$bad" ] && return 0
+    printf 'unrecognised directive(s) for this resolver build:%s' "$bad"
+    return 1
+}
+
 smartdns_validate_text() {
     local bin
     local conf

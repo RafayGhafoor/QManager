@@ -36,6 +36,46 @@ export interface SmartDnsSettings {
   upstreams: string[];
 }
 
+/** The custom config file the page edits, and the last benchmark. */
+export interface SmartDnsTools {
+  custom_conf: string;
+  custom_conf_path: string | null;
+  has_custom_conf: boolean;
+  benchmark: SmartDnsBench | null;
+  benchmark_running: boolean;
+}
+
+/** One measured resolver in the benchmark table. */
+export interface SmartDnsBenchRow {
+  /** Stable id: "system", or the provider URL. */
+  id: string;
+  /** "system" for the current path, "pool" for a configured upstream. */
+  kind: "system" | "pool";
+  label: string;
+  url: string | null;
+  ok: boolean;
+  /** Fastest sample, milliseconds. Null when nothing answered. */
+  min_ms: number | null;
+  /** Middle sample, milliseconds. Null when nothing answered. */
+  median_ms: number | null;
+}
+
+/** The benchmark report (`qmanager_smartdns_bench`). */
+export interface SmartDnsBench {
+  success: boolean;
+  generated_at: number;
+  /** How the numbers were taken - printed on the card, not hidden. */
+  method: string;
+  samples_per_domain: number;
+  domains: string[];
+  /** The current path's fastest sample, or null when it did not answer. */
+  system_ms: number | null;
+  best: { id: string; label: string; min_ms: number } | null;
+  /** Negative = the best provider was slower than the current path. */
+  improvement_pct: number | null;
+  results: SmartDnsBenchRow[];
+}
+
 /** Response from GET /cgi-bin/quecmanager/network/smartdns.sh */
 export interface SmartDnsStatus {
   /** The resolver package is present on the device. False is a normal state. */
@@ -85,4 +125,13 @@ export interface SmartDnsStatus {
   /** Recent daemon log lines, oldest first. A ring buffer read, not a counter. */
   logs_tail: string[];
   install: SmartDnsInstallState | null;
+  /** The operator's own config file, verbatim ("" when there is none). */
+  custom_conf: string;
+  /** Absolute path of that file, or null when the package is not installed. */
+  custom_conf_path: string | null;
+  has_custom_conf: boolean;
+  /** The last benchmark report, or null before the first run. */
+  benchmark: SmartDnsBench | null;
+  /** A benchmark is running on the device right now. */
+  benchmark_running: boolean;
 }

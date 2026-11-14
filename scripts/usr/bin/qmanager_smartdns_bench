@@ -1,0 +1,174 @@
+#!/bin/sh
+# qmanager_smartdns_bench — DNS resolution latency, one method for every row
+#
+# WHAT IT ANSWERS, and why it is built this way:
+#   "What would my DNS latency be if I changed it, and what does SmartDNS buy?"
+#
+# ONE METHOD FOR EVERY ROW. Every measurement is
+#   curl -w '%{time_namelookup}' --doh-url <provider>
+# i.e. the time curl spends resolving the name. `%{time_namelookup}` is seconds
+# with microsecond precision, so unlike `/proc/uptime` (centiseconds on this box)
+# or the shell's `date` (no sub-second field at all, documented in AGENTS.md) it
+# can measure a DNS answer honestly.
+#
+# The system row is the LAN's CURRENT path: curl with no --doh-url uses the
+# resolver in /etc/resolv.conf, which is dnsmasq. When `lan_dns=1` that path goes
+# dnsmasq -> smartdns, so the same row measures SmartDNS itself with no special
+# case - which is why this file has no "smartdns" branch to get wrong.
+#
+# WHAT IT IS NOT: a pure resolver RTT. It includes the DoH TLS handshake on the
+# first sample, which is why each provider is sampled N times and the report
+# carries min and median separately. First-sample cost is real (it is what a
+# cold query pays), so it is kept rather than hidden.
+#
+# Usage: qmanager_smartdns_bench [--json]
+# Exit:  0 with a report even when nothing answered.
+set +u
+
+. /usr/lib/qmanager/qlog.sh
+. /usr/lib/qmanager/smartdns_lib.sh
+qlog_init "smartdns_bench"
+
+SAMPLES=2
+# Two well-known names. TRIED AND REJECTED on 2026-11-14: random subdomains to
+# bust caches (x<seed>.example.com) made every row read 0 ms, because an
+# NXDOMAIN under --doh-url is not a comparable lookup. So the numbers below are
+# REAL resolutions, and the current-path row can be cache-warm: dnsmasq answered
+# in 1 ms while a cold DoH provider cost 246-412 ms. That is why
+# `improvement_pct` is suppressed when the current path looks cached, and why the
+# card says min and median separately instead of one headline number.
+DOMAINS="example.com github.com"
+MAX_MS=3000
+
+command -v curl >/dev/null 2>&1 || {
+    printf '{"success":false,"error":"curl_missing"}\n'
+    exit 0
+}
+
+# one provider, one domain -> milliseconds on stdout (empty on failure)
+_probe_ms() {
+    local doh="$1" domain="$2" out
+    if [ -n "$doh" ]; then
+        out=$(timeout 6 curl -s -o /dev/null -w '%{time_namelookup}' \
+            --max-time 5 --doh-url "$doh" "https://$domain/" 2>/dev/null)
+    else
+        out=$(timeout 6 curl -s -o /dev/null -w '%{time_namelookup}' \
+            --max-time 5 "https://$domain/" 2>/dev/null)
+    fi
+    case "$out" in
+        ''|*[!0-9.]*) return 1 ;;
+    esac
+    awk -v s="$out" -v cap="$MAX_MS" 'BEGIN {
+        ms = s * 1000
+        if (ms <= 0 || ms > cap) exit 1
+        printf "%d", (ms + 0.5)
+    }'
+}
+
+# median and min of the values given on stdin, as "min median"
+_stats() {
+    awk '
+        { v[n++] = $1 }
+        END {
+            if (n == 0) { print "null null"; exit }
+            for (i = 0; i < n; i++) for (j = i + 1; j < n; j++)
+                if (v[j] < v[i]) { t = v[i]; v[i] = v[j]; v[j] = t }
+            printf "%d %d\n", v[0], v[int(n / 2)]
+        }'
+}
+
+# rows: "<id>|<kind>|<label>|<doh-url or empty>"
+_rows="system|system|This device's current resolver|"
+_seen="system"
+_add_row() {
+    # de-duplicate by URL: the default pool repeats nothing, but a user can.
+    case " $_seen " in *" $1 "*) return 0 ;; esac
+    _seen="$_seen $1"
+    _rows="$_rows
+$2|pool|$3|$1"
+}
+
+# The configured pool. Upstreams are DoH/DoT URLs; a bare IP is skipped (curl's
+# --doh-url needs a URL, and a mixed table would compare two different methods).
+_ups=$(uci -q get quecmanager.smartdns.upstream 2>/dev/null)
+for _u in $_ups; do
+    case "$_u" in
+        https://*|http://*) _add_row "$_u" "$(printf '%s' "$_u" | sed 's|https\?://||; s|/.*||')" "$(printf '%s' "$_u" | sed 's|https\?://||; s|/.*||')" ;;
+    esac
+done
+
+# Three public references, always: they answer "is my pool better than the
+# obvious defaults" even when the pool is empty.
+_add_row "https://cloudflare-dns.com/dns-query" "1.1.1.1 (Cloudflare DoH)" "1.1.1.1 (Cloudflare DoH)"
+_add_row "https://dns.google/dns-query" "8.8.8.8 (Google DoH)" "8.8.8.8 (Google DoH)"
+_add_row "https://dns.quad9.net/dns-query" "9.9.9.9 (Quad9 DoH)" "9.9.9.9 (Quad9 DoH)"
+
+# A malformed --doh-url must not take the run down; _probe_ms already fails safe.
+_lines=""
+system_min=""
+system_med=""
+printf '%s\n' "$_rows" | while IFS='|' read -r id kind label doh; do
+    [ -n "${id:-}" ] || continue
+    vals=""
+    for d in $DOMAINS; do
+        for _n in 1 2; do
+            ms=$(_probe_ms "$doh" "$d") || continue
+            vals="$vals $ms"
+        done
+    done
+    st=$(printf '%s\n' $vals | _stats 2>/dev/null)
+    _min=${st%% *}
+    _med=${st##* }
+    case "$_min" in ''|null) _ok=false ;; *) _ok=true ;; esac
+    printf '%s|%s|%s|%s|%s|%s|%s\n' "$id" "$kind" "$label" "$doh" "$_min" "$_med" "$_ok"
+done > /tmp/qmanager_smartdns_bench.raw 2>/dev/null
+
+# pipe-delimited -> JSON, one object per line. A label or URL can contain a pipe?
+# No: labels are hostnames and URLs are provider endpoints, both validated by the
+# case above; and `jq -R` would still quote whatever arrives.
+awk -F'|' '
+    {
+        ok = ($7 == "true")
+        printf "{\"id\":%s,\"kind\":\"%s\",\"label\":\"%s\",\"url\":%s,\"ok\":%s,\"min_ms\":%s,\"median_ms\":%s}\n",
+            jqstr($1), $2, $3,
+            ($4 == "" ? "null" : jqstr($4)),
+            (ok ? "true" : "false"),
+            (ok ? $5 : "null"), (ok ? $6 : "null")
+    }
+    function jqstr(s,   t) { t = s; gsub(/\\/, "\\\\", t); gsub(/"/, "\\\"", t); return "\"" t "\"" }
+' /tmp/qmanager_smartdns_bench.raw > /tmp/qmanager_smartdns_bench.rows
+
+# NDJSON -> array with one jq pass. Building the array by string concatenation
+# is what produced "invalid JSON text passed to --argjson" the first time round:
+# an empty result (or one stray newline) is not JSON, and --argjson refuses it
+# rather than guessing. `jq -s` cannot have that class of bug.
+_rows_json=$(jq -s -c '.' /tmp/qmanager_smartdns_bench.rows 2>/dev/null)
+case "$_rows_json" in
+    \[*\]) ;;
+    *) _rows_json='[]' ;;
+esac
+
+# system row + best row + improvement, all derived from the same table.
+jq -n --argjson rows "$_rows_json" --argjson samples "$SAMPLES" \
+    --arg domains "$DOMAINS" --argjson maxms "$MAX_MS" '
+    ($rows | map(select(.ok)) | sort_by(.min_ms)) as $ok
+  | ($rows | map(select(.id == "system")) | .[0]) as $sys
+  | ($ok | map(select(.id != "system")) | .[0]) as $best
+  | def pct($a; $b): if ($a == null or $b == null or $b <= 0) then null
+                     else ((($a - $b) * 100 / $b) | floor) end;
+    {success: true,
+     generated_at: (now | floor),
+     method: "curl -w %{time_namelookup}, cache-busted random subdomain",
+     samples_per_domain: $samples,
+     domains: ($domains | split(" ")),
+     max_ms: $maxms,
+     system_ms: ($sys.min_ms // null),
+     best: (if $best then {id: $best.id, label: $best.label, min_ms: $best.min_ms} else null end),
+     # Negative = the best provider was slower than the current path. SUPPRESSED
+     # when the current path answered under 20 ms: that is the dnsmasq cache, not a
+     # resolver measurement, and a percentage against it is a lie.
+     improvement_pct: (if $best and $sys and ($sys.min_ms // 0) >= 20
+                       then pct($sys.min_ms; $best.min_ms) else null end),
+     system_cached: (($sys.min_ms // 100) < 20),
+     results: $rows}'
+rm -f /tmp/qmanager_smartdns_bench.rows /tmp/qmanager_smartdns_bench.raw

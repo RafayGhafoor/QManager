@@ -13,6 +13,8 @@ import { resolveErrorMessage } from "@/lib/i18n/resolve-error";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import type { SmartDnsSettings } from "@/types/smartdns";
 
+import { BenchmarkCard } from "./benchmark-card";
+import { CustomConfigCard } from "./custom-config-card";
 import { InstallCard } from "./install-card";
 import { SettingsCard } from "./settings-card";
 import { StatusCard } from "./status-card";
@@ -62,6 +64,7 @@ const SmartDnsComponent = () => {
   const { t } = useTranslation("local-network");
   const smartdns = useSmartDns();
   const { status, isLoading, isSaving, error } = smartdns;
+  const { runBenchmark, saveCustomConf } = smartdns;
 
   const [edits, setEdits] = useState<Partial<SmartDnsSettings>>({});
   const [saved, setSaved] = useState(false);
@@ -256,6 +259,22 @@ const SmartDnsComponent = () => {
             onChange={handleChange}
             onDiscard={handleDiscard}
             onSubmit={handleSubmit}
+          />
+
+          {/* Only when a resolver exists: a benchmark against nothing and a
+              config file for a daemon that is not installed would both be
+              theatre. Both cards are inert by construction (the benchmark only
+              measures; the config is validated before it can be saved). */}
+          <BenchmarkCard
+            bench={status?.benchmark ?? null}
+            running={status?.benchmark_running ?? false}
+            onRun={() => void runBenchmark()}
+          />
+          <CustomConfigCard
+            value={status?.custom_conf ?? ""}
+            installed={status?.installed ?? false}
+            saving={isSaving}
+            onSave={async (text) => (await saveCustomConf(text)).ok}
           />
         </motion.div>
       )}

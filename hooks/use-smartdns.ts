@@ -46,6 +46,10 @@ export interface UseSmartDnsReturn {
   save: (settings: SmartDnsSettings) => Promise<MutationResult>;
   install: () => Promise<MutationResult>;
   uninstall: () => Promise<MutationResult>;
+  /** Kick off the device-side latency benchmark; the read polls until it ends. */
+  runBenchmark: () => Promise<MutationResult>;
+  /** Validate and install a free-text config file on the device. */
+  saveCustomConf: (text: string) => Promise<MutationResult>;
   refresh: () => void;
 }
 
@@ -130,6 +134,18 @@ export function useSmartDns(): UseSmartDnsReturn {
   const isInstalling =
     isStartingInstall ||
     installState?.status === "installing";
+
+  // The benchmark runs on the device and reports through the same GET, so the
+  // page polls exactly while one is in flight - same shape as the install poll,
+  // and no timer at any other time.
+  const benchmarkRunning = status?.benchmark_running === true;
+  useEffect(() => {
+    if (!benchmarkRunning) return;
+    const id = window.setInterval(() => {
+      void fetchStatus(true);
+    }, 1500);
+    return () => window.clearInterval(id);
+  }, [benchmarkRunning, fetchStatus]);
 
   useEffect(() => {
     if (installState?.status !== "installing") return;
@@ -243,6 +259,62 @@ export function useSmartDns(): UseSmartDnsReturn {
   const install = useCallback(() => runPackageAction("install"), [runPackageAction]);
   const uninstall = useCallback(() => runPackageAction("uninstall"), [runPackageAction]);
 
+  // ---------------------------------------------------------------------------
+  // Tools: benchmark and the free-text config
+  // ---------------------------------------------------------------------------
+  const runBenchmark = useCallback(async (): Promise<MutationResult> => {
+    try {
+      const resp = await authFetch(CGI_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "benchmark" }),
+      });
+      const json = await resp.json().catch(() => null);
+      if (!resp.ok || !json?.success) {
+        return { ok: false, code: json?.error ?? null, error: json?.detail ?? null };
+      }
+      // The run continues on the device; poll until benchmark_running clears.
+      window.setTimeout(() => void fetchStatus(true), 800);
+      return SUCCEEDED;
+    } catch {
+      return { ok: false, code: null, error: null };
+    }
+  }, [fetchStatus]);
+
+  const saveCustomConf = useCallback(
+    async (text: string): Promise<MutationResult> => {
+      setIsSaving(true);
+      setError(null);
+      try {
+        const resp = await authFetch(CGI_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "save_custom", text }),
+        });
+        const json = await resp.json().catch(() => null);
+        if (!resp.ok || !json?.success) {
+          const msg = resolveErrorMessage(
+            t,
+            json?.error,
+            json?.detail,
+            t("smartdns.errors.save_failed", { ns: "local-network" }),
+          );
+          setError(msg);
+          return { ok: false, code: json?.error ?? null, error: json?.detail ?? null };
+        }
+        await fetchStatus(true);
+        return SUCCEEDED;
+      } catch {
+        const msg = t("smartdns.errors.save_failed", { ns: "local-network" });
+        setError(msg);
+        return { ok: false, code: null, error: null };
+      } finally {
+        if (mountedRef.current) setIsSaving(false);
+      }
+    },
+    [fetchStatus, t],
+  );
+
   return {
     status,
     isLoading,
@@ -253,6 +325,8 @@ export function useSmartDns(): UseSmartDnsReturn {
     save,
     install,
     uninstall,
+    runBenchmark,
+    saveCustomConf,
     refresh,
   };
 }

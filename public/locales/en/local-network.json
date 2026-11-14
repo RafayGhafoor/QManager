@@ -698,6 +698,24 @@
       "save_failed": "The resolver settings could not be applied",
       "install_failed": "The resolver could not be installed",
       "uninstall_failed": "The resolver could not be removed"
+    },
+    "benchmark": {
+      "title": "DNS latency",
+      "helper": "Resolve time for a real hostname through each resolver. The first row is this device's current path.",
+      "run": "Run test",
+      "running": "Measuring…",
+      "empty": "No measurement yet. Run the test to compare this device's current resolver with the DoH providers.",
+      "system_row": "Current path (dnsmasq)",
+      "failed": "no answer",
+      "method": "Method: curl name-lookup time, {{samples}} samples per domain over {{domains}}. Includes the DoH TLS handshake, so a first sample is the slowest — min and median are reported separately."
+    },
+    "custom": {
+      "title": "Config file",
+      "helper": "Appended after the generated config. It is validated on a throwaway port before it can be saved — a config that cannot bind is refused.",
+      "aria": "SmartDNS custom configuration",
+      "save": "Validate & save",
+      "saving": "Validating…",
+      "reset": "Revert"
     }
   }
 }

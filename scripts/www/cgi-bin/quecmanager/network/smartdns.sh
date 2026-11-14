@@ -84,6 +84,27 @@ if ! command -v smartdns_bin >/dev/null 2>&1; then
 fi
 
 INSTALL_HELPER="/usr/bin/qmanager_smartdns_install"
+BENCH_HELPER="/usr/bin/qmanager_smartdns_bench"
+BENCH_RESULT="/tmp/qmanager_smartdns_bench.json"
+BENCH_PID="/var/run/qmanager/smartdns_bench.pid"
+
+# bench_state — the last run's report plus whether one is in flight. /var/run is
+# root-only; the CGI runs as root here (uhttpd qmanager instance), and the pid is
+# re-proved against the process name so a stale pid cannot pin the page.
+bench_state() {
+    local _pid _running=false
+    if [ -f "$BENCH_PID" ]; then
+        _pid=$(cat "$BENCH_PID" 2>/dev/null)
+        case "$_pid" in
+            ''|*[!0-9]*) ;;
+            *) if kill -0 "$_pid" 2>/dev/null && \
+                  tr '\0' ' ' < "/proc/$_pid/cmdline" 2>/dev/null | grep -q smartdns_bench; then
+                   _running=true
+               fi ;;
+        esac
+    fi
+    printf '%s\n' "$_running"
+}
 INSTALL_PID="/var/run/qmanager/smartdns_install.pid"
 
 smartdns_ensure_section
@@ -179,8 +200,28 @@ build_status() {
     _logs=$(logread 2>/dev/null | grep -i 'smartdns' | tail -n 6 | jq -R -s -c 'split("\n") | map(select(length > 0))')
     case "$_logs" in \[*\]) ;; *) _logs='[]' ;; esac
 
+    # The operator's own config file, verbatim (the page edits it). Capped: a
+    # 32 KB textarea bound is plenty for a resolver config, and an unbounded
+    # read here would be a memory lever on a 300 MB box.
+    _custom=""
+    _has_custom=false
+    if [ -f "$SMARTDNS_CUSTOM_CONF" ]; then
+        _custom=$(head -c 32768 "$SMARTDNS_CUSTOM_CONF" 2>/dev/null)
+        [ -n "$_custom" ] && _has_custom=true
+    fi
+    _bench="null"
+    if qm_trusted_file "$BENCH_RESULT" 2>/dev/null; then
+        _bench=$(jq -c '.' "$BENCH_RESULT" 2>/dev/null) || _bench="null"
+        case "$_bench" in "{"*) ;; *) _bench="null" ;; esac
+    fi
+    _bench_running=$(bench_state)
+
     jq -n \
         --argjson installed "$_installed" \
+        --arg custom "$_custom" \
+        --argjson has_custom "$_has_custom" \
+        --argjson bench "$_bench" \
+        --argjson bench_running "$_bench_running" \
         --argjson enabled "$_enabled" \
         --argjson lan "$_lan" \
         --argjson prefetch "$_prefetch" \
@@ -223,6 +264,11 @@ build_status() {
             wired: $wired,
             other_upstreams: $foreign,
             carrier_resolvers: $carriers,
+            custom_conf: $custom,
+            custom_conf_path: (if $installed then "/etc/qmanager/smartdns/smartdns.custom.conf" else null end),
+            has_custom_conf: $has_custom,
+            benchmark: $bench,
+            benchmark_running: $bench_running,
             settings: {
                 enabled: $enabled,
                 lan_dns: $lan,
@@ -429,6 +475,70 @@ case "$REQUEST_METHOD" in
         cgi_read_post
         _action=$(printf '%s' "$POST_DATA" | jq -r '.action // empty' 2>/dev/null)
         case "$_action" in
+            benchmark)
+                # Spawn, do not run inline: a cold provider can take seconds per
+                # request and a CGI that blocks for a minute is a broken page.
+                # The page polls GET, which carries benchmark_running.
+                if [ "$(bench_state)" = "true" ]; then
+                    printf '{"success":true,"started":false,"running":true}\n'
+                    exit 0
+                fi
+                if [ ! -x "$BENCH_HELPER" ]; then
+                    cgi_error "bench_missing" "The benchmark helper is not installed"
+                    exit 0
+                fi
+                rm -f "$BENCH_RESULT"
+                qm_run_dir >/dev/null 2>&1
+                "$BENCH_HELPER" --json > "$BENCH_RESULT" 2>/dev/null &
+                printf '%s\n' "$!" | qm_atomic_write "$BENCH_PID" 2>/dev/null
+                printf '{"success":true,"started":true,"running":true}\n'
+                exit 0
+                ;;
+
+            save_custom)
+                # Free-text config (change 45). PROVE BEFORE COMMIT: the candidate
+                # is rendered together with the generated base and started on a
+                # throwaway port; only a config that BINDS replaces the live one.
+                # The base stays UCI-driven and includes this file with
+                # `conf-file`, so the two halves cannot fight.
+                _text=$(printf '%s' "$POST_DATA" | jq -r '.text // empty' 2>/dev/null)
+                if [ "$(printf '%s' "$_text" | wc -c)" -gt 32768 ]; then
+                    cgi_error "custom_too_large" "The config text is larger than 32 KB"
+                    exit 0
+                fi
+                qm_smartdns_mode_dir || { cgi_error "config_dir" "Cannot prepare the config directory"; exit 0; }
+                _cand="$SMARTDNS_CUSTOM_CONF.candidate"
+                printf '%s\n' "$_text" > "$_cand" || { cgi_error "config_write" "Cannot write the candidate"; exit 0; }
+                chmod 0600 "$_cand" 2>/dev/null
+                # Gate 1: every directive must be one this build knows. The bind
+                # proof alone accepts garbage (measured - see the lib's comment).
+                if ! _dterr=$(smartdns_custom_directives "$_cand"); then
+                    rm -f "$_cand"
+                    cgi_error "custom_config_unknown_directive" "$_dterr"
+                    exit 0
+                fi
+                _port=$(smartdns_free_port) || { rm -f "$_cand"; cgi_error "no_free_port" "No free port to validate on"; exit 0; }
+                _full=$(SMARTDNS_INCLUDE_OVERRIDE="$_cand" smartdns_render_conf "$_port")
+                if ! _err=$(smartdns_validate_text "$_full"); then
+                    rm -f "$_cand"
+                    cgi_error "custom_config_rejected" "$_err"
+                    exit 0
+                fi
+                if ! mv "$_cand" "$SMARTDNS_CUSTOM_CONF" 2>/dev/null; then
+                    rm -f "$_cand"
+                    cgi_error "config_write" "Cannot install the validated config"
+                    exit 0
+                fi
+                chmod 0600 "$SMARTDNS_CUSTOM_CONF" 2>/dev/null
+                # A running resolver picks it up on restart; an off one stays off.
+                if [ "$(uci -q get "$SMARTDNS_UCI.enabled" 2>/dev/null)" = "1" ]; then
+                    /etc/init.d/smartdns-qm restart >/dev/null 2>&1
+                fi
+                qlog_info "custom config accepted ($(printf '%s' "$_text" | wc -l | tr -d ' ') lines)"
+                printf '{"success":true}\n'
+                exit 0
+                ;;
+
             save)
                 qlog_info "SmartDNS settings save requested"
                 do_save
