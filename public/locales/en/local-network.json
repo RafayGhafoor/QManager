@@ -577,5 +577,120 @@
       "hostlist_save_failed": "Failed to save hostname list",
       "hostlist_restore_failed": "Failed to restore defaults"
     }
+  },
+  "smartdns": {
+    "page_title": "SmartDNS",
+    "page_description": "A resolver that keeps answers on this router and asks several resolvers at once, so lookups stay quick and one provider being unreachable costs nothing.",
+    "refresh": "Refresh",
+    "blocked_no_upstreams": "Choose at least one upstream resolver.",
+    "toast_saved": "Resolver settings applied",
+    "toast_saved_lan": "Resolver settings applied — your network now asks it first",
+    "toast_save_failed": "The resolver settings could not be applied",
+    "toast_installed": "Resolver installed",
+    "toast_install_failed": "The resolver could not be installed",
+    "toast_removed": "Resolver removed",
+    "toast_remove_failed": "The resolver could not be removed",
+    "error_load_title": "Could not read the resolver",
+    "error_load_body": "The modem did not answer. Check the connection and try again.",
+    "units": {
+      "mb": "MB"
+    },
+    "duration": {
+      "day": " d",
+      "hour": " h",
+      "minute": " m",
+      "second": " s"
+    },
+    "install": {
+      "title": "Resolver package",
+      "description": "SmartDNS is an optional package, and it is not on this modem yet.",
+      "lead_title": "SmartDNS is not installed",
+      "lead_body": "Installing adds the resolver to the modem. Your DNS settings, and every device on your network, are left exactly as they are.",
+      "progress_default": "Installing the resolver",
+      "progress_body": "This takes a minute. Name resolution is not affected while it runs.",
+      "failed": "The resolver could not be installed",
+      "failed_detail": "Reason: {{detail}}",
+      "fact_dns_untouched": "Installing does not change DNS.",
+      "fact_package": "The package is downloaded to this modem and stays after a reboot.",
+      "fact_reversible": "It can be removed again at any time.",
+      "action": "Install SmartDNS",
+      "installing": "Installing…"
+    },
+    "status": {
+      "title": "Resolver",
+      "description": "Answers lookups on this router. Only the router itself reaches it until your network is pointed at it.",
+      "state": {
+        "running": "Running",
+        "enabled_stopped": "Not running",
+        "running_unbound": "Not answering",
+        "stopped": "Off",
+        "wired_only": "Network still pointed here"
+      },
+      "readout": {
+        "port": "Port",
+        "upstreams": "Upstreams",
+        "uptime": "Uptime",
+        "memory": "Memory",
+        "cache": "Cache size",
+        "fallback": "Fallback servers",
+        "config": "Settings applied",
+        "log_lines": "Log lines"
+      },
+      "fallback": {
+        "label": "If it does not answer",
+        "present": "Lookups fall through to {{servers}}.",
+        "absent": "No fallback servers were found, so your network was left alone."
+      },
+      "log": {
+        "title": "Recent activity",
+        "empty": "Nothing logged since the last restart."
+      },
+      "remove": {
+        "label": "Remove",
+        "blocked": "Turn the resolver off first",
+        "confirm_title": "Remove SmartDNS?",
+        "confirm_body": "The package is deleted from the modem and the resolver stops. Your network goes back to the carrier's servers.",
+        "confirm_action": "Remove"
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "What the resolver is, who it asks, and whether your network uses it.",
+      "rows": {
+        "enabled": {
+          "label": "Resolver",
+          "on": "Caches answers and asks several resolvers at once.",
+          "off": "Not running. Nothing on your network uses it."
+        },
+        "lan_dns": {
+          "label": "Use it for this network",
+          "on": "Devices ask the resolver first, then the carrier's servers.",
+          "off": "Devices ask the carrier's servers directly."
+        },
+        "cache": {
+          "label": "Cache size",
+          "hint": "How many answers are kept on the router."
+        },
+        "prefetch": {
+          "label": "Keep popular names warm",
+          "hint": "Refreshes frequently looked-up names before they expire."
+        },
+        "upstreams": {
+          "label": "Upstream resolvers",
+          "hint": "All of them are asked at once and the quickest answer wins, so one being unreachable costs nothing.",
+          "count_one": "{{count}} selected",
+          "count_other": "{{count}} selected"
+        }
+      },
+      "foot": {
+        "pending": "Applying restarts the resolver for a moment."
+      }
+    },
+    "errors": {
+      "fetch_failed": "Could not read the resolver",
+      "save_failed": "The resolver settings could not be applied",
+      "install_failed": "The resolver could not be installed",
+      "uninstall_failed": "The resolver could not be removed"
+    }
   }
 }

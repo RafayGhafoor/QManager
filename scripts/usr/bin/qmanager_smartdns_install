@@ -1,0 +1,151 @@
+#!/bin/sh
+# qmanager_smartdns_install — install or remove the SmartDNS package, explicitly
+# Spawned by the CGI; writes progress to /tmp/qmanager_smartdns_install.json
+#
+# WHY THIS IS A SEPARATE, EXPLICIT ACTION
+#   `opkg` is how this box gets software, but the runbook forbids reaching for it
+#   to paper over a missing *utility* (`diff`, `stat`). smartdns is not a
+#   utility: it is the product feature, and there is no other way to obtain it.
+#   So installation lives here, behind a button, with its reversal beside it —
+#   and nothing else in the feature may assume the package is present.
+#
+# WHAT IT DELIBERATELY DOES NOT DO
+#   It does not enable the resolver, wire dnsmasq, or change any DNS setting.
+#   After a successful install the device resolves names through the carrier,
+#   exactly as before; the resolver is present and off until the operator says
+#   otherwise. That is the whole point of splitting install from enable.
+#
+# The package's own /etc/init.d/smartdns is stopped and disabled after install:
+# it reads /etc/config/smartdns, which QManager does not drive, and two daemons
+# competing for a loopback port is the one failure mode that produces a resolver
+# that looks green and answers nothing.
+
+. /usr/lib/qmanager/qlog.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+[ -f /usr/lib/qmanager/smartdns_lib.sh ] && . /usr/lib/qmanager/smartdns_lib.sh
+
+qlog_init "smartdns_install"
+
+RESULT_FILE="/tmp/qmanager_smartdns_install.json"
+PID_FILE="/var/run/qmanager/smartdns_install.pid"
+PACKAGE="smartdns"
+
+if ! command -v qm_atomic_write >/dev/null 2>&1 || ! qm_run_dir >/dev/null; then
+    printf '{"success":false,"status":"error","message":"Cannot prepare the install state directory","detail":""}\n' \
+        > "$RESULT_FILE"
+    exit 1
+fi
+
+# write_result STATUS MESSAGE DETAIL — the shape the CGI and the page poll.
+write_result() {
+    _wr_ok=false
+    [ "$1" = "complete" ] && _wr_ok=true
+    printf '{"success":%s,"status":"%s","message":"%s","detail":"%s"}\n' \
+        "$_wr_ok" "$1" "$2" "$3" > "$RESULT_FILE"
+}
+
+cleanup() {
+    rm -f "$PID_FILE" 2>/dev/null
+}
+trap cleanup EXIT INT TERM
+
+printf '%s\n' "$$" | qm_atomic_write "$PID_FILE"
+
+ACTION="${1:-}"
+
+case "$ACTION" in
+install)
+    if smartdns_installed; then
+        write_result "complete" "Already installed" "$(smartdns_bin)"
+        exit 0
+    fi
+
+    if ! command -v opkg >/dev/null 2>&1; then
+        write_result "error" "This firmware has no package manager" ""
+        exit 1
+    fi
+
+    write_result "installing" "Updating the package list" ""
+    qlog_info "opkg update"
+    _out=$(opkg update 2>&1)
+    if [ $? -ne 0 ]; then
+        qlog_error "opkg update failed: $_out"
+        write_result "error" "Could not reach the package feed" "$(printf '%s' "$_out" | tail -n 3 | tr '\n' ' ')"
+        exit 1
+    fi
+
+    write_result "installing" "Installing the resolver" ""
+    qlog_info "opkg install $PACKAGE"
+    _out=$(opkg install "$PACKAGE" 2>&1)
+    _rc=$?
+    if [ "$_rc" -ne 0 ]; then
+        qlog_error "opkg install $PACKAGE failed: $_out"
+        write_result "error" "The resolver could not be installed" "$(printf '%s' "$_out" | tail -n 3 | tr '\n' ' ')"
+        exit 1
+    fi
+
+    if ! smartdns_installed; then
+        # Exit 0 but no binary: a package that installed nowhere. Say so rather
+        # than reporting success and leaving the page to show "not installed".
+        qlog_error "opkg reported success but no smartdns binary was installed"
+        write_result "error" "The package installed but its binary is missing" "$(printf '%s' "$_out" | tail -n 3 | tr '\n' ' ')"
+        exit 1
+    fi
+
+    # One daemon owns the port. See the header for why.
+    if [ -x /etc/init.d/smartdns ]; then
+        /etc/init.d/smartdns stop >/dev/null 2>&1
+        /etc/init.d/smartdns disable >/dev/null 2>&1
+        qlog_info "Stopped and disabled the package's own init script"
+    fi
+
+    # Section + defaults, with `enabled` and `lan_dns` still 0. Creating the
+    # section is not the same as turning anything on; it makes the page's first
+    # read complete instead of inventing defaults in the browser.
+    smartdns_ensure_section
+
+    qlog_info "smartdns installed at $(smartdns_bin)"
+    write_result "complete" "Installed" "$(smartdns_bin)"
+    exit 0
+    ;;
+
+uninstall)
+    if ! smartdns_installed && ! smartdns_package_installed; then
+        write_result "complete" "Not installed" ""
+        exit 0
+    fi
+
+    if [ "$(uci -q get quecmanager.smartdns.enabled 2>/dev/null)" = "1" ]; then
+        write_result "error" "Turn the resolver off before removing it" ""
+        exit 1
+    fi
+
+    # Unwire first: removing the resolver while dnsmasq still points at it
+    # leaves the LAN paying for a dead hop on every query.
+    smartdns_unwire
+
+    if [ -x /etc/init.d/qmanager_smartdns ]; then
+        /etc/init.d/qmanager_smartdns stop >/dev/null 2>&1
+        /etc/init.d/qmanager_smartdns disable >/dev/null 2>&1
+    fi
+
+    write_result "installing" "Removing the resolver" ""
+    qlog_info "opkg remove $PACKAGE"
+    _out=$(opkg remove "$PACKAGE" 2>&1)
+    if [ $? -ne 0 ] && smartdns_installed; then
+        qlog_error "opkg remove $PACKAGE failed: $_out"
+        write_result "error" "The resolver could not be removed" "$(printf '%s' "$_out" | tail -n 3 | tr '\n' ' ')"
+        exit 1
+    fi
+
+    rm -f "$SMARTDNS_CONF" "$SMARTDNS_BACKUP" 2>/dev/null
+    qlog_info "smartdns removed"
+    write_result "complete" "Removed" ""
+    exit 0
+    ;;
+
+*)
+    write_result "error" "Unknown action" "$ACTION"
+    exit 1
+    ;;
+esac

@@ -576,5 +576,120 @@
       "hostlist_save_failed": "Gagal menyimpan daftar hostname",
       "hostlist_restore_failed": "Gagal memulihkan default"
     }
+  },
+  "smartdns": {
+    "page_title": "SmartDNS",
+    "page_description": "Resolver yang menyimpan jawaban di router ini dan menanyakan beberapa resolver sekaligus, sehingga pencarian tetap cepat dan satu penyedia yang tidak terjangkau tidak menjadi masalah.",
+    "refresh": "Muat ulang",
+    "blocked_no_upstreams": "Pilih setidaknya satu resolver hulu.",
+    "toast_saved": "Pengaturan resolver diterapkan",
+    "toast_saved_lan": "Pengaturan diterapkan — jaringan kini memakainya lebih dulu",
+    "toast_save_failed": "Pengaturan resolver tidak dapat diterapkan",
+    "toast_installed": "Resolver terpasang",
+    "toast_install_failed": "Resolver tidak dapat dipasang",
+    "toast_removed": "Resolver dihapus",
+    "toast_remove_failed": "Resolver tidak dapat dihapus",
+    "error_load_title": "Tidak dapat membaca resolver",
+    "error_load_body": "Modem tidak merespons. Periksa koneksi lalu coba lagi.",
+    "units": {
+      "mb": "MB"
+    },
+    "duration": {
+      "day": " hr",
+      "hour": " j",
+      "minute": " mnt",
+      "second": " dtk"
+    },
+    "install": {
+      "title": "Paket resolver",
+      "description": "SmartDNS adalah paket opsional dan belum ada di modem ini.",
+      "lead_title": "SmartDNS belum terpasang",
+      "lead_body": "Pemasangan hanya menambahkan resolver ke modem. Pengaturan DNS Anda dan semua perangkat di jaringan tetap seperti sekarang.",
+      "progress_default": "Memasang resolver",
+      "progress_body": "Perlu sekitar satu menit. Pencarian nama tidak terpengaruh.",
+      "failed": "Resolver tidak dapat dipasang",
+      "failed_detail": "Alasan: {{detail}}",
+      "fact_dns_untouched": "Pemasangan tidak mengubah DNS.",
+      "fact_package": "Paket diunduh ke modem ini dan tetap ada setelah reboot.",
+      "fact_reversible": "Dapat dihapus lagi kapan saja.",
+      "action": "Pasang SmartDNS",
+      "installing": "Memasang…"
+    },
+    "status": {
+      "title": "Resolver",
+      "description": "Menjawab pencarian di router ini. Sampai jaringan diarahkan ke sini, hanya router sendiri yang memakainya.",
+      "state": {
+        "running": "Berjalan",
+        "enabled_stopped": "Tidak berjalan",
+        "running_unbound": "Tidak menjawab",
+        "stopped": "Mati",
+        "wired_only": "Jaringan masih diarahkan ke sini"
+      },
+      "readout": {
+        "port": "Port",
+        "upstreams": "Hulu",
+        "uptime": "Aktif selama",
+        "memory": "Memori",
+        "cache": "Ukuran cache",
+        "fallback": "Server cadangan",
+        "config": "Pengaturan diterapkan",
+        "log_lines": "Baris log"
+      },
+      "fallback": {
+        "label": "Jika tidak menjawab",
+        "present": "Pencarian dialihkan ke {{servers}}.",
+        "absent": "Server cadangan tidak ditemukan, jadi jaringan tidak diubah."
+      },
+      "log": {
+        "title": "Aktivitas terbaru",
+        "empty": "Tidak ada log sejak mulai ulang terakhir."
+      },
+      "remove": {
+        "label": "Hapus",
+        "blocked": "Matikan resolver terlebih dahulu",
+        "confirm_title": "Hapus SmartDNS?",
+        "confirm_body": "Paket dihapus dari modem dan resolver berhenti. Jaringan kembali memakai server operator.",
+        "confirm_action": "Hapus"
+      }
+    },
+    "settings": {
+      "title": "Pengaturan",
+      "description": "Apa itu resolver, siapa yang ditanyai, dan apakah jaringan memakainya.",
+      "rows": {
+        "enabled": {
+          "label": "Resolver",
+          "on": "Menyimpan jawaban di cache dan menanyakan beberapa resolver sekaligus.",
+          "off": "Tidak berjalan. Tidak ada perangkat di jaringan yang memakainya."
+        },
+        "lan_dns": {
+          "label": "Pakai untuk jaringan ini",
+          "on": "Perangkat menanyai resolver lebih dulu, lalu server operator.",
+          "off": "Perangkat menanyai server operator secara langsung."
+        },
+        "cache": {
+          "label": "Ukuran cache",
+          "hint": "Berapa banyak jawaban yang disimpan di router."
+        },
+        "prefetch": {
+          "label": "Jaga nama populer tetap hangat",
+          "hint": "Menyegarkan nama yang sering dicari sebelum kedaluwarsa."
+        },
+        "upstreams": {
+          "label": "Resolver hulu",
+          "hint": "Semuanya ditanyai bersamaan dan jawaban tercepat menang, jadi satu yang tidak terjangkau tidak menjadi masalah.",
+          "count_one": "{{count}} dipilih",
+          "count_other": "{{count}} dipilih"
+        }
+      },
+      "foot": {
+        "pending": "Menerapkan akan memulai ulang resolver sebentar."
+      }
+    },
+    "errors": {
+      "fetch_failed": "Tidak dapat membaca resolver",
+      "save_failed": "Pengaturan resolver tidak dapat diterapkan",
+      "install_failed": "Resolver tidak dapat dipasang",
+      "uninstall_failed": "Resolver tidak dapat dihapus"
+    }
   }
 }

@@ -37,6 +37,7 @@
     "ethernet_status": "Status Ethernet",
     "local_network_settings": "Pengaturan",
     "custom_dns": "DNS Kustom",
+    "smartdns": "SmartDNS",
     "ttl_mtu_settings": "Pengaturan TTL & MTU",
     "video_optimizer": "Video Optimizer",
     "traffic_masquerade": "Traffic Masquerade",

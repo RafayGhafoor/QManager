@@ -1,0 +1,93 @@
+#!/bin/sh /etc/rc.common
+# qmanager_smartdns — the SmartDNS resolver, run by procd
+#
+# The binary is NOT ours: it comes from the OpenWrt `smartdns` package, which
+# QManager installs only through an explicit operator action
+# (qmanager_smartdns_install). Nothing here may assume it exists — a device
+# without the package must boot with this service quietly inactive, not with a
+# procd respawn loop.
+#
+# WHY THIS SERVICE HAS ITS OWN CONFIG AND ITS OWN INIT SCRIPT
+#   The package ships /etc/init.d/smartdns driven by /etc/config/smartdns. We do
+#   not drive it, because its UCI schema is not something this tree can verify
+#   without a device, and because the config has to come from the settings the
+#   page edits. qmanager_smartdns_install stops and disables the package's own
+#   service after installing, so exactly one daemon owns the port.
+#
+# WHAT THIS SERVICE DOES NOT DO
+#   It does not touch dnsmasq. Wiring the LAN's resolver through here is a
+#   separate, explicit setting (`quecmanager.smartdns.lan_dns`) and a separate
+#   reversible step (smartdns_wire / smartdns_unwire) driven from the CGI. That
+#   is deliberate: starting a resolver must never, by itself, change what the
+#   LAN resolves through.
+
+START=98
+STOP=20
+USE_PROCD=1
+
+. /usr/lib/qmanager/qlog.sh
+[ -f /usr/lib/qmanager/safe_tmp.sh ] && . /usr/lib/qmanager/safe_tmp.sh
+[ -f /usr/lib/qmanager/smartdns_lib.sh ] && . /usr/lib/qmanager/smartdns_lib.sh
+
+qlog_init "qmanager_smartdns"
+
+start_service() {
+    # Missing library is not an error state: it means this is not a QManager
+    # install (or the tree was removed under us). Say so and stay inactive.
+    command -v smartdns_bin >/dev/null 2>&1 || {
+        qlog_warn "smartdns_lib.sh is unavailable; SmartDNS stays inactive"
+        return 0
+    }
+
+    if ! smartdns_installed; then
+        qlog_info "smartdns is not installed; SmartDNS stays inactive"
+        return 0
+    fi
+
+    if [ "$(uci -q get quecmanager.smartdns.enabled 2>/dev/null)" != "1" ]; then
+        return 0
+    fi
+
+    # Render from UCI on every start: the config file is derived state, so a
+    # reboot restores the operator's settings rather than whatever the file last
+    # said, and a hand edit cannot outlive it.
+    if ! smartdns_write_conf; then
+        qlog_error "No usable upstream server configured; refusing to start the resolver"
+        return 1
+    fi
+
+    # Proved on a throwaway port before procd is asked to supervise it. Without
+    # this, a settings set the daemon rejects becomes a respawn loop — a busy
+    # box with no resolver, which is the worst of both.
+    _sd_err=$(smartdns_validate_uci)
+    if [ $? -ne 0 ]; then
+        qlog_error "Generated config was refused by the daemon: $_sd_err"
+        return 1
+    fi
+
+    _sd_bin=$(smartdns_bin) || return 1
+    _sd_port=$(smartdns_port)
+
+    qlog_info "Starting SmartDNS on 127.0.0.1:$_sd_port (cache $(smartdns_cache_size))"
+
+    procd_open_instance smartdns
+    procd_set_param command "$_sd_bin" -c "$SMARTDNS_CONF" -f
+    procd_set_param respawn 3600 5 5
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_close_instance
+}
+
+stop_service() {
+    # Deliberately no dnsmasq edit here. `stop` also runs during system
+    # shutdown, and rewriting the LAN's resolver configuration on the way down is
+    # exactly the kind of surprise this feature must not spring. If the resolver
+    # stops while wiring stays on, dnsmasq's `strictorder` falls through to the
+    # carrier resolvers it already holds, so names still resolve; the page shows
+    # "wired but not running" and the operator can turn the wiring off.
+    qlog_info "Stopping SmartDNS"
+}
+
+service_triggers() {
+    procd_add_reload_trigger "quecmanager"
+}

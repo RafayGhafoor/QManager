@@ -37,6 +37,7 @@
     "ethernet_status": "乙太網狀態",
     "local_network_settings": "設定",
     "custom_dns": "自訂 DNS",
+    "smartdns": "智慧 DNS",
     "ttl_mtu_settings": "TTL 和 MTU 設定",
     "video_optimizer": "影片最佳化器",
     "traffic_masquerade": "流量偽裝",

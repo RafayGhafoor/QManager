@@ -37,6 +37,7 @@
     "ethernet_status": "Stato Ethernet",
     "local_network_settings": "Impostazioni",
     "custom_dns": "DNS personalizzato",
+    "smartdns": "SmartDNS",
     "ttl_mtu_settings": "Impostazioni TTL e MTU",
     "video_optimizer": "Ottimizzatore video",
     "traffic_masquerade": "Traffic Masquerade",

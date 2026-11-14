@@ -122,6 +122,7 @@ const navLocalNetwork: NavItem[] = [
     items: [
       { t_key: "ttl_mtu_settings", url: "/local-network/ttl-settings" },
       { t_key: "custom_dns", url: "/local-network/custom-dns" },
+      { t_key: "smartdns", url: "/local-network/smartdns" },
     ],
   },
 ];
