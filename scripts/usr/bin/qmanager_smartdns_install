@@ -29,6 +29,13 @@ qlog_init "smartdns_install"
 RESULT_FILE="/tmp/qmanager_smartdns_install.json"
 PID_FILE="/var/run/qmanager/smartdns_install.pid"
 PACKAGE="smartdns"
+# Pinned for this SKU (aarch64_cortex-a53, OpenWrt 21.02). The 21.02.7 release
+# feed is the live one; `21.02-SNAPSHOT` (what this device's distfeeds.conf still
+# names) is withdrawn and answers 404 - measured 2026-11-14.
+SMARTDNS_IPK_VERSION="1.2020.30-1"
+SMARTDNS_IPK_NAME="smartdns_1.2020.30-1_aarch64_cortex-a53.ipk"
+SMARTDNS_IPK_SHA256="722591390c67c89aa4f60f891344842f49c0b972ed9d3da6d0e8ff650b729d31"
+SMARTDNS_IPK_URL="https://downloads.openwrt.org/releases/21.02.7/packages/aarch64_cortex-a53/packages/$SMARTDNS_IPK_NAME"
 
 if ! command -v qm_atomic_write >/dev/null 2>&1 || ! qm_run_dir >/dev/null; then
     printf '{"success":false,"status":"error","message":"Cannot prepare the install state directory","detail":""}\n' \
@@ -65,21 +72,51 @@ install)
         exit 1
     fi
 
-    write_result "installing" "Updating the package list" ""
-    qlog_info "opkg update"
-    _out=$(opkg update 2>&1)
-    if [ $? -ne 0 ]; then
-        qlog_error "opkg update failed: $_out"
-        write_result "error" "Could not reach the package feed" "$(printf '%s' "$_out" | tail -n 3 | tr '\n' ' ')"
+    # A PINNED IPK, not `opkg install smartdns` (change 44). This unit's
+    # configured feeds point at the withdrawn `21.02-SNAPSHOT` path and answer
+    # 404, and /var/opkg-lists is empty, so `opkg update` + `opkg install <name>`
+    # can never work here (known-issues item 33). The numbered 21.02.7 release
+    # feed for this exact architecture still carries the package, so it is
+    # fetched by URL, verified against a pinned sha256, and installed from the
+    # local file. The digest and the version are the identity anchor: a moved
+    # asset must never install, exactly as with the zapret binary.
+    write_result "installing" "Downloading the resolver package" "$SMARTDNS_IPK_VERSION"
+    _ipk="/tmp/$SMARTDNS_IPK_NAME"
+    rm -f "$_ipk"
+    if command -v curl >/dev/null 2>&1; then
+        _out=$(curl -sSL --max-time 120 -o "$_ipk" "$SMARTDNS_IPK_URL" 2>&1)
+    else
+        _out=$(wget -q -O "$_ipk" "$SMARTDNS_IPK_URL" 2>&1)
+    fi
+    if [ ! -s "$_ipk" ]; then
+        qlog_error "download failed: $_out"
+        write_result "error" "Could not download the resolver package" "$(printf '%s' "$_out" | tail -n 3 | tr '\n' ' ')"
+        rm -f "$_ipk"
         exit 1
     fi
 
+    if ! command -v sha256sum >/dev/null 2>&1; then
+        qlog_error "sha256sum unavailable; refusing to install an unverified package"
+        write_result "error" "Verification unavailable" "sha256sum is missing"
+        rm -f "$_ipk"
+        exit 1
+    fi
+    _sha=$(sha256sum "$_ipk" 2>/dev/null | awk '{print $1}')
+    if [ "$_sha" != "$SMARTDNS_IPK_SHA256" ]; then
+        qlog_error "sha256 mismatch: got $_sha want $SMARTDNS_IPK_SHA256"
+        write_result "error" "Package verification failed" "sha256 does not match the pinned digest"
+        rm -f "$_ipk"
+        exit 1
+    fi
+    qlog_info "ipk verified ($SMARTDNS_IPK_VERSION, sha256 ok)"
+
     write_result "installing" "Installing the resolver" ""
-    qlog_info "opkg install $PACKAGE"
-    _out=$(opkg install "$PACKAGE" 2>&1)
+    qlog_info "opkg install $_ipk"
+    _out=$(opkg install "$_ipk" 2>&1)
     _rc=$?
+    rm -f "$_ipk"
     if [ "$_rc" -ne 0 ]; then
-        qlog_error "opkg install $PACKAGE failed: $_out"
+        qlog_error "opkg install failed: $_out"
         write_result "error" "The resolver could not be installed" "$(printf '%s' "$_out" | tail -n 3 | tr '\n' ' ')"
         exit 1
     fi
@@ -124,9 +161,9 @@ uninstall)
     # leaves the LAN paying for a dead hop on every query.
     smartdns_unwire
 
-    if [ -x /etc/init.d/qmanager_smartdns ]; then
-        /etc/init.d/qmanager_smartdns stop >/dev/null 2>&1
-        /etc/init.d/qmanager_smartdns disable >/dev/null 2>&1
+    if [ -x /etc/init.d/smartdns-qm ]; then
+        /etc/init.d/smartdns-qm stop >/dev/null 2>&1
+        /etc/init.d/smartdns-qm disable >/dev/null 2>&1
     fi
 
     write_result "installing" "Removing the resolver" ""

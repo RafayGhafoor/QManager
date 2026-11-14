@@ -1,5 +1,5 @@
 #!/bin/sh /etc/rc.common
-# qmanager_smartdns — the SmartDNS resolver, run by procd
+# smartdns-qm — the SmartDNS resolver, run by procd
 #
 # The binary is NOT ours: it comes from the OpenWrt `smartdns` package, which
 # QManager installs only through an explicit operator action

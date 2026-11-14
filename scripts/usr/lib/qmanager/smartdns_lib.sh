@@ -1,6 +1,6 @@
 #!/bin/sh
 # smartdns_lib.sh — SmartDNS resolver: package facts, config rendering, dnsmasq wiring
-# Sourced by: scripts/etc/init.d/qmanager_smartdns, network/smartdns.sh (CGI),
+# Sourced by: scripts/etc/init.d/smartdns-qm, network/smartdns.sh (CGI),
 #             qmanager_smartdns_install, uninstall.sh
 #
 # WHAT THIS FEATURE IS

@@ -273,6 +273,20 @@ remove_services() {
         removed=$(( removed + 1 ))
     done
 
+    # SmartDNS (change 44): its init script is deliberately NOT `qmanager*`
+    # (AGENTS.md hard rule 4 - the installer's cleanup deletes any
+    # /etc/init.d/qmanager* it does not ship), so the glob above cannot see it.
+    # Explicit removal, including the rc.d link an enable creates.
+    if [ -f "$INITD_DIR/smartdns-qm" ]; then
+        "$INITD_DIR/smartdns-qm" stop 2>/dev/null || true
+        "$INITD_DIR/smartdns-qm" disable 2>/dev/null || true
+        rm -f "$INITD_DIR/smartdns-qm"
+        for _link in /etc/rc.d/*smartdns-qm; do
+            [ -e "$_link" ] && rm -f "$_link"
+        done
+        info "Removed /etc/init.d/smartdns-qm"
+    fi
+
     # Clean up orphaned rc.d symlinks
     for link in /etc/rc.d/*qmanager*; do
         [ -e "$link" ] && rm -f "$link" 2>/dev/null || true

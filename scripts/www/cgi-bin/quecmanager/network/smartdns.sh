@@ -339,7 +339,12 @@ do_save() {
 
     if [ "$want_enabled" = "1" ]; then
         if smartdns_write_conf; then
-            /etc/init.d/qmanager_smartdns restart >/dev/null 2>&1
+            # Enabled at boot ONLY by the operator turning it on: the installer
+            # never enables it (the service is deliberately outside install.sh's
+            # `qmanager*` enable loop), so this is the single place boot
+            # persistence is granted.
+            /etc/init.d/smartdns-qm enable >/dev/null 2>&1
+            /etc/init.d/smartdns-qm restart >/dev/null 2>&1
             _ds_restarted=true
         fi
 
@@ -351,14 +356,15 @@ do_save() {
             _ds_rolled_back=true
             if [ -f "$SMARTDNS_BACKUP" ]; then
                 cp "$SMARTDNS_BACKUP" "$SMARTDNS_CONF" 2>/dev/null
-                /etc/init.d/qmanager_smartdns restart >/dev/null 2>&1
+                /etc/init.d/smartdns-qm restart >/dev/null 2>&1
                 service_wait_listening 8 || qlog_error "Rollback config also failed to listen"
             fi
             cgi_error "start_failed" "The resolver did not come up; the previous configuration was restored"
             return
         fi
     else
-        /etc/init.d/qmanager_smartdns stop >/dev/null 2>&1
+        /etc/init.d/smartdns-qm stop >/dev/null 2>&1
+        /etc/init.d/smartdns-qm disable >/dev/null 2>&1
     fi
 
     # --- wire / unwire dnsmasq --------------------------------------------
