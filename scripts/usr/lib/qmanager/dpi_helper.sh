@@ -131,27 +131,57 @@ dpi_check_kmod() {
 # port forwards on 443. There is deliberately no OUTPUT rule: redirecting the
 # router's own traffic would loop the engine's own outbound connections back
 # into itself.
+#
+# MEASURED on the X75 (2026-11-14): `network.lan.ifname` is **eth0**, the bridge
+# MEMBER, while fw3's own jump is `-A PREROUTING -i br-lan -j zone_lan_prerouting`.
+# A rule scoped `-i eth0` therefore matches nothing at PREROUTING and the engine
+# would intercept no traffic at all - enabled, green, doing nothing, which is the
+# exact failure mode that hid the packet-queue engine for several releases.
+# So: the bridge wins whenever one exists; `ifname` is only right on a plain
+# (unbridged) LAN.
 dpi_lan_device() {
     local d
     d=$(uci -q get network.lan.device)
     if [ -z "$d" ]; then
-        d=$(uci -q get network.lan.ifname)
-        set -- $d
-        d="${1:-}"
+        if [ -e /sys/class/net/br-lan ]; then
+            d="br-lan"
+        else
+            d=$(uci -q get network.lan.ifname)
+            set -- $d
+            d="${1:-}"
+        fi
     fi
     printf '%s' "${d:-br-lan}"
 }
 
 # dpi_tpws_listening — is anything LISTENing on $DPI_TPWS_PORT?
 #
-# /proc/net/tcp instead of netstat/ss (this BusyBox has neither reliably): the
-# local address column is ADDR:PORT in hex and st is 0A for LISTEN.
+# /proc/net/tcp{,6} instead of netstat/ss: the local address column is ADDR:PORT
+# in hex and st is 0A for LISTEN.
+#
+# BOTH tables are read, and that is not belt-and-braces: MEASURED with zapret
+# v72.13's tpws on this box (2026-11-14), tpws with no --bind-addr binds `::`
+# and the only row is in /proc/net/tcp6:
+#
+#   /proc/net/tcp  : nothing on the port
+#   /proc/net/tcp6 : 00000000000000000000000000000000:309B ... 0A
+#
+# so a check of /proc/net/tcp alone reports "not listening" for a tpws that is
+# up and serving - the supervisor then refuses to add any rule (fail closed, so
+# no traffic is broken) and procd respawns it every 5 s forever: an engine that
+# can never work. `bindv6only=0` on this device, so the `::` socket does accept
+# IPv4 clients; passing `--bind-addr=0.0.0.0` would be the alternative fix, at
+# the cost of one more argument to get wrong.
 dpi_tpws_listening() {
-    local hexport
+    local hexport f
     hexport=$(printf '%04X' "$DPI_TPWS_PORT" 2>/dev/null)
     [ -n "$hexport" ] || return 1
-    awk -v p="$hexport" '$4 == "0A" && $2 ~ (":" p "$") { found = 1 } END { exit(found ? 0 : 1) }' \
-        /proc/net/tcp 2>/dev/null
+    for f in /proc/net/tcp /proc/net/tcp6; do
+        [ -r "$f" ] || continue
+        awk -v p="$hexport" '$4 == "0A" && $2 ~ (":" p "$") { found = 1 } END { exit(found ? 0 : 1) }' \
+            "$f" 2>/dev/null && return 0
+    done
+    return 1
 }
 
 # dpi_tpws_rules_present — our jump is in place (so traffic IS being redirected)
