@@ -1455,6 +1455,13 @@ seed_uci_defaults() {
     if ! uci -q get quecmanager.smartdns.prefetch >/dev/null 2>&1; then
         uci set quecmanager.smartdns.prefetch=1
     fi
+    # The carrier's own resolvers can ride along as upstreams (rendered at every
+    # start, so a swapped SIM is picked up rather than lingering). DEFAULT 0: the
+    # tail gain did not reproduce on a second name set, and these are plain-text
+    # resolvers - so they are opt-in. Set 1 to enable.
+    if ! uci -q get quecmanager.smartdns.carrier_upstream >/dev/null 2>&1; then
+        uci set quecmanager.smartdns.carrier_upstream=0
+    fi
     if ! uci -q get quecmanager.smartdns.upstream >/dev/null 2>&1; then
         for _sd_up in https://dns.google/dns-query https://cloudflare-dns.com/dns-query https://dns.quad9.net/dns-query; do
             uci add_list "quecmanager.smartdns.upstream=$_sd_up"

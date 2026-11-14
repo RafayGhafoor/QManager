@@ -48,6 +48,20 @@ start_service() {
         return 0
     fi
 
+    # The cache file lives on /usrdata so it survives a reboot; rs writes it on a
+    # clean exit and reads it at start. TWO things are load-bearing here:
+    #   1. the directory must exist before the daemon starts, or the restore
+    #      silently does nothing (no error, just a cold cache);
+    #   2. it must be WRITABLE BY THE DAEMON, which is NOT root: procd runs rs as
+    #      uid 65534 (nobody). A root-owned dir made every save fail with
+    #      "failed to save DNS cache ... Permission denied (os error 13)" -
+    #      measured. Hence a dedicated subdirectory owned by that uid, not the
+    #      shared /usrdata/qmanager (which holds root-written poller state).
+    mkdir -p /usrdata/qmanager/smartdns 2>/dev/null
+    chown nobody:nogroup /usrdata/qmanager/smartdns 2>/dev/null || \
+        chown 65534:65534 /usrdata/qmanager/smartdns 2>/dev/null
+    chmod 0750 /usrdata/qmanager/smartdns 2>/dev/null
+
     # Render from UCI on every start: the config file is derived state, so a
     # reboot restores the operator's settings rather than whatever the file last
     # said, and a hand edit cannot outlive it.

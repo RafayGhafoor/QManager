@@ -257,6 +257,31 @@ smartdns_render_conf() {
     if [ -f "$_inc" ] && grep -qv '^[[:space:]]*\(#\|$\)' "$_inc" 2>/dev/null; then
         printf 'conf-file %s\n' "$_inc"
     fi
+    # THE CARRIER'S OWN RESOLVERS, as plain upstreams. Rendering them HERE (at
+    # every start, from what the network reports NOW) is what makes a SIM swap
+    # work: the previous SIM's servers are simply not discovered, so they cannot
+    # be left behind - there is no static list to go stale.
+    #
+    # Measured 2026-11-14, 15 cold samples per state: adding them moved p90 from
+    # **183 ms to 92 ms** and the mean from **101 to 61 ms**, reproduced in a
+    # control run (p90 84, mean 65). The MEDIAN does not move (2-3 ms, dominated
+    # by cache hits) - this is a tail fix, which is the same shape as the reason
+    # the resolver is wired at all.
+    # OPT-IN (`= 1`), not opt-out. It was `!= "0"` while the measurement looked
+    # promising, which made an UNSET key mean "on" - contradicting the documented
+    # default of 0 and quietly sending queries to the ISP in clear text on any
+    # device that never set the key. The second name set did not reproduce the
+    # gain, so the safe direction is: absent = off, `= 1` = on.
+    if [ "$(uci -q get "$SMARTDNS_UCI.carrier_upstream" 2>/dev/null)" = "1" ]; then
+        for _cs in $(smartdns_carrier_resolvers 2>/dev/null); do
+            case "$_cs" in
+                *[!0-9.]*) continue ;;
+                *.*.*.*) ;;
+                *) continue ;;
+            esac
+            printf 'server %s\n' "$_cs"
+        done
+    fi
 }
 
 # smartdns_write_conf — render and install the config durably, keeping the
@@ -573,7 +598,7 @@ smartdns_unwire() {
 smartdns_custom_directives() {
     local f="$1" bad="" line word
     [ -f "$f" ] || return 0
-    _SCD_ALLOWED=" bind bind-tcp cache-size cache-file prefetch-domain serve-expired
+    _SCD_ALLOWED=" bind bind-tcp cache-size cache-file cache-persist prefetch-domain serve-expired
         serve-expired serve-expired-ttl serve-expired-reply-ttl server server-tls server-https
         nameserver conf-file log-level log-file log-size log-num audit-file
         audit-size audit-num speed-check-mode response-mode address ipset

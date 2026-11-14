@@ -1,0 +1,32 @@
+#!/bin/sh
+# 99-smartdns-carrier - re-render the resolver when the WAN changes
+#
+# The carrier's resolvers change with the SIM and with the network. They are
+# rendered into smartdns's config at service start (smartdns_render_conf), so a
+# WAN coming up must restart the service for the new set to take effect -
+# otherwise a swapped SIM keeps using the previous carrier's servers until the
+# next reboot.
+#
+# NOT named qmanager*: AGENTS.md hard rule 4 (the installer prunes such files).
+# Idempotent: it only acts when the resolver is enabled, and `restart` on an
+# unstarted service is a no-op.
+[ -x /etc/init.d/smartdns-qm ] || exit 0
+case "$ACTION" in
+    ifup|ifupdate|ifdown) ;;
+    *) exit 0 ;;
+esac
+# Only the interfaces that carry DNS: the LTE data call and its aliases.
+case "$INTERFACE" in
+    rmnet*|wwan*|usb*|eth*|wan*|mhi*) ;;
+    *) exit 0 ;;
+esac
+[ "$(uci -q get quecmanager.smartdns.enabled 2>/dev/null)" = "1" ] || exit 0
+# Debounce: a re-dial fires several events in a row.
+[ -f /tmp/.smartdns-carrier.last ] && {
+    _l=$(cat /tmp/.smartdns-carrier.last 2>/dev/null)
+    _n=$(date +%s)
+    case "$_l" in ''|*[!0-9]*) ;; *) [ $((_n - _l)) -lt 20 ] && exit 0 ;; esac
+}
+date +%s > /tmp/.smartdns-carrier.last 2>/dev/null
+/etc/init.d/smartdns-qm restart >/dev/null 2>&1
+exit 0
