@@ -536,8 +536,10 @@ export function DashboardStatusRail({
               tone={antennaLevel}
               swapKey={antennaLevel === "destructive" ? "antenna-fault" : "antenna-weak"}
             >
+              {/* One glyph per state: the warning/error pair every other chip
+                  in the app uses. The label carries the "antenna" subject. */}
               <MaterialSymbol
-                name="settings_input_antenna"
+                name={antennaLevel === "destructive" ? "error" : "warning"}
                 size={15}
                 filled
                 className="shrink-0"
