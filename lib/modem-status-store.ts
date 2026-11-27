@@ -17,6 +17,15 @@ import type { ModemStatus } from "@/types/modem-status";
 //   - Subscribing, or refresh(), fetches at once and delivers that result to
 //     the caller regardless of cadence, as the per-instance hook did on mount.
 //     Requests never overlap: a fetch already in flight serves the caller.
+//   - The loop PAUSES while the tab is hidden (known-issues 15). Every request
+//     refreshes the router's UI heartbeat, so a backgrounded dashboard kept the
+//     poller pinned in its `active` tier and its backoff never engaged. Hiding
+//     clears the interval; becoming visible fetches at once and restarts it.
+//     The store watches visibility itself - one listener for the whole app, on
+//     while anyone is subscribed - so the number of consumers cannot multiply it.
+//     Subscribers keep the last data they were handed, so a pause shows stale
+//     data, not a blank. A subscriber that mounts in a hidden tab still gets one
+//     read so it has something to show.
 //
 // The store keeps no snapshot of its own. Each hook instance holds its last
 // data, so an error keeps showing the data that instance had, as before.
@@ -40,6 +49,14 @@ export interface ModemStatusStoreDeps {
   now: () => number;
   setInterval: (fn: () => void, ms: number) => unknown;
   clearInterval: (handle: unknown) => void;
+  /**
+   * Page visibility. Omit to poll unconditionally (tests, non-browser hosts).
+   * `onChange` returns its own unsubscribe.
+   */
+  visibility?: {
+    isHidden: () => boolean;
+    onChange: (listener: () => void) => () => void;
+  };
 }
 
 interface Subscriber {
@@ -56,6 +73,8 @@ export function createModemStatusStore(deps: ModemStatusStoreDeps) {
   let timer: unknown = null;
   let timerIntervalMs: number | null = null;
   let inFlight = false;
+  let paused = false;
+  let stopWatchingVisibility: (() => void) | null = null;
 
   const baseInterval = (): number | null => {
     let min: number | null = null;
@@ -114,12 +133,34 @@ export function createModemStatusStore(deps: ModemStatusStoreDeps) {
 
   /** Keep the loop at the fastest subscriber's interval; stop it when none are left. */
   const reschedule = () => {
-    const base = baseInterval();
+    const base = paused ? null : baseInterval();
     if (base === timerIntervalMs) return;
     if (timer !== null) deps.clearInterval(timer);
     timer = null;
     timerIntervalMs = base;
     if (base !== null) timer = deps.setInterval(() => void fetchNow(), base);
+  };
+
+  /** Pause on hidden, resume with an immediate read on visible. */
+  const syncVisibility = () => {
+    const hidden = deps.visibility?.isHidden() ?? false;
+    if (hidden === paused) return;
+    paused = hidden;
+    reschedule();
+    if (!paused && subscribers.size > 0) void fetchNow();
+  };
+
+  const startWatchingVisibility = () => {
+    if (stopWatchingVisibility || !deps.visibility) return;
+    stopWatchingVisibility = deps.visibility.onChange(syncVisibility);
+    // Anything subscribing in a hidden tab starts paused.
+    paused = deps.visibility.isHidden();
+  };
+
+  const stopWatching = () => {
+    stopWatchingVisibility?.();
+    stopWatchingVisibility = null;
+    paused = false;
   };
 
   const subscribe = (
@@ -133,6 +174,7 @@ export function createModemStatusStore(deps: ModemStatusStoreDeps) {
       force: true,
     };
     subscribers.add(sub);
+    startWatchingVisibility();
     reschedule();
     void fetchNow();
 
@@ -144,6 +186,7 @@ export function createModemStatusStore(deps: ModemStatusStoreDeps) {
       },
       unsubscribe: () => {
         if (!subscribers.delete(sub)) return;
+        if (subscribers.size === 0) stopWatching();
         reschedule();
       },
     };
@@ -153,6 +196,8 @@ export function createModemStatusStore(deps: ModemStatusStoreDeps) {
     subscribe,
     /** Test hook: how many consumers share the loop. */
     subscriberCount: () => subscribers.size,
+    /** Test hook: is the loop paused for a hidden tab? */
+    isPaused: () => paused,
   };
 }
 

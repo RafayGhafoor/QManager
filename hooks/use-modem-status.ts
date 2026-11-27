@@ -21,7 +21,9 @@ import type { ModemStatus } from "@/types/modem-status";
 // The hook does NOT touch the modem — it only reads the pre-built JSON cache.
 // All mounted instances share ONE poll (lib/modem-status-store.ts, ledger
 // B5.28): the loop runs at the fastest instance's interval and each instance
-// still receives results at its own `pollInterval`.
+// still receives results at its own `pollInterval`. The shared loop pauses
+// while the tab is hidden (known-issues 15) and reads once on becoming visible,
+// so a backgrounded dashboard no longer pins the router's poller in `active`.
 // =============================================================================
 
 /** How often to poll the CGI endpoint (ms) */
@@ -44,6 +46,14 @@ const modemStatusStore = createModemStatusStore({
   setInterval: (fn, ms) => setInterval(fn, ms),
   clearInterval: (handle) =>
     clearInterval(handle as ReturnType<typeof setInterval>),
+  // `document` is only touched once someone subscribes (client-side effect).
+  visibility: {
+    isHidden: () => document.visibilityState === "hidden",
+    onChange: (listener) => {
+      document.addEventListener("visibilitychange", listener);
+      return () => document.removeEventListener("visibilitychange", listener);
+    },
+  },
 });
 
 export interface UseModemStatusOptions {
