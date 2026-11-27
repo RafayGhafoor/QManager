@@ -303,7 +303,7 @@ export interface CellHistoryRecorder {
   archive_kb: number;
   /** Oldest archived row's timestamp. */
   oldest_ts: number | null;
-  /** `quecmanager.poller.l1_stats` — MCS/RI/PRB/throughput sampling on. */
+  /** `quecmanager.history.l1_stats` — MCS/RI/PRB/throughput sampling on. */
   l1_enabled: boolean;
 }
 

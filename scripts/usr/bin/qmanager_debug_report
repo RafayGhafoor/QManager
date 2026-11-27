@@ -224,7 +224,7 @@ section "history_state_files" sh -c '
     done
 '
 section "history_boot_log_tail_5" sh -c 'tail -n 5 /usrdata/qmanager/boot_log.jsonl 2>&1'
-section "history_l1_stats" sh -c 'printf "quecmanager.poller.l1_stats=%s\n" "$(uci -q get quecmanager.poller.l1_stats 2>/dev/null)"'
+section "history_l1_stats" sh -c 'printf "quecmanager.history.l1_stats=%s\n" "$(uci -q get quecmanager.history.l1_stats 2>/dev/null)"'
 section "history_cell_tail_3" sh -c '
     _d=/usrdata/qmanager/cell_history
     _t=$(date -u +%Y-%m-%d)
