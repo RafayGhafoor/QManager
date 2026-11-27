@@ -2757,7 +2757,12 @@
       "series": "Chart series",
       "gap": "A break in a line is a sample that recorded no reading — never a value of zero.",
       "cadence": "One archived sample per minute, written only while the poller is running.",
-      "legend_aria": "Legend explaining the colours and marks used on this page"
+      "legend_aria": "Legend explaining the colours and marks used on this page",
+      "quality": "Reading quality",
+      "quality_good": "Good",
+      "quality_fair": "Fair",
+      "quality_poor": "Poor",
+      "quality_note": "Signal, radio and latency lines are coloured by how good each reading was, so a bad stretch shows red where it happened."
     },
     "charts": {
       "rf_title": "Radio signal",

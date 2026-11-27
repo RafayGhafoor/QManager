@@ -112,6 +112,25 @@ Rules the writer and every reader rely on:
 
 The plan estimated about 290 B/row at three carriers and 420 KB/day raw, 50-70 KB/day gzipped. Those numbers were **not measured on the device** before this document was written; the earlier v1 row measured ~253 B (356 KB/day). Check `recorder.archive_kb` and a `ls -ln` of the directory after a few days before quoting a retention figure.
 
+### Schema v3 (2026-11-27): NR TX power
+
+New rows start `[3,` and carry **39 head columns**. They are v2 plus column 39,
+`nr_tx_power`: dBm with one decimal, the burst mean of
+`AT+QNWCFG="nr5g_tx_pwr"` field 2, taken as PUSCH by analogy with `lte_tx_pwr`.
+That field is undocumented, so the PUSCH reading is an inference. A value of
+`-32768` means "not available".
+
+- **Requirements:** L1 sampling, and the modem toggle
+  `AT+QNWCFG="nr5g_tx_pwr",1` (modem NV, set on the X75).
+- **LTE rows:** column 39 is `null`.
+- **NOSVC rows:** 9 trailing nulls.
+- **LTE TX power:** still column 14, from `AT+QENG` on every row. That value
+  alternates between the PUSCH and PUCCH power, so it is noisier than the NR
+  column.
+- **Reading old rows:** the reducer lifts column 39 out and then treats the row as
+  v2, so v2 and v1 rows still read. The series id is `nr_tx_power`.
+- **Display:** the PHY "TX power" chart draws LTE (dashed) and NR (solid).
+
 ## Storage budget and maintenance
 
 | Setting | Default | UCI override | Meaning |
@@ -295,6 +314,36 @@ The four ports see the same cell, so they should track each other within a few d
 A fifth, informational banner appears when `device_utc_offset_min` differs from the browser's offset: times on the page are the browser's time zone, the router's clock is set to another, with a link to System Settings. It changes nothing about the data; it exists so a shift is never silent.
 
 A failed read with figures already on screen keeps them and says they are not updating; a failed first read offers a retry.
+
+### Quality ink (`quality-grade.ts`)
+
+Every graded series is stroked in the quality ramp **by value**. It uses a
+vertical hard-stop gradient over the series' own min..max, so the line turns red
+exactly where it crosses below "fair" and green where it recovers.
+
+- **Other parts:** graded bars are filled per bar, isolated dots and tooltip
+  swatches use the reading's own colour, and a flat line is drawn in one solid
+  colour.
+- **Identity:** which carrier, port or radio a line belongs to is shown by its
+  dash pattern and label. Graded series get a neutral key swatch, and the page
+  legend has a Good/Fair/Poor key.
+- **App thresholds:** RSRP, RSRQ, SINR and latency use the app's own thresholds
+  (`types/modem-status.ts`).
+- **Product brackets, not standards:**
+
+  | metric | good / fair cut |
+  |---|---|
+  | CQI | 10 / 7 |
+  | MCS | 20 / 10 |
+  | TX power | <= 12 / <= 20 dBm (lower is better) |
+  | jitter | 15 / 30 ms |
+  | loss | 0.5 / 2 % |
+  | temperature | 60 / 75 C |
+  | CPU | 70 / 90 % |
+  | memory | 80 / 92 % |
+
+- **Not graded:** RSSI, rank, carrier count, bandwidth, throughput and congestion.
+  None of them is good or bad on its own.
 
 ### Hover sync and restart markers
 

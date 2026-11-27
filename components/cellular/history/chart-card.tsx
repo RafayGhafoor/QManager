@@ -15,6 +15,7 @@ import type { ChartSpec } from "./chart-specs";
 import { METRIC_AXIS, yDomain } from "./derive";
 import type { PlotSeries } from "./history-chart";
 import { LazyHistoryChart } from "./lazy-chart";
+import { gradeFor } from "./quality-grade";
 import { SeriesKey } from "./series-key";
 import { CARD, CHART, CHART_BOX, FULL, HEAD } from "./shapes";
 
@@ -89,6 +90,7 @@ export function ChartCard({
               dash: item.dash,
               unit: axis.unit,
               decimals: axis.decimals,
+              grade: gradeFor(item.metric),
             };
           });
 
@@ -115,7 +117,8 @@ export function ChartCard({
                   items={plots.map((plot, index) => ({
                     key: plot.key,
                     label: plot.label,
-                    color: plot.color,
+                    // graded lines carry quality ink: the key names them by dash
+                    color: plot.grade ? "var(--on-surface-variant)" : plot.color,
                     dash: drawn[index].dash,
                   }))}
                 />

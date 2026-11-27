@@ -31,6 +31,7 @@ import {
 } from "./derive";
 import { PanelEmpty } from "./empty-state";
 import type { PlotSeries } from "./history-chart";
+import { gradeFor } from "./quality-grade";
 import { LazyHistoryChart } from "./lazy-chart";
 import { SeriesKey } from "./series-key";
 import {
@@ -166,6 +167,8 @@ export function CarriersCard({ data, frame, window }: CarriersCardProps) {
       kind: "line" as const,
       unit,
       decimals: axis.decimals,
+      // quality ink by the selected metric; the carrier is named by its dash
+      grade: gradeFor(metric),
     }));
 
   const domain = yDomain(
@@ -289,7 +292,7 @@ export function CarriersCard({ data, frame, window }: CarriersCardProps) {
               return {
                 key: item.field,
                 label: `${item.tag} ${item.carrier.tech === "LTE" ? t("history.charts.series.lte") : t("history.charts.series.nr")}`,
-                color: item.color,
+                color: gradeFor(metric) ? "var(--on-surface-variant)" : item.color,
                 dash: item.dash,
                 value:
                   mid === null

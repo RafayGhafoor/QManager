@@ -5,6 +5,7 @@ import {
   Area,
   Bar,
   CartesianGrid,
+  Cell,
   ComposedChart,
   Line,
   ReferenceLine,
@@ -27,6 +28,7 @@ import { axisTicks, formatAxisTick } from "@/lib/chart-time";
 import { isIsolated, type ChartFrame, type ChartRow } from "./chart-data";
 import { RESTART_MARK, SYNC_ID, syncNearest } from "./history-chart-marks";
 import { HistoryTooltip, type TooltipNote } from "./history-tooltip";
+import { gradeColor, gradientStops, type Grade } from "./quality-grade";
 import { CHART_BOX } from "./shapes";
 
 // =============================================================================
@@ -53,6 +55,11 @@ import { CHART_BOX } from "./shapes";
 //    A single isolated reading, which a line cannot draw, gets a dot.
 //  * RESTARTS ARE REFERENCE LINES, dashed by cause, and the tooltip names the
 //    one that falls inside the hovered bucket.
+//  * QUALITY INK. A series with a `grade` is stroked in the quality ramp by
+//    VALUE: a vertical hard-stop gradient over the series' own min..max puts
+//    red exactly where the line dips under the "fair" threshold and green where
+//    it recovers. Identity then rides on dash + label only. Bars with a grade
+//    are filled per bar; a flat line (zero-height box) gets one solid colour.
 //  * EXACT VALUES. The tooltip prints every series at the hovered bucket to the
 //    metric's own precision; nothing is rounded for the picture.
 //
@@ -79,7 +86,24 @@ export interface PlotSeries {
   decimals: number;
   /** Hide this series' tooltip row for rows where this returns false. */
   tooltipWhen?: (row: ChartRow) => boolean;
+  /** Colour by reading quality instead of `color` (see quality-grade.ts). */
+  grade?: Grade;
 }
+
+/** min/max of one series' plotted values, or null when it has none. */
+function seriesSpan(rows: ChartRow[], key: string): [number, number] | null {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const row of rows) {
+    const v = (row as Record<string, unknown>)[key];
+    if (typeof v !== "number" || !Number.isFinite(v)) continue;
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  return Number.isFinite(min) ? [min, max] : null;
+}
+
+const safeId = (key: string) => key.replace(/[^A-Za-z0-9_-]/g, "_");
 
 export interface HistoryChartProps extends ChartFrame {
   rows: ChartRow[];
@@ -130,6 +154,21 @@ export function HistoryChart({
 
   const tick = (ms: unknown) => formatAxisTick(ms, longSpan);
 
+  // Per graded line: either a gradient id or one solid colour (flat line).
+  const graded = new Map<string, { stroke: string; stops: ReturnType<typeof gradientStops> }>();
+  for (const item of series) {
+    if (!item.grade || item.kind === "bar" || item.kind === "area") continue;
+    const span = seriesSpan(rows, item.key);
+    if (span === null) continue;
+    const stops = gradientStops(span[0], span[1], item.grade);
+    graded.set(item.key, {
+      stops,
+      stroke: stops
+        ? `url(#${gradientId}-q-${safeId(item.key)})`
+        : gradeColor(span[0], item.grade),
+    });
+  }
+
   return (
     <ChartContainer
       config={config}
@@ -161,6 +200,24 @@ export function HistoryChart({
                 <stop offset="100%" stopColor={item.color} stopOpacity={0} />
               </linearGradient>
             ))}
+          {series.map((item) => {
+            const g = graded.get(item.key);
+            if (!g || !g.stops) return null;
+            return (
+              <linearGradient
+                key={`q-${item.key}`}
+                id={`${gradientId}-q-${safeId(item.key)}`}
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                {g.stops.map((stop, index) => (
+                  <stop key={index} offset={stop.offset} stopColor={stop.color} />
+                ))}
+              </linearGradient>
+            );
+          })}
         </defs>
 
         <CartesianGrid vertical={false} stroke="var(--border)" />
@@ -244,7 +301,23 @@ export function HistoryChart({
                 radius={[2, 2, 0, 0]}
                 maxBarSize={10}
                 {...barMotion}
-              />
+              >
+                {item.grade
+                  ? rows.map((row, index) => {
+                      const v = (row as Record<string, unknown>)[item.key];
+                      return (
+                        <Cell
+                          key={index}
+                          fill={
+                            typeof v === "number"
+                              ? gradeColor(v, item.grade as Grade)
+                              : item.color
+                          }
+                        />
+                      );
+                    })
+                  : null}
+              </Bar>
             );
           }
           if (item.kind === "area") {
@@ -272,7 +345,7 @@ export function HistoryChart({
               dataKey={item.key}
               name={item.label}
               type={item.kind === "step" ? "stepAfter" : "monotone"}
-              stroke={item.color}
+              stroke={graded.get(item.key)?.stroke ?? item.color}
               strokeWidth={item.width ?? 2}
               strokeOpacity={item.opacity ?? 1}
               strokeDasharray={item.dash}
@@ -291,13 +364,18 @@ export function HistoryChart({
                 ) {
                   return <g key={props.key ?? `${item.key}-${index}`} />;
                 }
+                const pv = (rows[index] as Record<string, unknown> | undefined)?.[item.key];
                 return (
                   <circle
                     key={props.key ?? `${item.key}-${index}`}
                     cx={props.cx}
                     cy={props.cy}
                     r={2.5}
-                    fill={item.color}
+                    fill={
+                      item.grade && typeof pv === "number"
+                        ? gradeColor(pv, item.grade)
+                        : item.color
+                    }
                     fillOpacity={item.opacity ?? 1}
                   />
                 );

@@ -2,6 +2,7 @@
 
 import { useTranslation } from "react-i18next";
 
+import { qualityStrokeVar } from "@/components/cellular/signal-quality-display";
 import { cn } from "@/lib/utils";
 
 import type { AvailabilityTier } from "./derive";
@@ -25,6 +26,9 @@ import { LEGEND, STRIP, TIER } from "./shapes";
 //                 from `RESTART_MARK`, the same map the charts read, and shown
 //                 only when the window actually holds a restart: a key for a
 //                 mark that appears nowhere is a false statement about the page.
+//   quality       the three inks a graded line takes (quality-grade.ts): the
+//                 same ramp tokens as the meters, so "red" on a chart and on a
+//                 dashboard bar mean one thing.
 //   marks         the two plain claims that apply to every panel (a break in a
 //                 line is a gap, never zero; one sample a minute).
 //
@@ -35,6 +39,12 @@ import { LEGEND, STRIP, TIER } from "./shapes";
 // =============================================================================
 
 const TIERS: readonly AvailabilityTier[] = ["up", "partial", "down", "unknown"];
+
+const QUALITY = [
+  { id: "good", ink: qualityStrokeVar("good") },
+  { id: "fair", ink: qualityStrokeVar("fair") },
+  { id: "poor", ink: qualityStrokeVar("poor") },
+] as const;
 
 /** Which restart causes the window actually contains, in a stable order. */
 const CAUSES = ["restart", "power_loss", "planned", "unknown"] as const;
@@ -73,6 +83,18 @@ export function Legend({ restartCauses }: LegendProps) {
           </ul>
         </div>
 
+        <div className={LEGEND.GROUP}>
+          <h3 className={LEGEND.GROUP_LABEL}>{t("history.legend.quality")}</h3>
+          <ul className={LEGEND.ITEMS}>
+            {QUALITY.map((item) => (
+              <li key={item.id} className={LEGEND.ITEM}>
+                <SeriesSwatch color={item.ink} />
+                {t(`history.legend.quality_${item.id}`)}
+              </li>
+            ))}
+          </ul>
+        </div>
+
         {shown.length > 0 ? (
           <div className={LEGEND.GROUP}>
             <h3 className={LEGEND.GROUP_LABEL}>{t("history.legend.restarts")}</h3>
@@ -93,6 +115,7 @@ export function Legend({ restartCauses }: LegendProps) {
 
       <div className={LEGEND.NOTES}>
         <p className={LEGEND.NOTE}>{t("history.legend.gap")}</p>
+        <p className={LEGEND.NOTE}>{t("history.legend.quality_note")}</p>
         <p className={LEGEND.NOTE}>{t("history.legend.cadence")}</p>
       </div>
     </section>

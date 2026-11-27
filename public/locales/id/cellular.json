@@ -2750,7 +2750,12 @@
       "series": "Seri grafik",
       "gap": "Jeda pada garis adalah sampel tanpa pembacaan — bukan nilai nol.",
       "cadence": "Satu sampel arsip per menit, hanya ditulis selama poller berjalan.",
-      "legend_aria": "Legenda yang menjelaskan warna dan tanda yang dipakai pada halaman ini"
+      "legend_aria": "Legenda yang menjelaskan warna dan tanda yang dipakai pada halaman ini",
+      "quality": "Kualitas pembacaan",
+      "quality_good": "Baik",
+      "quality_fair": "Sedang",
+      "quality_poor": "Buruk",
+      "quality_note": "Garis sinyal, radio, dan latensi diwarnai menurut kualitas setiap pembacaan, sehingga periode buruk tampak merah di saat terjadinya."
     },
     "charts": {
       "rf_title": "Sinyal radio",

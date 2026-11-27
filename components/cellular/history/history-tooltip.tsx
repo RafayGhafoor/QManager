@@ -7,6 +7,7 @@ import type { RestartEntry } from "@/types/cell-history";
 
 import { formatValue, restartAt, type ChartRow } from "./chart-data";
 import type { PlotSeries } from "./history-chart";
+import { gradeColor } from "./quality-grade";
 
 // =============================================================================
 // HistoryTooltip — ChartTooltipTime, fed per-series units and extra rows
@@ -80,7 +81,9 @@ export function HistoryTooltip({
     rows.push({
       dataKey: def.key,
       name: def.label,
-      color: def.color,
+      // A graded series' swatch is the reading's own quality colour.
+      color:
+        def.grade && typeof value === "number" ? gradeColor(value, def.grade) : def.color,
       value:
         typeof value === "number"
           ? withUnit(formatValue(value, def.decimals), def.unit)

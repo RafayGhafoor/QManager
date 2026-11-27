@@ -24,6 +24,7 @@ import {
 import { METRIC_AXIS, yDomain } from "./derive";
 import { PanelEmpty } from "./empty-state";
 import type { PlotSeries } from "./history-chart";
+import { GRADES } from "./quality-grade";
 import { LazyHistoryChart } from "./lazy-chart";
 import { SeriesKey } from "./series-key";
 import {
@@ -172,6 +173,8 @@ export function AntennasCard({ data, frame }: AntennasCardProps) {
                   opacity: style.opacity,
                   unit: axis.unit,
                   decimals: axis.decimals,
+                  // a dead feed reads red on its own line; the port is its dash
+                  grade: GRADES.rsrp,
                 };
               });
 
@@ -208,7 +211,7 @@ export function AntennasCard({ data, frame }: AntennasCardProps) {
                       return {
                         key: `p${item.port}`,
                         label: portLabel(item.port),
-                        color: style.color,
+                        color: "var(--on-surface-variant)",
                         dash: style.dash,
                         opacity: style.opacity,
                         value:

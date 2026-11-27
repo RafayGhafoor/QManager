@@ -2750,7 +2750,12 @@
       "series": "Serie dei grafici",
       "gap": "Un'interruzione nella linea è un campione senza letture — mai un valore pari a zero.",
       "cadence": "Un campione archiviato al minuto, scritto solo mentre il poller è in esecuzione.",
-      "legend_aria": "Legenda che spiega i colori e i segni usati in questa pagina"
+      "legend_aria": "Legenda che spiega i colori e i segni usati in questa pagina",
+      "quality": "Qualità della lettura",
+      "quality_good": "Buona",
+      "quality_fair": "Discreta",
+      "quality_poor": "Scarsa",
+      "quality_note": "Le linee di segnale, radio e latenza sono colorate in base alla qualità di ogni lettura, quindi un tratto negativo appare in rosso nel punto in cui è avvenuto."
     },
     "charts": {
       "rf_title": "Segnale radio",
