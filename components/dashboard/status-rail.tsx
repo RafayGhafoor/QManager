@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, useState } from "react";
+import Link from "next/link";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -11,10 +12,13 @@ import { MaterialSymbol } from "@/components/ui/material-symbol";
 import { staggerRows, staggerRowItem } from "@/lib/motion";
 import { HintIcon } from "@/components/ui/hint-icon";
 
-import type {
-  NetworkStatus,
-  ConnectivityStatus,
-  ConnectivityState,
+import { useModemStatus } from "@/hooks/use-modem-status";
+import { antennaHealth, type AntennaHealth } from "@/lib/antenna-health";
+import {
+  ANTENNA_PORTS,
+  type NetworkStatus,
+  type ConnectivityStatus,
+  type ConnectivityState,
 } from "@/types/modem-status";
 import { cn } from "@/lib/utils";
 import { TAG_HEIGHT } from "./shapes";
@@ -320,6 +324,95 @@ function InternetDot({ chip }: { chip: InternetChip }) {
   );
 }
 
+// ─── Antenna health chip ──────────────────────────────────────────────────
+// Fact-Is-Info: shown ONLY while a port is far below its siblings on the same
+// band (lib/antenna-health.ts), and absent otherwise - a healthy fit earns no
+// chip. The verdict is debounced so a single odd sample cannot make it flap:
+// it must hold for 3 consecutive status updates to appear, and 3 consecutive
+// "ok" updates to clear. An "unknown" update (too few ports reporting) says
+// nothing either way, so it neither advances nor breaks a streak.
+const ANTENNA_DEBOUNCE = 3;
+
+type AntennaChipLevel = "warning" | "destructive";
+
+interface AntennaDebounce {
+  /** receivedAtMs of the last update folded in. */
+  key: number | null;
+  /** The raw verdict the current streak is counting. */
+  raw: AntennaChipLevel | "ok" | null;
+  streak: number;
+  shown: AntennaChipLevel | null;
+}
+
+const ANTENNA_DEBOUNCE_INIT: AntennaDebounce = {
+  key: null,
+  raw: null,
+  streak: 0,
+  shown: null,
+};
+
+function useDebouncedAntennaFault(
+  verdict: AntennaHealth["verdict"],
+  receivedAtMs: number | null,
+): AntennaChipLevel | null {
+  const [state, setState] = useState<AntennaDebounce>(ANTENNA_DEBOUNCE_INIT);
+
+  // Folded in while rendering, keyed on the landing time of the snapshot, so a
+  // re-render that carries no new snapshot changes nothing (idempotent) and no
+  // effect has to mirror props into state.
+  if (receivedAtMs !== null && receivedAtMs !== state.key) {
+    if (verdict === "unknown") {
+      setState({ ...state, key: receivedAtMs });
+    } else {
+      const streak = verdict === state.raw ? state.streak + 1 : 1;
+      let shown = state.shown;
+      if (streak >= ANTENNA_DEBOUNCE) {
+        shown = verdict === "ok" ? null : verdict;
+      }
+      setState({ key: receivedAtMs, raw: verdict, streak, shown });
+    }
+  }
+  return state.shown;
+}
+
+/** "Diversity and MIMO 3", locale-aware; falls back to a comma join. */
+function listPorts(indexes: number[], locale: string): string {
+  const names = indexes.map((i) => ANTENNA_PORTS[i]?.name ?? `ANT${i}`);
+  try {
+    return new Intl.ListFormat(locale, { style: "long", type: "conjunction" }).format(names);
+  } catch {
+    return names.join(", ");
+  }
+}
+
+function buildAntennaDetail(
+  health: AntennaHealth,
+  locale: string,
+  t: TFunction,
+): string {
+  const lteHit = health.lte.verdict === "warning" || health.lte.verdict === "destructive";
+  const nrHit = health.nr.verdict === "warning" || health.nr.verdict === "destructive";
+  const affected = [lteHit ? health.lte : null, nrHit ? health.nr : null].filter(
+    (x): x is AntennaHealth["lte"] => x !== null,
+  );
+  const ports = Array.from(new Set(affected.flatMap((x) => x.weak_ports))).sort();
+  const deficits = affected.flatMap((x) =>
+    x.weak_ports
+      .map((p) => x.deficit_db[p])
+      .filter((d): d is number => typeof d === "number"),
+  );
+  const lo = deficits.length ? Math.min(...deficits) : 0;
+  const hi = deficits.length ? Math.max(...deficits) : 0;
+  const db = lo === hi ? String(lo) : `${lo}\u2013${hi}`;
+  const key =
+    lteHit && nrHit
+      ? "network.antenna_detail_both"
+      : lteHit
+        ? "network.antenna_detail_lte"
+        : "network.antenna_detail_nr";
+  return t(key, { ports: listPorts(ports, locale), db });
+}
+
 export function DashboardStatusRail({
   data,
   connectivity,
@@ -327,7 +420,21 @@ export function DashboardStatusRail({
   isLoading,
   isStale,
 }: DashboardStatusRailProps) {
-  const { t } = useTranslation("dashboard");
+  const { t, i18n } = useTranslation("dashboard");
+
+  // The rail is fed the network slice only; antenna ports live elsewhere in the
+  // snapshot. This joins the one shared modem-status poll (no extra request).
+  const { data: status, receivedAtMs } = useModemStatus();
+  const spa = status?.signal_per_antenna;
+  const antenna = useMemo(
+    () => antennaHealth(spa?.lte_rsrp, spa?.nr_rsrp),
+    [spa],
+  );
+  const antennaLevel = useDebouncedAntennaFault(antenna.verdict, receivedAtMs);
+  const antennaDetail =
+    antennaLevel !== null
+      ? buildAntennaDetail(antenna, i18n.language, t)
+      : null;
 
   // Airplane mode: CFUN=0 (radio off) or CFUN=4 (RF off)
   const isAirplaneMode = data?.cfun === 0 || data?.cfun === 4;
@@ -412,6 +519,37 @@ export function DashboardStatusRail({
           </HintIcon>
         ) : null}
       </motion.span>
+
+      {/* Antenna health - only while it applies (Fact-Is-Info). The chip is the
+          link; the sentence naming the ports lives in an info tip beside it so
+          it is readable on a phone, as the Internet chip does. */}
+      {antennaLevel !== null && antennaDetail !== null && (
+        <motion.span
+          variants={staggerRowItem}
+          className="inline-flex items-center gap-1"
+        >
+          <Link
+            href="/cellular/antenna-statistics"
+            className="inline-flex rounded-pill focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+          >
+            <Chip
+              tone={antennaLevel}
+              swapKey={antennaLevel === "destructive" ? "antenna-fault" : "antenna-weak"}
+            >
+              <MaterialSymbol
+                name="settings_input_antenna"
+                size={15}
+                filled
+                className="shrink-0"
+              />
+              {antennaLevel === "destructive"
+                ? t("network.antenna_fault")
+                : t("network.antenna_weak")}
+            </Chip>
+          </Link>
+          <HintIcon label={t("network.antenna_label")}>{antennaDetail}</HintIcon>
+        </motion.span>
+      )}
     </motion.div>
   );
 }
