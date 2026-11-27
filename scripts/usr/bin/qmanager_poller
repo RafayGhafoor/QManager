@@ -178,6 +178,14 @@ BOOT_LOG_FILE="/usrdata/qmanager/boot_log.jsonl"
 BOOT_LOG_MAX=60
 BOOT_LOG_MARK="/tmp/qmanager_boot_logged"   # tmpfs: exists = this boot is recorded
 CRASH_LOG_FILE="/etc/qmanager/crash.log"
+# This board has no RTC: sysfixtime sets the clock to the newest /etc mtime, so a
+# pre-NTP time passes SANE_EPOCH yet can be minutes or days off. Nothing durable
+# (cell rows, ping-minute rows, boot_ts) is stamped until clock_trusted: the ntp
+# hotplug marker, the stock dnsmasq "time is valid" file, or - when NTP never
+# syncs - this much uptime.
+CLOCK_SYNC_MARK="/tmp/qmanager_clock_synced"      # 26-qmanager-clock (ntp hotplug)
+CLOCK_NTP_STATE="/var/state/dnsmasqsec"           # stock 25-dnsmasqsec, first stratum
+CLOCK_TRUST_UPTIME=1800
 SANE_EPOCH=1704067200                        # 2024-01-01: anything below is an unset clock
 
 # Signal history (NDJSON file for chart data)
@@ -527,7 +535,7 @@ else
     l1_row_get() {
         L1R_LMCS=null; L1R_LRI=null; L1R_LUL=null
         L1R_NMCS=null; L1R_NRI=null; L1R_NCQI=null; L1R_NUL=null
-        L1R_PRBM=null; L1R_PRBX=null; L1R_PRBN=null
+        L1R_PRBM=null; L1R_PRBX=null; L1R_PRBN=null; L1R_PRBSRC=""
         L1R_DL=null; L1R_UL=null
     }
 fi
@@ -1352,6 +1360,17 @@ append_signal_history() {
 # first row of a UTC day, at poller start, and every CH_RETRY_SEC while refused or
 # while closed day files still wait for compression - never per row, never latched
 # for the day.
+# clock_trusted: 0 once the wall clock is known to have been set by NTP (or has
+# had long enough to be). Gates EVERY durable timestamp: the cell row, the
+# ping-minute row, the boot log's boot_ts, and the L1 sampler feeding the row.
+# Builtins only (two file tests and the cycle's uptime).
+clock_trusted() {
+    [ -f "$CLOCK_SYNC_MARK" ] && return 0
+    [ -f "$CLOCK_NTP_STATE" ] && return 0
+    case "${_MONO_TOP:-0}" in ''|*[!0-9]*) return 1 ;; esac
+    [ "${_MONO_TOP:-0}" -ge "$CLOCK_TRUST_UPTIME" ]
+}
+
 _ch_last_ts=0       # epoch of the last row written
 _ch_maint_day=""    # UTC day hs_maintain last ran for
 _ch_next_maint=0    # epoch of the next retry (0 = none scheduled)
@@ -1359,6 +1378,7 @@ _ch_ok=1            # 0 while the archive refuses writes (free space under the f
 _ch_warn_day=""     # day the last write failure was logged (one warning per day)
 _ch_dir_ok=0        # directory created in this poller life
 _ch_state_logged="" # last archive state written to the log
+_ch_deep_min=0      # UTC minute of the last deep-tier extra QCAINFO read
 _cell_history_dir() {
     [ "$_ch_dir_ok" = "1" ] && return 0
     [ -d "$CELL_HISTORY_DIR" ] || mkdir -p "$CELL_HISTORY_DIR" 2>/dev/null
@@ -1608,6 +1628,7 @@ _ch_carriers_qeng() {
 _ch_row_due() {
     case "$_NOW" in ''|*[!0-9]*) return 1 ;; esac
     [ "$_NOW" -gt "$SANE_EPOCH" ] || return 1
+    clock_trusted || return 1
     [ $((_NOW / 60)) -ne $((_ch_last_ts / 60)) ] || return 1
     if [ "$_ch_ok" != "1" ] && [ "$_NOW" -lt "$_ch_next_maint" ]; then
         return 1
@@ -1615,10 +1636,37 @@ _ch_row_due() {
     return 0
 }
 
+# _ch_deep_extra_due: 0 when this deep-tier cycle should also run the extra
+# QCAINFO + per-antenna read for a history row, at most ONCE per UTC minute.
+# _ch_row_due alone is not a bound: _ch_last_ts only advances when a row is
+# WRITTEN, so a row path that keeps failing (no directory, no QENG line) would
+# leave it true every deep cycle, and a deep interval under 60 s would then repeat
+# the extra AT reads each time.
+_ch_deep_extra_due() {
+    [ "$_QENG_PARSED" = "1" ] || return 1
+    case "$_NOW" in ''|*[!0-9]*) return 1 ;; esac
+    [ $((_NOW / 60)) -ne "$_ch_deep_min" ] || return 1
+    _ch_row_due || return 1
+    _ch_deep_min=$((_NOW / 60))
+    return 0
+}
+
+# _ch_l1_allowed: 0 when the L1 sampler may spend AT reads. Only while the row it
+# would feed can actually be written: sampling for an archive that refuses writes
+# (low space) or on a clock that is not trusted yet costs the modem AT time for
+# readings that are thrown away.
+_ch_l1_allowed() {
+    [ "$L1_ENABLED" = "1" ] || return 1
+    [ "$_ch_ok" = "1" ] || return 1
+    clock_trusted
+}
+
 # _ch_maintain <ts>: one hs_maintain pass; schedules the next one while refused or
 # while closed days still wait for compression. Sets _ch_ok.
 _ch_maintain() {
     local _cm_state
+    local _cm_was
+    _cm_was="$_ch_ok"
     _ch_maint_day="$_YMD"
     _ch_next_maint=0
     HS_NOW="$1"
@@ -1626,6 +1674,9 @@ _ch_maintain() {
         "$CELL_HISTORY_MIN_FREE_KB" "$CELL_HISTORY_STATE"; then
         _ch_ok=1
         _cm_state=ok
+        # Writable again after a refusal: whatever the L1 accumulators still hold
+        # was sampled before the pause, so the first row must not average it in.
+        [ "$_cm_was" = "1" ] || l1_accum_reset
     else
         _ch_ok=0
         _cm_state=low_space
@@ -1656,6 +1707,7 @@ append_cell_history() {
     local _ch_scs
     local _ch_row
     local _ch_mem
+    local _ch_nsrc
 
     [ "$_QENG_PARSED" = "1" ] || return 0
     [ "$modem_reachable" = "true" ] || return 0
@@ -1731,9 +1783,17 @@ append_cell_history() {
         l1_row_get
         _ch_row="${_ch_row},${L1R_LMCS},${L1R_LRI},${L1R_LUL},${L1R_NMCS},${L1R_NRI},${L1R_NCQI},${L1R_NUL}"
         _ch_row="${_ch_row},${L1R_PRBM},${L1R_PRBX},${L1R_PRBN}"
-        # PRB count of the carrier the PRB reading belongs to: the NR one when the
-        # network has NR, else the LTE PCC.
-        if [ "$rat" != "LTE" ] && [ "$_CH_BW_N" != "null" ]; then
+        # PRB count of the carrier the PRB reading came FROM (l1_stats.sh tags the
+        # accumulated reading with its RAT: nr5g_csi_ext in NSA/SA, lte_csi_ext
+        # otherwise). Never the other RAT's carrier: an NSA row whose NR bandwidth
+        # is unknown records null n_rb, not the LTE PCC's PRB count, because
+        # prb_mean / n_rb would then divide NR PRBs by an LTE carrier. With no PRB
+        # reading (L1 off) the RAT is the row's own.
+        _ch_nsrc="$L1R_PRBSRC"
+        if [ -z "$_ch_nsrc" ]; then
+            if [ "$rat" = "LTE" ]; then _ch_nsrc=L; else _ch_nsrc=N; fi
+        fi
+        if [ "$_ch_nsrc" = "N" ]; then
             _ch_nrb N "$_CH_BW_N" "$nr_scs"
         else
             _ch_nrb L "$_CH_BW_L"
@@ -1970,6 +2030,16 @@ ping_minute_tick() {
     local _pt_min
     case "$_NOW" in ''|*[!0-9]*) return 0 ;; esac
     [ "$_NOW" -gt "$SANE_EPOCH" ] || return 0
+    # An untrusted clock (no RTC, not yet set by NTP) stamps nothing and averages
+    # nothing: the minute is dropped, so the first trusted row starts from a clean
+    # accumulator and never mixes in samples taken before the clock was right.
+    if ! clock_trusted; then
+        if [ "$_pg_min" -ne 0 ] || [ "$_pg_n" -ne 0 ]; then
+            _pg_reset
+            _pg_min=0
+        fi
+        return 0
+    fi
     _pt_min=$(( _NOW - _NOW % 60 ))
     if [ "$_pg_min" -ne 0 ] && [ "$_pt_min" -ne "$_pg_min" ]; then
         _pg_flush
@@ -2005,36 +2075,72 @@ ping_minute_tick() {
 # Restart history: one line per boot in BOOT_LOG_FILE.
 # -----------------------------------------------------------------------------
 # {"boot_ts":N,"last_alive_ts":N|null,"down_sec":N|null,"cause":"..."}
-# boot_ts is now - uptime. last_alive_ts is the newest ping-minute row older than
-# boot_ts (that archive is the heartbeat). Cause: planned when crash.log holds a
-# `user` / `tier4_escalation` breadcrumb in the 600 s before boot; else restart for
-# a gap of at most 180 s, power_loss above that, unknown with no heartbeat.
-# Recorded once per boot (BOOT_LOG_MARK on tmpfs, plus a +-5 s look at the file),
-# only once the wall clock is sane and the box has been up a minute, so a clock
-# that is still being set cannot stamp a bogus boot_ts. Capped to the newest
-# BOOT_LOG_MAX lines.
+# boot_ts is now - uptime, computed only once clock_trusted (no RTC: before NTP the
+# clock is the newest /etc mtime, minutes or days off). last_alive_ts is the newest
+# ping-minute row the archive held when THIS poller started - captured once, in
+# main(), before this life's first flush: the first minute row of a boot is stamped
+# at its minute start, which can precede boot_ts, so reading the archive at boot-log
+# time would find the boot's own row (gap under 20 s: always "restart"). Cause:
+# planned when crash.log holds a `user` / `tier4_escalation` breadcrumb in the 600 s
+# before boot; else restart for a gap of at most 180 s, power_loss above that,
+# unknown with no heartbeat. Recorded once per boot (BOOT_LOG_MARK on tmpfs, plus a
+# +-5 s look at the file), only once the box has been up a minute. Capped to the
+# newest BOOT_LOG_MAX lines.
 _bl_done=0
+_bl_start_done=0   # 1 once _bl_capture_alive has run in this poller life
+_BL_START_LA=""    # newest ping-minute row ts at poller start ("" = none / unknown)
 
-# _bl_last_alive <boot_ts>: _BL_LA = newest ping-minute row ts below boot_ts.
-_bl_last_alive() {
-    local _bl_i
+# _bl_capture_alive [bound]: _BL_START_LA = newest ping-minute row ts in the
+# archive (strictly below bound when one is given). Clock independent: it picks the
+# newest day FILES by name, so a wrong wall clock cannot hide the archive. Reads
+# plain and .gz days, newest first, at most three of them.
+_bl_capture_alive() {
+    local _bl_days
+    local _bl_d
     local _bl_f
     local _bl_t
-    _BL_LA=""
-    _bl_i=0
-    while [ "$_bl_i" -le 14 ]; do
-        _ymd $(( $1 - _bl_i * 86400 ))
-        _bl_f="$PING_ARCHIVE_DIR/$_YMD.jsonl"
+    local _bl_n
+    _BL_START_LA=""
+    _bl_start_done=1
+    [ -d "$PING_ARCHIVE_DIR" ] || return 0
+    _bl_days=$(ls -1 "$PING_ARCHIVE_DIR" 2>/dev/null \
+        | awk '/^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9][.]jsonl([.]gz)?$/ { print substr($0, 1, 10) }' \
+        | sort -ru)
+    _bl_n=0
+    for _bl_d in $_bl_days; do
+        _bl_n=$((_bl_n + 1))
+        [ "$_bl_n" -le 3 ] || break
+        _bl_f="$PING_ARCHIVE_DIR/$_bl_d.jsonl"
         _bl_t=""
         if [ -f "$_bl_f" ]; then
-            _bl_t=$(awk -F, -v b="$1" '{ t = substr($1, 2) + 0; if (t > 0 && t < b && t > m) m = t } END { printf "%d", m }' "$_bl_f" 2>/dev/null)
+            _bl_t=$(awk -F, -v b="${1:-0}" '{ t = substr($1, 2) + 0; if (t > 0 && (b + 0 == 0 || t < b + 0) && t > m) m = t } END { printf "%d", m }' "$_bl_f" 2>/dev/null)
         elif [ -f "${_bl_f}.gz" ]; then
-            _bl_t=$(gzip -dc < "${_bl_f}.gz" 2>/dev/null | awk -F, -v b="$1" '{ t = substr($1, 2) + 0; if (t > 0 && t < b && t > m) m = t } END { printf "%d", m }')
+            _bl_t=$(gzip -dc < "${_bl_f}.gz" 2>/dev/null | awk -F, -v b="${1:-0}" '{ t = substr($1, 2) + 0; if (t > 0 && (b + 0 == 0 || t < b + 0) && t > m) m = t } END { printf "%d", m }')
         fi
-        case "$_bl_t" in ''|0|*[!0-9]*) ;; *) _BL_LA="$_bl_t"; return 0 ;; esac
-        _bl_i=$((_bl_i + 1))
+        case "$_bl_t" in ''|0|*[!0-9]*) ;; *) _BL_START_LA="$_bl_t"; return 0 ;; esac
     done
     return 0
+}
+
+# boot_log_prime: called once from main(), BEFORE the poll loop writes anything.
+# On a first start of the boot the clock is not trusted yet, every row in the
+# archive is the previous life's, and the newest one is the heartbeat. A respawn
+# with a trusted clock may already have rows of this boot in the archive, so those
+# are excluded (rows stamped after now - uptime).
+boot_log_prime() {
+    local _bp_now
+    local _bp_up
+    local _bp_bound
+    _bp_bound=""
+    if clock_trusted; then
+        _bp_now=$(date +%s)
+        mono_now_set
+        _bp_up="${_MONO:-0}"
+        case "$_bp_now" in ''|*[!0-9]*) _bp_now=0 ;; esac
+        case "$_bp_up" in ''|*[!0-9]*) _bp_up=0 ;; esac
+        [ "$_bp_now" -gt "$SANE_EPOCH" ] && _bp_bound=$(( _bp_now - _bp_up ))
+    fi
+    _bl_capture_alive "$_bp_bound"
 }
 
 # _bl_planned <boot_ts>: 0 when crash.log holds a planned-reboot breadcrumb just
@@ -2059,6 +2165,7 @@ boot_log_try() {
     [ "$_bl_done" = "1" ] && return 0
     case "$_NOW" in ''|*[!0-9]*) return 0 ;; esac
     [ "$_NOW" -gt "$SANE_EPOCH" ] || return 0
+    clock_trusted || return 0
     _bt_up="${_MONO_TOP:-0}"
     case "$_bt_up" in ''|*[!0-9]*) _bt_up=0 ;; esac
     [ "$_bt_up" -ge 60 ] || return 0
@@ -2073,7 +2180,12 @@ boot_log_try() {
         return 0
     fi
 
-    _bl_last_alive "$_bt_boot"
+    # The heartbeat captured at poller start; a value at or after boot_ts cannot be
+    # a previous life's row (clock stepped back, or a row of this boot), so it
+    # is no heartbeat.
+    _BL_LA="$_BL_START_LA"
+    case "$_BL_LA" in ''|*[!0-9]*) _BL_LA="" ;; esac
+    [ -n "$_BL_LA" ] && [ "$_BL_LA" -ge "$_bt_boot" ] && _BL_LA=""
     _bt_la="${_BL_LA:-null}"
     _bt_down=null
     _bt_cause=unknown
@@ -3791,7 +3903,7 @@ poll_cycle() {
         # went deep. CFUN? stays skipped.
         local _ch_deep_extra
         _ch_deep_extra=0
-        if [ "$ap_tier" = "deep" ] && [ "$_QENG_PARSED" = "1" ] && _ch_row_due; then
+        if [ "$ap_tier" = "deep" ] && _ch_deep_extra_due; then
             _ch_deep_extra=1
         fi
         if [ "$ap_tier" != "deep" ] || [ "$_ch_deep_extra" = "1" ]; then
@@ -3860,8 +3972,10 @@ poll_cycle() {
         fi
 
         # L1 sampler: its own gates (quecmanager.history.l1_stats, identity
-        # unchanged, QENG answered, not busy) decide whether anything is asked.
-        if [ "$L1_ENABLED" = "1" ]; then
+        # unchanged, QENG answered, not busy) decide whether anything is asked;
+        # the archive must also be writable and the clock trusted (_ch_l1_allowed),
+        # or the readings would feed a row that is never written.
+        if _ch_l1_allowed; then
             l1_sample "$_ch_deep_extra"
         fi
 
@@ -3929,6 +4043,10 @@ main() {
     qlog_info "Config: interval=${POLL_INTERVAL}s signal=every-cycle tier2_every=${TIER2_EVERY}"
     qlog_info "Log level: ${QLOG_LEVEL:-INFO}"
     qlog_info "========================================"
+
+    # Restart history: remember the archive's newest heartbeat BEFORE this life
+    # flushes its first ping-minute row (see boot_log_prime).
+    boot_log_prime
 
     collect_boot_data
     resolve_quality_thresholds

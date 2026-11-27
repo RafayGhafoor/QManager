@@ -13,8 +13,12 @@ PING_ARCHIVE_STATE="$B/state"
 BOOT_LOG_FILE="$B/boot_log.jsonl"
 BOOT_LOG_MARK="$B/boot_mark"
 CRASH_LOG_FILE="$B/crash.log"
+CLOCK_SYNC_MARK="$B/clock_synced"
+CLOCK_NTP_STATE="$B/dnsmasqsec"
+mono_now_set() { _MONO="${HT_UPTIME:-0}"; }
 fresh() {
     rm -rf "$B"; mkdir -p "$B"
+    : > "$CLOCK_SYNC_MARK"; _MONO_TOP=""; _bl_start_done=0; _BL_START_LA=""
     _pg_reset; _pg_min=0; _pg_maint_day=""; _pg_next_maint=0; _pg_allowed=1; _pg_dir_ok=0
     conn_internet_available=true; conn_latency=null
     rm -f /tmp/qmanager_ping_attaching
@@ -111,7 +115,11 @@ PING_ARCHIVE_MIN_FREE_KB=4096
 bl_fresh() { fresh; mkdir -p "$PING_ARCHIVE_DIR"; rm -f "$BOOT_LOG_FILE" "$BOOT_LOG_MARK" "$CRASH_LOG_FILE"; _bl_done=0; }
 BOOT=$(ht_epoch 2026-11-27 08:00:00)
 mkdir -p "$PING_ARCHIVE_DIR"
+# The poller reads the archive's newest heartbeat ONCE, at start, before it writes
+# a row of its own (boot_log_prime); here that is the first bl_run after bl_fresh,
+# bounded at boot_ts like a respawn with a trusted clock.
 bl_run() { # bl_run <uptime>  (now = BOOT + uptime)
+    [ "$_bl_start_done" = "1" ] || _bl_capture_alive "$BOOT"
     _NOW=$((BOOT + $1)); _MONO_TOP="$1"; boot_log_try
 }
 last_line() { tail -n 1 "$BOOT_LOG_FILE"; }
@@ -165,6 +173,79 @@ bl_fresh
 printf '%s|reboot|unplanned\n' $((BOOT + 3)) > "$CRASH_LOG_FILE"
 bl_run 90
 eq "an 'unplanned' row is never planned" "$(last_line | sed 's/^.*"cause"://')" '"unknown"}'
+
+# --- the heartbeat is the archive as it was at poller START -----------------------------
+# A previous life's last row 2000 s before boot. After the poller starts (capture),
+# this boot's own first ping-minute row is flushed at its MINUTE start, which is
+# before boot_ts; reading the archive at boot-log time would take that row and report
+# a 20 s "restart". The captured value must win.
+bl_fresh
+B2=$((BOOT + 25))
+printf '[%s,6,6,20.0,20.0,20.0,null,0]\n' $((BOOT - 2000)) > "$PING_ARCHIVE_DIR/2026-11-27.jsonl"
+_bl_capture_alive            # first start of the boot: no bound, the archive is the previous life's
+eq "capture: newest row of the previous life" "$_BL_START_LA" "$((BOOT - 2000))"
+tick $((B2 + 30)) 20; tick $((B2 + 40)) 20      # 08:00:55 then 08:01:05: flushes the 08:00:00 row
+eq "this boot's first row is stamped before boot_ts" "$(tail -n 1 "$PING_ARCHIVE_DIR/2026-11-27.jsonl" | awk -F, '{ print substr($1, 2) }')" "$((B2 - 25))"
+_NOW=$((B2 + 90)); _MONO_TOP=90; boot_log_try
+eq "own-row bug: last_alive is the captured row, not this boot's" "$(last_line)" "{\"boot_ts\":$B2,\"last_alive_ts\":$((BOOT - 2000)),\"down_sec\":$((2025)),\"cause\":\"power_loss\"}"
+
+# a captured value at or after boot_ts is no heartbeat (clock stepped back / own row)
+bl_fresh
+printf '[%s,6,6,20.0,20.0,20.0,null,0]\n' $((BOOT + 10)) > "$PING_ARCHIVE_DIR/2026-11-27.jsonl"
+_bl_capture_alive
+_NOW=$((BOOT + 90)); _MONO_TOP=90; boot_log_try
+eq "a heartbeat after boot_ts is ignored" "$(last_line)" "{\"boot_ts\":$BOOT,\"last_alive_ts\":null,\"down_sec\":null,\"cause\":\"unknown\"}"
+
+# capture without prime: nothing known
+bl_fresh
+printf '[%s,6,6,20.0,20.0,20.0,null,0]\n' $((BOOT - 60)) > "$PING_ARCHIVE_DIR/2026-11-27.jsonl"
+_NOW=$((BOOT + 90)); _MONO_TOP=90; boot_log_try
+eq "never primed: unknown, not a late archive read" "$(last_line)" "{\"boot_ts\":$BOOT,\"last_alive_ts\":null,\"down_sec\":null,\"cause\":\"unknown\"}"
+
+# capture reads the newest day files by NAME (no wall clock), gz included, newest first
+bl_fresh; rm -f "$PING_ARCHIVE_DIR"/*
+printf '[%s,6,6,20.0,20.0,20.0,null,0]\n' 1700000000 > "$PING_ARCHIVE_DIR/2026-11-20.jsonl"
+printf '[%s,6,6,20.0,20.0,20.0,null,0]\n[%s,6,6,20.0,20.0,20.0,null,0]\n' 1700100000 1700100060 | gzip -c > "$PING_ARCHIVE_DIR/2026-11-21.jsonl.gz"
+: > "$PING_ARCHIVE_DIR/2026-11-22.jsonl"
+_bl_capture_alive
+eq "capture: skips an empty newest day, reads the gz before it (newest row)" "$_BL_START_LA" 1700100060
+_bl_capture_alive 1700100060
+eq "capture: bound is exclusive" "$_BL_START_LA" 1700100000
+bl_fresh; rm -rf "$PING_ARCHIVE_DIR"
+_bl_capture_alive
+eq "capture: no archive dir -> empty" "$_BL_START_LA" ""
+mkdir -p "$PING_ARCHIVE_DIR"
+
+# --- clock_trusted ---------------------------------------------------------------------
+bl_fresh; rm -f "$CLOCK_SYNC_MARK"
+_MONO_TOP=100;  no  "untrusted: no marker, young uptime" clock_trusted
+_MONO_TOP=1799; no  "untrusted: just under the uptime fallback" clock_trusted
+_MONO_TOP=1800; yes "trusted: uptime fallback (NTP never synced)" clock_trusted
+_MONO_TOP=100;  : > "$CLOCK_NTP_STATE"
+yes "trusted: stock dnsmasq time-valid file" clock_trusted
+rm -f "$CLOCK_NTP_STATE"; : > "$CLOCK_SYNC_MARK"
+yes "trusted: ntp hotplug marker" clock_trusted
+_MONO_TOP=""; rm -f "$CLOCK_SYNC_MARK"
+no "untrusted: uptime unknown" clock_trusted
+
+# --- nothing is stamped while the clock is untrusted -------------------------------------
+bl_fresh; rm -f "$CLOCK_SYNC_MARK"; _MONO_TOP=100
+tick $((M0 + 3)) 20; tick $((M0 + 13)) 20; tick $((M0 + 63)) 20; tick $((M0 + 123)) 20
+no "untrusted clock: no ping-minute row" test -e "$PING_ARCHIVE_DIR/2026-11-27.jsonl"
+eq "untrusted clock: nothing accumulated" "$_pg_n,$_pg_min" "0,0"
+# the marker appears mid-minute: the first row only holds samples taken afterwards
+: > "$CLOCK_SYNC_MARK"
+tick $((M0 + 190)) 30; tick $((M0 + 200)) 40; tick $((M0 + 250)) 50
+eq "first trusted row holds only trusted samples (pre-sync span not averaged in)" "$(cat "$PING_ARCHIVE_DIR/2026-11-27.jsonl")" "[$((M0 + 180)),2,2,35.0,30.0,40.0,10.0,0]"
+# boot log waits for a trusted clock too, and is retried (not latched)
+bl_fresh; rm -f "$CLOCK_SYNC_MARK"
+printf '[%s,6,6,20.0,20.0,20.0,null,0]\n' $((BOOT - 60)) > "$PING_ARCHIVE_DIR/2026-11-27.jsonl"
+_bl_capture_alive "$BOOT"
+_NOW=$((BOOT + 90)); _MONO_TOP=90; boot_log_try
+no "boot log: untrusted clock, nothing recorded" test -e "$BOOT_LOG_FILE"
+eq "boot log: untrusted clock, retried later" "$_bl_done" 0
+: > "$CLOCK_SYNC_MARK"; boot_log_try
+eq "boot log: recorded once trusted" "$(last_line)" "{\"boot_ts\":$BOOT,\"last_alive_ts\":$((BOOT - 60)),\"down_sec\":60,\"cause\":\"restart\"}"
 
 # the clock must be sane
 bl_fresh

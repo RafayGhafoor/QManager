@@ -289,6 +289,8 @@ remove_services() {
 
     # hotplug.d entry shipped by QManager (change 55)
     rm -f /etc/hotplug.d/iface/99-smartdns-carrier 2>/dev/null || true
+    # hotplug.d ntp entry (history-v3: clock-trusted marker for the recorders)
+    rm -f /etc/hotplug.d/ntp/26-qmanager-clock 2>/dev/null || true
 
     # Clean up orphaned rc.d symlinks
     for link in /etc/rc.d/*qmanager*; do
@@ -678,6 +680,7 @@ remove_runtime_state() {
     rm -f /tmp/qmanager_cell_history_state* \
           /tmp/qmanager_ping_history_state* \
           /tmp/qmanager_boot_logged \
+          /tmp/qmanager_clock_synced \
           2>/dev/null || true
 
     # Sites monitor: latest/raw/live results, flag, lease, cursor, probe dirs.

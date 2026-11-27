@@ -1,0 +1,16 @@
+#!/bin/sh
+# 26-qmanager-clock - note that ntpd has set the wall clock
+#
+# This board has no RTC: sysfixtime restores the clock to the newest file mtime
+# under /etc, so right after boot the time looks sane (past 2024) yet can be
+# minutes or days off until NTP corrects it. The history recorders (cell rows,
+# ping-minute rows, restart log) must not stamp rows with that clock, so the
+# poller waits for this marker (or the stock /var/state/dnsmasqsec, or 30 min of
+# uptime when NTP never syncs) before it writes anything.
+#
+# ntpd runs this class through ntpd-hotplug: ACTION is stratum (synced), step (the
+# clock was stepped) or periodic / unsync (ignored). Idempotent, no other effect.
+case "$ACTION" in
+    stratum|step) : > /tmp/qmanager_clock_synced 2>/dev/null ;;
+esac
+exit 0

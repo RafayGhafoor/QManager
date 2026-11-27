@@ -69,6 +69,7 @@ _L1_LMCS_S=0; _L1_LMCS_N=0; _L1_LRI_MAX=""; _L1_LUL=""
 _L1_NMCS_S=0; _L1_NMCS_N=0; _L1_NRI_MAX=""; _L1_NUL=""
 _L1_NCQI_S=0; _L1_NCQI_N=0
 _L1_PRB_S=0; _L1_PRB_N=0; _L1_PRB_MAX=""
+_L1_PRB_SRC=""             # RAT the accumulated PRB readings came from: N (nr5g_csi_ext) / L (lte_csi_ext)
 _L1_DL_S=0; _L1_UL_S=0; _L1_BPS_N=0
 # parsed reply
 _L1_P_LMCS=""; _L1_P_LRI=""; _L1_P_LPRB=""; _L1_P_LUL=""
@@ -80,6 +81,7 @@ _L1F1=""; _L1F2=""; _L1F3=""; _L1F4=""; _L1F5=""; _L1F6=""; _L1F7=""; _L1F8=""
 L1R_LMCS=null; L1R_LRI=null; L1R_LUL=null
 L1R_NMCS=null; L1R_NRI=null; L1R_NCQI=null; L1R_NUL=null
 L1R_PRBM=null; L1R_PRBX=null; L1R_PRBN=null
+L1R_PRBSRC=""     # N / L: which carrier's PRB count the PRB columns are a share of ("" = none)
 L1R_DL=null; L1R_UL=null
 
 # The poller defines these; stubs keep the lib loadable on its own (tests).
@@ -95,7 +97,7 @@ l1_accum_reset() {
     _L1_LMCS_S=0; _L1_LMCS_N=0; _L1_LRI_MAX=""; _L1_LUL=""
     _L1_NMCS_S=0; _L1_NMCS_N=0; _L1_NRI_MAX=""; _L1_NUL=""
     _L1_NCQI_S=0; _L1_NCQI_N=0
-    _L1_PRB_S=0; _L1_PRB_N=0; _L1_PRB_MAX=""
+    _L1_PRB_S=0; _L1_PRB_N=0; _L1_PRB_MAX=""; _L1_PRB_SRC=""
     _L1_DL_S=0; _L1_UL_S=0; _L1_BPS_N=0
 }
 
@@ -184,9 +186,12 @@ _l1_max() {
 }
 
 # _l1_accum: fold the parsed reply into the accumulators. PRB / PRB-share source
-# is the NR carrier when the network has one, else the LTE carrier.
+# is the NR carrier (nr5g_csi_ext) in NSA and SA, the LTE carrier (lte_csi_ext)
+# otherwise, and the RAT is recorded with the reading (_L1_PRB_SRC) so the row's
+# n_rb can be taken from the SAME carrier - never from the other RAT's.
 _l1_accum() {
     local _la_prb
+    local _la_src
     if [ -n "$_L1_P_LMCS" ]; then _L1_LMCS_S=$((_L1_LMCS_S + _L1_P_LMCS)); _L1_LMCS_N=$((_L1_LMCS_N + 1)); fi
     if [ -n "$_L1_P_LRI" ]; then _l1_max "$_L1_LRI_MAX" "$_L1_P_LRI"; _L1_LRI_MAX="$_LM"; fi
     [ -n "$_L1_P_LUL" ] && _L1_LUL="$_L1_P_LUL"
@@ -195,10 +200,11 @@ _l1_accum() {
     if [ -n "$_L1_P_NCQI" ]; then _L1_NCQI_S=$((_L1_NCQI_S + _L1_P_NCQI)); _L1_NCQI_N=$((_L1_NCQI_N + 1)); fi
     [ -n "$_L1_P_NUL" ] && _L1_NUL="$_L1_P_NUL"
     case "$network_type" in
-        5G-NSA|5G-SA) _la_prb="$_L1_P_NPRB" ;;
-        *)            _la_prb="$_L1_P_LPRB" ;;
+        5G-NSA|5G-SA) _la_prb="$_L1_P_NPRB"; _la_src=N ;;
+        *)            _la_prb="$_L1_P_LPRB"; _la_src=L ;;
     esac
     if [ -n "$_la_prb" ]; then
+        _L1_PRB_SRC="$_la_src"
         _L1_PRB_S=$((_L1_PRB_S + _la_prb)); _L1_PRB_N=$((_L1_PRB_N + 1))
         _l1_max "$_L1_PRB_MAX" "$_la_prb"; _L1_PRB_MAX="$_LM"
     fi
@@ -220,7 +226,7 @@ _l1_mean() {
 l1_row_get() {
     L1R_LMCS=null; L1R_LRI=null; L1R_LUL=null
     L1R_NMCS=null; L1R_NRI=null; L1R_NCQI=null; L1R_NUL=null
-    L1R_PRBM=null; L1R_PRBX=null; L1R_PRBN=null
+    L1R_PRBM=null; L1R_PRBX=null; L1R_PRBN=null; L1R_PRBSRC=""
     L1R_DL=null; L1R_UL=null
     [ "$L1_ENABLED" = "1" ] || return 0
     _l1_mean "$_L1_LMCS_S" "$_L1_LMCS_N"; L1R_LMCS="$_LM"
@@ -232,7 +238,7 @@ l1_row_get() {
     L1R_NUL="${_L1_NUL:-null}"
     _l1_mean "$_L1_PRB_S" "$_L1_PRB_N"; L1R_PRBM="$_LM"
     L1R_PRBX="${_L1_PRB_MAX:-null}"
-    if [ "$_L1_PRB_N" -gt 0 ]; then L1R_PRBN="$_L1_PRB_N"; fi
+    if [ "$_L1_PRB_N" -gt 0 ]; then L1R_PRBN="$_L1_PRB_N"; L1R_PRBSRC="$_L1_PRB_SRC"; fi
     _l1_mean "$_L1_DL_S" "$_L1_BPS_N"; L1R_DL="$_LM"
     _l1_mean "$_L1_UL_S" "$_L1_BPS_N"; L1R_UL="$_LM"
 }

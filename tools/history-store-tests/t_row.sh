@@ -11,6 +11,8 @@ ht_load_poller_fns
 
 CELL_HISTORY_DIR="$HT_TMP/row/cell_history"
 CELL_HISTORY_STATE="$HT_TMP/row/state"
+CLOCK_SYNC_MARK="$HT_TMP/row/clock_synced"
+CLOCK_NTP_STATE="$HT_TMP/row/dnsmasqsec"
 rm -rf "$HT_TMP/row"; mkdir -p "$HT_TMP/row"
 rd() { cat "$HT_FIX/$1"; }
 # qcmd_exec_g's strip: drop lines starting with AT and lines that are exactly OK.
@@ -33,6 +35,8 @@ reset_state() {
     _ch_last_ts=0; _ch_maint_day=""; _ch_next_maint=0; _ch_ok=1; _ch_dir_ok=0
     L1_ENABLED=0; l1_accum_reset
     rm -rf "$CELL_HISTORY_DIR"
+    : > "$CLOCK_SYNC_MARK"; rm -f "$CLOCK_NTP_STATE"
+    CELL_HISTORY_MIN_FREE_KB=0; _ch_deep_min=0
 }
 last_row() { tail -n 1 "$CELL_HISTORY_DIR/$(ls "$CELL_HISTORY_DIR" | sort | tail -n 1)"; }
 ncols() { # head columns of a v2 row (stops before the first carrier array)
@@ -212,6 +216,110 @@ _ch_nrb L 20; eq "n_rb LTE 20" "$_CI" 100
 _ch_arr4 '[-85,-140,-118,null]'; eq "-140 sentinel -> null" "$_CA" "-85,null,-118,null"
 _ch_arr4 '[1,2,3]'; eq "short array -> nulls" "$_CA" "null,null,null,null"
 _ch_arr4 'garbage'; eq "garbage array -> nulls" "$_CA" "null,null,null,null"
+
+# --- finding 8: n_rb comes from the carrier the PRB reading came from ------------------
+# NSA reads PRBs from nr5g_csi_ext. With the NR carrier's bandwidth unknown the row
+# must say n_rb null (prb_share null in the aggregator), NOT the LTE PCC's 50 PRBs.
+NSA_NONRBW='[{"type":"PCC","technology":"LTE","band":"B1","earfcn":250,"bandwidth_mhz":10,"pci":104,"rsrp":-75,"rsrq":-10,"rssi":-48,"sinr":5},{"type":"SCC","technology":"NR","band":"N41","earfcn":509070,"bandwidth_mhz":null,"pci":47,"rsrp":-62,"rsrq":-11,"rssi":null,"sinr":29.1}]'
+reset_state
+_NOW="$NOW"; _MONO_TOP=5000
+parse_serving_cell "$(strip "$(rd qeng_nsa.txt)")"
+t2_carrier_components="$NSA_NONRBW"
+parse_qrsrp "$(rd antenna_nsa.txt)"
+L1_ENABLED=1; network_type=5G-NSA
+_l1_parse "$(rd l1_nsa.txt)"; _l1_accum
+append_cell_history
+ROW=$(last_row)
+eq "NSA, NR bw unknown: prb_mean from nr5g_csi_ext kept (col 22)" "$(printf '%s' "$ROW" | awk -F, '{ print $22 }')" 2
+eq "NSA, NR bw unknown: n_rb null, never the LTE PCC's 50" "$(printf '%s' "$ROW" | awk -F, '{ print $25 }')" null
+eq "L1 tags the PRB reading with its RAT (NSA -> N)" "$L1R_PRBSRC" N
+# the same NSA row with the NR bandwidth known pairs it with the NR carrier
+reset_state
+_NOW="$NOW"; _MONO_TOP=5000
+parse_serving_cell "$(strip "$(rd qeng_nsa.txt)")"
+parse_ca_info "$(strip "$(rd qcainfo_nsa.txt)")"
+L1_ENABLED=1; network_type=5G-NSA
+_l1_parse "$(rd l1_nsa.txt)"; _l1_accum
+append_cell_history
+eq "NSA, NR 50 MHz @ 30 kHz: n_rb 133 with prb_mean 2" "$(last_row | awk -F, '{ print $22 "," $25 }')" "2,133"
+# L1 off, NSA, NR bw unknown: still null (no fallback to the LTE carrier)
+reset_state
+_NOW="$NOW"
+parse_serving_cell "$(strip "$(rd qeng_nsa.txt)")"
+t2_carrier_components="$NSA_NONRBW"
+append_cell_history
+eq "L1 off, NSA, NR bw unknown: n_rb null" "$(last_row | awk -F, '{ print $25 }')" null
+# LTE: the LTE PCC's PRBs; SA: the NR carrier's
+reset_state
+_NOW="$NOW"
+parse_serving_cell "$(strip '+QENG: "servingcell","NOCONN","LTE","FDD",410,01,2E38917,104,250,1,3,3,D857,-75,-11,-46,12,9,-95,-')"
+t2_carrier_components='[{"type":"PCC","technology":"LTE","band":"B1","earfcn":250,"bandwidth_mhz":10,"pci":104,"rsrp":-75,"rsrq":-11,"rssi":-46,"sinr":4}]'
+L1_ENABLED=1; network_type=LTE
+_l1_parse "$(rd l1_lte.txt)"; _l1_accum
+append_cell_history
+eq "LTE + L1: prb_mean 6 over the 10 MHz PCC's 50" "$(last_row | awk -F, '{ print $22 "," $25 }')" "6,50"
+eq "LTE + L1: reading tagged L" "$L1R_PRBSRC" L
+reset_state
+_NOW="$NOW"
+parse_serving_cell "$(strip '+QENG: "servingcell","NOCONN","NR5G-SA","TDD",410,01,2D1AB04A1,271,1A2B,504990,78,1,-95,-11,12,1,-')"
+t2_carrier_components='[{"type":"PCC","technology":"NR","band":"N78","earfcn":504990,"bandwidth_mhz":100,"pci":271,"rsrp":-95,"rsrq":-11,"rssi":null,"sinr":12.5}]'
+L1_ENABLED=1; network_type=5G-SA
+_l1_parse "$(rd l1_sa.txt)"; _l1_accum
+append_cell_history
+eq "SA + L1: prb_mean 2 over the 100 MHz carrier's 273" "$(last_row | awk -F, '{ print $22 "," $25 }')" "2,273"
+
+# --- finding 1b: nothing is stamped on an untrusted clock --------------------------------
+reset_state; rm -f "$CLOCK_SYNC_MARK"; _MONO_TOP=100
+_NOW="$NOW"; parse_serving_cell "$(strip "$(rd qeng_nsa.txt)")"
+no "untrusted clock: _ch_row_due false" _ch_row_due
+append_cell_history
+eq "untrusted clock: no row, no file" "$(ls "$CELL_HISTORY_DIR" 2>/dev/null | wc -l | tr -d ' ')" 0
+_MONO_TOP=1800
+append_cell_history
+eq "uptime fallback trusts the clock: row written" "$(ls "$CELL_HISTORY_DIR" 2>/dev/null | grep -c jsonl)" 1
+
+# --- finding 5: the deep-tier extra read is bounded to once per UTC minute ---------------
+reset_state; _MONO_TOP=5000
+M=$(ht_epoch 2026-11-27 12:00:05)
+_NOW="$M"; _QENG_PARSED=1
+yes "deep extra: first due cycle of the minute" _ch_deep_extra_due
+# the row path keeps failing (nothing is ever written, _ch_last_ts stays 0)
+yes "row still due (nothing written)" _ch_row_due
+_NOW=$((M + 5));  no "deep extra: same minute, 5 s later (30 s deep interval)" _ch_deep_extra_due
+_NOW=$((M + 30)); no "deep extra: same minute again" _ch_deep_extra_due
+_NOW=$((M + 50)); no "deep extra: still the same minute (12:00:55)" _ch_deep_extra_due
+_NOW=$((M + 60)); yes "deep extra: next minute" _ch_deep_extra_due
+_NOW=$((M + 65)); no "deep extra: and once only there" _ch_deep_extra_due
+_QENG_PARSED=0; _NOW=$((M + 130)); no "deep extra: QENG not parsed" _ch_deep_extra_due
+_QENG_PARSED=1; rm -f "$CLOCK_SYNC_MARK"; _MONO_TOP=100; _NOW=$((M + 190)); no "deep extra: untrusted clock" _ch_deep_extra_due
+: > "$CLOCK_SYNC_MARK"
+_ch_ok=0; _ch_next_maint=$((M + 99999)); _NOW=$((M + 250)); no "deep extra: archive refusing writes" _ch_deep_extra_due
+
+# --- finding 6: L1 sampling follows the archive and the clock ----------------------------
+reset_state; _MONO_TOP=5000
+L1_ENABLED=0; no "L1 off" _ch_l1_allowed
+L1_ENABLED=1; yes "L1 on, archive writable, clock trusted" _ch_l1_allowed
+_ch_ok=0; no "archive refusing writes: no L1 reads" _ch_l1_allowed
+_ch_ok=1; rm -f "$CLOCK_SYNC_MARK"; _MONO_TOP=100; no "untrusted clock: no L1 reads" _ch_l1_allowed
+: > "$CLOCK_SYNC_MARK"; yes "trusted again" _ch_l1_allowed
+# accumulators loaded, then the archive refuses; once it writes again the first row
+# must not carry the pre-pause burst
+reset_state
+_NOW="$NOW"; _MONO_TOP=5000
+parse_serving_cell "$(strip "$(rd qeng_nsa.txt)")"
+parse_ca_info "$(strip "$(rd qcainfo_nsa.txt)")"
+L1_ENABLED=1; network_type=5G-NSA
+_l1_parse "$(rd l1_nsa.txt)"; _l1_accum
+CELL_HISTORY_MIN_FREE_KB=999999999
+append_cell_history
+eq "refusing: no row" "$(ls "$CELL_HISTORY_DIR" 2>/dev/null | grep -c jsonl)" 0
+no "refusing: L1 not allowed" _ch_l1_allowed
+eq "refusing: accumulators untouched until it recovers" "$_L1_PRB_N" 1
+CELL_HISTORY_MIN_FREE_KB=0
+_NOW=$((NOW + 3601)); append_cell_history
+eq "recovered: a row is written" "$(ls "$CELL_HISTORY_DIR" 2>/dev/null | grep -c jsonl)" 1
+eq "recovered: pre-pause L1 burst dropped (prb, mcs, dl all null)" "$(last_row | awk -F, '{ print $22 "," $18 "," $26 }')" "null,null,null"
+yes "recovered: L1 allowed again" _ch_l1_allowed
 
 rm -rf "$HT_TMP/row"
 ht_done
