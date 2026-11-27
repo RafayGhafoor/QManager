@@ -9,6 +9,8 @@ import type { PingHistoryEntry } from "@/types/modem-status";
 // =============================================================================
 // Fetches the ping history NDJSON (converted to JSON array by the CGI endpoint)
 // at a 30-second interval. Historical data does not need real-time refresh.
+// Polling pauses while the tab is hidden and resumes (with one immediate read)
+// when it becomes visible again.
 //
 // Returns raw PingHistoryEntry array for the component to aggregate into
 // hourly, 12-hour, and daily buckets.
@@ -94,15 +96,39 @@ export function useLatencyHistory(
       };
     }
 
-    fetchHistory();
-    intervalRef.current = setInterval(fetchHistory, pollInterval);
-
-    return () => {
-      mountedRef.current = false;
+    const stop = () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+    };
+    const start = () => {
+      if (!intervalRef.current) {
+        intervalRef.current = setInterval(fetchHistory, pollInterval);
+      }
+    };
+    // A hidden tab reads nothing (known-issues 15): the device has one core and
+    // nobody is looking at the strips. Becoming visible reads once at once —
+    // the answer aged while the tab was away — and then resumes the cadence.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchHistory();
+        start();
+      } else {
+        stop();
+      }
+    };
+
+    if (document.visibilityState === "visible") {
+      fetchHistory();
+      start();
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      mountedRef.current = false;
+      document.removeEventListener("visibilitychange", onVisibility);
+      stop();
     };
   }, [fetchHistory, pollInterval, enabled]);
 
