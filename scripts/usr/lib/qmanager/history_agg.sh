@@ -1497,6 +1497,9 @@ ha_ping_response() {
     local restarts
     local offset
     local files
+    local oldest
+    local firstarc
+    local preend
     range=$1
     ha_init
     params=$(ha_ping_params "$range") || return 1
@@ -1519,6 +1522,7 @@ ha_ping_response() {
         summary=$(ha_dir_summary "$HA_PING_DIR")
         set -- $summary
         newest=$4
+        oldest=$3
         lastarc=0
         if [ "$newest" != "-" ] && [ -f "$HA_PING_DIR/$newest" ]; then
             lastarc=$(ha_stream "$HA_PING_DIR/$newest" | tail -n 3 | sed -n 's/^\[\([0-9][0-9]*\),.*\]$/\1/p' | tail -n 1)
@@ -1540,6 +1544,20 @@ ha_ping_response() {
             ha_collect ping "$HA_PING_DIR" "$start" "$end" "$bucket" "$bucket" "$ring" "$cut"
             files=$HA_FILES
             [ "$HA_PARTIAL" = "1" ] && ha_bg_spawn "$start" "$end" "$bucket" "$bucket"
+            # The ring (~24 h of 10 s probes in tmpfs) also covers the span BEFORE
+            # the archive's first row: right after an install, or after an
+            # archive gap. Reduce it up to the last whole bucket before that row,
+            # so a bucket is never fed by both sources.
+            if [ "$ring" != "-" ] && [ "$oldest" != "-" ] && [ -f "$HA_PING_DIR/$oldest" ]; then
+                firstarc=$(ha_stream "$HA_PING_DIR/$oldest" | head -n 1 | sed -n 's/^\[\([0-9][0-9]*\),.*\]$/\1/p')
+                case "$firstarc" in ''|*[!0-9]*) firstarc=0 ;; esac
+                preend=$(( firstarc / bucket * bucket - 1 ))
+                if [ "$firstarc" -gt 0 ] && [ "$preend" -gt "$start" ]; then
+                    HA_RING_TAIL_ROWS=100000
+                    ha_reduce ping - "$start" "$preend" "$bucket" "$bucket" "$ring" 0 > "$HA_WORK/ring.pre"
+                    files="$HA_WORK/ring.pre $files"
+                fi
+            fi
         fi
     fi
     restarts=$(ha_restarts_json "$start" "$end")
