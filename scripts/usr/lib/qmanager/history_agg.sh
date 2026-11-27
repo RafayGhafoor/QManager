@@ -17,6 +17,9 @@
 #   QM_L1_STATS          "1"/"0" override of quecmanager.history.l1_stats
 #   QM_HIST_NO_RESP_CACHE  non-empty: never reuse a response (benchmarks)
 #   QM_HIST_BUILD_BUDGET   seconds a request may spend building cache blocks
+#   QM_HIST_CACHE_CAP_KB   block cache cap in KB (default 3072; tests shrink it)
+#   QM_HIST_BUILD_LOG      file: one "built <block>" line appended per block reduced
+#                          (tests assert a request was served from blocks)
 #
 # WHY IT IS SHAPED LIKE THIS. The old CGI spent 20 s of CPU per poll matching a
 # dynamic regex per field per row. BusyBox awk costs ~3 us per operation, so even
@@ -44,7 +47,9 @@
 HA_CACHE_VER="v2"
 HA_SANE_EPOCH=1704067200      # 2024-01-01: before this the clock never synced
 HA_GAP_SEC=180                # GAP_THRESHOLD_SECONDS in types/cell-history.ts
-HA_CACHE_CAP_KB=2048
+HA_CACHE_CAP_KB=3072          # reduced blocks only: resp_* files never count against it
+HA_RESP_MAX_AGE=120           # a response file older than this is dead weight, deleted on every eviction pass
+HA_WORK_MAX_AGE=600           # a w.<pid> / wb.<pid> work dir older than this is an orphan
 HA_RESP_TTL_CELLS=55
 HA_RESP_TTL_PING=20
 HA_LOCK_STALE_SEC=300
@@ -71,6 +76,10 @@ ha_init() {
     HA_T0=$(date +%s)
     HA_BUDGET="${QM_HIST_BUILD_BUDGET:-12}"
     case "$HA_BUDGET" in ''|*[!0-9]*) HA_BUDGET=12 ;; esac
+    case "${QM_HIST_CACHE_CAP_KB:-}" in
+        ''|*[!0-9]*|0) ;;
+        *) HA_CACHE_CAP_KB="$QM_HIST_CACHE_CAP_KB" ;;
+    esac
 }
 
 ha_now() {
@@ -108,6 +117,45 @@ ha_trap_install() {
     trap 'ha_cleanup; exit 1' INT TERM
 }
 
+# Work dirs a SIGKILLed CGI or builder never got to remove (the EXIT trap does not
+# run on KILL). A request work dir w.<pid> goes when its pid is gone or it is older
+# than HA_WORK_MAX_AGE (pid reuse). A builder dir wb.<pid> carries the pid of the
+# CGI that SPAWNED the builder ($$ inside a subshell), which exits at once, so
+# liveness cannot be read from the name: the builder holds bg.lock for its whole
+# life, so wb.* goes when no bg.lock exists or the dir is older than the same age.
+ha_sweep_orphans() {
+    local d
+    local nm
+    local pid
+    local m
+    local now
+    local bg
+    now=$(date +%s)
+    bg=0
+    [ -d "$HA_CACHE_DIR/bg.lock" ] && bg=1
+    for d in "$HA_CACHE_DIR"/w.* "$HA_CACHE_DIR"/wb.*; do
+        [ -d "$d" ] || continue
+        [ -L "$d" ] && continue
+        nm="${d##*/}"
+        case "$nm" in
+            w.*)  pid="${nm#w.}" ;;
+            wb.*) pid="${nm#wb.}" ;;
+            *) continue ;;
+        esac
+        case "$pid" in ''|*[!0-9]*) continue ;; esac
+        [ "$nm" = "w.$$" ] && continue
+        m=$(ha_mtime "$d")
+        if [ -n "$m" ] && [ $((now - m)) -gt "$HA_WORK_MAX_AGE" ]; then
+            rm -rf "$d" 2>/dev/null
+            continue
+        fi
+        case "$nm" in
+            w.*)  [ -d "/proc/$pid" ] || rm -rf "$d" 2>/dev/null ;;
+            wb.*) [ "$bg" = "1" ] || rm -rf "$d" 2>/dev/null ;;
+        esac
+    done
+}
+
 # Cache dir + per-request work dir. A cache dir we cannot create (or that is a
 # symlink) disables caching but never the request.
 ha_setup_dirs() {
@@ -117,6 +165,7 @@ ha_setup_dirs() {
     elif [ ! -d "$HA_CACHE_DIR" ]; then
         mkdir -p "$HA_CACHE_DIR" 2>/dev/null || HA_NOCACHE=1
     fi
+    [ "$HA_NOCACHE" = "0" ] && ha_sweep_orphans
     if [ "$HA_NOCACHE" = "0" ]; then
         HA_WORK="$HA_CACHE_DIR/w.$$"
     else
@@ -238,14 +287,34 @@ ha_resp_fresh() {
     return 0
 }
 
-# Directory cap: keep the newest files up to HA_CACHE_CAP_KB, delete the rest
-# (oldest first), never a file named in $HA_USED (this request's inputs).
+# Eviction pass, two rules:
+#  1. Response files (resp_*, cells and ping) older than HA_RESP_MAX_AGE are
+#     deleted. They are served for under a minute, so an old one is dead weight.
+#  2. The reduced BLOCKS are capped at HA_CACHE_CAP_KB: newest kept, oldest deleted,
+#     never a file named in $HA_USED (this request's inputs). resp_* files are NOT
+#     counted: a handful of 100 KB responses (one per range and panel set) used to
+#     eat the cap and evict every block on a range switch, so the next request had
+#     to rebuild them.
 ha_evict() {
     local victims
     local f
+    local m
+    local now
     [ "$HA_NOCACHE" = "0" ] || return 0
+    now=$(date +%s)
+    for f in "$HA_CACHE_DIR"/resp_*; do
+        [ -f "$f" ] || continue
+        m=$(ha_mtime "$f")
+        if [ -z "$m" ] || [ $((now - m)) -gt "$HA_RESP_MAX_AGE" ]; then
+            rm -f "$f" 2>/dev/null
+        fi
+    done
     victims=$(ls -lnt "$HA_CACHE_DIR" 2>/dev/null | awk -v cap="$((HA_CACHE_CAP_KB * 1024))" -v used=" $HA_USED " '
-        $1 ~ /^-/ { sum += $5; if (sum > cap && index(used, " " $NF " ") == 0) print $NF }')
+        $1 ~ /^-/ {
+            if ($NF ~ /^resp_/) next
+            sum += $5
+            if (sum > cap && index(used, " " $NF " ") == 0) print $NF
+        }')
     for f in $victims; do
         rm -f "$HA_CACHE_DIR/$f" 2>/dev/null
     done
@@ -965,6 +1034,10 @@ END {
 '
 
 # Snapshot helper: the Z line (or nothing) -> {"carrier":null,...,"as_of":N}.
+# A NOSVC newest row (the modem answered, nothing is serving) is not a network
+# type: network_type is null and registered is false. The archive token itself,
+# and the events that change to/from it, keep the literal "NOSVC" (the page
+# translates it); only the live snapshot says "no network" in null/false.
 HA_AWK_SNAPSHOT='
 function jn(v) { return (v == "") ? "null" : v }
 function js(v) { return (v == "") ? "null" : "\"" v "\"" }
@@ -972,7 +1045,9 @@ BEGIN { FS = "\t"; z = 0 }
 $1 == "Z" { z = 1; for (i = 1; i <= 16; i++) F[i] = $i }
 END {
     if (!z) { for (i = 1; i <= 16; i++) F[i] = "" }
-    printf "{\"carrier\":null,\"registered\":null,\"cell\":{\"lte_pci\":%s,\"lte_earfcn\":%s,\"lte_band\":%s,\"lte_bw\":%s,\"lte_cellid\":%s,\"lte_tac\":%s,\"nr_pci\":%s,\"nr_arfcn\":%s,\"nr_band\":%s,\"nr_bw\":%s,\"nr_cellid\":%s,\"nr_tac\":%s,\"network_type\":%s,\"registered\":null,\"nr_avail\":%s},\"as_of\":%s}", jn(F[3]), jn(F[4]), js(F[5]), jn(F[6]), jn(F[7]), jn(F[8]), jn(F[9]), jn(F[10]), js(F[11]), jn(F[12]), jn(F[13]), jn(F[14]), js(F[15]), jn(F[16]), jn(F[2])
+    reg = "null"
+    if (F[15] == "NOSVC") { F[15] = ""; reg = "false" }
+    printf "{\"carrier\":null,\"registered\":" reg ",\"cell\":{\"lte_pci\":%s,\"lte_earfcn\":%s,\"lte_band\":%s,\"lte_bw\":%s,\"lte_cellid\":%s,\"lte_tac\":%s,\"nr_pci\":%s,\"nr_arfcn\":%s,\"nr_band\":%s,\"nr_bw\":%s,\"nr_cellid\":%s,\"nr_tac\":%s,\"network_type\":%s,\"registered\":" reg ",\"nr_avail\":%s},\"as_of\":%s}", jn(F[3]), jn(F[4]), js(F[5]), jn(F[6]), jn(F[7]), jn(F[8]), jn(F[9]), jn(F[10]), js(F[11]), jn(F[12]), jn(F[13]), jn(F[14]), js(F[15]), jn(F[16]), jn(F[2])
 }
 '
 
@@ -1005,6 +1080,15 @@ ha_nice() {
 
 # Build one cache block: reduce into a temp file, move it into place. Returns 0
 # with the block present, 1 when another builder holds it or the build failed.
+#
+# The source was resolved by ha_collect's first pass and is read here, up to the
+# build budget later, while hs_maintain may gzip the day in between (gzip -c f >
+# f.gz.tmp && mv && rm f). A plain file that vanished before the reducer opened it
+# reads as an EMPTY stream, and an empty reduction is a perfectly valid block - it
+# would then be cached for good as "that closed day had no rows". So after reducing
+# the source is resolved AGAIN: if it is not the file that was read, the block is
+# discarded and rebuilt once from the new source; if it still moved, or the day is
+# gone, nothing is cached (the next request retries).
 ha_cached_block() {
     local kind
     local src
@@ -1016,6 +1100,11 @@ ha_cached_block() {
     local lk
     local tmp
     local lm
+    local dir
+    local day
+    local cur
+    local pass
+    local good
     kind=$1; src=$2; cf=$3; s=$4; e=$5; bucket=$6; avail=$7
     [ -f "$cf" ] && return 0
     lk="$cf.lock"
@@ -1031,7 +1120,29 @@ ha_cached_block() {
     HA_LOCKS="$HA_LOCKS $lk"
     tmp="$cf.tmp.$$"
     HA_TMPS="$HA_TMPS $tmp"
-    if ha_reduce "$kind" "$src" "$s" "$e" "$bucket" "$avail" - 0 > "$tmp" && mv "$tmp" "$cf" 2>/dev/null; then
+    dir="${src%/*}"
+    day="${src##*/}"
+    day="${day%%.jsonl*}"
+    good=0
+    pass=0
+    while [ "$pass" -lt 2 ]; do
+        pass=$((pass + 1))
+        if ha_reduce "$kind" "$src" "$s" "$e" "$bucket" "$avail" - 0 > "$tmp"; then
+            cur=$(ha_day_src "$dir" "$day")
+            if [ "$cur" = "$src" ] && [ -f "$src" ]; then
+                good=1
+                break
+            fi
+            # the source moved under the read: what was reduced is not trustworthy
+            rm -f "$tmp" 2>/dev/null
+            [ -n "$cur" ] || break
+            src="$cur"
+        else
+            break
+        fi
+    done
+    if [ "$good" = "1" ] && mv "$tmp" "$cf" 2>/dev/null; then
+        [ -n "${QM_HIST_BUILD_LOG:-}" ] && printf 'built %s\n' "${cf##*/}" >> "$QM_HIST_BUILD_LOG" 2>/dev/null
         rmdir "$lk" 2>/dev/null
         return 0
     fi

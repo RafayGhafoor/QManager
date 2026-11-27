@@ -107,7 +107,7 @@ equiv() { # <case> <range>
 }
 
 echo "== cells contract, every case x range"
-for c in v1_only v2_full mixed torn gz_wins empty stale low_space; do
+for c in v1_only v2_full mixed torn gz_wins empty stale low_space nosvc_tail; do
     for r in 1h 6h 24h 7d 30d; do check_cells "$c" "$r"; done
 done
 check_cells clock_unset 24h
@@ -145,6 +145,7 @@ assert "v2: 8 antenna ports with medians; ports 2/3 weaker" '(.antennas|length)=
 assert "v2: congestion has saturated and idle buckets" '(.congestion|map(.saturated)|unique)==[false,true]' "$f"
 assert "v2: ca is 2 or 3 (carrier count); total_cells matches" '(.series.ca|all(.[]; .v>=2 and .v<=3)) and (.series.bw|all(.[]; .v>=30 and .v<=60))' "$f"
 assert "v2: NOSVC row: network_type event, no signal, still a sample" '(.cells.events|map(.changes[]|select(.field=="network_type" and .to=="NOSVC"))|length)>0' "$f"
+assert "v2: NOSVC event keeps the literal token (the page translates it)" '(.cells.events|map(.changes[]|select(.field=="network_type" and (.to=="NOSVC" or .from=="NOSVC")))|length)>0' "$f"
 assert "v2: 5G dropouts are outages with samples" '(.cells.outages|length)>=1 and (.cells.outages|all(.[]; .samples>0))' "$f"
 assert "v2: restarts: torn line and the row 27 h old ignored, oldest first" '(.restarts|map(.cause))==["power_loss","unknown"] and (.restarts|map(.boot_ts)|. == sort)' "$f"
 assert "v2: recorder state from file, free_kb from file" '.recorder.state=="ok" and .recorder.free_kb==9000' "$f"
@@ -155,6 +156,14 @@ run_cgi v2_full fetch_signal_history.sh "view=cells&range=1h&panels=rsrp,bogus,r
 assert "panels= narrows the key set, ignores unknown ids, dedupes" '(.series|keys)==["ca","rsrp"]' "$TMP/v2_pan.json"
 exp=$(. "$FX/v2_full/env"; count_rows $((QM_NOW - 86400)) "$QM_NOW" "$FX/v2_full/cell/2026-11-26.jsonl.gz" "$FX/v2_full/cell/2026-11-27.jsonl")
 assert "v2: window.samples == rows in the window ($exp)" ".window.samples == $exp" "$f"
+
+echo "== NOSVC as the newest row: snapshot says no network, events keep the token"
+f="$TMP/nosvc_tail.24h.json"
+assert "nosvc: snapshot.cell.network_type is null, not the NOSVC token" '.snapshot.cell.network_type==null' "$f"
+assert "nosvc: snapshot.registered and cell.registered are false" '.snapshot.registered==false and .snapshot.cell.registered==false' "$f"
+assert "nosvc: snapshot has no serving cell, as_of is the NOSVC row" '.snapshot.cell.lte_pci==null and .snapshot.cell.nr_pci==null and .snapshot.as_of!=null' "$f"
+assert "nosvc: the newest event is the change INTO NOSVC, token untouched" '(.cells.events[0].changes|map(select(.field=="network_type" and .from=="5G-NSA" and .to=="NOSVC"))|length)==1' "$f"
+assert "nosvc: a registered newest row keeps registered null (unknown) and a real network_type" '(.snapshot.registered==null) and (.snapshot.cell.network_type!=null)' "$TMP/v2_full.24h.json"
 
 echo "== mixed v1/v2 inside one file"
 f="$TMP/mixed.24h.json"
@@ -207,6 +216,133 @@ kb=$(du -sk "$TMP/cache.warm" 2>/dev/null | awk '{print $1}')
 if [ "${kb:-9999}" -le 2100 ]; then ok "cache dir <= 2 MB (${kb} KB)"; else bad "cache dir ${kb} KB"; fi
 left=$(ls -d "$TMP"/cache.warm/w.* "$TMP"/cache.warm/*.lock "$TMP"/cache.warm/*.tmp.* 2>/dev/null | wc -l | tr -d ' ')
 if [ "$left" = "0" ]; then ok "no work dir, lock or temp file left behind"; else bad "left $left stray entries"; fi
+
+echo "== block cache survives a range switch (resp_* files are not blocks)"
+# 24h, 7d, 30d, then 24h again, all with the response cache OFF so every request
+# is assembled from blocks; the cap is below blocks + responses (~1.35 MB here) but
+# above the blocks alone (~0.7 MB). Before the fix the three response files
+# counted against the cap and evicted the 24h blocks, so the last request rebuilt.
+(
+    . "$FX/v2_full/env"
+    export QM_NOW
+    export _SKIP_AUTH=1 REQUEST_METHOD=GET QM_LIB_DIR="$LIB" TZ=CST6 QM_L1_STATS=0
+    export QM_CELL_HISTORY_DIR="$FX/v2_full/cell" QM_PING_HISTORY_DIR="$FX/v2_full/ping" QM_BOOT_LOG="$FX/v2_full/boot_log.jsonl"
+    export QM_CELL_STATE_FILE="$FX/v2_full/state" QM_PING_RING_FILE="$FX/v2_full/ring.json" QM_HIST_CACHE_DIR="$TMP/cache.switch"
+    export QM_HIST_NO_RESP_CACHE=1 QM_HIST_CACHE_CAP_KB=1024 QM_HIST_BUILD_LOG="$TMP/switch.log"
+    : > "$TMP/switch.log"
+    for r in 24h 7d 30d; do
+        QUERY_STRING="view=cells&range=$r" sh "$CGI/fetch_signal_history.sh" | sed '1,/^$/d' > "$TMP/switch.$r.json"
+        [ "$r" = "24h" ] && ls "$QM_HIST_CACHE_DIR" | grep -c '[.]r300[.]' > "$TMP/switch.b1"
+    done
+    ls "$QM_HIST_CACHE_DIR" | grep -c '[.]r300[.]' > "$TMP/switch.b3"
+    wc -l < "$TMP/switch.log" | tr -d ' ' > "$TMP/switch.n3"
+    QUERY_STRING="view=cells&range=24h" sh "$CGI/fetch_signal_history.sh" | sed '1,/^$/d' > "$TMP/switch.24h.again.json"
+    wc -l < "$TMP/switch.log" | tr -d ' ' > "$TMP/switch.n4"
+)
+if [ "$(cat "$TMP/switch.n3")" -gt 0 ] && [ "$(cat "$TMP/switch.n3")" = "$(cat "$TMP/switch.n4")" ]; then ok "24h again after 7d and 30d: 0 blocks rebuilt ($(cat "$TMP/switch.n3") built in total)"; else bad "range switch rebuilt blocks: $(cat "$TMP/switch.n3") -> $(cat "$TMP/switch.n4")"; fi
+if cmp -s "$TMP/switch.24h.json" "$TMP/switch.24h.again.json"; then ok "24h answer identical after the switches"; else bad "24h answer changed after the switches"; fi
+if [ "$(cat "$TMP/switch.b1")" -gt 0 ] && [ "$(cat "$TMP/switch.b1")" = "$(cat "$TMP/switch.b3")" ]; then ok "24h blocks all still cached after 7d and 30d ($(cat "$TMP/switch.b3"))"; else bad "24h blocks evicted by the range switches: $(cat "$TMP/switch.b1") -> $(cat "$TMP/switch.b3")"; fi
+nresp=$(ls "$TMP"/cache.switch/resp_* 2>/dev/null | wc -l | tr -d ' ')
+if [ "$nresp" -ge 3 ]; then ok "fresh response files are kept ($nresp)"; else bad "response files evicted too early ($nresp)"; fi
+# stale responses (> 120 s) go on every pass; blocks beyond the cap still go
+(
+    . "$LIB/history_agg.sh"
+    HA_CACHE_DIR="$TMP/cache.evict"; HA_NOCACHE=0; HA_USED=""
+    mkdir -p "$HA_CACHE_DIR"
+    dd if=/dev/zero of="$HA_CACHE_DIR/resp_24h_old.json" bs=1024 count=300 2>/dev/null
+    dd if=/dev/zero of="$HA_CACHE_DIR/resp_ping_7d.json" bs=1024 count=300 2>/dev/null
+    touch -t 202001010000 "$HA_CACHE_DIR/resp_24h_old.json"
+    touch -t 202001010000 "$HA_CACHE_DIR/resp_ping_7d.json"
+    dd if=/dev/zero of="$HA_CACHE_DIR/resp_24h_new.json" bs=1024 count=300 2>/dev/null
+    for n in 1 2 3; do dd if=/dev/zero of="$HA_CACHE_DIR/2026-11-0$n.r300.d.v2.tsv" bs=1024 count=1100 2>/dev/null; touch -t 20261101000$n "$HA_CACHE_DIR/2026-11-0$n.r300.d.v2.tsv"; done
+    HA_CACHE_CAP_KB=3072
+    ha_evict
+    [ ! -e "$HA_CACHE_DIR/resp_24h_old.json" ] && echo old_resp_gone=1
+    [ ! -e "$HA_CACHE_DIR/resp_ping_7d.json" ] && echo old_ping_resp_gone=1
+    [ -e "$HA_CACHE_DIR/resp_24h_new.json" ] && echo new_resp_kept=1
+    [ ! -e "$HA_CACHE_DIR/2026-11-01.r300.d.v2.tsv" ] && [ -e "$HA_CACHE_DIR/2026-11-03.r300.d.v2.tsv" ] && echo oldest_block_evicted=1
+) > "$TMP/evict.out"
+for k in old_resp_gone old_ping_resp_gone new_resp_kept oldest_block_evicted; do
+    if grep -q "^$k=1" "$TMP/evict.out"; then ok "evict: $k"; else bad "evict: $k"; fi
+done
+
+echo "== closed day gzipped between source resolve and read is never cached empty"
+(
+    . "$LIB/history_agg.sh"
+    D="$TMP/swap"; rm -rf "$D"; mkdir -p "$D/cell" "$D/cache"
+    gzip -dc "$FX/v2_full/cell/2026-11-26.jsonl.gz" > "$D/cell/2026-11-26.jsonl"
+    S=1795651200; E=$((S + 86399))
+    # reference: what the block must contain, reduced from the gz by the same awk
+    ha_stream "$FX/v2_full/cell/2026-11-26.jsonl.gz" | awk -v start="$S" -v end="$E" -v bucket=7200 -v avail=3600 -v gap_sec=180 -v snap=0 "$HA_AWK_CELL" > "$D/ref.tsv"
+    [ -s "$D/ref.tsv" ] && echo ref_nonempty=1
+    # hs_maintain compresses the day the moment the reducer is about to open it:
+    # the first read finds no plain file (empty stream) - exactly the race.
+    swapped=0
+    ha_stream() {
+        if [ "$swapped" = "0" ] && [ "$1" = "$D/cell/2026-11-26.jsonl" ]; then
+            swapped=1
+            gzip -c "$1" > "$1.gz" && rm -f "$1"
+        fi
+        case "$1" in
+            *.gz) gzip -dc "$1" 2>/dev/null ;;
+            *) cat "$1" 2>/dev/null ;;
+        esac
+    }
+    ha_cached_block cell "$D/cell/2026-11-26.jsonl" "$D/cache/blk.tsv" "$S" "$E" 7200 3600
+    echo "rc=$?"
+    [ -s "$D/cache/blk.tsv" ] && echo block_nonempty=1
+    cmp -s "$D/cache/blk.tsv" "$D/ref.tsv" && echo block_equals_reference=1
+    ls "$D/cache" | grep -c 'tmp\|lock' | sed 's/^/stray=/'
+    # the day vanishes outright (expired): nothing may be cached
+    rm -f "$D/cache/blk.tsv"; swapped=0
+    ha_stream() { cat "$1" 2>/dev/null; }
+    gzip -dc "$FX/v2_full/cell/2026-11-26.jsonl.gz" > "$D/cell/2026-11-25.jsonl"
+    ha_stream() {
+        if [ "$swapped" = "0" ]; then swapped=1; rm -f "$D/cell/2026-11-25.jsonl"; fi
+        cat "$1" 2>/dev/null
+    }
+    ha_cached_block cell "$D/cell/2026-11-25.jsonl" "$D/cache/gone.tsv" "$S" "$E" 7200 3600
+    echo "gone_rc=$?"
+    [ -e "$D/cache/gone.tsv" ] && echo gone_cached=1
+) > "$TMP/swap.out" 2>&1
+for k in ref_nonempty block_nonempty block_equals_reference; do
+    if grep -q "^$k=1" "$TMP/swap.out"; then ok "swap: $k"; else bad "swap: $k ($(tr '\n' ' ' < "$TMP/swap.out"))"; fi
+done
+if grep -q '^rc=0$' "$TMP/swap.out" && grep -q '^stray=0$' "$TMP/swap.out"; then ok "swap: rebuilt from the .gz, no temp or lock left"; else bad "swap: rc/stray ($(tr '\n' ' ' < "$TMP/swap.out"))"; fi
+if grep -q '^gone_rc=1$' "$TMP/swap.out" && ! grep -q '^gone_cached=1' "$TMP/swap.out"; then ok "swap: a day that vanished is not cached"; else bad "swap: vanished day cached ($(tr '\n' ' ' < "$TMP/swap.out"))"; fi
+
+echo "== orphaned work dirs are swept"
+(
+    . "$LIB/history_agg.sh"
+    HA_CACHE_DIR="$TMP/cache.orph"; rm -rf "$HA_CACHE_DIR"; mkdir -p "$HA_CACHE_DIR"
+    dead=$(sh -c 'echo $$')
+    mkdir "$HA_CACHE_DIR/w.$dead" "$HA_CACHE_DIR/wb.$dead" "$HA_CACHE_DIR/w.abc"
+    mkdir "$HA_CACHE_DIR/w.$PPID"                       # a live pid, fresh
+    mkdir "$HA_CACHE_DIR/w.77777" "$HA_CACHE_DIR/wb.77778"
+    touch -t 202001010000 "$HA_CACHE_DIR/w.$PPID.old" 2>/dev/null; rm -f "$HA_CACHE_DIR/w.$PPID.old"
+    ha_setup_dirs
+    [ ! -d "$HA_CACHE_DIR/w.$dead" ] && echo dead_w_removed=1
+    [ ! -d "$HA_CACHE_DIR/wb.$dead" ] && echo dead_wb_removed=1
+    [ -d "$HA_CACHE_DIR/w.abc" ] && echo non_numeric_untouched=1
+    [ -d "$HA_WORK" ] && echo own_dir_made=1
+    if [ -d "/proc/$PPID" ]; then [ -d "$HA_CACHE_DIR/w.$PPID" ] && echo live_w_kept=1; else echo live_w_kept=1; fi
+    # an old dir goes even when its pid answers (pid reuse)
+    rm -rf "$HA_CACHE_DIR/w.$PPID"; mkdir "$HA_CACHE_DIR/w.$PPID"; touch -t 202001010000 "$HA_CACHE_DIR/w.$PPID"
+    ha_cleanup; ha_setup_dirs
+    [ ! -d "$HA_CACHE_DIR/w.$PPID" ] && echo old_w_removed=1
+    # a builder dir is kept while bg.lock is held (its name carries the SPAWNER's pid, long gone)
+    ha_cleanup
+    mkdir "$HA_CACHE_DIR/bg.lock" "$HA_CACHE_DIR/wb.$dead"
+    ha_setup_dirs
+    [ -d "$HA_CACHE_DIR/wb.$dead" ] && echo live_builder_kept=1
+    touch -t 202001010000 "$HA_CACHE_DIR/wb.$dead"
+    ha_cleanup; ha_setup_dirs
+    [ ! -d "$HA_CACHE_DIR/wb.$dead" ] && echo old_builder_removed=1
+    ha_cleanup
+) > "$TMP/orph.out" 2>&1
+for k in dead_w_removed dead_wb_removed non_numeric_untouched own_dir_made live_w_kept old_w_removed live_builder_kept old_builder_removed; do
+    if grep -q "^$k=1" "$TMP/orph.out"; then ok "orphans: $k"; else bad "orphans: $k ($(tr '\n' ' ' < "$TMP/orph.out"))"; fi
+done
 
 echo "== ping contract"
 for r in 1h 6h 24h 7d; do

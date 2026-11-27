@@ -1820,6 +1820,13 @@ seed_runtime_files() {
         warn "Could not create /usrdata/qmanager/ping_history (Connection Quality history will retry at runtime)"
     fi
 
+    # History read-side cache (/tmp, tmpfs): reduced day/hour blocks and response
+    # files built by the PREVIOUS reducer. A --no-reboot upgrade keeps /tmp, and a
+    # block carries no hash of the reducer that wrote it, so it would be served
+    # (and merged with new blocks) after the reducer changed. Rebuilt lazily on the
+    # next request. Lockstep with uninstall.sh, which removes the same directory.
+    rm -rf /tmp/qmanager_hist_cache 2>/dev/null || true
+
     # --- Default config files (deploy ONLY if missing, never overwrite) ---
     # Exception: supported_bands_hw.env is a manually-maintained spec-sheet file
     # that MUST refresh on every upgrade, so it is force-copied below (outside the

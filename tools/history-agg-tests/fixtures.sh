@@ -104,6 +104,14 @@ archive_kb=2100
 checked=$NOW
 STATE
 
+# ---- nosvc_tail: the newest row is a NOSVC row (modem answered, nothing serving) ---
+mk nosvc_tail
+sh "$gen" v2 $D1 1440 91 1 > "$out/nosvc_tail/cell/$NAME_1.jsonl"; gz "$out/nosvc_tail/cell/$NAME_1.jsonl"
+{
+    sh "$gen" v2 $TODAY $TODAY_N 92 1
+    printf '[2,%d,"NOSVC",null,"a",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,45,30,40,null,null,null,null,null,null,null,null]\n' $((NOW - 20))
+} > "$out/nosvc_tail/cell/$NAME_T.jsonl"
+
 # ---- clock_unset: no NITZ/NTP yet ----------------------------------------------
 mk clock_unset 1000
 sh "$gen" v2 $D1 100 81 1 > "$out/clock_unset/cell/$NAME_1.jsonl"
