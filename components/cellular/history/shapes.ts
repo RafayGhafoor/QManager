@@ -166,25 +166,6 @@ export const BAND_TONE = {
 } as const;
 
 /**
- * The band/CA strip: ONE lane, because a run's combo is a single fact.
- *
- * Deliberately the gantt's own track (`TIMELINE.TRACK`'s height, radius and
- * recessed ground) with no lane label: the gantt has two legs to name, this
- * strip has one line of combos and the card's heading above it already says
- * what it is. A second, shorter track style here would read as a different
- * kind of object on a page where every other bar is a gantt lane.
- */
-export const BANDS = {
-  TRACK: "relative h-8 w-full overflow-hidden rounded-field bg-surface-container",
-  SEGMENT:
-    "absolute inset-y-0 flex items-center overflow-hidden rounded-[2px] px-1.5",
-  SEGMENT_LABEL: "truncate text-[0.6875rem] font-semibold tabular-nums",
-  /** A combo key in the table: its strip tone, then the combo string. */
-  COMBO: "flex items-center gap-2 text-sm font-semibold tabular-nums",
-  SWATCH: "h-3 w-3 shrink-0 rounded-[2px]",
-} as const;
-
-/**
  * The page legend: a strip, NOT a card.
  *
  * It sits under the controls and above the panels, so it may not carry a
@@ -203,22 +184,37 @@ export const LEGEND = {
   ITEM: "flex items-center gap-1.5",
   /** A series key drawn as the stroke itself: a 2px rule, `TrendChart`'s width. */
   LINE: "h-0.5 w-4 shrink-0 rounded-full",
-  /** A combo key: one square of the combo's strip tone, in the table's size. */
-  BAND_SWATCH: "h-3 w-3 shrink-0 rounded-[2px]",
   NOTES: "flex flex-col gap-0.5",
   NOTE: "text-[0.6875rem] leading-relaxed text-on-surface-variant text-pretty",
 } as const;
 
-/** The two chart series tones, straight from the design system's stroke pair. */
+/**
+ * Chart stroke tokens, by the ROLE of the quantity - never by taste.
+ *
+ * `neutral` is for a reading with no honest hue (the primary carrier can be
+ * either radio); `lte`/`nr` are radio IDENTITY; `down`/`up` are DIRECTION;
+ * `spatial` is antennas and MIMO layers; `loss` is the one verdict colour a
+ * chart here uses (packet loss is a fault, not an identity).
+ */
 export const SERIES_TONE = {
+  neutral: "var(--on-surface)",
   nr: "var(--chart-nr)",
   lte: "var(--chart-lte)",
   down: "var(--downlink)",
   up: "var(--uplink)",
+  spatial: "var(--spatial-on-surface)",
+  spatialFill: "var(--spatial)",
+  loss: "var(--destructive)",
 } as const;
+
+/** Dash patterns, in `strokeDasharray` units. `[0]` is solid. */
+export const DASHES = [undefined, "6 3", "2 3", "8 3 2 3", "1 4"] as const;
 
 /** One chart box, ONE height in every state — loaded, loading, empty and error. */
 export const CHART_BOX = "h-[190px] w-full";
+
+/** The two cards whose single chart carries many lines get a taller box. */
+export const CHART_BOX_TALL = "h-[260px] w-full";
 
 /** A chart's own title above its box. */
 export const CHART = {
@@ -275,3 +271,40 @@ export const IDENTITY = {
   ABSENT: "text-sm font-semibold text-on-surface-variant",
   AS_OF: "text-xs text-on-surface-variant",
 } as const;
+
+/**
+ * An interactive series key: a row of buttons, each a dash-accurate stroke
+ * swatch and a label. Wrapping, never scrolling.
+ */
+export const SERIES_KEY = {
+  LIST: "flex flex-wrap items-center gap-x-1 gap-y-1",
+  ITEM: "inline-flex items-center gap-2 rounded-pill px-2.5 py-1 text-xs font-medium tabular-nums text-on-surface-variant transition-[background-color,color,opacity] duration-[var(--duration-quick)] ease-[var(--ease-quick)] hover:bg-surface-container hover:text-on-surface focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring",
+  ITEM_ACTIVE: "bg-surface-container text-on-surface",
+  ITEM_DIM: "opacity-45",
+  SWATCH: "h-2 w-5 shrink-0",
+  VALUE: "text-on-surface-variant",
+} as const;
+
+/** The carrier lane strip: one lane per component carrier. */
+export const CARRIER = {
+  LANES: "flex flex-col gap-2",
+  LANE: "grid grid-cols-1 items-center gap-x-3 gap-y-1 @2xl/card:grid-cols-[13rem_minmax(0,1fr)]",
+  LABEL: "flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-on-surface-variant tabular-nums",
+  TRACK: "relative h-6 w-full overflow-hidden rounded-field bg-surface-container",
+  RUN: "absolute inset-y-0 rounded-[2px]",
+  SWITCH_ROW: "flex flex-wrap items-center justify-between gap-3",
+} as const;
+
+/** The antenna card's per-tech block. */
+export const ANTENNA = {
+  BLOCKS: "grid grid-cols-1 gap-x-6 gap-y-6 @4xl/card:grid-cols-2",
+  BLOCK: "flex min-w-0 flex-col gap-2",
+  BLOCK_TITLE: "flex items-center gap-2 text-xs font-medium text-on-surface-variant",
+  VERDICT_ROW: "flex flex-wrap items-center gap-x-3 gap-y-2",
+} as const;
+
+/** Small prose under a chart: what a dashed/faint mark means. */
+export const CHART_NOTE = "text-[0.6875rem] leading-relaxed text-on-surface-variant text-pretty";
+
+/** A banner stack: what the recorder is doing, above everything else. */
+export const BANNERS = "flex flex-col gap-2";

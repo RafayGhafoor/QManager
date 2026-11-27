@@ -20,12 +20,15 @@
 export const PANEL_IDS = [
   "pattern",
   "timeline",
+  "carriers",
   "rf",
   "agg",
-  "bands",
+  "phy",
+  "congestion",
+  "antennas",
+  "quality",
   "events",
   "outages",
-  "phy",
   "identity",
   "system",
 ] as const;
@@ -35,22 +38,25 @@ export type PanelId = (typeof PANEL_IDS)[number];
 export type PanelVisibility = Record<PanelId, boolean>;
 
 /**
- * The first impression. The six that answer the field complaint ("5G
- * disappears at night") are on — including the band/CA strip, which is the one
- * panel that names the band that went missing, and the aggregation charts that
- * say when the carrier set moved; the deeper depth — per-outage
- * table, PHY figures, the identity grid and device load — is opt-in, because a
- * page that opens with nine panels opens with none of them read.
+ * The first impression. The panels that answer the field complaint ("5G
+ * disappears at night, on which band") and the ones that explain WHY a link is
+ * slow - every carrier, the PHY the radio negotiated, this device's share of the
+ * carrier, the antenna balance - are on. What stays opt-in is what is
+ * context rather than cause: the per-outage table, the identity grid, device
+ * load, and connection quality (which the dashboard already carries).
  */
 export const PANEL_DEFAULT: PanelVisibility = {
   pattern: true,
   timeline: true,
+  carriers: true,
   rf: true,
   agg: true,
-  bands: true,
+  phy: true,
+  congestion: true,
+  antennas: true,
+  quality: false,
   events: true,
   outages: false,
-  phy: false,
   identity: false,
   system: false,
 };
@@ -58,12 +64,18 @@ export const PANEL_DEFAULT: PanelVisibility = {
 /**
  * Versioned and app-scoped, like the other `qmanager.*` browser preferences.
  *
- * NOT bumped when a panel is added, and that is deliberate: `mergePanels` walks
- * the CURRENT id list, so a panel an older payload never mentioned arrives at
- * its own default. Only a change to the SHAPE of a stored value (or to what an
- * id means) would need a new key.
+ * BUMPED TO v2 with history-v3, deliberately: a v1 object stored `phy: false`
+ * because PHY was opt-in then, and merging it onto the new defaults would keep
+ * the very panel this release rebuilt hidden for everyone who had visited. The
+ * v1 key is simply no longer read (there is nothing worth migrating - a
+ * visibility map is a handful of booleans, and the removed `bands` id has no
+ * successor with the same meaning). Unknown ids inside a v2 object - a panel
+ * removed in a later build - are ignored by `mergePanels`, which walks the
+ * CURRENT id list.
+ *
+ * Not bumped when a panel is ADDED: the merge hands it its own default.
  */
-const STORAGE_KEY = "qmanager.cell_history.panels.v1";
+const STORAGE_KEY = "qmanager.cell_history.panels.v2";
 
 /**
  * Stored choices merged onto the defaults. `unknown` input, because a stored

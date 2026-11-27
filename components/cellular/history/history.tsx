@@ -16,20 +16,30 @@ import {
 } from "@/types/cell-history";
 import { cn } from "@/lib/utils";
 
+import { AntennasCard } from "./antennas-card";
 import { AvailabilityCard } from "./availability-card";
-import { BandsCard } from "./bands-card";
-import { BandSignalCard } from "./band-signal-card";
+import { CarriersCard } from "./carriers-card";
 import { ChartCard } from "./chart-card";
+import { visibleRestarts, type ChartFrame } from "./chart-data";
 import {
+  AGG_CHARTS,
+  PHY_CHARTS,
+  QUALITY_CHARTS,
+  RF_CHARTS,
+  SYSTEM_CHARTS,
+} from "./chart-specs";
+import { CongestionCard } from "./congestion-card";
+import {
+  archiveShort,
   formatMoment,
   identityLagsWindow,
-  isWindowShort,
   windowSeconds,
 } from "./derive";
 import { EventsCard } from "./events-card";
 import { IdentityCard } from "./identity-card";
 import { Legend } from "./legend";
 import { OutagesCard } from "./outages-card";
+import { PanelSkeleton } from "./panel-skeleton";
 import { PanelsPopover } from "./panels-popover";
 import {
   loadPanels,
@@ -39,42 +49,46 @@ import {
 } from "./panels";
 import { PatternCard } from "./pattern-card";
 import { CONTROLS, FULL, GRID, PAGE_SHELL, STACK } from "./shapes";
+import { StatusBanners } from "./status-banners";
 import { TimelineCard } from "./timeline-card";
 
 // =============================================================================
 // Cell History — what the radio actually did over the selected range
 // =============================================================================
-// One ranged read, one page of panels, and one sentence at the top about what
+// One ranged read, one page of panels, and a few sentences at the top about what
 // the archive could and could not see.
 //
 // NO LIVE BAND AND NO `now` RANGE. The dashboard is the live surface; this page
-// reads the archive, whose newest row is up to a poll cycle old. A `now` tab
-// shipped once on /monitoring/latency and was deleted because a live view above
-// range cards disagrees with them the moment the range's last bucket ages
+// reads the archive, whose newest row is up to a minute old. A `now` tab shipped
+// once on /monitoring/latency and was deleted because a live view above range
+// cards disagrees with them the moment the range's last bucket ages
 // (`docs/reference/latency-monitor.md:74`). So the pill offers named ranges
 // only, and every card below reads the same window.
 //
-// THE WINDOW IS THE PAYLOAD'S, NOT THE PILL'S. Two lines under the controls
-// state how many samples came back and what span they cover, and they say so
-// when that span is materially shorter than the range asked for or when cell
-// identity only starts part-way through it. Without them the page would happily
-// print "5G never dropped" about hours it could not see — the one claim a
-// history surface must never make by omission.
+// THE WINDOW ENDS AT THE WALL CLOCK (history-v3). A recorder that stopped leaves
+// an empty tail on every chart and a banner saying why, instead of the old
+// behaviour of ending the window at the newest row, which made hours-old data
+// look like "the last 24 h". Coverage is therefore read from `recorder` and the
+// first/last archived timestamps, never from the window's width.
 //
-// PANELS ARE A VIEWER PREFERENCE. Which of the nine panels are on lives in
-// `localStorage` (`./panels`); the availability hero is not one of them,
-// because a page about 5G availability that can hide its own answer is a
-// settings screen. The stored object is merged ONTO the defaults, so a panel
-// added in a later build appears at its own default instead of vanishing.
+// ONE SHARED HOVER. Every chart on the page carries one sync id and one x
+// domain (the payload window), so hovering any instant puts the crosshair and an
+// exact-values tooltip at that instant in every chart that has it. Restarts are
+// marked on every chart in the same place.
 //
-// THE BANDS CARD IS ITS OWN PANEL, NOT A RIDER ON `rf`. It sits immediately
-// after the RF charts so "Radio signal" reads as measurements-then-bands, but
-// it is hideable on its own terms: a reader checking the signal curves should
-// not have to give up the band strip's fourth of the page, and a panel that
-// disappears when a DIFFERENT panel is switched off is a picker that lies.
+// PANELS ARE A VIEWER PREFERENCE. Which panels are on lives in `localStorage`
+// (`./panels`); the availability hero is not one of them, because a page about
+// 5G availability that can hide its own answer is a settings screen. The stored
+// object is merged ONTO the defaults, so a panel added in a later build appears
+// at its own default instead of vanishing.
+//
+// THREE STATES. Loading is a card-shaped skeleton per enabled panel (the loaded
+// shell imported, not restated); empty is the recorder's own statement of why
+// there is nothing to draw; error keeps the figures already on screen and says
+// they are not updating, or - with nothing on screen - offers a retry.
 // =============================================================================
 
-/** Range → its pill label key. The pill offers every range the CGI serves. */
+/** Range -> its pill label key. The pill offers every range the CGI serves. */
 const RANGE_LABEL_KEY = {
   "1h": "history.range.h1",
   "3h": "history.range.h3",
@@ -93,22 +107,20 @@ const RANGE_LABEL_KEY = {
  */
 const DEFAULT_RANGE: CellHistoryRange = "24h";
 
-/** The RF group: the serving-cell measurements the archive records per minute. */
-const RF_METRICS = ["rsrp", "sinr", "rsrq", "rssi"] as const;
-
-/** The PHY depth group. */
-const PHY_METRICS = ["cqi", "rank", "mcs", "tx_power"] as const;
-
-/** The device-load group: temperature, CPU, memory and the two throughput rates. */
-const SYSTEM_METRICS = ["temp", "cpu", "mem", "dl", "ul"] as const;
-
-function PageSkeleton() {
+function PageSkeleton({ panels }: { panels: PanelVisibility }) {
+  // The hero, then one card-shaped placeholder per series panel that is on. The
+  // cards that are not charts (events, outages, identity) have no chart box to
+  // reserve, so they are not previewed: a placeholder of the wrong height would
+  // move the page when it resolved.
+  const chartPanels = (
+    ["carriers", "rf", "agg", "phy", "congestion", "antennas", "quality", "system"] as const
+  ).filter((id) => panels[id]);
   return (
-    <div className={GRID} aria-hidden>
+    <div className="flex flex-col gap-5" aria-hidden>
       <Skeleton className={cn(FULL, "h-48 rounded-hero")} />
-      <Skeleton className="h-56 rounded-card" />
-      <Skeleton className="h-56 rounded-card" />
-      <Skeleton className={cn(FULL, "h-64 rounded-card")} />
+      {chartPanels.map((id) => (
+        <PanelSkeleton key={id} />
+      ))}
     </div>
   );
 }
@@ -139,6 +151,27 @@ export function CellHistory() {
   // pill instead would price a 30d payload against the 1h just selected.
   const shownRange = dataRange ?? range;
   const rangeLabel = t(RANGE_LABEL_KEY[shownRange]);
+
+  const frame: ChartFrame | null =
+    data && window
+      ? {
+          windowStart: window.start,
+          windowEnd: window.end,
+          bucketSec: data.bucket_sec,
+          longSpan,
+          restarts: visibleRestarts(data.restarts, window.start, window.end),
+        }
+      : null;
+
+  const restartCauses = [
+    ...new Set((frame?.restarts ?? []).map((restart) => restart.cause)),
+  ];
+
+  // Nothing to draw: the recorder says it has no rows, or the window holds none.
+  const nothingRecorded =
+    data !== null &&
+    window !== null &&
+    (data.recorder.state === "empty" || window.samples === 0);
 
   return (
     <div className={PAGE_SHELL}>
@@ -175,26 +208,35 @@ export function CellHistory() {
         <PanelsPopover visibility={panels} onToggle={togglePanel} />
       </div>
 
+      {data && window !== null ? (
+        <StatusBanners
+          recorder={data.recorder}
+          deviceUtcOffsetMin={data.device_utc_offset_min}
+        />
+      ) : null}
+
       {/* Directly under the controls and above every panel, and outside the
           payload branches: what the marks mean does not depend on whether a
-          read has landed yet. Only the band group waits for `combos`. */}
-      <Legend combos={data?.cells.combos ?? []} />
+          read has landed yet. */}
+      <Legend restartCauses={restartCauses} />
 
       {window !== null && data !== null ? (
         <div className={CONTROLS.NOTES_BLOCK}>
           <div className={CONTROLS.NOTES}>
             <span>{t("history.window.samples", { count: window.samples })}</span>
-            <span>
-              {t("history.window.span", {
-                first: formatMoment(window.start),
-                last: formatMoment(window.end),
-              })}
-            </span>
+            {window.first_ts !== null && window.last_ts !== null ? (
+              <span>
+                {t("history.window.span", {
+                  first: formatMoment(window.first_ts),
+                  last: formatMoment(window.last_ts),
+                })}
+              </span>
+            ) : null}
           </div>
           {/* An empty window is stated once, below, rather than also being
-              called "shorter than requested" — the two say the same thing and
+              called "shorter than requested" - the two say the same thing and
               the shorter one is the less useful sentence. */}
-          {window.samples > 0 && isWindowShort(window, shownRange) ? (
+          {window.samples > 0 && archiveShort(window, data.recorder, shownRange) ? (
             <p className={CONTROLS.NOTE}>
               {t("history.window.short", { range: rangeLabel })}
             </p>
@@ -218,7 +260,7 @@ export function CellHistory() {
         </TonalBanner>
       ) : null}
 
-      {!data && isLoading ? <PageSkeleton /> : null}
+      {!data && isLoading ? <PageSkeleton panels={panels} /> : null}
 
       {!data && !isLoading ? (
         <TonalBanner tone="destructive" icon="error" title={t("history.error.read")}>
@@ -229,8 +271,8 @@ export function CellHistory() {
         </TonalBanner>
       ) : null}
 
-      {data && window !== null ? (
-        window.samples === 0 ? (
+      {data && window !== null && frame !== null ? (
+        nothingRecorded ? (
           <TonalBanner tone="info" icon="info">
             {t("history.window.empty")}
           </TonalBanner>
@@ -259,34 +301,55 @@ export function CellHistory() {
               />
             ) : null}
 
+            {panels.carriers ? (
+              <CarriersCard data={data} frame={frame} window={window} />
+            ) : null}
+
             {panels.rf ? (
               <ChartCard
-                title={t("history.charts.rf_title")}
-                metrics={RF_METRICS}
-                series={data.series}
-                missing={data.missing}
-                longSpan={longSpan}
-                full
+                titleKey="history.charts.rf_title"
+                descriptionKey="history.charts.rf_desc"
+                charts={RF_CHARTS}
+                data={data}
+                frame={frame}
               />
             ) : null}
 
             {panels.agg ? (
-              <BandSignalCard
-                bandSeries={data.cells.band_series ?? {}}
-                longSpan={longSpan}
+              <ChartCard
+                titleKey="history.charts.agg_title"
+                descriptionKey="history.charts.agg_desc"
+                charts={AGG_CHARTS}
+                data={data}
+                frame={frame}
               />
             ) : null}
 
-            {panels.bands ? (
-              <BandsCard
-                // `?? []` is not defensive noise: this page and the CGI are
-                // deployed together, but a browser holding one payload from
-                // before the band columns existed would otherwise throw on a
-                // missing array rather than simply say it has no band data.
-                runs={data.cells.bands ?? []}
-                combos={data.cells.combos ?? []}
-                window={window}
-                longSpan={longSpan}
+            {panels.phy ? (
+              <ChartCard
+                titleKey="history.charts.phy_title"
+                descriptionKey="history.charts.phy_desc"
+                charts={PHY_CHARTS}
+                data={data}
+                frame={frame}
+              />
+            ) : null}
+
+            {panels.congestion ? (
+              <CongestionCard data={data} frame={frame} />
+            ) : null}
+
+            {panels.antennas ? (
+              <AntennasCard data={data} frame={frame} />
+            ) : null}
+
+            {panels.quality ? (
+              <ChartCard
+                titleKey="history.charts.quality_title"
+                descriptionKey="history.charts.quality_desc"
+                charts={QUALITY_CHARTS}
+                data={data}
+                frame={frame}
               />
             ) : null}
 
@@ -310,18 +373,7 @@ export function CellHistory() {
               </div>
             ) : null}
 
-            {panels.phy ? (
-              <ChartCard
-                title={t("history.charts.phy_title")}
-                metrics={PHY_METRICS}
-                series={data.series}
-                missing={data.missing}
-                longSpan={longSpan}
-                full
-              />
-            ) : null}
-
-            {/* Identity and the device-load group do NOT pair: a seven-chart
+            {/* Identity and the device-load group do NOT pair: a five-chart
                 card beside a thirteen-row grid leaves one of them holding a
                 row's worth of slack, and DESIGN.md's answer to that is a
                 full-width band, not a symmetric row. */}
@@ -335,12 +387,11 @@ export function CellHistory() {
 
             {panels.system ? (
               <ChartCard
-                title={t("history.charts.system_title")}
-                metrics={SYSTEM_METRICS}
-                series={data.series}
-                missing={data.missing}
-                longSpan={longSpan}
-                full
+                titleKey="history.charts.system_title"
+                descriptionKey="history.charts.system_desc"
+                charts={SYSTEM_CHARTS}
+                data={data}
+                frame={frame}
               />
             ) : null}
           </div>

@@ -6,8 +6,10 @@ import { authFetch } from "@/lib/auth-fetch";
 import {
   isCellHistoryFailure,
   type CellHistoryRange,
+  type CellHistoryRecorder,
   type CellHistoryResponse,
   type CellHistorySuccess,
+  type RestartEntry,
 } from "@/types/cell-history";
 
 // =============================================================================
@@ -29,8 +31,9 @@ import {
 //     number and drops itself if a newer one started — it must not even clear
 //     the newer request's loading flag.
 //  3. NOTHING IS WRITTEN AFTER UNMOUNT, and a hidden tab reads nothing. The
-//     archive gains one row a minute, so 30 s is already eager; there is no
-//     reason for a backgrounded tab to spend the device's only core on a page
+//     archive gains one row a minute and the CGI caches its answer for just
+//     under that, so a 60 s cadence reads every new row exactly once; there is
+//     no reason for a backgrounded tab to spend the device's only core on a page
 //     nobody is looking at. Becoming visible reads once at once — the answer
 //     aged while the tab was hidden — and then resumes the cadence.
 //
@@ -42,14 +45,27 @@ import {
 
 const ENDPOINT = "/cgi-bin/quecmanager/at_cmd/fetch_signal_history.sh";
 
-/** The archive gains one row a minute; 30 s is already eager. */
-const RANGE_POLL_MS = 30_000;
+/**
+ * The archive gains one row a minute and the response is cached on the device
+ * for ~55 s (history-v3), so polling faster only re-reads the same answer.
+ */
+const RANGE_POLL_MS = 60_000;
 
 export interface UseCellHistoryReturn {
   data: CellHistorySuccess | null;
   /** The range `data` was read for; it lags `range` until the new read lands. */
   dataRange: CellHistoryRange | null;
   isLoading: boolean;
+  /**
+   * Recorder health from the same payload, hoisted so a card that only needs
+   * "is the recorder running / is layer-1 sampling on" does not reach into
+   * `data`. `null` until the first read lands.
+   */
+  recorder: CellHistoryRecorder | null;
+  /** Device restarts inside the window, oldest first. */
+  restarts: RestartEntry[];
+  /** The device's UTC offset in minutes, or `null` before the first read. */
+  deviceUtcOffsetMin: number | null;
   /** The thrown/failed read's own message — diagnostic, never rendered raw. */
   error: string | null;
   refresh: () => void;
@@ -136,5 +152,14 @@ export function useCellHistory(range: CellHistoryRange): UseCellHistoryReturn {
     void fetchRange(rangeRef.current);
   }, [fetchRange]);
 
-  return { data, dataRange, isLoading, error, refresh };
+  return {
+    data,
+    dataRange,
+    isLoading,
+    recorder: data?.recorder ?? null,
+    restarts: data?.restarts ?? [],
+    deviceUtcOffsetMin: data?.device_utc_offset_min ?? null,
+    error,
+    refresh,
+  };
 }

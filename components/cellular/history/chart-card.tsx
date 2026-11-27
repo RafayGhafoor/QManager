@@ -1,158 +1,141 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useTranslation } from "react-i18next";
 
-import { Skeleton } from "@/components/ui/skeleton";
-import type {
-  CellHistoryPanel,
-  CellHistorySuccess,
-} from "@/types/cell-history";
+import type { CellHistorySuccess } from "@/types/cell-history";
 import { cn } from "@/lib/utils";
 
 import {
-  METRIC_AXIS,
-  plotPoints,
-  yDomain,
-  type ChartMetric,
-} from "./derive";
-import { CARD, CHART, CHART_BOX, FULL, HEAD, LEGEND } from "./shapes";
+  buildRows,
+  hasReading,
+  valuesOf,
+  type ChartFrame,
+} from "./chart-data";
+import type { ChartSpec } from "./chart-specs";
+import { METRIC_AXIS, yDomain } from "./derive";
+import type { PlotSeries } from "./history-chart";
+import { LazyHistoryChart } from "./lazy-chart";
+import { SeriesKey } from "./series-key";
+import { CARD, CHART, CHART_BOX, FULL, HEAD } from "./shapes";
 
 // =============================================================================
-// ChartCard — a titled group of metric charts, used three times
+// ChartCard — a titled group of small-multiple charts
 // =============================================================================
-// One card per GROUP, not one per metric: the RF group, the PHY group and the
-// device group are each this component with a different metric list, so the
-// three cannot drift into three chart idioms (axis width, gap handling, empty
-// state, tooltip voice).
+// One card per GROUP: the radio-signal group, the aggregation group, the PHY
+// group, the device group and the connection-quality group are each this
+// component with a different spec list (`chart-specs.ts`), so they cannot drift
+// into five chart idioms (axis width, gap handling, empty state, tooltip voice).
 //
-// RECHARTS IS LOADED THROUGH `next/dynamic`, NOT IMPORTED. This file, and
-// therefore this card's shell, heading, per-chart titles and "no readings"
-// states, all render from the payload alone; the chart stack arrives in a
-// separate chunk after hydration (spec R10). `ssr: false` because the build is
-// a static export — there is no server to render it and a mismatch would be the
-// only thing it produced.
+// Every chart inside draws through `HistoryChart`, which is what puts them all
+// on one x axis, one shared crosshair and one set of restart marks.
+//
+// A MISSING PANEL AND AN EMPTY ONE ARE THE SAME HOLE. `missing[]` means the
+// archive had no coverage for the panel in this range and an empty series means
+// it had coverage but no reading. Neither can be filled by waiting, and an
+// empty plot would read as "flat", which is a value. The hole says why when the
+// reason is something the reader can change: layer-1 sampling being off.
 //
 // ONE FIXED HEIGHT PER CHART BOX. Loaded, loading and empty all draw a
-// `CHART_BOX`-tall region, so a 30 s retarget or a panel arriving never moves
-// the card under the reader's cursor.
-//
-// A MISSING PANEL AND AN EMPTY ONE ARE THE SAME HOLE, deliberately: `missing[]`
-// means the archive had no coverage for that panel in this range and an empty
-// series means it had coverage but no reading. Neither can be filled by
-// waiting, and drawing an empty plot for either would read as "flat", which is
-// a value.
-//
-// THE SERIES KEY IS A SWATCH OF THE STROKE ITSELF. Every drawn series is named
-// under the heading with a 2px rule in `METRIC_AXIS`'s own tone — the same
-// value handed to the chart as its stroke, so the key cannot drift from the
-// line. It is derived from the metrics this card was given, never authored
-// alongside them, and it is absent when fewer than two series are drawn: a
-// one-line key would only repeat the chart's own titles.
-//
-// ONE ENTRY PER STROKE, NOT PER METRIC, because three of this page's four chart
-// tones are SHARED (`--chart-nr` draws RSRP, SINR, RSRQ, RSSI, and every PHY
-// and device-load figure). Four identical violet rules would read as a drawing
-// bug rather than a key, so metrics that share a tone share an entry and are
-// named in one line. The colour is never the only thing naming a series — each
-// chart still prints its own title above it.
+// `CHART_BOX`-tall region, so a poll or a panel arriving never moves the card
+// under the reader's cursor.
 // =============================================================================
 
-const TrendChart = dynamic(
-  () => import("./trend-chart").then((module) => module.TrendChart),
-  { ssr: false, loading: () => <Skeleton className={CHART_BOX} /> },
-);
-
 export interface ChartCardProps {
-  /** Already-translated group title (`history.charts.*_title`). */
-  title: string;
-  metrics: readonly ChartMetric[];
-  series: CellHistorySuccess["series"];
-  missing: CellHistoryPanel[];
-  /** True past a day, where axis ticks read the date instead of the clock. */
-  longSpan: boolean;
-  /** True for a card that owns a whole row. */
-  full?: boolean;
+  titleKey: string;
+  descriptionKey: string;
+  charts: readonly ChartSpec[];
+  data: CellHistorySuccess;
+  frame: ChartFrame;
 }
 
 export function ChartCard({
-  title,
-  metrics,
-  series,
-  missing,
-  longSpan,
-  full = false,
+  titleKey,
+  descriptionKey,
+  charts,
+  data,
+  frame,
 }: ChartCardProps) {
   const { t } = useTranslation("cellular");
-
-  // One entry per plotted series, resolved once so the key and the chart grid
-  // read the same tone and the same "is there a reading" verdict.
-  const plots = metrics.map((metric) => {
-    const axis = METRIC_AXIS[metric];
-    const points = plotPoints(metric, series[metric] ?? []);
-    const hasReading = points.some((point) => point.v !== null);
-    return {
-      metric,
-      axis,
-      points,
-      label: t(`history.charts.metric.${metric}`),
-      drawn: !missing.includes(metric) && hasReading,
-    };
-  });
-  const drawn = plots.filter((plot) => plot.drawn);
-
-  // Grouped by tone, in first-appearance order: one swatch per stroke.
-  const keys: { tone: string; label: string }[] = [];
-  for (const plot of drawn) {
-    const existing = keys.find((entry) => entry.tone === plot.axis.tone);
-    if (existing) existing.label = `${existing.label} · ${plot.label}`;
-    else keys.push({ tone: plot.axis.tone, label: plot.label });
-  }
+  const l1Enabled = data.recorder.l1_enabled;
 
   return (
-    <section className={cn(CARD, full && FULL)}>
+    <section className={cn(CARD, FULL)}>
       <header className={HEAD.ROOT}>
-        <h2 className={HEAD.TITLE}>{title}</h2>
-        <p className={HEAD.DESC}>{t("history.charts.gap_note")}</p>
+        <h2 className={HEAD.TITLE}>{t(titleKey)}</h2>
+        <p className={HEAD.DESC}>{t(descriptionKey)}</p>
       </header>
 
-      {drawn.length > 1 ? (
-        <ul className={LEGEND.ITEMS} aria-label={t("history.legend.series")}>
-          {keys.map((entry) => (
-            <li key={entry.tone} className={LEGEND.ITEM}>
-              <span
-                className={LEGEND.LINE}
-                style={{ backgroundColor: entry.tone }}
-                aria-hidden="true"
-              />
-              {entry.label}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
       <div className={CHART.GRID}>
-        {plots.map((plot) => {
-          const { axis, metric, points, label } = plot;
+        {charts.map((spec) => {
+          const title = t(spec.titleKey);
+
+          const rows = buildRows(
+            spec.series.map((item) => ({
+              key: item.metric,
+              points: data.series[item.metric] ?? [],
+              scale: METRIC_AXIS[item.metric].scale,
+            })),
+            frame.bucketSec,
+          );
+
+          const drawn = spec.series.filter((item) => hasReading(rows, item.metric));
+          const plots: PlotSeries[] = drawn.map((item) => {
+            const axis = METRIC_AXIS[item.metric];
+            return {
+              key: item.metric,
+              label: item.labelKey ? t(item.labelKey) : title,
+              color: axis.tone,
+              kind: item.kind ?? (axis.step ? "step" : "line"),
+              dash: item.dash,
+              unit: axis.unit,
+              decimals: axis.decimals,
+            };
+          });
+
+          const first = METRIC_AXIS[spec.series[0].metric];
+          const unit = first.unit;
+          const domain = yDomain(
+            first.domain,
+            valuesOf(
+              rows,
+              drawn.map((item) => item.metric),
+            ),
+          );
 
           return (
-            <div key={metric} className={CHART.ROOT}>
+            <div key={spec.id} className={CHART.ROOT}>
               <h3 className={CHART.TITLE}>
-                {label}
-                {axis.unit ? <span className={CHART.UNIT}>{axis.unit}</span> : null}
+                {title}
+                {unit ? <span className={CHART.UNIT}>{unit}</span> : null}
               </h3>
-              {!plot.drawn ? (
+
+              {plots.length > 1 ? (
+                <SeriesKey
+                  ariaLabel={t("history.legend.series")}
+                  items={plots.map((plot, index) => ({
+                    key: plot.key,
+                    label: plot.label,
+                    color: plot.color,
+                    dash: drawn[index].dash,
+                  }))}
+                />
+              ) : null}
+
+              {plots.length === 0 ? (
                 <p className={cn(CHART_BOX, CHART.EMPTY)}>
-                  {t("history.charts.no_data")}
+                  {spec.l1 && !l1Enabled
+                    ? t("history.charts.reporting_off")
+                    : t("history.charts.no_data")}
                 </p>
               ) : (
-                <TrendChart
-                  points={points}
-                  label={label}
-                  unit={axis.unit}
-                  color={axis.tone}
-                  domain={yDomain(metric, points)}
-                  longSpan={longSpan}
+                <LazyHistoryChart
+                  {...frame}
+                  rows={rows}
+                  series={plots}
+                  leftDomain={domain}
+                  leftUnit={unit}
+                  integerTicks={first.decimals === 0}
+                  ariaLabel={unit ? `${title} (${unit})` : title}
                 />
               )}
             </div>

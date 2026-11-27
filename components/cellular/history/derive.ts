@@ -27,10 +27,9 @@ import type {
   AvailabilityBucket,
   CellChangeField,
   CellHistoryCoverage,
-  CellHistoryPoint,
   CellHistoryRange,
+  CellHistoryRecorder,
   CellHistoryWindow,
-  BandRun,
   CellRun,
   CellStat,
   NrOutage,
@@ -59,20 +58,52 @@ export function windowSeconds(window: CellHistoryWindow): number {
 }
 
 /**
- * True when the archive could not fill the requested range.
+ * True when the ARCHIVE could not fill the requested range.
  *
- * `0.9` rather than `1.0`: the window ends at the newest archived row, which is
- * up to a poll cycle behind the wall clock, so a freshly-filled 24h range
- * legitimately comes back ~2 % short. Anything past a tenth is the archive
- * genuinely not reaching that far back, and the page has to say so — otherwise
- * "5G never dropped" is a claim about hours nobody recorded.
+ * The window now ends at the wall clock (history-v3), so its width is always
+ * the full range and says nothing about coverage. What does is how far back the
+ * archive reaches: `recorder.oldest_ts`. `0.9` rather than `1.0` absorbs the
+ * bucket rounding at the window's left edge; anything past a tenth is the
+ * archive genuinely not reaching that far back, and the page has to say so -
+ * otherwise "5G never dropped" is a claim about hours nobody recorded.
+ *
+ * `null` when the recorder has no oldest row: there is nothing to compare, and
+ * the empty/stale banners already say why.
  */
-export function isWindowShort(
+export function archiveShort(
   window: CellHistoryWindow,
+  recorder: CellHistoryRecorder,
   range: CellHistoryRange,
 ): boolean {
+  if (recorder.oldest_ts === null) return false;
   const requested = RANGE_SECONDS[range];
-  return windowSeconds(window) < requested * 0.9;
+  return recorder.oldest_ts - window.start > requested * 0.1;
+}
+
+/**
+ * "5 days ago" as one locale-aware phrase, from a number of seconds.
+ *
+ * `Intl.RelativeTimeFormat` rather than a translated template per unit: the
+ * unit word is the part that differs between languages, and the browser
+ * already has them. Falls back to a bare span ("5d") if the runtime lacks it.
+ */
+export function formatAgo(seconds: number, locale: string): string {
+  const s = Math.max(0, Math.round(seconds));
+  const steps: [Intl.RelativeTimeFormatUnit, number][] = [
+    ["day", 86_400],
+    ["hour", 3_600],
+    ["minute", 60],
+  ];
+  const [unit, size] = steps.find(([, n]) => s >= n) ?? ["minute", 60];
+  const value = -Math.max(1, Math.floor(s / size));
+  try {
+    return new Intl.RelativeTimeFormat(locale, { numeric: "always" }).format(
+      value,
+      unit,
+    );
+  } catch {
+    return formatSpan(s);
+  }
 }
 
 /**
@@ -504,87 +535,91 @@ export function changeValue(
  * A metric's plotting contract.
  *
  * `domain` is set only where the metric HAS a reporting range the reader can
- * learn once (RSRP is −140…−44 dBm by 3GPP, a percentage is 0…100), and is
- * `null` everywhere else — a TX power or a throughput that re-derives its axis
+ * learn once (RSRP is -140...-44 dBm by 3GPP, a percentage is 0...100), and is
+ * `null` everywhere else - a TX power or a throughput that re-derives its axis
  * every poll encodes nothing about magnitude. The plotted ranges are the
  * product's own grading brackets, deliberately narrower than the 3GPP limits:
  * a reading outside is drawn at the edge rather than rescaling the whole chart
  * around one outlier.
  *
- * `scale` converts a wire value to its plotted unit (bps → Mbit/s); the unit
+ * `scale` converts a wire value to its plotted unit (bps -> Mbit/s); the unit
  * label beside the title is the plotted one, so the axis can never lie about
  * what it is showing.
+ *
+ * `step` marks a quantity that is an integer state (carrier count, rank, MCS
+ * index): it holds its value until the next sample, so it is drawn as a step,
+ * never as a slope between two readings that were never taken.
  */
 export interface MetricAxis {
   unit: string | null;
   domain: readonly [number, number] | null;
   tone: string;
   scale: number;
+  step: boolean;
+  /** Most decimals worth printing; the tooltip shows the value exactly to here. */
+  decimals: number;
 }
 
 export const METRIC_AXIS = {
-  rsrp: { unit: "dBm", domain: [-125, -55], tone: SERIES_TONE.nr, scale: 1 },
-  sinr: { unit: "dB", domain: [-20, 30], tone: SERIES_TONE.nr, scale: 1 },
-  rsrq: { unit: "dB", domain: [-20, -3], tone: SERIES_TONE.nr, scale: 1 },
-  rssi: { unit: "dBm", domain: [-100, -40], tone: SERIES_TONE.nr, scale: 1 },
-  cqi: { unit: null, domain: [0, 15], tone: SERIES_TONE.nr, scale: 1 },
-  rank: { unit: null, domain: [0, 8], tone: SERIES_TONE.nr, scale: 1 },
-  mcs: { unit: null, domain: [0, 28], tone: SERIES_TONE.nr, scale: 1 },
-  tx_power: { unit: "dBm", domain: null, tone: SERIES_TONE.nr, scale: 1 },
-  temp: { unit: "°C", domain: null, tone: SERIES_TONE.nr, scale: 1 },
-  cpu: { unit: "%", domain: [0, 100], tone: SERIES_TONE.nr, scale: 1 },
-  mem: { unit: "%", domain: [0, 100], tone: SERIES_TONE.nr, scale: 1 },
-  dl: { unit: "Mbit/s", domain: null, tone: SERIES_TONE.down, scale: 1e-6 },
-  ul: { unit: "Mbit/s", domain: null, tone: SERIES_TONE.up, scale: 1e-6 },
-} as const;
+  // PCC radio readings. The primary carrier can be LTE or NR in a sample, so
+  // there is no honest identity hue: neutral ink.
+  rsrp: { unit: "dBm", domain: [-125, -55], tone: SERIES_TONE.neutral, scale: 1, step: false, decimals: 1 },
+  sinr: { unit: "dB", domain: [-20, 30], tone: SERIES_TONE.neutral, scale: 1, step: false, decimals: 1 },
+  rsrq: { unit: "dB", domain: [-20, -3], tone: SERIES_TONE.neutral, scale: 1, step: false, decimals: 1 },
+  rssi: { unit: "dBm", domain: [-100, -40], tone: SERIES_TONE.neutral, scale: 1, step: false, decimals: 1 },
+  // Aggregation.
+  ca: { unit: null, domain: [0, 4], tone: SERIES_TONE.neutral, scale: 1, step: true, decimals: 0 },
+  bw: { unit: "MHz", domain: [0, 100], tone: SERIES_TONE.neutral, scale: 1, step: true, decimals: 0 },
+  // PHY. MCS is a downlink/uplink quantity (direction hue); rank is MIMO
+  // layers (spatial); CQI is per radio (identity); TX power is uplink.
+  lte_mcs: { unit: null, domain: [0, 28], tone: SERIES_TONE.down, scale: 1, step: true, decimals: 1 },
+  nr_mcs: { unit: null, domain: [0, 28], tone: SERIES_TONE.down, scale: 1, step: true, decimals: 1 },
+  ul_mcs: { unit: null, domain: [0, 28], tone: SERIES_TONE.up, scale: 1, step: true, decimals: 1 },
+  lte_ri: { unit: null, domain: [0, 4], tone: SERIES_TONE.spatial, scale: 1, step: true, decimals: 0 },
+  nr_ri: { unit: null, domain: [0, 4], tone: SERIES_TONE.spatial, scale: 1, step: true, decimals: 0 },
+  lte_cqi: { unit: null, domain: [0, 15], tone: SERIES_TONE.lte, scale: 1, step: false, decimals: 1 },
+  nr_cqi: { unit: null, domain: [0, 15], tone: SERIES_TONE.nr, scale: 1, step: false, decimals: 1 },
+  tx_power: { unit: "dBm", domain: null, tone: SERIES_TONE.up, scale: 1, step: false, decimals: 1 },
+  // Device load.
+  temp: { unit: "\u00b0C", domain: null, tone: SERIES_TONE.neutral, scale: 1, step: false, decimals: 0 },
+  cpu: { unit: "%", domain: [0, 100], tone: SERIES_TONE.neutral, scale: 1, step: false, decimals: 0 },
+  mem: { unit: "%", domain: [0, 100], tone: SERIES_TONE.neutral, scale: 1, step: false, decimals: 0 },
+  dl: { unit: "Mbit/s", domain: null, tone: SERIES_TONE.down, scale: 1e-6, step: false, decimals: 2 },
+  ul: { unit: "Mbit/s", domain: null, tone: SERIES_TONE.up, scale: 1e-6, step: false, decimals: 2 },
+  // Connection quality (ping archive).
+  lat: { unit: "ms", domain: null, tone: SERIES_TONE.neutral, scale: 1, step: false, decimals: 1 },
+  jit: { unit: "ms", domain: null, tone: SERIES_TONE.neutral, scale: 1, step: false, decimals: 1 },
+  loss: { unit: "%", domain: [0, 10], tone: SERIES_TONE.loss, scale: 1, step: false, decimals: 1 },
+} as const satisfies Record<string, MetricAxis>;
 
 export type ChartMetric = keyof typeof METRIC_AXIS;
-
-
-/**
- * A series converted to its plotted unit, `null` preserved.
- *
- * A bucket with no reading stays `null` — the conversion must never turn an
- * absence into a zero, which is the one thing a scale factor is dangerous for.
- * Two decimals rather than full precision: a throughput in Mbit/s with six
- * decimals produces ticks nobody can read.
- */
-export function plotPoints(
-  metric: ChartMetric,
-  points: CellHistoryPoint[],
-): { ts: number; v: number | null }[] {
-  const { scale } = METRIC_AXIS[metric];
-  return points.map((point) => ({
-    ts: point.ts,
-    v: point.v === null ? null : Math.round(point.v * scale * 100) / 100,
-  }));
-}
 
 /**
  * The Y domain for one chart.
  *
  * A metric with a reporting bracket keeps that bracket, so the same reading
  * sits at the same height across ranges and its shape can be compared with
- * another range's. It is widened — never clipped — when a reading genuinely
+ * another range's. It is widened - never clipped - when a reading genuinely
  * falls outside it: an axis that hides the sample it is drawing is worse than
  * an axis that moves. Metrics with no bracket (`domain: null`) auto-scale, and
  * say nothing about magnitude, which is why nothing in the UI reads an axis as
  * a graded position.
  */
 export function yDomain(
-  metric: ChartMetric,
-  points: { v: number | null }[],
+  bracket: readonly [number, number] | null,
+  values: readonly (number | null)[],
 ): [number, number] | null {
-  const bracket = METRIC_AXIS[metric].domain;
   if (bracket === null) return null;
-
   let min = Infinity;
   let max = -Infinity;
-  for (const point of points) {
-    if (point.v === null) continue;
-    if (point.v < min) min = point.v;
-    if (point.v > max) max = point.v;
+  for (const v of values) {
+    if (v === null) continue;
+    if (v < min) min = v;
+    if (v > max) max = v;
   }
   if (!Number.isFinite(min)) return [bracket[0], bracket[1]];
-  return [Math.min(bracket[0], min), Math.max(bracket[1], max)];
+  return [
+    Math.floor(Math.min(bracket[0], min)),
+    Math.ceil(Math.max(bracket[1], max)),
+  ];
 }
