@@ -27,6 +27,7 @@
     "tower_locking": "Penguncian Tower",
     "frequency_locking": "Penguncian Frekuensi",
     "cell_scanner": "Pemindai Sel",
+    "history": "Riwayat Sel",
     "neighboring_cells": "Sel Tetangga",
     "frequency_calculator": "Kalkulator Frekuensi",
     "settings": "Pengaturan",

@@ -27,6 +27,7 @@
     "tower_locking": "基站鎖定",
     "frequency_locking": "頻率鎖定",
     "cell_scanner": "小區掃描",
+    "history": "基地台歷史",
     "neighboring_cells": "鄰近小區",
     "frequency_calculator": "頻率計算器",
     "settings": "設定",

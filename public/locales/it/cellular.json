@@ -2519,6 +2519,22 @@
     "refresh": "Aggiorna",
     "refreshing": "Lettura…",
     "stale": "Non aggiornato",
+    "banner": {
+      "stale": "La registrazione si è interrotta {{ago}}; vengono mostrati gli ultimi dati registrati.",
+      "low_space": "La registrazione è in pausa: spazio di archiviazione insufficiente. Le nuove letture riprenderanno quando si libera spazio.",
+      "clock_unset": "La registrazione è in attesa che venga impostato l'orologio del router, quindi le nuove letture non hanno ancora un'indicazione oraria.",
+      "timezone": "L'orologio del router è impostato su un fuso orario diverso da quello di questo browser. Gli orari in questa pagina sono mostrati nel fuso orario del browser.",
+      "timezone_link": "Controlla le Impostazioni di sistema"
+    },
+    "restart": {
+      "label": "Riavvio del router",
+      "cause": {
+        "restart": "Riavvio",
+        "power_loss": "Perdita di alimentazione",
+        "planned": "Riavvio programmato",
+        "unknown": "Riavvio, causa sconosciuta"
+      }
+    },
     "panels": {
       "button": "Pannelli",
       "count": "{{shown}}/{{total}}",
@@ -2532,25 +2548,41 @@
           "label": "Cella di servizio",
           "hint": "Quale cella e banda erano in servizio, nel tempo"
         },
+        "carriers": {
+          "label": "Portanti",
+          "hint": "Ogni banda aggregata, quando era presente e il suo segnale"
+        },
         "rf": {
           "label": "Segnale radio",
-          "hint": "RSRP, SINR, RSRQ, RSSI — 4G vs 5G"
+          "hint": "RSRP, SINR, RSRQ e RSSI della portante primaria"
         },
         "agg": {
-          "label": "Segnale per banda",
-          "hint": "Una linea RSRP per portante, colorata per qualità"
-        },
-        "bands": {
-          "label": "Bande e aggregazione",
-          "hint": "Quali bande e combinazioni di aggregazione erano in servizio"
+          "label": "Aggregazione di portanti",
+          "hint": "Quante portanti e quanta larghezza di banda"
         },
         "phy": {
-          "label": "Profondità del livello fisico",
-          "hint": "CQI, rank, MCS, potenza TX"
+          "label": "Dettagli radio",
+          "hint": "MCS, layer MIMO, CQI e potenza di trasmissione"
+        },
+        "congestion": {
+          "label": "La tua quota della portante",
+          "hint": "Resource block assegnati, con velocità di download"
+        },
+        "antennas": {
+          "label": "Antenne",
+          "hint": "Segnale per antenna e giudizio sul bilanciamento"
+        },
+        "quality": {
+          "label": "Qualità della connessione",
+          "hint": "Latenza, jitter e perdita di pacchetti"
         },
         "events": {
           "label": "Eventi di cella",
           "hint": "Ogni cambio di PCI, banda e 5G"
+        },
+        "outages": {
+          "label": "Interruzioni 5G",
+          "hint": "Ogni tratto in cui il 5G è caduto"
         },
         "identity": {
           "label": "Cella attuale",
@@ -2559,10 +2591,6 @@
         "system": {
           "label": "Carico del dispositivo",
           "hint": "Temperatura, CPU, memoria, velocità"
-        },
-        "outages": {
-          "label": "Interruzioni 5G",
-          "hint": "Ogni tratto in cui il 5G è caduto"
         }
       }
     },
@@ -2579,7 +2607,6 @@
       "headline_unknown": "La disponibilità 5G per questo intervallo non è ancora nota",
       "coverage": "{{known}} campioni su {{samples}} potevano dirlo",
       "downtime": "Non disponibile per {{duration}}",
-      "uptime": "Disponibile per {{duration}}",
       "outage_count": "Interruzioni distinte: {{count}}",
       "no_outage": "In questo intervallo il 5G non è mai caduto",
       "legend": {
@@ -2597,7 +2624,6 @@
       "title": "Schema notturno",
       "description": "Disponibilità 5G per ora del giorno, una riga per giorno. Le caselle scure sono le ore in cui il 5G non era disponibile.",
       "needs_day": "Serve un intervallo di almeno un giorno — scegli 24h o più per vedere lo schema.",
-      "hour_axis": "Ora del giorno",
       "day_axis": "Giorno",
       "pct_axis": "5G disponibile",
       "cell": "{{day}} {{hour}} — 5G disponibile in {{pct}} dei {{known}} campioni",
@@ -2614,6 +2640,46 @@
       "lte_row": "LTE",
       "nr_row": "5G"
     },
+    "carriers": {
+      "title": "Portanti",
+      "description": "Ogni portante aggregata dal modem, quando era presente e il suo segnale nel tempo.",
+      "empty": "Nessuna lettura delle portanti in questo intervallo.",
+      "width": "{{mhz}} MHz",
+      "width_unknown": "Larghezza sconosciuta",
+      "pcc_share": "Primaria {{pct}}%",
+      "scc": "Secondaria",
+      "lane_aria": "Presenza di {{band}} nell'intervallo selezionato, {{runs}} tratti",
+      "run_tip": "{{band}} · {{from}} – {{to}}",
+      "metric_aria": "Misura del segnale",
+      "key_aria": "Portanti. Selezionane una per mostrare solo la sua linea.",
+      "key_note": "Seleziona una portante per mostrare solo la sua linea; selezionala di nuovo per mostrarle tutte. I valori sono la mediana nell'intervallo.",
+      "no_metric": "Nessuna portante ha riportato {{metric}} in questo intervallo."
+    },
+    "congestion": {
+      "title": "La tua quota della portante",
+      "description": "I resource block assegnati a questo dispositivo sulla portante mentre il collegamento era occupato, con la velocità di download corrispondente.",
+      "hint_label": "Informazioni sulla tua quota della portante",
+      "hint": "La quota dei resource block della portante 5G assegnata al tuo dispositivo mentre il collegamento è occupato. Non è il carico totale della torre; quando non stai scaricando il valore non ha significato.",
+      "share": "Quota (collegamento occupato)",
+      "share_idle": "Quota (collegamento inattivo)",
+      "max_share": "Quota massima",
+      "dl": "Velocità di download",
+      "busy_count": "Il collegamento era abbastanza occupato da essere misurato in {{busy}} letture su {{total}}.",
+      "empty": "Nessuna lettura dei resource block in questo intervallo.",
+      "note_label": "Collegamento",
+      "not_saturated": "Non occupato, la quota non è significativa"
+    },
+    "antennas": {
+      "title": "Antenne",
+      "description": "Segnale su ogni antenna di ricezione, per radio. Le antenne sulla stessa cella dovrebbero seguirsi a vicenda.",
+      "empty": "Nessuna lettura per antenna in questo intervallo.",
+      "key_aria": "Antenne {{tech}}",
+      "below": "{{db}} dB sotto la migliore",
+      "verdict_ok": "Antenne bilanciate",
+      "verdict_warning": "Più deboli delle altre: {{ports}}. Vale la pena controllare i cavi d'antenna.",
+      "verdict_destructive": "Molto più deboli delle altre: {{ports}}. Controlla i cavi d'antenna.",
+      "verdict_unknown": "Letture insufficienti per confrontare le antenne"
+    },
     "outages": {
       "title": "Interruzioni 5G",
       "description": "Tratti contigui in cui il modem non riportava alcun ramo 5G, con la cella che era in servizio in quel momento.",
@@ -2627,7 +2693,6 @@
     "events": {
       "title": "Eventi di cella",
       "description": "Ogni cambio di cella di servizio, banda o disponibilità 5G, misurato rispetto all'ultimo valore noto — così una caduta del 5G rientrata su un'altra cella viene registrata due volte.",
-      "rollup_title": "Tempo su ciascuna cella",
       "rollup_cell": "Cella di servizio",
       "rollup_cellid": "Cell ID",
       "rollup_time": "Tempo",
@@ -2675,31 +2740,11 @@
       "nr_avail": "5G disponibile",
       "empty": "Nessun campione di identità della cella in questo intervallo."
     },
-    "bands": {
-      "title": "Bande e aggregazione di portanti",
-      "description": "Quali bande erano in uso nell'intervallo e con che frequenza è comparsa ogni combinazione di aggregazione. Un confine di segmento è una banda che appare o scompare — compresa una portante aggregata, che cambia la combinazione senza cambiare la cella di servizio.",
-      "empty": "Nessun dato sulle bande in questo intervallo. La combinazione di bande è registrata per campione; un intervallo precedente non ne ha.",
-      "awaiting": "In attesa del primo campione che registra una combinazione di bande.",
-      "run_tip": "{{bands}} · {{duration}}",
-      "run_meta": "Portanti: {{ca}} · {{bw}} MHz",
-      "run_meta_ca": "Portanti: {{ca}}",
-      "run_meta_bw": "{{bw}} MHz",
-      "unknown": "Non riportato",
-      "strip_aria": "Bande e combinazioni di aggregazione nell'intervallo scelto",
-      "col_combo": "Combinazione",
-      "col_share": "Quota",
-      "col_samples": "Campioni",
-      "col_bw": "Larghezza di banda",
-      "col_last": "Ultima volta",
-      "foot": "La quota è la proporzione dei campioni di banda dell'intervallo in cui quella combinazione era in uso.",
-      "ca_chart": "Portanti aggregate",
-      "bw_chart": "Larghezza di banda aggregata"
-    },
     "legend": {
       "title": "Come leggere questa pagina",
       "availability": "Disponibilità 5G",
+      "restarts": "Riavvii del router",
       "series": "Serie dei grafici",
-      "bands": "Colore della banda",
       "gap": "Un'interruzione nella linea è un campione senza letture — mai un valore pari a zero.",
       "cadence": "Un campione archiviato al minuto, scritto solo mentre il poller è in esecuzione.",
       "legend_aria": "Legenda che spiega i colori e i segni usati in questa pagina"
@@ -2708,49 +2753,44 @@
       "rf_title": "Segnale radio",
       "phy_title": "Profondità del livello fisico",
       "system_title": "Carico del dispositivo",
-      "band_signal_title": "Segnale per banda",
-      "band_signal_note": "RSRP di ogni portante riportata dal radio — colorato secondo la scala di qualità, banda più debole per prima.",
-      "band_signal_none": "Nessuna lettura per banda in questo intervallo.",
-      "quality": {
-        "excellent": "ottimo",
-        "good": "buono",
-        "fair": "discreto",
-        "poor": "scarso",
-        "bad": "debole",
-        "none": "nessuna lettura"
-      },
-      "gap_note": "Un'interruzione nella linea è una finestra senza letture — non un valore pari a zero.",
+      "agg_title": "Aggregazione di portanti",
+      "agg_desc": "Quante portanti erano aggregate e la loro larghezza di banda complessiva.",
+      "rf_desc": "Le letture di segnale della portante primaria, un grafico per misura.",
+      "phy_desc": "Ciò che la radio ha negoziato: modulazione, layer MIMO, qualità del canale e potenza di trasmissione.",
+      "system_desc": "Temperatura del router, carico di CPU e memoria e velocità di trasmissione del modem.",
+      "quality_title": "Qualità della connessione",
+      "quality_desc": "Latenza, jitter e perdita di pacchetti rilevati dai controlli di connessione del router.",
+      "reporting_off": "Segnalazione disattivata",
       "no_data": "Nessun campione archiviato per questo pannello in questo intervallo.",
-      "outage_band": "5G non disponibile",
       "metric": {
         "rsrp": "RSRP",
         "sinr": "SINR",
         "rsrq": "RSRQ",
         "rssi": "RSSI",
         "cqi": "CQI",
-        "rank": "Rank",
-        "mcs": "MCS",
+        "rank": "Layer MIMO (rank)",
+        "dl_mcs": "MCS downlink",
+        "ul_mcs": "MCS uplink",
         "tx_power": "Potenza TX",
         "temp": "Temperatura",
         "cpu": "CPU",
         "mem": "Memoria",
         "dl": "Download",
         "ul": "Upload",
-        "total_cells": "Portanti aggregate",
+        "lat": "Latenza",
+        "jit": "Jitter",
+        "latency": "Latenza e jitter",
+        "loss": "Perdita di pacchetti",
         "ca": "Portanti aggregate",
-        "bw": "Larghezza di banda aggregata",
-        "bw_unit": "MHz"
+        "bw": "Larghezza di banda aggregata"
       },
       "series": {
         "lte": "4G LTE",
-        "nr": "5G NR",
-        "soc": "SoC",
-        "modem": "Modem"
+        "nr": "5G NR"
       }
     },
     "error": {
-      "read": "Impossibile leggere l'archivio. Verifica che il poller sia in esecuzione, poi aggiorna.",
-      "auth": "La tua sessione è scaduta. Accedi di nuovo."
+      "read": "Impossibile leggere l'archivio. Verifica che il poller sia in esecuzione, poi aggiorna."
     }
   }
 }

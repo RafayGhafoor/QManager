@@ -2526,6 +2526,22 @@
     "refresh": "重新整理",
     "refreshing": "讀取中…",
     "stale": "已過期",
+    "banner": {
+      "stale": "記錄已於 {{ago}} 停止；目前顯示的是最後記錄的資料。",
+      "low_space": "記錄已暫停：儲存空間不足。釋放空間後將恢復記錄新讀數。",
+      "clock_unset": "記錄正在等待路由器設定時鐘，因此新讀數暫時沒有時間戳記。",
+      "timezone": "路由器時鐘設定的時區與此瀏覽器不同。本頁面上的時間依瀏覽器所在時區顯示。",
+      "timezone_link": "查看系統設定"
+    },
+    "restart": {
+      "label": "路由器重新啟動",
+      "cause": {
+        "restart": "重新啟動",
+        "power_loss": "斷電",
+        "planned": "計劃重新啟動",
+        "unknown": "重新啟動，原因不明"
+      }
+    },
     "panels": {
       "button": "面板",
       "count": "{{shown}}/{{total}}",
@@ -2539,25 +2555,41 @@
           "label": "服務小區",
           "hint": "各時段由哪個小區和頻段提供服務"
         },
+        "carriers": {
+          "label": "載波",
+          "hint": "每個聚合頻段、其出現的時間及訊號"
+        },
         "rf": {
           "label": "射頻訊號",
-          "hint": "RSRP、SINR、RSRQ、RSSI —— 4G 與 5G 對比"
+          "hint": "主載波的 RSRP、SINR、RSRQ 和 RSSI"
         },
         "agg": {
-          "label": "分頻段訊號",
-          "hint": "每個載波一條 RSRP 曲線，依品質著色"
-        },
-        "bands": {
-          "label": "頻段與載波聚合",
-          "hint": "使用了哪些頻段與載波聚合組合"
+          "label": "載波聚合",
+          "hint": "載波數量與頻寬"
         },
         "phy": {
-          "label": "實體層深度",
-          "hint": "CQI、Rank、MCS、發射功率"
+          "label": "無線電詳情",
+          "hint": "MCS、MIMO 層數、CQI 和發射功率"
+        },
+        "congestion": {
+          "label": "您在載波中的份額",
+          "hint": "您獲得的資源區塊及下載速度"
+        },
+        "antennas": {
+          "label": "天線",
+          "hint": "各天線訊號與均衡判斷"
+        },
+        "quality": {
+          "label": "連線質量",
+          "hint": "延遲、抖動和封包遺失"
         },
         "events": {
           "label": "小區事件",
           "hint": "每一次 PCI、頻段與 5G 變化"
+        },
+        "outages": {
+          "label": "5G 中斷",
+          "hint": "5G 每次中斷的期間"
         },
         "identity": {
           "label": "目前小區",
@@ -2566,10 +2598,6 @@
         "system": {
           "label": "裝置負載",
           "hint": "溫度、CPU、記憶體、吞吐量"
-        },
-        "outages": {
-          "label": "5G 中斷",
-          "hint": "5G 每次中斷的期間"
         }
       }
     },
@@ -2586,7 +2614,6 @@
       "headline_unknown": "該範圍內的 5G 可用性尚不可知",
       "coverage": "{{samples}} 筆取樣中有 {{known}} 筆可判斷",
       "downtime": "不可用累計 {{duration}}",
-      "uptime": "可用累計 {{duration}}",
       "outage_count": "{{count}} 次獨立中斷",
       "no_outage": "該範圍內 5G 從未中斷",
       "legend": {
@@ -2604,7 +2631,6 @@
       "title": "夜間規律",
       "description": "依一天中的小時統計的 5G 可用性，每天一列。深色格子表示該小時 5G 不可用。",
       "needs_day": "需要一天或更長的範圍 —— 請選擇 24 小時或更長以查看規律。",
-      "hour_axis": "一天中的小時",
       "day_axis": "日期",
       "pct_axis": "5G 可用",
       "cell": "{{day}} {{hour}} —— {{known}} 筆取樣中 5G 可用的比例為 {{pct}}",
@@ -2621,6 +2647,46 @@
       "lte_row": "LTE",
       "nr_row": "5G"
     },
+    "carriers": {
+      "title": "載波",
+      "description": "數據機聚合過的每個載波、其出現的時間以及訊號隨時間的變化。",
+      "empty": "此範圍內還沒有載波讀數。",
+      "width": "{{mhz}} MHz",
+      "width_unknown": "頻寬未知",
+      "pcc_share": "主載波 {{pct}}%",
+      "scc": "輔載波",
+      "lane_aria": "所選範圍內 {{band}} 的出現情況，共 {{runs}} 段",
+      "run_tip": "{{band}} · {{from}} – {{to}}",
+      "metric_aria": "訊號量測",
+      "key_aria": "載波。選擇其一即可只顯示其曲線。",
+      "key_note": "選擇一個載波可只顯示其曲線；再次選擇則顯示全部。數值為該範圍內的中位數。",
+      "no_metric": "此範圍內沒有載波回報 {{metric}}。"
+    },
+    "congestion": {
+      "title": "您在載波中的份額",
+      "description": "連結繁忙時，本裝置在該載波上獲得的資源區塊，以及對應的下載速度。",
+      "hint_label": "關於您在載波中的份額",
+      "hint": "連結繁忙時，您的裝置在 5G 載波資源區塊中所占的份額。這不是基地台的總負載；當您沒有在下載時，該數值沒有意義。",
+      "share": "份額（連結繁忙）",
+      "share_idle": "份額（連結閒置）",
+      "max_share": "峰值份額",
+      "dl": "下載速度",
+      "busy_count": "在 {{total}} 次讀數中，有 {{busy}} 次連結繁忙到足以量測。",
+      "empty": "此範圍內還沒有資源區塊讀數。",
+      "note_label": "連結",
+      "not_saturated": "連結不繁忙，份額沒有意義"
+    },
+    "antennas": {
+      "title": "天線",
+      "description": "每個無線電下各接收天線上的訊號。同一小區上的各天線訊號應當大致一致。",
+      "empty": "此範圍內還沒有各天線讀數。",
+      "key_aria": "{{tech}} 天線",
+      "below": "比最強的低 {{db}} dB",
+      "verdict_ok": "天線均衡",
+      "verdict_warning": "比其他天線弱：{{ports}}。建議檢查天線線材。",
+      "verdict_destructive": "遠弱於其他天線：{{ports}}。請檢查天線線材。",
+      "verdict_unknown": "讀數不足，無法比較天線"
+    },
     "outages": {
       "title": "5G 中斷",
       "description": "數據機未回報 5G 分支的連續時段，並列出當時正在服務的小區。",
@@ -2634,7 +2700,6 @@
     "events": {
       "title": "小區事件",
       "description": "每一次服務小區、頻段或 5G 可用性的變化，都與已知的上一個值對比記錄 —— 因此 5G 中斷後在另一個小區恢復時，兩者都會記錄。",
-      "rollup_title": "各小區駐留時長",
       "rollup_cell": "服務小區",
       "rollup_cellid": "Cell ID",
       "rollup_time": "時長",
@@ -2682,31 +2747,11 @@
       "nr_avail": "5G 可用",
       "empty": "該範圍內還沒有小區識別取樣。"
     },
-    "bands": {
-      "title": "頻段與載波聚合",
-      "description": "該範圍內使用了哪些頻段，以及每種聚合組合出現的頻率。分段邊界是頻段的出現或消失 —— 包括聚合載波，它會在不更換服務小區的情況下改變組合。",
-      "empty": "該範圍內還沒有頻段資料。頻段組合按取樣記錄；早於此功能的範圍沒有資料。",
-      "awaiting": "等待第一筆記錄頻段組合的取樣。",
-      "run_tip": "{{bands}} · {{duration}}",
-      "run_meta": "{{ca}} 個載波 · {{bw}} MHz",
-      "run_meta_ca": "{{ca}} 個載波",
-      "run_meta_bw": "{{bw}} MHz",
-      "unknown": "未回報",
-      "strip_aria": "所選範圍內的頻段與聚合組合",
-      "col_combo": "組合",
-      "col_share": "佔比",
-      "col_samples": "取樣數",
-      "col_bw": "頻寬",
-      "col_last": "最後出現",
-      "foot": "佔比是指該範圍內使用該組合的頻段取樣所佔的比例。",
-      "ca_chart": "已聚合載波",
-      "bw_chart": "已聚合頻寬"
-    },
     "legend": {
       "title": "如何閱讀此頁面",
       "availability": "5G 可用性",
+      "restarts": "路由器重新啟動",
       "series": "圖表數列",
-      "bands": "頻段配色",
       "gap": "折線中的斷開表示該取樣沒有讀數 —— 絕不是一個零值。",
       "cadence": "每分鐘一筆歸檔取樣，僅在輪詢服務執行時寫入。",
       "legend_aria": "說明本頁面所用顏色與標記的圖例"
@@ -2715,49 +2760,44 @@
       "rf_title": "射頻訊號",
       "phy_title": "實體層深度",
       "system_title": "裝置負載",
-      "band_signal_title": "分頻段訊號",
-      "band_signal_note": "無線電上報的每個載波的 RSRP —— 依品質色階著色，最弱頻段優先。",
-      "band_signal_none": "此範圍內還沒有分頻段讀數。",
-      "quality": {
-        "excellent": "極佳",
-        "good": "良好",
-        "fair": "一般",
-        "poor": "較差",
-        "bad": "弱",
-        "none": "無讀數"
-      },
-      "gap_note": "折線中的斷開表示該區間沒有讀數 —— 而不是數值為零。",
+      "agg_title": "載波聚合",
+      "agg_desc": "聚合了多少個載波，以及它們的總頻寬。",
+      "rf_desc": "主載波的訊號讀數，每項量測一張圖表。",
+      "phy_desc": "無線電協商的結果：調變、MIMO 層數、通道品質和發射功率。",
+      "system_desc": "路由器溫度、CPU 與記憶體負載，以及數據機吞吐量。",
+      "quality_title": "連線質量",
+      "quality_desc": "來自路由器自身連線檢測的延遲、抖動和封包遺失。",
+      "reporting_off": "未回報",
       "no_data": "該範圍內此面板沒有歸檔取樣。",
-      "outage_band": "5G 不可用",
       "metric": {
         "rsrp": "RSRP",
         "sinr": "SINR",
         "rsrq": "RSRQ",
         "rssi": "RSSI",
         "cqi": "CQI",
-        "rank": "Rank（層數）",
-        "mcs": "MCS",
+        "rank": "MIMO 層數（Rank）",
+        "dl_mcs": "下行 MCS",
+        "ul_mcs": "上行 MCS",
         "tx_power": "發射功率",
         "temp": "溫度",
         "cpu": "CPU",
         "mem": "記憶體",
         "dl": "下載",
         "ul": "上傳",
-        "total_cells": "已聚合載波",
+        "lat": "延遲",
+        "jit": "抖動",
+        "latency": "延遲與抖動",
+        "loss": "封包遺失",
         "ca": "已聚合載波",
-        "bw": "已聚合頻寬",
-        "bw_unit": "MHz"
+        "bw": "已聚合頻寬"
       },
       "series": {
         "lte": "4G LTE",
-        "nr": "5G NR",
-        "soc": "SoC",
-        "modem": "數據機"
+        "nr": "5G NR"
       }
     },
     "error": {
-      "read": "無法讀取歸檔。請檢查輪詢服務是否在執行，然後重新整理。",
-      "auth": "工作階段已過期，請重新登入。"
+      "read": "無法讀取歸檔。請檢查輪詢服務是否在執行，然後重新整理。"
     }
   }
 }
