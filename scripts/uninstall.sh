@@ -677,6 +677,7 @@ remove_runtime_state() {
     rm -rf /tmp/qmanager_hist_cache 2>/dev/null || true
     rm -f /tmp/qmanager_cell_history_state* \
           /tmp/qmanager_ping_history_state* \
+          /tmp/qmanager_boot_logged \
           2>/dev/null || true
 
     # Sites monitor: latest/raw/live results, flag, lease, cursor, probe dirs.
