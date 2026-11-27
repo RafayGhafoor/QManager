@@ -390,6 +390,26 @@ write_cache() {
     return 0
 }
 
+# --- Sidecar helpers ---------------------------------------------------------
+# _sc_sq <value>: _SCQ = value single-quoted for sh ('  ->  '\''). Empty -> '-'
+# (the poller's "no value" token, same as conn_state_read's jq mapping).
+# Copy of _od_sq (ondemand_radio.sh). Lifted by tools/poller-parity/sidecar_parity.sh.
+_sc_sq() {
+    _scq_in="${1:--}"
+    _SCQ=""
+    while :; do
+        case "$_scq_in" in
+            *\'*)
+                _SCQ="${_SCQ}${_scq_in%%\'*}'\\''"
+                _scq_in="${_scq_in#*\'}"
+                ;;
+            *)
+                _SCQ="'${_SCQ}${_scq_in}'"
+                break
+                ;;
+        esac
+    done
+}
 
 # _sc_dir_ok: SC_DIR exists as a root-owned dir (re-created if /var/run was cleared).
 _sc_dir_ok() {
