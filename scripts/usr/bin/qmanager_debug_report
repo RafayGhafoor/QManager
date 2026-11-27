@@ -209,6 +209,40 @@ section "pstore" sh -c '
     cat /sys/module/pstore/parameters/backend 2>/dev/null
 '
 
+# History v3 recorders (cell history, connection-quality archive, restart log).
+# Read-only listings and short tails; this report applies no identifier
+# redaction anywhere else (the runtime JSON below carries cell ids / IMEI), so
+# the row tail is emitted verbatim. Closed days may be gzip'd (.jsonl.gz), so
+# the row tail is zcat-aware.
+section "history_cell_dir" sh -c 'ls -ln /usrdata/qmanager/cell_history 2>&1'
+section "history_ping_dir" sh -c 'ls -ln /usrdata/qmanager/ping_history 2>&1'
+section "history_cache_dir" sh -c 'ls -ln /tmp/qmanager_hist_cache 2>&1'
+section "history_state_files" sh -c '
+    for _f in /tmp/qmanager_cell_history_state /tmp/qmanager_ping_history_state; do
+        printf "%s:\n" "$_f"
+        cat "$_f" 2>&1
+    done
+'
+section "history_boot_log_tail_5" sh -c 'tail -n 5 /usrdata/qmanager/boot_log.jsonl 2>&1'
+section "history_l1_stats" sh -c 'printf "quecmanager.poller.l1_stats=%s\n" "$(uci -q get quecmanager.poller.l1_stats 2>/dev/null)"'
+section "history_cell_tail_3" sh -c '
+    _d=/usrdata/qmanager/cell_history
+    _t=$(date -u +%Y-%m-%d)
+    _f=""
+    for _c in "$_d/$_t.jsonl" "$_d/$_t.jsonl.gz"; do
+        [ -f "$_c" ] && { _f="$_c"; break; }
+    done
+    if [ -z "$_f" ]; then
+        _n=$(ls "$_d" 2>/dev/null | tail -n 1)
+        [ -n "$_n" ] && _f="$_d/$_n"
+    fi
+    case "$_f" in
+        "")   echo "(no cell history file)" ;;
+        *.gz) printf "%s:\n" "$_f"; zcat "$_f" 2>&1 | tail -n 3 ;;
+        *)    printf "%s:\n" "$_f"; tail -n 3 "$_f" 2>&1 ;;
+    esac
+'
+
 # QManager application log
 section "qmanager_log_tail_200" sh -c 'tail -n 200 /tmp/qmanager.log 2>/dev/null'
 
