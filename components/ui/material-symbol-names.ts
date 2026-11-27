@@ -122,6 +122,7 @@ export const MATERIAL_SYMBOL_NAMES = [
   "my_location",
   "network_ping",
   "notifications",
+  "open_in_full",
   "open_in_new",
   "percent",
   "person",

@@ -65,6 +65,7 @@
     "my_location",
     "network_ping",
     "notifications",
+    "open_in_full",
     "open_in_new",
     "percent",
     "person",
@@ -126,6 +127,6 @@
     "wifi_tethering_off",
     "work"
   ],
-  "bytes": 45576,
-  "sha256": "ff098afd5121c951e754b7caf5d8de53d6c56c783927157528c74f8cae2f2742"
+  "bytes": 45688,
+  "sha256": "92e3f890a03ca1c8351a20a1ef647a4501b089d6d27af3be4aa59d9bf026a112"
 }
