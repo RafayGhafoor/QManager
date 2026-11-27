@@ -2747,6 +2747,9 @@
       "nr_avail": "5G 可用",
       "empty": "該範圍內還沒有小區識別取樣。"
     },
+    "network_type": {
+      "no_service": "無服務"
+    },
     "legend": {
       "title": "如何閱讀此頁面",
       "availability": "5G 可用性",

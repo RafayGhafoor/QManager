@@ -86,6 +86,12 @@ export function EventsCard({ stats, events, coverage }: EventsCardProps) {
 
   const flagText = (flag: "up" | "down" | "unknown") =>
     t(`history.events.value_${flag}`);
+  const valueText = (value: ReturnType<typeof changeValue>) =>
+    value.kind === "flag"
+      ? flagText(value.flag)
+      : value.kind === "no_service"
+        ? t("history.network_type.no_service")
+        : value.text;
 
   return (
     <section className={CARD}>
@@ -214,9 +220,7 @@ export function EventsCard({ stats, events, coverage }: EventsCardProps) {
                                 {t(`history.events.field.${change.field}`)}
                               </span>
                               <span className={CHANGE.FROM}>
-                                {from.kind === "flag"
-                                  ? flagText(from.flag)
-                                  : from.text}
+                                {valueText(from)}
                               </span>
                               <MaterialSymbol
                                 name="chevron_right"
@@ -224,7 +228,7 @@ export function EventsCard({ stats, events, coverage }: EventsCardProps) {
                                 className={CHANGE.ARROW}
                               />
                               <span className={CHANGE.TO}>
-                                {to.kind === "flag" ? flagText(to.flag) : to.text}
+                                {valueText(to)}
                               </span>
                             </span>
                           );

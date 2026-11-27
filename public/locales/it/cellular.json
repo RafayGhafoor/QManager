@@ -2740,6 +2740,9 @@
       "nr_avail": "5G disponibile",
       "empty": "Nessun campione di identità della cella in questo intervallo."
     },
+    "network_type": {
+      "no_service": "Nessun servizio"
+    },
     "legend": {
       "title": "Come leggere questa pagina",
       "availability": "Disponibilità 5G",

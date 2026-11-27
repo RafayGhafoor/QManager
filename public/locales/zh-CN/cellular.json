@@ -2747,6 +2747,9 @@
       "nr_avail": "5G 可用",
       "empty": "该范围内还没有小区标识采样。"
     },
+    "network_type": {
+      "no_service": "无服务"
+    },
     "legend": {
       "title": "如何阅读此页面",
       "availability": "5G 可用性",

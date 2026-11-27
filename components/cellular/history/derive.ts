@@ -503,7 +503,38 @@ export function problemCells(stats: CellStat[]): CellStat[] {
 /** What a before/after value in the change list actually says. */
 export type ChangeValue =
   | { kind: "flag"; flag: "up" | "down" | "unknown" }
+  | { kind: "no_service" }
   | { kind: "text"; text: string };
+
+/**
+ * The archive's rat token for "no service". It is a wire value, never a word to
+ * print: the aggregator keeps the literal in `cells.events[].changes[]` (so a
+ * drop to no service is still a change with a "to"), and the UI translates it.
+ */
+export const NETWORK_TYPE_NO_SERVICE = "NOSVC";
+
+/**
+ * Archive rat tokens -> the display forms the rest of the app uses
+ * (`network.type` is "LTE", "5G-NSA", "5G-SA"). A value already in display form,
+ * or one this table has never seen, passes through unchanged.
+ */
+const NETWORK_TYPE_DISPLAY: Record<string, string> = {
+  LTE: "LTE",
+  NSA: "5G-NSA",
+  SA: "5G-SA",
+};
+
+/** A network type as the UI should draw it, or `null` when there is none. */
+export function networkTypeValue(
+  value: string | null,
+): { kind: "no_service" } | { kind: "text"; text: string } | null {
+  const text = value === null ? "" : value.trim();
+  if (text === "") return null;
+  if (text.toUpperCase() === NETWORK_TYPE_NO_SERVICE) {
+    return { kind: "no_service" };
+  }
+  return { kind: "text", text: NETWORK_TYPE_DISPLAY[text.toUpperCase()] ?? text };
+}
 
 /**
  * One side of a change.
@@ -524,6 +555,9 @@ export function changeValue(
     return { kind: "flag", flag: "unknown" };
   }
   if (text === "") return { kind: "flag", flag: "unknown" };
+  if (field === "network_type") {
+    return networkTypeValue(text) ?? { kind: "flag", flag: "unknown" };
+  }
   return { kind: "text", text };
 }
 

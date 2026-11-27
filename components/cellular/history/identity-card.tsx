@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { CellHistoryCoverage, ServingCellIdentity } from "@/types/cell-history";
 import { cn } from "@/lib/utils";
 
-import { formatMoment } from "./derive";
+import { formatMoment, networkTypeValue } from "./derive";
 import { PanelEmpty } from "./empty-state";
 import { CARD, HEAD, IDENTITY } from "./shapes";
 
@@ -58,6 +58,14 @@ export function IdentityCard({ cell, asOf, coverage }: IdentityCardProps) {
             : "detailed_metrics.registered_no",
         );
 
+  const networkType = networkTypeValue(cell.network_type);
+  const networkTypeText =
+    networkType === null
+      ? null
+      : networkType.kind === "no_service"
+        ? t("history.network_type.no_service")
+        : networkType.text;
+
   const nrAvail =
     cell.nr_avail === null
       ? t("history.events.value_unknown")
@@ -95,7 +103,7 @@ export function IdentityCard({ cell, asOf, coverage }: IdentityCardProps) {
     {
       key: "network_type",
       label: "history.identity.network_type",
-      value: cell.network_type,
+      value: networkTypeText,
     },
     { key: "registered", label: "history.identity.registered", value: registered },
     { key: "nr_avail", label: "history.identity.nr_avail", value: nrAvail },

@@ -2747,6 +2747,9 @@
       "nr_avail": "5G available",
       "empty": "No cell-identity sample in this range yet."
     },
+    "network_type": {
+      "no_service": "No service"
+    },
     "legend": {
       "title": "Reading this page",
       "availability": "5G availability",

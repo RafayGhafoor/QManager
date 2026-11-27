@@ -2740,6 +2740,9 @@
       "nr_avail": "5G tersedia",
       "empty": "Belum ada sampel identitas sel pada rentang ini."
     },
+    "network_type": {
+      "no_service": "Tidak ada layanan"
+    },
     "legend": {
       "title": "Cara membaca halaman ini",
       "availability": "Ketersediaan 5G",
