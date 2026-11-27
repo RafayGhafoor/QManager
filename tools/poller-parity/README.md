@@ -19,6 +19,7 @@ there. Nothing here is installed by the product.
 | `tap_replay.sh` | implementation of `--tap` |
 | `shim.sh` | qlog stubs + the poller's call shapes (`qcmd_exec` strip, `poll_*` guards) + sentinel / default initialisers |
 | `sinr_expect.sh <parse_at>` | table test for `_lte_sinr_db_g` (QENG LTE raw `<SINR>` X to `2X-20` dB, 0..25 only, else empty); the Rust port that carried the same table was removed 2026-10-25 |
+| `qeng_l1_expect.sh <parse_at>` | table test for `qe_lte_cqi` / `qe_lte_txp` (history recorder: AT+QENG LTE CQI and tx power, raw 0.1 dBm) in both LTE layouts: NSA fields 16/17, LTE-only fields 18/19. The names are not `lte_`-prefixed so the parity dump (which matches `^lte_`) keeps comparing old vs new on the same globals |
 | `measure.sh [seconds]` | on-device poller cost sampler (one summary line) |
 | `gen_fixtures.sh [dir]` | regenerates the whole fixture corpus byte for byte (device or Git Bash) |
 | `status_parity.sh` | Phase C gate for the status.json composers: printf composer vs the jq composer (`write_cache_jq`) over synthetic scenarios, seeded random values, hostile text and the write_cache safety net; and the live 200-pair capture from the deployed poller (`arm` / `compare` / `live`) |
@@ -84,7 +85,7 @@ sh measure.sh 60                                     # poller cost over a window
 
 Fixtures are CR-sensitive: generate them on the device with `gen_fixtures.sh`
 (or copy with scp); `modem_write` strips CRs and must not be used for them.
-A full 206-fixture run takes about 90 s on the device (about 6k forks); it runs
+A full 219-fixture run takes about 90 s on the device (about 6k forks); it runs
 under `nice -n 19` (`PARITY_NICE=0` to disable). `parse_at.sh`'s
 `/tmp/qmanager_*.tmp` scratch files are rewritten to private `/tmp/ppx_<pid>_*`
 names while sourcing, so a run cannot collide with the live poller's
@@ -137,7 +138,7 @@ Prints one line, e.g.
 - `mono_age_max`: max of (`/proc/uptime` seconds - `.mono`).
 - `tiers`: `.network.poller_tier` sampled every 10 s; `hb_age_*`: now - epoch in `/tmp/qmanager_ui_active`, every 10 s.
 
-## Coverage (206 fixtures)
+## Coverage (219 fixtures on 2026-11-27; the last two, `serving_cell__nsa_live_cqi_txp` and `serving_cell__lte_cqi_txp_negative`, carry the CQI / tx-power fields)
 
 - serving_cell (about 60): LTE NOCONN/CONNECT/LIMSRV FDD/TDD, 17/16/10-field short lines (trailing-CR retention), trailing comma, dash/empty/space-padded fields, lowercase / invalid / empty / `0x` / 28-bit-max / overflowing hex, no `servingcell` line, SEARCH with and without an LTE tag, bare NOCONN/LIMSRV/CONNECT, unknown state, WCDMA, two servingcell lines, LF-only / bare-CR / no final EOL, empty / OK-only / ERROR / CME ERROR / garbage, hostile strings (`$(id)`, backticks, `;`, `'`, `"`, `\`); NSA (LTE+NR5G-NSA lines, SCS enum and unknown, 15-field LTE line, short / dash / negative-SNR / trailing-comma NR line, missing LTE or NR line, bad / lowercase hex); SA (state variants, 16/15-field lines, 36-bit NCI `FFFFFFFFF`, lowercase / bad / empty / zero hex, SCS 0/3/unknown, dash and negative SNR, trailing comma, hostile, LF-only, SA+NSA tags mixed).
 - ca_info (about 60): LTE PCC/SCC, every resource-block value, short / dash / empty / trailing-comma lines, empty freq, non-numeric / float / exponent / `+3` SINR, `1-2` PCI, `-115-` RSRP, hostile freq / band / type, huge and zero-padded numbers, tab inside a field; NR short forms (5-8 fields) and long forms (9-13 fields), the 8/9-field boundary, trailing commas, SNR raw 1235 / -5 / 5 / 0 / -32768 / `-` / empty / `abc` / 1255 / 1245 / -1235 / 32767 / 150 in both forms, awk-numeric edge cases (`0x10`, `1e4`, `+250`, `nan`, `inf`, `.5`, 20-digit), all NR bandwidth enums plus empty, NRDC band; NSA (single / double NR SCC), SA, NR PCC while QENG says LTE (reconcile, with `.env` sidecars for every `nr_state`/`lte_state`/`network_type` branch and the NSA no-reconcile branch); unrecognised band skipped, SCC count vs component mismatch, no QCAINFO lines, SCC without PCC, unanchored `+QCAINFO` text, blank lines between, duplicate PCC, no space after prefix, `LTEBAND` spelling, LF-only, empty / OK-only / ERROR / CME ERROR / ERROR after data.

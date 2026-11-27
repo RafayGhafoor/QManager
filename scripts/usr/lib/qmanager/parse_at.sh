@@ -61,7 +61,7 @@ _pat_split() {
     [ "$noglob" = 1 ] || set +f
     _F1=$1 ; _F2=$2 ; _F3=$3 ; _F4=$4 ; _F5=$5 ; _F6=$6 ; _F7=$7 ; _F8=$8 ; _F9=$9
     _F10=${10} ; _F11=${11} ; _F12=${12} ; _F13=${13} ; _F14=${14} ; _F15=${15}
-    _F16=${16} ; _F17=${17}
+    _F16=${16} ; _F17=${17} ; _F18=${18} ; _F19=${19}
 }
 
 # Sets _pat_line to the first line of $1 containing the literal $2 (else "").
@@ -206,6 +206,23 @@ _lte_sinr_db_g() {
     return 0
 }
 
+# QENG LTE <CQI> (1-2 digits) and <tx_power> (0.1 dBm, optional minus sign, up
+# to 4 digits) into qe_lte_cqi / qe_lte_txp, raw. Anything else ("-", empty,
+# garbage) leaves the value empty. Strips a trailing CR. Clobbers _S.
+_qe_cqi_txp_g() {
+    qe_lte_cqi="" ; qe_lte_txp=""
+    _S=$1 ; _pat_del "$_PA_CR"
+    case $_S in
+        [0-9]|[0-9][0-9]) qe_lte_cqi=${_S#0} ; [ -z "$qe_lte_cqi" ] && qe_lte_cqi=0 ;;
+    esac
+    _S=$2 ; _pat_del "$_PA_CR"
+    case $_S in
+        ''|*[!0-9-]*|-|?*-*|?????*|-????*) ;;
+        *) qe_lte_txp=$_S ;;
+    esac
+    return 0
+}
+
 # Converts a hex cell ID to decimal and computes eNodeB/gNodeB ID + Sector ID.
 # LTE (28-bit ECI): eNodeB ID = cell_id >> 8,  Sector ID = cell_id & 0xFF
 # NR  (36-bit NCI): gNodeB ID = cell_id >> 14, Sector ID = cell_id & 0x3FFF
@@ -271,6 +288,10 @@ _pat_qeng_csv() {
 #            nr_state, nr_band, nr_arfcn, nr_pci, nr_rsrp, nr_rsrq, nr_sinr,
 #            nr_scs, nr_cell_id, nr_enodeb_id, nr_sector_id, nr_tac,
 #            network_type, service_status
+#            qe_lte_cqi, qe_lte_txp  (history recorder: LTE CQI 0..15 and UE TX
+#            power in 0.1 dBm, raw; empty when absent, "-" or not a number. They
+#            are deliberately NOT lte_-prefixed so the poller-parity dump, which
+#            matches ^lte_, keeps comparing the same globals.)
 #
 # One pass over the reply lines, no forks. Lines are only considered when they
 # start with "+QENG:". The first "servingcell" line, the first "NR5G-NSA" line
@@ -300,6 +321,7 @@ parse_serving_cell() {
     nr_band="" ; nr_arfcn="" ; nr_pci=""
     nr_rsrp="" ; nr_rsrq="" ; nr_sinr="" ; nr_scs=""
     nr_cell_id="" ; nr_enodeb_id="" ; nr_sector_id="" ; nr_tac=""
+    qe_lte_cqi="" ; qe_lte_txp=""
 
     while [ "$more" = 1 ]; do
         case $rest in
@@ -382,6 +404,8 @@ parse_serving_cell() {
             lte_rsrq=$_F13
             lte_rssi=$_F14
             _lte_sinr_db_g "$_F15" ; lte_sinr=$_R
+            # ...,SINR,CQI,tx_power,srxlev  (fields 16, 17)
+            _qe_cqi_txp_g "$_F16" "$_F17"
         fi
 
         # NR5G-NSA line
@@ -459,6 +483,8 @@ parse_serving_cell() {
         lte_rsrq=$_F15
         lte_rssi=$_F16
         _lte_sinr_db_g "$_F17" ; lte_sinr=$_R
+        # ...,SINR,CQI,tx_power,srxlev  (fields 18, 19)
+        _qe_cqi_txp_g "$_F18" "$_F19"
 
     else
         lte_state="unknown"

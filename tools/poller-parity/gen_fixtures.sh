@@ -183,6 +183,14 @@ single serving_cell__nsa_lte_sinr_scaled "$QE" '+QENG: "servingcell","NOCONN"' \
  '+QENG: "NR5G-NSA",515,03,271,-95,32,-11,504990,78,1,1'
 single serving_cell__nsa_lte_sinr_dash "$QE" '+QENG: "servingcell","NOCONN"' \
  '+QENG: "LTE","FDD",515,03,22B5066,295,150,1,5,5,BF82,-89,-10,-59,-' "$NSA_NR"
+# History recorder (CQI, tx power): a verbatim RM551E capture (EN-DC, 2026-11-27) and a
+# negative-tx-power LTE-only reply. The values are asserted by qeng_l1_expect.sh; the
+# dump compares only the pre-existing globals, so these also prove nothing else moved.
+single serving_cell__nsa_live_cqi_txp "$QE" '+QENG: "servingcell","NOCONN"' \
+ '+QENG: "LTE","FDD",410,01,2E38917,104,250,1,3,3,D857,-75,-11,-46,12,10,-110,-' \
+ '+QENG: "NR5G-NSA",410,01,47,-58,30,-10,509070,41,7,1'
+single serving_cell__lte_cqi_txp_negative "$QE" \
+ '+QENG: "servingcell","CONNECT","LTE","FDD",515,03,2D1AB04,271,1300,3,5,5,A1B2,-92,-9,-63,9,12,-35,-'
 single serving_cell__nsa_hostile "$QE" '+QENG: "servingcell","NOCONN"' "$NSA_LTE" \
  '+QENG: "NR5G-NSA",515,03,2$(id),-9;5,12,`id`,50'"'"'4990,78",1,1'
 lfonly serving_cell__nsa_lf_only "$QE" '+QENG: "servingcell","NOCONN"' "$NSA_LTE" "$NSA_NR"
