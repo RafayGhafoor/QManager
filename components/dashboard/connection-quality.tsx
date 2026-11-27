@@ -2,12 +2,14 @@
 
 import React from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -30,12 +32,18 @@ import {
 } from "@/components/ui/material-symbol";
 import { MetricBar } from "@/components/ui/metric-bar";
 import { TickingValue } from "@/components/ui/ticking-value";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { useLatencyHistory } from "@/hooks/use-latency-history";
 import {
   type ConnectivityStatus,
   type PingHistoryEntry,
 } from "@/types/modem-status";
+import { formatClock } from "@/lib/chart-time";
 import { staggerRowItem, staggerRows } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -46,7 +54,16 @@ import {
   CARD_TITLE,
   FIGURE,
   QUALITY,
+  QUALITY_FALLBACK_CUTS,
 } from "./shapes";
+
+// The full view carries the chart stack, so it is not part of the dashboard's
+// first paint: the card renders from the status poll alone and recharts arrives
+// the first time someone opens the dialog.
+const ConnectionQualityDialog = dynamic(
+  () => import("./connection-quality-dialog"),
+  { ssr: false },
+);
 
 // =============================================================================
 // Connection Quality — replaces Live Latency on the dashboard (ledger U4.7)
@@ -56,16 +73,24 @@ import {
 // status poll. The speed test used to close this card; it now lives on Device
 // & Speed (device-metrics.tsx) beside the modem's own readings.
 //
+// HOVER. Every cell of both strips explains itself: the span it covers in local
+// time, the average latency, the jitter the bar shows and the loss. The cells
+// are one roving tab stop per strip (arrow keys move, Home/End jump) because 56
+// tab stops would bury the rest of the page; focus opens the same tip hover
+// does. A tooltip does not open on tap, so the full view (top-right expand
+// control) carries the same readings for touch.
+//
 // The verdict is the ICMP probe's alone (`connectivity.status`, graded on
 // `connectivity.thresholds`). The DNS lookup time is its own reading: the
 // carrier resolver can answer while ICMP is unreachable, so it never softens
 // or stands in for "Unreachable".
 // =============================================================================
 
-// The strip grades with the poller's own cuts (connectivity.thresholds); these
-// are the backend's `tolerant` defaults, used only when an older poller omits them.
-const FALLBACK_DEGRADED_MS = 250;
-const FALLBACK_DEGRADED_LOSS_PCT = 30;
+// The strip grades with the poller's own cuts (connectivity.thresholds); the
+// backend's `tolerant` defaults (QUALITY_FALLBACK_CUTS) stand in when an older
+// poller omits them.
+const FALLBACK_DEGRADED_MS = QUALITY_FALLBACK_CUTS.LATENCY_MS;
+const FALLBACK_DEGRADED_LOSS_PCT = QUALITY_FALLBACK_CUTS.LOSS_PCT;
 
 /** Jitter grading in ms, tuned for cellular scheduling variance. */
 const JITTER_STEADY_MS = 15;
@@ -86,6 +111,13 @@ interface Bucket {
   tone: BucketTone;
   /** Worst jitter from ANSWERED probes only; null when none answered. */
   jitter: number | null;
+  /** The span this cell covers, epoch seconds on the modem clock; null before any history. */
+  from: number | null;
+  to: number | null;
+  /** Mean RTT of the ANSWERED probes in the cell; null when none answered. */
+  avgLatency: number | null;
+  /** Share of the cell's own probes that went unanswered, 0-100. */
+  lossPct: number;
 }
 
 interface StripThresholds {
@@ -105,6 +137,10 @@ function bucketHistory(
     measured: false,
     tone: "none" as BucketTone,
     jitter: null,
+    from: null,
+    to: null,
+    avgLatency: null,
+    lossPct: 0,
   }));
 
   if (!Array.isArray(entries) || entries.length === 0) {
@@ -126,6 +162,8 @@ function bucketHistory(
   const worstLat: (number | null)[] = Array(QUALITY.BUCKETS).fill(null);
   const worstJit: (number | null)[] = Array(QUALITY.BUCKETS).fill(null);
   const worstLoss: (number | null)[] = Array(QUALITY.BUCKETS).fill(null);
+  const sumLat = Array<number>(QUALITY.BUCKETS).fill(0);
+  const nLat = Array<number>(QUALITY.BUCKETS).fill(0);
 
   let oldestVisibleTs: number | null = null;
 
@@ -148,6 +186,8 @@ function bucketHistory(
     } else if (answered) {
       const cur = worstLat[idx];
       if (cur === null || e.lat > cur) worstLat[idx] = e.lat;
+      sumLat[idx] += e.lat;
+      nLat[idx] += 1;
     }
 
     // A failed row's `jit` is the window statistic (often a literal 0), not a reading.
@@ -163,7 +203,11 @@ function bucketHistory(
   }
 
   const buckets: Bucket[] = empty.map((_, i) => {
-    if (!touched[i]) return { measured: false, tone: "none", jitter: null };
+    const from = startTs + i * step;
+    const span = { from, to: from + step };
+    if (!touched[i]) {
+      return { measured: false, tone: "none", jitter: null, ...span, avgLatency: null, lossPct: 0 };
+    }
     const lat = worstLat[i];
     const loss = worstLoss[i];
     // A cell holds only 3-5 rows, so one drop is already 20-33 %: it takes two failed
@@ -178,7 +222,14 @@ function bucketHistory(
         : failed[i] > 0 || (lat !== null && lat > limits.latencyMs)
           ? "warning"
           : "success";
-    return { measured: true, tone, jitter: worstJit[i] };
+    return {
+      measured: true,
+      tone,
+      jitter: worstJit[i],
+      ...span,
+      avgLatency: nLat[i] > 0 ? sumLat[i] / nLat[i] : null,
+      lossPct: failedPct,
+    };
   });
 
   return {
@@ -239,6 +290,149 @@ function formatAgo(sec: number, t: TFunction): string {
   if (sec < 3600) return t("activities.time.minutes", { count: Math.floor(sec / 60) });
   if (sec < 86400) return t("activities.time.hours", { count: Math.floor(sec / 3600) });
   return t("activities.time.days", { count: Math.floor(sec / 86400) });
+}
+
+// --- Hover -------------------------------------------------------------------
+
+const TONE_VERDICT_KEY: Record<BucketTone, string> = {
+  none: "reach_unknown",
+  success: "reach_responsive",
+  warning: "reach_degraded",
+  destructive: "reach_unreachable",
+};
+
+const TONE_VERDICT_INK: Record<BucketTone, string> = {
+  none: "text-on-surface-variant",
+  success: "text-success-on-surface",
+  warning: "text-warning-on-surface",
+  destructive: "text-destructive-on-surface",
+};
+
+/** The span a cell covers in the browser's local time: "14:02–14:03". */
+function bucketRange(b: Bucket): string {
+  return `${formatClock(b.from)}\u2013${formatClock(b.to)}`;
+}
+
+/** A reading with its unit, or the shared dash when the cell has none. */
+function readout(value: number | null, unit: string): string {
+  return value === null ? ABSENT : `${Math.round(value)} ${unit}`;
+}
+
+/** One cell's readings: the same rows on both strips, so either one answers. */
+function BucketTip({ bucket, t }: { bucket: Bucket; t: TFunction }) {
+  const ms = t("connection_quality.unit_ms");
+  const pct = t("connection_quality.unit_pct");
+  return (
+    <div className="flex min-w-36 flex-col gap-1.5 tabular-nums">
+      <div className="flex items-baseline justify-between gap-4">
+        <span className="font-semibold text-on-surface">{bucketRange(bucket)}</span>
+        {bucket.measured ? (
+          <span className={cn("text-xs font-semibold", TONE_VERDICT_INK[bucket.tone])}>
+            {t(`connection_quality.${TONE_VERDICT_KEY[bucket.tone]}`)}
+          </span>
+        ) : null}
+      </div>
+      {bucket.measured ? (
+        <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-0.5 text-xs">
+          <dt className="text-on-surface-variant">{t("connection_quality.tip_latency")}</dt>
+          <dd className="text-right font-semibold text-on-surface">
+            {readout(bucket.avgLatency, ms)}
+          </dd>
+          <dt className="text-on-surface-variant">{t("connection_quality.tip_jitter")}</dt>
+          <dd className="text-right font-semibold text-on-surface">
+            {readout(bucket.jitter, ms)}
+          </dd>
+          <dt className="text-on-surface-variant">{t("connection_quality.tip_loss")}</dt>
+          <dd className="text-right font-semibold text-on-surface">
+            {`${Math.round(bucket.lossPct)} ${pct}`}
+          </dd>
+        </dl>
+      ) : (
+        <span className="text-xs text-on-surface-variant">
+          {t("connection_quality.tip_unmeasured")}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** The sentence a screen reader gets for a cell; the tip's rows, in order. */
+function bucketAria(b: Bucket, t: TFunction): string {
+  const range = bucketRange(b);
+  if (!b.measured) return t("connection_quality.cell_aria_none", { range });
+  return t("connection_quality.cell_aria", {
+    range,
+    status: t(`connection_quality.${TONE_VERDICT_KEY[b.tone]}`),
+    latency: readout(b.avgLatency, t("connection_quality.unit_ms")),
+    jitter: readout(b.jitter, t("connection_quality.unit_ms")),
+    loss: `${Math.round(b.lossPct)} ${t("connection_quality.unit_pct")}`,
+  });
+}
+
+/**
+ * A strip whose cells each open a tip on hover OR focus. One roving tab stop
+ * per strip: the focused cell is the only one in the tab order, arrows move,
+ * Home/End jump. `height` is the track; each hit target spans it.
+ */
+function BucketStrip({
+  buckets,
+  ariaLabel,
+  height,
+  t,
+  renderCell,
+}: {
+  buckets: Bucket[];
+  ariaLabel: string;
+  height: number;
+  t: TFunction;
+  renderCell: (bucket: Bucket) => React.ReactNode;
+}) {
+  const rowRef = React.useRef<HTMLDivElement>(null);
+  const [active, setActive] = React.useState(buckets.length - 1);
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const last = buckets.length - 1;
+    let next: number | null = null;
+    if (e.key === "ArrowRight") next = Math.min(last, active + 1);
+    else if (e.key === "ArrowLeft") next = Math.max(0, active - 1);
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = last;
+    if (next === null) return;
+    e.preventDefault();
+    setActive(next);
+    rowRef.current?.querySelectorAll<HTMLElement>("[data-cell]")[next]?.focus();
+  };
+
+  return (
+    <div
+      ref={rowRef}
+      role="group"
+      aria-label={ariaLabel}
+      onKeyDown={onKeyDown}
+      className={cn(QUALITY.ROW, QUALITY.ROW_BLEED)}
+      style={{ height }}
+    >
+      {buckets.map((b, i) => (
+        <Tooltip key={i}>
+          <TooltipTrigger asChild>
+            <span
+              data-cell=""
+              role="img"
+              tabIndex={i === active ? 0 : -1}
+              aria-label={bucketAria(b, t)}
+              onFocus={() => setActive(i)}
+              className={QUALITY.HIT}
+            >
+              {renderCell(b)}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent variant="info" side="top">
+            <BucketTip bucket={b} t={t} />
+          </TooltipContent>
+        </Tooltip>
+      ))}
+    </div>
+  );
 }
 
 // --- Latency row -------------------------------------------------------------
@@ -350,6 +544,13 @@ const ConnectionQualityComponent = ({
 }: ConnectionQualityProps) => {
   const { t } = useTranslation("dashboard");
   const { data: history } = useLatencyHistory();
+  const [fullViewOpen, setFullViewOpen] = React.useState(false);
+  // The dialog mounts on first open and stays, so its range survives a close.
+  const [fullViewMounted, setFullViewMounted] = React.useState(false);
+  const openFullView = () => {
+    setFullViewMounted(true);
+    setFullViewOpen(true);
+  };
 
   const latencyCut = connectivity?.thresholds?.latency_ms;
   const lossCut = connectivity?.thresholds?.loss_pct;
@@ -362,12 +563,33 @@ const ConnectionQualityComponent = ({
     [history, latencyCut, lossCut],
   );
 
+  // The archive is persisted, so the full view is useful even while the status
+  // poll cannot reach the modem; it is offered everywhere but the first load.
   const header = (
     <CardHeader className="px-0">
       <CardTitle className={CARD_TITLE}>{t("connection_quality.title")}</CardTitle>
       <CardDescription className={CARD_DESC}>
         {t("connection_quality.description")}
       </CardDescription>
+      {isLoading ? null : (
+        <CardAction>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="-mt-1.5 -mr-1.5 text-on-surface-variant"
+                aria-label={t("connection_quality.expand_aria")}
+                aria-haspopup="dialog"
+                onClick={openFullView}
+              >
+                <MaterialSymbol name="open_in_full" size={18} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">{t("connection_quality.expand_aria")}</TooltipContent>
+          </Tooltip>
+        </CardAction>
+      )}
     </CardHeader>
   );
 
@@ -375,6 +597,13 @@ const ConnectionQualityComponent = ({
     <Card className={CARD_SHELL}>
       {header}
       <CardContent className="flex flex-1 flex-col px-0">{body}</CardContent>
+      {fullViewMounted ? (
+        <ConnectionQualityDialog
+          open={fullViewOpen}
+          onOpenChange={setFullViewOpen}
+          connectivity={connectivity}
+        />
+      ) : null}
     </Card>
   );
 
@@ -531,19 +760,18 @@ const ConnectionQualityComponent = ({
           {t(`connection_quality.${reach.key}`)}
         </Link>
       </div>
-      <div
-        className={cn(QUALITY.ROW, QUALITY.GAP)}
-        role="img"
-        aria-label={t("connection_quality.reach_aria", { minutes: windowMinutes })}
-      >
-        {buckets.map((b, i) => (
+      <BucketStrip
+        buckets={buckets}
+        height={QUALITY.TRACK_H}
+        t={t}
+        ariaLabel={t("connection_quality.reach_aria", { minutes: windowMinutes })}
+        renderCell={(b) => (
           <span
-            key={i}
-            className={cn(QUALITY.CELL, CELL_TONE[b.tone])}
+            className={cn("w-full rounded-[3px]", CELL_TONE[b.tone])}
             style={{ height: QUALITY.TRACK_H }}
           />
-        ))}
-      </div>
+        )}
+      />
     </div>
   );
 
@@ -559,19 +787,17 @@ const ConnectionQualityComponent = ({
             : t("connection_quality.jitter_now", { value: Math.round(jitterMs) })}
         </span>
       </div>
-      <div
-        className={cn(QUALITY.ROW, QUALITY.GAP)}
-        style={{ height: QUALITY.TRACK_H }}
-        role="img"
-        aria-label={t("connection_quality.jitter_aria", { minutes: windowMinutes })}
-      >
-        {buckets.map((b, i) => {
+      <BucketStrip
+        buckets={buckets}
+        height={QUALITY.TRACK_H}
+        t={t}
+        ariaLabel={t("connection_quality.jitter_aria", { minutes: windowMinutes })}
+        renderCell={(b) => {
           // Unmeasured and all-lost spans both have no jitter reading: a muted stub.
           if (!b.measured || b.jitter === null) {
             return (
               <span
-                key={i}
-                className={cn(QUALITY.BAR, "bg-surface-container-high")}
+                className="w-full rounded-[2px] bg-surface-container-high"
                 style={{ height: QUALITY.STUB_H }}
               />
             );
@@ -579,10 +805,10 @@ const ConnectionQualityComponent = ({
           const ratio = Math.min(1, Math.max(0, b.jitter / JITTER_TRACK_MAX_MS));
           const height = Math.max(QUALITY.MEASURED_MIN_H, Math.round(ratio * QUALITY.TRACK_H));
           return (
-            <span key={i} className={cn(QUALITY.BAR, jitterTone(b.jitter))} style={{ height }} />
+            <span className={cn("w-full rounded-[2px]", jitterTone(b.jitter))} style={{ height }} />
           );
-        })}
-      </div>
+        }}
+      />
     </div>
   );
 

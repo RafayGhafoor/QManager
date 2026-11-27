@@ -449,6 +449,56 @@ export const QUALITY = {
   VALUE_COL: "w-16 shrink-0 text-right whitespace-nowrap",
   /** The latency tile, shared by the card and its skeleton. */
   TILE: "flex flex-col gap-2 rounded-tile bg-surface-container p-3.5",
+  /**
+   * One strip cell's hover/focus target. It is the full track height and the full
+   * cell width (the 3px between cells is its own padding, so the pointer never
+   * crosses a dead gap), while the painted cell inside keeps its stub height.
+   * `ROW_BLEED` pulls the row back out by the same padding so the strips keep
+   * their old outer edges.
+   */
+  HIT: "flex h-full min-w-0 flex-1 items-end rounded-[3px] px-[1.5px] outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  ROW_BLEED: "-mx-[1.5px]",
+} as const;
+
+export const QUALITY_FALLBACK_CUTS = {
+  /** The backend's `tolerant` profile, used only when an older poller omits `thresholds`. */
+  LATENCY_MS: 250,
+  LOSS_PCT: 30,
+} as const;
+
+/**
+ * Connection Quality full-view dialog geometry, shared by the dialog and its
+ * skeleton. The three y scales are FLOORED, never fitted to the window: a chart
+ * that re-derives its ceiling on every 60 s read draws the same reading at a
+ * different height each time (DESIGN.md > The Area-Fill Rule), and the min-max
+ * band is a wash over the latency axis, so that axis must hold still.
+ */
+export const QUALITY_DIALOG = {
+  DEFAULT_RANGE: "24h",
+  /** Axis floors: the scale never shrinks below these, so a quiet link reads quiet. */
+  LATENCY_FLOOR_MS: 100,
+  JITTER_FLOOR_MS: 20,
+  LOSS_FLOOR_PCT: 10,
+  /** The min-max band's opacity at the stroke; the canon caps a wash at 0.35. */
+  BAND_OPACITY: 0.22,
+  Y_AXIS_W: 44,
+  MARGIN: { top: 8, right: 12, bottom: 0, left: 0 },
+  /** The crosshair group every chart in the dialog joins. */
+  SYNC_ID: "cq-dialog",
+  /** Chart boxes: ONE height per chart in every state, so loading never shifts layout. */
+  BOX_LATENCY: "h-[220px] w-full",
+  BOX_JITTER: "h-[120px] w-full",
+  BOX_LOSS: "h-[96px] w-full",
+  BOX_STRIP: "h-[48px] w-full",
+  /** The dialog's content box. */
+  CONTENT:
+    "@container/card max-h-[90vh] gap-5 overflow-y-auto rounded-card p-5 sm:max-w-5xl sm:p-6",
+  PANEL: "flex min-w-0 flex-col gap-2",
+  PANEL_HEAD: "flex min-h-5 flex-wrap items-center justify-between gap-x-4 gap-y-1",
+  PANEL_TITLE: "text-[13px] font-semibold text-on-surface",
+  LEGEND: "flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-semibold text-on-surface-variant",
+  FOOTER:
+    "grid grid-cols-2 gap-x-4 gap-y-3 border-t border-surface-container-high pt-4 @2xl/card:grid-cols-4",
 } as const;
 
 /**
