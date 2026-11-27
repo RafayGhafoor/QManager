@@ -1,0 +1,6 @@
+AT+QENG="servingcell"
++QENG: "servingcell","NOCONN"
++QENG: "LTE","FDD",410,01,2E38917,104,250,1,3,3,D857,-75,-11,-46,12,10,-110,-
++QENG: "NR5G-NSA",410,01,47,-58,30,-10,509070,41,7,1
+
+OK

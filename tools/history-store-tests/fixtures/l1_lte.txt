@@ -1,0 +1,8 @@
+AT+QNWCFG="lte_csi_ext";+QNWCFG="lte_ulMCS";+QNWCFG="up/down"
++QNWCFG: "lte_csi_ext",1,5,0,6,0,18,6,2
+
++QNWCFG: "lte_ulMCS",1,29,1
+
++QNWCFG: "up/down",96672,299388,2
+
+OK
