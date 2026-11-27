@@ -1,4 +1,5 @@
-AT+QNWCFG="lte_csi_ext";+QNWCFG="nr5g_csi_ext";+QNWCFG="nr5g_ulMCS";+QNWCFG="lte_ulMCS";+QNWCFG="up/down"
+AT+QNWCFG="lte_csi_ext";+QNWCFG="nr5g_csi_ext";+QNWCFG="nr5g_ulMCS";+QNWCFG="lte_ulMCS";+QNWCFG="nr5g_tx_pwr";+QNWCFG="up/down"
+
 +QNWCFG: "lte_csi_ext",1,5,0,13,0,18,6,2
 
 +QNWCFG: "nr5g_csi_ext",1,1,1,15,7,12,2,0
@@ -6,6 +7,8 @@ AT+QNWCFG="lte_csi_ext";+QNWCFG="nr5g_csi_ext";+QNWCFG="nr5g_ulMCS";+QNWCFG="lte
 +QNWCFG: "nr5g_ulMCS",1,25,4
 
 +QNWCFG: "lte_ulMCS",1,29,1
+
++QNWCFG: "nr5g_tx_pwr",1,3,-14,12,0
 
 +QNWCFG: "up/down",96672,299388,2
 

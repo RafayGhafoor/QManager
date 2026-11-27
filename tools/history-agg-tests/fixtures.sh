@@ -34,7 +34,7 @@ sh "$gen" v1 $TODAY $TODAY_N 12 > "$out/v1_only/cell/$NAME_T.jsonl"
 mk v2_full 1795761720
 sh "$gen" v2 $D2 1440 20 1 > "$out/v2_full/cell/$NAME_2.jsonl"; gz "$out/v2_full/cell/$NAME_2.jsonl"
 sh "$gen" v2 $D1 1440 21 1 > "$out/v2_full/cell/$NAME_1.jsonl"; gz "$out/v2_full/cell/$NAME_1.jsonl"
-sh "$gen" v2 $TODAY 402 22 1 > "$out/v2_full/cell/$NAME_T.jsonl"
+sh "$gen" v3 $TODAY 402 22 1 > "$out/v2_full/cell/$NAME_T.jsonl"
 sh "$gen" ping $D1 1440 31 > "$out/v2_full/ping/$NAME_1.jsonl"
 sh "$gen" ping $TODAY $TODAY_N 32 > "$out/v2_full/ping/$NAME_T.jsonl"
 lastreal=$(awk -F, '/^\[/ { t = substr($1, 2) + 0 } END { print t }' "$out/v2_full/ping/$NAME_T.jsonl")

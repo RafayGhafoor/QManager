@@ -9,8 +9,12 @@
 # What it reads (one compound AT exchange through the poller's _qc_read, so the
 # QSCAN / long-command yield and the per-cycle busy latch apply unchanged):
 #   LTE : lte_csi_ext ; lte_ulMCS ; up/down
-#   NSA : lte_csi_ext ; nr5g_csi_ext ; nr5g_ulMCS ; lte_ulMCS ; up/down
-#   SA  : nr5g_csi_ext ; nr5g_ulMCS ; up/down
+#   NSA : lte_csi_ext ; nr5g_csi_ext ; nr5g_ulMCS ; lte_ulMCS ; nr5g_tx_pwr ; up/down
+#   SA  : nr5g_csi_ext ; nr5g_ulMCS ; nr5g_tx_pwr ; up/down
+# nr5g_tx_pwr (2026-11-27): `1,<a>,<b>,<c>,<d>` dBm, -32768 = not available.
+# Undocumented; field <a> is taken as the PUSCH (uplink data) power by analogy
+# with lte_tx_pwr, whose first two fields are the two values AT+QENG's LTE
+# tx_power alternates between. Needs the modem toggle AT+QNWCFG="nr5g_tx_pwr",1.
 # NEVER a *_mimo_layers read: it is a firmware hazard in the wrong RAT. MIMO
 # rank is the RI field of *_csi_ext.
 #
@@ -83,6 +87,7 @@ L1R_NMCS=null; L1R_NRI=null; L1R_NCQI=null; L1R_NUL=null
 L1R_PRBM=null; L1R_PRBX=null; L1R_PRBN=null
 L1R_PRBSRC=""     # N / L: which carrier's PRB count the PRB columns are a share of ("" = none)
 L1R_DL=null; L1R_UL=null
+L1R_NTX=null    # NR TX power, dBm, 1 decimal (burst mean)
 
 # The poller defines these; stubs keep the lib loadable on its own (tests).
 command -v _tap_at >/dev/null 2>&1 || _tap_at() { :; }
@@ -99,6 +104,7 @@ l1_accum_reset() {
     _L1_NCQI_S=0; _L1_NCQI_N=0
     _L1_PRB_S=0; _L1_PRB_N=0; _L1_PRB_MAX=""; _L1_PRB_SRC=""
     _L1_DL_S=0; _L1_UL_S=0; _L1_BPS_N=0
+    _L1_NTX_S=0; _L1_NTX_N=0
 }
 
 # _l1_isnum <value> <max_digits>: 0 when the value is 1..max_digits digits.
@@ -151,7 +157,7 @@ _l1_parse() {
     local _lp_more
     _L1_P_LMCS=""; _L1_P_LRI=""; _L1_P_LPRB=""; _L1_P_LUL=""
     _L1_P_NMCS=""; _L1_P_NRI=""; _L1_P_NCQI=""; _L1_P_NPRB=""; _L1_P_NUL=""
-    _L1_P_UP=""; _L1_P_DL=""
+    _L1_P_UP=""; _L1_P_DL=""; _L1_P_NTX=""
     _lp_rest="$1"
     _lp_more=1
     while [ "$_lp_more" = 1 ]; do
@@ -170,6 +176,9 @@ _l1_parse() {
             '+QNWCFG: "nr5g_ulMCS",'*)
                 _l1_split "${_lp_line#*\",}"
                 if [ "$_L1F1" = "1" ] && _l1_isnum "$_L1F2" 3; then _l1_dec "$_L1F2"; _L1_P_NUL="$_LD"; fi ;;
+            '+QNWCFG: "nr5g_tx_pwr",'*)
+                _l1_split "${_lp_line#*\",}"
+                if [ "$_L1F1" = "1" ]; then _l1_dbm "$_L1F2"; _L1_P_NTX="$_LD"; fi ;;
             '+QNWCFG: "up/down",'*)
                 _l1_split "${_lp_line#*\",}"
                 if _l1_isnum "$_L1F1" 12 && _l1_isnum "$_L1F2" 12; then
@@ -178,6 +187,37 @@ _l1_parse() {
                 fi ;;
         esac
     done
+}
+
+# _l1_dbm <field>: _LD = a plausible signed dBm integer (-60..40), else empty.
+# -32768 is the modem's "not available".
+_l1_dbm() {
+    _LD=""
+    case "$1" in
+        -[0-9]|-[0-9][0-9]) _LD="$1" ;;
+        [0-9]|[0-9][0-9]) _l1_dec "$1" ;;
+        *) return 0 ;;
+    esac
+    [ "$_LD" -ge -60 ] 2>/dev/null && [ "$_LD" -le 40 ] 2>/dev/null || _LD=""
+}
+
+# _l1_mean_dec <sum> <n>: _LM = mean with one decimal (sign-safe), "null" when n is 0.
+_l1_mean_dec() {
+    local _md_t
+    local _md_a
+    if [ "$2" -gt 0 ]; then
+        _md_t=$(( $1 * 10 ))
+        if [ "$_md_t" -lt 0 ]; then
+            _md_a=$(( (-_md_t * 2 + $2) / ($2 * 2) ))
+            _LM="-$((_md_a / 10)).$((_md_a % 10))"
+        else
+            _md_a=$(( (_md_t * 2 + $2) / ($2 * 2) ))
+            _LM="$((_md_a / 10)).$((_md_a % 10))"
+        fi
+        [ "$_LM" = "-0.0" ] && _LM="0.0"
+    else
+        _LM=null
+    fi
 }
 
 # _l1_max <current> <new>: _LM = the larger (empty current = new).
@@ -208,6 +248,7 @@ _l1_accum() {
         _L1_PRB_S=$((_L1_PRB_S + _la_prb)); _L1_PRB_N=$((_L1_PRB_N + 1))
         _l1_max "$_L1_PRB_MAX" "$_la_prb"; _L1_PRB_MAX="$_LM"
     fi
+    if [ -n "$_L1_P_NTX" ]; then _L1_NTX_S=$((_L1_NTX_S + _L1_P_NTX)); _L1_NTX_N=$((_L1_NTX_N + 1)); fi
     if [ -n "$_L1_P_DL" ]; then
         _L1_DL_S=$((_L1_DL_S + _L1_P_DL)); _L1_UL_S=$((_L1_UL_S + _L1_P_UP)); _L1_BPS_N=$((_L1_BPS_N + 1))
     fi
@@ -227,7 +268,7 @@ l1_row_get() {
     L1R_LMCS=null; L1R_LRI=null; L1R_LUL=null
     L1R_NMCS=null; L1R_NRI=null; L1R_NCQI=null; L1R_NUL=null
     L1R_PRBM=null; L1R_PRBX=null; L1R_PRBN=null; L1R_PRBSRC=""
-    L1R_DL=null; L1R_UL=null
+    L1R_DL=null; L1R_UL=null; L1R_NTX=null
     [ "$L1_ENABLED" = "1" ] || return 0
     _l1_mean "$_L1_LMCS_S" "$_L1_LMCS_N"; L1R_LMCS="$_LM"
     L1R_LRI="${_L1_LRI_MAX:-null}"
@@ -241,6 +282,7 @@ l1_row_get() {
     if [ "$_L1_PRB_N" -gt 0 ]; then L1R_PRBN="$_L1_PRB_N"; L1R_PRBSRC="$_L1_PRB_SRC"; fi
     _l1_mean "$_L1_DL_S" "$_L1_BPS_N"; L1R_DL="$_LM"
     _l1_mean "$_L1_UL_S" "$_L1_BPS_N"; L1R_UL="$_LM"
+    _l1_mean_dec "$_L1_NTX_S" "$_L1_NTX_N"; L1R_NTX="$_LM"
 }
 
 # _l1_netdev: refresh _L1_DL_BPS from the WAN netdev rx counter (builtins only).
@@ -291,12 +333,12 @@ _l1_exchange() {
     local _le_rc
     case "$network_type" in
         5G-SA)
-            _le_cmd='AT+QNWCFG="nr5g_csi_ext";+QNWCFG="nr5g_ulMCS";+QNWCFG="up/down"' ;;
+            _le_cmd='AT+QNWCFG="nr5g_csi_ext";+QNWCFG="nr5g_ulMCS";+QNWCFG="nr5g_tx_pwr";+QNWCFG="up/down"' ;;
         5G-NSA)
             if [ "$L1_NSA_LTE_ULMCS" = "1" ]; then
-                _le_cmd='AT+QNWCFG="lte_csi_ext";+QNWCFG="nr5g_csi_ext";+QNWCFG="nr5g_ulMCS";+QNWCFG="lte_ulMCS";+QNWCFG="up/down"'
+                _le_cmd='AT+QNWCFG="lte_csi_ext";+QNWCFG="nr5g_csi_ext";+QNWCFG="nr5g_ulMCS";+QNWCFG="lte_ulMCS";+QNWCFG="nr5g_tx_pwr";+QNWCFG="up/down"'
             else
-                _le_cmd='AT+QNWCFG="lte_csi_ext";+QNWCFG="nr5g_csi_ext";+QNWCFG="nr5g_ulMCS";+QNWCFG="up/down"'
+                _le_cmd='AT+QNWCFG="lte_csi_ext";+QNWCFG="nr5g_csi_ext";+QNWCFG="nr5g_ulMCS";+QNWCFG="nr5g_tx_pwr";+QNWCFG="up/down"'
             fi ;;
         LTE)
             _le_cmd='AT+QNWCFG="lte_csi_ext";+QNWCFG="lte_ulMCS";+QNWCFG="up/down"' ;;

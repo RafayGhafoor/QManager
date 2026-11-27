@@ -2,6 +2,7 @@
 # gen.sh - deterministic synthetic archive rows for the history-agg tests.
 #
 #   gen.sh v2   <day_start_epoch> <rows> [seed] [l1=1|0]   cell archive v2 rows
+#   gen.sh v3   <day_start_epoch> <rows> [seed] [l1=1|0]   v3 rows (v2 + col 39 nr_tx_power)
 #   gen.sh v1   <day_start_epoch> <rows> [seed]            cell archive v1 rows
 #   gen.sh ping <day_start_epoch> <rows> [seed]            ping archive rows
 #
@@ -21,6 +22,7 @@ function sine(i, per, amp) { return amp * sin(6.2831853 * i / per) }
 function nn(v) { return (v == "") ? "null" : v }
 BEGIN {
     S = seed + 0; if (S <= 0) S = 7
+    v3 = (kind == "v3"); if (v3) kind = "v2"
     for (i = 0; i < rows; i++) {
         m = i % 480
         if ((i % 500) >= 300 && (i % 500) <= 304) continue
@@ -52,7 +54,7 @@ BEGIN {
         }
         # ---- v2 ----
         if (nosvc) {
-            printf "[2,%d,\"NOSVC\",0,\"a\",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,%d,%d,%d,null,null,null,null,null,null,null,null]\n", ts, ri(40, 50), ri(20, 40), ri(30, 45)
+            printf "[%d,%d,\"NOSVC\",0,\"a\",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,%d,%d,%d,null,null,null,null,null,null,null,null%s]\n", (v3 ? 3 : 2), ts, ri(40, 50), ri(20, 40), ri(30, 45), (v3 ? ",null" : "")
             continue
         }
         l1on = (l1 == 1 && (i % 211) != 0)
@@ -65,7 +67,7 @@ BEGIN {
         pr = cellb ? "3,1650,20,77" : "1,250,10,104"
         split(pr, q, ",")
         nar = dropout ? "LTE" : "NSA"
-        c[1] = 2; c[2] = ts; c[3] = "\"" nar "\""; c[4] = (dropout ? 0 : 1); c[5] = "\"a\""
+        c[1] = (v3 ? 3 : 2); c[2] = ts; c[3] = "\"" nar "\""; c[4] = (dropout ? 0 : 1); c[5] = "\"a\""
         c[6] = (cellb ? 48466201 : 48466199); c[7] = 55383; c[8] = "null"; c[9] = "null"
         c[10] = 1; c[11] = (dropout ? 0 : 1); c[12] = (dropout ? 30 : 60)
         c[13] = ri(9, 12); c[14] = txp
@@ -80,6 +82,7 @@ BEGIN {
         for (a = 0; a < 4; a++) c[35 + a] = dropout ? "null" : (rsrp + 8 + ((a == 2 || a == 3) ? -25 : -3 * a) + ri(-2, 2))
         line = "[" c[1]
         for (k = 2; k <= 38; k++) line = line "," c[k]
+        if (v3) line = line "," ((dropout || !l1on) ? "null" : f1(-5 + rnd() * 15))
         # carriers: LTE PCC, LTE SCC (other band), NR SCC unless dropped out
         if (cellb) line = line ",[\"P\",\"L\",3,1650,20,77," rsrp "," rsrq "," sinr "," (rsrp + 38) "]"
         else line = line ",[\"P\",\"L\",1,250,10,104," rsrp "," rsrq "," sinr "," (rsrp + 38) "]"

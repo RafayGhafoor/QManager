@@ -34,7 +34,7 @@ SIGNAL_HISTORY_FILE="/tmp/qmanager_signal_history.json"
 
 # Key set of `series` and the source of `missing[]`. Kept in step with
 # CELL_HISTORY_PANELS in types/cell-history.ts.
-CELL_ALL_PANELS="rsrp sinr rsrq rssi temp cqi rank mcs tx_power total_cells cpu mem dl ul ca bw lte_mcs nr_mcs lte_ri nr_ri lte_cqi nr_cqi ul_mcs lat jit loss"
+CELL_ALL_PANELS="rsrp sinr rsrq rssi temp cqi rank mcs tx_power total_cells cpu mem dl ul ca bw lte_mcs nr_mcs lte_ri nr_ri lte_cqi nr_cqi ul_mcs nr_tx_power lat jit loss"
 
 HISTORY_AGG_LIB="${QM_LIB_DIR:-/usr/lib/qmanager}/history_agg.sh"
 [ -f "$HISTORY_AGG_LIB" ] && . "$HISTORY_AGG_LIB"

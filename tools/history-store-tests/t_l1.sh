@@ -122,7 +122,7 @@ eq "second cycle, same cell, no traffic -> one exchange" "$HT_CALLS" 1
 cycle; l1_sample 0
 eq "no traffic: only one exchange per row window" "$HT_CALLS" 1
 case "$HT_LAST_CMD" in *mimo*) ht_bad "mimo_layers must never be read" ;; *) ht_ok ;; esac
-eq "NSA command" "$HT_LAST_CMD" 'AT+QNWCFG="lte_csi_ext";+QNWCFG="nr5g_csi_ext";+QNWCFG="nr5g_ulMCS";+QNWCFG="lte_ulMCS";+QNWCFG="up/down"'
+eq "NSA command" "$HT_LAST_CMD" 'AT+QNWCFG="lte_csi_ext";+QNWCFG="nr5g_csi_ext";+QNWCFG="nr5g_ulMCS";+QNWCFG="lte_ulMCS";+QNWCFG="nr5g_tx_pwr";+QNWCFG="up/down"'
 
 # traffic present, active tier: one per 6 s
 reset_gate; FAKE_RAW="$(rd l1_nsa.txt)"; _L1_DL_BPS=5000000
@@ -161,11 +161,25 @@ cycle; l1_sample 0
 eq "next cycle, new cell now stable -> exchange" "$HT_CALLS" 2
 lte_pci=104
 network_type="5G-SA"; nr_pci=47; cycle; l1_sample 0; cycle; l1_sample 0
-case "$HT_LAST_CMD" in 'AT+QNWCFG="nr5g_csi_ext";+QNWCFG="nr5g_ulMCS";+QNWCFG="up/down"') ht_ok ;; *) ht_bad "SA command" "$HT_LAST_CMD" ;; esac
+case "$HT_LAST_CMD" in 'AT+QNWCFG="nr5g_csi_ext";+QNWCFG="nr5g_ulMCS";+QNWCFG="nr5g_tx_pwr";+QNWCFG="up/down"') ht_ok ;; *) ht_bad "SA command" "$HT_LAST_CMD" ;; esac
 network_type="LTE"; cycle; l1_sample 0; cycle; l1_sample 0
 case "$HT_LAST_CMD" in 'AT+QNWCFG="lte_csi_ext";+QNWCFG="lte_ulMCS";+QNWCFG="up/down"') ht_ok ;; *) ht_bad "LTE command" "$HT_LAST_CMD" ;; esac
 case "$HT_ALL_CMDS" in *mimo*) ht_bad "a *_mimo_layers command was issued" "$HT_ALL_CMDS" ;; *) ht_ok ;; esac
 network_type="5G-NSA"
+
+# nr5g_tx_pwr: signed dBm, -32768 = not available, sign-safe one-decimal mean
+l1_accum_reset; L1_ENABLED=1
+_l1_parse '+QNWCFG: "nr5g_tx_pwr",1,-4,-23,12,0'; _l1_accum
+_l1_parse '+QNWCFG: "nr5g_tx_pwr",1,-3,-21,13,0'; _l1_accum
+l1_row_get; eq "NR TX mean of -4 and -3" "$L1R_NTX" "-3.5"
+l1_accum_reset
+_l1_parse '+QNWCFG: "nr5g_tx_pwr",1,-32768,-32768,-32768,0'; _l1_accum
+l1_row_get; eq "NR TX -32768 is not a reading" "$L1R_NTX" null
+_l1_parse '+QNWCFG: "nr5g_tx_pwr",0,3,-14,12,0'; _l1_accum
+l1_row_get; eq "NR TX reporting off -> null" "$L1R_NTX" null
+_l1_parse '+QNWCFG: "nr5g_tx_pwr",1,23,0,0,0'; _l1_accum
+l1_row_get; eq "NR TX positive" "$L1R_NTX" "23.0"
+l1_accum_reset
 
 # gates: QENG did not parse, disabled, busy
 reset_gate; _QENG_PARSED=0; FAKE_RAW="$(rd l1_nsa.txt)"

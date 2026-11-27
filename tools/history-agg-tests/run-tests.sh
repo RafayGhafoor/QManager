@@ -61,7 +61,7 @@ count_rows() { # <file...> start end: rows whose ts is inside the window
     for f in "$@"; do
         case "$f" in *.gz) gzip -dc "$f" ;; *) cat "$f" ;; esac
     done | awk -v s="$s" -v e="$e" '{
-        if (substr($0, 1, 3) == "[2,") t = substr($0, 4, 10); else if (substr($0, 1, 6) == "{\"ts\":") t = substr($0, 7, 10); else next
+        if (substr($0, 1, 3) == "[2," || substr($0, 1, 3) == "[3,") t = substr($0, 4, 10); else if (substr($0, 1, 6) == "{\"ts\":") t = substr($0, 7, 10); else next
         if (t + 0 >= s && t + 0 <= e && (substr($0, length($0)) == "]" || substr($0, length($0)) == "}")) n++ } END { print n + 0 }'
 }
 
@@ -92,7 +92,7 @@ baseline_cells() { # <case> <range> <panels>
     )
 }
 
-PANELS="rsrp sinr rsrq rssi temp cqi rank mcs tx_power total_cells cpu mem dl ul ca bw lte_mcs nr_mcs lte_ri nr_ri lte_cqi nr_cqi ul_mcs lat jit loss"
+PANELS="rsrp sinr rsrq rssi temp cqi rank mcs tx_power total_cells cpu mem dl ul ca bw lte_mcs nr_mcs lte_ri nr_ri lte_cqi nr_cqi ul_mcs nr_tx_power lat jit loss"
 CMP='del(.snapshot, .recorder, .restarts, .device_utc_offset_min)'
 
 equiv() { # <case> <range>
@@ -134,7 +134,8 @@ assert "v1: device offset from TZ=CST6 is -360" '.device_utc_offset_min == -360'
 
 echo "== v2 archive (L1 on, ping archive, ring, boot log)"
 f="$TMP/v2_full.24h.json"
-assert "v2: every panel the row can answer has points" '[.series.rsrp,.series.rssi,.series.cqi,.series.rank,.series.mcs,.series.lte_mcs,.series.nr_mcs,.series.lte_ri,.series.nr_ri,.series.lte_cqi,.series.nr_cqi,.series.ul_mcs,.series.tx_power,.series.total_cells,.series.cpu,.series.mem,.series.dl,.series.ul,.series.ca,.series.bw,.series.temp]|all(length>0)' "$f"
+assert "v2: every panel the row can answer has points" '[.series.rsrp,.series.rssi,.series.cqi,.series.rank,.series.mcs,.series.lte_mcs,.series.nr_mcs,.series.lte_ri,.series.nr_ri,.series.lte_cqi,.series.nr_cqi,.series.ul_mcs,.series.tx_power,.series.nr_tx_power,.series.total_cells,.series.cpu,.series.mem,.series.dl,.series.ul,.series.ca,.series.bw,.series.temp]|all(length>0)' "$f"
+assert "v3: NR TX power (col 39) is a series, LTE TX still from col 14" '(.series.nr_tx_power|length>0) and (.series.nr_tx_power|all(.[]; .v>=-5 and .v<=10)) and (.series.tx_power|all(.[]; .v>=5 and .v<=15))' "$f"
 assert "v2: lat/jit/loss joined from the ping archive" '(.series.lat|length>0) and (.series.jit|length>0) and (.series.loss|length>0)' "$f"
 assert "v2: missing[] is empty when everything has data" '.missing==[]' "$f"
 assert "v2: three carriers, LTE PCC first by samples, NR SCC present" '(.carriers|length)==3 and (.carriers|map(.key)|contains(["L:1:250","L:3:1650","N:41:509070"]))' "$f"
@@ -184,7 +185,7 @@ assert "gz wins: the plain file's PCI 999 never appears" '(.cells.stats|map(.key
 
 echo "== empty archive, stale recorder, low space, clock"
 f="$TMP/empty.24h.json"
-assert "empty: state empty, no samples, all panels missing, nulls not zeros" '.recorder.state=="empty" and .recorder.stale_sec==null and .recorder.oldest_ts==null and .window.samples==0 and .window.first_ts==null and (.missing|length)==26 and .carriers==[] and .congestion==[] and .coverage.cell_from==null and .snapshot.as_of==null and .snapshot.cell.lte_pci==null' "$f"
+assert "empty: state empty, no samples, all panels missing, nulls not zeros" '.recorder.state=="empty" and .recorder.stale_sec==null and .recorder.oldest_ts==null and .window.samples==0 and .window.first_ts==null and (.missing|length)==27 and .carriers==[] and .congestion==[] and .coverage.cell_from==null and .snapshot.as_of==null and .snapshot.cell.lte_pci==null' "$f"
 f="$TMP/stale.24h.json"
 assert "stale: state stale, window still ends at now, stale_sec > 180" '.recorder.state=="stale" and .recorder.stale_sec>180 and .window.end==.generated_at' "$f"
 f="$TMP/low_space.24h.json"

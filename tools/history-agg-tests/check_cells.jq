@@ -7,7 +7,7 @@ def strnull: . == null or type == "string";
 def pts: type == "array" and all(.[]; type == "object" and (.ts | isnum) and (.v | isnum));
 def ascending: ([.[].ts]) as $t | ($t == ($t | sort)) and (($t | unique | length) == ($t | length));
 def keys_are($ks): (keys | sort) == ($ks | sort);
-def panels: ["rsrp","sinr","rsrq","rssi","temp","cqi","rank","mcs","tx_power","total_cells","cpu","mem","dl","ul","ca","bw","lte_mcs","nr_mcs","lte_ri","nr_ri","lte_cqi","nr_cqi","ul_mcs","lat","jit","loss"];
+def panels: ["rsrp","sinr","rsrq","rssi","temp","cqi","rank","mcs","tx_power","total_cells","cpu","mem","dl","ul","ca","bw","lte_mcs","nr_mcs","lte_ri","nr_ri","lte_cqi","nr_cqi","ul_mcs","nr_tx_power","lat","jit","loss"];
 def chk(c; m): if c then empty else m end;
 
 [

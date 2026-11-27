@@ -614,6 +614,7 @@ export const METRIC_AXIS = {
   lte_cqi: { unit: null, domain: [0, 15], tone: SERIES_TONE.lte, scale: 1, step: false, decimals: 1 },
   nr_cqi: { unit: null, domain: [0, 15], tone: SERIES_TONE.nr, scale: 1, step: false, decimals: 1 },
   tx_power: { unit: "dBm", domain: null, tone: SERIES_TONE.up, scale: 1, step: false, decimals: 1 },
+  nr_tx_power: { unit: "dBm", domain: null, tone: SERIES_TONE.up, scale: 1, step: false, decimals: 1 },
   // Device load.
   temp: { unit: "\u00b0C", domain: null, tone: SERIES_TONE.neutral, scale: 1, step: false, decimals: 0 },
   cpu: { unit: "%", domain: [0, 100], tone: SERIES_TONE.neutral, scale: 1, step: false, decimals: 0 },

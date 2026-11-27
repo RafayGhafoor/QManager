@@ -431,7 +431,7 @@ function flush(   i, m, j, key, k, tk, kp, v, dl, sat, pfx, bsx) {
     if (curb < 0) return
     bsx = sprintf("%.0f", curb)
     pfx = "{\"ts\":" bsx ",\"v\":"
-    for (i = 1; i <= 23; i++) {
+    for (i = 1; i <= 24; i++) {
         m = MAP[i]
         if (bn[m] > 0) OT[PN[i]] = OT[PN[i]] pfx fm(bs[m] / bn[m]) "},"
     }
@@ -504,9 +504,9 @@ BEGIN {
     st = start + 0; en = end + 0
     NEV = split("nr_avail lte_pci lte_band lte_earfcn lte_bw nr_pci nr_band nr_arfcn lte_cellid nr_cellid network_type bands", EVN, " ")
     split("ts rat lte_pci lte_band lte_earfcn lte_bw lte_cell_id lte_tac nr_pci nr_band nr_arfcn nr_cell_id nr_tac nr_avail rsrp rsrq sinr", V1K, " ")
-    split("31 32 33 34 35 36 37 15 18 16 19 13 20 38 14 28 29 30 26 27 39 12 40", MAP, " ")
-    split("rsrp sinr rsrq rssi cqi rank mcs lte_mcs nr_mcs lte_ri nr_ri lte_cqi nr_cqi ul_mcs tx_power temp cpu mem dl ul ca bw total_cells", PNm, " ")
-    for (i = 1; i <= 23; i++) PN[i] = "m:" PNm[i]
+    split("31 32 33 34 35 36 37 15 18 16 19 13 20 38 14 28 29 30 26 27 39 12 40 41", MAP, " ")
+    split("rsrp sinr rsrq rssi cqi rank mcs lte_mcs nr_mcs lte_ri nr_ri lte_cqi nr_cqi ul_mcs tx_power temp cpu mem dl ul ca bw total_cells nr_tx_power", PNm, " ")
+    for (i = 1; i <= 24; i++) PN[i] = "m:" PNm[i]
     split("rsrp rsrq sinr rssi", CJ, " ")
     for (i = 1; i <= 40; i++) OFF[i] = 38 + (i - 1) * 10
     curb = -1; in_out = 0; out_n = 0; run_n = 0; bn_n = 0; NW = 0; had_prev = 0; seen_up = 0; ne = 0; gmax = ""
@@ -515,7 +515,10 @@ BEGIN {
 
 {
     s = $0
-    if (substr(s, 1, 3) == "[2,") {
+    rpre = substr(s, 1, 3)
+    if (rpre == "[2," || rpre == "[3,") {
+        # v3 = v2 + head column 39 (nr_tx_power): lift it out, then the row is a v2 row
+        hw = (rpre == "[3,") ? 39 : 38
         i = index(substr(s, 4, 12), ","); if (i < 2) next
         T = substr(s, 4, i - 1) + 0
         if (T <= 0 || T < st || T > en) next
@@ -524,7 +527,13 @@ BEGIN {
         p = s
         gsub(/[]["]|null/, "", p)
         n = split(p ",E", f, ",") - 1
-        if (n < 38 || (n - 38) % 10 != 0 || n > 398) next
+        if (n < hw || (n - hw) % 10 != 0 || n > hw + 360) next
+        ntx = ""
+        if (hw == 39) {
+            ntx = f[39]
+            for (i = 39; i < n; i++) f[i] = f[i + 1]
+            delete f[n]; n--
+        }
         NC = (n - 38) / 10
         if (NC > 0) { if (substr(s, L - 1) != "]]") next }
         else if (substr(s, L - 1) == "]]") next
@@ -551,6 +560,7 @@ BEGIN {
         # re-lay the v1 row out as a v2 row: head columns + synthetic carriers
         # (v1 rows have no carrier count, so they never feed `ca` / combo ca_cc)
         v1row = 1
+        ntx = ""
         for (i = 1; i <= 80; i++) f[i] = ""
         nt_ = ssafe(g[2])
         f[3] = (nt_ == "5G-NSA") ? "NSA" : (nt_ == "5G-SA") ? "SA" : nt_
@@ -658,6 +668,7 @@ BEGIN {
     if (u != "") { bs[38] += u; bn[38]++ }
     if (NC > 0 && !v1row) { bs[39] += NC; bn[39]++ }
     if (f[10] != "" || f[11] != "") { bs[40] += f[10] + f[11] + 1; bn[40]++ }
+    if (ntx != "") { bs[41] += ntx; bn[41]++ }
 
     for (c = 1; c <= NC; c++) {
         if (ckey[c] == "") continue

@@ -39,7 +39,7 @@ reset_state() {
     CELL_HISTORY_MIN_FREE_KB=0; _ch_deep_min=0
 }
 last_row() { tail -n 1 "$CELL_HISTORY_DIR/$(ls "$CELL_HISTORY_DIR" | sort | tail -n 1)"; }
-ncols() { # head columns of a v2 row (stops before the first carrier array)
+ncols() { # head columns of a v3 row (stops before the first carrier array)
     printf '%s' "$1" | sed 's/,\[".*$//; s/^\[//; s/\]$//' | awk -F, '{ print NF }'
 }
 
@@ -57,12 +57,12 @@ _l1_parse "$(rd l1_nsa.txt)"; _l1_accum
 append_cell_history
 ROW=$(last_row)
 printf '%s\n' "$ROW" > "$HT_TMP/row_nsa.txt"
-eq "NSA: 38 head columns" "$(ncols "$ROW")" 38
-EXP='[2,1795780807,"NSA",1,"a",48466199,55383,null,null,0,1,60,10,-11.0,5,0,29,1,1,15,25,2,2,2,133,299388,96672,45,30,40,-85,-124,-118,-75,-58,-99,null,null,["P","L",1,250,10,104,-75,-10,5,-48],["S","N",41,509070,50,47,-62,-11,29.1,null]]'
+eq "NSA: 39 head columns" "$(ncols "$ROW")" 39
+EXP='[3,1795780807,"NSA",1,"a",48466199,55383,null,null,0,1,60,10,-11.0,5,0,29,1,1,15,25,2,2,2,133,299388,96672,45,30,40,-85,-124,-118,-75,-58,-99,null,null,3.0,["P","L",1,250,10,104,-75,-10,5,-48],["S","N",41,509070,50,47,-62,-11,29.1,null]]'
 eq "NSA: exact row" "$ROW" "$EXP"
 if command -v jq >/dev/null 2>&1; then
-    eq "NSA: valid JSON, 38 + 2 carriers" "$(printf '%s' "$ROW" | jq -c 'length')" 40
-    eq "NSA: band is a number" "$(printf '%s' "$ROW" | jq -c '.[38][2], .[39][2]')" "1
+    eq "NSA: valid JSON, 39 + 2 carriers" "$(printf '%s' "$ROW" | jq -c 'length')" 41
+    eq "NSA: band is a number" "$(printf '%s' "$ROW" | jq -c '.[39][2], .[40][2]')" "1
 41"
 fi
 
@@ -92,7 +92,7 @@ t2_carrier_components='[{"type":"PCC","technology":"LTE","band":"B1","earfcn":25
 parse_qrsrp "$(rd antenna_nsa.txt)"
 append_cell_history
 ROW=$(last_row)
-eq "LTE: 38 head columns" "$(ncols "$ROW")" 38
+eq "LTE: 39 head columns" "$(ncols "$ROW")" 39
 eq "LTE: rat" "$(printf '%s' "$ROW" | awk -F, '{ print $3 "," $4 }')" '"LTE",0'
 eq "LTE: scc count, nr scc, total bw" "$(printf '%s' "$ROW" | awk -F, '{ print $10 "," $11 "," $12 }')" "1,0,30"
 eq "LTE: cqi 9, tx -9.5" "$(printf '%s' "$ROW" | awk -F, '{ print $13 "," $14 }')" "9,-9.5"
@@ -106,7 +106,7 @@ parse_serving_cell "$(strip '+QENG: "servingcell","NOCONN","NR5G-SA","TDD",410,0
 t2_carrier_components='[{"type":"PCC","technology":"NR","band":"N78","earfcn":504990,"bandwidth_mhz":100,"pci":271,"rsrp":-95,"rsrq":-11,"rssi":null,"sinr":12.5}]'
 append_cell_history
 ROW=$(last_row)
-eq "SA: 38 head columns" "$(ncols "$ROW")" 38
+eq "SA: 39 head columns" "$(ncols "$ROW")" 39
 eq "SA: rat, nr_avail" "$(printf '%s' "$ROW" | awk -F, '{ print $3 "," $4 }')" '"SA",1'
 eq "SA: nr cell id / tac present, lte null" "$(printf '%s' "$ROW" | awk -F, '{ print ($6) "," ($7) "," ($9 != "null") }')" "null,null,1"
 eq "SA: n_rb 100 MHz @ 30 kHz" "$(printf '%s' "$ROW" | awk -F, '{ print $25 }')" 273
@@ -119,8 +119,8 @@ _NOW="$NOW"
 parse_serving_cell "$(strip '+QENG: "servingcell","SEARCH"')"
 append_cell_history
 ROW=$(last_row)
-eq "NOSVC: exact row (modem columns null, system columns kept)" "$ROW" "[2,1795780807,\"NOSVC\",null,\"a\",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,45,30,40,null,null,null,null,null,null,null,null]"
-eq "NOSVC: 38 columns" "$(printf '%s' "$ROW" | sed 's/^\[//; s/\]$//' | awk -F, '{ print NF }')" 38
+eq "NOSVC: exact row (modem columns null, system columns kept)" "$ROW" "[3,1795780807,\"NOSVC\",null,\"a\",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,45,30,40,null,null,null,null,null,null,null,null,null]"
+eq "NOSVC: 39 columns" "$(printf '%s' "$ROW" | sed 's/^\[//; s/\]$//' | awk -F, '{ print NF }')" 39
 
 # an ERROR reply parsed but carried no +QENG: line -> no row at all
 reset_state

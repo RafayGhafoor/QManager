@@ -74,6 +74,11 @@ export const CELL_HISTORY_PANELS = [
   "nr_cqi",
   /** Uplink MCS of the leg carrying uplink data (NR in NSA/SA, else LTE). */
   "ul_mcs",
+  /**
+   * NR uplink TX power, dBm (archive schema v3, `AT+QNWCFG="nr5g_tx_pwr"`,
+   * L1 sampling only). `tx_power` stays the LTE TX power from AT+QENG.
+   */
+  "nr_tx_power",
   /** Ping archive, joined by timestamp: latency ms, jitter ms, loss %. */
   "lat",
   "jit",

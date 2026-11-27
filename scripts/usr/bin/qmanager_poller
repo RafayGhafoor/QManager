@@ -1332,16 +1332,19 @@ append_signal_history() {
 # -----------------------------------------------------------------------------
 # Cell history: one row a minute, append-only, one file per UTC day.
 # -----------------------------------------------------------------------------
-# SCHEMA v2: one JSON ARRAY per line (valid JSON, awk-splittable), `[2,...`.
-# v1 lines (keyed objects, `{"ts"...`) from earlier builds stay readable; nothing
-# is rewritten, they age out. 38 head columns, then one trailing array per carrier:
+# SCHEMA v3: one JSON ARRAY per line (valid JSON, awk-splittable), `[3,...`.
+# v3 = v2 plus head column 39 (nr_tx_power). v2 lines (`[2,...`, 38 head columns)
+# and v1 lines (keyed objects, `{"ts"...`) from earlier builds stay readable;
+# nothing is rewritten, they age out. 39 head columns, then one array per carrier:
 #
-#   1 v=2  2 ts  3 rat LTE|NSA|SA|NOSVC  4 nr_avail 0|1|null  5 tier a|i|d
+#   1 v=3  2 ts  3 rat LTE|NSA|SA|NOSVC  4 nr_avail 0|1|null  5 tier a|i|d
 #   6 lte_cell_id 7 lte_tac 8 nr_cell_id 9 nr_tac 10 lte_scc_count 11 nr_scc_count
 #   12 total_bw_mhz 13 lte_cqi 14 tx_power (dBm, 1 decimal) 15 lte_mcs 16 lte_ri
 #   17 lte_ul_mcs 18 nr_mcs 19 nr_ri 20 nr_cqi 21 nr_ul_mcs 22 prb_mean 23 prb_max
 #   24 prb_n 25 n_rb 26 dl_bps 27 ul_bps 28 temp_c 29 cpu_pct 30 mem_pct
 #   31-34 lte_ant_rsrp[0..3]  35-38 nr_ant_rsrp[0..3]
+#   39 nr_tx_power (dBm, 1 decimal; AT+QNWCFG="nr5g_tx_pwr" burst mean, L1 only)
+#   (14 tx_power is the LTE TX power from AT+QENG, free, every row)
 #   then ["P"|"S","L"|"N",band,arfcn,bw_mhz,pci,rsrp,rsrq,sinr,rssi] per carrier,
 #   PCC first, every entry of carrier_components.
 #
@@ -1758,14 +1761,14 @@ append_cell_history() {
         _ch_mem=$(( ${memory_used_mb:-0} * 100 / memory_total_mb ))
     fi
 
-    _ch_row="2,${ts},\"${rat}\",${nr_avail},\"${tc}\""
+    _ch_row="3,${ts},\"${rat}\",${nr_avail},\"${tc}\""
 
     if [ "$rat" = "NOSVC" ]; then
         # Columns 6-27 and 31-38 are modem readings: nothing to say without a cell.
         _ch_row="${_ch_row},null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null"
         _ch_int "$t1_temperature"; _ch_row="${_ch_row},${_CI}"
         _ch_int "$cpu_usage"; _ch_row="${_ch_row},${_CI}"
-        _ch_row="${_ch_row},${_ch_mem},null,null,null,null,null,null,null,null"
+        _ch_row="${_ch_row},${_ch_mem},null,null,null,null,null,null,null,null,null"
     else
         _ch_carriers
         if [ -z "$_CH_CSV" ]; then
@@ -1808,6 +1811,8 @@ append_cell_history() {
         _ch_row="${_ch_row},${_CA}"
         if [ "$rat" = "LTE" ]; then _CA="null,null,null,null"; else _ch_arr4 "$sig_nr_rsrp"; fi
         _ch_row="${_ch_row},${_CA}"
+        # 39: NR TX power (LTE rows: null - no NR uplink).
+        if [ "$rat" = "LTE" ]; then _ch_row="${_ch_row},null"; else _ch_row="${_ch_row},${L1R_NTX:-null}"; fi
         [ -n "$_CH_CSV" ] && _ch_row="${_ch_row},${_CH_CSV}"
     fi
 

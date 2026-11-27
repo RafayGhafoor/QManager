@@ -85,9 +85,13 @@ export const PHY_CHARTS: readonly ChartSpec[] = [
     ],
   },
   {
+    // LTE from AT+QENG (every row); NR from nr5g_tx_pwr (L1 sampling only).
     id: "tx_power",
     titleKey: "history.charts.metric.tx_power",
-    series: [{ metric: "tx_power" }],
+    series: [
+      { metric: "tx_power", labelKey: LTE, dash: DASHES[1] },
+      { metric: "nr_tx_power", labelKey: NR },
+    ],
   },
 ];
 
