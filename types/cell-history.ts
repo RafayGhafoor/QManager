@@ -63,6 +63,21 @@ export const CELL_HISTORY_PANELS = [
   "ul",
   "ca",
   "bw",
+  // ── archive schema v2 (history-v3) ──────────────────────────────────────
+  // Per-RAT PHY series. The generic `cqi`/`rank`/`mcs` ids above are kept and
+  // filled from the PCC (LTE in LTE/NSA, NR in SA) so old panel configs draw.
+  "lte_mcs",
+  "nr_mcs",
+  "lte_ri",
+  "nr_ri",
+  "lte_cqi",
+  "nr_cqi",
+  /** Uplink MCS of the leg carrying uplink data (NR in NSA/SA, else LTE). */
+  "ul_mcs",
+  /** Ping archive, joined by timestamp: latency ms, jitter ms, loss %. */
+  "lat",
+  "jit",
+  "loss",
 ] as const;
 
 export type CellHistoryPanel = (typeof CELL_HISTORY_PANELS)[number];
@@ -75,9 +90,13 @@ export interface CellHistoryPoint {
 
 /** The margin of the window that actually had archive rows in it. */
 export interface CellHistoryWindow {
-  /** Requested start, clamped to the newest archived row. */
+  /** `end - span`. */
   start: number;
-  /** Newest archived row (clamped to `generated_at`), never the wall clock. */
+  /**
+   * history-v3: the WALL CLOCK at generation (`generated_at`), not the newest
+   * row. A recorder that stopped therefore shows an empty tail and a stale
+   * banner instead of silently passing old data off as the last 24 h.
+   */
   end: number;
   /** Archive samples inside the window, after the identity/PHY filters. */
   samples: number;
@@ -259,6 +278,86 @@ export interface CellHistoryCells {
   combos: BandCombo[];
 }
 
+// ── history-v3 additions (frozen contract; see docs/plans/2026-11-27-history-v3.md) ──
+
+import type { RestartEntry } from "./ping-history";
+export type { RestartEntry } from "./ping-history";
+
+/**
+ * Recorder health, so the page can say WHY the tail is empty.
+ * - ok          newest row is younger than 3 min
+ * - stale       recorder running but newest row older than 3 min (`stale_sec`)
+ * - low_space   recorder refusing to write: free flash under the floor
+ * - empty       no archive rows at all
+ * - clock_unset device clock is before 2024 (no NITZ/NTP yet)
+ */
+export type RecorderState = "ok" | "stale" | "low_space" | "empty" | "clock_unset";
+
+export interface CellHistoryRecorder {
+  state: RecorderState;
+  /** Seconds since the newest archived row; null when there is none. */
+  stale_sec: number | null;
+  /** Free KB on the archive filesystem; null if unreadable. */
+  free_kb: number | null;
+  /** On-flash size of the archive directory (sum of file sizes), KB. */
+  archive_kb: number;
+  /** Oldest archived row's timestamp. */
+  oldest_ts: number | null;
+  /** `quecmanager.poller.l1_stats` — MCS/RI/PRB/throughput sampling on. */
+  l1_enabled: boolean;
+}
+
+/**
+ * One component carrier tracked across the window, keyed by tech:band:arfcn.
+ * Every carrier the modem reported (LTE PCC + LTE SCCs + NR SCCs/PCC) appears,
+ * which is what makes "all bands" chartable.
+ */
+export interface CarrierSeries {
+  /** "L:3:1650" | "N:41:509070" — stable across the window. */
+  key: string;
+  tech: "LTE" | "NR";
+  /** Band number without prefix (3, 41). */
+  band: number;
+  arfcn: number;
+  bw_mhz: number | null;
+  /** 0-100: share of this carrier's samples in which it was the PCC. */
+  role_pct_pcc: number;
+  /** Archive rows in the window that carried this carrier. */
+  samples: number;
+  rsrp: CellHistoryPoint[];
+  rsrq: CellHistoryPoint[];
+  sinr: CellHistoryPoint[];
+  rssi: CellHistoryPoint[];
+}
+
+/** Per-antenna-port RSRP, ANTENNA_PORTS order (0..3). */
+export interface AntennaSeries {
+  tech: "LTE" | "NR";
+  port: 0 | 1 | 2 | 3;
+  rsrp: CellHistoryPoint[];
+  /** Median over the window, for the imbalance verdict. */
+  median: number | null;
+}
+
+/**
+ * This device's share of the NR (or LTE in LTE-only) carrier's PRBs, per bucket.
+ * NOT cell load: a share is only meaningful while we are saturating the link
+ * (`saturated`), otherwise it reflects how little we asked for.
+ */
+export interface CongestionPoint {
+  ts: number;
+  /** 0-100: mean sampled PRBs / N_RB. */
+  prb_share: number | null;
+  /** 0-100: max sampled PRBs / N_RB. */
+  prb_max_share: number | null;
+  /** Modem DL throughput, bits/s (bucket mean). */
+  dl_bps: number | null;
+  /** Bucket DL throughput was high enough for the share to mean something. */
+  saturated: boolean;
+  /** PRB snapshots behind this bucket. */
+  samples: number;
+}
+
 export interface CellHistorySuccess {
   success: true;
   view: "cells";
@@ -273,6 +372,17 @@ export interface CellHistorySuccess {
   /** Requested panels with no coverage in this window. */
   missing: CellHistoryPanel[];
   cells: CellHistoryCells;
+  // ── history-v3 ──
+  recorder: CellHistoryRecorder;
+  /** Device local offset from UTC in minutes (CST6 = -360, PKT = +300). */
+  device_utc_offset_min: number;
+  /** Every component carrier seen in the window, most samples first. */
+  carriers: CarrierSeries[];
+  /** 8 entries max (LTE 0-3, NR 0-3); ports with no readings are omitted. */
+  antennas: AntennaSeries[];
+  congestion: CongestionPoint[];
+  /** Device restarts inside the window, oldest first. */
+  restarts: RestartEntry[];
 }
 
 export interface CellHistoryFailure {
