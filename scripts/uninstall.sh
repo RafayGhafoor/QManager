@@ -673,6 +673,12 @@ remove_runtime_state() {
           /tmp/qmanager_dns.json.?????? \
           2>/dev/null || true
 
+    # History v3: reduced-day / response cache dir and the recorder state files.
+    rm -rf /tmp/qmanager_hist_cache 2>/dev/null || true
+    rm -f /tmp/qmanager_cell_history_state* \
+          /tmp/qmanager_ping_history_state* \
+          2>/dev/null || true
+
     # Sites monitor: latest/raw/live results, flag, lease, cursor, probe dirs.
     rm -rf /tmp/qmanager_sites.json /tmp/qmanager_sites_* /tmp/qmanager_sites.?????? \
           2>/dev/null || true
@@ -741,6 +747,15 @@ remove_config() {
     if [ -d /usrdata/qmanager/cell_history ]; then
         rm -rf /usrdata/qmanager/cell_history
         info "Removed cell history"
+    fi
+    # Connection Quality archive (poller-written minute rows) and restart log.
+    if [ -d /usrdata/qmanager/ping_history ]; then
+        rm -rf /usrdata/qmanager/ping_history
+        info "Removed connection quality history"
+    fi
+    if [ -f /usrdata/qmanager/boot_log.jsonl ]; then
+        rm -f /usrdata/qmanager/boot_log.jsonl /usrdata/qmanager/boot_log.jsonl.*
+        info "Removed restart history"
     fi
     # SMS sent log (created lazily by cellular/sms.sh).
     if [ -f /usrdata/qmanager/sms_sent.json ]; then
