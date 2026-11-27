@@ -37,11 +37,16 @@
 #   /usr/lib/qmanager/events.sh       — Network event detection
 #   /usr/lib/qmanager/data_used.sh    — Persistent Data Used counter (30 s sample)
 #   /usr/lib/qmanager/qmi_merge.sh    — QMI LTE signal gap-fill overlay (optional)
+#   /usr/lib/qmanager/history_store.sh — archive expiry / gzip / cap / free-space floor
+#   /usr/lib/qmanager/l1_stats.sh     — gated L1 sampler (quecmanager.history.l1_stats)
 #
 # Durable history (survives a reboot):
 #   /usrdata/qmanager/cell_history/YYYY-MM-DD.jsonl - serving cell, band and NR
-#       availability, one row a minute, 30-day retention (CELL_HISTORY_*).
+#       availability, carriers and PHY, one row a minute, 30-day retention
+#       (CELL_HISTORY_*), day files gzip-compressed once closed.
 #       Read by at_cmd/fetch_signal_history.sh?view=cells for /cellular/history.
+#   /usrdata/qmanager/ping_history/YYYY-MM-DD.jsonl - one latency row per UTC minute.
+#   /usrdata/qmanager/boot_log.jsonl - one line per boot (cause, last-alive gap).
 #
 # Install location: /usr/bin/qmanager_poller
 # =============================================================================
@@ -130,6 +135,9 @@ _CA_READ_MONO=0
 # 1 when this cycle's AT+QENG reply was parsed (AT owns the serving cell this
 # cycle, so the QMI overlay stays off). Reset at the top of poll_cycle.
 _QENG_PARSED=0
+# 1 when that reply carried +QENG: lines (an ERROR reply is parsed but says
+# nothing about service, so it must not be recorded as "no service").
+_QENG_LINES=0
 # QMI gap-fill state (qmi_merge.sh; defaults for when the lib is absent).
 # Published as lte.source and device.qmi_read_mono / qmi_state / qmi_ssr_count.
 lte_source="at"
@@ -138,26 +146,39 @@ _QMI_STATE=""
 _QMI_SSR=0
 
 # Cell history (durable day files for /cellular/history)
-# One row a minute: which cell served, on which band, and whether the NR leg was
-# up. Written here because these values are already in memory at the end of an
-# AT cycle — a separate recorder would have to re-read the modem for them.
+# One row a minute (schema v2, a positional JSON array: see append_cell_history):
+# which carriers served, the PHY readings, the system readings. Written here
+# because these values are already in memory at the end of an AT cycle - a
+# separate recorder would have to re-read the modem for them.
 #
-# The budget, because /usrdata is the SAME 32 MB overlay as /www (measured: 15.1 MB
-# free) and a QManager install stages a ~12.6 MB copy of the web tree beside the
-# live one:
-#   ~253 B per row    (measured: mean of rows this composer produced)
-#   x 1440 rows/day   = ~356 KB/day at one row a minute (derived: rows x 1440)
-#   2048 KB cap       = ~5-6 days on disk, so the cap binds before the 14-day
-#                       retention does and the directory cannot creep
-#   8192 KB floor     = a day file is never started with less free than an
-#                       install needs. This floor protects an INSTALL, not this
-#                       page: a history page missing a week is recoverable, an
-#                       install that cannot stage its tree is not.
+# Storage is maintained by history_store.sh (hs_maintain): expire, gzip one
+# closed day per pass, cap, then the free-space floor. /usrdata is the SAME 32 MB
+# overlay as /www and a QManager install stages a ~12.6 MB copy of the web tree
+# beside the live one, so the floor protects an INSTALL, not this page. There is
+# no per-day latch: a refused archive asks again every CH_RETRY_SEC.
+# Overrides (never seeded): quecmanager.history.{cell_keep_days,cell_cap_kb,cell_floor_kb}
 CELL_HISTORY_DIR="/usrdata/qmanager/cell_history"
-CELL_HISTORY_INTERVAL=60      # seconds between rows; the page buckets at 60-900 s
-CELL_HISTORY_KEEP_DAYS=14
-CELL_HISTORY_CAP_KB=2048      # whole directory; see the budget above
-CELL_HISTORY_MIN_FREE_KB=8192 # do not start a day file below this
+CELL_HISTORY_INTERVAL=60      # one row per UTC minute (see _ch_row_due)
+CELL_HISTORY_KEEP_DAYS=30
+CELL_HISTORY_CAP_KB=3072      # whole directory, sum of ls -ln sizes
+CELL_HISTORY_MIN_FREE_KB=4096 # do not write below this much free overlay
+CELL_HISTORY_STATE="/tmp/qmanager_cell_history_state"
+CH_RETRY_SEC=3600
+
+# Ping-minute archive: one row per UTC minute, written whatever the modem does,
+# so its newest row is also the "last alive" heartbeat for the restart history.
+PING_ARCHIVE_DIR="/usrdata/qmanager/ping_history"
+PING_ARCHIVE_KEEP_DAYS=14
+PING_ARCHIVE_CAP_KB=512
+PING_ARCHIVE_MIN_FREE_KB=4096
+PING_ARCHIVE_STATE="/tmp/qmanager_ping_history_state"
+
+# Restart history: one line per boot, appended once the wall clock is sane.
+BOOT_LOG_FILE="/usrdata/qmanager/boot_log.jsonl"
+BOOT_LOG_MAX=60
+BOOT_LOG_MARK="/tmp/qmanager_boot_logged"   # tmpfs: exists = this boot is recorded
+CRASH_LOG_FILE="/etc/qmanager/crash.log"
+SANE_EPOCH=1704067200                        # 2024-01-01: anything below is an unset clock
 
 # Signal history (NDJSON file for chart data)
 SIGNAL_HISTORY_FILE="/tmp/qmanager_signal_history.json"
@@ -483,6 +504,33 @@ fi
 command -v qmi_load >/dev/null 2>&1 || qmi_load() { return 1; }
 command -v qmi_overlay_apply >/dev/null 2>&1 || qmi_overlay_apply() { lte_source="at"; return 1; }
 command -v qmi_overlay_restore >/dev/null 2>&1 || qmi_overlay_restore() { lte_source="at"; }
+
+# History archive maintenance (expire / gzip / cap / floor). Missing lib: the
+# archives are written without maintenance, which is why this is only a warning.
+if [ -f /usr/lib/qmanager/history_store.sh ]; then
+    . /usr/lib/qmanager/history_store.sh
+else
+    qlog_warn "history_store.sh not found, history archives are not maintained"
+    HS_PENDING=0
+    HS_FREE_KB=0
+    HS_ARCHIVE_KB=0
+    hs_maintain() { return 0; }
+fi
+
+# L1 sampler (gated by quecmanager.history.l1_stats). Missing lib: no L1 columns.
+if [ -f /usr/lib/qmanager/l1_stats.sh ]; then
+    . /usr/lib/qmanager/l1_stats.sh
+else
+    L1_ENABLED=0
+    l1_sample() { return 0; }
+    l1_accum_reset() { :; }
+    l1_row_get() {
+        L1R_LMCS=null; L1R_LRI=null; L1R_LUL=null
+        L1R_NMCS=null; L1R_NRI=null; L1R_NCQI=null; L1R_NUL=null
+        L1R_PRBM=null; L1R_PRBX=null; L1R_PRBN=null
+        L1R_DL=null; L1R_UL=null
+    }
+fi
 
 # =============================================================================
 # DEV-ONLY AT TAP (see TAP_FLAG)
@@ -1089,7 +1137,7 @@ poll_serving_cell() {
         _QENG_PARSED=1
         parse_serving_cell "$_QR"
         case "$_QR" in
-            *'+QENG:'*) _SERVING_READ_MONO="${_MONO_TOP:-0}" ;;
+            *'+QENG:'*) _SERVING_READ_MONO="${_MONO_TOP:-0}"; _QENG_LINES=1 ;;
         esac
         # Log state transitions
         qlog_state_change "network_type" "$prev_network_type" "$network_type"
@@ -1274,30 +1322,43 @@ append_signal_history() {
 }
 
 # -----------------------------------------------------------------------------
-# Cell history: one row a minute, append-only NDJSON, one file per UTC day.
+# Cell history: one row a minute, append-only, one file per UTC day.
 # -----------------------------------------------------------------------------
-# The row is the serving cell as the modem reported it, plus the three LTE
-# serving-signal readings. Three rules make it readable a month later:
+# SCHEMA v2: one JSON ARRAY per line (valid JSON, awk-splittable), `[2,...`.
+# v1 lines (keyed objects, `{"ts"...`) from earlier builds stay readable; nothing
+# is rewritten, they age out. 38 head columns, then one trailing array per carrier:
 #
+#   1 v=2  2 ts  3 rat LTE|NSA|SA|NOSVC  4 nr_avail 0|1|null  5 tier a|i|d
+#   6 lte_cell_id 7 lte_tac 8 nr_cell_id 9 nr_tac 10 lte_scc_count 11 nr_scc_count
+#   12 total_bw_mhz 13 lte_cqi 14 tx_power (dBm, 1 decimal) 15 lte_mcs 16 lte_ri
+#   17 lte_ul_mcs 18 nr_mcs 19 nr_ri 20 nr_cqi 21 nr_ul_mcs 22 prb_mean 23 prb_max
+#   24 prb_n 25 n_rb 26 dl_bps 27 ul_bps 28 temp_c 29 cpu_pct 30 mem_pct
+#   31-34 lte_ant_rsrp[0..3]  35-38 nr_ant_rsrp[0..3]
+#   then ["P"|"S","L"|"N",band,arfcn,bw_mhz,pci,rsrp,rsrq,sinr,rssi] per carrier,
+#   PCC first, every entry of carrier_components.
+#
+# Rules that make a row readable a month later:
 #  * AN ABSENT READING IS `null`, never 0. A 0 dBm RSRP and a 0 PCI are readings
 #    the radio can report, so a missing value written as 0 is indistinguishable
-#    from a measured one. `_jnumv`/`_kSN` do that mapping.
+#    from a measured one.
 #  * `nr_avail` IS THREE-VALUED: 1 an NR cell was reported this sample, 0 the
-#    modem answered and reported no NR leg, null nobody determined. "We did not
-#    look" and "5G is gone" are opposite claims and only one is a fault.
-#  * BANDS ARRIVE DISPLAY-READY: `parse_serving_cell` already prefixes them
-#    ("B3", "N78"), so nothing downstream may add a prefix or "B" + band renders
-#    "BB3". An empty band is null, never a bare "B".
+#    modem answered and reported no NR leg, null nobody determined.
+#  * BAND IS A NUMBER without the B/N prefix; the technology is in its own column.
+#  * A row is only written on a cycle whose AT+QENG read answered (_QENG_PARSED), so
+#    a dead modem leaves a gap in the archive. If it answered but reported no
+#    serving cell the row is rat "NOSVC": a service gap, never a signal reading.
 #
-# A row is only written on a cycle whose AT+QENG read answered (_QENG_PARSED), so
-# a dead modem leaves a gap in the archive instead of a flat line of the last
-# values it held. Gaps are truthful; the reader breaks its spans on them.
-_ch_day=""        # UTC day the current file belongs to (YYYY-MM-DD)
-_ch_last_ts=0     # epoch of the last row written
-_ch_pruned_day="" # day the retention/size pass last ran
-_ch_refused_day="" # day whose day file was refused for want of free space
-_ch_warn_day=""   # day the last write failure was logged (one warning per day)
-_ch_dir_ok=0      # directory created in this poller life
+# ROTATION AND THE BUDGET are decided by history_store.sh (hs_maintain): at the
+# first row of a UTC day, at poller start, and every CH_RETRY_SEC while refused or
+# while closed day files still wait for compression - never per row, never latched
+# for the day.
+_ch_last_ts=0       # epoch of the last row written
+_ch_maint_day=""    # UTC day hs_maintain last ran for
+_ch_next_maint=0    # epoch of the next retry (0 = none scheduled)
+_ch_ok=1            # 0 while the archive refuses writes (free space under the floor)
+_ch_warn_day=""     # day the last write failure was logged (one warning per day)
+_ch_dir_ok=0        # directory created in this poller life
+_ch_state_logged="" # last archive state written to the log
 _cell_history_dir() {
     [ "$_ch_dir_ok" = "1" ] && return 0
     [ -d "$CELL_HISTORY_DIR" ] || mkdir -p "$CELL_HISTORY_DIR" 2>/dev/null
@@ -1307,135 +1368,402 @@ _cell_history_dir() {
     return 0
 }
 
-# yyyymmdd from a day file's name, for numeric comparison (ash `[` has no `<`
-# for strings). Mirrors qmanager_sites.
-_ch_daynum() {
-    local y="${1%%-*}"
-    local r="${1#*-}"
-    printf '%s%s%s' "$y" "${r%%-*}" "${r#*-}"
+# _ymd <epoch>: _YMD = UTC YYYY-MM-DD, builtins only (civil-from-days).
+_ymd() {
+    local _y_z
+    local _y_era
+    local _y_doe
+    local _y_yoe
+    local _y_y
+    local _y_doy
+    local _y_mp
+    local _y_d
+    local _y_m
+    _y_z=$(( $1 / 86400 + 719468 ))
+    _y_era=$(( _y_z / 146097 ))
+    _y_doe=$(( _y_z - _y_era * 146097 ))
+    _y_yoe=$(( (_y_doe - _y_doe / 1460 + _y_doe / 36524 - _y_doe / 146096) / 365 ))
+    _y_y=$(( _y_yoe + _y_era * 400 ))
+    _y_doy=$(( _y_doe - (365 * _y_yoe + _y_yoe / 4 - _y_yoe / 100) ))
+    _y_mp=$(( (5 * _y_doy + 2) / 153 ))
+    _y_d=$(( _y_doy - (153 * _y_mp + 2) / 5 + 1 ))
+    if [ "$_y_mp" -lt 10 ]; then _y_m=$((_y_mp + 3)); else _y_m=$((_y_mp - 9)); fi
+    [ "$_y_m" -le 2 ] && _y_y=$((_y_y + 1))
+    [ "$_y_m" -lt 10 ] && _y_m="0$_y_m"
+    [ "$_y_d" -lt 10 ] && _y_d="0$_y_d"
+    _YMD="${_y_y}-${_y_m}-${_y_d}"
 }
 
-# Whole-file expiry, then the size cap oldest-day-first, so the newest day is
-# always the last thing to go. One pass a day.
-_ch_prune() {
-    local cutoff
-    local cutnum
-    local f
-    local name
-    local num
-    local total
-    local oldest
-    local n
-    cutoff=$(date -u -d "@$(( ${1} - CELL_HISTORY_KEEP_DAYS * 86400 ))" +%Y-%m-%d 2>/dev/null)
-    case "$cutoff" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) return 0 ;; esac
-    cutnum=$(_ch_daynum "$cutoff")
-    for f in "$CELL_HISTORY_DIR"/*.jsonl; do
-        [ -f "$f" ] || continue
-        name="${f##*/}"; name="${name%.jsonl}"
-        case "$name" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) continue ;; esac
-        num=$(_ch_daynum "$name")
-        [ "$num" -lt "$cutnum" ] && rm -f "$f"
-    done
-    # Size cap: keep the newest day file whatever happens, and delete the oldest
-    # one first (the glob is lexical and YYYY-MM-DD sorts chronologically).
+# _ch_int <v>: _CI = v as a JSON integer (leading zeros stripped), else null.
+_ch_int() {
+    local _ci_s
+    _ci_s=""
+    _CI="$1"
+    case "$_CI" in ''|-|*[!0-9-]*|?*-*) _CI=null; return 0 ;; esac
+    case "$_CI" in -*) _ci_s="-"; _CI="${_CI#-}" ;; esac
     while :; do
-        total=$(cat "$CELL_HISTORY_DIR"/*.jsonl 2>/dev/null | wc -c)
-        [ "${total:-0}" -le $((CELL_HISTORY_CAP_KB * 1024)) ] && break
-        oldest=""
-        n=0
-        for f in "$CELL_HISTORY_DIR"/*.jsonl; do
-            [ -f "$f" ] || continue
-            n=$((n + 1))
-            [ -n "$oldest" ] || oldest="$f"
-        done
-        [ "$n" -ge 2 ] || break
-        rm -f "$oldest"
+        case "$_CI" in 0?*) _CI="${_CI#0}" ;; *) break ;; esac
     done
+    if [ "${#_CI}" -gt 12 ]; then _CI=null; return 0; fi
+    [ "${_ci_s}${_CI}" = "-0" ] && _ci_s=""
+    _CI="${_ci_s}${_CI}"
+}
+
+# _ch_cqi <v>: _CI = LTE CQI 1..15, else null (0 means "not reported").
+_ch_cqi() {
+    _ch_int "$1"
+    case "$_CI" in
+        [1-9]|1[0-5]) ;;
+        *) _CI=null ;;
+    esac
+}
+
+# _ch_txp <raw tenths of dBm>: _CI = dBm with one decimal ("15.0"), else null.
+_ch_txp() {
+    local _tx_s
+    local _tx_a
+    _CI=null
+    _ch_int "$1"
+    [ "$_CI" = "null" ] && return 0
+    _tx_s=""
+    _tx_a="$_CI"
+    case "$_tx_a" in -*) _tx_s="-"; _tx_a="${_tx_a#-}" ;; esac
+    [ "${#_tx_a}" -le 4 ] || { _CI=null; return 0; }
+    _CI="${_tx_s}$((_tx_a / 10)).$((_tx_a % 10))"
+}
+
+# _ch_arr4 <json array>: _CA = "a,b,c,d" (numbers or null), else four nulls. A
+# port the modem reports at its floor (-140 dBm and below, the "not receiving"
+# sentinel) is recorded as null: it is not a measurement, and it would drag a
+# per-port median down.
+_ch_arr4() {
+    local _a4_oifs
+    local _a4_e
+    _CA="null,null,null,null"
+    _jarr "$1" || return 0
+    _CA="${_JA#\[}"
+    _CA="${_CA%\]}"
+    case "$_CA" in
+        *,*,*,*) ;;
+        *) _CA="null,null,null,null"; return 0 ;;
+    esac
+    case "$_CA" in *,*,*,*,*) _CA="null,null,null,null"; return 0 ;; esac
+    _a4_oifs="$IFS"
+    IFS=","
+    set -f
+    set -- $_CA
+    set +f
+    IFS="$_a4_oifs"
+    _CA=""
+    for _a4_e in "$1" "$2" "$3" "$4"; do
+        case "$_a4_e" in -14[0-9]|-1[5-9][0-9]|-[2-9][0-9][0-9]) _a4_e=null ;; esac
+        _CA="${_CA:+${_CA},}${_a4_e}"
+    done
+}
+
+# _ch_nrb <tech L|N> <bw_mhz> <scs_khz>: _CI = PRBs in that carrier, else null.
+# NR: TS 38.101-1 table 5.3.2-1 (FR1). LTE (15 kHz): 1.4 MHz is carried as 1.
+_ch_nrb() {
+    _CI=null
+    if [ "$1" = "L" ]; then
+        case "$2" in 1) _CI=6 ;; 3) _CI=15 ;; 5) _CI=25 ;; 10) _CI=50 ;; 15) _CI=75 ;; 20) _CI=100 ;; esac
+        return 0
+    fi
+    case "$3" in
+        15) case "$2" in 5) _CI=25 ;; 10) _CI=52 ;; 15) _CI=79 ;; 20) _CI=106 ;; 25) _CI=133 ;; 30) _CI=160 ;; 40) _CI=216 ;; 50) _CI=270 ;; esac ;;
+        30) case "$2" in 5) _CI=11 ;; 10) _CI=24 ;; 15) _CI=38 ;; 20) _CI=51 ;; 25) _CI=65 ;; 30) _CI=78 ;; 40) _CI=106 ;; 50) _CI=133 ;; 60) _CI=162 ;; 70) _CI=189 ;; 80) _CI=217 ;; 90) _CI=245 ;; 100) _CI=273 ;; esac ;;
+        60) case "$2" in 10) _CI=11 ;; 15) _CI=18 ;; 20) _CI=24 ;; 25) _CI=31 ;; 30) _CI=38 ;; 40) _CI=51 ;; 50) _CI=65 ;; 60) _CI=79 ;; 70) _CI=93 ;; 80) _CI=107 ;; 90) _CI=121 ;; 100) _CI=135 ;; esac ;;
+    esac
     return 0
 }
 
-# append_cell_history: one row, at most once per CELL_HISTORY_INTERVAL.
-# Built with the printf composer (_kS/_kN/_kR), so no jq on this path: it runs
-# while a browser may be polling at 2 s and the AT work in the same cycle has
-# already cost the modem serial port.
+# _ch_carriers: split t2_carrier_components (compact JSON array of objects) into
+#   _CH_LSCC _CH_NSCC _CH_TOTBW _CH_BW_L _CH_BW_N _CH_CSV
+# where _CH_CSV is `["P","L",1,250,10,104,-75,-10,6,-47],["S",...]` (PCC first, no
+# leading comma, empty when there is nothing to record). One awk pass; every field
+# is validated, so a hostile or torn value becomes null instead of bad JSON.
+_ch_carriers() {
+    local _cc_out
+    _CH_LSCC=0; _CH_NSCC=0; _CH_TOTBW=null; _CH_BW_L=null; _CH_BW_N=null; _CH_CSV=""
+    case "$t2_carrier_components" in
+        '[{'*) ;;
+        *) return 0 ;;
+    esac
+    _cc_out=$(awk '
+function num(v) { return (v ~ /^-?[0-9]+(\.[0-9]+)?$/) ? v : "null" }
+function ival(v) { return (v ~ /^-?[0-9]+$/) ? v : "null" }
+function fld(r, key,    i, s, j) {
+    i = index(r, "\"" key "\":")
+    if (i == 0) return ""
+    s = substr(r, i + length(key) + 3)
+    if (substr(s, 1, 1) == "\"") {
+        s = substr(s, 2)
+        j = index(s, "\"")
+        return (j ? substr(s, 1, j - 1) : "")
+    }
+    j = index(s, ",")
+    if (j) s = substr(s, 1, j - 1)
+    sub(/[}].*/, "", s)
+    return s
+}
+{ all = all $0 }
+END {
+    gsub(/\r/, "", all)
+    sub(/^[[][{]/, "", all)
+    sub(/[}][]]$/, "", all)
+    gsub(/[}],[{]/, "\n", all)
+    n = split(all, rec, "\n")
+    for (k = 1; k <= n; k++) {
+        ty = fld(rec[k], "type")
+        te = fld(rec[k], "technology")
+        bd = fld(rec[k], "band")
+        if (ty !~ /^[A-Za-z]+$/) continue
+        if (te == "LTE") t = "L"; else if (te == "NR") t = "N"; else continue
+        b = substr(bd, 2)
+        if (b !~ /^[0-9]+$/ || substr(bd, 1, 1) != ((t == "L") ? "B" : "N")) b = "null"
+        bw = ival(fld(rec[k], "bandwidth_mhz"))
+        ent = "\"" ((ty == "PCC") ? "P" : "S") "\",\"" t "\"," b "," ival(fld(rec[k], "earfcn")) "," bw "," \
+              ival(fld(rec[k], "pci")) "," num(fld(rec[k], "rsrp")) "," num(fld(rec[k], "rsrq")) "," \
+              num(fld(rec[k], "sinr")) "," num(fld(rec[k], "rssi"))
+        if (ty == "PCC") { if (pa != "") pa = pa ","; pa = pa "[" ent "]" }
+        else { if (sa != "") sa = sa ","; sa = sa "[" ent "]"; if (t == "L") ls++; else ns++ }
+        if (bw != "null") { tb += bw; hb = 1 }
+        if (bw != "null" && t == "L" && bl == "") bl = bw
+        if (bw != "null" && t == "N" && bn == "") bn = bw
+    }
+    csv = pa
+    if (sa != "") { if (csv != "") csv = csv ","; csv = csv sa }
+    printf "%d|%d|%s|%s|%s|%s\n", ls, ns, (hb ? tb : "null"), (bl == "" ? "null" : bl), (bn == "" ? "null" : bn), csv
+}' <<_CHEOF
+$t2_carrier_components
+_CHEOF
+)
+    case "$_cc_out" in
+        [0-9]*'|'*'|'*'|'*'|'*'|'*) ;;
+        *) return 0 ;;
+    esac
+    _CH_LSCC="${_cc_out%%|*}"; _cc_out="${_cc_out#*|}"
+    _CH_NSCC="${_cc_out%%|*}"; _cc_out="${_cc_out#*|}"
+    _CH_TOTBW="${_cc_out%%|*}"; _cc_out="${_cc_out#*|}"
+    _CH_BW_L="${_cc_out%%|*}"; _cc_out="${_cc_out#*|}"
+    _CH_BW_N="${_cc_out%%|*}"; _cc_out="${_cc_out#*|}"
+    _CH_CSV="$_cc_out"
+}
+
+# _ch_bw_enum <QENG LTE DL_bw enum>: _CI = MHz (1.4 MHz as 1), else null.
+_ch_bw_enum() {
+    case "$1" in
+        0) _CI=1 ;; 1) _CI=3 ;; 2) _CI=5 ;; 3) _CI=10 ;; 4) _CI=15 ;; 5) _CI=20 ;;
+        *) _CI=null ;;
+    esac
+}
+
+# _ch_carriers_qeng: stand-in when QCAINFO gave nothing (a failed read zeroes the
+# components): the serving cell(s) QENG reported, so the row never loses them.
+_ch_carriers_qeng() {
+    local _cq_lte
+    local _cq_b
+    local _cq_a
+    local _cq_p
+    local _cq_r
+    local _cq_q
+    local _cq_s
+    local _cq_i
+    local _cq_w
+    _cq_lte=0
+    _CH_CSV=""
+    if [ "$lte_state" = "connected" ]; then
+        _cq_lte=1
+        _ch_int "${lte_band#B}"; _cq_b="$_CI"
+        _ch_int "$lte_earfcn"; _cq_a="$_CI"
+        _ch_bw_enum "$lte_bandwidth"; _cq_w="$_CI"
+        _ch_int "$lte_pci"; _cq_p="$_CI"
+        _ch_int "$lte_rsrp"; _cq_r="$_CI"
+        _ch_int "$lte_rsrq"; _cq_q="$_CI"
+        _ch_int "$lte_sinr"; _cq_s="$_CI"
+        _ch_int "$lte_rssi"; _cq_i="$_CI"
+        _CH_CSV="[\"P\",\"L\",${_cq_b},${_cq_a},${_cq_w},${_cq_p},${_cq_r},${_cq_q},${_cq_s},${_cq_i}]"
+        _CH_BW_L="$_cq_w"
+        _CH_TOTBW="$_cq_w"
+    fi
+    if [ "$nr_state" = "connected" ]; then
+        _ch_int "${nr_band#N}"; _cq_b="$_CI"
+        _ch_int "$nr_arfcn"; _cq_a="$_CI"
+        _ch_int "$nr_pci"; _cq_p="$_CI"
+        _ch_int "$nr_rsrp"; _cq_r="$_CI"
+        _ch_int "$nr_rsrq"; _cq_q="$_CI"
+        _ch_int "$nr_sinr"; _cq_s="$_CI"
+        if [ "$_cq_lte" = "1" ]; then
+            _CH_CSV="${_CH_CSV},[\"S\",\"N\",${_cq_b},${_cq_a},null,${_cq_p},${_cq_r},${_cq_q},${_cq_s},null]"
+            _CH_NSCC=1
+        else
+            _CH_CSV="[\"P\",\"N\",${_cq_b},${_cq_a},null,${_cq_p},${_cq_r},${_cq_q},${_cq_s},null]"
+        fi
+    fi
+}
+
+# _ch_row_due: 0 when a history row would be composed this cycle. One row per UTC
+# minute (the first AT-answered cycle of each new minute), so a 60 s deep-tier
+# cadence cannot drift past the interval by a second and halve the row rate.
+_ch_row_due() {
+    case "$_NOW" in ''|*[!0-9]*) return 1 ;; esac
+    [ "$_NOW" -gt "$SANE_EPOCH" ] || return 1
+    [ $((_NOW / 60)) -ne $((_ch_last_ts / 60)) ] || return 1
+    if [ "$_ch_ok" != "1" ] && [ "$_NOW" -lt "$_ch_next_maint" ]; then
+        return 1
+    fi
+    return 0
+}
+
+# _ch_maintain <ts>: one hs_maintain pass; schedules the next one while refused or
+# while closed days still wait for compression. Sets _ch_ok.
+_ch_maintain() {
+    local _cm_state
+    _ch_maint_day="$_YMD"
+    _ch_next_maint=0
+    HS_NOW="$1"
+    if hs_maintain "$CELL_HISTORY_DIR" "$CELL_HISTORY_KEEP_DAYS" "$CELL_HISTORY_CAP_KB" \
+        "$CELL_HISTORY_MIN_FREE_KB" "$CELL_HISTORY_STATE"; then
+        _ch_ok=1
+        _cm_state=ok
+    else
+        _ch_ok=0
+        _cm_state=low_space
+    fi
+    if [ "$_ch_ok" != "1" ] || [ "$HS_PENDING" = "1" ]; then
+        _ch_next_maint=$(( $1 + CH_RETRY_SEC ))
+    fi
+    if [ "$_cm_state" != "$_ch_state_logged" ]; then
+        _ch_state_logged="$_cm_state"
+        if [ "$_cm_state" = "ok" ]; then
+            log_info "cell history: archive ok (${HS_FREE_KB}KB free, ${HS_ARCHIVE_KB}KB used)"
+        else
+            log_warn "cell history: ${HS_FREE_KB}KB free is under the ${CELL_HISTORY_MIN_FREE_KB}KB floor, writes paused, retrying hourly"
+        fi
+    fi
+}
+
+# append_cell_history: one row per UTC minute. Built with printf, no jq on this
+# path: it runs while a browser may be polling at 2 s and the AT work in the same
+# cycle has already cost the modem serial port.
 append_cell_history() {
     local ts
-    local day
-    local free_kb
+    local rat
     local nr_avail
+    local tc
+    local served
+    local _ch_hb
+    local _ch_scs
+    local _ch_row
+    local _ch_mem
 
     [ "$_QENG_PARSED" = "1" ] || return 0
     [ "$modem_reachable" = "true" ] || return 0
     ts="$_NOW"
     case "$ts" in ''|*[!0-9]*) return 0 ;; esac
-    [ $((ts - _ch_last_ts)) -ge "$CELL_HISTORY_INTERVAL" ] || return 0
+    _ch_row_due || return 0
+    [ "$_QENG_LINES" = "1" ] || return 0
 
-    # The NR leg, three-valued. `nr_state` is what parse_serving_cell decided
-    # from the reply itself: connected (a +QENG: NR5G-NSA/SA line was present),
-    # inactive (LTE-only reply), unknown (no parseable reply).
-    case "$nr_state" in
-        connected) nr_avail=1 ;;
-        inactive)  nr_avail=0 ;;
-        *)         nr_avail=null ;;
-    esac
-    [ "$nr_avail" = "1" ] && [ -z "$nr_band" ] && nr_avail=0
-
-    day=$(date -u -d "@$ts" +%Y-%m-%d 2>/dev/null)
-    case "$day" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) return 0 ;; esac
-
+    _ymd "$ts"
     _cell_history_dir || return 0
 
-    # ROTATION AND BUDGET ARE DECIDED HERE, once per day file — never per row.
-    # `df` and the prune are both forks, and neither can change overnight by more
-    # than one day's rows. A refused day is remembered, so the floor costs one
-    # `df` a day rather than one a minute.
-    if [ "$day" != "$_ch_day" ]; then
-        [ "$day" = "$_ch_refused_day" ] && return 0
-        free_kb=$(df -k "$CELL_HISTORY_DIR" 2>/dev/null | awk 'NR > 1 { v = $4 } END { print v + 0 }')
-        case "$free_kb" in ''|*[!0-9]*) free_kb=0 ;; esac
-        if [ "$free_kb" -gt 0 ] && [ "$free_kb" -lt "$CELL_HISTORY_MIN_FREE_KB" ]; then
-            _ch_refused_day="$day"
-            log_warn "cell history: ${free_kb}KB free, ${day}.jsonl not started"
-            return 0
-        fi
-        # Retention runs before the new file is opened, so the cap can free the
-        # space this day is about to need. Oldest day file is deleted first.
-        if [ "$_ch_pruned_day" != "$day" ]; then
-            _ch_pruned_day="$day"
-            _ch_prune "$ts"
-        fi
+    if [ "$_YMD" != "$_ch_maint_day" ] || { [ "$_ch_next_maint" -gt 0 ] && [ "$ts" -ge "$_ch_next_maint" ]; }; then
+        _ch_maintain "$ts"
+    fi
+    [ "$_ch_ok" = "1" ] || return 0
+
+    served=0
+    [ "$lte_state" = "connected" ] && served=1
+    [ "$nr_state" = "connected" ] && served=1
+    if [ "$served" = "1" ]; then
+        case "$network_type" in
+            5G-NSA) rat=NSA ;;
+            5G-SA)  rat=SA ;;
+            LTE)    rat=LTE ;;
+            *)      if [ "$nr_state" = "connected" ]; then rat=SA; else rat=LTE; fi ;;
+        esac
+        # The NR leg, three-valued: connected = a +QENG: NR5G-NSA/SA line was
+        # present, inactive = LTE-only reply, anything else = not determined.
+        case "$nr_state" in
+            connected) nr_avail=1 ;;
+            inactive)  nr_avail=0 ;;
+            *)         nr_avail=null ;;
+        esac
+        [ "$nr_avail" = "1" ] && [ -z "$nr_band" ] && nr_avail=0
+    else
+        rat=NOSVC
+        nr_avail=null
+    fi
+    case "$ap_tier" in
+        idle) tc=i ;;
+        deep) tc=d ;;
+        *)    tc=a ;;
+    esac
+
+    # Machine readings that do not depend on service.
+    _ch_mem=null
+    if [ "${memory_total_mb:-0}" -gt 0 ] 2>/dev/null; then
+        _ch_mem=$(( ${memory_used_mb:-0} * 100 / memory_total_mb ))
     fi
 
-    _jc_acc="{"
-    _jc_sep=""
-    _kN ts "$ts" 0
-    _kSN rat "$network_type"
-    _kN lte_pci "$lte_pci" null
-    _kSN lte_band "$lte_band"
-    _kN lte_earfcn "$lte_earfcn" null
-    _kN lte_bw "$lte_bandwidth" null
-    _kN lte_cell_id "$lte_cell_id" null
-    _kN lte_tac "$lte_tac" null
-    _kN nr_pci "$nr_pci" null
-    _kSN nr_band "$nr_band"
-    _kN nr_arfcn "$nr_arfcn" null
-    _kN nr_cell_id "$nr_cell_id" null
-    _kN nr_tac "$nr_tac" null
-    _kR nr_avail "$nr_avail"
-    _kN rsrp "$lte_rsrp" null
-    _kN rsrq "$lte_rsrq" null
-    _kN sinr "$lte_sinr" null
+    _ch_row="2,${ts},\"${rat}\",${nr_avail},\"${tc}\""
 
-    if printf '%s\n' "${_jc_acc}}" >> "$CELL_HISTORY_DIR/$day.jsonl" 2>/dev/null; then
-        _ch_day="$day"
+    if [ "$rat" = "NOSVC" ]; then
+        # Columns 6-27 and 31-38 are modem readings: nothing to say without a cell.
+        _ch_row="${_ch_row},null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null"
+        _ch_int "$t1_temperature"; _ch_row="${_ch_row},${_CI}"
+        _ch_int "$cpu_usage"; _ch_row="${_ch_row},${_CI}"
+        _ch_row="${_ch_row},${_ch_mem},null,null,null,null,null,null,null,null"
+    else
+        _ch_carriers
+        if [ -z "$_CH_CSV" ]; then
+            _CH_LSCC=0; _CH_NSCC=0; _CH_TOTBW=null; _CH_BW_L=null; _CH_BW_N=null
+            _ch_carriers_qeng
+        fi
+        _ch_int "$lte_cell_id"; _ch_row="${_ch_row},${_CI}"
+        _ch_int "$lte_tac"; _ch_row="${_ch_row},${_CI}"
+        _ch_int "$nr_cell_id"; _ch_row="${_ch_row},${_CI}"
+        _ch_int "$nr_tac"; _ch_row="${_ch_row},${_CI}"
+        _ch_row="${_ch_row},${_CH_LSCC},${_CH_NSCC},${_CH_TOTBW}"
+        _ch_cqi "$qe_lte_cqi"; _ch_row="${_ch_row},${_CI}"
+        _ch_txp "$qe_lte_txp"; _ch_row="${_ch_row},${_CI}"
+
+        l1_row_get
+        _ch_row="${_ch_row},${L1R_LMCS},${L1R_LRI},${L1R_LUL},${L1R_NMCS},${L1R_NRI},${L1R_NCQI},${L1R_NUL}"
+        _ch_row="${_ch_row},${L1R_PRBM},${L1R_PRBX},${L1R_PRBN}"
+        # PRB count of the carrier the PRB reading belongs to: the NR one when the
+        # network has NR, else the LTE PCC.
+        if [ "$rat" != "LTE" ] && [ "$_CH_BW_N" != "null" ]; then
+            _ch_nrb N "$_CH_BW_N" "$nr_scs"
+        else
+            _ch_nrb L "$_CH_BW_L"
+        fi
+        _ch_row="${_ch_row},${_CI},${L1R_DL},${L1R_UL}"
+
+        _ch_int "$t1_temperature"; _ch_row="${_ch_row},${_CI}"
+        _ch_int "$cpu_usage"; _ch_row="${_ch_row},${_CI}"
+        _ch_row="${_ch_row},${_ch_mem}"
+        # Per-port RSRP of the RAT(s) in use; the other RAT's ports read null.
+        if [ "$rat" = "SA" ]; then _CA="null,null,null,null"; else _ch_arr4 "$sig_lte_rsrp"; fi
+        _ch_row="${_ch_row},${_CA}"
+        if [ "$rat" = "LTE" ]; then _CA="null,null,null,null"; else _ch_arr4 "$sig_nr_rsrp"; fi
+        _ch_row="${_ch_row},${_CA}"
+        [ -n "$_CH_CSV" ] && _ch_row="${_ch_row},${_CH_CSV}"
+    fi
+
+    if printf '[%s]\n' "$_ch_row" >> "$CELL_HISTORY_DIR/$_YMD.jsonl" 2>/dev/null; then
         _ch_last_ts="$ts"
+        l1_accum_reset
     else
         # No retry loop: the failure this guards (a full or read-only volume) is
-        # not fixed by trying again a minute later.
-        if [ "$_ch_warn_day" != "$day" ]; then
-            _ch_warn_day="$day"
-            log_warn "cell history: could not append to $day.jsonl"
+        # not fixed by trying again a minute later; the next maintenance pass
+        # re-checks the floor.
+        if [ "$_ch_warn_day" != "$_YMD" ]; then
+            _ch_warn_day="$_YMD"
+            log_warn "cell history: could not append to $_YMD.jsonl"
         fi
+        _ch_next_maint=$(( ts + CH_RETRY_SEC ))
+        _ch_ok=0
     fi
     return 0
 }
@@ -1497,6 +1825,282 @@ append_ping_history() {
         _ping_hist_n="$PING_HISTORY_MAX"
     fi
 }
+
+# -----------------------------------------------------------------------------
+# Ping-minute archive: [ts,n,ok,avg,min,max,jit,loss], one row per UTC minute.
+# -----------------------------------------------------------------------------
+# Folds the poller's 10 s ping samples (the same conn_latency append_ping_history
+# reads) into one row per UTC minute under PING_ARCHIVE_DIR. ts is the minute's
+# start; avg/min/max (ms, one decimal) cover the answered probes only and are null
+# when none answered; jit is the mean absolute difference of consecutive answered
+# RTTs inside the minute (null with fewer than two); loss is the 0-100 integer
+# percentage of unanswered samples (null when the minute holds no measured sample).
+# A sample is "measured" when the ping daemon's cache is fresh (internet_available
+# true/false): stale or missing ping data is not packet loss, but the row is still
+# written - it doubles as the poller's heartbeat, which the restart history reads,
+# so it is written whether or not the modem answers.
+_pg_dir_ok=0
+_pg_min=0          # start of the minute being accumulated (0 = none)
+_pg_n=0
+_pg_ok=0
+_pg_sum=0          # tenths of ms
+_pg_mn=""
+_pg_mx=""
+_pg_jsum=0
+_pg_jn=0
+_pg_prev=""
+_pg_maint_day=""
+_pg_next_maint=0
+_pg_allowed=1
+_pg_warn_day=""
+_pg_state_logged=""
+
+# _t10 <rtt ms text>: _T10 = tenths of a millisecond (integer); rc 1 if not a number.
+_t10() {
+    local _t_i
+    local _t_f
+    case "$1" in ''|*[!0-9.]*|.|*.*.*) return 1 ;; esac
+    _t_i="${1%%.*}"
+    _t_f=""
+    case "$1" in *.*) _t_f="${1#*.}"; _t_f="${_t_f%"${_t_f#?}"}" ;; esac
+    while :; do
+        case "$_t_i" in 0?*) _t_i="${_t_i#0}" ;; *) break ;; esac
+    done
+    [ "${#_t_i}" -le 6 ] || return 1
+    _T10=$(( ${_t_i:-0} * 10 + ${_t_f:-0} ))
+    return 0
+}
+
+# _fmt10 <tenths>: _F10S = "12.3".
+_fmt10() {
+    if [ "$1" -lt 10 ]; then
+        _F10S="0.$1"
+    else
+        _F10S="${1%?}.${1#"${1%?}"}"
+    fi
+}
+
+_pg_reset() {
+    _pg_n=0; _pg_ok=0; _pg_sum=0; _pg_mn=""; _pg_mx=""
+    _pg_jsum=0; _pg_jn=0; _pg_prev=""
+}
+
+# _pg_maintain <now>: hs_maintain for the ping archive; sets _pg_allowed.
+_pg_maintain() {
+    local _pm_st
+    _pg_maint_day="$_YMD"
+    _pg_next_maint=0
+    HS_NOW="$1"
+    if hs_maintain "$PING_ARCHIVE_DIR" "$PING_ARCHIVE_KEEP_DAYS" "$PING_ARCHIVE_CAP_KB" \
+        "$PING_ARCHIVE_MIN_FREE_KB" "$PING_ARCHIVE_STATE"; then
+        _pg_allowed=1
+        _pm_st=ok
+    else
+        _pg_allowed=0
+        _pm_st=low_space
+    fi
+    if [ "$_pg_allowed" != "1" ] || [ "$HS_PENDING" = "1" ]; then
+        _pg_next_maint=$(( $1 + CH_RETRY_SEC ))
+    fi
+    if [ "$_pm_st" != "$_pg_state_logged" ]; then
+        _pg_state_logged="$_pm_st"
+        if [ "$_pm_st" != "ok" ]; then
+            log_warn "ping history: ${HS_FREE_KB}KB free is under the ${PING_ARCHIVE_MIN_FREE_KB}KB floor, writes paused, retrying hourly"
+        fi
+    fi
+}
+
+# _pg_flush: write the row of the minute held in _pg_min.
+_pg_flush() {
+    local _pf_day
+    local _pf_avg
+    local _pf_mn
+    local _pf_mx
+    local _pf_jit
+    local _pf_loss
+    _pf_avg=null; _pf_mn=null; _pf_mx=null; _pf_jit=null; _pf_loss=null
+    if [ "$_pg_ok" -gt 0 ]; then
+        _fmt10 $(( (_pg_sum + _pg_ok / 2) / _pg_ok )); _pf_avg="$_F10S"
+        _fmt10 "$_pg_mn"; _pf_mn="$_F10S"
+        _fmt10 "$_pg_mx"; _pf_mx="$_F10S"
+    fi
+    if [ "$_pg_jn" -gt 0 ]; then
+        _fmt10 $(( (_pg_jsum + _pg_jn / 2) / _pg_jn )); _pf_jit="$_F10S"
+    fi
+    if [ "$_pg_n" -gt 0 ]; then
+        _pf_loss=$(( ((_pg_n - _pg_ok) * 100 + _pg_n / 2) / _pg_n ))
+    fi
+    if [ ! -d "$PING_ARCHIVE_DIR" ]; then
+        mkdir -p "$PING_ARCHIVE_DIR" 2>/dev/null
+        chmod 0755 "$PING_ARCHIVE_DIR" 2>/dev/null
+    fi
+    [ -d "$PING_ARCHIVE_DIR" ] || return 0
+    # First row of this poller life: learn whether the floor allows writing. Not
+    # when the row belongs to a day that has already closed: that pass would
+    # compress the file this row is about to be appended to.
+    _ymd "$_pg_min"
+    _pf_day="$_YMD"
+    _ymd "$_NOW"
+    if [ -z "$_pg_maint_day" ] && [ "$_pf_day" = "$_YMD" ]; then
+        _pg_maintain "$_NOW"
+    fi
+    if [ "$_pg_allowed" = "1" ]; then
+        if ! printf '[%s,%s,%s,%s,%s,%s,%s,%s]\n' "$_pg_min" "$_pg_n" "$_pg_ok" \
+            "$_pf_avg" "$_pf_mn" "$_pf_mx" "$_pf_jit" "$_pf_loss" \
+            >> "$PING_ARCHIVE_DIR/$_pf_day.jsonl" 2>/dev/null; then
+            if [ "$_pg_warn_day" != "$_pf_day" ]; then
+                _pg_warn_day="$_pf_day"
+                log_warn "ping history: could not append to $_pf_day.jsonl"
+            fi
+            _pg_allowed=0
+            _pg_next_maint=$(( _NOW + CH_RETRY_SEC ))
+        fi
+    fi
+    # Rotation and hourly retry run AFTER the row is written: a minute that
+    # closes just after midnight still belongs to the previous day's file, which
+    # the pass may be about to compress.
+    _ymd "$_NOW"
+    if [ "$_YMD" != "$_pg_maint_day" ] || { [ "$_pg_next_maint" -gt 0 ] && [ "$_NOW" -ge "$_pg_next_maint" ]; }; then
+        _pg_maintain "$_NOW"
+    fi
+}
+
+# ping_minute_tick: called with each 10 s ping-history tick (and during a scan).
+ping_minute_tick() {
+    local _pt_min
+    case "$_NOW" in ''|*[!0-9]*) return 0 ;; esac
+    [ "$_NOW" -gt "$SANE_EPOCH" ] || return 0
+    _pt_min=$(( _NOW - _NOW % 60 ))
+    if [ "$_pg_min" -ne 0 ] && [ "$_pt_min" -ne "$_pg_min" ]; then
+        _pg_flush
+        _pg_reset
+        _pg_min=0
+    fi
+    [ "$_pg_min" -eq 0 ] && _pg_min="$_pt_min"
+
+    # Attach warm-up (qmanager_ping): the same rule append_ping_history applies.
+    if [ -f /tmp/qmanager_ping_attaching ] && [ "$conn_internet_available" != "null" ]; then
+        return 0
+    fi
+    case "$conn_internet_available" in true|false) ;; *) return 0 ;; esac
+    _pg_n=$((_pg_n + 1))
+    if _t10 "$conn_latency"; then
+        _pg_ok=$((_pg_ok + 1))
+        _pg_sum=$((_pg_sum + _T10))
+        if [ -z "$_pg_mn" ] || [ "$_T10" -lt "$_pg_mn" ]; then _pg_mn="$_T10"; fi
+        if [ -z "$_pg_mx" ] || [ "$_T10" -gt "$_pg_mx" ]; then _pg_mx="$_T10"; fi
+        if [ -n "$_pg_prev" ]; then
+            if [ "$_T10" -ge "$_pg_prev" ]; then
+                _pg_jsum=$(( _pg_jsum + _T10 - _pg_prev ))
+            else
+                _pg_jsum=$(( _pg_jsum + _pg_prev - _T10 ))
+            fi
+            _pg_jn=$((_pg_jn + 1))
+        fi
+        _pg_prev="$_T10"
+    fi
+}
+
+# -----------------------------------------------------------------------------
+# Restart history: one line per boot in BOOT_LOG_FILE.
+# -----------------------------------------------------------------------------
+# {"boot_ts":N,"last_alive_ts":N|null,"down_sec":N|null,"cause":"..."}
+# boot_ts is now - uptime. last_alive_ts is the newest ping-minute row older than
+# boot_ts (that archive is the heartbeat). Cause: planned when crash.log holds a
+# `user` / `tier4_escalation` breadcrumb in the 600 s before boot; else restart for
+# a gap of at most 180 s, power_loss above that, unknown with no heartbeat.
+# Recorded once per boot (BOOT_LOG_MARK on tmpfs, plus a +-5 s look at the file),
+# only once the wall clock is sane and the box has been up a minute, so a clock
+# that is still being set cannot stamp a bogus boot_ts. Capped to the newest
+# BOOT_LOG_MAX lines.
+_bl_done=0
+
+# _bl_last_alive <boot_ts>: _BL_LA = newest ping-minute row ts below boot_ts.
+_bl_last_alive() {
+    local _bl_i
+    local _bl_f
+    local _bl_t
+    _BL_LA=""
+    _bl_i=0
+    while [ "$_bl_i" -le 14 ]; do
+        _ymd $(( $1 - _bl_i * 86400 ))
+        _bl_f="$PING_ARCHIVE_DIR/$_YMD.jsonl"
+        _bl_t=""
+        if [ -f "$_bl_f" ]; then
+            _bl_t=$(awk -F, -v b="$1" '{ t = substr($1, 2) + 0; if (t > 0 && t < b && t > m) m = t } END { printf "%d", m }' "$_bl_f" 2>/dev/null)
+        elif [ -f "${_bl_f}.gz" ]; then
+            _bl_t=$(gzip -dc < "${_bl_f}.gz" 2>/dev/null | awk -F, -v b="$1" '{ t = substr($1, 2) + 0; if (t > 0 && t < b && t > m) m = t } END { printf "%d", m }')
+        fi
+        case "$_bl_t" in ''|0|*[!0-9]*) ;; *) _BL_LA="$_bl_t"; return 0 ;; esac
+        _bl_i=$((_bl_i + 1))
+    done
+    return 0
+}
+
+# _bl_planned <boot_ts>: 0 when crash.log holds a planned-reboot breadcrumb just
+# before boot_ts (format <epoch>|reboot|<reason>, see record_planned_reboot).
+_bl_planned() {
+    [ -f "$CRASH_LOG_FILE" ] || return 1
+    awk -F'|' -v b="$1" '
+        $2 == "reboot" && ($3 == "user" || $3 == "tier4_escalation") {
+            t = $1 + 0
+            if (t >= b - 600 && t <= b + 5) f = 1
+        }
+        END { exit (f ? 0 : 1) }' "$CRASH_LOG_FILE" 2>/dev/null
+}
+
+boot_log_try() {
+    local _bt_up
+    local _bt_boot
+    local _bt_gap
+    local _bt_cause
+    local _bt_la
+    local _bt_down
+    [ "$_bl_done" = "1" ] && return 0
+    case "$_NOW" in ''|*[!0-9]*) return 0 ;; esac
+    [ "$_NOW" -gt "$SANE_EPOCH" ] || return 0
+    _bt_up="${_MONO_TOP:-0}"
+    case "$_bt_up" in ''|*[!0-9]*) _bt_up=0 ;; esac
+    [ "$_bt_up" -ge 60 ] || return 0
+    _bl_done=1
+    [ -f "$BOOT_LOG_MARK" ] && return 0
+    _bt_boot=$(( _NOW - _bt_up ))
+
+    if [ -f "$BOOT_LOG_FILE" ] && awk -F'"boot_ts":' -v b="$_bt_boot" '
+        NF > 1 { d = $2 + 0 - b; if (d < 0) d = -d; if (d <= 5) f = 1 }
+        END { exit (f ? 0 : 1) }' "$BOOT_LOG_FILE" 2>/dev/null; then
+        printf '%s\n' "$_bt_boot" > "$BOOT_LOG_MARK" 2>/dev/null
+        return 0
+    fi
+
+    _bl_last_alive "$_bt_boot"
+    _bt_la="${_BL_LA:-null}"
+    _bt_down=null
+    _bt_cause=unknown
+    if [ -n "$_BL_LA" ]; then
+        _bt_gap=$(( _bt_boot - _BL_LA ))
+        [ "$_bt_gap" -lt 0 ] && _bt_gap=0
+        _bt_down="$_bt_gap"
+        if [ "$_bt_gap" -le 180 ]; then _bt_cause=restart; else _bt_cause=power_loss; fi
+    fi
+    _bl_planned "$_bt_boot" && _bt_cause=planned
+
+    [ -d "${BOOT_LOG_FILE%/*}" ] || mkdir -p "${BOOT_LOG_FILE%/*}" 2>/dev/null
+    if printf '{"boot_ts":%s,"last_alive_ts":%s,"down_sec":%s,"cause":"%s"}\n' \
+        "$_bt_boot" "$_bt_la" "$_bt_down" "$_bt_cause" >> "$BOOT_LOG_FILE" 2>/dev/null; then
+        printf '%s\n' "$_bt_boot" > "$BOOT_LOG_MARK" 2>/dev/null
+        _hist_count "$BOOT_LOG_FILE"
+        if [ "$_HN" -gt "$BOOT_LOG_MAX" ]; then
+            tail -n "$BOOT_LOG_MAX" "$BOOT_LOG_FILE" > "${BOOT_LOG_FILE}.tmp" 2>/dev/null \
+                && mv -f "${BOOT_LOG_FILE}.tmp" "$BOOT_LOG_FILE" 2>/dev/null
+        fi
+        log_info "boot log: boot_ts=${_bt_boot} cause=${_bt_cause} down_sec=${_bt_down}"
+    else
+        log_warn "boot log: could not append to $BOOT_LOG_FILE"
+    fi
+    return 0
+}
+
 
 # =============================================================================
 # TIER 2: WARM DATA (every N cycles)
@@ -1720,6 +2324,35 @@ resolve_poller_config() {
     # Clamp the AT-read cadences to never drop below the base cycle interval.
     [ "$AP_IDLE_INTERVAL" -lt "$POLL_INTERVAL" ] 2>/dev/null && AP_IDLE_INTERVAL="$POLL_INTERVAL"
     [ "$AP_DEEP_INTERVAL" -lt "$POLL_INTERVAL" ] 2>/dev/null && AP_DEEP_INTERVAL="$POLL_INTERVAL"
+
+    resolve_history_config
+}
+
+# History settings live in their own UCI section (quecmanager.history, never
+# seeded) so they do not turn the Adaptive Polling card into "customised":
+#   l1_stats        1 = sample the L1 readings for the cell-history row (else off;
+#                   only the literal 1 enables it)
+#   cell_keep_days  cell-history retention, default 30
+#   cell_cap_kb     cell-history directory cap, default 3072
+#   cell_floor_kb   refuse writes below this much free overlay, default 4096
+# Runs at start and again when the poller reload flag is consumed.
+resolve_history_config() {
+    local _hc_l1
+    local _hc_keep
+    local _hc_cap
+    local _hc_floor
+    _hc_l1=$(uci -q get quecmanager.history.l1_stats 2>/dev/null)
+    _hc_keep=$(uci -q get quecmanager.history.cell_keep_days 2>/dev/null)
+    _hc_cap=$(uci -q get quecmanager.history.cell_cap_kb 2>/dev/null)
+    _hc_floor=$(uci -q get quecmanager.history.cell_floor_kb 2>/dev/null)
+    case "$_hc_l1" in 1) L1_ENABLED=1 ;; *) L1_ENABLED=0 ;; esac
+    case "$_hc_keep" in ''|*[!0-9]*|0) CELL_HISTORY_KEEP_DAYS=30 ;; *) CELL_HISTORY_KEEP_DAYS="$_hc_keep" ;; esac
+    case "$_hc_cap" in ''|*[!0-9]*|0) CELL_HISTORY_CAP_KB=3072 ;; *) CELL_HISTORY_CAP_KB="$_hc_cap" ;; esac
+    case "$_hc_floor" in ''|*[!0-9]*) CELL_HISTORY_MIN_FREE_KB=4096 ;; *) CELL_HISTORY_MIN_FREE_KB="$_hc_floor" ;; esac
+    # A changed budget applies from the next maintenance pass, not next midnight.
+    _ch_maint_day=""
+    [ "$L1_ENABLED" = "1" ] || l1_accum_reset
+    qlog_info "History config: l1_stats=${L1_ENABLED} keep=${CELL_HISTORY_KEEP_DAYS}d cap=${CELL_HISTORY_CAP_KB}KB floor=${CELL_HISTORY_MIN_FREE_KB}KB"
 }
 
 # DNS lookup time from qmanager_ping's detached job. A number only when the last
@@ -2953,6 +3586,7 @@ poll_cycle() {
     mono_now_set
     _MONO_TOP="$_MONO"
     _QENG_PARSED=0
+    _QENG_LINES=0
 
     # Live reload of connection-quality thresholds when the CGI drops the flag.
     if [ -f "$QUALITY_RELOAD_FLAG" ]; then
@@ -3019,6 +3653,7 @@ poll_cycle() {
         # Ping history (every Tier 1.5 interval — 10s)
         if [ $((cycle_count % TIER1_5_EVERY)) -eq 0 ]; then
             append_ping_history
+            ping_minute_tick
         fi
         update_conn_uptime
         du_tick
@@ -3150,7 +3785,16 @@ poll_cycle() {
         # to minimize AT load while the device is long-unattended. In deep we
         # must NOT run the QCAINFO else-branch — the CA fields keep their
         # last-known values so write_cache emits them unchanged.
-        if [ "$ap_tier" != "deep" ]; then
+        # One exception: in the deep cycle where a cell-history row is due (at
+        # most once a minute) QCAINFO and the per-antenna read run too, so the row
+        # carries current carriers instead of the last ones seen before the tier
+        # went deep. CFUN? stays skipped.
+        local _ch_deep_extra
+        _ch_deep_extra=0
+        if [ "$ap_tier" = "deep" ] && [ "$_QENG_PARSED" = "1" ] && _ch_row_due; then
+            _ch_deep_extra=1
+        fi
+        if [ "$ap_tier" != "deep" ] || [ "$_ch_deep_extra" = "1" ]; then
             # Carrier Aggregation — enable, query and disable in one exchange
             # (as QuecManager does): =1 adds the extended NR fields, and leaving
             # it on drops the connection on RM551E R01A04.
@@ -3173,23 +3817,25 @@ poll_cycle() {
 
             # CFUN — standalone query (compound commands timeout in CFUN=0).
             # Active/idle only; deep tier skips this read.
-            local cfun_result
-            _qc_read 'AT+CFUN?'
-            _tap_at 'AT+CFUN?' "$?" "$_QRAW"
-            cfun_result="$_QRAW"
-            if [ -n "$cfun_result" ]; then
-                # Value after the first ": " on the first +CFUN: line, CRs and
-                # spaces removed (awk -F': ' '{print $2}' | tr -d ' ').
-                _first_line_with "$cfun_result" '+CFUN:'
-                if [ -n "$_FL" ]; then
-                    _V="$_FL"
-                    _rm_chars "$_CR"
-                    case "$_V" in
-                        *": "*) _V="${_V#*: }"; _V="${_V%%: *}" ;;
-                        *)      _V="" ;;
-                    esac
-                    _rm_chars " "
-                    [ -n "$_V" ] && t1_cfun="$_V"
+            if [ "$ap_tier" != "deep" ]; then
+                local cfun_result
+                _qc_read 'AT+CFUN?'
+                _tap_at 'AT+CFUN?' "$?" "$_QRAW"
+                cfun_result="$_QRAW"
+                if [ -n "$cfun_result" ]; then
+                    # Value after the first ": " on the first +CFUN: line, CRs and
+                    # spaces removed (awk -F': ' '{print $2}' | tr -d ' ').
+                    _first_line_with "$cfun_result" '+CFUN:'
+                    if [ -n "$_FL" ]; then
+                        _V="$_FL"
+                        _rm_chars "$_CR"
+                        case "$_V" in
+                            *": "*) _V="${_V#*: }"; _V="${_V%%: *}" ;;
+                            *)      _V="" ;;
+                        esac
+                        _rm_chars " "
+                        [ -n "$_V" ] && t1_cfun="$_V"
+                    fi
                 fi
             fi
 
@@ -3213,6 +3859,12 @@ poll_cycle() {
             [ "$_force_t2" = "1" ] && refresh_sim_identity
         fi
 
+        # L1 sampler: its own gates (quecmanager.history.l1_stats, identity
+        # unchanged, QENG answered, not busy) decide whether anything is asked.
+        if [ "$L1_ENABLED" = "1" ]; then
+            l1_sample "$_ch_deep_extra"
+        fi
+
         _AT_LATCH=0
         determine_service_status
         detect_events
@@ -3227,6 +3879,8 @@ poll_cycle() {
     # deep tier must not age a healthy heartbeat past stale_after.
     if [ $((cycle_count % TIER1_5_EVERY)) -eq 0 ]; then
         append_ping_history
+        ping_minute_tick
+        boot_log_try
         read_watchcat_state
     fi
     update_conn_uptime
