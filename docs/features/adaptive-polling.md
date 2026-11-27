@@ -11,6 +11,7 @@ Adaptive Polling makes the QManager AT poller ease off modem interrogation when 
 | Page route | `/system-settings/adaptive-polling` |
 | CGI | `GET/POST /cgi-bin/quecmanager/system/adaptive_polling.sh` |
 | UCI section | `quecmanager.poller.{enabled,active_grace,idle_interval,idle_threshold,deep_idle_interval}` |
+| History UCI (never seeded) | `quecmanager.history.{l1_stats,cell_keep_days,cell_cap_kb,cell_floor_kb}`, read by `resolve_history_config` at start and on the reload flag; `l1_stats=1` enables the L1 sampler (Invariant 14), absent = off |
 | Heartbeat file | `/tmp/qmanager_ui_active` (epoch seconds, written by status CGIs) |
 | Poller reload flag | `/tmp/qmanager_poller_reload` |
 | Force-active flag | `/tmp/qmanager_force_tier2` |
@@ -183,6 +184,8 @@ This invariant has two layers, applied across two releases:
 
 **Apply paths:** `qmanager_profile_apply` and `apn_mgr.sh` now call `ondemand_dataplane_refresh()` (backgrounded) instead of touching `/tmp/qmanager_force_tier2`, because Tier 2 no longer contains the data-plane reads. This gives APN refresh within seconds of an apply without reintroducing L1 reads.
 
+> ⚠️ WARNING (history-v3): this invariant's rule is "no recurring L1/data-plane read on a background timer". The **opt-in L1 sampler** (Invariant 14, `quecmanager.history.l1_stats=1`, default off) is a deliberate, gated exception: it issues `AT+QNWCFG="lte_csi_ext"` / `"nr5g_csi_ext"` / `"lte_ulMCS"` / `"nr5g_ulMCS"` / `"up/down"` from the poller, which is the same subsystem class the SSR correlation points at. It never issues `*_mimo_layers`, `*_time_advance`, `CGCONTRDP` or `QMAP="WWAN"`, and it was not proven SSR-safe in this repository: the plan is to enable it on one unit and watch dmesg (MHI `SYS_ERR`/RDDM), `quectel-CM` and the WAN route for hours. If the SSR cadence returns, turn `l1_stats` off first.
+
 **Human verification note:** confirmation that the fix holds is a debug report captured after an extended unattended session showing the clock-regular `remoteproc-mss: fatal error` SSR cadence stretching out or stopping entirely.
 
 ### 7. Deep tier runs serving-cell only; CA fields are intentionally retained
@@ -194,6 +197,8 @@ This invariant has two layers, applied across two releases:
 **Why QCAINFO/CFUN?/per-antenna are dropped in deep:** the per-antenna `QRSRP`/`QRSRQ`/`QSINR` read populates the `sig_*` array fields in `status.json`, which `qmanager_tower_failover` does NOT read — only the scalar `.lte.rsrp`/`.nr.rsrp` from QENG. QCAINFO and CFUN? similarly have no consumer that requires sub-minute freshness when no browser is open.
 
 **CA fields hold last-known, never zero in deep:** the QCAINFO else-branch that zeroes `t2_ca_active`, `t2_ca_count`, `t2_nr_ca_active`, `t2_nr_ca_count`, `t2_total_bandwidth_mhz`, `t2_bandwidth_details`, and `t2_carrier_components` is entirely inside the `if [ "$ap_tier" != "deep" ]; then ... fi` guard. Deep-tier touches leave the CA global vars unchanged; `write_cache` then emits last-known values. Verified on-device: CA fields held `total_bandwidth_mhz:95` across multiple deep-tier cycles.
+
+**The one deep-tier exception (history-v3).** In a deep cycle where a cell-history row is due (`_ch_row_due`, at most once per UTC minute) **and** `AT+QENG` answered, the poller also runs `AT+QCAINFO=1;+QCAINFO;+QCAINFO=0` and `poll_per_antenna_signal` once. **Why:** a row records every component carrier and the per-port RSRP, and without this the deep tier wrote the last carriers seen before the tier went deep (frozen for hours). The exception is exactly the `_ch_deep_extra` flag; `AT+CFUN?` stays skipped, and the CA else-branch that zeroes the components is still inside the same guard, so a busy reply (rc 3) keeps last-known values. At the default 60 s deep cadence this adds one QCAINFO and one per-antenna read per minute to a cycle that already reads the serving cell. Do not widen it to every deep cycle.
 
 > ⚠️ WARNING: Do not add any of the removed data-plane/L1 commands (`CGCONTRDP`, `QMAP="WWAN"`, `*_time_advance`, `*_mimo_layers`) back to `poll_tier2()` or the boot block. Doing so reintroduces the exact pattern associated with RM551E baseband restarts. Also do not remove the `[ "$ap_tier" = "active" ] || return 0` guard from `poll_tier2()` — the identity reads it protects are still Active-only. Additionally, do not move the QCAINFO else-branch (CA-field zeroing) outside the `[ "$ap_tier" != "deep" ]` guard — doing so would cause deep-tier cycles to publish zeroed CA data instead of last-known values.
 
@@ -248,6 +253,19 @@ The poller also exports `.device.serving_read_mono` (set when a `poll_serving_ce
 - **New `status.json` keys** (both composers, `_wc_compose_pf` and `write_cache_jq`, kept in parity): `lte.source` (`at|qmi`), `device.qmi_read_mono` (int, 0 = never), `device.qmi_state` (`""|up|down|unavailable`), `device.qmi_ssr_count` (int). All are optional in `types/modem-status.ts`.
 - **Not merged:** CA (decided against 2026-10-25: [`../plans/2026-10-25-qmi-ca-gap-fill.md`](../plans/2026-10-25-qmi-ca-gap-fill.md); `QCAINFO` runs every AT-due cycle and `device.ca_read_mono` labels deep-tier age, so there is no `network.ca_source`), NR, SINR and per-antenna values.
 - **Parity tooling:** `dump_globals.sh` learns `qmi_`/`_qmo_`; `sidecar_parity.sh` takes `qmi_merge.sh` as a 5th argument and covers valid, truncated, stray-line and older-than-stamp envs plus no fork; `status_parity.sh` covers the new keys. See `tools/poller-parity/README.md`.
+
+### 14. The L1 sampler has one call site, after the AT reads and inside the busy latch
+
+`l1_sample "$_ch_deep_extra"` (from `l1_stats.sh`) runs once per AT-due cycle, after `poll_serving_cell`, QCAINFO, per-antenna, temperature and Tier 2, and before `_AT_LATCH=0`. It is called only when `L1_ENABLED=1`, which is `quecmanager.history.l1_stats` being exactly `1` (read at start and on the poller reload flag by `resolve_history_config`; never seeded, absent = off). Its reads go through `_qc_read`, so they inherit the read cap and the per-cycle busy latch, and a busy reply abandons the rest of that minute. The compound commands are `AT+QNWCFG="*_csi_ext";...;"up/down"` per RAT; **`*_mimo_layers` is never read** (Invariant 6, with the caveat there). Gates, pacing per tier (active 1 per 6 s under traffic, idle 2 back-to-back, deep 3 back-to-back only in a row-due cycle), the 3-failure / 10-minute back-off and the meaning of the PRB field are in [cell-history.md](cell-history.md#l1-sampling). The sampler adds up to about 1.6 s of AT-channel time per minute in the worst case (the plan's estimate, not a measured figure); turn it off with `uci set quecmanager.history.l1_stats=0` and the reload flag if the modem misbehaves.
+
+### 15. The dashboard poll pauses on a hidden tab
+
+Every request to `fetch_data.sh` refreshes the heartbeat (`/tmp/qmanager_ui_active`), so a backgrounded dashboard that kept polling pinned the poller in `active` forever and the backoff never engaged (device known-issue 15 of the X75 runbook). Since history-v3 the browser side pauses:
+
+- `lib/modem-status-store.ts` (the one shared poll behind `useModemStatus`) takes an injectable `visibility` dependency. Hiding the tab clears the interval; becoming visible fetches at once and restarts it. The store owns one visibility listener for the whole app while anyone is subscribed, so the number of consumers cannot multiply it. Subscribers keep their last data (a pause shows stale data, not a blank), and a subscriber that mounts in a hidden tab still gets one read so it has something to show. Tested in `lib/modem-status-store.test.ts`.
+- `hooks/use-latency-history.ts` (the dashboard strips' ring read, 30 s) and the Cell History / Connection Quality hooks do the same: no timer while hidden, one immediate read on becoming visible.
+
+**Why this matters here:** the poller only steps down to idle/deep when the heartbeat ages. A tab left open in the background for a day used to keep the modem on the 2 s active cadence. Boot seeding, the Prometheus scrape hold and force-tier flags are unchanged.
 
 ---
 

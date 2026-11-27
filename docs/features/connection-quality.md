@@ -19,6 +19,10 @@ The Connection Quality settings page (Monitoring → Connection Quality) control
 | Watchdog reload flag | `/tmp/qmanager_watchcat_reload` (touched by `quality_thresholds.sh` POST — dual reload invariant) |
 | Interval override owner | `quecmanager.watchcat` (watchdog is sole writer of `ping_profile.interval_override`) |
 | Ping daemon output | `/tmp/qmanager_ping.json` |
+| Ping archive (history-v3) | `/usrdata/qmanager/ping_history/YYYY-MM-DD.jsonl[.gz]`, row `[ts,n,ok,avg,min,max,jit,loss]`, 14 d / 512 KB / 4096 KB floor, written by `ping_minute_tick` in `qmanager_poller` |
+| Ranged history CGI | `GET /cgi-bin/quecmanager/at_cmd/fetch_ping_history.sh?range=1h\|6h\|24h\|7d` (no query = the unchanged 10 s ring) |
+| Restart log | `/usrdata/qmanager/boot_log.jsonl` (cap 60 lines), once-per-boot marker `/tmp/qmanager_boot_logged` |
+| Types / hook | `types/ping-history.ts`, `hooks/use-ping-history.ts`, dashboard `connection-quality-dialog.tsx` |
 | Shared ping-cache reader + profile table | `scripts/usr/lib/qmanager/conn_state.sh` (`conn_state_read`, `conn_state_resolve`, `conn_state_cadence`); sourced by `qmanager_ping`, `qmanager_poller`, `qmanager_watchcat`, `ping_profile.sh`, `watchdog.sh` |
 | Reboot required | No |
 
@@ -436,6 +440,7 @@ Since B5.29 Phase C `qmanager_ping` also writes two shell-assignment files in `/
 - **Best effort.** A sidecar write failure returns non-zero from `write_ping_env` but never fails the probe cycle; the poller simply reads the JSON on that cycle.
 - **Freshness is unchanged.** The staleness rule above is evaluated by `conn_state_read_env` from the sidecar's `_cq_mono` and `_cq_iv`, in lockstep with `conn_state_read`. If you change one, change both.
 - **Lifecycle.** `init.d/qmanager` `stop_service` removes both files and their `.new` temps; the files live on tmpfs.
+- **`_sc_sq` must exist in `qmanager_ping`.** `write_ping_env` quotes every value through `_sc_sq` (a copy of `_od_sq` from `ondemand_radio.sh`, defined in `qmanager_ping` itself). It was missing after the v0.1.35 re-apply, so the call failed and `ping.env` and `dns.env` carried no values; the poller rejects an incomplete sidecar and fell back to reading the JSON, which is correct but left the fork-free path dead. history-v3 restored it. `tools/poller-parity/sidecar_parity.sh` lifts `_sc_sq` out of the daemon with the writers, so a parity run exercises it.
 
 ---
 
@@ -457,6 +462,89 @@ Both `/tmp/qmanager_ping.json` (written by `qmanager_ping`) and `/tmp/qmanager_s
 
 ---
 
+## Per-minute ping archive
+
+The tmpfs ring (`/tmp/qmanager_ping_history.json`, one NDJSON row per 10 s tick, lost on reboot, 8640 lines at most) answers "the last half hour". It cannot answer "what was the line like last night" or "did the router restart", so the poller also folds those 10 s samples into **one durable row per UTC minute**.
+
+```
+/usrdata/qmanager/ping_history/YYYY-MM-DD.jsonl      (UTC day; .jsonl.gz once closed)
+[ts,n,ok,avg,min,max,jit,loss]
+```
+
+| Field | Meaning |
+|---|---|
+| `ts` | the minute's start, epoch seconds |
+| `n` | probes counted in the minute |
+| `ok` | probes answered |
+| `avg` `min` `max` | RTT in ms, one decimal, over the **answered** probes only; `null` when none answered |
+| `jit` | mean absolute difference of consecutive answered RTTs inside the minute; `null` with fewer than two |
+| `loss` | integer 0-100, unanswered share of `n`; `null` when the minute holds no measured probe |
+
+- **Which samples count.** `ping_minute_tick` runs on every Tier 1.5 tick (10 s), **including during a scan or SIM switch**. A tick counts only when the ping daemon's cache is fresh (`connectivity.internet_available` is `true` or `false`) and the attach warm-up flag (`/tmp/qmanager_ping_attaching`) is not holding it back. Stale or missing ping data is not packet loss.
+- **The row is written whatever the modem does.** A minute whose ticks counted nothing still gets a row (`n=0`, readings `null`). **Why:** the newest row is the poller's **heartbeat**: the restart log compares it with the boot time. The aggregator skips `n=0` rows.
+- **A row lands when the next minute begins**, so the minute in progress is not in the archive; the ranged CGI folds it in from the ring.
+- **Budget.** 14 days, 512 KB, free-space floor 4096 KB (`PING_ARCHIVE_*` constants in the poller; unlike the cell archive they have no UCI override). Maintenance is the same `hs_maintain` (expire, gzip one closed day, cap, floor) described in [cell-history.md](cell-history.md#maintenance-order-hs_maintain), with state in `/tmp/qmanager_ping_history_state`. The first row of a poller life learns whether the floor allows writing, except when the row belongs to a day that has already closed (that pass would compress the file the row is about to be appended to); rotation and the hourly retry run **after** the row is written for the same reason.
+- **Size** the plan estimated about 45 B a row, 65 KB a day raw. Not measured on the device when this was written.
+
+### Ranged read
+
+`GET fetch_ping_history.sh?range=1h|6h|24h|7d` returns `PingHistoryRanged` (`types/ping-history.ts`):
+
+```json
+{ "success": true, "range": "24h", "bucket_sec": 300, "generated_at": 1795000000,
+  "window": { "start": 1794913600, "end": 1795000000 },
+  "points": [ { "ts": 1794913500, "n": 30, "ok": 30, "avg": 41.2, "min": 29.8, "max": 77.5, "jit": 6.1, "loss": 0 } ],
+  "restarts": [ { "boot_ts": 1794950000, "last_alive_ts": 1794949980, "down_sec": 20, "cause": "restart" } ],
+  "device_utc_offset_min": 300 }
+```
+
+| Range | Bucket |
+|---|---|
+| 1h | 60 s |
+| 6h | 60 s |
+| 24h | 300 s |
+| 7d | 1800 s |
+
+- **No query is byte-identical to before**: the ring as a JSON array through `serve_ndjson_as_array`. The dashboard strips depend on it.
+- Buckets with no probes are **omitted** (the chart breaks there). A bucket's `avg` is weighted by answered probes; `loss` is `100 x (n - ok) / n` of the bucket; `jit` is the mean of the per-minute jitters.
+- **Freshness.** Ring rows newer than the last archived minute are folded in (each ring row is one probe), so the current partial minute shows. With no archive at all yet, the whole ring is the answer.
+- **Cost.** The same piece/cache machinery as the cell history ([cell-history.md](cell-history.md#reading-it-back-history_aggsh)): closed days and sealed hours are reduced once and cached, the live edge is reduced per request, and the response is cached for 20 s (and invalidated by a newer ring file). `history_agg.sh` is shared; it is sourced, not executable.
+- Errors: `invalid_range` ("range must be 1h, 6h, 24h or 7d"), `internal_error` if the aggregator is missing.
+- The Cell History page joins the same archive by timestamp as the `lat`, `jit` and `loss` series (its `quality` panel).
+
+---
+
+## Restart history
+
+"Did the router restart, and was it power or a crash?" is answered from the ping-minute rows plus a one-line-per-boot log.
+
+```
+/usrdata/qmanager/boot_log.jsonl      (newest 60 lines kept)
+{"boot_ts":N,"last_alive_ts":N|null,"down_sec":N|null,"cause":"restart|power_loss|planned|unknown"}
+```
+
+`boot_log_try` runs on the 10 s tick and records **once per boot**:
+
+1. It waits until the wall clock is sane (after 2024-01-01) **and** the box has been up at least 60 s, so a clock still being set by NITZ/NTP cannot stamp a bogus `boot_ts`.
+2. `boot_ts = now - uptime` (monotonic).
+3. It is skipped if `/tmp/qmanager_boot_logged` exists (tmpfs, so it is gone after a reboot and survives a poller restart) or if the log already has a `boot_ts` within 5 s of this one.
+4. `last_alive_ts` is the newest ping-minute row older than `boot_ts`, searched back through up to 15 day files (plain or gzipped). `down_sec` is `boot_ts - last_alive_ts`.
+
+Classification:
+
+| Cause | Rule |
+|---|---|
+| `planned` | `/etc/qmanager/crash.log` has a `<epoch>\|reboot\|user` or `<epoch>\|reboot\|tier4_escalation` breadcrumb from 600 s before boot up to 5 s after (`record_planned_reboot` writes these: UI reboot, scheduled reboot, IMEI apply, watchdog Tier 4). **Wins over the gap rules.** |
+| `restart` | gap `<= 180 s`: kernel panic, watchdog or fast reset |
+| `power_loss` | gap `> 180 s`: power cut or a long hang |
+| `unknown` | no heartbeat to compare against (first boot after install, or the archive is gone) |
+
+The aggregator returns the entries whose `boot_ts` falls inside the window as `restarts[]` on both the cell and ping responses; unknown causes degrade to `unknown`. `uninstall.sh` removes the log and the marker.
+
+> ℹ️ NOTE: A device that crashed and took longer than three minutes to come back reads as `power_loss`. The log cannot tell the two apart; it only knows how long the heartbeat was silent.
+
+---
+
 ## Frontend
 
 Re-authored by ledger U4.7 from `rm520n` `cebb8185` (page) and `9d156cbe` `e029d43b` `313492ef` `932122bb` (dashboard card), adapted to the target's profile + IPv4/IPv6 model.
@@ -469,6 +557,8 @@ Re-authored by ledger U4.7 from `rm520n` `cebb8185` (page) and `9d156cbe` `e029d
 | `components/monitoring/connection-quality/quality-thresholds-card.tsx` | Quality Thresholds: per metric a `SegmentedField` (Standard / Tolerant / Very tolerant / Custom), a Limit field when Custom, "Flags after" and "Right now" pill rows, `CardFoot` with Save |
 | `components/monitoring/connection-quality/{shapes.ts,condition-block.tsx}` | Family-local geometry and the error state block (never imported across families) |
 | `components/dashboard/connection-quality.tsx` (shapes from the dashboard `shapes.ts` since U4.10) | Dashboard card that replaced Live Latency: Internet / DNS lookup / Probing / Last outage rows, 30-minute reachability and jitter strips from `fetch_ping_history.sh`, Typical / Worst / Loss (the speed test moved to Device & Speed, `device-metrics.tsx`) |
+| `components/dashboard/connection-quality-dialog.tsx` | The full view (history-v3): wide dialog opened from the card's top-right expand control; lazy-loaded (`next/dynamic`) so recharts arrives on first open |
+| `hooks/use-ping-history.ts` | Ranged read of the ping archive for the dialog; only while open, 60 s cadence, paused while the tab is hidden, newest request wins |
 | `hooks/use-ping-profile.ts` | Fetch + save ping profile |
 | `hooks/use-quality-thresholds.ts` | Fetch + save quality thresholds |
 
@@ -481,6 +571,10 @@ Types are in `types/modem-status.ts`: `PING_PROFILES`, `PingProfile`, `QUALITY_P
 **Quality Thresholds** reads `connectivity.avg_latency_ms` for "Right now" (the poller compares the windowed average, not the last RTT) and `packet_loss_pct`. Over the limit, a lucide `TriangleAlert` appears beside the figure: amber over the latency cut, red past twice it; red at or over the loss cut. Figures stay neutral ink. Custom debounce mirrors tolerant (3 samples). `isDefault` shows an `info` chip ("Built-in defaults") in the foot, and Save stays enabled so the defaults can be written.
 
 **Dashboard card.** The verdict line is `connectivity.status` only (`connected` Responsive, `degraded`/`recovery` Degraded, `disconnected` Unreachable, else Not measured) and links to `/monitoring/events/`. **The DNS lookup time is its own reading and never softens the verdict**: the carrier resolver can answer while ICMP is unreachable (B2.2), so the fork's "No ping reply" branch (disconnected + DNS answered) was not ported. Strip and bar cuts follow `connectivity.thresholds` (fallback 250 ms / 30 %): a reachability cell is red only with two or more failed rows at the loss cut, or a failed row of its own while the poller's rolling loss is at it; one drop is amber. A cell whose probes all answered is never red: the rolling loss spans the whole ring (~10 min at `quiet`), and counting it alone painted every answered cell after an old drop red. The Internet and DNS bars are amber at the latency cut and red at twice it, on a track of twice the cut. `internet_available === null` renders the "Nothing is probing" empty state linking to `/monitoring/connection-quality/`. Typical / Worst / Loss use the dashboard `FIGURE` shape and hold the card's bottom edge (`mt-auto`). **The speed test is not on this card** (moved 2026-10-19): it closes the Device & Speed card (`components/dashboard/device-metrics.tsx`, `metrics.*`) as a group with a primary "Run test" pill ("View" while running) over a pinned 68px tile (`SPEEDTEST` in `shapes.ts`) holding Download / Upload / Ping, so the two cards end on matching figure rows. That group runs `useSpeedtest({ watch: true })` (B5.23): it checks `speedtest_status.sh` every 10 s, and while a run is in flight, started from the dialog or another tab, it shows a live dot, the phase (Latency / Download / Upload, else "Running"), the current reading (no `TickingValue`: the 500 ms cadence would never let it settle) and a progress bar; otherwise the last result, re-read when the dialog closes, or dashes if no test has run. The dialog and the row then poll the endpoint together, which is safe only because `speedtest_status.sh` serializes the completion harvest behind a flock (`docs/API-REFERENCE.md`).
+
+**Hover on the strips.** Every cell of both dashboard strips explains itself: the span it covers in the browser's local time, the verdict, average latency, jitter and loss. The cells are one roving tab stop per strip (arrow keys move, Home/End jump; focus opens the same tip hover does) because 56 tab stops would bury the page. Tooltips do not open on tap, so touch uses the full view.
+
+**Full view (expand dialog).** The card's top-right `open_in_full` control opens `ConnectionQualityDialog`. Range `1h / 6h / 24h / 7d` (default `24h`) over `usePingHistory`. Four stacked charts share one `syncId`: latency (average line over a min-max band, with dashed lines at the poller's own degraded cut from `connectivity.thresholds`, else the `tolerant` fallbacks 250 ms / 30 %), jitter, loss bars, and a reachability strip. Hovering **any** of them draws the crosshair on all four and opens one tip carrying average/min/max latency, jitter, loss and probes answered for that minute (only the chart under the pointer renders the tip). Restarts are dashed marks on every chart, one stroke and glyph per cause, plus a Restarts list with the downtime. The footer shows typical (median of the per-minute averages), worst, loss and uptime (the share of recorded minutes with at least one probe answered), and links to `/monitoring/latency` and `/monitoring/connection-quality`. Axes have floors (100 ms latency, 20 ms jitter, 10 % loss) and grow in steps, so a quiet link reads quiet. Three states: skeleton at the same box heights, empty ("No history yet"), error with retry. The strips themselves still read the unchanged 10 s ring, and `use-latency-history.ts` now pauses on a hidden tab like the rest ([adaptive-polling.md](adaptive-polling.md#15-the-dashboard-poll-pauses-on-a-hidden-tab)).
 
 ---
 

@@ -319,9 +319,10 @@ Returns network events as a JSON array. `internet_lost`/`internet_restored` and 
 
 ### GET `/at_cmd/fetch_signal_history.sh`
 
-Returns signal history entries as a JSON array.
+Two views of two different records.
 
-**Response:**
+**No query** returns the dashboard's last two minutes of per-antenna signal (a RAM ring) as a JSON array. Unchanged.
+
 ```json
 [
   {
@@ -336,11 +337,48 @@ Returns signal history entries as a JSON array.
 ]
 ```
 
+**`?view=cells&range=<range>[&panels=a,b]`** returns the durable Cell History (`/cellular/history`) for a window ending **now** (the wall clock, not the newest row). `range` is `1h`, `3h`, `6h`, `12h`, `24h` (default), `7d` or `30d`; `panels` narrows the `series` key set to the listed ids (unknown ids are ignored; an id the archive cannot answer lands in `missing[]`). The contract is `CellHistorySuccess` in `types/cell-history.ts`; an absent reading is `null`, never `0`. Detail, caching and timings: [`docs/features/cell-history.md`](features/cell-history.md).
+
+```json
+{
+  "success": true, "view": "cells", "range": "24h", "generated_at": 1795000000, "bucket_sec": 300,
+  "window": { "start": 1794913600, "end": 1795000000, "samples": 1402, "first_ts": 1794913640, "last_ts": 1794999960 },
+  "coverage": { "cell_from": 1794913640 },
+  "snapshot": { "carrier": null, "registered": null, "cell": { "lte_pci": 104, "nr_pci": 47, "network_type": "5G-NSA", "nr_avail": 1 }, "as_of": 1794999960 },
+  "series": { "rsrp": [{ "ts": 1794913500, "v": -85 }], "lat": [{ "ts": 1794913500, "v": 41.2 }] },
+  "missing": ["lte_cqi"],
+  "cells": { "availability": [], "availability_sec": 300, "outages": [], "events": [], "stats": [], "timeline": [], "bands": [], "band_series": { "B1": [], "N41": [] }, "combos": [] },
+  "recorder": { "state": "ok", "stale_sec": 40, "free_kb": 9120, "archive_kb": 1830, "oldest_ts": 1792400000, "l1_enabled": true },
+  "device_utc_offset_min": 300,
+  "carriers": [{ "key": "N:41:509070", "tech": "NR", "band": 41, "arfcn": 509070, "bw_mhz": 50, "role_pct_pcc": 0, "samples": 1402, "rsrp": [], "rsrq": [], "sinr": [], "rssi": [] }],
+  "antennas": [{ "tech": "LTE", "port": 0, "rsrp": [], "median": -74 }],
+  "congestion": [{ "ts": 1794913500, "prb_share": 38.5, "prb_max_share": 61.2, "dl_bps": 84000000, "saturated": true, "samples": 6 }],
+  "restarts": [{ "boot_ts": 1794950000, "last_alive_ts": 1794949980, "down_sec": 20, "cause": "restart" }]
+}
+```
+
+(`series`, `cells` and the lists are abbreviated; every key of the type is present.)
+
+History-v3 additions to the shape:
+
+| Field | Meaning |
+|---|---|
+| `recorder.state` | `ok` (newest row within 180 s), `stale`, `low_space`, `empty`, `clock_unset`; `l1_enabled` is `quecmanager.history.l1_stats` |
+| `carriers[]` | every component carrier seen, keyed `L:<band>:<arfcn>` / `N:<band>:<arfcn>`, with RSRP/RSRQ/SINR/RSSI series and `role_pct_pcc`; `cells.band_series` is the same data keyed `B<n>` / `N<n>` |
+| `antennas[]` | up to 8 entries (LTE 0-3, NR 0-3), RSRP series plus window median |
+| `congestion[]` | this device's PRB share per bucket; `saturated` = bucket mean `dl_bps` at least 20 Mbit/s with at least 3 PRB snapshots. Not cell load |
+| `restarts[]` | `boot_log.jsonl` entries inside the window; `cause` is `planned`, `restart`, `power_loss` or `unknown` |
+| `device_utc_offset_min` | device offset from UTC in minutes (day files are cut in UTC; all maths is in epoch seconds) |
+| `series` ids | `rsrp sinr rsrq rssi temp cqi rank mcs tx_power total_cells cpu mem dl ul ca bw lte_mcs nr_mcs lte_ri nr_ri lte_cqi nr_cqi ul_mcs lat jit loss` (`lat`/`jit`/`loss` come from the ping archive) |
+
+Series bucket by range: 1h/3h 60 s, 6h 120 s, 12h/24h 300 s, 7d 1800 s, 30d 7200 s. A cold response after a reboot can be **partial** (the newest pieces first); it carries no flag, and `window.first_ts` reports the span actually covered. A partial answer is never cached.
+
+**Errors** (standard envelope): `invalid_range` ("range must be 1h, 3h, 6h, 12h, 24h, 7d or 30d"), `internal_error` (aggregator library missing), `aggregation_failed` (merge produced no output).
+
 ### GET `/at_cmd/fetch_ping_history.sh`
 
-Returns ping history entries as a JSON array.
+**No query** returns the ping history ring (one entry per 10 s tick, tmpfs, lost on reboot) as a JSON array. Unchanged, byte for byte.
 
-**Response:**
 ```json
 [
   {
@@ -354,6 +392,24 @@ Returns ping history entries as a JSON array.
   }
 ]
 ```
+
+**`?range=1h|6h|24h|7d`** returns the persisted per-minute archive (`/usrdata/qmanager/ping_history`, kept 14 days) as `PingHistoryRanged` (`types/ping-history.ts`), with the current partial minute folded in from the ring. Buckets: 1h 60 s, 6h 60 s, 24h 300 s, 7d 1800 s. Buckets with no probes are omitted. Detail: [`docs/features/connection-quality.md`](features/connection-quality.md#per-minute-ping-archive).
+
+```json
+{
+  "success": true, "range": "24h", "bucket_sec": 300, "generated_at": 1795000000,
+  "window": { "start": 1794913600, "end": 1795000000 },
+  "points": [
+    { "ts": 1794913500, "n": 30, "ok": 29, "avg": 41.2, "min": 29.8, "max": 77.5, "jit": 6.1, "loss": 3.3 }
+  ],
+  "restarts": [
+    { "boot_ts": 1794950000, "last_alive_ts": 1794949980, "down_sec": 20, "cause": "restart" }
+  ],
+  "device_utc_offset_min": 300
+}
+```
+
+`avg`, `min` and `max` are `null` when no probe was answered in the bucket; `jit` is `null` unless at least two consecutive probes were answered in a minute. Errors: `invalid_range` ("range must be 1h, 6h, 24h or 7d"), `internal_error`.
 
 ### POST `/at_cmd/send_command.sh`
 

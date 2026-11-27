@@ -1,3 +1,52 @@
+# 🚀 QManager BETA v0.1.36-suncomm6
+
+Cell History has been rebuilt from the ground up, and Connection Quality now keeps a full day or more of history that survives reboots. Cell History records every band your modem aggregates, not just the primary one, and adds modulation, rank, channel quality, how much of the cell your device gets under load, antenna balance and router restarts, with 7 and 30 day views that open quickly. It also fixes a bug that silently stopped recording once storage filled up. The dashboard gains an antenna warning when a receive antenna looks disconnected, and background browser tabs no longer keep the modem working at full speed.
+
+## ✨ New Features
+
+- **Every band in Cell History.** The page now shows each carrier your modem is using, with its band, how often it was the primary one, when it was present, and a signal chart per carrier (RSRP, SINR, RSRQ or RSSI). Pick one carrier to isolate it. Carrier count and total bandwidth have their own chart.
+- **Radio detail: modulation, rank and channel quality.** A new section shows download and uplink modulation (MCS), MIMO rank, channel quality (CQI) and transmit power over time. The MCS, rank and congestion readings are off by default, because they ask the modem for extra information; the page says "Reporting off" until they are switched on from the command line (see the Cell History documentation).
+- **Congestion.** A new card shows how much of the carrier your device was given while the link was busy, next to your download speed. It only means something while the link is saturated, so quieter periods are drawn faint and dashed rather than as a verdict.
+- **Antenna balance.** Cell History plots the four receive antennas for each radio and tells you in words when some are far weaker than the others, for example when a cable has come loose.
+- **Antenna warning on the dashboard.** When an antenna reads far below its siblings on the same band, a chip appears in the status area and links to the Antenna Statistics page. It only shows while the problem is real, and it waits for a steady reading so a single odd sample cannot trigger it.
+- **7 and 30 day views, and restart markers.** Cell History now offers 7 and 30 day ranges. Every chart marks the moments the router restarted and tells you whether it was a planned reboot, a quick restart or a power loss. Hover any chart and every other chart shows the same moment.
+- **Connection Quality full view.** The Connection Quality card on the dashboard has a new expand button. It opens a wide view with latency (including the best and worst of each minute), jitter and packet loss over 1 hour, 6 hours, 24 hours or 7 days. Hover anywhere on the charts to read the exact latency, jitter, loss and probes answered for that minute. Router restarts are marked, and the footer shows typical latency, worst latency, loss and uptime.
+- **Connection history survives reboots.** Connection Quality is now recorded once a minute and kept for two weeks, so you can look back at last night even after the router restarted. It keeps recording when the modem cannot be reached, which is also how QManager tells you whether a restart was a power cut or a crash.
+- **Hover on the dashboard strips.** Every block on the Connection Quality strips now shows its time span, average latency, jitter and loss when you hover or focus it.
+
+## ✅ Improvements
+
+- **Recording no longer stops when storage fills up.** Cell History could stop recording for good once the router ran low on free space, and never recovered. Old days are now compressed and trimmed first, and recording resumes by itself as soon as space allows. The page tells you when recording is paused or stopped instead of presenting old data as current.
+- **Cell History keeps more, in less space.** Rows now record every carrier and are compressed once a day closes, so the archive keeps up to 30 days within a smaller storage budget.
+- **A page that tells the truth about gaps.** The history window now always ends at the present moment. If recording stopped, the end of the chart is empty and a notice explains why.
+- **Much faster long views.** Day, week and month views are prepared once and reused, so they no longer stall the router while they load. After a reboot the first long view may show only the most recent part while the rest is prepared in the background.
+- **Fresher carriers when you are away.** While the dashboard is closed, the history row now refreshes the carrier list once a minute instead of repeating the last values it saw.
+- **Background tabs stop polling.** A dashboard left open in a hidden browser tab no longer keeps asking the router for updates, so the modem can drop back to its slower idle polling. It refreshes once the moment you return to the tab.
+- **Time zone notice.** If the router's clock is set to a different time zone than your browser, Cell History now says so; times on the page are always shown in your browser's time zone.
+- **Cell History panel choices reset once.** The panel picker was rebuilt, so panels return to their defaults the first time you open the new page. Pick the ones you want again; they are remembered per browser.
+- **Debug report includes history.** The debug report now lists the history archives, their recorder status and the most recent restarts, to make support easier.
+- **More languages covered.** All new text is available in English, Simplified Chinese, Traditional Chinese, Italian and Indonesian.
+
+## 📥 Installation
+
+### Fresh Install
+
+```sh
+curl -fsSL -o /tmp/qmanager-installer.sh https://raw.githubusercontent.com/dr-dolomite/QManager/development-home/qmanager-installer.sh && sh /tmp/qmanager-installer.sh
+```
+
+### Upgrading from v0.1.36-suncomm5
+
+**System Settings → Software Update.** No migration steps needed. Cell History keeps your existing records and starts adding the new detail about a minute after the update; older records stay readable but do not include the extra carriers. Connection Quality history starts recording from the first minute after the update. The modulation, rank and congestion readings stay off until you enable them.
+
+## 💙 Thank You
+
+Thank you to everyone who reported dropouts and slow nights and helped narrow them down to a band, a cell and an antenna.
+
+Bug reports and feature requests welcome on [GitHub Issues](https://github.com/dr-dolomite/QManager/issues).
+
+---
+
 # 🚀 QManager BETA v0.1.35
 
 v0.1.35 adds real-time signal readings on Antenna Alignment and the dashboard, plus one new setting: PCIe power saving for the ethernet port, which now defaults to Performance. Modems that shipped with aggressive power saving on the ethernet controller can see dropouts and extra latency on the LAN port, and QManager now keeps that controller fully awake unless you choose otherwise. The dashboard also gets its Data Used total back, now counted from the modem itself. Tailscale installs can now use iamromulan's smaller Tiny build where the firmware supports it.
