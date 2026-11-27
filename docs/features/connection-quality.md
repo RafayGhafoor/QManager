@@ -21,7 +21,7 @@ The Connection Quality settings page (Monitoring → Connection Quality) control
 | Ping daemon output | `/tmp/qmanager_ping.json` |
 | Ping archive (history-v3) | `/usrdata/qmanager/ping_history/YYYY-MM-DD.jsonl[.gz]`, row `[ts,n,ok,avg,min,max,jit,loss]`, 14 d / 512 KB / 4096 KB floor, written by `ping_minute_tick` in `qmanager_poller` |
 | Ranged history CGI | `GET /cgi-bin/quecmanager/at_cmd/fetch_ping_history.sh?range=1h\|6h\|24h\|7d` (no query = the unchanged 10 s ring) |
-| Restart log | `/usrdata/qmanager/boot_log.jsonl` (cap 60 lines), once-per-boot marker `/tmp/qmanager_boot_logged` |
+| Restart log | `/usrdata/qmanager/boot_log.jsonl` (cap 60 lines), once-per-boot marker `/tmp/qmanager_boot_logged`, clock-trusted marker `/tmp/qmanager_clock_synced` (hotplug `ntp/26-qmanager-clock`) |
 | Types / hook | `types/ping-history.ts`, `hooks/use-ping-history.ts`, dashboard `connection-quality-dialog.tsx` |
 | Shared ping-cache reader + profile table | `scripts/usr/lib/qmanager/conn_state.sh` (`conn_state_read`, `conn_state_resolve`, `conn_state_cadence`); sourced by `qmanager_ping`, `qmanager_poller`, `qmanager_watchcat`, `ping_profile.sh`, `watchdog.sh` |
 | Reboot required | No |
@@ -481,6 +481,7 @@ The tmpfs ring (`/tmp/qmanager_ping_history.json`, one NDJSON row per 10 s tick,
 | `loss` | integer 0-100, unanswered share of `n`; `null` when the minute holds no measured probe |
 
 - **Which samples count.** `ping_minute_tick` runs on every Tier 1.5 tick (10 s), **including during a scan or SIM switch**. A tick counts only when the ping daemon's cache is fresh (`connectivity.internet_available` is `true` or `false`) and the attach warm-up flag (`/tmp/qmanager_ping_attaching`) is not holding it back. Stale or missing ping data is not packet loss.
+- **No row is written on an untrusted clock** (`clock_trusted`, see [Restart history](#restart-history)): the pre-NTP clock would stamp rows minutes or days off.
 - **The row is written whatever the modem does.** A minute whose ticks counted nothing still gets a row (`n=0`, readings `null`). **Why:** the newest row is the poller's **heartbeat**: the restart log compares it with the boot time. The aggregator skips `n=0` rows.
 - **A row lands when the next minute begins**, so the minute in progress is not in the archive; the ranged CGI folds it in from the ring.
 - **Budget.** 14 days, 512 KB, free-space floor 4096 KB (`PING_ARCHIVE_*` constants in the poller; unlike the cell archive they have no UCI override). Maintenance is the same `hs_maintain` (expire, gzip one closed day, cap, floor) described in [cell-history.md](cell-history.md#maintenance-order-hs_maintain), with state in `/tmp/qmanager_ping_history_state`. The first row of a poller life learns whether the floor allows writing, except when the row belongs to a day that has already closed (that pass would compress the file the row is about to be appended to); rotation and the hourly retry run **after** the row is written for the same reason.
@@ -525,10 +526,14 @@ The tmpfs ring (`/tmp/qmanager_ping_history.json`, one NDJSON row per 10 s tick,
 
 `boot_log_try` runs on the 10 s tick and records **once per boot**:
 
-1. It waits until the wall clock is sane (after 2024-01-01) **and** the box has been up at least 60 s, so a clock still being set by NITZ/NTP cannot stamp a bogus `boot_ts`.
-2. `boot_ts = now - uptime` (monotonic).
+1. It waits until the clock is **trusted** (`clock_trusted`, below) **and** the box has been up at least 60 s. The board has no RTC: `sysfixtime` sets the clock to the newest `/etc` mtime, so right after boot the time passes the 2024 sanity check yet can be minutes or days off until NTP corrects it.
+2. `boot_ts = now - uptime` (monotonic), computed only once the clock is trusted.
 3. It is skipped if `/tmp/qmanager_boot_logged` exists (tmpfs, so it is gone after a reboot and survives a poller restart) or if the log already has a `boot_ts` within 5 s of this one.
-4. `last_alive_ts` is the newest ping-minute row older than `boot_ts`, searched back through up to 15 day files (plain or gzipped). `down_sec` is `boot_ts - last_alive_ts`.
+4. `last_alive_ts` is the newest ping-minute row the archive held **when this poller started**: `boot_log_prime()` captures it once in `main()`, before the first flush of this life (`_bl_capture_alive`: the newest day files by *name*, so a wrong clock cannot hide them; plain or gzipped; at most three days). `down_sec` is `boot_ts - last_alive_ts`. **Why captured, not looked up later:** the first ping-minute row of a boot is stamped at its minute start, which can precede `boot_ts`; an archive scan at log time found that row (a gap of under 20 s) and called every restart a `restart`. A captured value at or after `boot_ts` is no heartbeat (the cause degrades to `unknown`). A poller respawn with a trusted clock excludes rows stamped after `now - uptime`; the one residual case, a respawn in the first minute or two before the boot is logged, can still pick up a row of this boot.
+
+### `clock_trusted`
+
+True when any of: `/tmp/qmanager_clock_synced` exists (written by the shipped `/etc/hotplug.d/ntp/26-qmanager-clock` on `ACTION=stratum` or `step`), `/var/state/dnsmasqsec` exists (stock `25-dnsmasqsec`, written on the first ntpd stratum event), or uptime is at least 1800 s (`CLOCK_TRUST_UPTIME`; the fallback when NTP never syncs). Until then **neither archive is written** (cell rows and ping-minute rows) and the L1 sampler is idle. The ping accumulator is reset on every untrusted tick, so the first trusted minute averages only trusted samples. `uninstall.sh` removes the hook and the marker.
 
 Classification:
 
