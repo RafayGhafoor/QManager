@@ -486,9 +486,9 @@ export const QUALITY_DIALOG = {
   /** The crosshair group every chart in the dialog joins. */
   SYNC_ID: "cq-dialog",
   /** Chart boxes: ONE height per chart in every state, so loading never shifts layout. */
-  BOX_LATENCY: "h-[220px] w-full",
-  BOX_JITTER: "h-[120px] w-full",
-  BOX_LOSS: "h-[96px] w-full",
+  BOX_LATENCY: "h-[244px] w-full",
+  BOX_JITTER: "h-[144px] w-full",
+  BOX_LOSS: "h-[120px] w-full",
   BOX_STRIP: "h-[48px] w-full",
   /** The dialog's content box. */
   CONTENT:

@@ -592,7 +592,7 @@ export default function ConnectionQualityDialog({
     const lossCutVisible = lossCut !== undefined && lossCut <= model.yLoss;
     const causes = [...new Set(model.restarts.map((r) => r.cause))];
 
-    const xAxis = (hidden: boolean) => (
+    const xAxis = () => (
       <XAxis
         dataKey="ms"
         type="number"
@@ -600,7 +600,6 @@ export default function ConnectionQualityDialog({
         domain={[startMs, endMs]}
         ticks={ticks}
         tickFormatter={(v) => formatAxisTick(v, model.longSpan)}
-        hide={hidden}
         tickLine={false}
         axisLine={false}
         minTickGap={28}
@@ -671,7 +670,7 @@ export default function ConnectionQualityDialog({
             >
               <ComposedChart {...common}>
                 <CartesianGrid vertical={false} stroke="var(--border)" />
-                {xAxis(true)}
+                {xAxis()}
                 {yAxis([0, model.yLatency], (v) => `${v}`)}
                 <ChartTooltip {...tooltipProps} content={tip("latency")} />
                 {latencyCutVisible ? (
@@ -726,7 +725,7 @@ export default function ConnectionQualityDialog({
             >
               <ComposedChart {...common}>
                 <CartesianGrid vertical={false} stroke="var(--border)" />
-                {xAxis(true)}
+                {xAxis()}
                 {yAxis([0, model.yJitter], (v) => `${v}`, 3)}
                 <ChartTooltip {...tooltipProps} content={tip("jitter")} />
                 {restartLines(model.restarts)}
@@ -781,7 +780,7 @@ export default function ConnectionQualityDialog({
             >
               <ComposedChart {...common}>
                 <CartesianGrid vertical={false} stroke="var(--border)" />
-                {xAxis(true)}
+                {xAxis()}
                 {yAxis([0, model.yLoss], (v) => `${v}${pct}`, 3)}
                 <ChartTooltip {...tooltipProps} content={tip("loss")} />
                 {lossCutVisible ? (
@@ -817,7 +816,7 @@ export default function ConnectionQualityDialog({
               aria-label={t("connection_quality.dialog.reach_aria")}
             >
               <ComposedChart {...common} margin={{ ...DLG.MARGIN, top: 0 }}>
-                {xAxis(false)}
+                {xAxis()}
                 <YAxis
                   width={DLG.Y_AXIS_W}
                   domain={[0, 1]}
