@@ -1,3 +1,37 @@
+# 🚀 QManager BETA v0.1.36-suncomm7
+
+This release makes Cell History easier to read at a glance and adds 5G transmit power. Every signal line is now coloured by how good the reading was at that moment, so a bad stretch stands out in red without hovering. The Connection Quality full view also gains timestamps on each of its charts.
+
+## ✨ New Features
+
+- **Colour by quality on every chart.** RSRP, RSRQ, SINR (including each carrier), antenna ports, channel quality, modulation, transmit power, latency, jitter, packet loss, temperature, CPU and memory are drawn green when good, amber when fair and red when poor, point by point. A Good / Fair / Poor key explains the colours, and tooltip swatches follow the same colours. Lines stay distinguishable by their dash pattern and label.
+- **5G transmit power.** Cell History now records 5G transmit power alongside LTE, drawn as two lines on the TX power chart (LTE dashed, 5G solid). Like the other radio detail readings, it is only recorded when the extra radio reporting is switched on.
+
+## ✅ Improvements
+
+- **Timestamps on every Connection Quality chart.** The latency, jitter and packet loss charts in the full view now carry their own time axis, like the Cell History charts, instead of relying on the strip at the bottom.
+- **More languages covered.** The new text is available in English, Simplified Chinese, Traditional Chinese, Italian and Indonesian.
+
+## 📥 Installation
+
+### Fresh Install
+
+```sh
+curl -fsSL -o /tmp/qmanager-installer.sh https://raw.githubusercontent.com/dr-dolomite/QManager/development-home/qmanager-installer.sh && sh /tmp/qmanager-installer.sh
+```
+
+### Upgrading from v0.1.36-suncomm6
+
+**System Settings → Software Update.** No migration steps needed. Existing Cell History records stay readable; 5G transmit power starts appearing about a minute after the update if radio reporting is on.
+
+## 💙 Thank You
+
+Thank you to everyone who asked for bad moments to be visible without hunting for them.
+
+Bug reports and feature requests welcome on [GitHub Issues](https://github.com/dr-dolomite/QManager/issues).
+
+---
+
 # 🚀 QManager BETA v0.1.36-suncomm6
 
 Cell History has been rebuilt from the ground up, and Connection Quality now keeps a full day or more of history that survives reboots. Cell History records every band your modem aggregates, not just the primary one, and adds modulation, rank, channel quality, how much of the cell your device gets under load, antenna balance and router restarts, with 7 and 30 day views that open quickly. It also fixes a bug that silently stopped recording once storage filled up. The dashboard gains an antenna warning when a receive antenna looks disconnected, and background browser tabs no longer keep the modem working at full speed.
